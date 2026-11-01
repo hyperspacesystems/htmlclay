@@ -37,6 +37,7 @@ env:
   WORKFLOW_SHA: ${{ github.workflow_sha }}
 jobs:
   verify:
+    name: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -65,12 +66,12 @@ jobs:
         name: identity
         path: identity/identity.json
         if-no-files-found: error
-    - uses: actions/upload-artifact@v4
-      with:
-        name: candidate
-        path: candidate.tar.gz
-        if-no-files-found: error
-    name: verify
+    - name: Transfer verified candidate to private storage
+      run: python3 trusted/scripts/platform_candidate_io.py transfer candidate.tar.gz candidate.tar.gz
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
   test-macos:
     name: test-macos
     runs-on: macos-latest
@@ -89,10 +90,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -123,10 +129,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -157,10 +168,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -191,10 +207,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -219,10 +240,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -265,10 +291,12 @@ jobs:
     - name: Install private storage CLI
       run: python3 -m pip install awscli
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -310,11 +338,6 @@ jobs:
         VERSION: ${{ needs.verify.outputs.version }}
         GOARCH: amd64
       run: gzip -9 -n -c htmlclay > "htmlclay-${VERSION}-linux-${GOARCH}.gz"
-    - uses: actions/upload-artifact@v4
-      with:
-        name: htmlclay-linux-amd64.tar.gz
-        path: candidate/htmlclay-linux-amd64.tar.gz
-        if-no-files-found: error
     - name: Retain htmlclay-linux-amd64.tar.gz
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-linux-amd64.tar.gz"
         "htmlclay-linux-amd64.tar.gz"
@@ -322,11 +345,6 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
-        path: candidate/htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
-        if-no-files-found: error
     - name: Retain htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-${{ needs.verify.outputs.version
         }}-linux-amd64.gz" "htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz"
@@ -355,10 +373,12 @@ jobs:
     - name: Install private storage CLI
       run: python3 -m pip install awscli
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -398,11 +418,6 @@ jobs:
         VERSION: ${{ needs.verify.outputs.version }}
         GOARCH: arm64
       run: gzip -9 -n -c htmlclay > "htmlclay-${VERSION}-linux-${GOARCH}.gz"
-    - uses: actions/upload-artifact@v4
-      with:
-        name: htmlclay-linux-arm64.tar.gz
-        path: candidate/htmlclay-linux-arm64.tar.gz
-        if-no-files-found: error
     - name: Retain htmlclay-linux-arm64.tar.gz
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-linux-arm64.tar.gz"
         "htmlclay-linux-arm64.tar.gz"
@@ -410,11 +425,6 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
-        path: candidate/htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
-        if-no-files-found: error
     - name: Retain htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-${{ needs.verify.outputs.version
         }}-linux-arm64.gz" "htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz"
@@ -443,10 +453,12 @@ jobs:
     - name: Install private storage CLI
       run: python3 -m pip install awscli
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -528,11 +540,6 @@ jobs:
     - name: Update artifact
       run: Copy-Item htmlclay.exe "htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe"
       shell: pwsh
-    - uses: actions/upload-artifact@v4
-      with:
-        name: htmlclay-windows-amd64.zip
-        path: candidate/htmlclay-windows-amd64.zip
-        if-no-files-found: error
     - name: Retain htmlclay-windows-amd64.zip
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-windows-amd64.zip"
         "htmlclay-windows-amd64.zip"
@@ -540,11 +547,6 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
-        path: candidate/htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
-        if-no-files-found: error
     - name: Retain htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-${{ needs.verify.outputs.version
         }}-windows-amd64.exe" "htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe"
@@ -573,10 +575,12 @@ jobs:
     - name: Install private storage CLI
       run: python3 -m pip install awscli
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -655,11 +659,6 @@ jobs:
     - name: Update artifact
       run: Copy-Item htmlclay.exe "htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe"
       shell: pwsh
-    - uses: actions/upload-artifact@v4
-      with:
-        name: htmlclay-windows-arm64.zip
-        path: candidate/htmlclay-windows-arm64.zip
-        if-no-files-found: error
     - name: Retain htmlclay-windows-arm64.zip
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-windows-arm64.zip"
         "htmlclay-windows-arm64.zip"
@@ -667,11 +666,6 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
-        path: candidate/htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
-        if-no-files-found: error
     - name: Retain htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-${{ needs.verify.outputs.version
         }}-windows-arm64.exe" "htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe"
@@ -700,10 +694,12 @@ jobs:
     - name: Install private storage CLI
       run: python3 -m pip install awscli
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -752,11 +748,6 @@ jobs:
       run: test -s "HTMLClay-${VERSION}-universal.app.zip"
       env:
         VERSION: ${{ needs.verify.outputs.version }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
-        path: candidate/HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
-        if-no-files-found: error
     - name: Retain HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/HTMLClay-${{ needs.verify.outputs.version
         }}-universal.dmg" "HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg"
@@ -764,11 +755,6 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
-        path: candidate/HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
-        if-no-files-found: error
     - name: Retain HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/HTMLClay-${{ needs.verify.outputs.version
         }}-universal.app.zip" "HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip"
@@ -798,18 +784,22 @@ jobs:
     - name: Install private storage CLI
       run: python3 -m pip install awscli
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
-        path: candidate
+    - name: Download private HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
+      run: python3 trusted/scripts/platform_candidate_io.py download out "HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip" "candidate/HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Sign the Sparkle update
       env:
         VERSION: ${{ needs.verify.outputs.version }}
@@ -831,11 +821,6 @@ jobs:
         bash packaging/macos/sparkle-appcast.sh "$VERSION" "HTMLClay-${VERSION}-universal.app.zip" sparkle-out
     - name: Bundle Sparkle output
       run: tar czf sparkle-out.tar.gz -C sparkle-out .
-    - uses: actions/upload-artifact@v4
-      with:
-        name: sparkle-out.tar.gz
-        path: candidate/sparkle-out.tar.gz
-        if-no-files-found: error
     - name: Retain sparkle-out.tar.gz
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/sparkle-out.tar.gz"
         "sparkle-out.tar.gz"
@@ -868,10 +853,12 @@ jobs:
     - name: Install private storage CLI
       run: python3 -m pip install awscli
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -880,22 +867,30 @@ jobs:
       with:
         go-version: '1.26'
         cache-dependency-path: candidate/go.sum
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
-        path: candidate/updates
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
-        path: candidate/updates
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
-        path: candidate/updates
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
-        path: candidate/updates
+    - name: Download private htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz" "candidate/updates/htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - name: Download private htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz" "candidate/updates/htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - name: Download private htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe" "candidate/updates/htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - name: Download private htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe" "candidate/updates/htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Prepare and sign private update feed
       run: |
         go run ./cmd/mkfeed payload -version "$VERSION" -source-sha "$SOURCE_SHA" -date "$PAYLOAD_DATE" updates > update-payload.json
@@ -916,11 +911,6 @@ jobs:
         PAYLOAD_DATE: ${{ needs.verify.outputs.payload_date }}
         HTMLCLAY_UPDATE_SEED: ${{ secrets.HTMLCLAY_UPDATE_SEED }}
         HTMLCLAY_UPDATE_KEY_ID: ${{ vars.HTMLCLAY_UPDATE_KEY_ID }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: update-payload.json
-        path: candidate/update-payload.json
-        if-no-files-found: error
     - name: Retain update-payload.json
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/update-payload.json"
         "update-payload.json"
@@ -928,11 +918,6 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: update-feed.tar.gz
-        path: candidate/update-feed.tar.gz
-        if-no-files-found: error
     - name: Retain update-feed.tar.gz
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/update-feed.tar.gz"
         "update-feed.tar.gz"
@@ -966,41 +951,48 @@ jobs:
     - name: Install private storage CLI
       run: python3 -m pip install awscli
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
       working-directory: .
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-amd64.tar.gz
-        path: candidate/artifacts
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-arm64.tar.gz
-        path: candidate/artifacts
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-windows-amd64.zip
-        path: candidate/artifacts
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-windows-arm64.zip
-        path: candidate/artifacts
-    - uses: actions/download-artifact@v4
-      with:
-        name: HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
-        path: candidate/artifacts
+    - name: Download private htmlclay-linux-amd64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-amd64.tar.gz" "candidate/artifacts/htmlclay-linux-amd64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - name: Download private htmlclay-linux-arm64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-arm64.tar.gz" "candidate/artifacts/htmlclay-linux-arm64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - name: Download private htmlclay-windows-amd64.zip
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-windows-amd64.zip" "candidate/artifacts/htmlclay-windows-amd64.zip"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - name: Download private htmlclay-windows-arm64.zip
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-windows-arm64.zip" "candidate/artifacts/htmlclay-windows-arm64.zip"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - name: Download private HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
+      run: python3 trusted/scripts/platform_candidate_io.py download out "HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg" "candidate/artifacts/HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Checksum retained installers
       run: (cd artifacts && sha256sum *) > SHA256SUMS
-    - uses: actions/upload-artifact@v4
-      with:
-        name: SHA256SUMS
-        path: candidate/SHA256SUMS
-        if-no-files-found: error
     - name: Retain SHA256SUMS
       run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/SHA256SUMS" "SHA256SUMS"
       working-directory: .
@@ -1026,10 +1018,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1037,10 +1034,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-amd64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-amd64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-amd64.tar.gz" "retained/htmlclay-linux-amd64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1087,10 +1086,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1098,10 +1102,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-amd64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-amd64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-amd64.tar.gz" "retained/htmlclay-linux-amd64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1148,10 +1154,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1159,10 +1170,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-amd64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-amd64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-amd64.tar.gz" "retained/htmlclay-linux-amd64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1209,10 +1222,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1220,10 +1238,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-amd64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-amd64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-amd64.tar.gz" "retained/htmlclay-linux-amd64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1270,10 +1290,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1281,10 +1306,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-amd64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-amd64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-amd64.tar.gz" "retained/htmlclay-linux-amd64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1331,10 +1358,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1342,10 +1374,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-arm64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-arm64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-arm64.tar.gz" "retained/htmlclay-linux-arm64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1392,10 +1426,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1403,10 +1442,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-arm64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-arm64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-arm64.tar.gz" "retained/htmlclay-linux-arm64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1453,10 +1494,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1464,10 +1510,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-arm64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-arm64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-arm64.tar.gz" "retained/htmlclay-linux-arm64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1514,10 +1562,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1525,10 +1578,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-arm64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-arm64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-arm64.tar.gz" "retained/htmlclay-linux-arm64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"
@@ -1575,10 +1630,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - uses: actions/download-artifact@v4
-      with:
-        name: candidate
-        path: candidate-input
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract verified candidate
       run: |
         python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
@@ -1586,10 +1646,12 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-    - uses: actions/download-artifact@v4
-      with:
-        name: htmlclay-linux-arm64.tar.gz
-        path: retained
+    - name: Download private htmlclay-linux-arm64.tar.gz
+      run: python3 trusted/scripts/platform_candidate_io.py download out "htmlclay-linux-arm64.tar.gz" "retained/htmlclay-linux-arm64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
     - name: Extract retained Linux package
       run: |
         mkdir -p "$GITHUB_WORKSPACE/retained/package"

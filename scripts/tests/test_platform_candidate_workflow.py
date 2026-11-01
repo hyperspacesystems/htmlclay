@@ -68,8 +68,10 @@ class PlatformWorkflowTests(unittest.TestCase):
             if name == 'verify':
                 continue
             self.assertEqual(job['defaults']['run']['working-directory'], 'candidate')
-            downloads = [s['with'] for s in job['steps'] if s.get('uses') == 'actions/download-artifact@v4']
-            self.assertIn({'name': 'candidate', 'path': 'candidate-input'}, downloads)
+            download = next(s for s in job['steps'] if s.get('name') == 'Download private candidate')
+            self.assertIn('download transfer "candidate.tar.gz" "candidate-input/candidate.tar.gz"', download['run'])
+            self.assertEqual(download['working-directory'], '.')
+            self.assertTrue(any(s.get('name') == 'Install private storage CLI' for s in job['steps']))
             extract = next(s for s in job['steps'] if s.get('name') == 'Extract verified candidate')
             self.assertIn('platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate', extract['run'])
             self.assertEqual(extract['working-directory'], '.')
@@ -84,7 +86,7 @@ class PlatformWorkflowTests(unittest.TestCase):
             self.assertEqual(check['env']['HTMLCLAY_PACKAGE_DIR'], '${{ github.workspace }}/retained/package')
             self.assertEqual(check['env']['HTMLCLAY_BIN'], '${{ github.workspace }}/retained/package/htmlclay')
             self.assertEqual(check['env']['CHECKS'], graph['env']['CHECKS'])
-            self.assertTrue(any(s.get('with', {}).get('name') == graph['artifact'] for s in job['steps']))
+            self.assertTrue(any('download out "' + graph['artifact'] + '"' in s.get('run', '') for s in job['steps']))
             diagnostics = job['steps'][-1]
             self.assertEqual(diagnostics['if'], 'always()')
 
@@ -94,28 +96,34 @@ class PlatformWorkflowTests(unittest.TestCase):
         self.assertNotIn('${{ inputs.version }}', text)
         self.assertNotIn('${{ matrix.', text)
         retained = []
+        uploads = []
         for name, job in self.jobs.items():
             for step in job['steps']:
-                if step.get('uses') != 'actions/upload-artifact@v4':
-                    continue
-                artifact = step['with']
-                self.assertEqual(artifact['if-no-files-found'], 'error')
-                self.assertNotIn('*', artifact['path'])
-                if name == 'verify' or name.startswith('linux-'):
-                    continue
-                retention = next(s for s in job['steps'] if s.get('name') == 'Retain ' + artifact['name'])
-                self.assertIn('platform_candidate_io.py" retain "' + artifact['path'] + '"', retention['run'])
-                retained.append(artifact['name'])
-        self.assertEqual(len(retained), 14)
-        for name, job in self.jobs.items():
-            for step in job['steps']:
-                env = step.get('env', {})
-                if 'AWS_ACCESS_KEY_ID' in env:
-                    self.assertTrue(step['name'].startswith(('Retain ', 'Download and verify')))
+                uses = step.get('uses', '')
+                self.assertFalse(uses.startswith('actions/download-artifact@'))
+                if uses.startswith('actions/upload-artifact@'):
+                    artifact = step['with']
+                    uploads.append(artifact)
+                    self.assertEqual(artifact['if-no-files-found'], 'error')
+                    allowed = ('identity/identity.json' if artifact['name'] == 'identity'
+                               else 'desktop-diagnostics.tar.gz' if artifact['name'] == name + '-diagnostics'
+                               and name.startswith('linux-') else None)
+                    self.assertEqual(artifact['path'], allowed,
+                                     'GitHub artifacts must contain only identity or check diagnostics')
+                if step.get('name', '').startswith('Retain '):
+                    retained.append(step['name'][7:])
+                    self.assertIn('platform_candidate_io.py" retain ', step['run'])
+                if 'AWS_ACCESS_KEY_ID' in step.get('env', {}):
+                    self.assertTrue(step['name'].startswith(('Retain ', 'Download ', 'Transfer ')))
+        self.assertEqual(len(uploads), 11)
+        contract = json.loads(subprocess.check_output(
+            [sys.executable, str(ROOT / 'scripts/release_candidate.py'), 'contract'], text=True))
+        self.assertEqual(list(self.jobs), contract['checks'])
+        self.assertCountEqual([name.replace('${{ needs.verify.outputs.version }}', '{version}') for name in retained],
+                              [name for name in contract['artifacts'] if name != 'identity'])
         source = (ROOT / 'scripts/platform_candidate_io.py').read_text()
         self.assertIn('BUCKET = "hyperclay-candidates"', source)
         self.assertNotIn('s3://', source)
-        self.assertIn('"/out/" + name', source)
 
     def test_signature_and_feed_requirements_preserved(self):
         for arch in ('amd64', 'arm64'):
@@ -161,7 +169,8 @@ class CandidateTransportTests(unittest.TestCase):
                 bundle.add(source, arcname=source.name)
         dispatch = {k: manifest[k] for k in ('app', 'attempt', 'candidate_sha256', 'workflow_sha')}
         dispatch['manifest_identity'] = identity
-        head = {'Metadata': {'sha256': transport.digest(archive), 'manifest-identity': identity}}
+        head = {'ContentLength': archive.stat().st_size,
+                'Metadata': {'sha256': transport.digest(archive), 'manifest-identity': identity}}
         return archive, head, dispatch
 
     def test_validated_archive_and_dispatch_mismatches(self):
@@ -174,6 +183,8 @@ class CandidateTransportTests(unittest.TestCase):
             for field in ('app', 'attempt', 'candidate_sha256', 'workflow_sha', 'manifest_identity'):
                 with self.subTest(field=field), self.assertRaises(ValueError):
                     transport.validate(archive, head, dict(dispatch, **{field: 'wrong'}), output)
+            with self.assertRaisesRegex(ValueError, 'ContentLength'):
+                transport.validate(archive, dict(head, ContentLength=1), dispatch, output)
             bad = copy.deepcopy(head)
             bad['Metadata']['sha256'] = '0' * 64
             with self.assertRaisesRegex(ValueError, 'archive sha256'):
@@ -242,15 +253,47 @@ class CandidateTransportTests(unittest.TestCase):
                 calls.append(args)
                 if args[0] == 'get-object':
                     Path(args[-1]).write_bytes(path.read_bytes())
-                    return {'Metadata': {'sha256': transport.digest(path)}}
+                    return {'ContentLength': path.stat().st_size, 'Metadata': {'sha256': transport.digest(path)}}
                 return {}
-            with patch.dict(os.environ, CANDIDATE_KEY='candidates/attempt/candidate.tar.gz'), patch.object(transport, 'aws', aws):
+            with patch.dict(os.environ, APP='htmlclay', CANDIDATE_SHA256='a' * 64, ATTEMPT='attempt'), patch.object(transport, 'aws', aws):
                 transport.retain(path, 'signed.exe')
-                self.assertEqual(calls[0][2], 'candidates/attempt/out/signed.exe')
+                self.assertEqual(calls[0][2], 'candidates/htmlclay/' + 'a' * 64 + '/attempt/out/signed.exe')
                 self.assertEqual(calls[0][-1], 'sha256=' + transport.digest(path))
-            with patch.dict(os.environ, CANDIDATE_KEY='candidates/attempt/candidate.tar.gz'), patch.object(transport, 'aws', return_value={}):
+            def corrupt(*args):
+                if args[0] == 'get-object':
+                    Path(args[-1]).write_bytes(b'corrupt')
+                return {}
+            with patch.dict(os.environ, APP='htmlclay', CANDIDATE_SHA256='a' * 64, ATTEMPT='attempt'), patch.object(transport, 'aws', corrupt):
                 with self.assertRaisesRegex(ValueError, 'hash mismatch'):
                     transport.retain(path, 'signed.exe')
+
+    def test_transfer_and_download_require_digest_and_length(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'candidate.tar.gz'
+            source.write_bytes(b'private source fixture')
+            objects = {}
+            def aws(*args):
+                key = args[2]
+                if args[0] == 'put-object':
+                    objects[key] = (Path(args[4]).read_bytes(), args[6][7:])
+                    return {}
+                contents, checksum = objects[key]
+                Path(args[-1]).write_bytes(contents)
+                return {'Metadata': {'sha256': checksum}, 'ContentLength': len(contents)}
+            env = dict(APP='htmlclay', CANDIDATE_SHA256='a' * 64, ATTEMPT='fixture')
+            with patch.dict(os.environ, env), patch.object(transport, 'aws', aws):
+                transport.transfer(source, source.name)
+                key = 'candidates/htmlclay/' + 'a' * 64 + '/fixture/transfer/candidate.tar.gz'
+                self.assertEqual(objects[key][0], source.read_bytes())
+                target = root / 'input/candidate.tar.gz'
+                transport.download('transfer', source.name, target)
+                self.assertEqual(target.read_bytes(), source.read_bytes())
+                for head in ({'Metadata': {}, 'ContentLength': source.stat().st_size},
+                             {'Metadata': {'sha256': transport.digest(source)}, 'ContentLength': 1}):
+                    with self.subTest(head=head), patch.object(transport, 'aws', return_value=head):
+                        with self.assertRaises(ValueError):
+                            transport.download('transfer', source.name, target)
 
     def test_sparkle_uses_frozen_date_without_changing_checkout(self):
         original = ROOT / 'packaging/macos/sparkle-appcast.sh'

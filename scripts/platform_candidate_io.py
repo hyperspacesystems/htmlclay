@@ -49,6 +49,8 @@ def validate(archive, head, dispatch, destination):
     metadata = head.get("Metadata", {})
     if digest(archive) != metadata.get("sha256"):
         raise ValueError("candidate archive sha256 does not match R2 metadata")
+    if archive.stat().st_size != head.get("ContentLength"):
+        raise ValueError("candidate archive ContentLength mismatch")
     if metadata.get("manifest-identity") != dispatch["manifest_identity"]:
         raise ValueError("candidate R2 manifest identity does not match dispatch")
     extract(archive, destination)
@@ -97,18 +99,43 @@ def verify():
             stream.write(f"{name}={value}\n")
 
 
-def retain(path, name):
+def object_key(group, name):
+    if group not in ("transfer", "out") or not name or Path(name).name != name:
+        raise ValueError("expected a transfer or out filename")
+    return ("candidates/" + os.environ["APP"] + "/" + os.environ["CANDIDATE_SHA256"]
+            + "/" + os.environ["ATTEMPT"] + "/" + group + "/" + name)
+
+
+def download(group, name, destination):
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    head = aws("get-object", "--key", object_key(group, name), str(destination))
+    if digest(destination) != head.get("Metadata", {}).get("sha256"):
+        raise ValueError("retained output hash mismatch")
+    if destination.stat().st_size != head.get("ContentLength"):
+        raise ValueError("retained output ContentLength mismatch")
+
+
+def upload(path, name, group):
     path = Path(path)
     if not path.is_file() or path.stat().st_size == 0 or Path(name).name != name:
         raise ValueError("expected exactly one nonempty output file")
-    key = os.environ["CANDIDATE_KEY"].rsplit("/", 1)[0] + "/out/" + name
+    key = object_key(group, name)
     sha256 = digest(path)
     aws("put-object", "--key", key, "--body", str(path), "--metadata", "sha256=" + sha256)
     with tempfile.TemporaryDirectory() as directory:
         retained = Path(directory) / "retained"
-        head = aws("get-object", "--key", key, str(retained))
-        if head.get("Metadata", {}).get("sha256") != sha256 or digest(retained) != sha256:
+        download(group, name, retained)
+        if digest(retained) != sha256 or retained.stat().st_size != path.stat().st_size:
             raise ValueError("retained output hash mismatch")
+
+
+def retain(path, name):
+    upload(path, name, "out")
+
+
+def transfer(path, name):
+    upload(path, name, "transfer")
 
 
 def freeze_sparkle():
@@ -128,6 +155,10 @@ if __name__ == "__main__":
         verify()
     elif command == "retain":
         retain(*args)
+    elif command == "transfer":
+        transfer(*args)
+    elif command == "download":
+        download(*args)
     elif command == "extract":
         extract(Path(args[0]), Path(args[1]))
     elif command == "freeze-sparkle":
