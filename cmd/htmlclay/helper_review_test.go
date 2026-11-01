@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,27 +26,37 @@ func TestReviewChangedFileDuringApproval(t *testing.T) {
 	addSuggestProgram(t, a, "search", path)
 	doc := writeSuggestDocument(t, filepath.Join(home, "docs", "page.htmlclay"), `<meta name="htmlclay-helper" content="search">`)
 	var before, after os.FileInfo
-	before, _ = os.Stat(path)
+	before = helperFileSnapshot(path)
+	if before == nil {
+		t.Fatal("could not snapshot the original program")
+	}
 	dialogs := helperApprovalDialogs{
 		setup: func(string, string, string, string, string) (platform.Choice, error) {
 			replacement := writeSuggestFile(t, filepath.Join(home, "bin", "replacement"), 0755)
-			if err := os.WriteFile(replacement, []byte("#!/bin/sh\n# harmless changed review fixture\n"), 0755); err != nil {
+			if err := os.WriteFile(replacement, []byte("#!/bin/xx\n"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chtimes(replacement, before.ModTime(), before.ModTime()); err != nil {
 				t.Fatal(err)
 			}
 			if err := os.Rename(replacement, path); err != nil {
 				t.Fatal(err)
 			}
-			after, _ = os.Stat(path)
+			after = helperFileSnapshot(path)
 			return platform.ChoiceAffirm, nil
 		},
 		choose: func(string, string) (string, bool, error) { t.Fatal("unexpected picker"); return "", false, nil },
-		prepare: func(path string) (bool, error) {
-			return prepareHelperProgram(path, func(string, string, string) (bool, error) { t.Fatal("unexpected chmod prompt"); return false, nil })
+		prepare: func(string) (bool, error) {
+			t.Fatal("replacement reached preparation without reapproval")
+			return false, nil
 		},
 	}
 	plan := a.helpersForUseWith(doc, "search", dialogs)
-	if os.SameFile(before, after) {
-		t.Fatal("fixture failed to replace inode")
+	if after == nil || os.SameFile(before, after) {
+		t.Fatal("fixture failed to replace the file")
+	}
+	if before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
+		t.Fatal("fixture must preserve size and modification time to exercise identity checking")
 	}
 	if p, ok := plan.allowed["search"]; ok {
 		t.Errorf("replacement file granted without reapproval: %s", p.Path)
@@ -131,7 +142,7 @@ func TestReviewProgramsSaveFailureRollback(t *testing.T) {
 			doc := writeSuggestDocument(t, filepath.Join(home, "docs", "page.htmlclay"), `<meta name="htmlclay-helper" content="search">`)
 			path := filepath.Join(home, "missing", "search")
 			if action != "remove" && action != "relink" {
-				writeSuggestFile(t, path, 0755)
+				path = writeSuggestFile(t, path, 0755)
 			}
 			p, err := a.rt.cfg.AddHelperProgram("search", path)
 			if err != nil {
@@ -215,11 +226,14 @@ func TestReviewSuggestedSymlinkRetarget(t *testing.T) {
 	first := writeSuggestFile(t, filepath.Join(home, "versions", "first"), 0755)
 	second := writeSuggestFile(t, filepath.Join(home, "versions", "second"), 0755)
 	path := filepath.Join(bin, "search")
+	if runtime.GOOS == "windows" {
+		path += ".exe"
+	}
 	if err := os.Symlink(first, path); err != nil {
 		t.Fatal(err)
 	}
 	doc := writeSuggestDocument(t, filepath.Join(home, "docs", "page.htmlclay"), `<meta name="htmlclay-helper" content="search">`)
-	original, _ := os.Stat(path)
+	original := helperFileSnapshot(path)
 	dialogs := helperApprovalDialogs{
 		setup: func(string, string, string, string, string) (platform.Choice, error) {
 			next := filepath.Join(bin, "next-link")

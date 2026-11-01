@@ -85,10 +85,10 @@ func TestHelperSetupOffersFoundFile(t *testing.T) {
 	if got, want := recorder.titles[0], "Allow a program for search.htmlclay?"; got != want {
 		t.Fatalf("title = %q, want %q", got, want)
 	}
-	if got, want := recorder.buttons[0], [3]string{"Deny", "More Options\u2026", "Allow clay-search"}; got != want {
+	if got, want := recorder.buttons[0], [3]string{"Deny", "More Options\u2026", "Allow " + filepath.Base(found)}; got != want {
 		t.Fatalf("buttons = %q, want %q", got, want)
 	}
-	for _, want := range []string{"~/apps/bin/clay-search", "\u201csearch\u201d"} {
+	for _, want := range []string{filepath.Join("~", "apps", "bin", filepath.Base(found)), "\u201csearch\u201d"} {
 		if !strings.Contains(recorder.messages[0], want) {
 			t.Errorf("the dialog does not state %q:\n%s", want, recorder.messages[0])
 		}

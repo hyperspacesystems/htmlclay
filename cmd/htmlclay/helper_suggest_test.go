@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,9 @@ import (
 
 func writeSuggestFile(t *testing.T, path string, mode os.FileMode) string {
 	t.Helper()
+	if runtime.GOOS == "windows" && mode&0111 != 0 && filepath.Ext(path) == "" {
+		path += ".exe"
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -111,14 +115,15 @@ func TestSuggestHelperProgramWithholdsJustChangedFiles(t *testing.T) {
 	a, home := newSuggestApp(t)
 	bin := filepath.Join(home, "apps", "bin")
 	addSuggestProgram(t, a, "other", writeSuggestFile(t, filepath.Join(bin, "other"), 0o755))
-	writeSuggestFile(t, filepath.Join(bin, "search"), 0o755)
+	path := writeSuggestFile(t, filepath.Join(bin, "search"), 0o755)
 	doc := writeSuggestDocument(t, filepath.Join(home, "docs", "s.htmlclay"), `<meta name="htmlclay-helper" content="search">`)
 
 	got := a.suggestHelperProgram(doc, "search", time.Now())
 	if got.path != "" {
 		t.Fatalf("suggested a file written moments ago: %s", got.path)
 	}
-	if len(got.withheld) != 1 || !strings.Contains(got.withheld[0], "~/apps/bin/search") || !strings.Contains(got.withheld[0], "changed") {
+	wantPath := filepath.Join("~", "apps", "bin", filepath.Base(path))
+	if len(got.withheld) != 1 || !strings.Contains(got.withheld[0], wantPath) || !strings.Contains(got.withheld[0], "changed") {
 		t.Fatalf("withheld = %v", got.withheld)
 	}
 }
@@ -146,15 +151,42 @@ func TestSuggestHelperProgramSkipsNonExecutable(t *testing.T) {
 	if got := a.suggestHelperProgram(doc, "search", settled()); got.path != "" {
 		t.Fatalf("suggested a file that cannot run: %s", got.path)
 	}
+	if runtime.GOOS == "windows" {
+		t.Setenv("PATHEXT", ".COM;.EXE;.BAT;.CMD;.PY")
+		for _, ext := range []string{".py", ".txt", ".com"} {
+			writeSuggestFile(t, filepath.Join(bin, "search"+ext), 0o644)
+		}
+		if got := a.suggestHelperProgram(doc, "search", settled()); got.path != "" {
+			t.Fatalf("suggested a file the helper runner cannot launch: %s", got.path)
+		}
+		for _, ext := range []string{".exe", ".bat", ".CMD"} {
+			t.Run(ext, func(t *testing.T) {
+				folder := filepath.Join(home, "bin"+ext)
+				addSuggestProgram(t, a, "other", writeSuggestFile(t, filepath.Join(folder, "other.exe"), 0o644))
+				want := writeSuggestFile(t, filepath.Join(folder, "search"+ext), 0o644)
+				found, _ := a.scanKnownProgramFolders([]string{folder}, "search", settled())
+				if len(found) != 1 || found[0] != want {
+					t.Fatalf("runnable file without execute bits: found %v, want %s", found, want)
+				}
+			})
+		}
+	}
 }
 
 func TestMatchesProgramFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Setenv("PATHEXT", ".COM;.EXE;.BAT;.CMD;.PY")
+	}
 	for _, c := range []struct {
 		base, expected string
 		want           bool
 	}{
 		{"clay-search", "clay-search", true},
-		{"search.py", "search", true},
+		{"search.py", "search", runtime.GOOS != "windows"},
+		{"search.exe", "search", runtime.GOOS == "windows"},
+		{"search.CMD", "search", runtime.GOOS == "windows"},
+		{"search.bat", "search", runtime.GOOS == "windows"},
+		{"search.com", "search", false},
 		{"search.txt", "search", false},
 		{"search-old", "search", false},
 		{"my-search", "search", false},

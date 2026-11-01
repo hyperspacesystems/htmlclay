@@ -390,7 +390,7 @@ func (a *app) relinkHelperProgram(program config.HelperProgram, dialogs helperAp
 	message += "\n\nThe program runs as you and can read or change any file your account can access."
 	var shown os.FileInfo
 	if path != "" {
-		shown, _ = os.Stat(path)
+		shown = helperFileSnapshot(path)
 	}
 	choice, err := dialogs.setup("Use a moved program for “"+program.Name+"”?", message, helperSetupCancel, helperSetupChooseOther, affirm)
 	if err != nil {

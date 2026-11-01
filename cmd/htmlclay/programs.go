@@ -82,12 +82,10 @@ func prepareHelperProgramOn(goos, path string, confirm func(title, message, affi
 		return false, fmt.Errorf("%s is not a file", path)
 	}
 	if goos == "windows" {
-		switch strings.ToLower(filepath.Ext(path)) {
-		case ".exe", ".bat", ".cmd":
+		if windowsHelperProgramExtension(path) {
 			return true, nil
-		default:
-			return false, errors.New("Windows helper programs must be .exe, .bat, or .cmd files; use a .cmd wrapper for scripts")
 		}
+		return false, errors.New("Windows helper programs must be .exe, .bat, or .cmd files; use a .cmd wrapper for scripts")
 	}
 	if info.Mode()&0111 != 0 {
 		return true, nil
@@ -106,6 +104,14 @@ func prepareHelperProgramOn(goos, path string, confirm func(title, message, affi
 		return false, fmt.Errorf("cannot make %s executable: %w", path, err)
 	}
 	return true, nil
+}
+
+func windowsHelperProgramExtension(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".exe", ".bat", ".cmd":
+		return true
+	}
+	return false
 }
 
 func readProgramFirstLine(path string) (string, error) {

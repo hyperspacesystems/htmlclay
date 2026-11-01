@@ -65,7 +65,7 @@ func (a *app) askHelperSetup(document string, names []string, plan helperOpenPla
 	// gets the permission the person gave the file they saw.
 	var shown os.FileInfo
 	if suggestion.path != "" {
-		shown, _ = os.Stat(suggestion.path)
+		shown = helperFileSnapshot(suggestion.path)
 	}
 	choice, err := dialogs.setup(
 		"Allow a program for "+filepath.Base(document)+"?",
@@ -168,6 +168,16 @@ func sameFileAsShown(path string, shown os.FileInfo) bool {
 	}
 	now, err := os.Stat(path)
 	return err == nil && os.SameFile(shown, now) && now.Size() == shown.Size() && now.ModTime().Equal(shown.ModTime())
+}
+
+func helperFileSnapshot(path string) os.FileInfo {
+	info, err := os.Stat(path)
+	// Windows resolves Stat's file identity lazily. Cache it before the dialog
+	// opens, while the path still points to the file being offered.
+	if err != nil || !os.SameFile(info, info) {
+		return nil
+	}
+	return info
 }
 
 // chooseHelperFile opens the file picker. A file HTML Clay would not have

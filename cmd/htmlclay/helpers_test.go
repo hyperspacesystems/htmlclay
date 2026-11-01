@@ -735,8 +735,13 @@ func TestHelperUseAsksOnlyAboutTheHelperThatWasUsed(t *testing.T) {
 	home := t.TempDir()
 	a := newTestApp(t, home)
 	document := writeHelperPage(t, home, "search", "ocr")
+	var searchPath string
 	for _, name := range []string{"search", "ocr"} {
-		if _, err := a.rt.cfg.AddHelperProgram(name, writeTestProgram(t, t.TempDir(), name, 0755)); err != nil {
+		path := writeTestProgram(t, t.TempDir(), name, 0755)
+		if name == "search" {
+			searchPath = path
+		}
+		if _, err := a.rt.cfg.AddHelperProgram(name, path); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -756,7 +761,7 @@ func TestHelperUseAsksOnlyAboutTheHelperThatWasUsed(t *testing.T) {
 			return "", false, nil
 		},
 		prepare: func(path string) (bool, error) {
-			if filepath.Base(path) != "search" {
+			if path != searchPath {
 				t.Fatalf("prepared %q, want the registered program", path)
 			}
 			return true, nil

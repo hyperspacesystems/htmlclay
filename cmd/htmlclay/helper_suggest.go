@@ -129,6 +129,9 @@ func (a *app) scanKnownProgramFolders(folders []string, expected string, now tim
 				continue
 			}
 			path := filepath.Join(folder, entry.Name())
+			if runtime.GOOS == "windows" && !windowsHelperProgramExtension(path) {
+				continue
+			}
 			info, err := os.Stat(path)
 			if err != nil || !info.Mode().IsRegular() || (runtime.GOOS != "windows" && info.Mode()&0111 == 0) {
 				continue
