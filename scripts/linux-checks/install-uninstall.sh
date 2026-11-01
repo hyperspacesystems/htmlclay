@@ -2,15 +2,25 @@
 # The tarball a Linux user downloads: unpack, install.sh into a fresh HOME, and the
 # desktop must know the file type; then uninstall.sh leaves no trace but config.
 # Mirrors release.yml's packaging step so the staged tree is the shipped tree.
+if [ -n "${HTMLCLAY_PACKAGE_DIR:-}" ]; then
+  export HTMLCLAY_BIN="$HTMLCLAY_PACKAGE_DIR/htmlclay"
+fi
 source "$(dirname "$0")/lib.sh"
 export XDG_CURRENT_DESKTOP=GNOME   # xdg-mime takes the gio path Ubuntu users are on
 
 stage="$LAB/stage"; mkdir -p "$stage"
-cp "$BIN" "$stage/htmlclay"
-for f in htmlclay.desktop htmlclay-mime.xml htmlclay.png htmlclay.svg application-x-htmlclay.png application-x-htmlclay.svg install-icon.sh install.sh uninstall.sh; do
-  cp "$REPO/packaging/linux/$f" "$stage/"
-done
-chmod +x "$stage"/*.sh
+if [ -n "${HTMLCLAY_PACKAGE_DIR:-}" ]; then
+  for f in htmlclay htmlclay.desktop htmlclay-mime.xml htmlclay.png htmlclay.svg application-x-htmlclay.png application-x-htmlclay.svg install-icon.sh install.sh uninstall.sh; do
+    test -f "$HTMLCLAY_PACKAGE_DIR/$f" || fail "candidate package missing $f"
+  done
+  cp -a "$HTMLCLAY_PACKAGE_DIR/." "$stage/"
+else
+  cp "$BIN" "$stage/htmlclay"
+  for f in htmlclay.desktop htmlclay-mime.xml htmlclay.png htmlclay.svg application-x-htmlclay.png application-x-htmlclay.svg install-icon.sh install.sh uninstall.sh; do
+    cp "$REPO/packaging/linux/$f" "$stage/"
+  done
+  chmod +x "$stage"/*.sh
+fi
 tar czf "$LAB/htmlclay-linux.tar.gz" -C "$stage" .
 mkdir -p "$LAB/unpacked" && tar xzf "$LAB/htmlclay-linux.tar.gz" -C "$LAB/unpacked"
 pass "tarball built and unpacked ($(du -h "$LAB/htmlclay-linux.tar.gz" | cut -f1))"

@@ -1,0 +1,1619 @@
+name: Platform candidate
+run-name: platform ${{ inputs.attempt }}
+'on':
+  workflow_dispatch:
+    inputs:
+      attempt:
+        description: attempt
+        required: true
+        type: string
+      manifest_identity:
+        description: manifest identity
+        required: true
+        type: string
+      candidate_sha256:
+        description: candidate sha256
+        required: true
+        type: string
+      app:
+        description: app
+        required: true
+        type: string
+      candidate_key:
+        description: candidate key
+        required: true
+        type: string
+permissions:
+  contents: read
+env:
+  AWS_DEFAULT_REGION: auto
+  AWS_PAGER: ''
+  R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+  CANDIDATE_KEY: ${{ inputs.candidate_key }}
+  CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
+  MANIFEST_IDENTITY: ${{ inputs.manifest_identity }}
+  ATTEMPT: ${{ inputs.attempt }}
+  APP: ${{ inputs.app }}
+  WORKFLOW_SHA: ${{ github.workflow_sha }}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+      source_sha: ${{ steps.verify.outputs.source_sha }}
+      payload_date: ${{ steps.verify.outputs.payload_date }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - name: Download and verify private candidate
+      run: python3 trusted/scripts/platform_candidate_io.py verify
+      id: verify
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: identity
+        path: identity/identity.json
+        if-no-files-found: error
+    - uses: actions/upload-artifact@v4
+      with:
+        name: candidate
+        path: candidate.tar.gz
+        if-no-files-found: error
+    name: verify
+  test-macos:
+    name: test-macos
+    runs-on: macos-latest
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - name: Test
+      run: go test ./... -count=1
+      env:
+        CGO_ENABLED: ${{ runner.os == 'macOS' && '1' || '0' }}
+  test-linux:
+    name: test-linux
+    runs-on: ubuntu-latest
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - name: Test
+      run: go test ./... -count=1
+      env:
+        CGO_ENABLED: ${{ runner.os == 'macOS' && '1' || '0' }}
+  test-windows:
+    name: test-windows
+    runs-on: windows-latest
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - name: Test
+      run: go test ./... -count=1
+      env:
+        CGO_ENABLED: ${{ runner.os == 'macOS' && '1' || '0' }}
+  license:
+    name: license
+    runs-on: ubuntu-latest
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - name: License
+      run: python3 scripts/ablation-check.py LICENSE
+  conformance:
+    name: conformance
+    runs-on: ubuntu-latest
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Conformance gate
+      run: go test ./internal/server -run TestMalleableHTMLFileHostGate -count=1 -v
+      env:
+        HTMLCLAY_HOST_GATE: '1'
+        HTMLCLAY_HOST_GATE_RUNNER: ${{ github.workspace }}/candidate/testdata/conformance/host-test.mjs
+        HTMLCLAY_HOST_GATE_CWD: ${{ github.workspace }}/candidate
+  build-linux-amd64:
+    name: build-linux-amd64
+    runs-on: ubuntu-24.04
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - name: Fetch Tailwind
+      run: go run ./cmd/fetchtailwind -goos linux -goarch amd64
+    - name: Test the Tailwind bundle
+      run: go test -tags tailwind_bundle ./internal/tailwind/ -count=1
+    - name: Build
+      run: |
+        GOOS=linux GOARCH=amd64 \
+          go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
+        go version -m htmlclay | grep -q -- '-tags=tailwind_bundle'
+      env:
+        CGO_ENABLED: '0'
+    - name: Package
+      run: |
+        stage=htmlclay-linux-amd64
+        mkdir -p "$stage"
+        cp htmlclay "$stage/"
+        cp packaging/linux/htmlclay.desktop \
+           packaging/linux/htmlclay-mime.xml \
+           packaging/linux/htmlclay.png \
+           packaging/linux/htmlclay.svg \
+           packaging/linux/application-x-htmlclay.png \
+           packaging/linux/application-x-htmlclay.svg \
+           packaging/linux/install-icon.sh \
+           packaging/linux/install.sh \
+           packaging/linux/uninstall.sh \
+           "$stage/"
+        chmod +x "$stage/install.sh" "$stage/install-icon.sh" "$stage/uninstall.sh"
+        tar czf "$stage.tar.gz" -C "$stage" .
+    - name: Update artifact
+      env:
+        VERSION: ${{ needs.verify.outputs.version }}
+        GOARCH: amd64
+      run: gzip -9 -n -c htmlclay > "htmlclay-${VERSION}-linux-${GOARCH}.gz"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: htmlclay-linux-amd64.tar.gz
+        path: candidate/htmlclay-linux-amd64.tar.gz
+        if-no-files-found: error
+    - name: Retain htmlclay-linux-amd64.tar.gz
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-linux-amd64.tar.gz"
+        "htmlclay-linux-amd64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
+        path: candidate/htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
+        if-no-files-found: error
+    - name: Retain htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-${{ needs.verify.outputs.version
+        }}-linux-amd64.gz" "htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+  build-linux-arm64:
+    name: build-linux-arm64
+    runs-on: ubuntu-24.04-arm
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - name: Fetch Tailwind
+      run: go run ./cmd/fetchtailwind -goos linux -goarch arm64
+    - name: Build
+      run: |
+        GOOS=linux GOARCH=arm64 \
+          go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
+        go version -m htmlclay | grep -q -- '-tags=tailwind_bundle'
+      env:
+        CGO_ENABLED: '0'
+    - name: Package
+      run: |
+        stage=htmlclay-linux-arm64
+        mkdir -p "$stage"
+        cp htmlclay "$stage/"
+        cp packaging/linux/htmlclay.desktop \
+           packaging/linux/htmlclay-mime.xml \
+           packaging/linux/htmlclay.png \
+           packaging/linux/htmlclay.svg \
+           packaging/linux/application-x-htmlclay.png \
+           packaging/linux/application-x-htmlclay.svg \
+           packaging/linux/install-icon.sh \
+           packaging/linux/install.sh \
+           packaging/linux/uninstall.sh \
+           "$stage/"
+        chmod +x "$stage/install.sh" "$stage/install-icon.sh" "$stage/uninstall.sh"
+        tar czf "$stage.tar.gz" -C "$stage" .
+    - name: Update artifact
+      env:
+        VERSION: ${{ needs.verify.outputs.version }}
+        GOARCH: arm64
+      run: gzip -9 -n -c htmlclay > "htmlclay-${VERSION}-linux-${GOARCH}.gz"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: htmlclay-linux-arm64.tar.gz
+        path: candidate/htmlclay-linux-arm64.tar.gz
+        if-no-files-found: error
+    - name: Retain htmlclay-linux-arm64.tar.gz
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-linux-arm64.tar.gz"
+        "htmlclay-linux-arm64.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
+        path: candidate/htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
+        if-no-files-found: error
+    - name: Retain htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-${{ needs.verify.outputs.version
+        }}-linux-arm64.gz" "htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+  build-windows-amd64:
+    name: build-windows-amd64
+    runs-on: windows-latest
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - name: Embed icon and version resources
+      run: |
+        go run github.com/tc-hib/go-winres@v0.3.1 make `
+          --in packaging/windows/winres.json `
+          --out cmd/htmlclay/resource `
+          --arch amd64 `
+          --file-version "${{ needs.verify.outputs.version }}" --product-version "${{ needs.verify.outputs.version }}"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      shell: pwsh
+    - name: Fetch Tailwind
+      run: |
+        go run ./cmd/fetchtailwind -goos windows -goarch amd64
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      shell: pwsh
+    - name: Test the Tailwind bundle
+      run: go test -tags tailwind_bundle ./internal/tailwind/ -count=1
+      shell: pwsh
+    - name: Build
+      run: |
+        $env:CGO_ENABLED = "0"
+        $env:GOARCH = "amd64"
+        go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle')) { Write-Error "built without the Tailwind bundle"; exit 1 }
+      shell: pwsh
+    - name: Install TrustedSigning module
+      run: Install-Module -Name TrustedSigning -Force -Scope CurrentUser -AcceptLicense
+      shell: pwsh
+    - name: Sign with Azure Trusted Signing
+      env:
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      run: |
+        Invoke-TrustedSigning `
+          -Endpoint "https://eus.codesigning.azure.net" `
+          -CodeSigningAccountName "Hyperclay" `
+          -CertificateProfileName "HyperclayLocalPublicCertProfile" `
+          -Files "$PWD\htmlclay.exe" `
+          -FileDigest SHA256 `
+          -TimestampRfc3161 "http://timestamp.acs.microsoft.com" `
+          -TimestampDigest SHA256 `
+          -Verbose
+      shell: pwsh
+    - name: Verify signature
+      run: |
+        $sig = Get-AuthenticodeSignature "htmlclay.exe"
+        Write-Host "Status: $($sig.Status)"
+        Write-Host "Signer: $($sig.SignerCertificate.Subject)"
+        if ($sig.Status -ne "Valid") {
+          Write-Error "Signature verification failed!"
+          exit 1
+        }
+        # Azure Trusted Signing issues three-day certificates, so an untimestamped
+        # signature stops validating three days after the release and Windows then
+        # treats the binary as unsigned. Status is "Valid" here either way, because
+        # the certificate has not expired yet on the runner, so the timestamp is the
+        # only thing that proves the signature will still verify for a downloader.
+        if (-not $sig.TimeStamperCertificate) {
+          Write-Error "Signature has no RFC3161 timestamp; it would expire with the certificate."
+          exit 1
+        }
+        Write-Host "Timestamped by: $($sig.TimeStamperCertificate.Subject)"
+      shell: pwsh
+    - name: Package
+      run: |
+        Compress-Archive `
+          -Path htmlclay.exe,packaging\windows\README.txt,packaging\windows\register.bat `
+          -DestinationPath htmlclay-windows-amd64.zip
+      shell: pwsh
+    - name: Update artifact
+      run: Copy-Item htmlclay.exe "htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe"
+      shell: pwsh
+    - uses: actions/upload-artifact@v4
+      with:
+        name: htmlclay-windows-amd64.zip
+        path: candidate/htmlclay-windows-amd64.zip
+        if-no-files-found: error
+    - name: Retain htmlclay-windows-amd64.zip
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-windows-amd64.zip"
+        "htmlclay-windows-amd64.zip"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
+        path: candidate/htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
+        if-no-files-found: error
+    - name: Retain htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-${{ needs.verify.outputs.version
+        }}-windows-amd64.exe" "htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+  build-windows-arm64:
+    name: build-windows-arm64
+    runs-on: windows-latest
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - name: Embed icon and version resources
+      run: |
+        go run github.com/tc-hib/go-winres@v0.3.1 make `
+          --in packaging/windows/winres.json `
+          --out cmd/htmlclay/resource `
+          --arch arm64 `
+          --file-version "${{ needs.verify.outputs.version }}" --product-version "${{ needs.verify.outputs.version }}"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      shell: pwsh
+    - name: Fetch Tailwind
+      run: |
+        go run ./cmd/fetchtailwind -goos windows -goarch arm64
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      shell: pwsh
+    - name: Build
+      run: |
+        $env:CGO_ENABLED = "0"
+        $env:GOARCH = "arm64"
+        go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle')) { Write-Error "built without the Tailwind bundle"; exit 1 }
+      shell: pwsh
+    - name: Install TrustedSigning module
+      run: Install-Module -Name TrustedSigning -Force -Scope CurrentUser -AcceptLicense
+      shell: pwsh
+    - name: Sign with Azure Trusted Signing
+      env:
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      run: |
+        Invoke-TrustedSigning `
+          -Endpoint "https://eus.codesigning.azure.net" `
+          -CodeSigningAccountName "Hyperclay" `
+          -CertificateProfileName "HyperclayLocalPublicCertProfile" `
+          -Files "$PWD\htmlclay.exe" `
+          -FileDigest SHA256 `
+          -TimestampRfc3161 "http://timestamp.acs.microsoft.com" `
+          -TimestampDigest SHA256 `
+          -Verbose
+      shell: pwsh
+    - name: Verify signature
+      run: |
+        $sig = Get-AuthenticodeSignature "htmlclay.exe"
+        Write-Host "Status: $($sig.Status)"
+        Write-Host "Signer: $($sig.SignerCertificate.Subject)"
+        if ($sig.Status -ne "Valid") {
+          Write-Error "Signature verification failed!"
+          exit 1
+        }
+        # Azure Trusted Signing issues three-day certificates, so an untimestamped
+        # signature stops validating three days after the release and Windows then
+        # treats the binary as unsigned. Status is "Valid" here either way, because
+        # the certificate has not expired yet on the runner, so the timestamp is the
+        # only thing that proves the signature will still verify for a downloader.
+        if (-not $sig.TimeStamperCertificate) {
+          Write-Error "Signature has no RFC3161 timestamp; it would expire with the certificate."
+          exit 1
+        }
+        Write-Host "Timestamped by: $($sig.TimeStamperCertificate.Subject)"
+      shell: pwsh
+    - name: Package
+      run: |
+        Compress-Archive `
+          -Path htmlclay.exe,packaging\windows\README.txt,packaging\windows\register.bat `
+          -DestinationPath htmlclay-windows-arm64.zip
+      shell: pwsh
+    - name: Update artifact
+      run: Copy-Item htmlclay.exe "htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe"
+      shell: pwsh
+    - uses: actions/upload-artifact@v4
+      with:
+        name: htmlclay-windows-arm64.zip
+        path: candidate/htmlclay-windows-arm64.zip
+        if-no-files-found: error
+    - name: Retain htmlclay-windows-arm64.zip
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-windows-arm64.zip"
+        "htmlclay-windows-arm64.zip"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
+        path: candidate/htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
+        if-no-files-found: error
+    - name: Retain htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/htmlclay-${{ needs.verify.outputs.version
+        }}-windows-arm64.exe" "htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+  build-macos:
+    name: build-macos
+    runs-on: macos-14
+    needs:
+    - verify
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '26'
+    - name: Install appdmg (styled DMG builder)
+      run: npm install -g appdmg
+    - name: Import Developer ID certificate
+      env:
+        APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+        APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      run: |
+        KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+        KPW="$(openssl rand -base64 24)"
+        security create-keychain -p "$KPW" "$KEYCHAIN"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN"
+        security unlock-keychain -p "$KPW" "$KEYCHAIN"
+        echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+        security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+          -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple:,codesign: \
+          -s -k "$KPW" "$KEYCHAIN"
+        security list-keychain -d user -s "$KEYCHAIN"
+        security default-keychain -s "$KEYCHAIN"
+        rm -f "$RUNNER_TEMP/cert.p12"
+    - name: Test the Tailwind bundle
+      run: |
+        go run ./cmd/fetchtailwind -goos darwin -goarch arm64
+        go test -tags tailwind_bundle ./internal/tailwind/ -count=1
+    - name: Build, sign & notarize (universal)
+      env:
+        VERSION: ${{ needs.verify.outputs.version }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        UPDATE_CHANNEL: stable
+        SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+      run: bash packaging/macos/build.sh --universal
+    - name: Require signed update archive
+      run: test -s "HTMLClay-${VERSION}-universal.app.zip"
+      env:
+        VERSION: ${{ needs.verify.outputs.version }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
+        path: candidate/HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
+        if-no-files-found: error
+    - name: Retain HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/HTMLClay-${{ needs.verify.outputs.version
+        }}-universal.dmg" "HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
+        path: candidate/HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
+        if-no-files-found: error
+    - name: Retain HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/HTMLClay-${{ needs.verify.outputs.version
+        }}-universal.app.zip" "HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+  sparkle:
+    name: sparkle
+    runs-on: macos-14
+    needs:
+    - verify
+    - build-macos
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: HTMLClay-${{ needs.verify.outputs.version }}-universal.app.zip
+        path: candidate
+    - name: Sign the Sparkle update
+      env:
+        VERSION: ${{ needs.verify.outputs.version }}
+        SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        PAYLOAD_DATE: ${{ needs.verify.outputs.payload_date }}
+      run: |
+        python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" freeze-sparkle
+        mkdir -p sparkle-out
+        if [ -z "$SPARKLE_ED_PRIVATE_KEY" ] && [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
+          echo "::notice title=Sparkle feed skipped::Neither SPARKLE_ED_PRIVATE_KEY nor SPARKLE_PUBLIC_ED_KEY is set, so this release publishes no macOS appcast."
+          touch sparkle-out/SKIPPED
+          exit 0
+        fi
+        if [ -z "$SPARKLE_ED_PRIVATE_KEY" ] || [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
+          echo "::error::Set both the SPARKLE_ED_PRIVATE_KEY secret and the SPARKLE_PUBLIC_ED_KEY repository variable, or neither."
+          exit 1
+        fi
+        bash packaging/macos/sparkle-appcast.sh "$VERSION" "HTMLClay-${VERSION}-universal.app.zip" sparkle-out
+    - name: Bundle Sparkle output
+      run: tar czf sparkle-out.tar.gz -C sparkle-out .
+    - uses: actions/upload-artifact@v4
+      with:
+        name: sparkle-out.tar.gz
+        path: candidate/sparkle-out.tar.gz
+        if-no-files-found: error
+    - name: Retain sparkle-out.tar.gz
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/sparkle-out.tar.gz"
+        "sparkle-out.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+  update-feed:
+    name: update-feed
+    runs-on: ubuntu-latest
+    needs:
+    - verify
+    - build-linux-amd64
+    - build-linux-arm64
+    - build-windows-amd64
+    - build-windows-arm64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache-dependency-path: candidate/go.sum
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-${{ needs.verify.outputs.version }}-linux-amd64.gz
+        path: candidate/updates
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-${{ needs.verify.outputs.version }}-linux-arm64.gz
+        path: candidate/updates
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-${{ needs.verify.outputs.version }}-windows-amd64.exe
+        path: candidate/updates
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-${{ needs.verify.outputs.version }}-windows-arm64.exe
+        path: candidate/updates
+    - name: Prepare and sign private update feed
+      run: |
+        go run ./cmd/mkfeed payload -version "$VERSION" -source-sha "$SOURCE_SHA" -date "$PAYLOAD_DATE" updates > update-payload.json
+        if [ -z "$HTMLCLAY_UPDATE_SEED" ]; then
+          touch SKIPPED
+        else
+          test -n "$HTMLCLAY_UPDATE_KEY_ID"
+          go run ./cmd/signfeed sign -key-id "$HTMLCLAY_UPDATE_KEY_ID" update-payload.json > stable.json
+          go run ./cmd/mkfeed verify -version "$VERSION" stable.json
+        fi
+        mkdir feed-out
+        cp update-payload.json feed-out/
+        if [ -f stable.json ]; then cp stable.json feed-out/; else cp SKIPPED feed-out/; fi
+        tar czf update-feed.tar.gz -C feed-out .
+      env:
+        VERSION: ${{ needs.verify.outputs.version }}
+        SOURCE_SHA: ${{ needs.verify.outputs.source_sha }}
+        PAYLOAD_DATE: ${{ needs.verify.outputs.payload_date }}
+        HTMLCLAY_UPDATE_SEED: ${{ secrets.HTMLCLAY_UPDATE_SEED }}
+        HTMLCLAY_UPDATE_KEY_ID: ${{ vars.HTMLCLAY_UPDATE_KEY_ID }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: update-payload.json
+        path: candidate/update-payload.json
+        if-no-files-found: error
+    - name: Retain update-payload.json
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/update-payload.json"
+        "update-payload.json"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: update-feed.tar.gz
+        path: candidate/update-feed.tar.gz
+        if-no-files-found: error
+    - name: Retain update-feed.tar.gz
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/update-feed.tar.gz"
+        "update-feed.tar.gz"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+  checksums:
+    name: checksums
+    runs-on: ubuntu-latest
+    needs:
+    - verify
+    - build-linux-amd64
+    - build-linux-arm64
+    - build-windows-amd64
+    - build-windows-arm64
+    - build-macos
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install private storage CLI
+      run: python3 -m pip install awscli
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-amd64.tar.gz
+        path: candidate/artifacts
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-arm64.tar.gz
+        path: candidate/artifacts
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-windows-amd64.zip
+        path: candidate/artifacts
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-windows-arm64.zip
+        path: candidate/artifacts
+    - uses: actions/download-artifact@v4
+      with:
+        name: HTMLClay-${{ needs.verify.outputs.version }}-universal.dmg
+        path: candidate/artifacts
+    - name: Checksum retained installers
+      run: (cd artifacts && sha256sum *) > SHA256SUMS
+    - uses: actions/upload-artifact@v4
+      with:
+        name: SHA256SUMS
+        path: candidate/SHA256SUMS
+        if-no-files-found: error
+    - name: Retain SHA256SUMS
+      run: python3 "$GITHUB_WORKSPACE/trusted/scripts/platform_candidate_io.py" retain "candidate/SHA256SUMS" "SHA256SUMS"
+      working-directory: .
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+  linux-amd64-install-uninstall:
+    name: linux-amd64-install-uninstall
+    runs-on: ubuntu-24.04
+    needs:
+    - verify
+    - build-linux-amd64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-amd64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-amd64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: install-uninstall
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-amd64-install-uninstall-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-amd64-serve-save:
+    name: linux-amd64-serve-save
+    runs-on: ubuntu-24.04
+    needs:
+    - verify
+    - build-linux-amd64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-amd64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-amd64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: serve-save
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-amd64-serve-save-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-amd64-tray-nobus:
+    name: linux-amd64-tray-nobus
+    runs-on: ubuntu-24.04
+    needs:
+    - verify
+    - build-linux-amd64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-amd64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-amd64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: tray-nobus
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-amd64-tray-nobus-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-amd64-login-item:
+    name: linux-amd64-login-item
+    runs-on: ubuntu-24.04
+    needs:
+    - verify
+    - build-linux-amd64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-amd64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-amd64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: login-item
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-amd64-login-item-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-amd64-prompts:
+    name: linux-amd64-prompts
+    runs-on: ubuntu-24.04
+    needs:
+    - verify
+    - build-linux-amd64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-amd64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-amd64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: prompts
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-amd64-prompts-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-arm64-install-uninstall:
+    name: linux-arm64-install-uninstall
+    runs-on: ubuntu-24.04-arm
+    needs:
+    - verify
+    - build-linux-arm64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-arm64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-arm64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: install-uninstall
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-arm64-install-uninstall-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-arm64-serve-save:
+    name: linux-arm64-serve-save
+    runs-on: ubuntu-24.04-arm
+    needs:
+    - verify
+    - build-linux-arm64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-arm64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-arm64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: serve-save
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-arm64-serve-save-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-arm64-tray-nobus:
+    name: linux-arm64-tray-nobus
+    runs-on: ubuntu-24.04-arm
+    needs:
+    - verify
+    - build-linux-arm64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-arm64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-arm64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: tray-nobus
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-arm64-tray-nobus-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-arm64-login-item:
+    name: linux-arm64-login-item
+    runs-on: ubuntu-24.04-arm
+    needs:
+    - verify
+    - build-linux-arm64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-arm64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-arm64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: login-item
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-arm64-login-item-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
+  linux-arm64-prompts:
+    name: linux-arm64-prompts
+    runs-on: ubuntu-24.04-arm
+    needs:
+    - verify
+    - build-linux-arm64
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: trusted
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@v4
+      with:
+        name: candidate
+        path: candidate-input
+    - name: Extract verified candidate
+      run: |
+        python3 trusted/scripts/platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate
+      working-directory: .
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - uses: actions/download-artifact@v4
+      with:
+        name: htmlclay-linux-arm64.tar.gz
+        path: retained
+    - name: Extract retained Linux package
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/retained/package"
+        tar xzf "$GITHUB_WORKSPACE/retained/htmlclay-linux-arm64.tar.gz" -C "$GITHUB_WORKSPACE/retained/package"
+    - name: Install desktop tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+    - name: Install the browser driver
+      run: |
+        npm install --no-save playwright
+        npx playwright install --with-deps chromium
+    - name: Linux check
+      run: bash scripts/linux-checks/run-all.sh
+      env:
+        CHECKS: prompts
+        HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
+        HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - name: Bundle desktop diagnostics
+      run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
+      if: always()
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-arm64-prompts-diagnostics
+        path: desktop-diagnostics.tar.gz
+        if-no-files-found: error
+      if: always()
