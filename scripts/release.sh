@@ -4,6 +4,27 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
+# Promotion has its own publication-only preflight and recovery path.
+for arg in "$@"; do
+  case "$arg" in
+    --from-candidate=*)
+      CANDIDATE_RECORD="${arg#--from-candidate=}"
+      PROMOTION_NO_INSTALL=false
+      for option in "$@"; do
+        case "$option" in
+          --from-candidate=*) ;;
+          --no-install) PROMOTION_NO_INSTALL=true ;;
+          *) echo "--from-candidate only accepts --no-install" >&2; exit 1 ;;
+        esac
+      done
+      if [ "$PROMOTION_NO_INSTALL" = true ]; then
+        exec python3 scripts/promote_candidate.py "$CANDIDATE_RECORD" --no-install
+      fi
+      exec python3 scripts/promote_candidate.py "$CANDIDATE_RECORD"
+      ;;
+  esac
+done
+
 # ── Colors ──
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -93,6 +114,7 @@ for arg in "$@"; do
       echo "Usage: ./scripts/release.sh [--major|--minor|--patch]"
       echo "       ./scripts/release.sh --version=X.Y.Z"
       echo "       ./scripts/release.sh --resume"
+      echo "       ./scripts/release.sh --from-candidate=record.json [--no-install]"
       echo ""
       echo "  --major        Major version bump (breaking changes)"
       echo "  --minor        Minor version bump (new features)"
