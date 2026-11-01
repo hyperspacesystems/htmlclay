@@ -11,6 +11,9 @@ Releases before 1.9.0 are recorded in the ecosystem changelog at
 - A new optional `data-program-file` attribute on a helper declaration names the program's file when it differs from the name the document uses.
 - The Programs page, opened from **Programs → Manage Programs…**, lists every program and which documents may run it, and removes access. A program whose file has moved can be pointed at its new place, from the page or the tray, and keeps every document that was allowed to use it.
 
+### Fixed
+- On Windows, the program file picker opens in front of the browser instead of behind it.
+
 ### Changed
 - Opening a document no longer asks about its programs. A request for a program that is not set up waits up to two minutes for setup, then fails with `helper_setup_expired`.
 - The setup dialog has no default button, so Return never allows a program.

@@ -81,3 +81,13 @@ func TestConfirmFormTakesForeground(t *testing.T) {
 		}
 	}
 }
+
+func TestSelectFileTakesForeground(t *testing.T) {
+	script := selectFileScript()
+	compile := strings.Index(script, "Add-Type -Namespace HtmlClayUI -Name Front")
+	front := strings.Index(script, "[HtmlClayUI.Front]::Window($f.Handle)")
+	show := strings.Index(script, "$d.ShowDialog($f)")
+	if compile < 0 || front < 0 || show < 0 || compile > front || front > show {
+		t.Error("selectFileScript must bring its owner window forward before opening the picker on it")
+	}
+}
