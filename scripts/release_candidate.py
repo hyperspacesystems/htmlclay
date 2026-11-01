@@ -142,9 +142,9 @@ def summarize(results):
 
 
 def main(argv):
-    counts = {"graph": 1, "verify": 2, "summarize": 2, "identity": 3}
+    counts = {"graph": 1, "contract": 1, "verify": 2, "summarize": 2, "identity": 3}
     if not argv or len(argv) != counts.get(argv[0]):
-        raise ValueError("use graph, verify <json>, summarize <results.json>, or identity <inputs.json> <directory>")
+        raise ValueError("use graph, contract, verify <json>, summarize <results.json>, or identity <inputs.json> <directory>")
     command = argv[0]
     inputs = json.loads(Path(argv[1]).read_text()) if len(argv) > 1 else None
     if command == "identity":
@@ -152,6 +152,16 @@ def main(argv):
         directory = Path(argv[2])
         directory.mkdir(parents=True, exist_ok=True)
         (directory / "identity.json").write_text(json.dumps(artifact, indent=2) + "\n")
+        return 0
+    if command == "contract":
+        jobs = job_graph()
+        artifacts = ["identity"]
+        for job in jobs:
+            artifacts.extend({"sparkle-out/": "sparkle-out.tar.gz",
+                              "stable.json or SKIPPED": "update-feed.tar.gz"}.get(name, name)
+                             for name in job.get("artifacts", []))
+        print(json.dumps({"checks": [job["id"] for job in jobs],
+                          "artifacts": list(dict.fromkeys(artifacts))}))
         return 0
     result = (job_graph() if command == "graph" else
               verify_candidate(inputs.get("identity"), inputs.get("expected")) if command == "verify" else

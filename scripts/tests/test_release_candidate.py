@@ -31,6 +31,16 @@ def green():
 
 
 class ReleaseCandidateTests(unittest.TestCase):
+    def test_contract_cli(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), "contract"],
+                                capture_output=True, text=True, check=True)
+        contract = json.loads(result.stdout)
+        self.assertEqual(contract["checks"], EXPECTED_IDS)
+        self.assertEqual(contract["artifacts"], list(dict.fromkeys(
+            ["identity"] + [{"sparkle-out/": "sparkle-out.tar.gz",
+                             "stable.json or SKIPPED": "update-feed.tar.gz"}.get(name, name)
+                            for job in candidate.job_graph() for name in job.get("artifacts", [])])))
+
     def test_full_inventory(self):
         graph = candidate.job_graph()
         self.assertEqual([job["id"] for job in graph], EXPECTED_IDS)
