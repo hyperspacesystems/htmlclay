@@ -51,13 +51,15 @@ def normalize_date(value):
     return date.isoformat(timespec=precision).replace('+00:00', 'Z')
 
 
-def validate(record):
+def validate(record, qualified_only=False):
     if record.get('schema') != 2 or record.get('app') != 'htmlclay':
         raise ValueError('expected htmlclay promotion record schema 2')
     version = record.get('version', '')
     if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', version) or any(int(c) > 65535 for c in version.split('.')):
         raise ValueError('invalid promotion version')
     for field, length in [('source_sha', 40), ('release_sha', 40), ('candidate_sha256', 64), ('manifest_identity', 64)]:
+        if qualified_only and field == 'release_sha' and field not in record:
+            continue
         if not re.fullmatch('[0-9a-f]{' + str(length) + '}', record.get(field, '')):
             raise ValueError('invalid ' + field)
     record['payload_date'] = normalize_date(record['payload_date'])
@@ -272,7 +274,7 @@ def main(args):
     if not args or (args[0] == '--check' and len(args) != 2):
         raise ValueError('use <record> [--no-install], --check <record>, or publish')
     if args[0] == '--check':
-        validate(json.loads(Path(args[1]).read_text()))
+        validate(json.loads(Path(args[1]).read_text()), qualified_only=True)
         return
     if args[0] == 'publish':
         text = os.environ['PROMOTION_RECORD']
