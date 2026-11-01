@@ -105,9 +105,9 @@ def private_env():
     return env
 
 
-def aws(env, *args):
+def aws(env, *args, **kwargs):
     return run('aws', '--endpoint-url', 'https://' + env['R2_ACCOUNT_ID'] + '.r2.cloudflarestorage.com',
-               '--region', 'auto', *args, env=env)
+               '--region', 'auto', *args, env=env, **kwargs)
 
 
 def bundle(path, allowed):
@@ -192,9 +192,18 @@ def publish(record, directory):
             immutable_env = dict(env, ENDPOINT='https://' + env['R2_ACCOUNT_ID'] + '.r2.cloudflarestorage.com')
             run('bash', str(ROOT / 'scripts/r2-put-immutable.sh'), str(path), key, content_type, env=immutable_env)
         else:
+            readback = directory / 'readback'
+            try:
+                aws(env, 's3api', 'get-object', '--bucket', bucket, '--key', key,
+                    str(readback), stderr=subprocess.PIPE)
+            except subprocess.CalledProcessError as error:
+                if not re.search(r'\(404\)|NoSuchKey|Not Found', error.stderr or ''):
+                    raise
+            else:
+                if readback.read_bytes() == path.read_bytes():
+                    return
             aws(env, 's3', 'cp', str(path), f's3://{bucket}/{key}', '--content-type', content_type,
                 '--cache-control', 'public, max-age=60')
-            readback = directory / 'readback'
             aws(env, 's3', 'cp', f's3://{bucket}/{key}', str(readback))
             if readback.read_bytes() != path.read_bytes():
                 raise ValueError('publication readback differs: ' + key)
@@ -211,7 +220,7 @@ def publish(record, directory):
         put(name, f'update/{version}/{name}', 'application/zip', True)
         put('appcast.xml', f'update/{version}/appcast.xml', 'application/xml', True)
         put('appcast.xml', 'update/macos/appcast.xml', 'application/xml')
-    info = {'schema': 2, 'latest': version, 'sourceSha': record['source_sha'],
+    info = {'schema': 2, 'latest': version, 'sourceSha': record['release_sha'],
             'url': 'https://htmlclay.com/#downloads', 'date': record['payload_date'],
             'files': installers, 'sha256': {name: digest((directory / name).read_bytes()) for name in installers}}
     (directory / 'htmlclay-release-info.json').write_text(json.dumps(info) + '\n')
@@ -228,41 +237,67 @@ def promote(record, directory, no_install=False):
         raise ValueError('source version differs from promotion version; requalify')
     head = run('git', 'rev-parse', 'HEAD')
     if head != release:
-        raise ValueError('checkout differs from promotion release commit; requalify')
+        try:
+            run('git', 'merge-base', '--is-ancestor', release, head)
+        except subprocess.CalledProcessError as error:
+            raise ValueError('checkout differs from promotion release commit; requalify') from error
+        changed = run('git', 'log', '-m', '--format=', '--name-only', release + '..' + head).splitlines()
+        if any(path and path != 'website/index.html' for path in changed):
+            raise ValueError('checkout differs from promotion release commit; requalify')
     run('git', 'fetch', '--tags', '--quiet', 'origin')
     tag = 'v' + version
     try:
         tagged = run('git', 'rev-parse', '-q', '--verify', 'refs/tags/' + tag + '^{commit}', stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         tagged = None
-    if tagged and tagged != head:
+    if tagged and tagged != release:
         raise ValueError('release tag differs from promotion release commit; requalify')
     download(record, directory)
     text = json.dumps(record, sort_keys=True, separators=(',', ':'))
     identity = digest(text.encode())
     branch = run('git', 'branch', '--show-current')
-    previous = {r['databaseId'] for r in json.loads(run('gh', 'run', 'list', '--workflow=promote.yml',
-                '--event', 'workflow_dispatch', '--limit', '30', '--json', 'databaseId,displayTitle'))}
-    run('gh', 'workflow', 'run', 'promote.yml', '--ref', branch, '-f', 'record=' + text, '-f', 'record_sha256=' + identity)
-    run_id = None
-    for _ in range(15):
-        runs = json.loads(run('gh', 'run', 'list', '--workflow=promote.yml', '--event', 'workflow_dispatch',
-                              '--limit', '30', '--json', 'databaseId,displayTitle'))
-        run_id = next((r['databaseId'] for r in runs if r['displayTitle'] == 'promote ' + identity and r['databaseId'] not in previous), None)
-        if run_id:
-            break
-        time.sleep(3)
-    if not run_id:
-        raise ValueError('promotion run not found; retry with the same --from-candidate record')
-    run('gh', 'run', 'watch', str(run_id), '--exit-status')
+
+    def runs():
+        return json.loads(run('gh', 'run', 'list', '--workflow=promote.yml', '--event', 'workflow_dispatch',
+                              '--limit', '30', '--json', 'databaseId,displayTitle,status,conclusion'))
+
+    history = runs()
+    matching = [r for r in history if r['displayTitle'] == 'promote ' + identity]
+    if not any(r['conclusion'] == 'success' for r in matching):
+        active = next((r for r in matching if r['status'] != 'completed'), None)
+        run_id = active['databaseId'] if active else None
+        if run_id is None:
+            previous = {r['databaseId'] for r in history}
+            run('gh', 'workflow', 'run', 'promote.yml', '--ref', branch, '-f', 'record=' + text, '-f', 'record_sha256=' + identity)
+            for _ in range(15):
+                run_id = next((r['databaseId'] for r in runs() if r['displayTitle'] == 'promote ' + identity
+                               and r['databaseId'] not in previous), None)
+                if run_id:
+                    break
+                time.sleep(3)
+        if run_id is None:
+            raise ValueError('promotion run not found; retry with the same --from-candidate record')
+        run('gh', 'run', 'watch', str(run_id), '--exit-status')
     if not tagged:
-        run('git', 'tag', tag, head)
-    run('git', 'push', 'origin', tag)
-    run('node', 'scripts/stamp-website.js', version, str(directory / 'SHA256SUMS'))
-    run('git', 'add', 'website/index.html')
-    if run('git', 'diff', '--cached', '--name-only'):
-        run('git', 'commit', '-m', 'chore: point downloads at v' + version, '--', 'website/index.html')
-    run('git', 'push', 'origin', 'HEAD')
+        run('git', 'tag', tag, release)
+    remote_tag = run('git', 'ls-remote', 'origin', 'refs/tags/' + tag, 'refs/tags/' + tag + '^{}').splitlines()
+    if not remote_tag:
+        run('git', 'push', 'origin', tag)
+    elif remote_tag[-1].split()[0] != release:
+        raise ValueError('release tag differs from promotion release commit; requalify')
+    try:
+        run('node', 'scripts/stamp-website.js', version, str(directory / 'SHA256SUMS'), '--check')
+    except subprocess.CalledProcessError as error:
+        if error.returncode != 2:
+            raise
+        run('node', 'scripts/stamp-website.js', version, str(directory / 'SHA256SUMS'))
+        run('git', 'add', 'website/index.html')
+        if run('git', 'diff', '--cached', '--name-only'):
+            run('git', 'commit', '-m', 'chore: point downloads at v' + version, '--', 'website/index.html')
+    head = run('git', 'rev-parse', 'HEAD')
+    remote_head = run('git', 'ls-remote', 'origin', 'refs/heads/' + branch)
+    if not remote_head or remote_head.split()[0] != head:
+        run('git', 'push', 'origin', 'HEAD')
     if not no_install:
         result = subprocess.run(['bash', 'scripts/update-canary.sh', version], check=False)
         if result.returncode not in (0, 10):

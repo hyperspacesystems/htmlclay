@@ -47,9 +47,12 @@ const hashes = checksumsPath
     )
   : null;
 let hashNodes = 0;
+const check = process.argv.includes('--check');
+let changed = false;
 
 for (const page of PAGES) {
   let html = readFileSync(page, 'utf8');
+  const original = html;
   let stamped = 0;
 
   html = html.replace(
@@ -91,11 +94,15 @@ for (const page of PAGES) {
     process.exit(1);
   }
 
-  writeFileSync(page, html);
-  console.log(`Stamped ${stamped} element(s) in ${page.split('/').pop()} with v${version}`);
+  changed ||= html !== original;
+  if (!check) {
+    writeFileSync(page, html);
+    console.log(`Stamped ${stamped} element(s) in ${page.split('/').pop()} with v${version}`);
+  }
 }
 
 if (hashes && hashNodes === 0) {
   console.error('stamp-website: a checksum file was given but no data-sha256 elements were found');
   process.exit(1);
 }
+if (check && changed) process.exit(2);

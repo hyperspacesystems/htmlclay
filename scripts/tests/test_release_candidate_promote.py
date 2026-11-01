@@ -54,6 +54,11 @@ class PromotionTests(unittest.TestCase):
         self.tagged = None
         self.head = self.record['release_sha']
         self.dispatched = False
+        self.published = False
+        self.remote_tag = None
+        self.remote_head = None
+        self.changed = ['website/index.html']
+        self.ancestor = True
         self.stamp = False
         self.dirty = False
         self.env = dict(R2_ACCOUNT_ID='fixture', R2_ACCESS_KEY='public', R2_SECRET_KEY='public',
@@ -82,9 +87,10 @@ class PromotionTests(unittest.TestCase):
         if args[0] == 'aws':
             if 'get-object' in args:
                 key = args[args.index('--key')+1]
-                if key not in self.private:
-                    raise subprocess.CalledProcessError(1, args)
-                Path(args[-1]).write_bytes(self.private[key])
+                objects = self.public if args[args.index('--bucket')+1] == 'public' else self.private
+                if key not in objects:
+                    raise subprocess.CalledProcessError(1, args, stderr='(404) Not Found')
+                Path(args[-1]).write_bytes(objects[key])
             elif 'cp' in args:
                 source, destination = args[args.index('cp')+1:args.index('cp')+3]
                 if source.startswith('s3://'):
@@ -115,6 +121,18 @@ class PromotionTests(unittest.TestCase):
                 return self.tagged
             if args[1] == 'branch':
                 return 'main'
+            if args[1] == 'merge-base' and not self.ancestor:
+                raise subprocess.CalledProcessError(1, args)
+            if args[1] == 'log':
+                return '\n'.join(self.changed)
+            if args[1] == 'ls-remote':
+                sha = self.remote_tag if 'refs/tags/' in args[3] else self.remote_head
+                return sha + '\t' + args[3] if sha else ''
+            if args[1] == 'push':
+                if args[-1] == 'HEAD':
+                    self.remote_head = self.head
+                else:
+                    self.remote_tag = self.tagged
             if args[1] == 'diff':
                 return 'website/index.html' if '--cached' in args and self.stamp else ''
             if args[1] == 'tag':
@@ -127,14 +145,21 @@ class PromotionTests(unittest.TestCase):
                 self.dispatched = True
             elif args[1:3] == ('run', 'list'):
                 identity = promotion.digest(json.dumps(self.record, sort_keys=True, separators=(',', ':')).encode())
-                return json.dumps([dict(databaseId=1, displayTitle='promote ' + identity)] +
-                                  ([dict(databaseId=2, displayTitle='promote ' + identity)] if self.dispatched else []))
+                return json.dumps([dict(databaseId=1, displayTitle='unrelated', status='completed', conclusion='success')] +
+                                  ([dict(databaseId=2, displayTitle='promote ' + identity,
+                                         status='completed' if self.published else 'in_progress',
+                                         conclusion='success' if self.published else '')] if self.dispatched else []))
             elif args[1:3] == ('run', 'watch'):
                 self.assertEqual(args[3], '2')
                 with tempfile.TemporaryDirectory() as directory:
                     promotion.publish(self.record, Path(directory))
+                self.published = True
         elif args[0] == 'node':
             self.assertEqual(args[1], 'scripts/stamp-website.js')
+            if args[-1] == '--check':
+                if not self.stamp:
+                    raise subprocess.CalledProcessError(2, args)
+                return ''
             self.stamp = True
         else:
             self.fail('unexpected command: ' + str(args))
@@ -161,7 +186,7 @@ class PromotionTests(unittest.TestCase):
         self.assertEqual(list(self.public)[-1], 'htmlclay-release-info.json')
         info = json.loads(self.public['htmlclay-release-info.json'])
         self.assertEqual(info['date'], self.record['payload_date'])
-        self.assertEqual(info['sourceSha'], self.record['source_sha'])
+        self.assertEqual(info['sourceSha'], self.record['release_sha'])
 
     def test_missing_expired_corrupt_and_wrong_size_refuse_before_upload(self):
         artifact = self.record['files'][0]
@@ -193,6 +218,7 @@ class PromotionTests(unittest.TestCase):
         for mismatch in ('release', 'version', 'tag'):
             with self.subTest(mismatch=mismatch), tempfile.TemporaryDirectory() as directory:
                 self.head = 'a' * 40 if mismatch == 'release' else self.record['release_sha']
+                self.ancestor = mismatch != 'release'
                 self.tagged = 'f' * 40 if mismatch == 'tag' else None
                 (self.root / 'cmd/htmlclay/main.go').write_text('var version = "' + ('1.2.2' if mismatch == 'version' else '1.2.3') + '"')
                 with self.assertRaisesRegex(ValueError, 'differs'):
@@ -211,10 +237,13 @@ class PromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             promotion.promote(self.record, Path(directory), True)
         self.assertEqual(self.tagged, self.record['release_sha'])
-        self.dispatched = False
-        self.head = self.record['release_sha']
+        before = len(self.commands)
         with tempfile.TemporaryDirectory() as directory:
             promotion.promote(self.record, Path(directory), True)
+        repeated = self.commands[before:]
+        self.assertFalse(any(c[:2] in (('gh', 'workflow'), ('gh', 'run')) and c[2] != 'list' for c in repeated))
+        self.assertFalse(any(c[:2] in (('git', 'tag'), ('git', 'push'), ('git', 'commit')) for c in repeated))
+        self.assertFalse(any(c[0] == 'node' and c[-1] != '--check' for c in repeated))
         tags = [c for c in self.commands if c[:2] == ('git', 'tag')]
         self.assertEqual(tags, [('git', 'tag', 'v1.2.3', self.record['release_sha'])])
         self.assertTrue(all(c[1] != 'build' for c in self.commands if len(c) > 1))
@@ -251,6 +280,103 @@ class PromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             promotion.promote(self.record, Path(directory), True)
         self.assertEqual(len([c for c in self.commands if c[:2] == ('git', 'tag')]), 1)
+
+    def real_checkout(self):
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(self.root), *args], text=True,
+                                           stderr=subprocess.PIPE).strip()
+        self.git = git
+        git('init', '-b', 'main')
+        git('config', 'user.name', 'Fixture')
+        git('config', 'user.email', 'fixture@example.invalid')
+        git('config', 'commit.gpgsign', 'false')
+        (self.root / 'website').mkdir()
+        (self.root / 'website/index.html').write_text(
+            '<span data-version>v1.2.2</span>'
+            '<span data-sha256="htmlclay-linux-amd64.tar.gz">old</span>')
+        (self.root / 'scripts').mkdir()
+        (self.root / 'scripts/stamp-website.js').write_text((ROOT / 'scripts/stamp-website.js').read_text())
+        git('add', '.')
+        git('commit', '-m', 'release fixture')
+        self.record['release_sha'] = git('rev-parse', 'HEAD')
+        remote = tempfile.TemporaryDirectory(prefix='htmlclay-remote-')
+        self.addCleanup(remote.cleanup)
+        subprocess.check_output(['git', 'init', '--bare', remote.name], stderr=subprocess.PIPE)
+        git('remote', 'add', 'origin', remote.name)
+        git('push', 'origin', 'main')
+
+        def command(*args, **kwargs):
+            if args[0] in ('git', 'node'):
+                self.commands.append(args)
+                return subprocess.check_output(args, cwd=self.root, text=True,
+                                               stderr=subprocess.PIPE).strip()
+            return self.command(*args, **kwargs)
+        return command
+
+    def test_real_tail_resumes_failed_head_push_and_skips_completed_steps(self):
+        command = self.real_checkout()
+        failed = False
+        def fail_push(*args, **kwargs):
+            nonlocal failed
+            if args == ('git', 'push', 'origin', 'HEAD') and not failed:
+                failed = True
+                raise subprocess.CalledProcessError(1, args)
+            return command(*args, **kwargs)
+        with patch.object(promotion, 'run', fail_push):
+            with tempfile.TemporaryDirectory() as directory:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    promotion.promote(self.record, Path(directory), True)
+            self.assertNotEqual(self.git('rev-parse', 'HEAD'), self.record['release_sha'])
+            before = len(self.commands)
+            with tempfile.TemporaryDirectory() as directory:
+                promotion.promote(self.record, Path(directory), True)
+            resumed = self.commands[before:]
+            self.assertEqual([c for c in resumed if c[:2] == ('git', 'push')],
+                             [('git', 'push', 'origin', 'HEAD')])
+            before = len(self.commands)
+            with tempfile.TemporaryDirectory() as directory:
+                promotion.promote(self.record, Path(directory), True)
+            repeated = self.commands[before:]
+            for commands in (resumed, repeated):
+                self.assertFalse(any(c[:2] in (('git', 'tag'), ('git', 'commit'), ('gh', 'workflow')) for c in commands))
+                self.assertFalse(any(c[0] == 'bash' or (c[0] == 'aws' and 'cp' in c) for c in commands))
+                self.assertFalse(any(c[0] == 'node' and c[-1] != '--check' for c in commands))
+            self.assertFalse(any(c[:2] == ('git', 'push') for c in repeated))
+            self.assertEqual(self.git('rev-parse', 'v1.2.3'), self.record['release_sha'])
+
+    def test_non_release_owned_descendant_refuses(self):
+        command = self.real_checkout()
+        (self.root / 'cmd/htmlclay/main.go').write_text('var version = "1.2.3"\n// unqualified change\n')
+        self.git('add', '.')
+        self.git('commit', '-m', 'unqualified change')
+        with patch.object(promotion, 'run', command), tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, 'checkout differs from promotion release commit; requalify'):
+                promotion.promote(self.record, Path(directory), True)
+        self.assertFalse(self.dispatched)
+
+    def test_repeated_publication_skips_existing_uploads(self):
+        self.publish()
+        before = len(self.commands)
+        self.publish()
+        self.assertFalse(any(c[0] == 'aws' and 'cp' in c and not c[c.index('cp')+1].startswith('s3://')
+                             for c in self.commands[before:]))
+
+    def test_active_publication_is_watched_without_redispatch(self):
+        self.dispatched = True
+        with tempfile.TemporaryDirectory() as directory:
+            promotion.promote(self.record, Path(directory), True)
+        self.assertFalse(any(c[:2] == ('gh', 'workflow') for c in self.commands))
+        self.assertTrue(self.published)
+
+    def test_public_object_access_error_refuses_without_upload(self):
+        original = promotion.run
+        def denied(*args, **kwargs):
+            if args[0] == 'aws' and 'get-object' in args and args[args.index('--bucket')+1] == 'public':
+                raise subprocess.CalledProcessError(1, args, stderr='(403) AccessDenied')
+            return original(*args, **kwargs)
+        with patch.object(promotion, 'run', denied), self.assertRaises(subprocess.CalledProcessError):
+            self.publish()
+        self.assertEqual(self.public, {})
 
     def test_files_match_real_candidate_contract(self):
         contract = json.loads(subprocess.check_output(
