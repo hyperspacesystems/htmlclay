@@ -675,7 +675,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
   build-macos:
     name: build-macos
-    runs-on: macos-14
+    runs-on: macos-15
     needs:
     - verify
     timeout-minutes: 45
@@ -764,7 +764,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
   sparkle:
     name: sparkle
-    runs-on: macos-14
+    runs-on: macos-15
     needs:
     - verify
     - build-macos

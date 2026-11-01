@@ -288,7 +288,7 @@ jobs:
   # ── macOS: build universal binary, sign + notarize with Apple ──
   build-macos:
     needs: [test, license]
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - uses: actions/checkout@v4

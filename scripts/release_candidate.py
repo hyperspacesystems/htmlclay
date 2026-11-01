@@ -54,7 +54,7 @@ def job_graph():
                          "needs": ["verify"], "steps": steps,
                          "artifacts": [installer, update]})
     jobs.append({"id": "build-macos", "kind": "build", "platform": "macos",
-                 "architectures": ["amd64", "arm64"], "runner": "macos-14",
+                 "architectures": ["amd64", "arm64"], "runner": "macos-15",
                  "needs": ["verify"], "steps": [
                      {"kind": "test", "name": "Test the Tailwind bundle",
                       "command": "go run ./cmd/fetchtailwind -goos darwin -goarch arm64\n"
