@@ -35,15 +35,18 @@ type HelperProgram struct {
 	AddedAt     int64  `json:"addedAt"`
 }
 
-// HelperDecision is one document's allow of one name. Only an allow is stored:
-// a refusal lasts one open and is never written. Program is the registration ID,
-// so permission cannot pass to a later registration that merely reuses the
-// display name.
+// HelperDecision is one document's answer for one name. An allow names the
+// registration ID, so permission cannot pass to a later registration that merely
+// reuses the display name. A revocation (Revoked, Allowed false, no Program) is
+// the person taking access away from this document in the Programs page; it is
+// stored so it outlasts the any-document grant that would otherwise apply. A
+// dialog's Deny is never stored: it lasts one open.
 type HelperDecision struct {
 	Document  string `json:"document"`
 	Name      string `json:"name"`
 	Program   string `json:"program,omitempty"`
 	Allowed   bool   `json:"allowed"`
+	Revoked   bool   `json:"revoked,omitempty"`
 	DecidedAt int64  `json:"decidedAt"`
 }
 
@@ -54,6 +57,7 @@ type HelperDecision struct {
 type HelperResolution struct {
 	Decided    bool
 	Allowed    bool
+	Revoked    bool
 	Program    HelperProgram
 	Candidates []HelperProgram
 }
@@ -226,7 +230,7 @@ func (c *Config) DecideHelper(d HelperDecision) (previous HelperDecision, had bo
 	if !ValidHelperName(d.Name) {
 		return HelperDecision{}, false, ErrHelperNameInvalid
 	}
-	if !d.Allowed {
+	if !d.Allowed || d.Revoked {
 		return HelperDecision{}, false, errors.New("helper refusals are not stored")
 	}
 	c.mu.Lock()
@@ -268,7 +272,7 @@ func (c *Config) RestoreHelperDecisions(ds []HelperDecision) int {
 		// then could not put the original back. Allowed with NO program is still
 		// refused, because that row is malformed rather than stale.
 		if len(c.HelperDecisions) >= helperDecisionCap || !ValidHelperName(d.Name) ||
-			(d.Allowed && d.Program == "") || (!d.Allowed && d.Program != "") {
+			(d.Allowed && (d.Program == "" || d.Revoked)) || (!d.Allowed && d.Program != "") {
 			continue
 		}
 		duplicate := false
@@ -298,6 +302,46 @@ func (c *Config) ForgetHelperDecision(document, name string) (HelperDecision, bo
 		}
 	}
 	return HelperDecision{}, false
+}
+
+// RevokeHelper stores a revocation for one document and name, replacing any
+// allow. It returns the row it replaced so a failed save can restore it.
+func (c *Config) RevokeHelper(document, name string) (previous HelperDecision, had bool, err error) {
+	if !ValidHelperName(name) {
+		return HelperDecision{}, false, ErrHelperNameInvalid
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	row := HelperDecision{Document: document, Name: name, Revoked: true, DecidedAt: time.Now().UnixNano()}
+	for i, existing := range c.HelperDecisions {
+		if existing.Document == document && existing.Name == name {
+			c.HelperDecisions[i] = row
+			sortHelperDecisions(c.HelperDecisions)
+			return existing, true, nil
+		}
+	}
+	if len(c.HelperDecisions) >= helperDecisionCap {
+		return HelperDecision{}, false, ErrHelperDecisionsFull
+	}
+	c.HelperDecisions = append(c.HelperDecisions, row)
+	sortHelperDecisions(c.HelperDecisions)
+	return HelperDecision{}, false, nil
+}
+
+// SetHelperProgramPath points a registration at a new file and keeps its ID, so
+// every decision that names it carries over. Callers confirm with the person
+// first: this widens what those decisions run.
+func (c *Config) SetHelperProgramPath(id, path string) (previous string, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, p := range c.HelperPrograms {
+		if p.ID == id {
+			previous = p.Path
+			c.HelperPrograms[i].Path = path
+			return previous, true
+		}
+	}
+	return "", false
 }
 
 // ForgetHelperProgramDecisions removes the allows that point at the program.
@@ -330,16 +374,21 @@ func (c *Config) HelperDecisionList() []HelperDecision {
 }
 
 // ResolveHelper answers in one locked read whether there is a decision, whether
-// it allows execution, and which registered program it selects. It never picks
-// between registrations that share a name: two allowed for any document leave
-// the name undecided, and an undecided name with several registrations carries
-// them all as Candidates and no Program, so the prompt asks which one.
-func (c *Config) ResolveHelper(document, name string) (HelperResolution, bool) {
+// it allows execution, and which registered program it selects. trusted says
+// whether the document sits in a trusted folder: an any-document registration
+// applies only then. It never picks between registrations that share a name:
+// two allowed for any document leave the name undecided, and an undecided name
+// with several registrations carries them all as Candidates and no Program, so
+// the prompt asks which one.
+func (c *Config) ResolveHelper(document, name string, trusted bool) (HelperResolution, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, d := range c.HelperDecisions {
 		if d.Document != document || d.Name != name {
 			continue
+		}
+		if d.Revoked {
+			return HelperResolution{Decided: true, Revoked: true}, true
 		}
 		if !d.Allowed {
 			break
@@ -361,7 +410,7 @@ func (c *Config) ResolveHelper(document, name string) (HelperResolution, bool) {
 			anyDocument = append(anyDocument, p)
 		}
 	}
-	if len(anyDocument) == 1 {
+	if trusted && len(anyDocument) == 1 {
 		return HelperResolution{Decided: true, Allowed: true, Program: anyDocument[0]}, true
 	}
 	if len(candidates) == 0 {
@@ -405,8 +454,10 @@ func (c *Config) normalizeHelpers() (droppedPrograms, droppedDecisions int) {
 		// rows alone. An allowed decision naming NO program is different: it is
 		// malformed rather than stale, and there is nothing for a later answer to
 		// key off.
+		// A revocation (Revoked, no Program) is kept: it outlasts an any-document grant.
 		// Refusals from 1.9.x are dropped: a refusal now lasts one open.
-		if !ValidHelperName(d.Name) || !d.Allowed || d.Program == "" {
+		revocation := d.Revoked && !d.Allowed && d.Program == ""
+		if !ValidHelperName(d.Name) || (!revocation && (!d.Allowed || d.Program == "" || d.Revoked)) {
 			droppedDecisions++
 			continue
 		}

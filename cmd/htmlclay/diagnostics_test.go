@@ -71,19 +71,19 @@ func writeDiagnosticConfig(t *testing.T, cfgBase, body string) {
 }
 
 func TestUsabilityDiagnosticsHelperProgramAddAndRemoveAreLogged(t *testing.T) {
-	a := newTestApp(t, t.TempDir())
+	settledSetup(t)
+	home, err := resolveSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := newTestApp(t, home)
 	logger, read := diagnosticLog(t)
 	a.rt.logger = logger
+	document := writeHelperPage(t, home, "search")
+	a.openForTest(t, document)
 	programPath := writeTestProgram(t, t.TempDir(), "search", 0755)
 
-	a.pickHelperProgramWith(helperProgramDialogs{
-		promptName: func(string, string, string) (string, bool, error) { return "search", true, nil },
-		selectFile: func(string) (string, bool, error) { return programPath, true, nil },
-		confirmExecutable: func(string, string, string) (bool, error) {
-			t.Error("an executable program asked to be made executable")
-			return false, nil
-		},
-	})
+	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(programPath, platform.ConfirmAllowOnce, nil))
 
 	program := diagnosticProgramAtPath(t, a, programPath)
 	registered := fmt.Sprintf("Helper program registered: id=%s name=%s path=%s", program.ID, program.Name, program.Path)
@@ -91,16 +91,21 @@ func TestUsabilityDiagnosticsHelperProgramAddAndRemoveAreLogged(t *testing.T) {
 		t.Fatalf("a successful registration is not in the log:\n%s", log)
 	}
 
-	a.manageHelperProgramWith(program.ID, func(platform.ProgramSummary) (platform.ManageChoice, error) {
-		return platform.ManageRemove, nil
-	})
-	removed := fmt.Sprintf("Helper program removed: id=%s name=%s path=%s", program.ID, program.Name, program.Path)
+	if err := os.Remove(programPath); err != nil {
+		t.Fatal(err)
+	}
+	if outcome := a.programsAction("remove", program.ID, "", ""); outcome != "removed" {
+		t.Fatalf("remove = %q, want removed", outcome)
+	}
+	a.refreshHelperDispatchers()
+	removed := fmt.Sprintf("Programs page action remove: program=%s document= name=", program.ID)
 	if log := read(); !strings.Contains(log, removed) {
 		t.Fatalf("a successful removal is not in the log:\n%s", log)
 	}
 }
 
 func TestUsabilityDiagnosticsHelperBindingLogsTheDocumentAndPreviousProgram(t *testing.T) {
+	settledSetup(t)
 	home, err := resolveSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -124,6 +129,11 @@ func TestUsabilityDiagnosticsHelperBindingLogsTheDocumentAndPreviousProgram(t *t
 		t.Fatalf("the saved binding is not in the log:\n%s", log)
 	}
 
+	// The first registration is gone, so HTML Clay has no file to lead with and
+	// the person picks the replacement, which the wider grant then covers.
+	if _, ok := a.rt.cfg.RemoveHelperProgram(first.ID); !ok {
+		t.Fatal("the first registration was not removed")
+	}
 	secondPath := writeTestProgram(t, t.TempDir(), "second", 0755)
 	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(secondPath, platform.ConfirmAllowAlways, nil))
 	second := diagnosticProgramAtPath(t, a, secondPath)
@@ -135,21 +145,20 @@ func TestUsabilityDiagnosticsHelperBindingLogsTheDocumentAndPreviousProgram(t *t
 
 func TestUsabilityDiagnosticsFailedHelperSavesLogNoSuccess(t *testing.T) {
 	t.Run("register", func(t *testing.T) {
+		home, err := resolveSymlinks(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
 		cfgBase := t.TempDir()
-		a := newTestAppWithConfigDir(t, t.TempDir(), cfgBase)
+		a := newTestAppWithConfigDir(t, home, cfgBase)
 		logger, read := diagnosticLog(t)
 		a.rt.logger = logger
+		document := writeHelperPage(t, home, "search")
+		a.openForTest(t, document)
 		programPath := writeTestProgram(t, t.TempDir(), "search", 0755)
 		blockDiagnosticConfigDir(t, cfgBase)
 
-		a.pickHelperProgramWith(helperProgramDialogs{
-			promptName: func(string, string, string) (string, bool, error) { return "search", true, nil },
-			selectFile: func(string) (string, bool, error) { return programPath, true, nil },
-			confirmExecutable: func(string, string, string) (bool, error) {
-				t.Error("an executable program asked to be made executable")
-				return false, nil
-			},
-		})
+		a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(programPath, platform.ConfirmAllowOnce, nil))
 		if log := read(); strings.Contains(log, "Helper program registered") {
 			t.Fatalf("a failed registration logged a success:\n%s", log)
 		}
@@ -173,22 +182,28 @@ func TestUsabilityDiagnosticsFailedHelperSavesLogNoSuccess(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
+		a.rt.chooseHelperSetup = func(string, string, string, string, string) (platform.Choice, error) {
+			return platform.ChoiceAffirm, nil
+		}
 		blockDiagnosticConfigDir(t, cfgBase)
 
-		for _, choice := range []platform.ManageChoice{
-			platform.ManageToggleAnyDocument,
-			platform.ManageForgetDecisions,
-			platform.ManageRemove,
-		} {
-			a.manageHelperProgramWith(program.ID, func(platform.ProgramSummary) (platform.ManageChoice, error) {
-				return choice, nil
-			})
+		if outcome := a.programsAction("widen", program.ID, "", ""); outcome != "failed" {
+			t.Fatalf("widen with an unsaveable config = %q, want failed", outcome)
+		}
+		if outcome := a.programsAction("revoke-all", program.ID, "", ""); outcome != "failed" {
+			t.Fatalf("revoke-all with an unsaveable config = %q, want failed", outcome)
+		}
+		if err := os.Remove(program.Path); err != nil {
+			t.Fatal(err)
+		}
+		if outcome := a.programsAction("remove", program.ID, "", ""); outcome != "failed" {
+			t.Fatalf("remove with an unsaveable config = %q, want failed", outcome)
 		}
 		log := read()
 		for _, success := range []string{
-			"Helper program permission changed",
-			"Helper program approvals forgotten",
-			"Helper program removed",
+			"Programs page action widen: program=",
+			"Programs page action revoke-all: program=",
+			"Programs page action remove: program=",
 		} {
 			if strings.Contains(log, success) {
 				t.Fatalf("a failed save logged %q:\n%s", success, log)

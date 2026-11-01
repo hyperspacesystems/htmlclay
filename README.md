@@ -199,12 +199,16 @@ not permanent bookmark records.
 
 ### Programs
 
-**Programs → Configure an Open File…** lists the programs a document declares for files already
-registered, including files opened from a bookmark. Selecting a row shows its current status, chooses
-the executable, and then asks for explicit document-only or any-document approval. Helpers receive
-protocol requests on stdin; launchers that only open pages are not helpers. Cancel or deny leaves
-bindings unchanged. A stored valid binding is restored on reload or restart without another approval.
-This menu is generic; Search's specific contract belongs in its own README.
+**Programs → Open Documents** lists the programs a document declares for files already registered,
+including files opened from a bookmark. A row that needs setup opens the setup dialog; a row that is
+set up opens the Programs page. Helpers receive protocol requests on stdin; launchers that only open
+pages are not helpers. Cancel or deny leaves bindings unchanged. A stored valid binding is restored on
+reload or restart without another approval. This menu is generic; Search's specific contract belongs
+in its own README.
+
+The Programs page (**Programs → Manage Programs…**) is served only on `http://127.0.0.1:<port>/programs`,
+through a one-time link the tray opens, and has no JavaScript. It can only remove access directly.
+Relinking a moved program and allowing one in trusted folders always go through a native dialog.
 
 ### Server endpoints
 

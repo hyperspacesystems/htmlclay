@@ -105,8 +105,8 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 			// A page's on-use helper prompt is dismissed by default for the same
 			// reason: no test may put a real dialog on the user's screen, and a
 			// dismissed prompt grants nothing and stores nothing.
-			confirmHelpers: func(string, string, bool) (platform.ConfirmChoice, error) {
-				return platform.ConfirmDismissed, nil
+			chooseHelperSetup: func(string, string, string, string, string) (platform.Choice, error) {
+				return platform.ChoiceNone, nil
 			},
 			// The picker and the program check behind that dialog cancel and
 			// decline, so a test can never open a real file picker or inspect a

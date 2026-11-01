@@ -170,16 +170,37 @@ func TestHelperAttachmentUsesCurrentPermissions(t *testing.T) {
 			}
 			switch kind {
 			case "replacement", "cleared denial":
-				a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(newPath, platform.ConfirmAllowOnce, nil))
+				// The binding now names another file for the same registration, so a
+				// stale attachment must not run the program it captured.
+				a.rt.cfg.SetHelperProgramPath(old.ID, newPath)
+				a.configureHelperDocumentWith(helperDocumentKey(document, "search"), helperApprovalDialogs{
+					setup: func(string, string, string, string, string) (platform.Choice, error) {
+						t.Error("configuring an already-allowed name opened the program dialog")
+						return platform.ChoiceNone, nil
+					},
+					choose: func(string, string) (string, bool, error) {
+						t.Error("configuring an already-allowed name opened the picker")
+						return "", false, nil
+					},
+					prepare: func(string) (bool, error) {
+						t.Error("configuring an already-allowed name prepared a program")
+						return false, nil
+					},
+				})
 			case "remove", "forget", "new denial":
-				choice := platform.ManageForgetDecisions
+				action := "revoke-all"
 				if kind == "remove" {
-					choice = platform.ManageRemove
+					action = "remove"
+					if err := os.Remove(oldPath); err != nil {
+						t.Fatal(err)
+					}
 				}
-				a.manageHelperProgramWith(old.ID, func(platform.ProgramSummary) (platform.ManageChoice, error) { return choice, nil })
+				if outcome := a.programsAction(action, old.ID, "", ""); outcome == "failed" {
+					t.Fatalf("%s = %q", action, outcome)
+				}
 				a.refreshHelperDispatchers()
 				if kind == "new denial" {
-					denied := a.helpersForOpenWith(document, true, false, allowDocumentDialogs(oldPath, platform.ConfirmDeny, nil))
+					denied := a.helpersForUseWith(document, "search", allowDocumentDialogs(oldPath, platform.ConfirmDeny, nil))
 					a.applyHelperPlan(s, document, denied)
 				}
 			}
@@ -188,12 +209,23 @@ func TestHelperAttachmentUsesCurrentPermissions(t *testing.T) {
 			if !ok {
 				t.Fatal("document registration disappeared")
 			}
+			if kind == "remove" {
+				// Remove from List remembers the removal for every document that
+				// used the program, so the name is refused, not set up again.
+				if state := helperDiscoveryState(t, s, document); state != "denied" {
+					t.Fatalf("helper state %q after removing the program, want denied", state)
+				}
+				if _, err := os.Stat(oldMarker); !os.IsNotExist(err) {
+					t.Fatalf("old program executed or marker inspection failed: %v", err)
+				}
+				return
+			}
 			terminal := attachmentRequestTerminal(t, s, document, registered.Token, "current-permission-request")
 			if kind == "replacement" || kind == "cleared denial" {
 				if terminal.Type != "wire/done" || terminal.Payload.Program != "replacement" {
 					t.Fatalf("stale attachment executed wrong program: %+v", terminal)
 				}
-				current, _ := a.rt.cfg.ResolveHelper(document, "search")
+				current, _ := a.rt.cfg.ResolveHelper(document, "search", true)
 				if !current.Allowed || current.Program.Path != newPath {
 					t.Fatal("replacement config changed")
 				}
@@ -205,10 +237,8 @@ func TestHelperAttachmentUsesCurrentPermissions(t *testing.T) {
 					t.Fatalf("stale allow was restored: %+v", terminal)
 				}
 				state := helperDiscoveryState(t, s, document)
-				want := "unavailable"
-				if kind == "new denial" {
-					want = "denied"
-				}
+				// Remove All Access is remembered as a refusal, like a new Deny.
+				want := "denied"
 				if state != want {
 					t.Fatalf("helper state %q, want %q", state, want)
 				}
@@ -221,6 +251,7 @@ func TestHelperAttachmentUsesCurrentPermissions(t *testing.T) {
 }
 
 func TestHelperRefreshDoesNotNotifyForAnUnrelatedDeletedDocument(t *testing.T) {
+	settledSetup(t)
 	home, err := resolveSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -238,7 +269,7 @@ func TestHelperRefreshDoesNotNotifyForAnUnrelatedDeletedDocument(t *testing.T) {
 	a.rt.notify = func(string, string) error { notifications.Add(1); return nil }
 	path := writeTestProgram(t, t.TempDir(), "search", 0755)
 	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(path, platform.ConfirmAllowOnce, nil))
-	current, _ := a.rt.cfg.ResolveHelper(document, "search")
+	current, _ := a.rt.cfg.ResolveHelper(document, "search", true)
 	if !current.Allowed || current.Program.Path != path {
 		t.Fatal("repair did not save the selected program")
 	}

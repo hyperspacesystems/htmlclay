@@ -67,6 +67,9 @@ type Server struct {
 	// helperAsking parks requests for a helper the person has not answered,
 	// keyed by helperAskKey, while one dialog asks about it.
 	helperAsking map[string][]parkedHelperRequest
+	// helperSetting marks, by helperAskKey, a setup dialog that is running, so a
+	// second setup request for the same name waits its turn instead of stacking.
+	helperSetting map[string]bool
 	// helperAskQuiet holds, per file, when a page may next raise the dialog
 	// after one that granted nothing.
 	helperAskQuiet map[string]time.Time
@@ -229,6 +232,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	// The page menu's file actions. Same-origin and token-bearing, because the host
 	// does something to the user's computer on the page's word.
 	mux.HandleFunc("POST /_/reveal/{token}", sameOrigin(s.handleReveal))
+	mux.HandleFunc("POST /_/helper-setup/{token}", sameOrigin(s.handleHelperSetup))
 	mux.HandleFunc("POST /_/versions-folder/{token}", sameOrigin(s.handleVersionsFolder))
 	mux.HandleFunc("POST /_/export/{token}", sameOrigin(s.handleExport))
 	// Registered ahead of the catch-all. The stream is a read, but it joins the
@@ -402,7 +406,7 @@ func redactPath(p string) string {
 		"/_/save/", "/_/read/", "/_/meta/", "/_/upload/",
 		"/_/versions/", "/_/version/", "/_/restore/",
 		"/_/reveal/", "/_/versions-folder/", "/_/export/",
-		"/_/workspace-request/",
+		"/_/workspace-request/", "/_/helper-setup/",
 	} {
 		if strings.HasPrefix(p, prefix) {
 			return prefix + "<redacted>"

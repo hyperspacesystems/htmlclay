@@ -24,21 +24,46 @@ func helperDocumentKey(document, name string) string {
 	return document + "\x00" + name
 }
 
+// setupAnswers answers successive setup dialogs from answers, reporting each
+// title and message it was asked with.
+func setupAnswers(seen *[]string, answers ...platform.Choice) func(title, message, refuse, middle, affirm string) (platform.Choice, error) {
+	return func(title, message, refuse, middle, affirm string) (platform.Choice, error) {
+		if seen != nil {
+			*seen = append(*seen, "setup:"+title+":"+message)
+		}
+		if len(answers) == 0 {
+			return platform.ChoiceNone, nil
+		}
+		answer := answers[0]
+		answers = answers[1:]
+		return answer, nil
+	}
+}
+
+// choiceAnswers maps a read-prompt answer onto the setup dialogs it now takes: a
+// wider grant is More Options and then Allow in Trusted Folders.
+func choiceAnswers(choice platform.ConfirmChoice) []platform.Choice {
+	switch choice {
+	case platform.ConfirmDeny:
+		return []platform.Choice{platform.ChoiceRefuse}
+	case platform.ConfirmAllowOnce:
+		return []platform.Choice{platform.ChoiceAffirm}
+	case platform.ConfirmAllowAlways:
+		return []platform.Choice{platform.ChoiceMiddle, platform.ChoiceAffirm}
+	}
+	return []platform.Choice{platform.ChoiceNone}
+}
+
 // allowDocumentDialogs picks path and answers with choice, reporting what the
-// picker and the prompt were asked.
+// picker and the setup dialog were asked.
 func allowDocumentDialogs(path string, choice platform.ConfirmChoice, seen *[]string) helperApprovalDialogs {
 	return helperApprovalDialogs{
+		setup: setupAnswers(seen, choiceAnswers(choice)...),
 		choose: func(prompt, dir string) (string, bool, error) {
 			if seen != nil {
 				*seen = append(*seen, "choose:"+prompt)
 			}
 			return path, true, nil
-		},
-		confirm: func(title, message string, allowBroad bool) (platform.ConfirmChoice, error) {
-			if seen != nil {
-				*seen = append(*seen, "confirm:"+title+":"+message)
-			}
-			return choice, nil
 		},
 		prepare: func(prepared string) (bool, error) {
 			if seen != nil {
@@ -147,7 +172,7 @@ func TestHelperDocumentRowsComeFromBookmarkNavigationWithoutAnOsOpen(t *testing.
 	if !ok {
 		t.Fatalf("no row for the bookmark-opened document: %+v", rows)
 	}
-	want := "~/proj/page.htmlclay: search (approval needed: " + programPath + ")"
+	want := "~/proj/page.htmlclay: “search” needs setup…"
 	if bookmarked.Label != want {
 		t.Fatalf("row label = %q, want %q", bookmarked.Label, want)
 	}
@@ -155,14 +180,14 @@ func TestHelperDocumentRowsComeFromBookmarkNavigationWithoutAnOsOpen(t *testing.
 	if !ok {
 		t.Fatalf("no row for the opened document: %+v", rows)
 	}
-	if want := "~/proj/opened.htmlclay: ocr (no program registered)"; osOpened.Label != want {
+	if want := "~/proj/opened.htmlclay: “ocr” needs setup…"; osOpened.Label != want {
 		t.Fatalf("row label = %q, want %q", osOpened.Label, want)
 	}
 }
 
-// Choosing a file that is already registered under another name binds this
-// document to that registration: no second registration, and the binding
-// survives a restart because it is stored, not held in the tray.
+// The file HTML Clay finds is already registered under another name, so the
+// allow binds this document to that registration: no second registration, and
+// the binding survives a restart because it is stored, not held in the tray.
 func TestHelperDocumentConfigureReusesAnExistingRegistration(t *testing.T) {
 	home, err := resolveSymlinks(t.TempDir())
 	if err != nil {
@@ -171,7 +196,7 @@ func TestHelperDocumentConfigureReusesAnExistingRegistration(t *testing.T) {
 	cfgBase := t.TempDir()
 	a := newTestAppWithConfigDir(t, home, cfgBase)
 	document := writeHelperPage(t, home, "search")
-	programPath := writeTestProgram(t, t.TempDir(), "other", 0755)
+	programPath := writeTestProgram(t, t.TempDir(), "search", 0755)
 	program, err := a.rt.cfg.AddHelperProgram("other", programPath)
 	if err != nil {
 		t.Fatal(err)
@@ -185,12 +210,12 @@ func TestHelperDocumentConfigureReusesAnExistingRegistration(t *testing.T) {
 	a.openForTest(t, document)
 
 	rows := a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(programPath, platform.ConfirmAllowOnce, nil))
-	if len(rows) != 1 || rows[0].Label != "~/page.htmlclay: search (allowed: "+programPath+")" {
+	if len(rows) != 1 || rows[0].Label != "~/page.htmlclay: “search” runs "+filepath.Base(programPath) {
 		t.Fatalf("rows after the allow = %+v", rows)
 	}
 	programs := a.rt.cfg.HelperProgramList()
 	if len(programs) != 2 {
-		t.Fatalf("registrations = %+v, want the chosen one reused, not added again", programs)
+		t.Fatalf("registrations = %+v, want the found file's registration reused, not added again", programs)
 	}
 	kept, ok := a.rt.cfg.LookupHelperProgram(program.ID)
 	if !ok || kept.Path != programPath || kept.Name != "other" {
@@ -202,7 +227,7 @@ func TestHelperDocumentConfigureReusesAnExistingRegistration(t *testing.T) {
 	}
 
 	restarted := buildTestApp(t, home, cfgBase)
-	resolution, found := restarted.rt.cfg.ResolveHelper(document, "search")
+	resolution, found := restarted.rt.cfg.ResolveHelper(document, "search", true)
 	if !found || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
 		t.Fatalf("resolution after a restart = %+v, %v", resolution, found)
 	}
@@ -291,13 +316,14 @@ func TestHelperDocumentAnyDocumentGrantNeedsTheExplicitChoice(t *testing.T) {
 			}
 			message := ""
 			for _, call := range seen {
-				if strings.HasPrefix(call, "confirm:Allow document program?:") {
-					message = strings.TrimPrefix(call, "confirm:Allow document program?:")
+				if strings.HasPrefix(call, "setup:") {
+					message = call
+					break
 				}
 			}
-			for _, want := range []string{document, "search", programPath, "approval needed: " + programPath} {
+			for _, want := range []string{filepath.Base(document), "\u201csearch\u201d", programPath} {
 				if !strings.Contains(message, want) {
-					t.Errorf("the prompt does not state %q:\n%s", want, message)
+					t.Errorf("the dialog does not state %q:\n%s", want, message)
 				}
 			}
 
@@ -305,7 +331,7 @@ func TestHelperDocumentAnyDocumentGrantNeedsTheExplicitChoice(t *testing.T) {
 			if !ok || kept.AnyDocument != tc.anyDocument {
 				t.Fatalf("any-document flag = %+v, want %v", kept, tc.anyDocument)
 			}
-			resolution, _ := a.rt.cfg.ResolveHelper(document, "search")
+			resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
 			if resolution.Allowed != tc.allowed {
 				t.Fatalf("resolution = %+v, want allowed %v", resolution, tc.allowed)
 			}
@@ -318,69 +344,69 @@ func TestHelperDocumentAnyDocumentGrantNeedsTheExplicitChoice(t *testing.T) {
 }
 
 // Cancelling the picker, refusing the prompt, or failing to prepare the program
-// stores nothing and must leave this open's own refusals exactly as they were.
+// stores nothing, and this open's other refusals stay exactly as they were. The
+// tray action clears the refusal for the name it is configuring.
 func TestHelperDocumentCancelledOrFailedDialogsChangeNothing(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		dialogs  func(t *testing.T, path string) helperApprovalDialogs
 		reported bool
+		denied   string
 	}{
 		{"picker cancelled", func(t *testing.T, _ string) helperApprovalDialogs {
 			return helperApprovalDialogs{
+				setup:  setupAnswers(nil, platform.ChoiceMiddle, platform.ChoiceMiddle),
 				choose: func(string, string) (string, bool, error) { return "", false, nil },
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) {
-					t.Error("a cancelled picker asked for approval")
-					return platform.ConfirmAllowOnce, nil
-				},
 				prepare: func(string) (bool, error) {
 					t.Error("a cancelled picker prepared a program")
 					return false, nil
 				},
 			}
-		}, false},
+		}, false, "ocr"},
 		{"picker failed", func(t *testing.T, _ string) helperApprovalDialogs {
 			return helperApprovalDialogs{
+				setup:  setupAnswers(nil, platform.ChoiceMiddle, platform.ChoiceMiddle),
 				choose: func(string, string) (string, bool, error) { return "", false, errHelperFixture },
 			}
-		}, true},
+		}, true, "ocr"},
 		{"approval refused", func(t *testing.T, path string) helperApprovalDialogs {
 			return helperApprovalDialogs{
-				choose:  func(string, string) (string, bool, error) { return path, true, nil },
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) { return platform.ConfirmDeny, nil },
+				setup:  setupAnswers(nil, platform.ChoiceRefuse),
+				choose: func(string, string) (string, bool, error) { return path, true, nil },
 				prepare: func(string) (bool, error) {
 					t.Error("a refusal prepared a program")
 					return false, nil
 				},
 			}
-		}, false},
+		}, false, "ocr,search"},
 		{"approval dismissed", func(t *testing.T, path string) helperApprovalDialogs {
 			return helperApprovalDialogs{
-				choose:  func(string, string) (string, bool, error) { return path, true, nil },
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) { return platform.ConfirmDismissed, nil },
+				setup:  setupAnswers(nil, platform.ChoiceNone),
+				choose: func(string, string) (string, bool, error) { return path, true, nil },
 			}
-		}, false},
+		}, false, "ocr"},
 		{"approval failed", func(t *testing.T, path string) helperApprovalDialogs {
 			return helperApprovalDialogs{
-				choose: func(string, string) (string, bool, error) { return path, true, nil },
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) {
-					return platform.ConfirmDismissed, errHelperFixture
+				setup: func(string, string, string, string, string) (platform.Choice, error) {
+					return platform.ChoiceNone, errHelperFixture
 				},
+				choose: func(string, string) (string, bool, error) { return path, true, nil },
 			}
-		}, true},
+		}, true, "ocr"},
 		{"prepare refused", func(t *testing.T, path string) helperApprovalDialogs {
 			return helperApprovalDialogs{
+				setup:   setupAnswers(nil, platform.ChoiceAffirm),
 				choose:  func(string, string) (string, bool, error) { return path, true, nil },
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) { return platform.ConfirmAllowOnce, nil },
 				prepare: func(string) (bool, error) { return false, nil },
 			}
-		}, false},
+		}, false, "ocr"},
 		{"prepare failed", func(t *testing.T, path string) helperApprovalDialogs {
 			return helperApprovalDialogs{
+				setup:   setupAnswers(nil, platform.ChoiceAffirm),
 				choose:  func(string, string) (string, bool, error) { return path, true, nil },
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) { return platform.ConfirmAllowOnce, nil },
 				prepare: func(string) (bool, error) { return false, errHelperFixture },
 			}
-		}, true},
+		}, true, "ocr"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			home, err := resolveSymlinks(t.TempDir())
@@ -399,7 +425,7 @@ func TestHelperDocumentCancelledOrFailedDialogsChangeNothing(t *testing.T) {
 				t.Fatal(err)
 			}
 			a.openForTest(t, document)
-			a.setOpenDenials(document, []string{"search"})
+			a.setOpenDenials(document, []string{"search", "ocr"})
 			beforePrograms := a.rt.cfg.HelperProgramList()
 			beforeDecisions := a.rt.cfg.HelperDecisionList()
 
@@ -411,10 +437,10 @@ func TestHelperDocumentCancelledOrFailedDialogsChangeNothing(t *testing.T) {
 			if got := a.rt.cfg.HelperDecisionList(); !equalHelperDecisions(got, beforeDecisions) {
 				t.Fatalf("decisions = %+v, want %+v", got, beforeDecisions)
 			}
-			if got := openDenialsOf(t, a, document); strings.Join(got, ",") != "search" {
-				t.Fatalf("this open's refusal changed: %v", got)
+			if got := openDenialsOf(t, a, document); strings.Join(got, ",") != tc.denied {
+				t.Fatalf("this open's other refusals changed: %v", got)
 			}
-			if resolution, _ := a.rt.cfg.ResolveHelper(document, "search"); resolution.Allowed {
+			if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed {
 				t.Fatalf("resolution = %+v, want nothing granted", resolution)
 			}
 			if tc.reported {
@@ -427,9 +453,10 @@ func TestHelperDocumentCancelledOrFailedDialogsChangeNothing(t *testing.T) {
 	}
 }
 
-// A config write that fails leaves no registration, no decision, no wider grant
-// and no lost refusal behind.
+// A config write that fails leaves no registration, no decision and no wider
+// grant behind, and this open's other refusals survive.
 func TestHelperDocumentSaveFailureRollsBackAndKeepsTheDenial(t *testing.T) {
+	settledSetup(t)
 	home, err := resolveSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -454,7 +481,7 @@ func TestHelperDocumentSaveFailureRollsBackAndKeepsTheDenial(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.openForTest(t, document)
-	a.setOpenDenials(document, []string{"search"})
+	a.setOpenDenials(document, []string{"search", "ocr"})
 
 	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(programPath, platform.ConfirmAllowAlways, nil))
 
@@ -468,8 +495,8 @@ func TestHelperDocumentSaveFailureRollsBackAndKeepsTheDenial(t *testing.T) {
 	if got := a.rt.cfg.HelperDecisionList(); len(got) != 0 {
 		t.Fatalf("decisions after a failed save = %+v", got)
 	}
-	if got := openDenialsOf(t, a, document); strings.Join(got, ",") != "search" {
-		t.Fatalf("this open's refusal was dropped by a failed save: %v", got)
+	if got := openDenialsOf(t, a, document); strings.Join(got, ",") != "ocr" {
+		t.Fatalf("a failed save dropped this open's other refusals: %v", got)
 	}
 	testutil.Eventually(t, 5*time.Second, "the failed save to reach the user", func() bool { return reported.Load() > 0 })
 }
@@ -504,10 +531,10 @@ func TestHelperDocumentStatusReportsRemovedAndDuplicateRegistrations(t *testing.
 		}
 		rows := a.helperDocumentRows()
 		row, ok := helperRowByPath(rows, helperDocumentKey(document, "search"))
-		if !ok || !strings.HasSuffix(row.Label, "(previous program was removed)") {
+		if !ok || !strings.HasSuffix(row.Label, "“search” needs setup…") {
 			t.Fatalf("row = %+v", rows)
 		}
-		if resolution, _ := a.rt.cfg.ResolveHelper(document, "search"); resolution.Allowed {
+		if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed {
 			t.Fatalf("a removed registration still granted the name: %+v", resolution)
 		}
 		if state := helperDiscoveryState(t, s, document); state != "unavailable" {
@@ -533,7 +560,7 @@ func TestHelperDocumentStatusReportsRemovedAndDuplicateRegistrations(t *testing.
 		if got := a.helperBindingStatus(document, "search"); got != "choose between registered programs" {
 			t.Fatalf("status = %q", got)
 		}
-		if resolution, _ := a.rt.cfg.ResolveHelper(document, "search"); resolution.Allowed || resolution.Program.ID != "" {
+		if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed || resolution.Program.ID != "" {
 			t.Fatalf("two registrations resolved to one program without asking: %+v", resolution)
 		}
 		if state := helperDiscoveryState(t, s, document); state != "unavailable" {
@@ -542,10 +569,11 @@ func TestHelperDocumentStatusReportsRemovedAndDuplicateRegistrations(t *testing.
 	})
 }
 
-// Replacing a binding the user picked wrongly is an explicit choice, and it
-// touches nothing else: the other names in this document and the decisions in
-// other documents stay exactly as they were.
+// Replacing a binding the user picked wrongly is an explicit choice, made after
+// that one decision is forgotten, and it touches nothing else: the other names
+// in this document and the decisions in other documents stay as they were.
 func TestHelperDocumentReplacingAWrongBindingKeepsUnrelatedDecisions(t *testing.T) {
+	settledSetup(t)
 	home, err := resolveSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -577,11 +605,14 @@ func TestHelperDocumentReplacingAWrongBindingKeepsUnrelatedDecisions(t *testing.
 			t.Fatal(err)
 		}
 	}
+	if _, ok := a.rt.cfg.ForgetHelperDecision(document, "search"); !ok {
+		t.Fatal("the wrong binding was not forgotten")
+	}
 	a.openForTest(t, document)
 
 	rows := a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(rightPath, platform.ConfirmAllowOnce, nil))
 
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "search")
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
 	if !resolution.Allowed || resolution.Program.ID != right.ID {
 		t.Fatalf("the replaced binding = %+v, want %s", resolution, right.ID)
 	}
@@ -606,11 +637,11 @@ func TestHelperDocumentReplacingAWrongBindingKeepsUnrelatedDecisions(t *testing.
 		t.Fatalf("registrations = %+v, want the chosen registration reused", programs)
 	}
 	searchRow, ok := helperRowByPath(rows, helperDocumentKey(document, "search"))
-	if !ok || !strings.HasSuffix(searchRow.Label, "(allowed: "+rightPath+")") {
+	if !ok || !strings.HasSuffix(searchRow.Label, "“search” runs "+filepath.Base(rightPath)) {
 		t.Fatalf("row = %+v", searchRow)
 	}
 	ocrRow, ok := helperRowByPath(rows, helperDocumentKey(document, "ocr"))
-	if !ok || !strings.HasSuffix(ocrRow.Label, "(allowed: "+ocrPath+")") {
+	if !ok || !strings.HasSuffix(ocrRow.Label, "“ocr” runs "+filepath.Base(ocrPath)) {
 		t.Fatalf("the other name's row changed: %+v", ocrRow)
 	}
 }
@@ -681,10 +712,10 @@ func TestHelperDocumentStatusReportsMissingAndNonExecutablePrograms(t *testing.T
 
 	rows := a.helperDocumentRows()
 	row, ok := helperRowByPath(rows, helperDocumentKey(document, "search"))
-	if !ok || !strings.HasSuffix(row.Label, "(program file missing: "+missing+")") {
+	if !ok || !strings.HasSuffix(row.Label, "“search” needs setup…") {
 		t.Fatalf("row = %+v", row)
 	}
-	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search"); resolution.Allowed {
+	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed {
 		t.Fatalf("a program file that is gone still resolved as allowed: %+v", resolution)
 	}
 
@@ -692,95 +723,56 @@ func TestHelperDocumentStatusReportsMissingAndNonExecutablePrograms(t *testing.T
 	for _, row := range a.helperProgramRows() {
 		labels[row.Path] = row.Label
 	}
-	if labels[searchProgram.ID] != "search  (missing)" {
+	if labels[searchProgram.ID] != "Locate “search” (file missing)…" {
 		t.Errorf("program row = %q, want the missing status", labels[searchProgram.ID])
 	}
-	wantOcr := "ocr  (not executable)"
-	if runtime.GOOS == "windows" {
-		wantOcr = "ocr  (0 documents)"
-	}
-	if labels[ocrProgram.ID] != wantOcr {
-		t.Errorf("program row = %q, want %q", labels[ocrProgram.ID], wantOcr)
+	if _, listed := labels[ocrProgram.ID]; listed {
+		t.Errorf("a program whose file exists is listed as missing: %q", labels[ocrProgram.ID])
 	}
 }
 
-// The document can change while the native dialogs are open. Whatever the answer
-// was, it must not be stored against a document that no longer declares the name,
-// is no longer open, or is being shut down.
-func TestHelperDocumentConfigureRefusesADocumentThatChangedDuringTheDialog(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		during func(t *testing.T, a *app, document, folder string)
-	}{
-		{"declaration removed", func(t *testing.T, a *app, document, _ string) {
-			writeTestFile(t, document, `<!doctype html><head></head>`)
-		}},
-		{"untrusted", func(t *testing.T, a *app, _, folder string) {
-			if err := a.untrustFolder(folder); err != nil {
-				t.Fatal(err)
-			}
-		}},
-		{"shutting down", func(t *testing.T, a *app, _, _ string) {
-			a.mu.Lock()
-			a.stopping = true
-			a.mu.Unlock()
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			home, err := resolveSymlinks(t.TempDir())
-			if err != nil {
-				t.Fatal(err)
-			}
-			folder := filepath.Join(home, "proj")
-			document := filepath.Join(folder, "page.htmlclay")
-			writeTestFile(t, document, `<!doctype html><head><meta name="htmlclay-helper" content="search"></head>`)
-			programPath := writeTestProgram(t, t.TempDir(), "search", 0755)
-			a := newTestApp(t, home)
-			var reported atomic.Int32
-			a.rt.notify = func(string, string) error {
-				reported.Add(1)
-				return nil
-			}
-			if _, err := a.rt.cfg.AddHelperProgram("search", programPath); err != nil {
-				t.Fatal(err)
-			}
-			if err := a.trustFolder(folder); err != nil {
-				t.Fatal(err)
-			}
-			s := liveSite(t, a, folder)
-			if status, body := fetchNav(t, s.url(filepath.Join("proj", "page.htmlclay"))); status != 200 {
-				t.Fatalf("bookmark navigation = %d: %s", status, body)
-			}
-			if _, ok := s.sessions.LookupByPath(document); !ok {
-				t.Fatal("the navigation did not register the document")
-			}
-
-			dialogs := allowDocumentDialogs(programPath, platform.ConfirmAllowOnce, nil)
-			prepare := dialogs.prepare
-			dialogs.prepare = func(path string) (bool, error) {
-				ok, err := prepare(path)
-				if err != nil || !ok {
-					return ok, err
-				}
-				tc.during(t, a, document, folder)
-				return true, nil
-			}
-			rows := a.configureHelperDocumentWith(helperDocumentKey(document, "search"), dialogs)
-
-			if got := a.rt.cfg.HelperDecisionList(); len(got) != 0 {
-				t.Fatalf("a decision was stored for a document that changed: %+v", got)
-			}
-			if resolution, _ := a.rt.cfg.ResolveHelper(document, "search"); resolution.Allowed {
-				t.Fatalf("the name was granted anyway: %+v", resolution)
-			}
-			for _, row := range rows {
-				if strings.HasPrefix(row.Path, document+"\x00") {
-					t.Fatalf("a row survived for a document that is gone: %+v", row)
-				}
-			}
-			testutil.Eventually(t, 5*time.Second, "the refusal to reach the user", func() bool { return reported.Load() > 0 })
-		})
+// The program HTML Clay is about to save can change while the dialog is open.
+// Whatever the answer was, nothing may be stored for a file the person never
+// saw: the second registration makes the found file ambiguous.
+func TestHelperDocumentConfigureRefusesAProgramThatChangedDuringTheDialog(t *testing.T) {
+	home, err := resolveSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
 	}
+	a := newTestApp(t, home)
+	var reported atomic.Int32
+	a.rt.notify = func(string, string) error {
+		reported.Add(1)
+		return nil
+	}
+	document := writeHelperPage(t, home, "search")
+	programPath := writeTestProgram(t, t.TempDir(), "search", 0755)
+	if _, err := a.rt.cfg.AddHelperProgram("search", programPath); err != nil {
+		t.Fatal(err)
+	}
+	a.openForTest(t, document)
+
+	var seen []string
+	dialogs := allowDocumentDialogs(programPath, platform.ConfirmAllowOnce, &seen)
+	setup := dialogs.setup
+	dialogs.setup = func(title, message, refuse, middle, affirm string) (platform.Choice, error) {
+		if _, err := a.rt.cfg.AddHelperProgram("search", writeTestProgram(t, t.TempDir(), "second", 0755)); err != nil {
+			t.Fatal(err)
+		}
+		return setup(title, message, refuse, middle, affirm)
+	}
+	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), dialogs)
+
+	if got := a.rt.cfg.HelperDecisionList(); len(got) != 0 {
+		t.Fatalf("a decision was stored for a program that changed: %+v", got)
+	}
+	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed {
+		t.Fatalf("the name was granted anyway: %+v", resolution)
+	}
+	if strings.Contains(strings.Join(seen, "\n"), "prepare:") {
+		t.Fatalf("the dialog prepared a program it never settled on: %v", seen)
+	}
+	testutil.Eventually(t, 5*time.Second, "the refusal to reach the user", func() bool { return reported.Load() > 0 })
 }
 
 // A row that is malformed, names a document that is not open, or names something
@@ -823,9 +815,9 @@ func TestHelperDocumentStaleOrMalformedRowAsksNothing(t *testing.T) {
 					t.Error("a stale row opened the picker")
 					return "", false, nil
 				},
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) {
+				setup: func(string, string, string, string, string) (platform.Choice, error) {
 					t.Error("a stale row asked for approval")
-					return platform.ConfirmDeny, nil
+					return platform.ChoiceRefuse, nil
 				},
 				prepare: func(string) (bool, error) { t.Error("a stale row prepared a program"); return false, nil },
 			}
@@ -844,8 +836,10 @@ var errHelperFixture = errors.New("the dialog tool is unavailable")
 // the selected path. Selecting a stable symlink whose target an older
 // registration already names gets the symlink its own registration, so package
 // manager updates reach the binding; the older registration and its approvals
-// stay untouched, and an Allow for This Document stays document-only.
+// stay untouched, and an Allow for This Document stays document-only. The picker
+// names the program and the document, and exactly the selected path is prepared.
 func TestHelperDocumentNativeRepairKeepsTheSelectedSymlink(t *testing.T) {
+	settledSetup(t)
 	home, err := resolveSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -866,10 +860,13 @@ func TestHelperDocumentNativeRepairKeepsTheSelectedSymlink(t *testing.T) {
 
 	var seen []string
 	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(selected, platform.ConfirmAllowOnce, &seen))
-	if !strings.Contains(strings.Join(seen, "\n"), "Selected program:\n"+selected) {
-		t.Fatal("the prompt did not show the selected path")
+	if !strings.Contains(strings.Join(seen, "\n"), "choose:Choose the program for \u201csearch\u201d in page.htmlclay") {
+		t.Fatalf("the picker did not name the program and the document: %v", seen)
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "search")
+	if !strings.Contains(strings.Join(seen, "\n"), "prepare:"+selected) {
+		t.Fatalf("the selected symlink was not the program prepared: %v", seen)
+	}
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
 	if !resolution.Allowed {
 		t.Fatal("the document did not approve the helper")
 	}
@@ -900,11 +897,12 @@ func TestHelperDocumentNativeRepairKeepsTheSelectedSymlink(t *testing.T) {
 	}
 }
 
-// A picked executable that is already registered under another name still binds
-// the declaring document. Allow for This Document reuses that registration under
-// its own name; Allow for Any Document leaves it alone and registers the selected
-// path under the declared name, so the wider grant belongs to the name the dialog
-// showed and no unshown registered name is approved.
+// The file HTML Clay finds is already registered under another name, and it
+// still binds the declaring document. Allow for This Document reuses that
+// registration under its own name; Allow for Any Document leaves it alone and
+// registers the found path under the declared name, so the wider grant belongs
+// to the name the dialog showed, which the dialog names when it reuses another
+// registration, and no third name is approved.
 func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -920,7 +918,8 @@ func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := newTestApp(t, home)
-			document := writeHelperPage(t, home, "search")
+			document := filepath.Join(home, "page.htmlclay")
+			writeTestFile(t, document, `<!doctype html><head><meta name="htmlclay-helper" content="search" data-program-file="clay-search"></head>`)
 			otherSearch := filepath.Join(home, "other-search.htmlclay")
 			writeTestFile(t, otherSearch, `<!doctype html><head><meta name="htmlclay-helper" content="search"></head>`)
 			otherXyd := filepath.Join(home, "other-xyd.htmlclay")
@@ -935,25 +934,31 @@ func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 			var seen []string
 			a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(programPath, tc.choice, &seen))
 
-			resolution, _ := a.rt.cfg.ResolveHelper(document, "search")
+			resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
 			if !resolution.Decided || !resolution.Allowed || resolution.Program.Path != programPath {
 				t.Fatalf("the current document = %+v, want the selected path approved", resolution)
 			}
-			message := ""
+			var dialogs []string
 			for _, call := range seen {
-				if strings.HasPrefix(call, "confirm:Allow document program?:") {
-					message = strings.TrimPrefix(call, "confirm:Allow document program?:")
+				if strings.HasPrefix(call, "setup:") {
+					dialogs = append(dialogs, strings.TrimPrefix(call, "setup:"))
 				}
 			}
-			for _, want := range []string{document, "Selected program:\n" + programPath, "other documents that request search"} {
-				if !strings.Contains(message, want) {
-					t.Errorf("the prompt does not state %q:\n%s", want, message)
+			if len(dialogs) == 0 {
+				t.Fatalf("no dialog was shown: %v", seen)
+			}
+			for _, want := range []string{filepath.Base(document), "\u201csearch\u201d"} {
+				if !strings.Contains(dialogs[0], want) {
+					t.Errorf("the dialog does not state %q:\n%s", want, dialogs[0])
 				}
 			}
-			if strings.Contains(message, "its registered name") {
-				t.Errorf("the prompt describes a grant under an unshown registered name:\n%s", message)
+			if !strings.Contains(dialogs[0], "You allowed this file before as \u201cxyd\u201d") {
+				t.Errorf("the dialog does not say which registration it reuses:\n%s", dialogs[0])
 			}
-			if got, _ := a.rt.cfg.ResolveHelper(otherXyd, "xyd"); got.Allowed {
+			if tc.wider && !strings.Contains(dialogs[len(dialogs)-1], programPath) {
+				t.Errorf("the trusted-folders dialog does not state the program's path %q:\n%s", programPath, dialogs[len(dialogs)-1])
+			}
+			if got, _ := a.rt.cfg.ResolveHelper(otherXyd, "xyd", true); got.Allowed {
 				t.Errorf("another document declaring xyd was allowed: %+v", got)
 			}
 
@@ -966,7 +971,7 @@ func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 				if !ok || kept.AnyDocument {
 					t.Fatalf("the reused registration = %+v, %v, want xyd left document-only", kept, ok)
 				}
-				if got, _ := a.rt.cfg.ResolveHelper(otherSearch, "search"); got.Allowed {
+				if got, _ := a.rt.cfg.ResolveHelper(otherSearch, "search", true); got.Allowed {
 					t.Errorf("another document declaring search was allowed by the document-only choice: %+v", got)
 				}
 				return
@@ -987,7 +992,7 @@ func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 			if resolution.Program.ID != declared[0].ID {
 				t.Fatalf("the current document binds %+v, want the new registration %+v", resolution.Program, declared[0])
 			}
-			other, _ := a.rt.cfg.ResolveHelper(otherSearch, "search")
+			other, _ := a.rt.cfg.ResolveHelper(otherSearch, "search", true)
 			if !other.Allowed || other.Program.ID != declared[0].ID {
 				t.Fatalf("another document declaring search = %+v, want the wider grant on %+v", other, declared[0])
 			}

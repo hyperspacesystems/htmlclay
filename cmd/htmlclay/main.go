@@ -84,13 +84,12 @@ type appRuntime struct {
 	// that auto-approves read grants must not silently auto-approve the
 	// write-granting dialog too.
 	confirmTrust func(title, message, affirmative string) (bool, error)
-	// confirmHelpers overrides the dialog that asks whether a document may use
-	// the programs it declares. Separate from confirm for the same reason
-	// confirmTrust is, and for one more: the two dialogs grant different things
-	// and so carry different button labels, and running the helper question
-	// through the read prompt's seam is what let it ask "Trust this folder"
-	// about a program.
-	confirmHelpers func(title, message string, allowBroad bool) (platform.ConfirmChoice, error)
+	// chooseHelperSetup overrides the dialog that connects a program to a
+	// document. Production leaves it nil and uses platform.Choose.
+	chooseHelperSetup func(title, message, refuse, middle, affirm string) (platform.Choice, error)
+	// openProgramsURL overrides how the tray opens the Programs page's one-time
+	// link, so a test can capture it instead of launching a browser.
+	openProgramsURL func(string) error
 	// chooseHelperProgram and prepareHelperProgram override the file picker and
 	// the executable check behind the helper permission dialog. Production
 	// leaves them nil and uses the platform dialogs; tests inject a cancel and a
@@ -141,6 +140,8 @@ type app struct {
 	// Lock order is helperMu, then helperStateMu, then mu.
 	// Never take helperMu while holding either of the others.
 	helperStateMu sync.Mutex
+	// programs holds the one-time links and sessions of the Programs page.
+	programs programsAuth
 	// openDenials holds the names refused at a document's last direct open. A
 	// refusal is never stored in config, so every re-resolve during that open
 	// applies it from here; the next direct open clears it and asks again.
@@ -524,11 +525,12 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 		Add:    a.pickAndTrustFolder,
 		Remove: a.removeTrustedFolder,
 	}, &tray.HelperHooks{
+		Title:     a.helperProgramsTitle,
 		List:      a.helperProgramRows,
-		Add:       a.pickHelperProgram,
-		Row:       a.manageHelperProgramAndRefresh,
+		Manage:    a.openProgramsPage,
+		Row:       a.relinkHelperProgramFromTray,
 		Documents: a.helperDocumentRows,
-		Document:  a.configureHelperDocument,
+		Document:  a.trayHelperDocument,
 		AIEditOff: a.cancelAIEdits,
 	}, &tray.ExportHooks{
 		Documents: a.exportDocumentRows,

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/helper"
 )
 
 func writeHelperDocument(t *testing.T, path string, names ...string) {
@@ -548,7 +549,7 @@ func TestAChildReadsTheDocumentModeTheHostResolved(t *testing.T) {
 	}
 }
 
-func TestAnUndecidedHelperAsksOnFirstUseAndThenRuns(t *testing.T) {
+func TestAnUndecidedHelperWaitsForSetupThenRuns(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
 	t.Cleanup(func() { srv.wire.shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
@@ -592,17 +593,27 @@ func TestAnUndecidedHelperAsksOnFirstUseAndThenRuns(t *testing.T) {
 	if err := json.Unmarshal(ack.Payload, &accepted); err != nil {
 		t.Fatal(err)
 	}
-	if accepted.Mode != "jsonl" || accepted.BudgetMS != 900000 {
-		t.Fatalf("ask ack = %+v, want jsonl with a 900000ms budget", accepted)
+	budget := int(helperParkLimit/time.Millisecond) + helper.StructuredDeadline
+	if accepted.Mode != "jsonl" || accepted.BudgetMS != budget {
+		t.Fatalf("parked ack = %+v, want jsonl with a %dms budget that covers the wait", accepted, budget)
 	}
 	status := receiveHelperType(t, observer, "wire/status", "first")
-	if status.Text != "Waiting for you to allow search in HTML Clay" {
+	if status.Text != "Waiting for you to set up search in HTML Clay" {
 		t.Fatalf("status text = %q", status.Text)
 	}
+	if calls.Load() != 0 {
+		t.Fatalf("AskHelper calls = %d, want none until setup starts", calls.Load())
+	}
+
+	setUp := make(chan bool, 1)
+	go func() {
+		granted, _ := srv.setUpHelper(file.AbsPath, "search")
+		setUp <- granted
+	}()
 	select {
 	case <-entered:
 	case <-time.After(2 * time.Second):
-		t.Fatal("the approval dialog was never raised")
+		t.Fatal("the setup request was never raised")
 	}
 	close(proceed)
 	var doneSub *wireSub
@@ -612,6 +623,9 @@ func TestAnUndecidedHelperAsksOnFirstUseAndThenRuns(t *testing.T) {
 		t.Fatal("no wire subscription after the approval reattached the helpers")
 	}
 	t.Cleanup(func() { srv.wire.remove(doneSub) })
+	if granted := <-setUp; !granted {
+		t.Fatal("setup did not grant search")
+	}
 	receiveHelperType(t, doneSub, "wire/done", "first")
 	if calls.Load() != 1 {
 		t.Fatalf("AskHelper calls = %d, want 1", calls.Load())
@@ -657,6 +671,15 @@ func TestOneDialogServesEveryRequestForTheSameHelper(t *testing.T) {
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
 	receiveHelperType(t, observer, "wire/ack", "two")
+	if calls.Load() != 0 {
+		t.Fatalf("AskHelper calls = %d, want none until setup starts", calls.Load())
+	}
+
+	settled := make(chan bool, 1)
+	go func() {
+		granted, _ := srv.setUpHelper(file.AbsPath, "search")
+		settled <- granted
+	}()
 	close(release)
 	var doneSub *wireSub
 	select {
@@ -674,6 +697,9 @@ func TestOneDialogServesEveryRequestForTheSameHelper(t *testing.T) {
 	}
 	if !seen["one"] || !seen["two"] {
 		t.Fatalf("completed requests = %+v, want both one and two", seen)
+	}
+	if granted := <-settled; !granted {
+		t.Fatal("setup did not grant search")
 	}
 	if calls.Load() != 1 {
 		t.Fatalf("AskHelper calls = %d, want one dialog for both requests", calls.Load())
@@ -728,6 +754,14 @@ func TestADialogThatGrantsNothingQuietsThePageForAMinute(t *testing.T) {
 		V: 1, Type: "wire/request", ID: "first", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
+	receiveHelperType(t, observer, "wire/ack", "first")
+	receiveHelperType(t, observer, "wire/status", "first")
+	if calls.Load() != 0 {
+		t.Fatalf("AskHelper calls = %d, want none until setup starts", calls.Load())
+	}
+	if granted, ran := srv.setUpHelper(file.AbsPath, "search"); granted || !ran {
+		t.Fatalf("setup = granted %v, ran %v, want a refused dialog", granted, ran)
+	}
 	if code := helperErrorCode(t, receiveHelperType(t, observer, "wire/error", "first")); code != "helper_not_granted" {
 		t.Fatalf("first code = %q, want helper_not_granted", code)
 	}
@@ -778,9 +812,11 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 	countPath := filepath.Join(t.TempDir(), "count")
 	t.Setenv(serverHelperArg, countPath)
 	program := helperProgram("search", structuredHelper(t, "count"))
+	var calls atomic.Int32
 	entered := make(chan struct{}, 1)
 	release := make(chan struct{})
 	srv.SetHooks(Hooks{AskHelper: func(path, name string) bool {
+		calls.Add(1)
 		entered <- struct{}{}
 		<-release
 		if err := srv.AttachHelpers(path, map[string]config.HelperProgram{name: program}, nil); err != nil {
@@ -800,10 +836,18 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
 	receiveHelperType(t, observer, "wire/ack", "parked")
+	if calls.Load() != 0 {
+		t.Fatalf("AskHelper calls = %d, want none until setup starts", calls.Load())
+	}
+	settled := make(chan struct{})
+	go func() {
+		srv.setUpHelper(file.AbsPath, "search")
+		close(settled)
+	}()
 	select {
 	case <-entered:
 	case <-time.After(2 * time.Second):
-		t.Fatal("the approval dialog was never raised")
+		t.Fatal("the setup request was never raised")
 	}
 	srv.wire.publish(file.AbsPath, wireEnvelope{
 		V: 1, Type: "wire/cancel", ID: "parked", File: file.AbsPath,
@@ -814,6 +858,14 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 		defer srv.helperMu.Unlock()
 		_, asking := srv.helperAsking[helperAskKey(file.AbsPath, "search")]
 		return !asking
+	})
+	waitFor(t, time.Second, "the setup to finish", func() bool {
+		select {
+		case <-settled:
+			return true
+		default:
+			return false
+		}
 	})
 	if _, err := os.Stat(countPath); err == nil {
 		t.Fatal("a request cancelled while parked ran the helper program")
@@ -908,6 +960,13 @@ func TestAQuietFileRefusesAnotherUndecidedNameWithoutAsking(t *testing.T) {
 		V: 1, Type: "wire/request", ID: "first", File: file.AbsPath,
 		Helper: "a", Payload: json.RawMessage(`{}`),
 	})
+	receiveHelperType(t, observer, "wire/ack", "first")
+	if calls.Load() != 0 {
+		t.Fatalf("AskHelper calls = %d, want none until setup starts", calls.Load())
+	}
+	if _, ran := srv.setUpHelper(file.AbsPath, "a"); !ran {
+		t.Fatal("the setup request never ran")
+	}
 	if code := helperErrorCode(t, receiveHelperType(t, observer, "wire/error", "first")); code != "helper_not_granted" {
 		t.Fatalf("first code = %q, want helper_not_granted", code)
 	}
@@ -949,17 +1008,31 @@ func TestAParkedRequestIsAnsweredWhenTheDispatcherIsGone(t *testing.T) {
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
 	receiveHelperType(t, observer, "wire/ack", "parked")
+
+	settled := make(chan struct{})
+	go func() {
+		srv.setUpHelper(file.AbsPath, "search")
+		close(settled)
+	}()
 	var page *wireSub
 	select {
 	case page = <-reconnected:
 	case <-time.After(2 * time.Second):
-		t.Fatal("the dialog never detached the dispatcher")
+		t.Fatal("the setup never detached the dispatcher")
 	}
 	t.Cleanup(func() { srv.wire.remove(page) })
 	env := receiveHelperType(t, page, "wire/error", "parked")
 	if code := helperErrorCode(t, env); code != "helper_not_granted" {
 		t.Fatalf("terminal code = %q, want helper_not_granted", code)
 	}
+	waitFor(t, time.Second, "the setup to finish", func() bool {
+		select {
+		case <-settled:
+			return true
+		default:
+			return false
+		}
+	})
 }
 
 func TestAMalformedRequestIsRefusedBeforeItCanAsk(t *testing.T) {

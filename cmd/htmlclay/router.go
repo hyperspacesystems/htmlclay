@@ -29,6 +29,10 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name = strings.ToLower(name)
+	if name == "127.0.0.1" && programsPath(r.URL.Path) {
+		a.servePrograms(w, r)
+		return
+	}
 	if name == "localhost" || name == "127.0.0.1" || name == "::1" {
 		if apiPath, ok := scriptAPIPath(r); ok {
 			if s := a.siteServingPath(apiPath); s != nil {

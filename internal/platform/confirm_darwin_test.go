@@ -112,3 +112,16 @@ func TestConfirmDarwinReportsAFailedDialogAsNoAnswer(t *testing.T) {
 		t.Fatalf("Confirm() on a failed osascript = (%v, %v), want (ConfirmDismissed, error)", got, err)
 	}
 }
+
+func TestUserCancelledOnlyForCancelButton(t *testing.T) {
+	out := []byte("execution error: User canceled. (-128)\n")
+	if !userCancelled("Cancel", out) {
+		t.Error("Cancel with -128 should read as a refusal")
+	}
+	if userCancelled("Deny", out) {
+		t.Error("only a button titled Cancel ends the script with -128")
+	}
+	if userCancelled("Cancel", []byte("execution error: something else (-1700)\n")) {
+		t.Error("other osascript errors are failures")
+	}
+}

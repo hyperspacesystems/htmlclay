@@ -58,10 +58,10 @@ func TestADenialLastsForTheRestOfThatOpen(t *testing.T) {
 				a.rt.cfg.SetHelperAnyDocument(second.ID, true)
 			}
 			calls := 0
-			plan := a.helpersForOpenWith(document, true, false, helperApprovalDialogs{
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) {
+			plan := a.helpersForUseWith(document, "search", helperApprovalDialogs{
+				setup: func(string, string, string, string, string) (platform.Choice, error) {
 					calls++
-					return platform.ConfirmDeny, nil
+					return platform.ChoiceRefuse, nil
 				},
 			})
 			if calls != 1 || len(plan.denied) != 1 || len(plan.allowed) != 0 {
@@ -74,14 +74,11 @@ func TestADenialLastsForTheRestOfThatOpen(t *testing.T) {
 			}
 			switch scenario {
 			case "cancel":
-				a.manageHelperProgramWith(first.ID, func(platform.ProgramSummary) (platform.ManageChoice, error) {
-					return platform.ManageCancel, nil
-				})
 				a.refreshHelperDispatchers()
 			case "revoke one shared global":
-				a.manageHelperProgramWith(second.ID, func(platform.ProgramSummary) (platform.ManageChoice, error) {
-					return platform.ManageToggleAnyDocument, nil
-				})
+				if outcome := a.programsAction("revoke-trusted", second.ID, "", ""); outcome != "revoked" {
+					t.Fatalf("revoke-trusted = %q", outcome)
+				}
 				a.refreshHelperDispatchers()
 			case "navigation reattach":
 				if _, ok := a.serveURL(document); !ok {
@@ -97,21 +94,26 @@ func TestADenialLastsForTheRestOfThatOpen(t *testing.T) {
 				t.Errorf("this open's refusal was lost: want denied, got %s", state)
 			}
 			reopened := 0
-			plan = a.helpersForOpenWith(document, true, false, helperApprovalDialogs{
-				confirm: func(string, string, bool) (platform.ConfirmChoice, error) {
+			dialogs := helperApprovalDialogs{
+				setup: func(string, string, string, string, string) (platform.Choice, error) {
 					reopened++
-					return platform.ConfirmDismissed, nil
+					return platform.ChoiceNone, nil
 				},
-			})
+			}
+			plan = a.helpersForOpenWith(document, true, false, dialogs)
+			if reopened != 0 {
+				t.Errorf("a direct open raised the helper dialog: %d prompts", reopened)
+			}
 			if len(plan.denied) != 0 {
 				t.Errorf("the next direct open inherited this open's refusal: %+v", plan.denied)
 			}
 			if _, covered := plan.allowed["search"]; covered {
-				if reopened != 0 {
-					t.Errorf("an allow already covers this name, yet the open asked again: %d prompts", reopened)
-				}
-			} else if reopened != 1 {
-				t.Errorf("the next direct open did not ask again: %d prompts", reopened)
+				t.Fatalf("a refused name resolved as allowed on the next open: %+v", plan.allowed)
+			}
+			clearPageAskQuiet(t, a, document)
+			a.helpersForUseWith(document, "search", dialogs)
+			if reopened != 1 {
+				t.Errorf("the page did not ask again after a direct open: %d prompts", reopened)
 			}
 		})
 	}

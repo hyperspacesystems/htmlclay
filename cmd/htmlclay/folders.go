@@ -52,6 +52,7 @@ func (a *app) trustFolder(dir string) error {
 		a.rt.logger.Printf("Trusted folder %s is covered by %s; remembered bookmarks use that origin after current folder approval", canonical, anchor)
 	}
 	a.bringLive(canonical)
+	a.refreshHelperDispatchers()
 	return nil
 }
 
@@ -233,6 +234,9 @@ func (a *app) untrustFolder(dir string) error {
 		a.parkPortMode(dir, freedPort, recoveryPage, recoveryRevoked)
 	}
 
+	// Programs allowed only by this folder's trust stop for every document
+	// still open, not just the ones re-homed above.
+	a.refreshHelperDispatchers()
 	a.rt.logger.Printf("Trusted folder removed: %s (%d registrations dropped, %d re-homed)", dir, len(dropped), len(reopen))
 	return nil
 }

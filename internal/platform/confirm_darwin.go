@@ -20,6 +20,9 @@ import (
 func confirmDialog(title, message string, labels ConfirmLabels) (ConfirmChoice, error) {
 	out, err := exec.Command("osascript", "-e", "activate me", "-e", confirmDialogScript(title, message, labels)).CombinedOutput()
 	if err != nil {
+		if userCancelled(labels.denyLabel(), out) {
+			return ConfirmDeny, nil
+		}
 		return ConfirmDismissed, err
 	}
 	return choiceFromOSAScript(osascriptButton(string(out)), labels), nil
@@ -38,6 +41,14 @@ func confirmDialogScript(title, message string, labels ConfirmLabels) string {
 		script += " default button " + appleScriptString(labels.denyLabel())
 	}
 	return script + " with icon caution giving up after 120"
+}
+
+// userCancelled reports whether osascript failed only because the person
+// clicked the refusing button. display dialog treats a button titled Cancel as
+// its cancel button: clicking it, or pressing Escape, ends the script with
+// error -128. That is an answer, the refusing one, not a failure.
+func userCancelled(refuseLabel string, out []byte) bool {
+	return refuseLabel == "Cancel" && strings.Contains(string(out), "(-128)")
 }
 
 // osascriptButton returns the exact label the user clicked. `display dialog`
@@ -70,6 +81,9 @@ func confirmTwoButtons(title, message, allowLabel, refuseLabel string) (bool, er
 		appleScriptString(refuseLabel) + " with icon caution giving up after 120"
 	out, err := exec.Command("osascript", "-e", "activate me", "-e", dialog).CombinedOutput()
 	if err != nil {
+		if userCancelled(refuseLabel, out) {
+			return false, nil
+		}
 		return false, err
 	}
 	// The refusing button and "gave up:true" both read as no.

@@ -65,6 +65,60 @@ type liveHelperRun struct {
 // program has since been unregistered, is in neither, and discovery has to be
 // able to tell those apart from a refusal.
 func (s *Server) AttachHelpers(file string, allowed map[string]config.HelperProgram, denied []string) error {
+	if err := s.attachHelpers(file, allowed, denied); err != nil {
+		return err
+	}
+	s.resumeParkedHelpers(file)
+	return nil
+}
+
+// resumeParkedHelpers answers the requests parked for file whose name a grant
+// made outside the setup endpoint has since decided, such as the tray or the
+// Programs page: an allowed name starts, a refused name fails. Names with a
+// setup dialog still open are left to finishHelperAsk.
+func (s *Server) resumeParkedHelpers(file string) {
+	type answer struct {
+		p    parkedHelperRequest
+		name string
+		run  bool
+	}
+	s.helperMu.Lock()
+	current := s.helpers[file]
+	if current == nil {
+		s.helperMu.Unlock()
+		return
+	}
+	var answers []answer
+	prefix := file + "\x00"
+	for key, parked := range s.helperAsking {
+		name, ok := strings.CutPrefix(key, prefix)
+		if !ok || s.helperSetting[key] {
+			continue
+		}
+		run := current.allowed[name].ID != ""
+		if !run && !current.denied[name] {
+			continue
+		}
+		for _, p := range parked {
+			answers = append(answers, answer{p: p, name: name, run: run})
+		}
+		delete(s.helperAsking, key)
+	}
+	s.helperMu.Unlock()
+	now := time.Now()
+	for _, a := range answers {
+		switch {
+		case a.p.expired(now):
+			s.rejectParkedHelper(current, file, a.p, "helper_setup_expired", a.name+" was not set up in time; set it up, then try again")
+		case a.run:
+			current.start(a.p.env, a.p.framed)
+		default:
+			s.rejectParkedHelper(current, file, a.p, "helper_not_granted", "this document was not granted that helper")
+		}
+	}
+}
+
+func (s *Server) attachHelpers(file string, allowed map[string]config.HelperProgram, denied []string) error {
 	names, err := readDeclaredHelpers(file)
 	if err != nil {
 		return fmt.Errorf("read helper declarations for %s: %w", file, err)
@@ -366,12 +420,15 @@ func (d *helperDispatcher) start(env wireEnvelope, framed []byte) {
 	go d.run(ctx, cancel, env, framed, program, document, resultLimit)
 }
 
-// helperAskBudget covers the whole approval: the dialog gives up after 120
-// seconds, the file picker after 5 minutes, and the program check can ask once more.
-// The parked ack adds the run's own deadline to it, because approving reattaches
-// the helpers, which drops the page's stream: the run's ack can land while the
-// page is reconnecting, and only terminal frames are replayed.
-const helperAskBudget = 10 * time.Minute
+// helperParkLimit is how long a request for a program that is not set up waits
+// for the person to set it up. It matches the setup dialog's own two-minute
+// limit. A request still waiting after that fails, and an approval that lands
+// later saves the permission but never runs the old request. The parked ack adds
+// the run's own deadline to it, because approving reattaches the helpers, which
+// drops the page's stream: the run's ack can land while the page is
+// reconnecting, and only terminal frames are replayed. A variable so tests can
+// shorten it.
+var helperParkLimit = 120 * time.Second
 
 // helperAskQuietFor is how long a page must wait to raise the dialog again
 // after one that granted nothing. A Deny needs no timer: it marks the name
@@ -379,16 +436,22 @@ const helperAskBudget = 10 * time.Minute
 const helperAskQuietFor = time.Minute
 
 type parkedHelperRequest struct {
-	env    wireEnvelope
-	framed []byte
+	env      wireEnvelope
+	framed   []byte
+	parkedAt time.Time
+}
+
+func (p parkedHelperRequest) expired(now time.Time) bool {
+	return now.Sub(p.parkedAt) >= helperParkLimit
 }
 
 func helperAskKey(file, name string) string { return file + "\x00" + name }
 
-// askThenStart parks a request for a helper the person has not answered and
-// has the app raise the dialog, once per file and name however many requests
-// arrive meanwhile. The page gets an ack whose budget covers the dialog and the
-// picker, and a status saying what it waits on.
+// askThenStart parks a request for a helper the person has not set up. It
+// never raises a dialog itself: setup starts only from the setup bar, the
+// page's own button, or the tray. The page gets an ack whose budget covers the
+// wait, and a status saying what it waits on. A request still parked after
+// helperParkLimit fails.
 func (d *helperDispatcher) askThenStart(env wireEnvelope, framed []byte) {
 	s := d.server
 	key := helperAskKey(d.file, env.Helper)
@@ -411,7 +474,7 @@ func (d *helperDispatcher) askThenStart(env wireEnvelope, framed []byte) {
 	if s.helperAsking == nil {
 		s.helperAsking = make(map[string][]parkedHelperRequest)
 	}
-	s.helperAsking[key] = append(parked, parkedHelperRequest{env: env, framed: framed})
+	s.helperAsking[key] = append(parked, parkedHelperRequest{env: env, framed: framed, parkedAt: time.Now()})
 	s.helperMu.Unlock()
 
 	d.publish(wireEnvelope{
@@ -424,19 +487,55 @@ func (d *helperDispatcher) askThenStart(env wireEnvelope, framed []byte) {
 		Payload: encodeHelperJSON(struct {
 			Mode     string `json:"mode"`
 			BudgetMS int    `json:"budgetMs"`
-		}{Mode: "jsonl", BudgetMS: int(helperAskBudget/time.Millisecond) + helper.StructuredDeadline}),
+		}{Mode: "jsonl", BudgetMS: int(helperParkLimit/time.Millisecond) + helper.StructuredDeadline}),
 	}, false)
-	d.publishEvent(env, helper.Event{Kind: "status", Text: "Waiting for you to allow " + env.Helper + " in HTML Clay"}, false, helper.MaxTerminalRecord)
+	d.publishEvent(env, helper.Event{Kind: "status", Text: "Waiting for you to set up " + env.Helper + " in HTML Clay"}, false, helper.MaxTerminalRecord)
 	if !asking {
-		go s.finishHelperAsk(d.file, env.Helper)
+		time.AfterFunc(helperParkLimit, func() { s.expireParkedHelpers(d.file, env.Helper) })
 	}
 }
 
-// finishHelperAsk waits for the dialog, then starts every parked request on the
-// dispatcher the approval attached, or refuses each one. It refuses rather than
-// re-dispatching when the current dispatcher does not hold the helper, so a
-// failed reattach can never loop back into another dialog.
-func (s *Server) finishHelperAsk(file, name string) {
+// expireParkedHelpers fails the requests for file and name that have waited
+// helperParkLimit, and checks again later for any that arrived after the first.
+func (s *Server) expireParkedHelpers(file, name string) {
+	key := helperAskKey(file, name)
+	now := time.Now()
+	s.helperMu.Lock()
+	var expired, waiting []parkedHelperRequest
+	for _, p := range s.helperAsking[key] {
+		if p.expired(now) {
+			expired = append(expired, p)
+		} else {
+			waiting = append(waiting, p)
+		}
+	}
+	if len(waiting) == 0 {
+		delete(s.helperAsking, key)
+	} else {
+		s.helperAsking[key] = waiting
+		time.AfterFunc(helperParkLimit-now.Sub(waiting[0].parkedAt), func() { s.expireParkedHelpers(file, name) })
+	}
+	current := s.helpers[file]
+	s.helperMu.Unlock()
+	for _, p := range expired {
+		s.rejectParkedHelper(current, file, p, "helper_setup_expired", name+" was not set up in time; set it up, then try again")
+	}
+}
+
+func (s *Server) rejectParkedHelper(current *helperDispatcher, file string, p parkedHelperRequest, code, message string) {
+	if current == nil {
+		s.wire.publish(file, helperEventEnvelope(p.env, helper.Event{Kind: "error", Text: message, Code: code, Source: "host"}, helper.MaxTerminalRecord))
+		return
+	}
+	current.reject(p.env, code, message)
+}
+
+// finishHelperAsk waits for the setup dialog, then starts every parked request
+// that has not expired on the dispatcher the approval attached, or refuses each
+// one. It refuses rather than re-dispatching when the current dispatcher does
+// not hold the helper, so a failed reattach can never loop back into another
+// dialog. It reports whether name is now granted.
+func (s *Server) finishHelperAsk(file, name string) bool {
 	allowed := s.hooks.AskHelper(file, name)
 	key := helperAskKey(file, name)
 	s.helperMu.Lock()
@@ -451,19 +550,18 @@ func (s *Server) finishHelperAsk(file, name string) {
 	current := s.helpers[file]
 	granted := current != nil && current.allowed[name].ID != ""
 	s.helperMu.Unlock()
-	if current == nil {
-		for _, p := range parked {
-			s.wire.publish(file, helperEventEnvelope(p.env, helper.Event{Kind: "error", Text: "this document was not granted that helper", Code: "helper_not_granted", Source: "host"}, helper.MaxTerminalRecord))
-		}
-		return
-	}
+	now := time.Now()
 	for _, p := range parked {
-		if allowed && granted {
+		switch {
+		case p.expired(now):
+			s.rejectParkedHelper(current, file, p, "helper_setup_expired", name+" was not set up in time; set it up, then try again")
+		case allowed && granted:
 			current.start(p.env, p.framed)
-		} else {
-			current.reject(p.env, "helper_not_granted", "this document was not granted that helper")
+		default:
+			s.rejectParkedHelper(current, file, p, "helper_not_granted", "this document was not granted that helper")
 		}
 	}
+	return allowed && granted
 }
 
 func (s *Server) helperCurrentLocked(d *helperDispatcher) bool {

@@ -74,8 +74,12 @@ type TrustedFolderHooks struct {
 // HelperHooks are the app operations the Programs submenu drives. Each returns
 // the authoritative list so the tray always re-renders from config state.
 type HelperHooks struct {
-	List      func() []Row
-	Add       func() []Row
+	// Title names the Programs item, counting missing program files. May be nil.
+	Title func() string
+	// List is the programs whose file is missing; Row relinks one.
+	List func() []Row
+	// Manage opens the Programs page.
+	Manage    func()
 	Row       func(id string) []Row
 	Documents func() []Row
 	Document  func(key string) []Row
@@ -529,45 +533,58 @@ func (t *Tray) buildHelpersMenu() *systray.MenuItem {
 	if t.helpers == nil {
 		return nil
 	}
-	lm, addItem := newListMenu(
-		"Programs",
+	title := "Programs"
+	if t.helpers.Title != nil {
+		title = t.helpers.Title()
+	}
+	manageTitle := ""
+	if t.helpers.Manage != nil {
+		manageTitle = "Manage Programs…"
+	}
+	lm, manageItem := newListMenu(
+		title,
 		"Programs HTML Clay documents can ask to run",
-		"No programs registered yet",
-		"Add a Program…",
-		"Choose a program and give it a name",
+		"No missing program files",
+		manageTitle,
+		"See which documents may run which programs, and remove access",
 	)
-	lm.rowTooltip = "Click to manage this program"
+	lm.rowTooltip = "Choose where this program's file is now"
 	t.helpersMenu = lm
 	if t.helpers.List != nil {
 		lm.render(t.helpers.List())
 	}
 	if t.helpers.Documents != nil && t.helpers.Document != nil {
-		menu := lm.menu.AddSubMenuItem("Configure an Open File…", "Choose a program for a file already open in HTML Clay")
-		dm := &listMenu{menu: menu, rowTooltip: "Click to choose and approve this file's program"}
-		dm.empty = menu.AddSubMenuItem("No open files use programs", "")
+		menu := lm.menu.AddSubMenuItem("Open Documents", "Programs the documents open in HTML Clay ask for")
+		dm := &listMenu{menu: menu, rowTooltip: "Set up this document's program, or see it on the Programs page"}
+		dm.empty = menu.AddSubMenuItem("No open documents use programs", "")
 		dm.empty.Disable()
 		dm.render(t.helpers.Documents())
 		t.helperDocumentsMenu = dm
 	}
-	return addItem
+	return manageItem
 }
 
-func (t *Tray) watchHelpersMenu(addItem *systray.MenuItem) {
+func (t *Tray) watchHelpersMenu(manageItem *systray.MenuItem) {
 	if t.helpers == nil || t.helpersMenu == nil {
 		return
 	}
-	if addItem != nil && t.helpers.Add != nil {
+	if manageItem != nil && t.helpers.Manage != nil {
 		go func() {
-			for range addItem.ClickedCh {
-				go func() {
-					if rows := t.helpers.Add(); rows != nil {
-						t.helpersMenu.render(rows)
-					}
-				}()
+			for range manageItem.ClickedCh {
+				go t.helpers.Manage()
 			}
 		}()
 	}
 	t.helpersMenu.watch(t.helpers.Row, t.helpers.List)
+	if t.helpers.Title != nil {
+		go func() {
+			ticker := time.NewTicker(listPollInterval)
+			defer ticker.Stop()
+			for range ticker.C {
+				t.helpersMenu.menu.SetTitle(t.helpers.Title())
+			}
+		}()
+	}
 	if t.helperDocumentsMenu != nil {
 		t.helperDocumentsMenu.watch(t.helpers.Document, t.helpers.Documents)
 	}

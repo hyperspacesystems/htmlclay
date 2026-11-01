@@ -5,6 +5,18 @@ Releases before 1.9.0 are recorded in the ecosystem changelog at
 
 ## [Unreleased]
 
+### Added
+- Setting up a document's program is one dialog that shows the file that would run first. HTML Clay finds the file itself: a program you already set up under that name or with a matching file name, or a matching file in a folder you keep programs in. It never suggests one from the document's folder, Downloads, a temporary folder, the internet, or one that changed in the last ten minutes, and never a shell or script interpreter. Choosing such a file yourself asks you to confirm first.
+- A bar at the top of a document whose programs are not set up starts setup, and so does the page's own button. The bar names only the programs the document declares.
+- A new optional `data-program-file` attribute on a helper declaration names the program's file when it differs from the name the document uses.
+- The Programs page, opened from **Programs → Manage Programs…**, lists every program and which documents may run it, and removes access. A program whose file has moved can be pointed at its new place, from the page or the tray, and keeps every document that was allowed to use it.
+
+### Changed
+- Opening a document no longer asks about its programs. A request for a program that is not set up waits up to two minutes for setup, then fails with `helper_setup_expired`.
+- The setup dialog has no default button, so Return never allows a program.
+- A program allowed for any document now applies only to documents in your trusted folders. Removing a document's access is remembered.
+- **Add a Program…** and **Configure an Open File…** are gone from the tray. The Programs menu shows the open documents, any program whose file is missing, and the missing count in its title.
+
 ## [1.14.1] - 2026-10-30
 
 ### Added

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
-	"github.com/panphora/htmlclay/internal/tray"
 )
 
 const helperDeclarationReadLimit = 512 << 10
@@ -30,7 +28,7 @@ type helperOpenPlan struct {
 }
 
 type helperApprovalDialogs struct {
-	confirm func(title, message string, allowBroad bool) (platform.ConfirmChoice, error)
+	setup   func(title, message, refuse, middle, affirm string) (platform.Choice, error)
 	choose  func(prompt, dir string) (string, bool, error)
 	prepare func(path string) (bool, error)
 }
@@ -52,26 +50,10 @@ type helperDecisionUndo struct {
 	had      bool
 }
 
-// helperConfirmLabels names the two affirmative buttons of the document-programs
-// prompt. Both differ from the read prompt's, and both had to: choosing the
-// narrower one records a decision that stands until the tray changes it, so
-// "Allow Once" would be a lie, and the wider one grants a PROGRAM everywhere
-// rather than trusting a folder.
-//
-// Deny is the keyboard default. It stores nothing: it denies the helpers for
-// this open only, and the next direct open asks again, so a stray Return or
-// Space costs one open and never grants anything.
-var helperConfirmLabels = platform.ConfirmLabels{
-	Allow:  "Allow for This Document",
-	Always: "Allow for Any Document",
-}
-
 func (a *app) systemHelperApprovalDialogs() helperApprovalDialogs {
-	confirm := a.rt.confirmHelpers
-	if confirm == nil {
-		confirm = func(title, message string, _ bool) (platform.ConfirmChoice, error) {
-			return platform.Confirm(title, message, helperConfirmLabels)
-		}
+	setup := a.rt.chooseHelperSetup
+	if setup == nil {
+		setup = platform.Choose
 	}
 	choose := a.rt.chooseHelperProgram
 	if choose == nil {
@@ -84,7 +66,7 @@ func (a *app) systemHelperApprovalDialogs() helperApprovalDialogs {
 		}
 	}
 	return helperApprovalDialogs{
-		confirm: confirm,
+		setup:   setup,
 		choose:  choose,
 		prepare: prepare,
 	}
@@ -122,11 +104,11 @@ func (a *app) askHelperForUse(document, name string) bool {
 	return allowed
 }
 
-// helpersForUseWith never asks about a name denied for this open or decided in
-// config, and unlike the open path it keeps this open's denials, so a page
-// cannot raise the dialog past a refusal. Any refusal for this open stops every
-// page-raised dialog for the document until the next direct open, and a dialog
-// that granted nothing quiets the page for a minute.
+// helpersForUseWith is the page's setup request: the person clicked Set Up, or
+// the page's own button, for a declared name that is not allowed. A name the
+// person revoked can be set up again this way. It keeps this open's denials, so
+// a page cannot raise the dialog past a Deny until the next direct open, and a
+// dialog that granted nothing quiets the page for a minute.
 func (a *app) helpersForUseWith(document, name string, dialogs helperApprovalDialogs) helperOpenPlan {
 	a.helperMu.Lock()
 	defer a.helperMu.Unlock()
@@ -137,21 +119,17 @@ func (a *app) helpersForUseWith(document, name string, dialogs helperApprovalDia
 	}
 	plan := helperOpenPlan{names: names}
 	plan.allowed, plan.denied = a.resolvedHelpers(document, names)
-	if !slices.Contains(names, name) || slices.Contains(plan.denied, name) {
+	if !slices.Contains(names, name) {
 		return plan
 	}
 	if _, ok := plan.allowed[name]; ok {
 		return plan
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, name)
-	if resolution.Decided {
-		return plan
-	}
 	if a.hasOpenDenials(document) || time.Now().Before(a.pageAskQuietUntil(document)) {
 		return plan
 	}
-	a.rt.logger.Printf("Helper %s was used by %s before it was allowed; asking", name, document)
-	return a.askHelpers(document, names, plan, []helperCandidate{{name: name, program: resolution.Program, registered: resolution.Candidates}}, dialogs, false)
+	a.rt.logger.Printf("Setting up program %s for %s", name, document)
+	return a.askHelperSetup(document, names, plan, name, dialogs, false)
 }
 
 func (a *app) helpersForOpenWith(document string, prompt, notify bool, dialogs helperApprovalDialogs) helperOpenPlan {
@@ -173,113 +151,6 @@ func (a *app) helpersForOpenWith(document string, prompt, notify bool, dialogs h
 		a.setOpenDenials(document, nil)
 	}
 	plan := helperOpenPlan{names: names}
-	plan.allowed, plan.denied = a.resolvedHelpers(document, names)
-	if !prompt || len(names) == 0 {
-		return plan
-	}
-
-	undecided := make([]helperCandidate, 0, len(names))
-	for _, name := range names {
-		resolution, _ := a.rt.cfg.ResolveHelper(document, name)
-		if resolution.Decided {
-			continue
-		}
-		undecided = append(undecided, helperCandidate{name: name, program: resolution.Program, registered: resolution.Candidates})
-	}
-	if len(undecided) == 0 {
-		return plan
-	}
-
-	return a.askHelpers(document, names, plan, undecided, dialogs, true)
-}
-
-// askHelpers raises the document-programs dialog for undecided and saves what
-// the person chose. plan is the document's permissions before asking; the
-// result is the same plan after. notify says whether a failure is reported on
-// screen; a page-raised ask logs it alone. A dialog that granted nothing quiets
-// the page for a while. Caller holds helperMu.
-func (a *app) askHelpers(document string, names []string, plan helperOpenPlan, undecided []helperCandidate, dialogs helperApprovalDialogs, notify bool) helperOpenPlan {
-	before := plan.allowed
-	defer func() {
-		gained := false
-		for name := range plan.allowed {
-			if _, ok := before[name]; !ok {
-				gained = true
-				break
-			}
-		}
-		if gained {
-			return
-		}
-		a.helperStateMu.Lock()
-		if a.pageAskQuiet == nil {
-			a.pageAskQuiet = make(map[string]time.Time)
-		}
-		a.pageAskQuiet[document] = time.Now().Add(pageAskQuietFor)
-		a.helperStateMu.Unlock()
-	}()
-	report := func(err error) {
-		if notify {
-			a.reportHelperSetupError(document, err)
-		} else {
-			a.rt.logger.Printf("Could not configure helpers for %s: %v", document, err)
-		}
-	}
-	choice, err := dialogs.confirm(
-		"Allow document programs?",
-		helperApprovalMessage(document, undecided),
-		true,
-	)
-	if err != nil {
-		report(fmt.Errorf("could not show the helper permission dialog: %w", err))
-		return plan
-	}
-	switch choice {
-	case platform.ConfirmDismissed:
-		a.rt.logger.Printf("Helper permission dialog for %s closed without an answer; it will ask again", document)
-		return plan
-	case platform.ConfirmDeny:
-		refused := make([]string, 0, len(undecided))
-		for _, candidate := range undecided {
-			refused = append(refused, candidate.name)
-		}
-		a.addOpenDenials(document, refused)
-		a.rt.logger.Printf("Helpers denied for this open of %s; the next direct open asks again", document)
-		plan.allowed, plan.denied = a.resolvedHelpers(document, names)
-		return plan
-	case platform.ConfirmAllowOnce, platform.ConfirmAllowAlways:
-	default:
-		report(errors.New("the helper permission dialog returned an invalid choice"))
-		return plan
-	}
-	for i := range undecided {
-		if undecided[i].program.ID != "" {
-			continue
-		}
-		path, ok, err := dialogs.choose("Choose the program for "+undecided[i].name, a.helperPickerFolder(document, undecided[i].name))
-		if err != nil {
-			report(fmt.Errorf("could not choose %s: %w", undecided[i].name, err))
-			return plan
-		}
-		if !ok {
-			a.rt.logger.Printf("Program picker for %s in %s was cancelled; nothing was saved", undecided[i].name, document)
-			return plan
-		}
-		ok, err = dialogs.prepare(path)
-		if err != nil {
-			report(fmt.Errorf("could not prepare %s: %w", undecided[i].name, err))
-			return plan
-		}
-		if !ok {
-			return plan
-		}
-		undecided[i].path = path
-	}
-
-	if err := a.saveHelperDecisionSet(document, undecided, choice); err != nil {
-		report(err)
-		return plan
-	}
 	plan.allowed, plan.denied = a.resolvedHelpers(document, names)
 	return plan
 }
@@ -334,46 +205,6 @@ func (a *app) helperPickerFolder(document, name string) string {
 	return candidate
 }
 
-func helperApprovalMessage(document string, candidates []helperCandidate) string {
-	lines := make([]string, len(candidates))
-	for i, candidate := range candidates {
-		lines[i] = helperApprovalLine(candidate)
-	}
-	label := "program"
-	if len(lines) != 1 {
-		label = "programs"
-	}
-	return fmt.Sprintf(
-		"%s wants to use %d %s:\n\n%s\n\nThe selected programs run as you and may read or change any file your account can access. Deny applies to this open only.",
-		filepath.Base(document), len(lines), label, strings.Join(lines, "\n"),
-	)
-}
-
-// helperApprovalLine says what allowing a name would run: the registered path,
-// every registered path when several share the name, or that none is registered
-// yet. The last two open the file picker after an Allow, so nothing is guessed.
-func helperApprovalLine(candidate helperCandidate) string {
-	switch {
-	case candidate.program.ID != "":
-		line := candidate.name + ": " + candidate.program.Path
-		if helperProgramMissing(candidate.program.Path) {
-			line += " (missing)"
-		}
-		return line
-	case len(candidate.registered) > 1:
-		line := fmt.Sprintf("%s: %d registered programs share this name, and you will choose which one:", candidate.name, len(candidate.registered))
-		for _, program := range candidate.registered {
-			line += "\n    " + program.Path
-			if helperProgramMissing(program.Path) {
-				line += " (missing)"
-			}
-		}
-		return line
-	default:
-		return candidate.name + ": not registered yet, and you will choose the program"
-	}
-}
-
 // A name that is in neither result was never decided: nobody was asked, the
 // picker was cancelled, or the program behind an old allow is gone.
 func (a *app) resolvedHelpers(document string, names []string) (map[string]config.HelperProgram, []string) {
@@ -386,7 +217,7 @@ func (a *app) resolvedHelpersLocked(document string, names []string) (map[string
 	allowed := make(map[string]config.HelperProgram)
 	var denied []string
 	for _, name := range names {
-		resolution, _ := a.rt.cfg.ResolveHelper(document, name)
+		resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document))
 		switch {
 		case !resolution.Decided:
 		case resolution.Allowed:
@@ -572,14 +403,6 @@ func (a *app) applyHelperPlan(s *site, document string, plan helperOpenPlan) {
 	if err := s.srv.AttachHelpers(document, allowed, denied); err != nil {
 		a.rt.logger.Printf("Could not attach helpers for %s: %v", document, err)
 	}
-}
-
-func (a *app) manageHelperProgramAndRefresh(id string) []tray.Row {
-	a.helperMu.Lock()
-	rows := a.manageHelperProgram(id)
-	a.helperMu.Unlock()
-	a.refreshHelperDispatchers()
-	return rows
 }
 
 func (a *app) refreshHelperDispatchers() {

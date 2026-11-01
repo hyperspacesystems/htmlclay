@@ -19,7 +19,7 @@ const (
 // order, deduplicated, at most maxHelperNames. Invalid names are skipped rather
 // than erroring: a bad meta tag is ignored the way an unknown meta tag is.
 func ReadHelperNames(data []byte) []string {
-	names, _ := readHelperDeclarations(data)
+	names, _, _ := readHelperDeclarations(data)
 	return names
 }
 
@@ -28,11 +28,35 @@ func ReadHelperNames(data []byte) []string {
 // to the document or, with a ~/ prefix, to the home folder. Only the first declaration of a name counts, as for
 // ReadHelperNames, and a name without the attribute is absent.
 func ReadHelperFolders(data []byte) map[string]string {
-	_, folders := readHelperDeclarations(data)
+	_, folders, _ := readHelperDeclarations(data)
 	return folders
 }
 
-func readHelperDeclarations(data []byte) ([]string, map[string]string) {
+// ReadHelperFiles returns, per declared helper name, the program file name its
+// declaration expects (data-program-file), such as "clay-search" for the name
+// "search". It is a bare file name, never a path: HTML Clay looks for it only in
+// folders the person already keeps programs in. An invalid value is ignored.
+func ReadHelperFiles(data []byte) map[string]string {
+	_, _, files := readHelperDeclarations(data)
+	return files
+}
+
+// ValidProgramFileName reports whether s is a bare file name of 1 to 64 ASCII
+// letters, digits, dots, hyphens and underscores that does not start with a dot.
+func ValidProgramFileName(s string) bool {
+	if len(s) == 0 || len(s) > 64 || s[0] == '.' {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '.' && c != '-' && c != '_' {
+			return false
+		}
+	}
+	return true
+}
+
+func readHelperDeclarations(data []byte) ([]string, map[string]string, map[string]string) {
 	if len(data) > helperScanLimit {
 		data = data[:helperScanLimit]
 	}
@@ -40,12 +64,13 @@ func readHelperDeclarations(data []byte) ([]string, map[string]string) {
 	seen := make(map[string]bool)
 	names := make([]string, 0, maxHelperNames)
 	folders := make(map[string]string)
+	files := make(map[string]string)
 	templateDepth := 0
 	rawElement := ""
 	for {
 		tokenType := z.Next()
 		if tokenType == html.ErrorToken {
-			return names, folders
+			return names, folders, files
 		}
 		token := z.Token()
 		if rawElement != "" {
@@ -70,11 +95,11 @@ func readHelperDeclarations(data []byte) ([]string, map[string]string) {
 		switch tokenType {
 		case html.TextToken:
 			if strings.Trim(token.Data, " \t\n\r\f") != "" {
-				return names, folders
+				return names, folders, files
 			}
 		case html.EndTagToken:
 			if token.Data == "head" || token.Data == "body" || token.Data == "html" || token.Data == "br" {
-				return names, folders
+				return names, folders, files
 			}
 		case html.StartTagToken, html.SelfClosingTagToken:
 			if token.Data == "template" {
@@ -82,7 +107,7 @@ func readHelperDeclarations(data []byte) ([]string, map[string]string) {
 				continue
 			}
 			if !isHeadElement(token.Data) {
-				return names, folders
+				return names, folders, files
 			}
 			if isRawHeadElement(token.Data) {
 				rawElement = token.Data
@@ -91,7 +116,7 @@ func readHelperDeclarations(data []byte) ([]string, map[string]string) {
 			if token.Data != "meta" {
 				continue
 			}
-			var metaName, content, folder string
+			var metaName, content, folder, file string
 			for _, attr := range token.Attr {
 				switch attr.Key {
 				case "name":
@@ -100,6 +125,8 @@ func readHelperDeclarations(data []byte) ([]string, map[string]string) {
 					content = attr.Val
 				case "data-program-folder":
 					folder = strings.TrimSpace(attr.Val)
+				case "data-program-file":
+					file = strings.TrimSpace(attr.Val)
 				}
 			}
 			if metaName != "htmlclay-helper" || !config.ValidHelperName(content) || seen[content] {
@@ -110,8 +137,11 @@ func readHelperDeclarations(data []byte) ([]string, map[string]string) {
 			if folder != "" {
 				folders[content] = folder
 			}
+			if ValidProgramFileName(file) {
+				files[content] = file
+			}
 			if len(names) == maxHelperNames {
-				return names, folders
+				return names, folders, files
 			}
 		}
 	}

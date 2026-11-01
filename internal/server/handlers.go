@@ -608,6 +608,9 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	// the document behavior; every current browser sends the header.
 	if dest := r.Header.Get("Sec-Fetch-Dest"); dest == "" || dest == "document" {
 		served = htmlutil.InjectToken(served, f.Token)
+		if names := s.setupBarNames(f.AbsPath); len(names) > 0 && s.hooks.AskHelper != nil && r.Header.Get("Clay-Source") != "1" {
+			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(setupBarHTML(names)))
+		}
 	}
 
 	// B0: edit mode via cookie, matching hyperclay-local. Both clients fall back

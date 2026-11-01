@@ -10,62 +10,50 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/panphora/htmlclay/internal/config"
-	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/tray"
 )
 
 const maxProgramFirstLine = 4096
 
-type helperProgramDialogs struct {
-	promptName        func(title, message, initial string) (string, bool, error)
-	selectFile        func(prompt string) (string, bool, error)
-	confirmExecutable func(title, message, affirmative string) (bool, error)
-	manageProgram     func(platform.ProgramSummary) (platform.ManageChoice, error)
-}
-
-func systemHelperProgramDialogs() helperProgramDialogs {
-	return helperProgramDialogs{
-		promptName:        platform.PromptName,
-		selectFile:        func(prompt string) (string, bool, error) { return platform.SelectFile(prompt, "") },
-		confirmExecutable: platform.ConfirmWithButtons,
-		manageProgram:     platform.ManageProgram,
-	}
-}
-
-// helperProgramRows lists one row per registered program.
+// helperProgramRows lists the programs whose file is gone, which are the rows
+// the tray's Programs menu shows. Clicking one relinks it through a native
+// dialog. Everything else lives on the Programs page.
 func (a *app) helperProgramRows() []tray.Row {
-	programs := a.rt.cfg.HelperProgramList()
-	allowed := make(map[string]int, len(programs))
-	for _, decision := range a.rt.cfg.HelperDecisionList() {
-		if decision.Allowed {
-			allowed[decision.Program]++
+	var rows []tray.Row
+	for _, program := range a.rt.cfg.HelperProgramList() {
+		if helperProgramMissing(program.Path) {
+			rows = append(rows, tray.Row{Path: program.ID, Label: "Locate “" + program.Name + "” (file missing)…"})
 		}
-	}
-
-	rows := make([]tray.Row, 0, len(programs))
-	for _, program := range programs {
-		count := allowed[program.ID]
-		var status string
-		switch {
-		case helperProgramMissing(program.Path):
-			status = "missing"
-		case runtime.GOOS != "windows" && !helperProgramExecutable(program.Path):
-			status = "not executable"
-		case program.AnyDocument:
-			status = "any document"
-		case count == 1:
-			status = "1 document"
-		default:
-			status = fmt.Sprintf("%d documents", count)
-		}
-		rows = append(rows, tray.Row{Path: program.ID, Label: helperRowLabel(program.Name, status)})
 	}
 	return rows
 }
 
-func helperRowLabel(name, status string) string {
-	return name + "  (" + status + ")"
+// helperProgramsTitle is the tray's Programs item, which counts the programs
+// whose file is gone so a broken setup shows without opening the menu.
+func (a *app) helperProgramsTitle() string {
+	if n := len(a.helperProgramRows()); n > 0 {
+		return fmt.Sprintf("Programs (%d missing)", n)
+	}
+	return "Programs"
+}
+
+// relinkHelperProgramFromTray is a click on a missing program's row.
+func (a *app) relinkHelperProgramFromTray(id string) []tray.Row {
+	a.helperMu.Lock()
+	program, ok := a.rt.cfg.LookupHelperProgram(id)
+	var outcome string
+	var err error
+	if ok {
+		outcome, err = a.relinkHelperProgram(program, a.systemHelperApprovalDialogs())
+	}
+	a.helperMu.Unlock()
+	if err != nil {
+		a.reportHelperProgramError("Could not relink the program", err)
+	} else if outcome == "relinked" {
+		a.rt.logger.Printf("Helper program relinked: id=%s name=%s", program.ID, program.Name)
+		a.refreshHelperDispatchers()
+	}
+	return a.helperProgramRows()
 }
 
 func helperProgramMissing(path string) bool {
@@ -76,71 +64,6 @@ func helperProgramMissing(path string) bool {
 func helperProgramExecutable(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.Mode().IsRegular() && info.Mode()&0111 != 0
-}
-
-func (a *app) pickHelperProgram() []tray.Row {
-	return a.pickHelperProgramWith(systemHelperProgramDialogs())
-}
-
-func (a *app) pickHelperProgramWith(dialogs helperProgramDialogs) []tray.Row {
-	name, ok, err := promptHelperName(dialogs.promptName)
-	if err != nil {
-		a.reportHelperProgramError("Could not name the program", err)
-		return a.helperProgramRows()
-	}
-	if !ok {
-		return a.helperProgramRows()
-	}
-
-	path, ok, err := dialogs.selectFile("Choose the program named " + name + ". Helpers receive requests on stdin; a program that only opens a page is not a helper.")
-	if err != nil {
-		a.reportHelperProgramError("Could not choose the program", err)
-		return a.helperProgramRows()
-	}
-	if !ok {
-		return a.helperProgramRows()
-	}
-	if ok, err := prepareHelperProgram(path, dialogs.confirmExecutable); err != nil {
-		a.reportHelperProgramError("Could not add the program", err)
-		return a.helperProgramRows()
-	} else if !ok {
-		return a.helperProgramRows()
-	}
-
-	a.helperStateMu.Lock()
-	a.mu.Lock()
-	program, err := a.rt.cfg.AddHelperProgram(name, path)
-	if err == nil {
-		err = a.rt.cfg.Save()
-		if err != nil {
-			a.rt.cfg.RemoveHelperProgram(program.ID)
-		}
-	}
-	a.mu.Unlock()
-	a.helperStateMu.Unlock()
-	if err == nil {
-		a.rt.logger.Printf("Helper program registered: id=%s name=%s path=%s", program.ID, program.Name, program.Path)
-	}
-	if err != nil {
-		a.reportHelperProgramError("Could not add the program", err)
-	}
-	return a.helperProgramRows()
-}
-
-func promptHelperName(prompt func(title, message, initial string) (string, bool, error)) (string, bool, error) {
-	message := "Name this program using lowercase letters, numbers, and hyphens. The name must be 1 to 32 characters and cannot start or end with a hyphen."
-	initial := ""
-	for {
-		name, ok, err := prompt("Add a Program", message, initial)
-		if err != nil || !ok {
-			return "", ok, err
-		}
-		if config.ValidHelperName(name) {
-			return name, true, nil
-		}
-		message = "That name is not valid. Use 1 to 32 lowercase letters, numbers, and hyphens, with no hyphen at the start or end."
-		initial = name
-	}
 }
 
 func prepareHelperProgram(path string, confirm func(title, message, affirmative string) (bool, error)) (bool, error) {
@@ -201,77 +124,6 @@ func readProgramFirstLine(path string) (string, error) {
 		line = line[:maxProgramFirstLine] + "…"
 	}
 	return strings.ToValidUTF8(line, "�"), nil
-}
-
-func (a *app) manageHelperProgram(id string) []tray.Row {
-	return a.helperProgramRowClicked(id, systemHelperProgramDialogs())
-}
-
-func (a *app) helperProgramRowClicked(id string, dialogs helperProgramDialogs) []tray.Row {
-	return a.manageHelperProgramWith(id, dialogs.manageProgram)
-}
-
-func (a *app) manageHelperProgramWith(id string, manage func(platform.ProgramSummary) (platform.ManageChoice, error)) []tray.Row {
-	program, ok := a.rt.cfg.LookupHelperProgram(id)
-	if !ok {
-		return a.helperProgramRows()
-	}
-	decisions := 0
-	for _, decision := range a.rt.cfg.HelperDecisionList() {
-		if decision.Allowed && decision.Program == id {
-			decisions++
-		}
-	}
-	choice, err := manage(platform.ProgramSummary{
-		Name:        program.Name,
-		Path:        program.Path,
-		AnyDocument: program.AnyDocument,
-		Decisions:   decisions,
-		Missing:     helperProgramMissing(program.Path),
-	})
-	if err != nil {
-		a.reportHelperProgramError("Could not manage the program", err)
-		return a.helperProgramRows()
-	}
-
-	var saveErr error
-	a.helperStateMu.Lock()
-	a.mu.Lock()
-	switch choice {
-	case platform.ManageToggleAnyDocument:
-		if current, found := a.rt.cfg.LookupHelperProgram(id); found {
-			previous, _ := a.rt.cfg.SetHelperAnyDocument(id, !current.AnyDocument)
-			if saveErr = a.rt.cfg.Save(); saveErr != nil {
-				a.rt.cfg.SetHelperAnyDocument(id, previous)
-			} else {
-				a.rt.logger.Printf("Helper program permission changed: id=%s name=%s path=%s anyDocument=%t", current.ID, current.Name, current.Path, !current.AnyDocument)
-			}
-		}
-	case platform.ManageForgetDecisions:
-		removed := a.rt.cfg.ForgetHelperProgramDecisions(id)
-		if len(removed) > 0 {
-			if saveErr = a.rt.cfg.Save(); saveErr != nil {
-				a.rt.cfg.RestoreHelperDecisions(removed)
-			} else {
-				a.rt.logger.Printf("Helper program approvals forgotten: id=%s name=%s path=%s count=%d", program.ID, program.Name, program.Path, len(removed))
-			}
-		}
-	case platform.ManageRemove:
-		removedProgram, found := a.rt.cfg.RemoveHelperProgram(id)
-		if found {
-			if saveErr = a.rt.cfg.Save(); saveErr != nil {
-				a.rt.cfg.RestoreHelperProgram(removedProgram)
-			} else {
-				a.rt.logger.Printf("Helper program removed: id=%s name=%s path=%s", removedProgram.ID, removedProgram.Name, removedProgram.Path)
-			}
-		}
-	}
-	a.mu.Unlock()
-	a.helperStateMu.Unlock()
-	if saveErr != nil {
-		a.reportHelperProgramError("Could not save the program change", saveErr)
-	}
-	return a.helperProgramRows()
 }
 
 func (a *app) reportHelperProgramError(title string, err error) {

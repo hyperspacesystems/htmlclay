@@ -120,3 +120,38 @@ func TestReadHelperFoldersKeepsTheFirstDeclarationAndTheNamesUnchanged(t *testin
 		t.Fatalf("ReadHelperNames = %v, want [a b]", got)
 	}
 }
+
+func TestReadHelperFiles(t *testing.T) {
+	doc := []byte(`<!doctype html><html><head>
+<meta name="htmlclay-helper" content="search" data-program-folder="~/apps/bin" data-program-file="clay-search">
+<meta name="htmlclay-helper" content="score" data-program-file="../evil">
+<meta name="htmlclay-helper" content="plain">
+<meta name="htmlclay-helper" content="search" data-program-file="other">
+</head><body></body></html>`)
+	files := ReadHelperFiles(doc)
+	if files["search"] != "clay-search" {
+		t.Fatalf("search = %q, want clay-search", files["search"])
+	}
+	if _, ok := files["score"]; ok {
+		t.Fatal("a path must not be accepted as a program file name")
+	}
+	if _, ok := files["plain"]; ok {
+		t.Fatal("a declaration without the attribute must be absent")
+	}
+	if len(files) != 1 {
+		t.Fatalf("files = %v", files)
+	}
+}
+
+func TestValidProgramFileName(t *testing.T) {
+	for _, ok := range []string{"clay-search", "tool.py", "Search_2.exe"} {
+		if !ValidProgramFileName(ok) {
+			t.Errorf("%q should be valid", ok)
+		}
+	}
+	for _, bad := range []string{"", ".hidden", "a/b", `a\b`, "..", "x y", strings.Repeat("a", 65)} {
+		if ValidProgramFileName(bad) {
+			t.Errorf("%q should be invalid", bad)
+		}
+	}
+}
