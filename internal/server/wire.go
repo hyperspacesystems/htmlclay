@@ -1095,6 +1095,10 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 
 	handlers, observers := s.wire.publish(f.AbsPath, env)
 	s.helperBindings.mu.RUnlock()
+	if handlers == 0 && (env.Type == "wire/request" || env.Type == "wire/describe") {
+		mode, _ := s.wire.handlerMode(f.AbsPath)
+		s.logger.Printf("Wire request undelivered: file=%s helper=%q type=%q id=%q document=%q helpers_bound=%t handler_mode=%q", f.AbsPath, env.Helper, env.Type, env.ID, env.Document, s.HelpersBound(f.AbsPath), mode)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
 		"ok":        true,

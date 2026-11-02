@@ -196,6 +196,7 @@ func (s *Server) attachHelpers(file string, allowed map[string]config.HelperProg
 	}
 	d.generation = s.BindHelpers(file)
 	s.helpers[file] = d
+	s.logger.Printf("Helper dispatcher attached: file=%s declared=%v allowed=%d denied=%d generation=%d", file, names, len(allowCopy), len(denyCopy), d.generation)
 	go d.loop()
 	return nil
 }
@@ -242,6 +243,7 @@ func (s *Server) detachHelperLocked(d *helperDispatcher, unavailable bool) {
 	if s.helpers[d.file] != d {
 		return
 	}
+	s.logger.Printf("Helper dispatcher detached: file=%s declared=%v unavailable=%t", d.file, d.names, unavailable)
 	delete(s.helpers, d.file)
 	if unavailable {
 		if s.helperOffline == nil {

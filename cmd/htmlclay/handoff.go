@@ -275,6 +275,7 @@ func (a *app) restoreHandoffSite(entry updateHandoffSite) int {
 // RestoreRegistration, which re-runs every Register check.
 func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite) int {
 	n := 0
+	restored := make([]string, 0, len(entry.Files))
 	for _, f := range entry.Files {
 		if !session.EqualOrUnder(f.Path, s.anchor) {
 			a.rt.logger.Printf("Update handoff: %s is outside %s; skipping it", f.Path, s.anchor)
@@ -294,6 +295,7 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite) int {
 			a.rt.logger.Printf("Update handoff: could not restore %s: %v", f.Path, err)
 			continue
 		}
+		restored = append(restored, f.Path)
 		n++
 	}
 	if n == 0 {
@@ -314,6 +316,9 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite) int {
 		if err := s.sessions.GrantCanonicalRoot(root); err != nil {
 			a.rt.logger.Printf("Update handoff: could not restore the grant on %s: %v", root, err)
 		}
+	}
+	for _, document := range restored {
+		a.applyHelperPlan(s, document, a.helpersForNavigation(document))
 	}
 	return n
 }

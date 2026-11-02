@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/platform"
 )
 
 // handoffFixture is one app's worth of open documents: two files in a trusted
@@ -276,4 +279,127 @@ func TestHandoffSkipsADeletedFileAndRestoresTheRest(t *testing.T) {
 	if len(second.sites) != 1 {
 		t.Fatalf("want only the trusted folder's site live, got %d", len(second.sites))
 	}
+}
+
+// helperUpdateFixture is a trusted folder holding one page that declares a
+// helper the person already allowed, with that helper's dispatcher attached the
+// way a normal open attaches it, and a handoff written for the version that
+// starts after the update.
+type helperUpdateFixture struct {
+	home, cfgBase, document, handoff, marker string
+	token, host                              string
+	port                                     int
+}
+
+func newHelperUpdateFixture(t *testing.T) helperUpdateFixture {
+	t.Helper()
+	home, err := resolveSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	folder := filepath.Join(home, "proj")
+	if err := os.MkdirAll(folder, 0755); err != nil {
+		t.Fatal(err)
+	}
+	fx := helperUpdateFixture{
+		home:     home,
+		cfgBase:  t.TempDir(),
+		document: writeHelperPage(t, folder, "search"),
+		handoff:  filepath.Join(t.TempDir(), updateHandoffFile),
+	}
+	programPath, marker := attachmentProgram(t, "restored-search")
+	fx.marker = marker
+
+	first := newTestAppWithConfigDir(t, home, fx.cfgBase)
+	if err := first.trustFolder(folder); err != nil {
+		t.Fatalf("trust: %v", err)
+	}
+	program, err := first.rt.cfg.AddHelperProgram("search", programPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := first.rt.cfg.DecideHelper(config.HelperDecision{Document: fx.document, Name: "search", Program: program.ID, Allowed: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.rt.cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := first.openForTest(t, fx.document)
+	first.applyHelperPlan(s, fx.document, first.helpersForNavigation(fx.document))
+	fx.token, fx.host, fx.port = tokenFor(t, s, fx.document), s.host, first.rt.port
+	if err := first.writeUpdateHandoff(fx.handoff, version); err != nil {
+		t.Fatalf("write handoff: %v", err)
+	}
+	first.shutdown()
+	requirePortFree(t, fx.port)
+	return fx
+}
+
+// A page left open across an update keeps its helper dispatcher, not just its
+// save token: the restored registration runs the program the person already
+// allowed with the old token, and neither reopening nor a dialog is needed.
+func TestUpdateHandoffRestoresHelpers(t *testing.T) {
+	t.Run("restored page runs its allowed program", func(t *testing.T) {
+		fx := newHelperUpdateFixture(t)
+		second := newTestAppWithConfigDir(t, fx.home, fx.cfgBase)
+		second.rt.chooseHelperSetup = func(string, string, string, string, string) (platform.Choice, error) {
+			t.Fatal("restoring the update handoff raised the helper setup dialog")
+			return platform.ChoiceNone, nil
+		}
+		second.startSites()
+		n, err := second.restoreUpdateHandoff(fx.handoff)
+		if err != nil {
+			t.Fatalf("restore: %v", err)
+		}
+		if n != 1 {
+			t.Fatalf("restored %d registrations, want 1", n)
+		}
+		s := liveSiteWithHost(t, second, fx.host)
+		if got := tokenFor(t, s, fx.document); got != fx.token {
+			t.Fatalf("the restored registration has token %q, want the original %q", got, fx.token)
+		}
+		if !s.srv.HelpersBound(fx.document) {
+			t.Fatal("the restored registration has no helper dispatcher")
+		}
+		if state := helperDiscoveryState(t, s, fx.document); state != "ready" {
+			t.Fatalf("helper state %q after restore, want ready", state)
+		}
+		terminal := attachmentRequestTerminal(t, s, fx.document, fx.token, "restored-helper-request")
+		if terminal.Type != "wire/done" || terminal.Payload.Program != "restored-search" {
+			t.Fatalf("the restored page could not use its program: %+v", terminal)
+		}
+		if _, err := os.Stat(fx.marker); err != nil {
+			t.Fatalf("the restored program did not execute: %v", err)
+		}
+	})
+
+	t.Run("revoked grant stays revoked", func(t *testing.T) {
+		fx := newHelperUpdateFixture(t)
+		second := newTestAppWithConfigDir(t, fx.home, fx.cfgBase)
+		second.rt.chooseHelperSetup = func(string, string, string, string, string) (platform.Choice, error) {
+			t.Fatal("restoring the update handoff raised the helper setup dialog")
+			return platform.ChoiceNone, nil
+		}
+		if _, _, err := second.rt.cfg.RevokeHelper(fx.document, "search"); err != nil {
+			t.Fatal(err)
+		}
+		if err := second.rt.cfg.Save(); err != nil {
+			t.Fatal(err)
+		}
+		second.startSites()
+		n, err := second.restoreUpdateHandoff(fx.handoff)
+		if err != nil {
+			t.Fatalf("restore: %v", err)
+		}
+		if n != 1 {
+			t.Fatalf("restored %d registrations, want 1", n)
+		}
+		s := liveSiteWithHost(t, second, fx.host)
+		if state := helperDiscoveryState(t, s, fx.document); state != "denied" {
+			t.Fatalf("helper state %q after restore, want denied", state)
+		}
+		if _, err := os.Stat(fx.marker); !os.IsNotExist(err) {
+			t.Fatalf("the revoked program ran during restore or stat failed: %v", err)
+		}
+	})
 }

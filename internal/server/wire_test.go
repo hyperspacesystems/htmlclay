@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/versions"
 )
@@ -740,5 +741,50 @@ func TestWireCursorIsBelowEveryFrameItPrecedes(t *testing.T) {
 	next, _ := splitFrame(t, <-fresh.ch)
 	if cursor <= 0 || cursor >= next {
 		t.Fatalf("fresh cursor %d, next frame %d: the cursor must be a position below every frame that follows", cursor, next)
+	}
+}
+
+// A request nobody received must leave a recipient-shaped line in the log, and
+// nothing from the request body or the document's token may ride along with it.
+func TestWireUndeliveredLogsRecipient(t *testing.T) {
+	srv, f := setupLiveSyncTest(t)
+	t.Cleanup(func() { srv.wire.shutdown() })
+	logPath := filepath.Join(t.TempDir(), "server.log")
+	logger, err := logging.New(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.logger = logger
+
+	const marker = "private-payload-marker"
+	body := fmt.Sprintf(`{"type":"wire/request","id":"undelivered-1","file":%q,"helper":"bluesky-studio","document":"none","payload":{"text":%q}}`, f.AbsPath, marker)
+	w := wireSendReq(t, srv, body)
+	logger.Close()
+	if w.Code != 200 {
+		t.Fatalf("send = %d: %s", w.Code, w.Body.String())
+	}
+	var reply struct {
+		Delivered int `json:"delivered"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &reply); err != nil {
+		t.Fatal(err)
+	}
+	if reply.Delivered != 0 {
+		t.Fatalf("delivered = %d, want 0", reply.Delivered)
+	}
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logged := string(data)
+	for _, want := range []string{f.AbsPath, `helper="bluesky-studio"`, `id="undelivered-1"`, "helpers_bound=false"} {
+		if !strings.Contains(logged, want) {
+			t.Fatalf("undelivered log is missing %q: %s", want, logged)
+		}
+	}
+	for _, banned := range []string{marker, f.Token} {
+		if strings.Contains(logged, banned) {
+			t.Fatalf("undelivered log leaked %q: %s", banned, logged)
+		}
 	}
 }
