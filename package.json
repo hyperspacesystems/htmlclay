@@ -9,14 +9,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/panphora/htmlclay.git"
+    "url": "git+https://github.com/hyperspacesystems/htmlclay.git"
   },
   "keywords": [],
   "author": "",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/panphora/htmlclay/issues"
+    "url": "https://github.com/hyperspacesystems/htmlclay/issues"
   },
   "homepage": "https://htmlclay.com",
   "devDependencies": {

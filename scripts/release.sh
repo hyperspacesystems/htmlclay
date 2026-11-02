@@ -451,7 +451,7 @@ else
     success "htmlclay.com is serving v${NEW_VERSION}"
   else
     warn "htmlclay.com has not picked up v${NEW_VERSION} yet. Check the Cloudflare"
-    warn "Workers build for panphora/htmlclay; the page is pushed and will deploy."
+    warn "Workers build for hyperspacesystems/htmlclay; the page is pushed and will deploy."
   fi
 fi
 
