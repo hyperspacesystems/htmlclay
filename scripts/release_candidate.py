@@ -11,10 +11,13 @@ IDENTITY_FIELDS = ("workflow_sha", "candidate_sha256", "attempt", "manifest_iden
 LINUX_CHECKS = ("install-uninstall", "serve-save", "tray-nobus", "login-item", "prompts")
 
 
+MAC_RUNNER = "${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}"
+
+
 def job_graph():
     checkout = Path(__file__).resolve().parents[1]
     jobs = [{"id": "verify", "kind": "verify", "needs": []}]
-    for platform, runner in (("macos", "macos-latest"), ("linux", "ubuntu-latest"),
+    for platform, runner in (("macos", MAC_RUNNER), ("linux", "ubuntu-latest"),
                              ("windows", "windows-latest")):
         jobs.append({"id": f"test-{platform}", "kind": "test", "runner": runner,
                      "command": "go test ./... -count=1", "needs": ["verify"]})
@@ -54,7 +57,7 @@ def job_graph():
                          "needs": ["verify"], "steps": steps,
                          "artifacts": [installer, update]})
     jobs.append({"id": "build-macos", "kind": "build", "platform": "macos",
-                 "architectures": ["amd64", "arm64"], "runner": "macos-15",
+                 "architectures": ["amd64", "arm64"], "runner": MAC_RUNNER,
                  "needs": ["verify"], "steps": [
                      {"kind": "test", "name": "Test the Tailwind bundle",
                       "command": "go run ./cmd/fetchtailwind -goos darwin -goarch arm64\n"

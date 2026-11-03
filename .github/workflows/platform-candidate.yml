@@ -74,7 +74,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
   test-macos:
     name: test-macos
-    runs-on: macos-latest
+    runs-on: ${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}
     needs:
     - verify
     timeout-minutes: 45
@@ -675,7 +675,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
   build-macos:
     name: build-macos
-    runs-on: macos-15
+    runs-on: ${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}
     needs:
     - verify
     timeout-minutes: 45
@@ -764,7 +764,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
   sparkle:
     name: sparkle
-    runs-on: macos-15
+    runs-on: ${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}
     needs:
     - verify
     - build-macos

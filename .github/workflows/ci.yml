@@ -10,7 +10,7 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: ["${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}", ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     # Now that this runs on push, an unbounded hang would burn GitHub's 6h ceiling
     # every time and report as "cancelled" rather than as a failure.

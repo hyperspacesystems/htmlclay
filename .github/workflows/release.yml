@@ -50,7 +50,7 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: ["${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}", ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     # The release script blocks on this job. An unbounded hang stalls a release
     # for six hours instead of failing it.
@@ -288,7 +288,7 @@ jobs:
   # ── macOS: build universal binary, sign + notarize with Apple ──
   build-macos:
     needs: [test, license]
-    runs-on: macos-15
+    runs-on: ${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}
 
     steps:
       - uses: actions/checkout@v4
