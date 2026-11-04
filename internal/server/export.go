@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/panphora/htmlclay/internal/dataapi"
 )
 
 // uploadsURLPrefix is how a document links a file it uploaded. It is a host
@@ -49,6 +51,10 @@ func ExportDocumentZip(document, outDir, uploadsDir string) (string, error) {
 	// A ZIP leaves this computer, so it can never carry a runtime URL that only
 	// resolves on this host. The file itself is not changed.
 	doc = canonicalForWrite("", doc)
+	doc, err = dataapi.StripCopyContent(doc)
+	if err != nil {
+		return "", err
+	}
 	refs := hostUploadRefs(doc)
 
 	out, err := freeZipPath(outDir, top)

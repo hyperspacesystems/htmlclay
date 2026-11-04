@@ -491,3 +491,107 @@ func TestExportDocumentZipPackagesStrictlyEncodedUploadLinks(t *testing.T) {
 		}
 	}
 }
+
+// A ZIP leaves this computer, so the copy-only sections of a document do not travel
+// in it: the original loader, the runtime SDK it boots and the paid-only intro are
+// all left out, while every byte of the real content and every linked asset goes in
+// as it is. The document on disk is only read.
+func TestExportDocumentZipStripsCopyOnlySections(t *testing.T) {
+	dir := t.TempDir()
+	outDir := t.TempDir()
+	library := t.TempDir()
+	document := filepath.Join(dir, "board.htmlclay")
+	source := "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <title>Quarterly board</title>\n</head>\n<body>\n" +
+		"  <div id=\"clay-original-loader\" clay=\"no-copy\">\n" +
+		"    <script src=\"/_/clayjs/v1.5.0/clayruntime.iife.js\"></script>\n" +
+		"  </div>\n" +
+		"  <section class=\"intro\" data-paid-only=\"forms\">\n" +
+		"    <p>Only paid readers see this.</p>\n" +
+		"  </section>\n" +
+		"  <h1 class=\"headline\">Quarterly board</h1>\n" +
+		"  <p>Real copy.</p>\n" +
+		"  <img src=\"/_/uploads/assets-board/photo.png\">\n" +
+		"</body>\n</html>\n"
+	writeExportFile(t, document, source)
+	writeExportFile(t, filepath.Join(library, "assets-board", "photo.png"), "PNGDATA")
+
+	out, err := ExportDocumentZip(document, outDir, library)
+	if err != nil {
+		t.Fatalf("ExportDocumentZip: %v", err)
+	}
+	entries := zipEntries(t, out)
+	if len(entries) != 2 {
+		t.Fatalf("zip holds %v, want the document and its asset", exportNames(entries))
+	}
+	doc, ok := entries["board/board.htmlclay"]
+	if !ok {
+		t.Fatalf("zip holds %v, want board/board.htmlclay", exportNames(entries))
+	}
+	if entries["board/uploads/assets-board/photo.png"] != "PNGDATA" {
+		t.Errorf("linked asset bytes = %q, want PNGDATA", entries["board/uploads/assets-board/photo.png"])
+	}
+	for _, gone := range []string{"clay-original-loader", "clayruntime.iife.js", "Only paid readers see this", "clay=", "data-paid-only"} {
+		if strings.Contains(doc, gone) {
+			t.Errorf("exported document still carries %q:\n%s", gone, doc)
+		}
+	}
+	for _, kept := range []string{
+		"<title>Quarterly board</title>",
+		"<h1 class=\"headline\">Quarterly board</h1>",
+		"<p>Real copy.</p>",
+		`src="uploads/assets-board/photo.png"`,
+	} {
+		if !strings.Contains(doc, kept) {
+			t.Errorf("exported document lost %q:\n%s", kept, doc)
+		}
+	}
+
+	onDisk, err := os.ReadFile(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(onDisk) != source {
+		t.Errorf("the working document changed:\n%s", onDisk)
+	}
+}
+
+// A marked section whose byte range cannot be recovered stops the export before a
+// zip is opened: half a copy would leak what was marked, and a re-render would lose
+// the rest of the file.
+func TestExportDocumentZipRefusesAnUnlocatableCopySection(t *testing.T) {
+	dir := t.TempDir()
+	outDir := t.TempDir()
+	document := filepath.Join(dir, "board.htmlclay")
+	source := "<body>\n  <table>\n    <div clay=\"no-copy\">x</div>\n    <tr><td>cell</td></tr>\n  </table>\n</body>\n"
+	writeExportFile(t, document, source)
+
+	out, err := ExportDocumentZip(document, outDir, "")
+	if err == nil {
+		t.Fatalf("ExportDocumentZip wrote %q, want a refusal", out)
+	}
+	if out != "" {
+		t.Errorf("refusal returned the path %q", out)
+	}
+	if !strings.Contains(err.Error(), "no-copy section could not be located safely") {
+		t.Errorf("error = %v, want the actionable refusal", err)
+	}
+
+	left, err := os.ReadDir(outDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(left) != 0 {
+		names := make([]string, 0, len(left))
+		for _, e := range left {
+			names = append(names, e.Name())
+		}
+		t.Errorf("output folder holds %v, want nothing written", names)
+	}
+	onDisk, err := os.ReadFile(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(onDisk) != source {
+		t.Errorf("the working document changed:\n%s", onDisk)
+	}
+}
