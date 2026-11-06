@@ -384,6 +384,7 @@ website/             htmlclay.com, deployed from this repo
 - **Path traversal prevention** — All file paths are validated as relative and within the user's home directory. Symlinks are resolved before validation.
 - **Atomic writes** — Files are written to a temp file first, then renamed into place, preventing corruption on crash.
 - **Single instance** — A Unix socket (or TCP on Windows) ensures only one server runs at a time. Additional launches forward their file paths to the running instance.
+  - **Per-HOME lock scope:** Because the socket and pidfile live under `os.UserConfigDir()` (`$HOME/Library/Application Support/htmlclay` on macOS), the lock is scoped to `$HOME` (and breaks if a test wipes that config directory between launches), so sandboxed agent runs with custom `HOME` directories each spawn their own GUI instance and menu-bar icon. Identify the real instance by matching its PID against `~/Library/Application Support/htmlclay/lock` (inspect `HOME=` via `ps eww -o command= <pid>`), and check `lsof` on that `HOME`'s `htmlclay.log` before killing anything.
 - **Local trust boundary** — The bridge listens on loopback, so any process running as your user can reach the app's port, at `127.0.0.1:<port>` or at any `*.localhost` hostname it serves. Saving requires the per-file token, but the top-level serve route returns a currently-open file by path with no token, so a malicious local process (or a page you already have open) can read other open documents. This is inherent to the localhost-bridge model: htmlclay only serves files you have explicitly opened, and nothing is exposed off the machine.
 
 ### Configuration
@@ -518,6 +519,8 @@ Three things about this repo are easy to trip over.
 **Download links are stamped after CI, not during the version bump.** `scripts/stamp-website.js` writes the version into `website/index.html`, anchored on the `data-version` and `data-mac-dmg` attributes, so new spots on the page need no change to the script. Stamping during the bump would auto-deploy links to a dmg that CI has not uploaded yet, leaving them broken for the few minutes a build takes.
 
 **`htmlclay-release-info.json` on R2 is not a website file.** It is the feed the in-app update checker polls, and its URL is compiled into every shipped binary (`internal/update/update.go`). Removing it would silently and permanently break update checks for installs already in the wild.
+
+**Signing, tagging and CI gates.** Run `./scripts/release.sh` detached and poll it: Apple signing and notarization plus Azure Trusted Signing run inside GitHub Actions from repository secrets with no local credentials, and `release.sh` watches the exact version-bump SHA and creates the git tag only after macOS, Ubuntu and Windows `go test ./...` pass. Watch two cross-platform traps macOS misses: Linux folder-name checks are case-sensitive, and `platform.DirIdentity` returns `""` on Windows so tests must assert `platform.DirIdentity(dir)` rather than a non-empty string. Check live shipped state by comparing `cmd/htmlclay/main.go` against `https://download.htmlclay.com/htmlclay-release-info.json` (GitHub releases stay empty, and `git status -sb` requires `git fetch --tags` first).
 
 To reinstall the current release locally without cutting a new one:
 

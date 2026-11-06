@@ -358,6 +358,12 @@ there, because that is the program it needs. When both programs are missing the 
 request that names its agent explicitly never falls back, and neither does an engine configured by
 hand.
 
+Local HTML Clay helper programs live as two-line launchers in `~/apps/bin/` that exec the real code
+in its repository or install folder (such as `bluesky-studio`, `tweet-score`, and `clay-search`,
+while Finder scripts like `~/bin/clay-search-folder` stay in `~/bin` so they are never picked as a
+helper). Pages declare `data-program-folder="~/apps/bin"`, where `~/` resolves against the user's
+home directory.
+
 ## The CLI
 
 ```
@@ -421,6 +427,22 @@ where you can read them, diff them, and put them in version control.
 lands, exactly like one made by the page, and it is in Backups whether or not a
 tab was open at the time.
 
+## Compatibility with saved documents
+
+**A saved document is a client that can never be re-released.** Saved documents can hardcode wire
+routes in inline script (and deprecated `hyperclayjs` sites freeze on their last published bundle),
+so `/_/live-sync/stream` and `/_/live-sync/save` are permanent alongside `/_/sync` on every host
+(`hyperclay`, `hyperclay-local`, `htmlclay`, and `makerclay`; `hyperclay` resolves the stream's
+document from `Document-URL`, `document-url`, or `page-url` before the URL path). `clayjs` picks
+one profile per page through `/_/meta` capability discovery and uses it for both directions.
+
+**Rollout order depends on direction, and only `htmlclay` mints a save token.** When adding a wire
+address, ship hosts first and clients last; when narrowing an attribute that rolling clients read,
+ship dual injection on the host before narrowing clients. `hyperclay` and `hyperclay-local`
+authorize saves by cookie, whereas `htmlclay` posts to `/_/save/{token}` using `savetoken` (while
+still stripping legacy `htmlclaytoken` in `HOST_TOKEN_ATTRS`, kept separate from non-credential
+`HOST_IDENTITY_ATTRS`).
+
 ## Things that will trip you up
 
 **Open the file before attaching.** A file registers with HTML Clay on its first
@@ -452,6 +474,12 @@ terminal result instead, which HTML Clay holds until clean exit and EOF.
 changed outside this tab and that your version was saved with the previous one in
 Backups. Nothing is lost, and the page's own save carries the program's edit
 forward. Known wart.
+
+**Re-attach after editing an open form on disk.** Modifying an already-open `.htmlclay` form on
+disk (for example with `sed`) reloads and re-registers the tab while an existing `htmlfile listen`
+Monitor stays silently attached to the old session. Stop the Monitor and start a fresh
+`htmlfile listen` after any on-disk edit, and when a send seems missing, run `htmlfile collect <path>`
+first because the answers live in the file.
 
 ## A worked example
 
