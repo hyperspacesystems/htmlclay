@@ -17,6 +17,13 @@ import (
 	"github.com/panphora/htmlclay/internal/versions"
 )
 
+// builtinHelpers is the helpers this server answers itself: the name a page asks
+// for and the run it starts. Both share one per-document slot and one token bar.
+var builtinHelpers = map[string]func(*Server, *session.File, wireEnvelope){
+	aiedit.HelperName:         (*Server).startAIEdit,
+	aiedit.PageToolHelperName: (*Server).startPageTool,
+}
+
 // The wire is a per-file control channel between a page and a local process. A
 // page sends a request ("rewrite the section I circled"), a process answers with
 // progress and a terminal frame, and the process edits the FILE. HTML never rides
@@ -1031,11 +1038,13 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	if isBrowser {
 		env.From = "page"
 	}
-	// The built-in ai-edit helper is answered here, before any handler sees the
-	// request: it needs no declaration and never takes the file's handler slot.
-	// It always requires the document's token, bound helpers or not.
+	// The built-in helpers ai-edit and page-tool are answered here, before any
+	// handler sees the request: they need no declaration and never take the
+	// file's handler slot, and they share one per-document run slot. They always
+	// require the document's token, bound helpers or not.
 	if s.aiEditOffered() && aiedit.IsDocument(f.AbsPath) {
-		builtin := env.Helper == aiedit.HelperName && (env.Type == "wire/request" || env.Type == "wire/describe")
+		start := builtinHelpers[env.Helper]
+		builtin := start != nil && (env.Type == "wire/request" || env.Type == "wire/describe")
 		if builtin || env.Type == "wire/cancel" {
 			tokenOK := r.Header.Get(helperTokenHeader) == f.Token
 			if builtin {
@@ -1044,7 +1053,7 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 					s.writeError(w, http.StatusForbidden, "invalid token")
 					return
 				}
-				s.startAIEdit(f, env)
+				start(s, f, env)
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]any{"ok": true, "delivered": 1, "observers": 0})
 				return

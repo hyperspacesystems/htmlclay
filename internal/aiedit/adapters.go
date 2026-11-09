@@ -82,13 +82,18 @@ type claudeEvent struct {
 }
 
 func claudeAdapter(ctx context.Context, e engine, bin, userPrompt string, _ Options, env []string, report func(string)) (Result, error) {
+	return runClaude(ctx, e, append([]string{bin}, claudeArgs(e.model)...), userPrompt, env, report)
+}
+
+// runClaude runs one Claude Code child and reads its stream-json output. argv
+// names the program in its first entry.
+func runClaude(ctx context.Context, e engine, argv []string, userPrompt string, env []string, report func(string)) (Result, error) {
 	scratch, err := os.MkdirTemp("", "ai-edit-claude-")
 	if err != nil {
 		return Result{}, engineFailure(err)
 	}
 	defer os.RemoveAll(scratch)
 
-	argv := append([]string{bin}, claudeArgs(e.model)...)
 	cmd := childCommand(ctx, argv, scratch, env)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -166,6 +171,12 @@ func claudeAdapter(ctx context.Context, e engine, bin, userPrompt string, _ Opti
 }
 
 func codexAdapter(ctx context.Context, e engine, bin, userPrompt string, _ Options, env []string, _ func(string)) (Result, error) {
+	return runCodex(ctx, e, bin, systemPrompt+"\n\n"+userPrompt, env)
+}
+
+// runCodex runs one codex child and reads the reply file it writes. prompt is
+// the whole turn: the system prompt and the request.
+func runCodex(ctx context.Context, e engine, bin, prompt string, env []string) (Result, error) {
 	scratch, err := os.MkdirTemp("", "ai-edit-codex-")
 	if err != nil {
 		return Result{}, engineFailure(err)
@@ -177,7 +188,7 @@ func codexAdapter(ctx context.Context, e engine, bin, userPrompt string, _ Optio
 	cmd := childCommand(ctx, argv, scratch, env)
 	stderr := &tailBuffer{limit: stderrTail}
 	cmd.Stderr = stderr
-	if err := startChild(cmd, systemPrompt+"\n\n"+userPrompt); err != nil {
+	if err := startChild(cmd, prompt); err != nil {
 		return Result{}, engineFailure(err)
 	}
 	cmd.Wait()
@@ -221,7 +232,12 @@ func readCapped(path string) ([]byte, error) {
 }
 
 func genericAdapter(ctx context.Context, e engine, bin, userPrompt string, o Options, env []string, report func(string)) (Result, error) {
-	prompt := systemPrompt + "\n\n" + userPrompt
+	return runGeneric(ctx, e, bin, systemPrompt+"\n\n"+userPrompt, o.BaseDir, env, report)
+}
+
+// runGeneric runs a user-configured engine. prompt is the whole turn: the
+// system prompt and the request.
+func runGeneric(ctx context.Context, e engine, bin, prompt, dir string, env []string, report func(string)) (Result, error) {
 	argv := append([]string{bin}, e.command[1:]...)
 	viaStdin := true
 	for i, arg := range argv {
@@ -230,7 +246,7 @@ func genericAdapter(ctx context.Context, e engine, bin, userPrompt string, o Opt
 			argv[i] = strings.ReplaceAll(arg, "{prompt}", prompt)
 		}
 	}
-	cmd := childCommand(ctx, argv, o.BaseDir, env)
+	cmd := childCommand(ctx, argv, dir, env)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return Result{}, engineFailure(err)

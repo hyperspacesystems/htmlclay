@@ -736,11 +736,14 @@ func encodedHelperEnvelopeSize(env wireEnvelope) int {
 	return len(encodeHelperJSON(env))
 }
 
-// helperDiscovery is the document's declared helpers, then the built-in ai-edit
-// when this server offers it.
+// helperDiscovery is the document's declared helpers, then the built-in helpers
+// this server offers: ai-edit, and page-tool when its prompt files are vendored.
 func (s *Server) helperDiscovery(file string) (string, []helperMeta) {
 	mode, meta := s.declaredHelperDiscovery(file)
 	if entry, ok := s.aiEditMeta(file); ok {
+		meta = append(meta, entry)
+	}
+	if entry, ok := s.pageToolMeta(file); ok {
 		meta = append(meta, entry)
 	}
 	return mode, meta
@@ -774,6 +777,9 @@ func (s *Server) declaredHelperDiscovery(file string) (string, []helperMeta) {
 	for _, name := range names {
 		if name == aiedit.HelperName && s.aiEditOffered() {
 			continue // the built-in answers this name; a document cannot shadow it
+		}
+		if name == aiedit.PageToolHelperName && s.pageToolOffered() {
+			continue
 		}
 		// unavailable is the honest answer for everything that is not a running
 		// program and not a refusal: no dispatcher at all, a name the user was
