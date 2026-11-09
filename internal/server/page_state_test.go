@@ -70,7 +70,7 @@ func (fx *pageStateFixture) start(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(fx.store))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(fx.store))
 	t.Cleanup(func() { srv.hub.shutdown(); srv.watcher.shutdown() })
 	fx.srv = srv
 }

@@ -80,7 +80,7 @@ func TestWorkspaceSaveRecheckAfterRootRevoked(t *testing.T) {
 		t.Fatalf("register opened file: %v", err)
 	}
 
-	srv := New(listen(t), mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, listen(t), mgr, logging.NewStdout(), versions.New(t.TempDir()))
 
 	save := func(f *session.File) int {
 		req := httptest.NewRequest("POST", "/_/save/"+f.Token, strings.NewReader("<html><body>v2</body></html>"))
@@ -506,7 +506,7 @@ func TestWorkspaceRequestCoveredFileIsSilent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := New(listen(t), mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, listen(t), mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	asked := 0
 	srv.SetHooks(Hooks{
 		TrustedCovers: func(absPath string) bool { return session.EqualOrUnder(absPath, ws) },
@@ -554,7 +554,7 @@ func TestWorkspaceRequestBrokenPinStillAsks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := New(listen(t), mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, listen(t), mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	asked := 0
 	srv.SetHooks(Hooks{
 		TrustedCovers: func(absPath string) bool { return session.EqualOrUnder(absPath, ws) },
@@ -608,7 +608,7 @@ func TestWorkspaceAutoRegisterBranch(t *testing.T) {
 	}
 
 	versionsDir := t.TempDir()
-	srv := New(listen(t), mgr, logging.NewStdout(), versions.New(versionsDir))
+	srv := newTestServer(t, listen(t), mgr, logging.NewStdout(), versions.New(versionsDir))
 	// The seam registers into this same manager, standing in for route()
 	// landing the registration in this site.
 	srv.SetHooks(Hooks{

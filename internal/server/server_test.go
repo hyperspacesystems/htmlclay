@@ -35,7 +35,7 @@ func TestHostValidationMiddleware(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ln.Close()
-	srv := New(ln, mgr, logger, versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logger, versions.New(t.TempDir()))
 
 	req := httptest.NewRequest("GET", "/test.htmlclay", nil)
 	req.Host = "evil.com:12345"
@@ -55,7 +55,7 @@ func TestHostValidationAccepts(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ln.Close()
-	srv := New(ln, mgr, logger, versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logger, versions.New(t.TempDir()))
 
 	req := httptest.NewRequest("GET", "/nonexistent", nil)
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
@@ -78,7 +78,7 @@ func TestHostedServerAnswersItsOwnHostOnly(t *testing.T) {
 	ls := NewLiveSync(store, logging.NewStdout())
 	t.Cleanup(ls.Shutdown)
 	ours := func(h string) bool { return IsSiteHost(h, 24190) }
-	srv := NewHosted("w4-3f2a.localhost:24190", ours, mgr, logging.NewStdout(), store, ls)
+	srv := newTestHostedServer(t, "w4-3f2a.localhost:24190", ours, mgr, logging.NewStdout(), store, ls)
 	if srv.Host() != "w4-3f2a.localhost:24190" || srv.port != 24190 {
 		t.Fatalf("host %q port %d", srv.Host(), srv.port)
 	}

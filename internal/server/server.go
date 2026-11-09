@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/dataguard"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/versions"
@@ -74,6 +75,19 @@ type Server struct {
 	// after one that granted nothing.
 	helperAskQuiet map[string]time.Time
 	aiEdit         aiEditRegistry
+	// guard judges every write to a document against the baseline HTML Clay last
+	// wrote, so a save or an outside edit that destroys data can raise a notice.
+	// guardQueue serializes its observations and resolves per history key, and
+	// guardStore keeps its state in the document's versions folder.
+	guard      *dataguard.Guard
+	guardQueue *dataguard.Queue
+	guardStore *dataguard.Store
+	// guardSeenMu guards guardSeen, the last document hash the guard has seen per
+	// history key. It is written when an observation is enqueued, so the document
+	// read can tell an outside edit from the bytes it already knows without
+	// reading any file.
+	guardSeenMu sync.Mutex
+	guardSeen   map[string]string
 
 	// hooks are the app-level decisions this server cannot make itself. A nil
 	// field disables that route; a zero Hooks (tests, standalone servers)
@@ -186,6 +200,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func newServer(sessions *session.Manager, logger *logging.Logger, store *versions.Store, ls *LiveSync, hosts []string, ours OriginOwner) *Server {
+	// The guard keeps its sidecars in the document's versions folder, which the
+	// versions store already owns the location of.
+	guardStore := dataguard.NewStore(func(key, absPath string) (string, error) {
+		return store.ExistingFolder(key, absPath)
+	})
+	guardQueue := &dataguard.Queue{}
+	guard := dataguard.NewGuard(guardStore, Extractor{}, func() int64 { return time.Now().UnixMilli() })
+	guard.SetQueue(guardQueue)
+
 	s := &Server{
 		sessions: sessions,
 		hosts:    hosts,
@@ -198,9 +221,17 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 		coord:    ls.coord,
 		wire:     newWireHub(),
 
+		guard:      guard,
+		guardQueue: guardQueue,
+		guardStore: guardStore,
+		guardSeen:  map[string]string{},
+
 		tailwindLogged: map[string]bool{},
 	}
 	s.tailwindCompile = s.compileTailwind
+	// The watcher is shared by every site, so an external change is offered to each
+	// site's guard and judged by the one that owns the document's key.
+	s.watcher.onExternalWrite(s.observeExternalChange)
 	// Not fatal: a server with no home directory still serves every document, it
 	// just cannot store or answer an upload.
 	s.uploadsDir, _ = ResolvedUploadsLibraryDir()
@@ -212,6 +243,8 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	mux.HandleFunc("POST /_/upload/{token}", sameOrigin(s.handleUpload))
 	mux.HandleFunc("GET /_/meta/{token}", s.handleMeta)
 	mux.HandleFunc("GET /_/page-state/{token}", s.handlePageState)
+	mux.HandleFunc("GET /_/data-loss/{token}", s.handleDataLossGet)
+	mux.HandleFunc("POST /_/data-loss/{token}", sameOrigin(s.handleDataLossResolve))
 	// Spec §5 names the tokenless address as the one place a client may learn what
 	// a host supports, and forbids gating discovery tighter than the documents
 	// served. This host mints tokens, so it answers both: the token route adds a
@@ -366,6 +399,7 @@ func (s *Server) Start() error {
 // runtime down once, before the per-site HTTP servers).
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.CancelAIEdits()
+	s.guardQueue.Settle()
 	s.broker.shutdown()
 	s.wire.shutdown()
 	if s.ownsLiveSync {
@@ -379,6 +413,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) Close() error {
 	s.CancelAIEdits()
+	s.guardQueue.Settle()
 	s.broker.shutdown()
 	s.wire.shutdown()
 	if s.ownsLiveSync {

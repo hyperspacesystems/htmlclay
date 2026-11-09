@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/panphora/htmlclay/internal/dataapi"
+	"github.com/panphora/htmlclay/internal/dataguard"
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/pageadmission"
 	"github.com/panphora/htmlclay/internal/session"
@@ -269,33 +270,8 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		writeWriteError(w, status, body)
 		return
 	}
-	// The stored document is the only source of this edit, so the bytes it produced
-	// can carry a runtime URL only if disk already held one. Canonicalizing before
-	// the admission check means what is judged is what would be written.
-	res.HTML = canonicalForWrite(r.Host, res.HTML)
-	res.HTML = []byte(pageadmission.WithPageFormatFloor(string(res.HTML),
-		pageadmission.PageFormatFloor(string(current))))
-
-	decision, admissionErr := pageadmission.CheckWrite(string(current), string(res.HTML), "")
-	if admissionErr == nil && decision != pageadmission.Ordinary {
-		admissionErr = &pageadmission.Refusal{Reason: "file-changed"}
-	}
-	if admissionErr != nil {
-		f.Unlock()
-		_, code, reason := pageAdmissionFields(admissionErr)
-		if code == "" {
-			code = "page-format"
-		}
-		if reason == "" {
-			reason = code
-		}
-		writeWriteError(w, http.StatusConflict, writeErrorBody{
-			Error: "Page format", Message: admissionErr.Error(),
-			Details: map[string]string{"code": code, "reason": reason},
-		})
-		return
-	}
-
+	// A query face's own rules are judged against the bytes the engine produced, before
+	// anything is written, so a write the caller could not read back never lands.
 	if mode.face == faceQuery {
 		doc, extractErr := dataapi.ParseBytes(res.HTML)
 		if extractErr == nil {
@@ -312,27 +288,17 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 	written := current
 	key := ""
 	if res.Changed {
-		written = []byte(pageadmission.StripPageTag(string(res.HTML)))
-		key, _ = s.ensureHistoryKeyLocked(f, current)
-		if !s.versions.HasHistory(key, f.AbsPath) {
-			if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
-				s.logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
-			}
-		}
-		if _, bErr := s.versions.Backup(key, f.AbsPath, written); bErr != nil {
-			s.logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
-		}
-		if err := atomicWriteFile(f.AbsPath, written); err != nil {
+		written, key, err = s.commitDataEdit(f, current, res.HTML, r.Host)
+		if err != nil {
 			f.Unlock()
-			s.logger.Printf("Error writing %s: %v", f.AbsPath, err)
+			var refusal *dataEditError
+			if errors.As(err, &refusal) {
+				writeWriteError(w, refusal.status, refusal.body)
+				return
+			}
 			writeWriteError(w, http.StatusInternalServerError, writeErrorBody{Error: "Write failed", Message: "write error"})
 			return
 		}
-		if sErr := s.versions.SettlePageState(key, f.AbsPath, versions.Hash(written)); sErr != nil {
-			s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
-		}
-		f.RecordServerWrite(versions.Hash(written))
-		f.NoteWriteByThisHost()
 		f.NoteWriteFromOutsideTabs()
 		if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
 			s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
@@ -346,10 +312,73 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 	f.Unlock()
 
 	if res.Changed {
+		s.observeWrite(f, key, current, written, dataguard.External)
 		s.versions.MaybePrune(key, f.AbsPath)
 		s.logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), res.Spliced)
 	}
 	s.writeExtracted(w, written, mode)
+}
+
+// dataEditError is the refusal commitDataEdit answers with, so the write face sends
+// the exact body it always has.
+type dataEditError struct {
+	status int
+	body   writeErrorBody
+}
+
+func (e *dataEditError) Error() string { return e.body.Message }
+
+// commitDataEdit commits an edit computed from the stored bytes: canonicalize, hold
+// the page format floor, check the result against the page on disk, then back up and
+// write it. It returns the stored bytes and the document's history key. Caller holds
+// f.Lock.
+//
+// The stored document is the only source of an edit, so the bytes it produced can
+// carry a runtime URL only if disk already held one. Canonicalizing before the
+// admission check means what is judged is what would be written.
+func (s *Server) commitDataEdit(f *session.File, current, html []byte, host string) ([]byte, string, error) {
+	html = canonicalForWrite(host, html)
+	html = []byte(pageadmission.WithPageFormatFloor(string(html),
+		pageadmission.PageFormatFloor(string(current))))
+
+	decision, admissionErr := pageadmission.CheckWrite(string(current), string(html), "")
+	if admissionErr == nil && decision != pageadmission.Ordinary {
+		admissionErr = &pageadmission.Refusal{Reason: "file-changed"}
+	}
+	if admissionErr != nil {
+		_, code, reason := pageAdmissionFields(admissionErr)
+		if code == "" {
+			code = "page-format"
+		}
+		if reason == "" {
+			reason = code
+		}
+		return nil, "", &dataEditError{status: http.StatusConflict, body: writeErrorBody{
+			Error: "Page format", Message: admissionErr.Error(),
+			Details: map[string]string{"code": code, "reason": reason},
+		}}
+	}
+
+	written := []byte(pageadmission.StripPageTag(string(html)))
+	key, _ := s.ensureHistoryKeyLocked(f, current)
+	if !s.versions.HasHistory(key, f.AbsPath) {
+		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
+			s.logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
+		}
+	}
+	if _, bErr := s.versions.Backup(key, f.AbsPath, written); bErr != nil {
+		s.logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
+	}
+	if err := atomicWriteFile(f.AbsPath, written); err != nil {
+		s.logger.Printf("Error writing %s: %v", f.AbsPath, err)
+		return nil, "", err
+	}
+	if sErr := s.versions.SettlePageState(key, f.AbsPath, versions.Hash(written)); sErr != nil {
+		s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
+	}
+	f.RecordServerWrite(versions.Hash(written))
+	f.NoteWriteByThisHost()
+	return written, key, nil
 }
 
 // mapWriteError gives the write engine's refusals the bodies hyperclay-local sends, and defers to

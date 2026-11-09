@@ -512,7 +512,7 @@ func TestInjectBannerBeforeRealCloseTag(t *testing.T) {
 
 	doc := []byte(`<html><body>content</body></html>`)
 	out := string(InjectBanner(doc, banner))
-	want := `<html><body>content</body>` + string(banner) + `</html>`
+	want := `<html><body>content` + string(banner) + `</body></html>`
 	if out != want {
 		t.Fatalf("banner misplaced:\n got %q\nwant %q", out, want)
 	}
@@ -521,11 +521,28 @@ func TestInjectBannerBeforeRealCloseTag(t *testing.T) {
 	// banner must land before the REAL close.
 	tricky := []byte(`<html><body><!-- </html> --><script>var a="</html>"</script>tail</body></html>`)
 	outTricky := string(InjectBanner(tricky, banner))
-	if !strings.HasSuffix(outTricky, string(banner)+`</html>`) {
+	if !strings.HasSuffix(outTricky, string(banner)+`</body></html>`) {
 		t.Fatalf("banner not before the real close tag: %q", outTricky)
 	}
 	if strings.Count(outTricky, string(banner)) != 1 {
 		t.Fatalf("banner injected more than once: %q", outTricky)
+	}
+
+	// A fake </body> inside a script is text too: the banner must not land
+	// inside the script, or the parser would hand back a broken document.
+	bodyTrap := []byte(`<html><body><script>var a="</body>"</script>tail</body></html>`)
+	outBodyTrap := string(InjectBanner(bodyTrap, banner))
+	wantBodyTrap := `<html><body><script>var a="</body>"</script>tail` + string(banner) + `</body></html>`
+	if outBodyTrap != wantBodyTrap {
+		t.Fatalf("bogus </body> in a script misplaced the banner:\n got %q\nwant %q", outBodyTrap, wantBodyTrap)
+	}
+
+	// A </body> after the real </html> is not this document's body.
+	after := []byte(`<html><body>content</body></html></body>`)
+	outAfter := string(InjectBanner(after, banner))
+	wantAfter := `<html><body>content` + string(banner) + `</body></html></body>`
+	if outAfter != wantAfter {
+		t.Fatalf("a </body> past </html> misplaced the banner:\n got %q\nwant %q", outAfter, wantAfter)
 	}
 
 	// No close tag: appended at the end.

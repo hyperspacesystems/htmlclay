@@ -76,7 +76,7 @@ func TestMalleableHTMLFileHostGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	go srv.Start()
 	t.Cleanup(func() { ln.Close() })
 

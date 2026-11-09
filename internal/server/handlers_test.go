@@ -38,13 +38,33 @@ func setupHandlerTest(t *testing.T) (*Server, *session.File, string) {
 	t.Cleanup(func() { ln.Close() })
 
 	logger := logging.NewStdout()
-	srv := New(ln, mgr, logger, versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logger, versions.New(t.TempDir()))
 	// Uploads land in the one per-computer library, ~/htmlclay/uploads in
 	// production. A test must never write into the real one, so point this server
 	// at a temp library instead.
 	srv.uploadsDir = t.TempDir()
 
 	return srv, f, content
+}
+
+// newTestServer builds a listener server for a test and settles its guard queue
+// before the test's temporary folders are removed. The guard observes off the
+// request path, so without this a test whose last act is a save can have an
+// observation writing into a folder that cleanup is already deleting. The temp
+// dirs are registered before the server is built, so this cleanup runs first.
+func newTestServer(t *testing.T, ln net.Listener, sessions *session.Manager, logger *logging.Logger, store *versions.Store) *Server {
+	t.Helper()
+	srv := New(ln, sessions, logger, store)
+	t.Cleanup(srv.guardQueue.Settle)
+	return srv
+}
+
+// newTestHostedServer is newTestServer for a server with no listener of its own.
+func newTestHostedServer(t *testing.T, host string, ours OriginOwner, sessions *session.Manager, logger *logging.Logger, store *versions.Store, ls *LiveSync) *Server {
+	t.Helper()
+	srv := NewHosted(host, ours, sessions, logger, store, ls)
+	t.Cleanup(srv.guardQueue.Settle)
+	return srv
 }
 
 func registerSubdirPage(t *testing.T, srv *Server, dirName string) string {
@@ -167,7 +187,7 @@ func TestReadRouteRefusesSymlinkIntoInternal(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	srv.SetInternalDir(internalDir)
 
 	read := func() *httptest.ResponseRecorder {
@@ -358,7 +378,7 @@ func TestServeAssetOutsideOpenedDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 
 	req := httptest.NewRequest("GET", "/other/secret.txt", nil)
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
@@ -390,7 +410,7 @@ func TestServeAssetOutsideOpenedDirsTypedNavigation(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	srv.broker.confirm = failIfPrompted(t)
 
 	for _, name := range []string{"doc.htmlclay", "missing.htmlclay"} {
@@ -476,7 +496,7 @@ func TestServeAssetSymlinkEscape(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 
 	req := httptest.NewRequest("GET", "/site/link.txt", nil)
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
@@ -547,7 +567,7 @@ func TestServeAssetSymlinkEscapeOutsideHomeRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 
 	req := httptest.NewRequest("GET", "/site/escape.txt", nil)
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
@@ -622,7 +642,7 @@ func TestVersionsTreeRefusedOnServePath(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), store)
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), store)
 
 	// A normal in-scope asset serves, proving the opened root is live.
 	reqOK := httptest.NewRequest("GET", "/site/ok.css", nil)
@@ -664,7 +684,7 @@ func TestServeOpenedHTMLFileNotMutated(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 
 	req := httptest.NewRequest("GET", "/page.html", nil)
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)

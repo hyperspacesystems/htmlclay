@@ -115,7 +115,31 @@ type watcher struct {
 	// identity in it: see publishConfirmed.
 	versions *versions.Store
 
+	// guardHooks are told about every confirmed external change. One LiveSync is
+	// shared by every site, so each server registers the observer that reaches its
+	// own guard. They are called with the file locked, so they may only enqueue.
+	guardHooksMu sync.Mutex
+	guardHooks   []func(f *session.File, key string, data []byte)
+
 	wg sync.WaitGroup
+}
+
+// onExternalWrite registers fn to be told about every confirmed external change.
+func (wt *watcher) onExternalWrite(fn func(f *session.File, key string, data []byte)) {
+	wt.guardHooksMu.Lock()
+	wt.guardHooks = append(wt.guardHooks, fn)
+	wt.guardHooksMu.Unlock()
+}
+
+// notifyExternalWrites hands one confirmed change to every registered observer.
+func (wt *watcher) notifyExternalWrites(f *session.File, key string, data []byte) {
+	wt.guardHooksMu.Lock()
+	hooks := make([]func(*session.File, string, []byte), len(wt.guardHooks))
+	copy(hooks, wt.guardHooks)
+	wt.guardHooksMu.Unlock()
+	for _, fn := range hooks {
+		fn(f, key, data)
+	}
 }
 
 func newWatcher(store *versions.Store, logger *logging.Logger) *watcher {
@@ -486,5 +510,8 @@ func (wt *watcher) publishConfirmed(e *watchEntry, hash string, data []byte) str
 		f.RecordStableObservation(hash)
 		wt.logger.Printf("External change detected in %s", f.RelPath)
 	}
+	// The bytes are on disk either way, so the guard judges them whatever the
+	// broadcast reached. Only enqueuing here: f is locked by the defer above.
+	wt.notifyExternalWrites(f, key, data)
 	return key
 }

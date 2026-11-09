@@ -150,14 +150,14 @@ func rawTextNameAt(data []byte, i int) (string, bool) {
 	return "", false
 }
 
-// findHTMLCloseTag returns the offset of a real top-level </html> end tag at or
+// findHTMLCloseTag returns the offset of a real top-level end tag for tag at or
 // after from, or -1.
 //
 // It skips comments and raw-text elements the same way findHTMLTagStart skips
 // comments. A raw regex over the trailing bytes accepted a fake closing tag, so
 // `<html><body><!-- </html> -->` passed the restore completeness check and a
 // truncated version replaced a good file.
-func findHTMLCloseTag(data []byte, from int) int {
+func findHTMLCloseTag(data []byte, from int, tag string) int {
 	n := len(data)
 	for i := from; i < n; i++ {
 		if data[i] != '<' {
@@ -207,8 +207,10 @@ func findHTMLCloseTag(data []byte, from int) int {
 			}
 			continue
 		}
-		if i+6 <= n && data[i+1] == '/' && equalFoldHTML(data[i+2:i+6]) {
-			j := i + 6
+		start := i + 2
+		end := start + len(tag)
+		if end <= n && data[i+1] == '/' && equalFoldASCII(data[start:end], tag) {
+			j := end
 			for j < n && isHTMLSpace(data[j]) {
 				j++
 			}
@@ -229,7 +231,7 @@ func IsCompleteHTMLDocument(data []byte) bool {
 	if !ok {
 		return false
 	}
-	return findHTMLCloseTag(data, closeAngle+1) >= 0
+	return findHTMLCloseTag(data, closeAngle+1, "html") >= 0
 }
 
 // removeAll strips every spelling of an attribute from a run of tag attributes.
@@ -457,21 +459,29 @@ func WrapBanner(banner []byte) []byte {
 }
 
 // InjectBanner inserts an already-wrapped banner immediately before the real
-// top-level </html> end tag, using the same comment- and raw-text-aware scan as
-// IsCompleteHTMLDocument, so a fake close tag inside a script or comment cannot
-// misplace it. Position in the DOM is irrelevant to a fixed-position banner,
-// and inserting at the end sidesteps every head/body reparenting subtlety an
-// injection near <html> would raise. A document with no close tag gets the
-// banner appended; one with no <html> tag at all is returned unchanged (served
-// plain rather than guessed at).
+// top-level </body> end tag, falling back to the real top-level </html> end tag
+// when the document has no body. It uses the same comment- and raw-text-aware
+// scan as IsCompleteHTMLDocument, so a fake close tag inside a script or comment
+// cannot misplace it.
+//
+// It goes inside the body because a parser moves content after </body> into the
+// body: a comment there stays a child of <html>, while the banner's markup is
+// reparented into <body>, so the start marker ends up after the banner and the
+// markers come out reversed. StripBanner then finds no complete pair, and a save
+// of the parsed page writes the bar into the user's file. A document with no
+// close tag gets the banner appended; one with no <html> tag at all is returned
+// unchanged (served plain rather than guessed at).
 func InjectBanner(data, wrappedBanner []byte) []byte {
 	_, closeAngle, ok := findHTMLTagRange(data)
 	if !ok {
 		return data
 	}
 	insert := len(data)
-	if end := findHTMLCloseTag(data, closeAngle+1); end >= 0 {
+	if end := findHTMLCloseTag(data, closeAngle+1, "html"); end >= 0 {
 		insert = end
+		if body := findHTMLCloseTag(data, closeAngle+1, "body"); body >= 0 && body < end {
+			insert = body
+		}
 	}
 	out := make([]byte, 0, len(data)+len(wrappedBanner))
 	out = append(out, data[:insert]...)

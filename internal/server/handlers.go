@@ -255,6 +255,10 @@ type documentMeta struct {
 	// The page editor's stored Yjs state for these exact bytes, read conditionally
 	// on the etag above. Named here so a client never guesses the route.
 	PageState *pageStateMeta `json:"pageState,omitempty"`
+	// The pending data-loss event for this document, named by an address the
+	// client reads rather than constructs. Present only for a document the guard
+	// can key.
+	DataGuard *dataGuardMeta `json:"dataGuard,omitempty"`
 	// The file actions this host offers for THIS document, each an address the
 	// page POSTs to. Absent when the app wired no file-manager or export hook, so
 	// a standalone server offers none rather than naming routes that refuse.
@@ -262,6 +266,10 @@ type documentMeta struct {
 }
 
 type pageStateMeta struct {
+	Href string `json:"href"`
+}
+
+type dataGuardMeta struct {
 	Href string `json:"href"`
 }
 
@@ -595,6 +603,15 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	}
 	f.Unlock()
 
+	// An outside edit made while no tab was open reaches no subscriber, so the
+	// watcher drops it and this load is the only place it can be caught. The
+	// comparison is against an in-memory hash, so a load that finds nothing new
+	// pays for one hash, and the catch-up reads and judges outside the file lock,
+	// so a save never waits behind it.
+	if seen := s.guardSeenHash(key, f.AbsPath); seen != "" && seen != versions.Hash(data) {
+		s.catchUpGuard(f, key)
+	}
+
 	// Bulk pruning runs on the store lock only, never inside f.Lock().
 	if pruneKey != "" {
 		s.versions.MaybePrune(pruneKey, f.AbsPath)
@@ -610,6 +627,13 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 		served = htmlutil.InjectToken(served, f.Token)
 		if names := s.setupBarNames(f.AbsPath); len(names) > 0 && s.hooks.AskHelper != nil && r.Header.Get("Clay-Source") != "1" {
 			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(setupBarHTML(names)))
+		}
+		// The notice a ClayJS page draws needs a runtime that carries the module,
+		// so a document pinned to an older one, or using no ClayJS at all, would
+		// never hear about a pending loss. The server tells it the same way it
+		// tells a page its programs are not set up: with a bar a save strips.
+		if event := s.pendingGuardEvent(f, key); event != nil {
+			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(guardBarHTML(event)))
 		}
 	}
 
@@ -1292,6 +1316,10 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	}
 	f.Unlock()
 
+	if err == nil {
+		s.observeWrite(f, key, current, body, provenanceFromRequest(r))
+	}
+
 	if err != nil {
 		s.logger.Printf("Error saving %s: %v", f.AbsPath, err)
 		s.writeError(w, http.StatusInternalServerError, "write error")
@@ -1516,8 +1544,10 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 
 	var htmlclayID string
 	var saveID string
+	var historyKey string
 	f.Lock()
-	if id, ok := versions.IDFromKey(f.HistoryKey()); ok {
+	historyKey = f.HistoryKey()
+	if id, ok := versions.IDFromKey(historyKey); ok {
 		htmlclayID = id
 	}
 	// Verified against the bytes this answer is about to stamp, not against
@@ -1573,6 +1603,9 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 	}
 	meta.Document.WireMode, meta.Document.Helpers = s.helperDiscovery(f.AbsPath)
 	meta.Document.People = s.people()
+	if historyKey != "" {
+		meta.Document.DataGuard = &dataGuardMeta{Href: "/_/data-loss/" + r.PathValue("token")}
+	}
 
 	noStoreJSON(w)
 	if meta.Document.People != nil {

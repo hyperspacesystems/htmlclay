@@ -280,7 +280,7 @@ func TestUploadServedFromASecondSiteServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	site := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	site := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	site.uploadsDir = srv.uploadsDir
 
 	w := getFromLibrary(t, site, res.Uploads[0].URL)
@@ -1047,7 +1047,7 @@ func TestUploadConcurrentServersOnAFreshLibraryShareOneKey(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { ln.Close() })
-		srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+		srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 		srv.uploadsDir = library
 		servers = append(servers, srv)
 		tokens = append(tokens, f.Token)
@@ -1182,7 +1182,7 @@ func TestSymlinkedLibraryIsNeverServedAsAPage(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { ln.Close() })
-			srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+			srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 
 			library := filepath.Join(linked, "uploads")
 			if srv.uploadsDir != library {

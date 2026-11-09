@@ -260,6 +260,28 @@ func (s *Store) Folder(key, absPath string) (string, error) {
 	return filepath.Join(s.baseDir, ref.folder), nil
 }
 
+// ExistingFolder returns the absolute directory that holds key's versions, without
+// creating anything, and ErrNoHistory when the document has no history yet. A
+// reader that must not materialize history on the user's behalf, such as the
+// data-loss guard running after a request has returned, uses this instead of
+// Folder.
+func (s *Store) ExistingFolder(key, absPath string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		return "", err
+	}
+	defer vroot.Close()
+	ref, err := s.openHistory(vroot, key, absPath, false)
+	if err != nil {
+		return "", err
+	}
+	defer ref.Close()
+	return filepath.Join(s.baseDir, ref.folder), nil
+}
+
 // Contains reports whether absPath sits inside the versions directory. The server
 // uses it to deny requests for internal backup state on the app's own origin: the
 // config directory lives under the user's home on every platform, so the static

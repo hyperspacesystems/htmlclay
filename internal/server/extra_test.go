@@ -837,7 +837,7 @@ func setupBatchAssetTest(t *testing.T, confirm brokerConfirm) (*Server, string, 
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	srv.broker.confirm = confirm
 	t.Cleanup(func() { srv.broker.shutdown(); srv.hub.shutdown(); srv.watcher.shutdown() })
 	return srv, shared, rels

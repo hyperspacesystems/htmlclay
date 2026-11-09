@@ -81,7 +81,7 @@ func newWatchHarness(t *testing.T, initial string, subscribe bool, tune ...func(
 	}
 	t.Cleanup(func() { ln.Close() })
 
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	srv.watcher.poll = 10 * time.Millisecond
 	srv.watcher.quiet = 40 * time.Millisecond
 	for _, fn := range tune {

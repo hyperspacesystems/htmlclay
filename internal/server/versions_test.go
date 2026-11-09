@@ -51,7 +51,7 @@ func setupFileTest(t *testing.T, name, content string) *fileFixture {
 	}
 	t.Cleanup(func() { ln.Close() })
 
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	t.Cleanup(func() { srv.hub.shutdown(); srv.watcher.shutdown() })
 	return &fileFixture{srv: srv, file: f, home: homeDir}
 }
@@ -77,7 +77,7 @@ func (fx *fileFixture) reopen(t *testing.T, relPath string) *fileFixture {
 	}
 	t.Cleanup(func() { ln.Close() })
 
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(base))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(base))
 	t.Cleanup(func() { srv.hub.shutdown(); srv.watcher.shutdown() })
 	return &fileFixture{srv: srv, file: f, home: fx.home}
 }
@@ -672,7 +672,7 @@ func TestInternalVersionsDirectoryIsDenied(t *testing.T) {
 	}
 	ln, _ := net.Listen("tcp", "127.0.0.1:0")
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), store)
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), store)
 	t.Cleanup(func() { srv.hub.shutdown(); srv.watcher.shutdown() })
 
 	base, _ := store.Dir()

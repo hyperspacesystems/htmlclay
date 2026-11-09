@@ -351,7 +351,7 @@ func setupLiveSyncTest(t *testing.T) (*Server, *session.File) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	t.Cleanup(func() { srv.hub.shutdown(); srv.watcher.shutdown() })
 	return srv, f
 }
@@ -551,7 +551,7 @@ func TestLegacyLiveSyncAddressesStillStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	go srv.Start()
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -599,7 +599,7 @@ func TestSSEStreamFlushesOverARealConnection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	go srv.Start()
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -694,7 +694,7 @@ func TestShutdownClosesActiveStreamsPromptly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	go srv.Start()
 
 	base := fmt.Sprintf("http://127.0.0.1:%d", srv.port)
@@ -753,7 +753,7 @@ func TestLiveSyncRejectsSymlinkEscape(t *testing.T) {
 	}
 	ln, _ := net.Listen("tcp", "127.0.0.1:0")
 	t.Cleanup(func() { ln.Close() })
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	t.Cleanup(func() { srv.hub.shutdown(); srv.watcher.shutdown() })
 
 	pageURL := fmt.Sprintf("http://127.0.0.1:%d/link.htmlclay", srv.port)
@@ -1067,7 +1067,7 @@ func TestClosedStreamStopsTheWatcher(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
+	srv := newTestServer(t, ln, mgr, logging.NewStdout(), versions.New(t.TempDir()))
 	go srv.Start()
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

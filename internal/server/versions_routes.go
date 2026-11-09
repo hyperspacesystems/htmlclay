@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/panphora/htmlclay/internal/dataguard"
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/pageadmission"
 	"github.com/panphora/htmlclay/internal/session"
@@ -214,6 +215,11 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	s.broadcastDiskHTML(f, data, key)
 	s.coord.notifyWarning(f, f.Name+" was restored from a backup")
 	f.Unlock()
+
+	// A person pressed restore, so the guard judges it as a gestured save: it does
+	// not raise a notice about the restore they chose, and a big clobber still does.
+	driven := true
+	s.observeWrite(f, key, current, data, dataguard.UIProvenanceOf(&driven))
 
 	s.versions.MaybePrune(key, f.AbsPath)
 

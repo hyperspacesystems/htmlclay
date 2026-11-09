@@ -910,11 +910,12 @@ type livePayload struct {
 }
 
 type notifyPayload struct {
-	Type    string          `json:"type"`
-	MsgType string          `json:"msgType"`
-	Msg     string          `json:"msg"`
-	Seq     int64           `json:"seq"`
-	Data    json.RawMessage `json:"data,omitempty"`
+	Type    string `json:"type"`
+	MsgType string `json:"msgType"`
+	Action  string `json:"action,omitempty"`
+	Msg     string `json:"msg"`
+	Seq     int64  `json:"seq"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // frame serializes one SSE frame, carrying the shared sequence as the SSE id so a
@@ -1084,7 +1085,7 @@ func (h *hub) publishExternalChange(key, msg, html, etag string) (delivered bool
 
 	h.observeIdentityLocked(key, probe)
 
-	var data json.RawMessage
+	var data any
 	if len(html) <= maxLiveSyncSize {
 		data = encodeExternalChangeData(html, etag)
 	}
@@ -1111,6 +1112,19 @@ func (h *hub) notifyWarning(key, msg string) []*subscriber {
 	defer h.mu.Unlock()
 	seq := h.nextSeq()
 	if n := frame(seq, notifyPayload{Type: "notification", MsgType: "warning", Msg: msg, Seq: seq}); n != nil {
+		_, evicted := h.enqueue(key, laneLive, seq, n)
+		return evicted
+	}
+	return nil
+}
+
+// notifyGuard sends a data-loss notification to the live lane. action names what
+// happened to the event and data carries it, or its id once it is resolved.
+func (h *hub) notifyGuard(key, action, msg string, data any) []*subscriber {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	seq := h.nextSeq()
+	if n := frame(seq, notifyPayload{Type: "notification", MsgType: "data-loss", Action: action, Msg: msg, Seq: seq, Data: data}); n != nil {
 		_, evicted := h.enqueue(key, laneLive, seq, n)
 		return evicted
 	}
