@@ -389,6 +389,32 @@ func TestPageToolRequestValidation(t *testing.T) {
 	}
 }
 
+// The mock is what browser passes run with, and Go cannot run its script, so
+// the reply is held to a golden copy of the artifact byte for byte. The script
+// must define mount(tool): the page's runtime calls that function, and a bare
+// `root` never mounts.
+const mockToolGolden = `{"artifact":{"title":"Counter","html":"<div class=\"counter\"><button type=\"button\">Add one</button> <output>0</output></div>","css":".counter { display: flex; gap: 0.5rem; align-items: center; } .counter button { font: inherit; }","javascript":"function mount(tool) { const button = tool.root.querySelector('button'); const output = tool.root.querySelector('output'); const draw = () => { output.textContent = String(tool.state.data.count ?? 0); }; const click = () => tool.state.add(['count'], 1); button.addEventListener('click', click); const off = tool.on('change', draw); draw(); return () => { button.removeEventListener('click', click); off(); }; }","fallbackHtml":"<p>Counter</p>","summary":"A counter that counts up."},"state":{"count":0}}`
+
+func TestPageToolMockIsTheGoldenArtifact(t *testing.T) {
+	if mockToolReply != mockToolGolden {
+		t.Fatalf("mock reply = %s\nwant %s", mockToolReply, mockToolGolden)
+	}
+	reply, failure := ParseToolReply(mockToolReply)
+	if failure != nil {
+		t.Fatalf("ParseToolReply: %v", failure)
+	}
+	var artifact map[string]string
+	if err := json.Unmarshal(reply.Artifact, &artifact); err != nil {
+		t.Fatalf("artifact = %s (%v)", reply.Artifact, err)
+	}
+	if !strings.Contains(artifact["javascript"], "function mount(tool)") || !strings.Contains(artifact["javascript"], "tool.root.querySelector") {
+		t.Fatalf("javascript = %q", artifact["javascript"])
+	}
+	if string(reply.State) != `{"count":0}` {
+		t.Fatalf("state = %s", reply.State)
+	}
+}
+
 func TestPageToolReplyValidation(t *testing.T) {
 	valid := validToolReply(t, "var x = 1;")
 	cases := []struct {

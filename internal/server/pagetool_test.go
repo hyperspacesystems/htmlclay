@@ -129,7 +129,7 @@ func TestPageToolSuccessThroughTheHandler(t *testing.T) {
 	if payload.RequestID != pageToolID || payload.Model != "mock(claude-opus-5-5)" {
 		t.Fatalf("done payload = %+v", payload)
 	}
-	if !strings.Contains(string(payload.Artifact), `"title":"Interview tally"`) {
+	if !strings.Contains(string(payload.Artifact), `"title":"Counter"`) {
 		t.Fatalf("artifact = %s", payload.Artifact)
 	}
 	if string(payload.State) != `{"count":0}` {

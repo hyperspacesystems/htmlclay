@@ -339,9 +339,10 @@ func runToolClaude(ctx context.Context, e engine, bin, systemPrompt, userPrompt 
 // until its context ends, so cancellation and budget expiry are deterministic.
 var mockToolHang = regexp.MustCompile(`\[mock:hang\]`)
 
-// mockToolReply is a fixed, valid counter tool: one button, one number, and no
-// state of its own beyond the count.
-const mockToolReply = `{"artifact":{"title":"Interview tally","html":"<div class=\"tool\"><button type=\"button\" data-act=\"tally\">+1</button><output data-count>0</output></div>","css":".tool{display:flex;gap:8px;align-items:center}","javascript":"var button = root.querySelector('[data-act=\"tally\"]');\nvar output = root.querySelector('[data-count]');\nvar count = 0;\nbutton.addEventListener('click', function () {\n  count += 1;\n  output.textContent = String(count);\n});","fallbackHtml":"<p>A tally of completed interviews.</p>","summary":"Counts completed interviews."},"state":{"count":0}}`
+// mockToolReply is a fixed, valid counter tool, and its script is one the page's
+// runtime can mount: it defines mount(tool), which reads the count out of the
+// tool's own state and returns its cleanup.
+const mockToolReply = `{"artifact":{"title":"Counter","html":"<div class=\"counter\"><button type=\"button\">Add one</button> <output>0</output></div>","css":".counter { display: flex; gap: 0.5rem; align-items: center; } .counter button { font: inherit; }","javascript":"function mount(tool) { const button = tool.root.querySelector('button'); const output = tool.root.querySelector('output'); const draw = () => { output.textContent = String(tool.state.data.count ?? 0); }; const click = () => tool.state.add(['count'], 1); button.addEventListener('click', click); const off = tool.on('change', draw); draw(); return () => { button.removeEventListener('click', click); off(); }; }","fallbackHtml":"<p>Counter</p>","summary":"A counter that counts up."},"state":{"count":0}}`
 
 func mockToolRun(ctx context.Context, p ToolRequest, label string) (Result, error) {
 	if mockToolHang.MatchString(p.Prompt) {
