@@ -186,7 +186,7 @@ func helperFileSnapshot(path string) os.FileInfo {
 // before it is used.
 func (a *app) chooseHelperFile(dialogs helperApprovalDialogs, document, prompt, folder string) (string, bool, error) {
 	for {
-		picked, ok, err := dialogs.choose(prompt, folder)
+		picked, ok, err := dialogs.choose(prompt, nearestFolder(folder))
 		if err != nil || !ok {
 			return "", ok, err
 		}
@@ -208,6 +208,24 @@ func (a *app) chooseHelperFile(dialogs helperApprovalDialogs, document, prompt, 
 			return "", false, nil
 		}
 	}
+}
+
+// nearestFolder is dir or its closest ancestor that still exists. A relink starts
+// the picker in the missing program's folder, and macOS refuses to open a picker
+// at a folder that is gone (AppleScript -1700), which failed every relink of a
+// program whose whole folder had moved.
+func nearestFolder(dir string) string {
+	for dir != "" {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+	return ""
 }
 
 // helperAllowLabel is the affirmative button for a found file: its name, or a

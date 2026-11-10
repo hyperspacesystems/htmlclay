@@ -294,6 +294,38 @@ func TestProgramsRelinkKeepsTheProgramID(t *testing.T) {
 	}
 }
 
+func TestProgramsRelinkPickerStartsInAFolderThatExists(t *testing.T) {
+	settledSetup(t)
+	a := newProgramsApp(t)
+	parent := t.TempDir()
+	gone := filepath.Join(parent, "tweet-score")
+	if err := os.Mkdir(gone, 0755); err != nil {
+		t.Fatal(err)
+	}
+	program, err := a.rt.cfg.AddHelperProgram("tweet-score", writeTestProgram(t, gone, "tweet-score.mjs", 0755))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(gone); err != nil {
+		t.Fatal(err)
+	}
+	var started string
+	dialogs := helperApprovalDialogs{
+		setup: func(string, string, string, string, string) (platform.Choice, error) { return platform.ChoiceAffirm, nil },
+		choose: func(_, dir string) (string, bool, error) {
+			started = dir
+			return "", false, nil
+		},
+		prepare: func(string) (bool, error) { return true, nil },
+	}
+	if outcome, err := a.relinkHelperProgram(program, dialogs); err != nil || outcome != "unchanged" {
+		t.Fatalf("relink = %q, %v", outcome, err)
+	}
+	if filepath.Clean(started) != filepath.Clean(parent) {
+		t.Fatalf("picker started in %q, want the nearest existing folder %q", started, parent)
+	}
+}
+
 func TestProgramsRemoveRefusesAProgramThatStillExists(t *testing.T) {
 	a := newProgramsApp(t)
 	program, err := a.rt.cfg.AddHelperProgram("search", writeTestProgram(t, t.TempDir(), "search", 0755))
