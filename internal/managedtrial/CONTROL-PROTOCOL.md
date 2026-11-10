@@ -134,6 +134,37 @@ A barred document, or a service that cannot be reached, answers `503` with
 `{"reason":"service-unavailable","retryable":true}` and a `Retry-After`, so the
 service's checkpoint throws and its scheduler retries.
 
+## `POST /v1/artifact`
+
+```json
+{ "opId": "…", "root": "root-0", "name": "index.html",
+  "artifactId": "…", "type": "recovered-copy",
+  "logical": { "encoding": "utf8", "data": "…" } }
+```
+
+A recovered copy the service produced outside any consultation: a room the
+service retired over a frame it received, not over a document write. A
+consultation's artifact batches write their recovered copies themselves; this
+route is the same write (`writeArtifact`, under the document's lock) for a copy
+with no write to carry it. It needs the JS service (404
+`{"error":"artifacts need the service"}` without one); `type` must be
+`recovered-copy` (400 otherwise), because a safety version exists only inside
+the write it protects. Under the document's lock the copy is written with
+Local's recovered-copy naming, under the named root's own recovered folder.
+
+```json
+{ "artifactId": "…", "type": "recovered-copy", "root": "root-0",
+  "name": "index.html", "version": "…", "sha256": "…", "error": null }
+```
+
+`200` carries the receipt whatever the write's outcome: `version` names the file
+written and `sha256` is the hex SHA-256 of its bytes, or `error` says why nothing
+was written (`invalid artifactId`, a payload that does not decode, `unknown
+root`, `unknown artifact type`). Only a receipt without an `error` is a
+recovered copy the service may record as published. An opId reused from an
+earlier control write is refused with `409` `{"error":"op-reused"}`, as on
+every control write.
+
 ## `POST /v1/restructure`
 
 ```json

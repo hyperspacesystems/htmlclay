@@ -131,7 +131,10 @@ func (s *rootServer) serveDataLossPost(w http.ResponseWriter, r *http.Request, i
 		Choice:      choice,
 		CurrentHTML: currentHTML,
 		WriteBack: func(html string) error {
-			_, err := s.publishHostWrite(resolved.Name, resolved.Path, html, false, false, "guard-restore")
+			result, err := s.publishHostWrite(resolved.Name, resolved.Path, html, false, false, "guard-restore")
+			if err == nil && result.Outcome == "refused" {
+				err = fmt.Errorf("guard write-back refused: %s", result.Reason)
+			}
 			return err
 		},
 		Live: s.hooks.guard,

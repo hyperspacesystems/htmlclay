@@ -397,6 +397,12 @@ func (s *rootServer) restoreVersion(r *http.Request, rel, versionName, filePath 
 				Message: "could not create a safety backup",
 			}, "", nil
 		}
+		if published.Refusal != nil {
+			return &versionRefusal{
+				Status:  published.Refusal.Status,
+				Message: "restore was refused: " + published.Reason,
+			}, "", nil
+		}
 	}
 	content, _ := published.Content.(string)
 	// Without live sync there is no edit-mode tab to announce the restore to;
