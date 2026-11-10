@@ -1,0 +1,490 @@
+{
+  "cases": [
+    {
+      "name": "save-document-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "text/html"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-yzAVYW/+5N9iK87Yf+VnPnrWnZ4\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"4ea067a4ad84bebb\"}"
+      }
+    },
+    {
+      "name": "save-same-body-again",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "text/html"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-yzAVYW/+5N9iK87Yf+VnPnrWnZ4\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"4ea067a4ad84bebb\"}"
+      }
+    },
+    {
+      "name": "save-page-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Page-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "text/html"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-yzAVYW/+5N9iK87Yf+VnPnrWnZ4\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"4ea067a4ad84bebb\"}"
+      }
+    },
+    {
+      "name": "save-no-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Content-Type": "text/html"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "57",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"39-c/voEa6YluNWvUPbHljdLDh9VRY\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Document-URL header required.\",\"msgType\":\"error\"}"
+      }
+    },
+    {
+      "name": "save-json",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "application/json"
+        },
+        "body": "{\"html\":\"<html></html>\"}"
+      },
+      "status": 415,
+      "headers": {
+        "content-length": "99",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"63-xgP1cGV46x1KViwF+EI+oM/7efc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"/_/save takes the document as text, not JSON.\",\"msgType\":\"error\",\"code\":\"unsupported-type\"}"
+      }
+    },
+    {
+      "name": "save-notes",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.txt",
+          "Content-Type": "text/html"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "45",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2d-ENndBTw0ldJ+M3t3/sggthYZ5gQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Invalid file path\",\"msgType\":\"error\"}"
+      }
+    },
+    {
+      "name": "save-missing-document",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/missing.html",
+          "Content-Type": "text/html"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-yzAVYW/+5N9iK87Yf+VnPnrWnZ4\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"4ea067a4ad84bebb\"}"
+      }
+    },
+    {
+      "name": "save-missing-folder",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/nofolder/deep.html",
+          "Content-Type": "text/html"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-yzAVYW/+5N9iK87Yf+VnPnrWnZ4\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"4ea067a4ad84bebb\"}"
+      }
+    },
+    {
+      "name": "save-if-match",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "text/html",
+          "If-Match": "4ea067a4ad84bebb"
+        },
+        "ifMatchFrom": {
+          "case": "save-same-body-again",
+          "json": "etag"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-yzAVYW/+5N9iK87Yf+VnPnrWnZ4\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"4ea067a4ad84bebb\"}"
+      }
+    },
+    {
+      "name": "save-if-match-stale",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "text/html",
+          "If-Match": "\"0123456789abcdef\""
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+      },
+      "status": 412,
+      "headers": {
+        "content-length": "166",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"a6-M3O9iDd6EefLcncJlPnkvjDlhXQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"a.html changed since you last loaded it. Your version was not saved.\",\"msgType\":\"error\",\"code\":\"conflict\",\"etag\":\"4ea067a4ad84bebb\",\"changedBy\":\"another-tab\"}"
+      }
+    },
+    {
+      "name": "save-if-match-empty",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "text/html",
+          "If-Match": ""
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+      },
+      "status": 412,
+      "headers": {
+        "content-length": "166",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"a6-M3O9iDd6EefLcncJlPnkvjDlhXQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"a.html changed since you last loaded it. Your version was not saved.\",\"msgType\":\"error\",\"code\":\"conflict\",\"etag\":\"4ea067a4ad84bebb\",\"changedBy\":\"another-tab\"}"
+      }
+    },
+    {
+      "name": "save-with-id",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "text/html",
+          "Save-ID": "save-42",
+          "Save-Trigger": "user"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"50-/qDG0dX7Pwr+q+c4j2GzJ35jxGQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"19f8af9acc51eec0\",\"saveId\":\"save-42\"}"
+      }
+    },
+    {
+      "name": "meta-after-save",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "559",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"22f-IgX/iAJ1eEpOqhm01DvESsyYWwc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"19f8af9acc51eec0\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"saveId\":\"save-42\",\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "save-paged",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/paged.html",
+          "Content-Type": "text/html"
+        },
+        "bodyFile": "paged-tagged.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-sA23z/gilBd0bojnRVvt+0ZQK0g\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"3d37cecb1b859104\"}"
+      }
+    },
+    {
+      "name": "save-get",
+      "request": {
+        "method": "GET",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html"
+        }
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "save-bare",
+      "request": {
+        "method": "POST",
+        "path": "/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/b.htmlclay",
+          "Content-Type": "text/html"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-zD/wirZtqn0RRBsNw6tR4u2gpfA\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"19f8af9acc51eec0\"}"
+      }
+    },
+    {
+      "name": "save-cross-site",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Content-Type": "text/html",
+          "Origin": "http://evil.example"
+        },
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+      },
+      "status": 403,
+      "headers": {
+        "content-length": "66",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"42-PRZnoGODbU6vamWTU7neO1WPQnk\"",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Cross-origin requests are not allowed.\",\"msgType\":\"error\"}"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": ".hyperclay/guard/a.json",
+      "sha256": "ca3ad0eabff6d10860221ba714bac5966ebcfbe7f7904553c8d89dc9ec7feb23"
+    },
+    {
+      "path": ".hyperclay/guard/b.json",
+      "sha256": "ca3ad0eabff6d10860221ba714bac5966ebcfbe7f7904553c8d89dc9ec7feb23"
+    },
+    {
+      "path": ".hyperclay/guard/missing.json",
+      "sha256": "ca3ad0eabff6d10860221ba714bac5966ebcfbe7f7904553c8d89dc9ec7feb23"
+    },
+    {
+      "path": ".hyperclay/guard/nofolder/deep.json",
+      "sha256": "ca3ad0eabff6d10860221ba714bac5966ebcfbe7f7904553c8d89dc9ec7feb23"
+    },
+    {
+      "path": ".hyperclay/guard/paged.json",
+      "sha256": "ca3ad0eabff6d10860221ba714bac5966ebcfbe7f7904553c8d89dc9ec7feb23"
+    },
+    {
+      "path": ".hyperclay/page-state/paged.html.json",
+      "sha256": "c8eb8b75cb902873f50eb2e5b61c0ae60c79994576ab91243a6a53bd7a07affc"
+    },
+    {
+      "path": ".hyperclay/versions/a/2026-11-01-01-00-00-000-0500-001.html",
+      "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49"
+    },
+    {
+      "path": ".hyperclay/versions/a/2026-11-01-01-00-00-000-0500-002.html",
+      "sha256": "19f8af9acc51eec0ae843f06bc44a87a9b05592d821e6bd850a56a7de787a524"
+    },
+    {
+      "path": ".hyperclay/versions/a/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "19f8af9acc51eec0ae843f06bc44a87a9b05592d821e6bd850a56a7de787a524"
+    },
+    {
+      "path": ".hyperclay/versions/b/2026-11-01-01-00-00-000-0500-001.html",
+      "sha256": "19f8af9acc51eec0ae843f06bc44a87a9b05592d821e6bd850a56a7de787a524"
+    },
+    {
+      "path": ".hyperclay/versions/b/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49"
+    },
+    {
+      "path": ".hyperclay/versions/missing/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49"
+    },
+    {
+      "path": ".hyperclay/versions/nofolder/deep/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49"
+    },
+    {
+      "path": ".hyperclay/versions/paged/2026-11-01-01-00-00-000-0500-001.html",
+      "sha256": "81eabce73f2af99453d15e4a13d9e3b718bf88c814acf819ecefef16ce623df4"
+    },
+    {
+      "path": ".hyperclay/versions/paged/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c"
+    },
+    {
+      "path": "a.html",
+      "sha256": "19f8af9acc51eec0ae843f06bc44a87a9b05592d821e6bd850a56a7de787a524"
+    },
+    {
+      "path": "b.htmlclay",
+      "sha256": "19f8af9acc51eec0ae843f06bc44a87a9b05592d821e6bd850a56a7de787a524"
+    },
+    {
+      "path": "missing.html",
+      "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49"
+    },
+    {
+      "path": "nofolder/deep.html",
+      "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49"
+    },
+    {
+      "path": "notes.txt",
+      "sha256": "444e0fffbd825e9610ff5b199485707a0c895339ae80c15cc8a8aee41b106fda"
+    },
+    {
+      "path": "paged.html",
+      "sha256": "81eabce73f2af99453d15e4a13d9e3b718bf88c814acf819ecefef16ce623df4"
+    }
+  ],
+  "clock": 1793512800000,
+  "pages": [
+    "00000000000000000000000000000000"
+  ]
+}

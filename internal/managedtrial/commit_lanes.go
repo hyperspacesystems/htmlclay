@@ -207,7 +207,10 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 
 	prov := "external"
 	if policy.origin != "api" {
-		prov = h.hooks.ProvenanceForLocalSave(request.UserDriven)
+		prov = "ui-unknown"
+		if request.UserDrivenSet {
+			prov = h.hooks.ProvenanceForLocalSave(request.UserDriven)
+		}
 	}
 	h.hooks.RunDataLossGuard(dataLossGuardArgs{
 		BaseDir:     h.baseDir,

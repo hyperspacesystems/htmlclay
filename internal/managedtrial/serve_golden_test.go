@@ -30,6 +30,8 @@ type serveRequest struct {
 	Headers         map[string]string `json:"headers"`
 	IfNoneMatchFrom string            `json:"ifNoneMatchFrom"`
 	IfMatchFrom     *serveIfMatchFrom `json:"ifMatchFrom"`
+	Body            *string           `json:"body"`
+	BodyFile        string            `json:"bodyFile"`
 }
 
 type serveIfMatchFrom struct {
@@ -58,6 +60,17 @@ type serveFileEntry struct {
 type serveGolden struct {
 	Cases []serveAnswer    `json:"cases"`
 	Files []serveFileEntry `json:"files"`
+	// Clock and Pages are recorded for a case directory that pins them: a write
+	// names versions after the instant it happened, and a page-state generation
+	// is random bytes, so both are replayed for the tree to match.
+	Clock int64    `json:"clock"`
+	Pages []string `json:"pages"`
+}
+
+// goldenOptions are a case directory's knowingly allowed differences.
+type goldenOptions struct {
+	normalize func(*serveAnswer)
+	skipFile  func(path string) bool
 }
 
 var serveDroppedHeaders = map[string]bool{
@@ -85,6 +98,12 @@ func TestServeGolden(t *testing.T) {
 // directory holds a knowingly allowed difference.
 func runGoldenCases(t *testing.T, caseDir, localSource string, normalize func(*serveAnswer)) {
 	t.Helper()
+	runGoldenCasesWith(t, caseDir, localSource, goldenOptions{normalize: normalize})
+}
+
+func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options goldenOptions) {
+	t.Helper()
+	normalize := options.normalize
 	var golden serveGolden
 	raw, err := os.ReadFile(filepath.Join(caseDir, "golden.json"))
 	if err != nil {
@@ -103,6 +122,22 @@ func runGoldenCases(t *testing.T, caseDir, localSource string, normalize func(*s
 	}
 	if len(requests) == 0 || len(requests) != len(golden.Cases) {
 		t.Fatalf("requests.json holds %d cases, golden.json %d", len(requests), len(golden.Cases))
+	}
+
+	if golden.Clock != 0 {
+		clock := &commitClock{pages: golden.Pages}
+		value := golden.Clock
+		previousClock := versionClock
+		previousGeneration := pageStateNewGeneration
+		versionClock = func() int64 { return value }
+		pageStateNewGeneration = clock.nextGeneration
+		t.Cleanup(func() {
+			versionClock = previousClock
+			pageStateNewGeneration = previousGeneration
+			if clock.exhausted {
+				t.Error("the host asked for more page-state generations than Local did")
+			}
+		})
 	}
 
 	runtime, err := loadRuntimeReleases(localSource)
@@ -135,7 +170,7 @@ func runGoldenCases(t *testing.T, caseDir, localSource string, normalize func(*s
 			t.Fatalf("case %d is %q in requests.json and %q in golden.json", i, request.Name, want.Name)
 		}
 		headers := resolveGoldenHeaders(t, request, answered, port)
-		status, gotHeaders, body := serveSend(t, address, request.Method, request.Path, headers, port)
+		status, gotHeaders, body := serveSend(t, address, request.Method, request.Path, headers, serveRequestBody(t, caseDir, request), port)
 		answered[request.Name] = serveAnswer{Name: request.Name, Status: status, Headers: gotHeaders, Answer: body}
 
 		t.Run(request.Name, func(t *testing.T) {
@@ -157,9 +192,42 @@ func runGoldenCases(t *testing.T, caseDir, localSource string, normalize func(*s
 	}
 
 	got := serveFileList(t, root)
-	if !reflect.DeepEqual(got, golden.Files) {
-		t.Errorf("the root's files changed: got %v, want %v", got, golden.Files)
+	want := golden.Files
+	if options.skipFile != nil {
+		got = filterServeFiles(got, options.skipFile)
+		want = filterServeFiles(want, options.skipFile)
 	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("the root's files changed: got %v, want %v", got, want)
+	}
+}
+
+// serveRequestBody is the bytes a case sends: `body` as written, or the case
+// folder's own file named by `bodyFile`.
+func serveRequestBody(t *testing.T, caseDir string, request serveRequest) []byte {
+	t.Helper()
+	if request.BodyFile != "" {
+		body, err := os.ReadFile(filepath.Join(caseDir, request.BodyFile))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return body
+	}
+	if request.Body != nil {
+		return []byte(*request.Body)
+	}
+	return nil
+}
+
+// filterServeFiles drops the files a case directory's options leave out.
+func filterServeFiles(files []serveFileEntry, skip func(string) bool) []serveFileEntry {
+	kept := make([]serveFileEntry, 0, len(files))
+	for _, entry := range files {
+		if !skip(entry.Path) {
+			kept = append(kept, entry)
+		}
+	}
+	return kept
 }
 
 // resolveGoldenHeaders fills a request's {PORT} with this host's port and
@@ -275,7 +343,7 @@ func serveDecodeBody(t *testing.T, body serveBody) []byte {
 // exactly as the golden records it: Go's client would refuse a malformed
 // percent escape and would rewrite nothing else, but it would also decode and
 // re-encode the path first.
-func serveSend(t *testing.T, address, method, path string, headers map[string]string, port int) (int, map[string]string, []byte) {
+func serveSend(t *testing.T, address, method, path string, headers map[string]string, body []byte, port int) (int, map[string]string, []byte) {
 	t.Helper()
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
@@ -294,7 +362,11 @@ func serveSend(t *testing.T, address, method, path string, headers map[string]st
 	for _, name := range names {
 		fmt.Fprintf(&request, "%s: %s\r\n", name, headers[name])
 	}
+	if body != nil {
+		fmt.Fprintf(&request, "Content-Length: %d\r\n", len(body))
+	}
 	request.WriteString("Connection: close\r\n\r\n")
+	request.Write(body)
 	if _, err := conn.Write(request.Bytes()); err != nil {
 		t.Fatal(err)
 	}
@@ -304,11 +376,11 @@ func serveSend(t *testing.T, address, method, path string, headers map[string]st
 		t.Fatal(err)
 	}
 	defer response.Body.Close()
-	body, err := io.ReadAll(response.Body)
+	answer, err := io.ReadAll(response.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return response.StatusCode, normalizeServeHeaders(response.Header, port), normalizeServeBody(body, port)
+	return response.StatusCode, normalizeServeHeaders(response.Header, port), normalizeServeBody(answer, port)
 }
 
 func normalizeServeHeaders(headers http.Header, port int) map[string]string {

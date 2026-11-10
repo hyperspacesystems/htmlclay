@@ -134,16 +134,21 @@ func normalizeURLPath(value string) string {
 }
 
 // resolveWriteTarget is Local's name check plus canonical write resolution. A
-// name that is not a page file is refused, so /_/meta and /_/page-state answer
-// for pages only.
+// name that is not a page file is refused, so /_/meta, /_/page-state and
+// /_/save answer for pages only, with the one message Local gives them.
 func resolveWriteTarget(registry *consentRegistry, name string) (string, error) {
 	if !documentTargetPattern.MatchString(name) {
-		return "", invalidPathError()
+		return "", invalidFilePathError()
 	}
 	if _, err := validateSegments(name); err != nil {
-		return "", err
+		return "", invalidFilePathError()
 	}
 	return resolveWritePath(registry, name)
+}
+
+// invalidFilePathError is validateAndResolvePath's refusal.
+func invalidFilePathError() error {
+	return &PathError{Status: 400, Message: "Invalid file path"}
 }
 
 // serveMeta is Local's GET /_/meta: the host's capabilities, and the facts and
@@ -207,6 +212,12 @@ func (s *rootServer) metaDocument(href string) *orderedObject {
 	}
 	if pageExtension.MatchString(name) {
 		document = append(document, kv{Key: "dataGuard", Value: orderedObject{{Key: "href", Value: "/_/data-loss"}}})
+	}
+	// §6: the id of the save that produced exactly these bytes, when this host can
+	// still prove the pairing. This is the surface a client asks after a save
+	// whose outcome it never learned.
+	if receipt := s.commit.store.saveReceipt(filePath, specwire.Etag(logical)); receipt != "" {
+		document = append(document, kv{Key: "saveId", Value: receipt})
 	}
 	return &document
 }

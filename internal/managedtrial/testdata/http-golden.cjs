@@ -29,6 +29,10 @@ if (!checkout || !caseDir || !outPath) {
 }
 
 const MTIME = new Date('2020-01-02T03:04:05Z')
+// PIN_CLOCK is the instant a case that pins the clock starts every write at. A
+// case pins it with a pin-clock.js beside its requests.json, and the value is
+// recorded so the Go side can reproduce the same version names.
+const PIN_CLOCK = Date.UTC(2026, 10, 1, 6, 0, 0, 0)
 const DROP = new Set(['date', 'connection', 'keep-alive', 'transfer-encoding'])
 const source = path.join(caseDir, 'root')
 const requests = JSON.parse(fs.readFileSync(path.join(caseDir, 'requests.json'), 'utf8'))
@@ -60,6 +64,7 @@ function fileList(root) {
   const files = []
   walk(root, '', files, [])
   return files
+    .filter((file) => !file.rel.endsWith('.tmp'))
     .sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0))
     .map((file) => ({ path: file.rel, sha256: crypto.createHash('sha256').update(fs.readFileSync(file.full)).digest('hex') }))
 }
@@ -126,7 +131,7 @@ function recordHeaders(headers, port) {
   return out
 }
 
-function request(port, testCase, headers) {
+function request(port, testCase, headers, body) {
   return new Promise((resolve, reject) => {
     const sendHeaders = Object.assign({ Host: '127.0.0.1:' + port }, headers)
     const req = http.request({ host: '127.0.0.1', port, path: testCase.path, method: testCase.method, headers: sendHeaders }, (res) => {
@@ -140,6 +145,8 @@ function request(port, testCase, headers) {
           headers: recordHeaders(headers, port),
           ...(testCase.ifNoneMatchFrom ? { ifNoneMatchFrom: testCase.ifNoneMatchFrom } : {}),
           ...(testCase.ifMatchFrom ? { ifMatchFrom: testCase.ifMatchFrom } : {}),
+          ...(testCase.body !== undefined ? { body: testCase.body } : {}),
+          ...(testCase.bodyFile ? { bodyFile: testCase.bodyFile } : {}),
         },
         status: res.statusCode,
         headers: normalizeHeaders(res.headers, port),
@@ -147,7 +154,7 @@ function request(port, testCase, headers) {
       }))
     })
     req.on('error', reject)
-    req.end()
+    req.end(body)
   })
 }
 
@@ -159,6 +166,19 @@ async function main() {
   fs.cpSync(source, root, { recursive: true })
   pin(root)
 
+  // A case that pins the clock loads pin-clock.js into the fixture, so every
+  // version name and page-state generation it writes is reproducible.
+  const pinClock = path.resolve(caseDir, 'pin-clock.cjs')
+  const generationLog = path.join(temp, 'generations.log')
+  const pinClockEnv = fs.existsSync(pinClock)
+    ? {
+      ...process.env,
+      GOLDEN_PIN_CLOCK: String(PIN_CLOCK),
+      GOLDEN_PIN_GENERATIONS: generationLog,
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require ${pinClock}`.trim()
+    }
+    : process.env
+
   const scratch = path.join(temp, 'scratch')
   fs.mkdirSync(scratch)
   const manifestPath = path.join(scratch, 'manifest.json')
@@ -167,7 +187,11 @@ async function main() {
     '--manifest', manifestPath,
     '--source', checkout,
     '--root', 'root-a=' + root,
-  ], { cwd: checkout, stdio: ['ignore', 'pipe', 'pipe'] })
+  ], {
+    cwd: checkout,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: pinClockEnv,
+  })
   const exitPromise = new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })))
   let log = ''
   child.stdout.setEncoding('utf8')
@@ -226,7 +250,10 @@ async function main() {
         }
         headers['If-Match'] = value
       }
-      answers.push(await request(Number(port), { ...testCase, path }, headers))
+      let body
+      if (testCase.bodyFile) body = fs.readFileSync(String(caseDir) + '/' + testCase.bodyFile)
+      else if (testCase.body !== undefined) body = testCase.body
+      answers.push(await request(Number(port), { ...testCase, path }, headers, body))
     }
   } catch (error) {
     child.kill('SIGKILL')
@@ -234,7 +261,21 @@ async function main() {
     process.exit(1)
   }
 
+  // The data guard writes its record after the answer, so give it the moment it
+  // needs to land before the tree is read.
+  await wait(200)
   const files = fileList(root)
+
+  // The clock and the page-state generations the recording consumed, so the Go
+  // side can produce the same version names and the same sidecar bytes. Read
+  // before the temp tree is removed.
+  let pinned = {}
+  if (fs.existsSync(pinClock)) {
+    pinned = { clock: PIN_CLOCK, pages: [] }
+    if (fs.existsSync(generationLog)) {
+      pinned.pages = fs.readFileSync(generationLog, 'utf8').split('\n').filter(Boolean)
+    }
+  }
 
   const stop = manifest.control
   if (stop && stop.url && stop.token) {
@@ -257,7 +298,7 @@ async function main() {
   }
   fs.rmSync(temp, { recursive: true, force: true })
 
-  fs.writeFileSync(outPath, JSON.stringify({ cases: answers, files }, null, 2) + '\n')
+  fs.writeFileSync(outPath, JSON.stringify({ cases: answers, files, ...pinned }, null, 2) + '\n')
   process.stdout.write('wrote ' + answers.length + ' cases and ' + files.length + ' files to ' + outPath + '\n')
 }
 

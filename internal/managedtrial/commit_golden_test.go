@@ -47,17 +47,28 @@ type commitGoldenTreeFile struct {
 }
 
 type commitGoldenRequest struct {
-	Clock        int64              `json:"clock"`
-	Kind         string             `json:"kind"`
-	Name         string             `json:"name"`
-	Text         *string            `json:"text"`
-	B64          *string            `json:"b64"`
-	UserDriven   *bool              `json:"userDriven"`
-	SaveID       *string            `json:"saveId"`
-	DataLossPrev *string            `json:"dataLossPrev"`
-	Expected     *commitExpectation `json:"expected"`
-	ModifiedAt   *int64             `json:"modifiedAt"`
-	PageRecord   *PageRecord        `json:"pageRecord"`
+	Clock        int64                  `json:"clock"`
+	Kind         string                 `json:"kind"`
+	Name         string                 `json:"name"`
+	Text         *string                `json:"text"`
+	B64          *string                `json:"b64"`
+	UserDriven   *bool                  `json:"userDriven"`
+	SaveID       *string                `json:"saveId"`
+	DataLossPrev *string                `json:"dataLossPrev"`
+	Expected     *commitExpectation     `json:"expected"`
+	ModifiedAt   *int64                 `json:"modifiedAt"`
+	PageRecord   *PageRecord            `json:"pageRecord"`
+	Edit         *bool                  `json:"edit"`
+	Safety       *bool                  `json:"safety"`
+	Structure    *commitGoldenStructure `json:"structure"`
+}
+
+// commitGoldenStructure is one workspace step, recorded as the logical paths the
+// route resolved into canonical ones.
+type commitGoldenStructure struct {
+	Kind string `json:"kind"`
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 // TestCommitGolden compares every scenario but AD2 exactly: the answers, the
@@ -193,6 +204,13 @@ func commitRequestFromGolden(t *testing.T, request commitGoldenRequest) *commitR
 	}
 	if request.UserDriven != nil {
 		out.UserDriven = *request.UserDriven
+		out.UserDrivenSet = true
+	}
+	if request.Edit != nil {
+		out.Edit = *request.Edit
+	}
+	if request.Safety != nil {
+		out.Safety = *request.Safety
 	}
 	return out
 }
@@ -206,6 +224,13 @@ func runCommitGoldenScenario(t *testing.T, scenario commitGoldenScenario) {
 
 	for index, request := range scenario.Requests {
 		clock.set(request.Clock)
+		if request.Structure != nil {
+			got := marshalCommitJSON(t, structureResultJSON(runCommitGoldenStructure(t, host, root, *request.Structure)))
+			if want := scenario.Results[index]; !jsonEqual(t, got, want) {
+				t.Errorf("request %d result:\n got %s\nwant %s", index, got, want)
+			}
+			continue
+		}
 		result, err := host.commit(commitRequestFromGolden(t, request))
 		if err != nil {
 			t.Fatalf("request %d (%s) failed: %v", index, request.Name, err)
@@ -237,6 +262,34 @@ func runCommitGoldenScenario(t *testing.T, scenario commitGoldenScenario) {
 	if !reflect.DeepEqual(gotTree, scenario.Tree) {
 		t.Errorf("tree:\n got %v\nwant %v", gotTree, scenario.Tree)
 	}
+}
+
+// runCommitGoldenStructure replays one recorded workspace step: the route
+// resolves both names and hands the host the canonical pair.
+func runCommitGoldenStructure(t *testing.T, host *commitHost, root string, step commitGoldenStructure) structureResult {
+	t.Helper()
+	entry := structureEntry{
+		FromPath: filepath.Join(root, step.From),
+		ToPath:   filepath.Join(root, step.To),
+	}
+	if info, err := os.Stat(entry.FromPath); err == nil {
+		entry.IsDir = info.IsDir()
+	}
+	result, err := host.restructure(step.Kind, []structureEntry{entry})
+	if err != nil {
+		t.Fatalf("%s %s -> %s failed: %v", step.Kind, step.From, step.To, err)
+	}
+	return result
+}
+
+// structureResultJSON is Local's structure answer: the outcome, how many steps
+// completed, and the reason a failure carries.
+func structureResultJSON(result structureResult) map[string]any {
+	out := map[string]any{"outcome": result.Outcome, "completed": result.Completed, "reason": nil}
+	if result.Reason != "" {
+		out["reason"] = result.Reason
+	}
+	return out
 }
 
 // TestCommitAD2StaleLineage is the one allowed refusal: Local rebases this save

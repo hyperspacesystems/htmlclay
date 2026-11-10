@@ -54,19 +54,22 @@ var commitKinds = map[string]commitLane{
 // commitRequest mirrors Local's request object. There is no filePath: the host
 // resolves the canonical path itself.
 type commitRequest struct {
-	Kind         string
-	Name         string
-	Bytes        []byte
-	Text         bool
-	Edit         bool
-	Safety       bool
-	UserDriven   bool
-	SaveID       string
-	DataLossPrev *string
-	Expected     *commitExpectation
-	ModifiedAt   *int64
-	PageRecord   *PageRecord
-	Hooks        bool
+	Kind       string
+	Name       string
+	Bytes      []byte
+	Text       bool
+	Edit       bool
+	Safety     bool
+	UserDriven bool
+	// UserDrivenSet says the request expressed a provenance at all: Local's
+	// `userDriven` is a tri-state, and a save that says nothing is ui-unknown.
+	UserDrivenSet bool
+	SaveID        string
+	DataLossPrev  *string
+	Expected      *commitExpectation
+	ModifiedAt    *int64
+	PageRecord    *PageRecord
+	Hooks         bool
 }
 
 // commitExpectation is Local's `expected`: the precondition a request is judged
@@ -188,6 +191,21 @@ func (h *commitHost) commit(request *commitRequest) (commitResult, error) {
 	unlock := h.locks.lock(filePath)
 	defer unlock()
 
+	result, err := h.commitLocked(request, policy, filePath)
+	if err != nil {
+		if code := errorCode(err); code != "" {
+			return commitResult{Outcome: "indeterminate", Reason: code}, nil
+		}
+		return commitResult{}, err
+	}
+	return result, nil
+}
+
+// commitLocked is the dispatcher's work for a caller that already holds the
+// document's lock: the precondition is judged against the bytes on disk, then
+// the lane runs. The /_/save route calls it directly, because its own If-Match
+// judgement has to happen inside the same lock, before anything is written.
+func (h *commitHost) commitLocked(request *commitRequest, policy commitLane, filePath string) (commitResult, error) {
 	changed, err := h.preconditionFailed(request, filePath)
 	if err != nil {
 		return commitResult{}, err
@@ -198,9 +216,6 @@ func (h *commitHost) commit(request *commitRequest) (commitResult, error) {
 
 	result, err := h.runLane(request, policy, filePath)
 	if err != nil {
-		if code := errorCode(err); code != "" {
-			return commitResult{Outcome: "indeterminate", Reason: code}, nil
-		}
 		return commitResult{}, err
 	}
 	// The bytes the guard must treat as the last ones seen.
@@ -219,8 +234,10 @@ func (h *commitHost) runLane(request *commitRequest, policy commitLane, filePath
 		return h.commitExact(request, filePath)
 	case "create":
 		return h.commitCreate(request, filePath)
-	case "replace", "external-rebase", "":
-		return commitResult{}, fmt.Errorf("Document write kind %s is not migrated yet", request.Kind)
+	case "replace":
+		return h.commitReplace(request, filePath)
+	case "external-rebase":
+		return h.commitRebase(request, filePath)
 	}
 	return commitResult{}, fmt.Errorf("Document write kind %s is not migrated yet", request.Kind)
 }

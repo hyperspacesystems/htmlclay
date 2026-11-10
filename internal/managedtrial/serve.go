@@ -23,6 +23,9 @@ type rootServer struct {
 	runtimeDir  string
 	selected    string
 	releases    map[string]clayruntime.Release
+	// commit is the one writer of this root's documents: every route that writes
+	// goes through the same host, so two of them cannot interleave.
+	commit *commitHost
 }
 
 // htmlRoutePattern is Local's SPA-aware route: the document names an .html or
@@ -41,13 +44,15 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	}
 	registry := newConsentRegistry(root.path, nil)
 	registry.Ready()
+	baseDir := registry.BaseReal()
 	return &rootServer{
-		baseDir:     registry.BaseReal(),
+		baseDir:     baseDir,
 		registry:    registry,
 		localSource: cfg.localSource,
 		runtimeDir:  runtime.Dir,
 		selected:    runtime.Selected,
 		releases:    runtime.Releases,
+		commit:      newCommitHost(baseDir, root.id, registry, nil, runtime.Releases),
 	}, nil
 }
 
@@ -68,6 +73,8 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveMeta(w, r)
 	case marked && getOrHead && urlPath == "/page-state":
 		err = s.servePageState(w, r)
+	case r.Method == http.MethodPost && urlPath == "/save" && bareAllowed(urlPath, marked):
+		err = s.serveSave(w, r)
 	case getOrHead && isFavicon:
 		err = s.serveFavicon(w, r, favicon)
 	case getOrHead && isTemplate:

@@ -134,6 +134,17 @@ derived.refreshDerivedArtifacts = function (...args) {
 }
 
 const { createRootDocumentHost } = require(path.join(checkout, 'src', 'main', 'document-host.js'))
+const { withDocumentWrite } = require(path.join(checkout, 'src', 'main', 'utils', 'write-queue.js'))
+
+// commitRebase is the one lane Local only runs with a local authority: it proves
+// the document boundary it arrived in and confirms the write through it. The
+// boundary below is Local's own; the authority is the smallest stand-in that lets
+// the lane's own steps -- the backup, the page state, the bytes -- run, which are
+// the ones this golden records.
+const boundaryOnlyAuthority = {
+  recoverUnsavedEdits: async () => {},
+  confirmKnownWrite: async () => {}
+}
 const YJS_TAG = "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
 const PAGE_REV = '093360993130d818'
 const ARTICLE = '<article class="page" clay="freeze" data-page="1" data-rev="' + PAGE_REV + '"><h1 data-id="title">Title</h1>\n<p data-id="p1">Body</p></article>'
@@ -144,6 +155,7 @@ const PLAIN = page(['<h1>One</h1>'])
 const PLAIN_NEXT = page(['<h1>Two</h1>', '<p>After</p>'])
 const PAGE_UNTAGGED = page([ARTICLE])
 const PAGE_TAGGED = page([ARTICLE]).replace('<body>\n', '<body>\n' + YJS_TAG + '\n')
+const PAGE_TAGGED_NEXT = PAGE_TAGGED.replace('<h1 data-id="title">Title</h1>', '<h1 data-id="title">Edited outside</h1>')
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0xff, 0xfe, 0x7f])
 const LATIN1 = Buffer.from('<!doctype html>\n<html><body><p>caf\xe9</p></body></html>\n', 'latin1')
@@ -258,6 +270,73 @@ const scenarios = [
     ]
   },
   {
+    name: 'restore',
+    seed: [['a.html', PLAIN_NEXT]],
+    requests: [
+      { kind: 'restore', name: 'a.html', text: PLAIN }
+    ]
+  },
+  {
+    name: 'restore-safety',
+    seed: [['a.html', PLAIN_NEXT]],
+    requests: [
+      { kind: 'restore', name: 'a.html', text: PLAIN, safety: true }
+    ]
+  },
+  {
+    name: 'guard-restore',
+    seed: [['a.html', PLAIN_NEXT]],
+    requests: [
+      { kind: 'guard-restore', name: 'a.html', text: PLAIN, edit: true, safety: true }
+    ]
+  },
+  {
+    name: 'external-rebase',
+    seed: [['p.html', PAGE_TAGGED]],
+    requests: [
+      { kind: 'external-rebase', name: 'p.html', text: PAGE_TAGGED_NEXT }
+    ]
+  },
+  {
+    name: 'restructure-move',
+    seed: [
+      ['a.html', PLAIN],
+      ['.hyperclay/versions/a/2026-09-01-00-00-00-000+0000.html', PLAIN],
+      ['.hyperclay/api/a.html.json', '{"v":1}']
+    ],
+    requests: [
+      { structure: { kind: 'move', from: 'a.html', to: 'new/a.html' } }
+    ]
+  },
+  {
+    name: 'restructure-copy',
+    seed: [['b.htmlclay', PAGE_TAGGED]],
+    requests: [
+      { structure: { kind: 'duplicate', from: 'b.htmlclay', to: 'b-copy.htmlclay' } }
+    ]
+  },
+  {
+    name: 'restructure-trash',
+    seed: [['c.html', PLAIN]],
+    requests: [
+      { structure: { kind: 'trash', from: 'c.html', to: '.trash/c.html' } }
+    ]
+  },
+  {
+    name: 'restructure-folder-rename',
+    seed: [['docs/one.html', PLAIN], ['docs/two.html', PLAIN_NEXT]],
+    requests: [
+      { structure: { kind: 'move', from: 'docs', to: 'archive' } }
+    ]
+  },
+  {
+    name: 'restructure-move-onto-existing',
+    seed: [['x.html', PLAIN], ['y.html', PLAIN_NEXT]],
+    requests: [
+      { structure: { kind: 'move', from: 'x.html', to: 'y.html' } }
+    ]
+  },
+  {
     name: 'ad2-stale-lineage',
     seed: [['stale.html', PAGE_UNTAGGED.replace(PAGE_REV, 'bbbbbbbbbbbbbbbb')]],
     storedRecord: { v: 1, rev: 'bbbbbbbbbbbbbbbb', tag: YJS_TAG },
@@ -307,8 +386,11 @@ async function runScenario(scenario) {
   }
   const before = tree(root)
 
+  const authority = scenario.requests.some((request) => request.kind === 'external-rebase')
+    ? boundaryOnlyAuthority
+    : null
   const host = createRootDocumentHost({
-    ctx: { root: { id: 'root-a', path: root, port: 0 }, localAuthority: null },
+    ctx: { root: { id: 'root-a', path: root, port: 0 }, localAuthority: authority },
     live,
     emit,
     logger: null
@@ -319,6 +401,22 @@ async function runScenario(scenario) {
   recording = true
   for (const [index, request] of scenario.requests.entries()) {
     fakeNowMs = clock(index)
+    if (request.structure) {
+      const step = request.structure
+      const fromLocation = path.join(root, step.from)
+      const entry = {
+        from: { location: fromLocation, canonical: fromLocation, isDir: fs.statSync(fromLocation).isDirectory(), isSymlink: false },
+        to: { location: path.join(root, step.to), canonical: path.join(root, step.to) }
+      }
+      const answer = await host.restructure({
+        kind: step.kind,
+        rootId: 'root-a',
+        steps: [{ from: step.from, to: step.to }],
+        context: { token: null, entries: [entry] }
+      })
+      results.push(normalizeResult(answer))
+      continue
+    }
     const payload = {
       kind: request.kind,
       name: request.name,
@@ -331,10 +429,17 @@ async function runScenario(scenario) {
     if (request.kind === 'browser-save' || request.kind === 'data-api') {
       payload.dataLossPrev = request.dataLossPrev === undefined ? null : request.dataLossPrev
     }
+    if (request.edit !== undefined) payload.edit = request.edit
+    if (request.safety !== undefined) payload.safety = request.safety
     if (request.expected !== undefined) payload.expected = request.expected
     if (request.modifiedAt !== undefined) payload.modifiedAt = request.modifiedAt
     if (request.pageRecord !== undefined) payload.pageRecord = request.pageRecord
-    const result = await host.commit(payload)
+    const result = payload.kind === 'external-rebase'
+      ? await withDocumentWrite(
+        async () => ({ canonicalPath: payload.filePath }),
+        async (target, token) => host.commit({ ...payload, context: { target, token } })
+      )
+      : await host.commit(payload)
     results.push(normalizeResult(result))
     if (request.modifiedAt !== undefined) {
       modifiedTimes[request.name] = fs.statSync(path.join(root, request.name)).mtimeMs
@@ -362,6 +467,9 @@ async function runScenario(scenario) {
       if (request.expected !== undefined) out.expected = request.expected
       if (request.modifiedAt !== undefined) out.modifiedAt = request.modifiedAt
       if (request.pageRecord !== undefined) out.pageRecord = request.pageRecord
+      if (request.edit !== undefined) out.edit = request.edit
+      if (request.safety !== undefined) out.safety = request.safety
+      if (request.structure !== undefined) out.structure = request.structure
       return out
     }),
     results,

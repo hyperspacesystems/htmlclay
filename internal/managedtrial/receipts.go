@@ -66,6 +66,19 @@ func (s *snapshotStore) etag(filePath string) (etagRecord, bool) {
 	return record, ok
 }
 
+// saveReceipt is Local's saveReceiptFor: the id of the save whose body produced
+// the bytes on disk right now, or nothing when this host cannot prove that
+// pairing. The proof is answer-time and needs no invalidation hooks: the id was
+// recorded beside the etag of the bytes that save wrote, so a stamp that no
+// longer equals what is on disk means something else has written since.
+func (s *snapshotStore) saveReceipt(filePath, currentEtag string) string {
+	record, ok := s.etag(filePath)
+	if !ok || record.SaveID == "" || record.Etag != currentEtag {
+		return ""
+	}
+	return record.SaveID
+}
+
 // setSnapshot merges one lane's half of a document's sync entry.
 func (s *snapshotStore) setSnapshot(name string, entry snapshotEntry) {
 	s.mu.Lock()
