@@ -1,0 +1,557 @@
+{
+  "cases": [
+    {
+      "name": "meta-no-document-url",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "292",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"124-3Yvl6RfuWlHLSRDaieS5PxnCONY\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"]}"
+      }
+    },
+    {
+      "name": "meta-a",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "540",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"21c-AYE/uoXS7M14WYjcF5TnKOh19fc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"91ec6efda287bfb6\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "meta-a-same-origin",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "540",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"21c-AYE/uoXS7M14WYjcF5TnKOh19fc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"91ec6efda287bfb6\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "meta-a-cross-site",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "Sec-Fetch-Site": "cross-site"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "519",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"207-mRhdIvyYvoGMy+mbfyKJRobm0ac\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"91ec6efda287bfb6\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"}}}"
+      }
+    },
+    {
+      "name": "meta-b-htmlclay",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/b.htmlclay"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "540",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"21c-ay50LGJKUH28GsnNZ5hGRbIK8bU\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"56c66b6cb0c918c3\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "meta-notes",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.txt"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "292",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"124-3Yvl6RfuWlHLSRDaieS5PxnCONY\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"]}"
+      }
+    },
+    {
+      "name": "meta-sub-space",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/sub/c%20d.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "540",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"21c-+GUc2pZc88M0ci9tRws0JyhATvY\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"e77253d7abf6db40\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "meta-folder",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/folder/"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "292",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"124-3Yvl6RfuWlHLSRDaieS5PxnCONY\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"]}"
+      }
+    },
+    {
+      "name": "meta-missing",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/missing.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "292",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"124-3Yvl6RfuWlHLSRDaieS5PxnCONY\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"]}"
+      }
+    },
+    {
+      "name": "meta-traversal",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/../a.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "540",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"21c-AYE/uoXS7M14WYjcF5TnKOh19fc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"91ec6efda287bfb6\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "meta-other-port",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:1/a.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "540",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"21c-AYE/uoXS7M14WYjcF5TnKOh19fc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"91ec6efda287bfb6\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "meta-paged",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/paged.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "540",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"21c-hl3G+pIPDtT9KFq5/iVmUtKmmcE\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"313361cb66b8d948\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "meta-oldpaged",
+      "request": {
+        "method": "GET",
+        "path": "/_/meta",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/oldpaged.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-length": "540",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"21c-QddzqXx1hygUqgEDlal+duZeltU\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"32b47a4c5ef44544\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"people\":{\"me\":null}}}"
+      }
+    },
+    {
+      "name": "meta-unmarked",
+      "request": {
+        "method": "GET",
+        "path": "/meta",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "page-state-no-document-url",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "57",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"39-0AMD02tuSdPDNiMXPWWLCu0qblI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"page state unavailable\",\"code\":\"no-page-state\"}"
+      }
+    },
+    {
+      "name": "page-state-no-if-match",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/paged.html"
+        }
+      },
+      "status": 428,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "65",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"41-7RgKY7pn3hvGeVEqYn15ItGs/qE\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"page state unavailable\",\"code\":\"precondition-required\"}"
+      }
+    },
+    {
+      "name": "page-state-nope",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "If-Match": "\"nope\""
+        }
+      },
+      "status": 412,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "83",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "91ec6efda287bfb6",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"page state unavailable\",\"code\":\"etag-mismatch\",\"etag\":\"91ec6efda287bfb6\"}"
+      }
+    },
+    {
+      "name": "page-state-star",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "If-Match": "*"
+        }
+      },
+      "status": 412,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "83",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "91ec6efda287bfb6",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"page state unavailable\",\"code\":\"etag-mismatch\",\"etag\":\"91ec6efda287bfb6\"}"
+      }
+    },
+    {
+      "name": "page-state-list",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "If-Match": "\"a\", \"b\""
+        }
+      },
+      "status": 412,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "83",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "91ec6efda287bfb6",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"page state unavailable\",\"code\":\"etag-mismatch\",\"etag\":\"91ec6efda287bfb6\"}"
+      }
+    },
+    {
+      "name": "page-state-paged",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/paged.html",
+          "If-Match": "313361cb66b8d948"
+        },
+        "ifMatchFrom": {
+          "case": "meta-paged",
+          "json": "document.etag"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "464",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "313361cb66b8d948",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"version\":1,\"documentId\":null,\"generation\":\"00000000000000000000000000000001\",\"etag\":\"313361cb66b8d948\",\"stateHash\":\"4c1cb39aaef0ef0aad725872030031f2821c81cafd6956db6782af4a73088ea2\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+      }
+    },
+    {
+      "name": "page-state-a",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+          "If-Match": "91ec6efda287bfb6"
+        },
+        "ifMatchFrom": {
+          "case": "meta-a",
+          "json": "document.etag"
+        }
+      },
+      "status": 404,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "83",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "91ec6efda287bfb6",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"page state unavailable\",\"code\":\"no-page-state\",\"etag\":\"91ec6efda287bfb6\"}"
+      }
+    },
+    {
+      "name": "page-state-oldpaged",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/oldpaged.html",
+          "If-Match": "32b47a4c5ef44544"
+        },
+        "ifMatchFrom": {
+          "case": "meta-oldpaged",
+          "json": "document.etag"
+        }
+      },
+      "status": 404,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "83",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "32b47a4c5ef44544",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"page state unavailable\",\"code\":\"no-page-state\",\"etag\":\"32b47a4c5ef44544\"}"
+      }
+    },
+    {
+      "name": "page-state-missing",
+      "request": {
+        "method": "GET",
+        "path": "/_/page-state",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/missing.html",
+          "If-Match": "\"x\""
+        }
+      },
+      "status": 404,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "57",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"39-0AMD02tuSdPDNiMXPWWLCu0qblI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"page state unavailable\",\"code\":\"no-page-state\"}"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": ".hyperclay/page-state/oldpaged.html.json",
+      "sha256": "ff048ddc4e978ff6c684fa9065997543181600002da79964185d75fe44d78f61"
+    },
+    {
+      "path": ".hyperclay/page-state/paged.html.json",
+      "sha256": "838d5b6c99940045fc2536cb7d58d8cdc4088f7d80796d10c1befde86c6938b8"
+    },
+    {
+      "path": "a.html",
+      "sha256": "91ec6efda287bfb67f2238a89ced665fef5ac99a25ab26d48bf1f93531d473fc"
+    },
+    {
+      "path": "b.htmlclay",
+      "sha256": "56c66b6cb0c918c3145ca6c92de9d95c8669d983ec950e28928ef5e2284bcc87"
+    },
+    {
+      "path": "folder/x.html",
+      "sha256": "8b47ec2ec1ad6c6609e514546f871fe5df7d02df2814602768466a3c27aa471f"
+    },
+    {
+      "path": "notes.txt",
+      "sha256": "ed8f7d8cecd885a87c6863926af2f61e2ba33581fd623d5fed8ae0a3f17acafb"
+    },
+    {
+      "path": "oldpaged.html",
+      "sha256": "d9e792d31451cb2914a47876e3d7653038ea3371db5ea939dbc06119446778c8"
+    },
+    {
+      "path": "paged.html",
+      "sha256": "bb685e66555bab6407cc62ab24effe2b910e32e99d34477a23384689d71ba507"
+    },
+    {
+      "path": "sub/c d.html",
+      "sha256": "e77253d7abf6db4076e50ff2953f282396d1fc2a27476c4096694cb69105bb0f"
+    }
+  ]
+}

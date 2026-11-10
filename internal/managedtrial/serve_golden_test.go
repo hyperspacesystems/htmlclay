@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,12 @@ type serveRequest struct {
 	Path            string            `json:"path"`
 	Headers         map[string]string `json:"headers"`
 	IfNoneMatchFrom string            `json:"ifNoneMatchFrom"`
+	IfMatchFrom     *serveIfMatchFrom `json:"ifMatchFrom"`
+}
+
+type serveIfMatchFrom struct {
+	Case string `json:"case"`
+	JSON string `json:"json"`
 }
 
 type serveBody struct {
@@ -40,6 +47,7 @@ type serveAnswer struct {
 	Status  int               `json:"status"`
 	Headers map[string]string `json:"headers"`
 	Body    serveBody         `json:"body"`
+	Answer  []byte            `json:"-"`
 }
 
 type serveFileEntry struct {
@@ -68,9 +76,17 @@ func TestServeGolden(t *testing.T) {
 	if localSource == "" {
 		t.Skip("MANAGED_TRIAL_LOCAL_SOURCE is unset: the golden answers were recorded from a real Hyperclay Local checkout, and the handler reads that checkout's bundled runtime release")
 	}
+	runGoldenCases(t, filepath.Join("testdata", "serve-golden"), localSource, nil)
+}
 
+// runGoldenCases replays one case directory's requests against this host and
+// compares every answer, status, header and body, with the recorded file list,
+// exactly. normalize rewrites a recorded answer before comparison when a case
+// directory holds a knowingly allowed difference.
+func runGoldenCases(t *testing.T, caseDir, localSource string, normalize func(*serveAnswer)) {
+	t.Helper()
 	var golden serveGolden
-	raw, err := os.ReadFile(filepath.Join(serveGoldenDir(), "golden.json"))
+	raw, err := os.ReadFile(filepath.Join(caseDir, "golden.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +94,7 @@ func TestServeGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	var requests []serveRequest
-	raw, err = os.ReadFile(filepath.Join(serveGoldenDir(), "requests.json"))
+	raw, err = os.ReadFile(filepath.Join(caseDir, "requests.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +105,7 @@ func TestServeGolden(t *testing.T) {
 		t.Fatalf("requests.json holds %d cases, golden.json %d", len(requests), len(golden.Cases))
 	}
 
-	root := serveGoldenRoot(t)
+	root := serveGoldenRoot(t, caseDir)
 	handler, err := newRootHandler(rootSpec{id: "root-a", path: root}, config{localSource: localSource})
 	if err != nil {
 		t.Fatal(err)
@@ -110,31 +126,25 @@ func TestServeGolden(t *testing.T) {
 		if want.Name != request.Name {
 			t.Fatalf("case %d is %q in requests.json and %q in golden.json", i, request.Name, want.Name)
 		}
-		headers := make(map[string]string, len(request.Headers)+1)
-		for name, value := range request.Headers {
-			headers[name] = value
-		}
-		if request.IfNoneMatchFrom != "" {
-			from, ok := answered[request.IfNoneMatchFrom]
-			if !ok || from.Headers["etag"] == "" {
-				t.Fatalf("%s: no etag recorded for %q", request.Name, request.IfNoneMatchFrom)
-			}
-			headers["If-None-Match"] = from.Headers["etag"]
-		}
+		headers := resolveGoldenHeaders(t, request, answered, port)
+		status, gotHeaders, body := serveSend(t, address, request.Method, request.Path, headers, port)
+		answered[request.Name] = serveAnswer{Name: request.Name, Status: status, Headers: gotHeaders, Answer: body}
 
 		t.Run(request.Name, func(t *testing.T) {
-			status, gotHeaders, body := serveSend(t, address, request.Method, request.Path, headers, port)
-			if status != want.Status {
-				t.Errorf("status = %d, want %d", status, want.Status)
+			expected := want
+			if normalize != nil {
+				normalize(&expected)
 			}
-			if !reflect.DeepEqual(gotHeaders, want.Headers) {
-				t.Errorf("headers = %v, want %v", gotHeaders, want.Headers)
+			if status != expected.Status {
+				t.Errorf("status = %d, want %d", status, expected.Status)
 			}
-			wantBody := serveDecodeBody(t, want.Body)
+			if !reflect.DeepEqual(gotHeaders, expected.Headers) {
+				t.Errorf("headers = %v, want %v", gotHeaders, expected.Headers)
+			}
+			wantBody := serveDecodeBody(t, expected.Body)
 			if !bytes.Equal(body, wantBody) {
 				t.Errorf("body = %q, want %q", body, wantBody)
 			}
-			answered[request.Name] = serveAnswer{Name: request.Name, Status: status, Headers: gotHeaders}
 		})
 	}
 
@@ -142,6 +152,57 @@ func TestServeGolden(t *testing.T) {
 	if !reflect.DeepEqual(got, golden.Files) {
 		t.Errorf("the root's files changed: got %v, want %v", got, golden.Files)
 	}
+}
+
+// resolveGoldenHeaders fills a request's {PORT} with this host's port and
+// resolves a conditional header from an earlier answer's JSON, the same way the
+// recorder did when it recorded the golden.
+func resolveGoldenHeaders(t *testing.T, request serveRequest, answered map[string]serveAnswer, port int) map[string]string {
+	t.Helper()
+	headers := make(map[string]string, len(request.Headers)+1)
+	for name, value := range request.Headers {
+		headers[name] = strings.ReplaceAll(value, "{PORT}", strconv.Itoa(port))
+	}
+	if request.IfNoneMatchFrom != "" {
+		from, ok := answered[request.IfNoneMatchFrom]
+		if !ok || from.Headers["etag"] == "" {
+			t.Fatalf("%s: no etag recorded for %q", request.Name, request.IfNoneMatchFrom)
+		}
+		headers["If-None-Match"] = from.Headers["etag"]
+	}
+	if request.IfMatchFrom != nil {
+		headers["If-Match"] = resolveIfMatch(t, request.Name, *request.IfMatchFrom, answered)
+	}
+	return headers
+}
+
+// resolveIfMatch reads one dotted field out of an earlier answer's JSON body.
+func resolveIfMatch(t *testing.T, name string, from serveIfMatchFrom, answered map[string]serveAnswer) string {
+	t.Helper()
+	answer, ok := answered[from.Case]
+	if !ok {
+		t.Fatalf("%s: no answer recorded for %q", name, from.Case)
+	}
+	var decoded any
+	if err := json.Unmarshal(answer.Answer, &decoded); err != nil {
+		t.Fatalf("%s: %q's answer is not JSON: %v", name, from.Case, err)
+	}
+	value := decoded
+	for _, part := range strings.Split(from.JSON, ".") {
+		object, ok := value.(map[string]any)
+		if !ok {
+			t.Fatalf("%s: %q's answer has no %q", name, from.Case, from.JSON)
+		}
+		value, ok = object[part]
+		if !ok {
+			t.Fatalf("%s: %q's answer has no %q", name, from.Case, from.JSON)
+		}
+	}
+	text, ok := value.(string)
+	if !ok || text == "" {
+		t.Fatalf("%s: %q's answer has no %q", name, from.Case, from.JSON)
+	}
+	return text
 }
 
 func TestListingRender(t *testing.T) {
@@ -242,16 +303,16 @@ func normalizeServeBody(body []byte, port int) []byte {
 	return bytes.ReplaceAll(body, []byte(fmt.Sprintf(":%d", port)), []byte(":{PORT}"))
 }
 
-// serveGoldenRoot copies the committed sample root and pins every mtime, the
-// same way gen.cjs pinned the copy Local answered from.
-func serveGoldenRoot(t *testing.T) string {
+// serveGoldenRoot copies a case directory's committed sample root and pins every
+// mtime, the same way the recorder pinned the copy Local answered from.
+func serveGoldenRoot(t *testing.T, caseDir string) string {
 	t.Helper()
 	mtime, err := time.Parse(time.RFC3339, serveGoldenMtime)
 	if err != nil {
 		t.Fatal(err)
 	}
 	root := filepath.Join(t.TempDir(), "root-a")
-	if err := copyTree(filepath.Join(serveGoldenDir(), "root"), root); err != nil {
+	if err := copyTree(filepath.Join(caseDir, "root"), root); err != nil {
 		t.Fatal(err)
 	}
 

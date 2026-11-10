@@ -48,11 +48,20 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 }
 
 func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	_, marked, ok := gate(w, r, localPort(r))
+	urlPath, marked, ok := gate(w, r, localPort(r))
 	if !ok {
 		return
 	}
-	if err := s.serve(w, r, marked); err != nil {
+	var err error
+	switch {
+	case marked && (r.Method == http.MethodGet || r.Method == http.MethodHead) && urlPath == "/meta":
+		err = s.serveMeta(w, r)
+	case marked && (r.Method == http.MethodGet || r.Method == http.MethodHead) && urlPath == "/page-state":
+		err = s.servePageState(w, r)
+	default:
+		err = s.serve(w, r, marked)
+	}
+	if err != nil {
 		serveError(w, r, err)
 	}
 }
