@@ -39,6 +39,7 @@ type serviceAnswer struct {
 	CaptureID   *string           `json:"captureId"`
 	Reason      string            `json:"reason"`
 	Action      string            `json:"action"`
+	HoldID      *string           `json:"holdId"`
 }
 
 // serviceArtifact is one file the service needs written before its handler
@@ -369,6 +370,71 @@ func (c *consultation) observe(event string, current orderedObject) (serviceAnsw
 		return serviceAnswer{}, fmt.Errorf("observe: unknown action %q", answer.Action)
 	}
 	return answer, nil
+}
+
+// structureStep is one step of a structure change as the service plans it:
+// the root-relative names, their unresolved locations under the root, and the
+// canonical paths this host resolved.
+type structureStep struct {
+	Kind string         `json:"kind"`
+	From *structureSide `json:"from"`
+	To   *structureSide `json:"to"`
+}
+
+type structureSide struct {
+	Name          string `json:"name"`
+	Location      string `json:"location"`
+	CanonicalPath string `json:"canonicalPath"`
+	IsDir         *bool  `json:"isDir,omitempty"`
+	IsSymlink     *bool  `json:"isSymlink,omitempty"`
+}
+
+// prepareStructure asks the service to plan a structure change inside this
+// host's structure gate, before the first move (protocol v1,
+// structure/prepare). A proceed answer names the hold the settle releases.
+func (c *consultation) prepareStructure(steps []structureStep) (serviceAnswer, error) {
+	answer, err := c.call("/v1/structure/prepare", append(c.head(), kv{Key: "steps", Value: steps}))
+	if err != nil {
+		return serviceAnswer{}, err
+	}
+	switch answer.Decision {
+	case "proceed":
+		if answer.HoldID == nil || *answer.HoldID == "" {
+			return serviceAnswer{}, errors.New("structure/prepare: proceed without holdId")
+		}
+	case "refuse":
+		if answer.Status < 400 || answer.Status > 599 || answer.Code == "" {
+			return serviceAnswer{}, fmt.Errorf("structure/prepare: refusal with status %d and code %q", answer.Status, answer.Code)
+		}
+	default:
+		return serviceAnswer{}, fmt.Errorf("structure/prepare: unknown decision %q", answer.Decision)
+	}
+	return answer, nil
+}
+
+// settleStructure tells the service how far a structure change got, so it
+// moves the rooms of the completed steps and releases its hold (protocol v1,
+// structure/settle). A settle without a good answer is aborted until the
+// service answers, as a lost document settle is.
+func (c *consultation) settleStructure(holdID string, completed int, copiedSteps []int, outcome string) error {
+	if copiedSteps == nil {
+		copiedSteps = []int{}
+	}
+	body := append(c.head(),
+		kv{Key: "holdId", Value: holdID},
+		kv{Key: "completed", Value: completed},
+		kv{Key: "copiedSteps", Value: copiedSteps},
+		kv{Key: "outcome", Value: outcome},
+	)
+	answer, err := c.call("/v1/structure/settle", body)
+	if err == nil && (answer.OK == nil || !*answer.OK) {
+		err = fmt.Errorf("structure/settle: %s", answer.Error)
+	}
+	if err != nil {
+		c.link.abort(c.ID, "settle-failed")
+		return err
+	}
+	return nil
 }
 
 // end aborts a consultation that never reached settle, naming why.

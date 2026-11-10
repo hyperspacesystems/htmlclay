@@ -137,7 +137,7 @@ service's checkpoint throws and its scheduler retries.
 ## `POST /v1/restructure`
 
 ```json
-{ "opId": "…", "root": "root-0", "kind": "move",
+{ "opId": "…", "root": "root-0", "kind": "move", "opHandle": "…" | null,
   "steps": [ { "from": "a.html", "to": "b.html" } ] }
 ```
 
@@ -154,14 +154,36 @@ no document write and no other structure change runs until it answers. Go
 resolves both names of every step and answers Local's `StructureResult`:
 
 ```json
-{ "outcome": "committed" | "partial" | "failed",
+{ "outcome": "committed" | "partial" | "failed" | "refused",
   "completed": 1, "reason": null | "ENOENT" | "…",
+  "refusal": { "status": 409, "code": "…", "body": {…}, "headers": {…} } | null,
   "pageState": null | "ENOENT" | "…",
   "opId": "…", "cursor": "<epoch>:<seq>" }
 ```
 
 A restructure is not a document commit, so it appends no frame; `cursor` is
 where the stream stands when it answers.
+
+With a service attached, the five `STRUCTURE_KINDS` consult it inside the
+structure gate, before the first move: `move`, `trash`, `duplicate`,
+`sync-move` and `sync-trash` post `/v1/structure/prepare` with the
+consultation's usual fields (`origin` is the kind, `opHandle` the body's) and
+`steps`, each step the kind, its root-relative `from` and `to` names
+(`name`), the locations those names resolve to under the root (`location`),
+the canonical paths this host resolved (`canonicalPath`), and `from`'s
+`isDir` and `isSymlink`. A `proceed` answer names the `holdId` the settle
+releases; a service `refuse` is answered as `outcome: "refused"` with its
+`reason` and its `refusal` as it was decided, and nothing moves; a service
+that cannot be reached is the host's own
+`refusal` `{status: 503, code: "service-unavailable"}`. After the moves, and
+before the page-state work, `/v1/structure/settle` carries `holdId`,
+`completed` (the steps that finished), `copiedSteps` (the indices of the
+steps that copied rather than renamed, and every completed step of a
+`duplicate`) and `outcome`, so the service moves the completed steps' rooms
+and releases its hold. A settle without a good answer still answers the move
+as it happened and retries `abort settle-failed`. The two workspace kinds,
+`folder` and `empty-trash`, are not composed in the service's v1 protocol and
+are not consulted.
 
 ## `POST /v1/page-state`
 

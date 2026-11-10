@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -56,6 +57,8 @@ type structureResult struct {
 	Reason       string
 	Err          error
 	PageStateErr error
+	// Refusal is a refusal answered to the client as it was decided.
+	Refusal *serviceRefusal
 }
 
 // metadataDirName is Local's METADATA_DIR, the one folder a duplicate copies
@@ -65,6 +68,12 @@ const metadataDirName = ".hyperclay"
 // restructure is Local's restructure. There is no authority to plan against
 // without rooms, so the outcome is the moves themselves.
 func (h *commitHost) restructure(kind string, entries []structureEntry) (structureResult, error) {
+	return h.restructureOp(kind, entries, "", nil)
+}
+
+// restructureOp is restructure with the op a service-attached change is
+// consulted under.
+func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID string, opHandle *string) (structureResult, error) {
 	unlock := h.locks.lockStructure()
 	defer unlock()
 	switch kind {
@@ -76,6 +85,30 @@ func (h *commitHost) restructure(kind string, entries []structureEntry) (structu
 	policy, ok := structureKinds[kind]
 	if !ok {
 		return structureResult{}, fmt.Errorf("Unknown structure kind: %s", kind)
+	}
+
+	var consult *consultation
+	var holdID string
+	if h.service != nil {
+		// The full-host stage: the service plans the rooms' move before the
+		// first file moves and settles it with what completed (protocol v1,
+		// structure/prepare and structure/settle).
+		if opID == "" {
+			opID = newOpID()
+		}
+		consult = h.service.begin(opID, opHandle, h.rootID, h.baseDir, "", "", "structure", kind)
+		answer, err := consult.prepareStructure(h.structureSteps(kind, entries))
+		if err != nil {
+			consult.end(err)
+			refusal := retryableRefusal("service-unavailable")
+			return structureResult{Outcome: "refused", Reason: refusal.Code, Refusal: &refusal}, nil
+		}
+		if answer.Decision == "refuse" {
+			h.service.abort(consult.ID, "refused")
+			refusal := serviceRefusal{Status: answer.Status, Code: answer.Code, Body: answer.Body, Headers: answer.Headers}
+			return structureResult{Outcome: "refused", Reason: answer.Code, Refusal: &refusal}, nil
+		}
+		holdID = *answer.HoldID
 	}
 
 	completed := 0
@@ -92,15 +125,35 @@ func (h *commitHost) restructure(kind string, entries []structureEntry) (structu
 			}
 			completed = index + 1
 		}
-		return structureAnswer(completed, failure), nil
+		result := structureAnswer(completed, failure)
+		if consult != nil {
+			copied := make([]int, completed)
+			for index := range copied {
+				copied[index] = index
+			}
+			if err := consult.settleStructure(holdID, completed, copied, result.Outcome); err != nil {
+				log.Printf("structure %s: settle: %v", kind, err)
+			}
+		}
+		return result, nil
 	}
 
+	var copiedSteps []int
 	for index, entry := range entries {
-		if _, err := moveEntry(entry.FromPath, entry.ToPath, policy.crossDevice); err != nil {
+		copied, err := moveEntry(entry.FromPath, entry.ToPath, policy.crossDevice)
+		if err != nil {
 			failure = err
 			break
 		}
+		if copied {
+			copiedSteps = append(copiedSteps, index)
+		}
 		completed = index + 1
+	}
+	if consult != nil {
+		if err := consult.settleStructure(holdID, completed, copiedSteps, structureAnswer(completed, failure).Outcome); err != nil {
+			log.Printf("structure %s: settle: %v", kind, err)
+		}
 	}
 	for _, entry := range entries[:completed] {
 		var err error
@@ -121,6 +174,29 @@ func (h *commitHost) restructure(kind string, entries []structureEntry) (structu
 		}
 	}
 	return structureAnswer(completed, failure), nil
+}
+
+// structureSteps is what the service plans from: each step's root-relative
+// names, their locations under the root, and the canonical paths resolved here.
+func (h *commitHost) structureSteps(kind string, entries []structureEntry) []structureStep {
+	steps := make([]structureStep, 0, len(entries))
+	for _, entry := range entries {
+		step := structureStep{Kind: kind}
+		if entry.FromName != "" {
+			location := filepath.Join(h.baseDir, filepath.FromSlash(entry.FromName))
+			isDir := entry.IsDir
+			isSymlink := false
+			if info, err := os.Lstat(location); err == nil {
+				isSymlink = info.Mode()&os.ModeSymlink != 0
+			}
+			step.From = &structureSide{Name: entry.FromName, Location: location, CanonicalPath: entry.FromPath, IsDir: &isDir, IsSymlink: &isSymlink}
+		}
+		if entry.ToName != "" {
+			step.To = &structureSide{Name: entry.ToName, Location: filepath.Join(h.baseDir, filepath.FromSlash(entry.ToName)), CanonicalPath: entry.ToPath}
+		}
+		steps = append(steps, step)
+	}
+	return steps
 }
 
 // makeFolders is the workspace's folder command: each step's destination made

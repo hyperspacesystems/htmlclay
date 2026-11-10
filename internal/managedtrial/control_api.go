@@ -343,10 +343,11 @@ func controlErrorStatus(err error) int {
 
 // controlStructureBody is one POST /v1/restructure.
 type controlStructureBody struct {
-	OpID  string                 `json:"opId"`
-	Root  string                 `json:"root"`
-	Kind  string                 `json:"kind"`
-	Steps []controlStructureStep `json:"steps"`
+	OpID     string                 `json:"opId"`
+	Root     string                 `json:"root"`
+	Kind     string                 `json:"kind"`
+	Steps    []controlStructureStep `json:"steps"`
+	OpHandle *string                `json:"opHandle"`
 }
 
 // controlStructureStep is one logical move: where a name is and where it goes,
@@ -463,7 +464,7 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := root.commit.restructure(body.Kind, entries)
+	result, err := root.commit.restructureOp(body.Kind, entries, opID, body.OpHandle)
 	if err != nil {
 		root.events.finishOp(opID, "refused", "", cursor)
 		writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
@@ -478,6 +479,7 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 		{Key: "outcome", Value: result.Outcome},
 		{Key: "completed", Value: result.Completed},
 		{Key: "reason", Value: nullableString(result.Reason)},
+		{Key: "refusal", Value: refusalValue(result.Refusal)},
 		{Key: "pageState", Value: structurePageStateValue(result.PageStateErr)},
 		{Key: "opId", Value: opID},
 		{Key: "cursor", Value: cursor},
