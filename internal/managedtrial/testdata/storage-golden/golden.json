@@ -1,0 +1,1053 @@
+{
+  "generatedWith": {
+    "node": "v24.5.0",
+    "platform": "darwin",
+    "module": "hyperclay-local/src/main/utils/{write-queue,api-sidecar,artifact-paths}.js"
+  },
+  "constants": {
+    "sidecarDir": ".hyperclay/api-v2",
+    "tempMode": 384,
+    "defaultMode": 420,
+    "renameAttempts": 6,
+    "renameRetryCodes": [
+      "EACCES",
+      "EBUSY",
+      "EPERM"
+    ],
+    "dirSyncUnsupported": [
+      "EACCES",
+      "EBADF",
+      "EINVAL",
+      "EISDIR",
+      "ENOTSUP",
+      "EPERM"
+    ]
+  },
+  "atomic": [
+    {
+      "name": "new-file-missing-folder",
+      "setup": [],
+      "action": {
+        "path": "nested/deeper/new.txt",
+        "encoding": "utf8",
+        "contentB64": "aGVsbG8K",
+        "beforeRename": null,
+        "observeTemp": false
+      },
+      "result": null,
+      "temp": null,
+      "tempLeft": false,
+      "console": [],
+      "entries": [
+        {
+          "path": "nested",
+          "kind": "dir"
+        },
+        {
+          "path": "nested/deeper",
+          "kind": "dir"
+        },
+        {
+          "path": "nested/deeper/new.txt",
+          "kind": "file",
+          "mode": 420,
+          "size": 6,
+          "sha256": "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+          "text": "hello\n"
+        }
+      ]
+    },
+    {
+      "name": "replace-0600",
+      "setup": [
+        {
+          "path": "save.txt",
+          "kind": "file",
+          "mode": 384,
+          "contentB64": "b2xkCg=="
+        }
+      ],
+      "action": {
+        "path": "save.txt",
+        "encoding": "utf8",
+        "contentB64": "bmV3IGNvbnRlbnQK",
+        "beforeRename": null,
+        "observeTemp": false
+      },
+      "result": null,
+      "temp": null,
+      "tempLeft": false,
+      "console": [],
+      "entries": [
+        {
+          "path": "save.txt",
+          "kind": "file",
+          "mode": 384,
+          "size": 12,
+          "sha256": "1c3ef9a7c817b4642bcb3cb1456fbce92a6f992df2e1d6ad9d8a2dfb4fdf42f6",
+          "text": "new content\n"
+        }
+      ]
+    },
+    {
+      "name": "replace-0664",
+      "setup": [
+        {
+          "path": "save.txt",
+          "kind": "file",
+          "mode": 436,
+          "contentB64": "b2xkCg=="
+        }
+      ],
+      "action": {
+        "path": "save.txt",
+        "encoding": "utf8",
+        "contentB64": "bmV3IGNvbnRlbnQK",
+        "beforeRename": null,
+        "observeTemp": false
+      },
+      "result": null,
+      "temp": null,
+      "tempLeft": false,
+      "console": [],
+      "entries": [
+        {
+          "path": "save.txt",
+          "kind": "file",
+          "mode": 436,
+          "size": 12,
+          "sha256": "1c3ef9a7c817b4642bcb3cb1456fbce92a6f992df2e1d6ad9d8a2dfb4fdf42f6",
+          "text": "new content\n"
+        }
+      ]
+    },
+    {
+      "name": "buffer-non-ascii",
+      "setup": [
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "mode": 420,
+          "contentB64": "b2xkCg=="
+        }
+      ],
+      "action": {
+        "path": "notes.txt",
+        "encoding": "buffer",
+        "contentB64": "aMOpbGxvIOKAlCDinJMK",
+        "beforeRename": null,
+        "observeTemp": false
+      },
+      "result": null,
+      "temp": null,
+      "tempLeft": false,
+      "console": [],
+      "entries": [
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "mode": 420,
+          "size": 15,
+          "sha256": "40b5633eee19d747e13f5684e1d241bb3b228edace36308e95a4e8b7aefa55b4",
+          "text": "héllo — ✓\n"
+        }
+      ]
+    },
+    {
+      "name": "string-non-ascii",
+      "setup": [],
+      "action": {
+        "path": "café.txt",
+        "encoding": "utf8",
+        "contentB64": "aMOpbGxvIOKAlCDinJMK",
+        "beforeRename": null,
+        "observeTemp": false
+      },
+      "result": null,
+      "temp": null,
+      "tempLeft": false,
+      "console": [],
+      "entries": [
+        {
+          "path": "café.txt",
+          "kind": "file",
+          "mode": 420,
+          "size": 15,
+          "sha256": "40b5633eee19d747e13f5684e1d241bb3b228edace36308e95a4e8b7aefa55b4",
+          "text": "héllo — ✓\n"
+        }
+      ]
+    },
+    {
+      "name": "before-rename-throws",
+      "setup": [
+        {
+          "path": "keep.txt",
+          "kind": "file",
+          "mode": 416,
+          "contentB64": "dW50b3VjaGVkCg=="
+        }
+      ],
+      "action": {
+        "path": "keep.txt",
+        "encoding": "utf8",
+        "contentB64": "cmVwbGFjZW1lbnQK",
+        "beforeRename": "throw",
+        "observeTemp": false
+      },
+      "result": "blocked by test",
+      "temp": null,
+      "tempLeft": false,
+      "console": [],
+      "entries": [
+        {
+          "path": "keep.txt",
+          "kind": "file",
+          "mode": 416,
+          "size": 10,
+          "sha256": "0967b63182a9178fa55b1b6b6f3db64bb615bc8ed4457d69ceb99faeecbf8ed7",
+          "text": "untouched\n"
+        }
+      ]
+    },
+    {
+      "name": "target-is-directory",
+      "setup": [
+        {
+          "path": "taken",
+          "kind": "dir"
+        },
+        {
+          "path": "taken/inside.txt",
+          "kind": "file",
+          "mode": 420,
+          "contentB64": "c3RpbGwgaGVyZQo="
+        }
+      ],
+      "action": {
+        "path": "taken",
+        "encoding": "utf8",
+        "contentB64": "bm9wZQo=",
+        "beforeRename": null,
+        "observeTemp": false
+      },
+      "result": "EISDIR",
+      "temp": null,
+      "tempLeft": false,
+      "console": [],
+      "entries": [
+        {
+          "path": "taken",
+          "kind": "dir"
+        },
+        {
+          "path": "taken/inside.txt",
+          "kind": "file",
+          "mode": 420,
+          "size": 11,
+          "sha256": "00ed79539e9fa015b4712a769f03965935725dc97203d4c0cb89724ff05007c9",
+          "text": "still here\n"
+        }
+      ]
+    },
+    {
+      "name": "temp-name-pattern",
+      "setup": [
+        {
+          "path": "doc.html",
+          "kind": "file",
+          "mode": 384,
+          "contentB64": "b2xkCg=="
+        }
+      ],
+      "action": {
+        "path": "doc.html",
+        "encoding": "utf8",
+        "contentB64": "bmV3Cg==",
+        "beforeRename": null,
+        "observeTemp": true
+      },
+      "result": null,
+      "temp": {
+        "shape": ".<base>.<pid>.<n>.tmp",
+        "base": "doc.html",
+        "mode": 384
+      },
+      "tempLeft": false,
+      "console": [],
+      "entries": [
+        {
+          "path": "doc.html",
+          "kind": "file",
+          "mode": 384,
+          "size": 4,
+          "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c",
+          "text": "new\n"
+        }
+      ]
+    }
+  ],
+  "sidecar": [
+    {
+      "name": "doc-with-tag",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecar",
+          "name": "page.html",
+          "html": "<!doctype html>\n<html>\n  <head>\n    <script data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"links\":\"a@href\",\"items\":\"ul.items li[]\",\"intro\":\"p@innerHTML\"}</script>\n  </head>\n  <body>\n    <h1>Hello &amp; welcome</h1>\n    <ul class=\"items\"><li>one</li><li>two</li></ul>\n    <ul class=\"links\"><li><a href=\"/a\">a</a></li><li><a href=\"/b\">b</a></li></ul>\n    <p>Some <b>bold</b> text</p>\n  </body>\n</html>\n"
+        }
+      ],
+      "results": [
+        null
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/page.html.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 94,
+          "sha256": "d64b69dbaa2461d65d8e2ea85606625b5b18f410f126cdfb42d47ab122b8fcf3",
+          "text": "{\"title\":\"Hello & welcome\",\"links\":\"/a\",\"items\":[\"one\",\"two\"],\"intro\":\"Some <b>bold</b> text\"}"
+        }
+      ]
+    },
+    {
+      "name": "doc-without-tag",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "page.html",
+          "data": {
+            "stale": true
+          },
+          "dataText": "{\"stale\":true}"
+        },
+        {
+          "kind": "writeSidecar",
+          "name": "page.html",
+          "html": "<!doctype html>\n<html><body><h1>Plain</h1></body></html>\n"
+        }
+      ],
+      "results": [
+        null,
+        null
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        }
+      ]
+    },
+    {
+      "name": "doc-bad-tag",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "page.html",
+          "data": {
+            "stale": true
+          },
+          "dataText": "{\"stale\":true}"
+        },
+        {
+          "kind": "writeSidecar",
+          "name": "page.html",
+          "html": "<!doctype html>\n<html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"title\":\"h1\"}</script></head><body><h1>x</h1></body></html>\n"
+        }
+      ],
+      "results": [
+        null,
+        null
+      ],
+      "console": [
+        {
+          "level": "error",
+          "prefix": "writeApiSidecar extract failed (non-fatal)"
+        }
+      ],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        }
+      ]
+    },
+    {
+      "name": "subfolder-doc",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecar",
+          "name": "blog/post.html",
+          "html": "<!doctype html>\n<html>\n  <head>\n    <script data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"links\":\"a@href\",\"items\":\"ul.items li[]\",\"intro\":\"p@innerHTML\"}</script>\n  </head>\n  <body>\n    <h1>Hello &amp; welcome</h1>\n    <ul class=\"items\"><li>one</li><li>two</li></ul>\n    <ul class=\"links\"><li><a href=\"/a\">a</a></li><li><a href=\"/b\">b</a></li></ul>\n    <p>Some <b>bold</b> text</p>\n  </body>\n</html>\n"
+        }
+      ],
+      "results": [
+        null
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/blog",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/blog/post.html.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 94,
+          "sha256": "d64b69dbaa2461d65d8e2ea85606625b5b18f410f126cdfb42d47ab122b8fcf3",
+          "text": "{\"title\":\"Hello & welcome\",\"links\":\"/a\",\"items\":[\"one\",\"two\"],\"intro\":\"Some <b>bold</b> text\"}"
+        }
+      ]
+    },
+    {
+      "name": "space-non-ascii-doc",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "Folder With Space/café.html",
+          "data": {
+            "title": "Café ☕",
+            "items": [
+              "one",
+              "two"
+            ]
+          },
+          "dataText": "{\"title\":\"Café ☕\",\"items\":[\"one\",\"two\"]}"
+        }
+      ],
+      "results": [
+        null
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/Folder With Space",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/Folder With Space/café.html.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 43,
+          "sha256": "115946b39307bea0b619cd9754c14c314c880236a376065942a4b41c38886951",
+          "text": "{\"title\":\"Café ☕\",\"items\":[\"one\",\"two\"]}"
+        }
+      ]
+    },
+    {
+      "name": "data-empty-values",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "empties.html",
+          "data": [],
+          "dataText": "[]"
+        },
+        {
+          "kind": "writeSidecarData",
+          "name": "empty-object.html",
+          "data": {},
+          "dataText": "{}"
+        }
+      ],
+      "results": [
+        null,
+        null
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/empties.html.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "text": "[]"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/empty-object.html.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "text": "{}"
+        }
+      ]
+    },
+    {
+      "name": "delete-present",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "gone.html",
+          "data": {
+            "a": 1
+          },
+          "dataText": "{\"a\":1}"
+        },
+        {
+          "kind": "deleteSidecar",
+          "name": "gone.html"
+        },
+        {
+          "kind": "deleteSidecar",
+          "name": "gone.html"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        null
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        }
+      ]
+    },
+    {
+      "name": "delete-absent",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "deleteSidecar",
+          "name": "never.html"
+        }
+      ],
+      "results": [
+        null
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        }
+      ]
+    },
+    {
+      "name": "read-newer",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "page.html",
+          "data": {
+            "v": 1
+          },
+          "dataText": "{\"v\":1}"
+        },
+        {
+          "kind": "setTimes",
+          "path": ".hyperclay/api-v2/page.html.json",
+          "mtimeMs": 1711972801000
+        },
+        {
+          "kind": "readFresh",
+          "name": "page.html",
+          "sourceMtimeMs": 1711972800000
+        }
+      ],
+      "results": [
+        null,
+        null,
+        {
+          "text": "{\"v\":1}"
+        }
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/page.html.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 7,
+          "sha256": "afbf9d0f3560b0fd7795e81c42a0a79ee6b6fc67e064f77826aee642cad28d91",
+          "text": "{\"v\":1}"
+        }
+      ]
+    },
+    {
+      "name": "read-equal",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "page.html",
+          "data": {
+            "v": 1
+          },
+          "dataText": "{\"v\":1}"
+        },
+        {
+          "kind": "setTimes",
+          "path": ".hyperclay/api-v2/page.html.json",
+          "mtimeMs": 1711972800000
+        },
+        {
+          "kind": "readFresh",
+          "name": "page.html",
+          "sourceMtimeMs": 1711972800000
+        }
+      ],
+      "results": [
+        null,
+        null,
+        {
+          "text": "{\"v\":1}"
+        }
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/page.html.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 7,
+          "sha256": "afbf9d0f3560b0fd7795e81c42a0a79ee6b6fc67e064f77826aee642cad28d91",
+          "text": "{\"v\":1}"
+        }
+      ]
+    },
+    {
+      "name": "read-older",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "page.html",
+          "data": {
+            "v": 1
+          },
+          "dataText": "{\"v\":1}"
+        },
+        {
+          "kind": "setTimes",
+          "path": ".hyperclay/api-v2/page.html.json",
+          "mtimeMs": 1711972799000
+        },
+        {
+          "kind": "readFresh",
+          "name": "page.html",
+          "sourceMtimeMs": 1711972800000
+        }
+      ],
+      "results": [
+        null,
+        null,
+        {
+          "text": null
+        }
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay/api-v2/page.html.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 7,
+          "sha256": "afbf9d0f3560b0fd7795e81c42a0a79ee6b6fc67e064f77826aee642cad28d91",
+          "text": "{\"v\":1}"
+        }
+      ]
+    },
+    {
+      "name": "read-absent",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "readFresh",
+          "name": "missing.html",
+          "sourceMtimeMs": 1711972800000
+        }
+      ],
+      "results": [
+        {
+          "text": null
+        }
+      ],
+      "console": [],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        }
+      ]
+    },
+    {
+      "name": "hyperclay-symlink-outside",
+      "setup": [
+        {
+          "path": "outside/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "outside/.hyperclay/api-v2/keep.json",
+          "kind": "file",
+          "mode": 420,
+          "contentB64": "eyJrZWVwIjp0cnVlfQ=="
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "symlink",
+          "target": "../outside/.hyperclay"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "page.html",
+          "data": {
+            "a": 1
+          },
+          "dataText": "{\"a\":1}"
+        },
+        {
+          "kind": "deleteSidecar",
+          "name": "page.html"
+        },
+        {
+          "kind": "readFresh",
+          "name": "page.html",
+          "sourceMtimeMs": 1711972800000
+        },
+        {
+          "kind": "resolve",
+          "name": "page.html"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        {
+          "text": null
+        },
+        {
+          "error": "Sidecar path escapes base directory"
+        }
+      ],
+      "console": [
+        {
+          "level": "error",
+          "prefix": "writeApiSidecarData failed (non-fatal)"
+        },
+        {
+          "level": "error",
+          "prefix": "deleteApiSidecar failed (non-fatal)"
+        }
+      ],
+      "entries": [
+        {
+          "path": "outside",
+          "kind": "dir"
+        },
+        {
+          "path": "outside/.hyperclay",
+          "kind": "dir"
+        },
+        {
+          "path": "outside/.hyperclay/api-v2",
+          "kind": "dir"
+        },
+        {
+          "path": "outside/.hyperclay/api-v2/keep.json",
+          "kind": "file",
+          "mode": 420,
+          "size": 13,
+          "sha256": "e78bf90424775f81b3a702f4db316bf479e4ba38232eeef3e30673bebcc0e23d",
+          "text": "{\"keep\":true}"
+        },
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "symlink",
+          "target": "../outside/.hyperclay"
+        }
+      ]
+    },
+    {
+      "name": "name-escape",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "writeSidecarData",
+          "name": "../x.html",
+          "data": {
+            "a": 1
+          },
+          "dataText": "{\"a\":1}"
+        },
+        {
+          "kind": "writeSidecar",
+          "name": "../x.html",
+          "html": "<!doctype html>\n<html>\n  <head>\n    <script data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"links\":\"a@href\",\"items\":\"ul.items li[]\",\"intro\":\"p@innerHTML\"}</script>\n  </head>\n  <body>\n    <h1>Hello &amp; welcome</h1>\n    <ul class=\"items\"><li>one</li><li>two</li></ul>\n    <ul class=\"links\"><li><a href=\"/a\">a</a></li><li><a href=\"/b\">b</a></li></ul>\n    <p>Some <b>bold</b> text</p>\n  </body>\n</html>\n"
+        },
+        {
+          "kind": "deleteSidecar",
+          "name": "../x.html"
+        },
+        {
+          "kind": "readFresh",
+          "name": "../x.html",
+          "sourceMtimeMs": 1711972800000
+        },
+        {
+          "kind": "resolve",
+          "name": "../x.html"
+        },
+        {
+          "kind": "writeSidecarData",
+          "name": "../../../x.html",
+          "data": {
+            "a": 2
+          },
+          "dataText": "{\"a\":2}"
+        },
+        {
+          "kind": "writeSidecar",
+          "name": "../../../x.html",
+          "html": "<!doctype html>\n<html>\n  <head>\n    <script data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"links\":\"a@href\",\"items\":\"ul.items li[]\",\"intro\":\"p@innerHTML\"}</script>\n  </head>\n  <body>\n    <h1>Hello &amp; welcome</h1>\n    <ul class=\"items\"><li>one</li><li>two</li></ul>\n    <ul class=\"links\"><li><a href=\"/a\">a</a></li><li><a href=\"/b\">b</a></li></ul>\n    <p>Some <b>bold</b> text</p>\n  </body>\n</html>\n"
+        },
+        {
+          "kind": "deleteSidecar",
+          "name": "../../../x.html"
+        },
+        {
+          "kind": "readFresh",
+          "name": "../../../x.html",
+          "sourceMtimeMs": 1711972800000
+        },
+        {
+          "kind": "resolve",
+          "name": "../../../x.html"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        null,
+        {
+          "text": null
+        },
+        {
+          "path": "root/.hyperclay/x.html.json"
+        },
+        null,
+        null,
+        null,
+        {
+          "text": null
+        },
+        {
+          "error": "Sidecar path escapes base directory"
+        }
+      ],
+      "console": [
+        {
+          "level": "error",
+          "prefix": "writeApiSidecarData failed (non-fatal)"
+        },
+        {
+          "level": "error",
+          "prefix": "writeApiSidecarData failed (non-fatal)"
+        },
+        {
+          "level": "error",
+          "prefix": "deleteApiSidecar failed (non-fatal)"
+        }
+      ],
+      "entries": [
+        {
+          "path": "root",
+          "kind": "dir"
+        },
+        {
+          "path": "root/.hyperclay",
+          "kind": "dir"
+        }
+      ]
+    }
+  ],
+  "paths": [
+    {
+      "name": "page.html",
+      "relPath": ".hyperclay/api-v2/page.html.json",
+      "lexical": ".hyperclay/api-v2/page.html.json",
+      "canonical": ".hyperclay/api-v2/page.html.json"
+    },
+    {
+      "name": "blog/post.html",
+      "relPath": ".hyperclay/api-v2/blog/post.html.json",
+      "lexical": ".hyperclay/api-v2/blog/post.html.json",
+      "canonical": ".hyperclay/api-v2/blog/post.html.json"
+    },
+    {
+      "name": "Folder With Space/café.html",
+      "relPath": ".hyperclay/api-v2/Folder With Space/café.html.json",
+      "lexical": ".hyperclay/api-v2/Folder With Space/café.html.json",
+      "canonical": ".hyperclay/api-v2/Folder With Space/café.html.json"
+    },
+    {
+      "name": "",
+      "relPath": ".hyperclay/api-v2/.json",
+      "lexical": ".hyperclay/api-v2/.json",
+      "canonical": ".hyperclay/api-v2/.json"
+    },
+    {
+      "name": "../x.html",
+      "relPath": ".hyperclay/x.html.json",
+      "lexical": ".hyperclay/x.html.json",
+      "canonical": ".hyperclay/x.html.json"
+    },
+    {
+      "name": "a/../../x.html",
+      "relPath": ".hyperclay/x.html.json",
+      "lexical": ".hyperclay/x.html.json",
+      "canonical": ".hyperclay/x.html.json"
+    },
+    {
+      "name": "nested/deep/doc.html",
+      "relPath": ".hyperclay/api-v2/nested/deep/doc.html.json",
+      "lexical": ".hyperclay/api-v2/nested/deep/doc.html.json",
+      "canonical": ".hyperclay/api-v2/nested/deep/doc.html.json"
+    },
+    {
+      "name": "../../../x.html",
+      "relPath": "../x.html.json",
+      "lexical": null,
+      "canonical": null,
+      "error": "Sidecar path escapes base directory"
+    },
+    {
+      "name": "../../../../x.html",
+      "relPath": "../../x.html.json",
+      "lexical": null,
+      "canonical": null,
+      "error": "Sidecar path escapes base directory"
+    }
+  ]
+}
