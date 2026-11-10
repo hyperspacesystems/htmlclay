@@ -1,0 +1,398 @@
+{
+  "cases": [
+    {
+      "name": "favicon-ico",
+      "request": {
+        "method": "GET",
+        "path": "/favicon.ico",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "15086",
+        "content-type": "image/x-icon",
+        "etag": "W/\"3aee-1a0d8ecde50\"",
+        "last-modified": "Fri, 25 Sep 2026 14:16:37 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "base64": "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NP9DOjT/Qzo0/0M6NP9DOjT/Qzo0/0M6NP9DOjT/Qzo0/0M6NP9DOjT/Qzo0/0M6NP9DOjT/Qzo0/0M6NP9DOjT/Qzo0/0M6NP9DOjT/Qzo0/0M6NP9DOjT/Qzo0/0M6NP9DOjT/Qjo00wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABEPDV8RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs1/0Q7Nf9EOzX/RDs10wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGPDV8RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw1/0U8Nf9FPDX/RTw10wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGPDV8Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw2/0Y8Nv9GPDb/Rjw20wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGPjV8Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rj02/0Y9Nv9GPTb/Rjw20wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABIPjh8Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz43/0c+N/9HPjf/Rz440wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABIPjh8SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/SD44/0g+OP9IPjj/ST440wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABIQDh8ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST84/0k/OP9JPzj/ST840wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABIQDp8SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA5/0lAOf9JQDn/SUA50wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABKQDp8SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA6/0pAOv9KQDr/SkA60wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABKQjp8S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E6/0tBOv9LQTr/S0E60wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMQjx8TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI70wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMQjx8TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI7/0xCO/9MQjv/TEI70wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMRDx8TUM8/01DPP9NQzz/TUM8/01DPP9NQzz/TUM8/01DPP9NQzz/TUM8/01DPP9NQzz/TUM8/01DPP9NQzz/TUM8/01DPP9NQzz/TUM8/01DPP9NQzz/TUM8/01DPP9NQzz/TUM8/01DPP9NQzz/TUM8/01DPP9GPTf/PjYx3wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABORD58TkQ9/05EPf9ORD3/TkQ9/05EPf9ORD3/TkQ9/05E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"
+      }
+    },
+    {
+      "name": "favicon-svg",
+      "request": {
+        "method": "GET",
+        "path": "/favicon.svg",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "2684",
+        "content-type": "image/svg+xml",
+        "etag": "W/\"a7c-1a0d8ecdde7\"",
+        "last-modified": "Fri, 25 Sep 2026 14:16:37 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\">\n  <defs>\n    <linearGradient id=\"clay\" x1=\"0\" y1=\"0\" x2=\"0.15\" y2=\"1\">\n      <stop offset=\"0\" stop-color=\"#F49B64\"/>\n      <stop offset=\"0.45\" stop-color=\"#E5824E\"/>\n      <stop offset=\"1\" stop-color=\"#C9612F\"/>\n    </linearGradient>\n    <linearGradient id=\"cube\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n      <stop offset=\"0\" stop-color=\"#454D58\"/>\n      <stop offset=\"1\" stop-color=\"#323841\"/>\n    </linearGradient>\n    <clipPath id=\"cubeClip\"><path d=\"M12.14 20.75L47 20.75Q50.44 20.75 50.44 24.2L50.44 59.05Q50.44 62.5 47 62.5L12.14 62.5Q8.69 62.5 8.69 59.05L8.69 24.2Q8.69 20.75 12.14 20.75Z\"/></clipPath>\n  </defs>\n  <path d=\"M12.14 20.75L47 20.75Q50.44 20.75 50.44 24.2L50.44 59.05Q50.44 62.5 47 62.5L12.14 62.5Q8.69 62.5 8.69 59.05L8.69 24.2Q8.69 20.75 12.14 20.75Z\" fill=\"url(#cube)\"/>\n  <path d=\"M9.71 21.87C6.26 21.87 4.03 19.74 4.24 16.5C4.44 10.01 10.92 4.74 20.45 3.32C30.58 1.91 42.74 2.92 49.23 6.97C54.09 10.21 56.32 16.09 56.52 23.18C56.72 29.67 56.32 35.55 54.09 38.79C52.06 41.63 48.82 41.63 47.81 39.4C47 37.37 47.4 33.72 47 29.67C46.59 25.82 44.77 22.98 40.71 22.17C34.63 21.77 16.8 21.87 9.71 21.87Z\" fill=\"#15181C\" opacity=\"0.45\" clip-path=\"url(#cubeClip)\"/>\n  <path d=\"M11.33 20.85C7.88 20.85 5.65 18.73 5.86 15.48C6.06 9 12.54 3.73 22.07 2.31C32.2 0.89 44.36 1.91 50.85 5.96C55.71 9.2 57.94 15.08 58.14 22.17C58.35 28.66 57.94 34.53 55.71 37.78C53.68 40.61 50.44 40.61 49.43 38.38C48.62 36.36 49.02 32.71 48.62 28.66C48.21 24.81 46.39 21.97 42.34 21.16C36.26 20.75 18.42 20.85 11.33 20.85ZM23.58 8.97C23.47 10.62 22.39 11.88 21.18 11.8C19.97 11.71 19.08 10.31 19.2 8.67C19.31 7.02 20.39 5.76 21.6 5.84C22.81 5.93 23.7 7.33 23.58 8.97ZM34.26 8.97C34.15 10.62 33.07 11.88 31.86 11.8C30.65 11.71 29.76 10.31 29.88 8.67C29.99 7.02 31.07 5.76 32.28 5.84C33.49 5.93 34.38 7.33 34.26 8.97ZM22.18 15.01C25.1 16.77 28.99 16.77 31.72 14.79C32.5 14.26 33.47 15.23 32.89 16.55C31.72 19.19 26.07 20.15 21.98 17.52C20.81 16.64 21.01 14.26 22.18 15.01Z\" fill=\"url(#clay)\" fill-rule=\"evenodd\"/>\n  <path d=\"M23.58 8.97C23.47 10.62 22.39 11.88 21.18 11.8C19.97 11.71 19.08 10.31 19.2 8.67C19.31 7.02 20.39 5.76 21.6 5.84C22.81 5.93 23.7 7.33 23.58 8.97ZM34.26 8.97C34.15 10.62 33.07 11.88 31.86 11.8C30.65 11.71 29.76 10.31 29.88 8.67C29.99 7.02 31.07 5.76 32.28 5.84C33.49 5.93 34.38 7.33 34.26 8.97ZM22.18 15.01C25.1 16.77 28.99 16.77 31.72 14.79C32.5 14.26 33.47 15.23 32.89 16.55C31.72 19.19 26.07 20.15 21.98 17.52C20.81 16.64 21.01 14.26 22.18 15.01Z\" fill=\"#1C1F24\"/>\n  <path d=\"M9.5 13.86C11.33 8.59 16.8 5.55 23.69 4.34\" fill=\"none\" stroke=\"#FFD2B0\" stroke-width=\"2.27\" stroke-linecap=\"round\" opacity=\"0.75\"/>\n</svg>\n"
+      }
+    },
+    {
+      "name": "favicon-png",
+      "request": {
+        "method": "GET",
+        "path": "/favicon.png",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "1183",
+        "content-type": "image/png",
+        "etag": "W/\"49f-1a0d8ecddf8\"",
+        "last-modified": "Fri, 25 Sep 2026 14:16:37 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAEVElEQVRYhbVWS2icVRT+zv3/P/NIMkkzTUJMtCHkhRioGsEHaFsEKdKWWbR0I1TpsnajC3GhQSGb4gNbqYo7ceEDQSouipaoCQSNNqUk5IExbdqYpunkMZ33f89xMY/88zRJp99w4c5/D/d853znnnsJO4C8f9QTra3zJ5JcBcRW62x/hE6fje9kLyrrSEChT195EiyHYFlPG966Xr677mMd96QMANmc2AAWIJgVkVEIDdW3RH+lY9/oHRFYP3fiuBj0tlnX2GvtbgG5a1gSURW/NgUdCQEAmJlZoA1FVoqJONgDAiyB5BMQfeA//eXGlggsnXmp2uWWL8zahoCrrRvCjBvX5m4HPrrk6fNXjZ0N9OyDCATAc+cvj4cTun701ONtpoIpWf/Z1CBliesMHG5+7asr+f6U8498fdSosvQFo7454NrzMGKL87g7MYpvf/5rJrgRqbnyb7ietQZrRjxhx9Ziyb1J5vbVcHyVNUO0hqTXmRmsNUQzRPNDsPXFm+8df7AsgeANdYpc1fvdrV0Iz44jvrwA1hoHu/0dXktNnexvjqY21zAh7i6/d7jL7x3e5VKNrHXaKadJpImk56K5SSUSH5eVYPnMsSlvR1+PJOOIXp9OZUVydc0m1al5bjE6c4p8WUj4kZa3LkxkvpqZyT8DJ9yiQ92JlUXYoTWw1jmbX12OzMzejgYP9zb0m0rMmM2R87/fGutpdHsOdtY/4eACh9e8AASAHAGQJUCONVoaDIQB8UheFBDg6nJ0+uT3c61CsAyiO1qkCQAPHmidONDuezRTmJnNnIHnZg2/7Xn3x2cLCADA4jtH3hDIIADKZy4A1uO8+t1UcHJxPWH73CYFen2drTVVDzglyZdHCueLHYMXW4sSAIAfXn3x+cmgHhCR2pws5MFliEVCCmC4TVIGpeaWItXkpprOWtmtCJRKoLM2RC94tHv/wJANOGoggw/nql8A0TMFHstARDKxg5kRj0awC2G82WegyU1ZmzSMpnWXD0AQyDuG6VjbRATbGQBA6Z+hDHira7GhfDg3mYTWGjp7LFNzYLMpFmRAGAAVpny7qHJ7MH0nhFsRjUZX7mlIKheXJADYECl7R20ZplWF+VAYDaYgWwuA3tswkk1BAQHOv1TuAYoI4QRD25mABRCs0ABKZ0BY/ueS3gYIiNqplpwJSUQuO02KSMBAhSQgECJJpAsvA/mlPIFNrSrAgBBMiLMAw4Zlfu40KTiGjO0dwXJDKQN/rClEmeZBmBHCof7P/lwpmwFhRqWKQCmFpKcBr/9tvzw2/NNQMZv7KwEA0zBhkhUruZ7/gQvu9HsHofS7tJAAM6hi5zBDoDSKSCAVlQAAbCpNobAIK9gHstgOAWakLvFK+k8mt04g5zlVKQJl1oq0YuQ8Ku83ijUiu9JOkopLalCsFV+qVCtOj5v2hjVVikBReR57al+nCNp3FK5zczbiHis2PjIyEipl8x8PN96WVf3dxQAAAABJRU5ErkJggg=="
+      }
+    },
+    {
+      "name": "favicon-svg-head",
+      "request": {
+        "method": "HEAD",
+        "path": "/favicon.svg",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "2684",
+        "content-type": "image/svg+xml",
+        "etag": "W/\"a7c-1a0d8ecdde7\"",
+        "last-modified": "Fri, 25 Sep 2026 14:16:37 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "favicon-svg-conditional",
+      "request": {
+        "method": "GET",
+        "path": "/favicon.svg",
+        "headers": {
+          "If-None-Match": "W/\"a7c-1a0d8ecdde7\""
+        },
+        "ifNoneMatchFrom": "favicon-svg"
+      },
+      "status": 304,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "etag": "W/\"a7c-1a0d8ecdde7\"",
+        "last-modified": "Fri, 25 Sep 2026 14:16:37 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "favicon-marked",
+      "request": {
+        "method": "GET",
+        "path": "/_/favicon.ico",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "template-css",
+      "request": {
+        "method": "GET",
+        "path": "/__templates/directory-listing.css",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "3315",
+        "content-type": "text/css; charset=utf-8",
+        "etag": "W/\"cf3-NAlaxjaNkkRlzTkVlHB1WsSLh6Y\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "@font-face {\n  font-family: 'Berkeley Mono';\n  src: url('https://hyperclay.com/public/fonts/BerkeleyMonoVariable-Regular.woff2') format('woff2');\n  font-weight: 100 900;\n  font-style: normal;\n  font-display: swap;\n}\n\n:root {\n  --bg-dark: #0B0C12;\n  --bg-card: #11131e;\n  --bg-menu-item: #111425;\n  --bg-menu-item-hover: #292E54;\n  --primary-blue: #6A73B6;\n  --accent-green: #12B886;\n  --text-primary: #fff;\n  --text-secondary: #B7BEFB;\n  --text-muted: #9ca3af;\n  --border-primary: #8A92BB;\n  --border-dashed: #495197;\n  --border-blue: #6A73B6;\n  --font-mono: \"Berkeley Mono\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;\n}\n\n*, *::before, *::after {\n  box-sizing: border-box;\n}\n\nhtml, body {\n  background-color: var(--bg-dark);\n  font-family: var(--font-mono);\n  font-size: 19px;\n  font-weight: 400;\n  color: var(--text-primary);\n  margin: 0;\n  padding: 0;\n  line-height: 1.6;\n}\n\n.container {\n  max-width: 900px;\n  margin: 0 auto;\n  padding: 40px 24px;\n}\n\n.header {\n  margin-bottom: 32px;\n  display: flex;\n  justify-content: space-between;\n  align-items: flex-start;\n}\n\n.settings-container {\n  position: relative;\n}\n\n.settings-btn {\n  background: none;\n  border: none;\n  cursor: pointer;\n  padding: 4px;\n  width: 37px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.settings-btn:hover svg {\n  fill: var(--text-primary);\n}\n\n.settings-menu {\n  display: none;\n  position: absolute;\n  top: 100%;\n  right: 0;\n  margin-top: 8px;\n  border: 2px solid var(--border-primary);\n  background-color: var(--border-primary);\n  flex-direction: column;\n  gap: 2px;\n  white-space: nowrap;\n  z-index: 10;\n}\n\n.settings-container.open .settings-menu {\n  display: flex;\n}\n\n.menu-item {\n  display: block;\n  padding: 4px 16px 5px 12px;\n  background-color: var(--bg-menu-item);\n  color: var(--text-primary);\n  text-decoration: none;\n  font-size: 16px;\n}\n\n.menu-item:hover {\n  background-color: var(--bg-menu-item-hover);\n}\n\n.breadcrumbs {\n  display: flex;\n  align-items: center;\n  font-size: 24px;\n  gap: 8px;\n  flex-wrap: wrap;\n}\n\n.breadcrumb-link {\n  color: var(--text-secondary);\n  text-decoration: none;\n}\n\n.breadcrumb-link:hover {\n  text-decoration: underline;\n  text-underline-offset: 4px;\n}\n\n.breadcrumb-separator {\n  color: var(--text-secondary);\n}\n\n.breadcrumb-icon {\n  display: flex;\n  align-items: center;\n}\n\n.breadcrumb-icon svg path {\n  stroke: var(--text-secondary);\n}\n\n.breadcrumb-current {\n  color: var(--text-secondary);\n}\n\n.file-list {\n  border-left: 2px dashed var(--border-dashed);\n  border-right: 2px dashed var(--border-dashed);\n}\n\n.divider-dashed {\n  border: none;\n  border-top: 2px dashed var(--border-dashed);\n  margin: 0;\n}\n\n.list-item {\n  display: flex;\n  align-items: center;\n  padding: 13px 16px;\n  gap: 14px;\n}\n\n.list-item:hover {\n  background-color: var(--bg-menu-item-hover);\n}\n\n.list-item-icon {\n  width: 23px;\n  height: 20px;\n  flex-shrink: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.list-item-icon svg {\n  width: 100%;\n  height: auto;\n}\n\n.list-item {\n  text-decoration: none;\n}\n\n.list-item-link {\n  color: var(--text-primary);\n  flex: 1;\n}\n\n.list-item:hover .list-item-link {\n  text-decoration: underline;\n  text-underline-offset: 4px;\n}\n\n.empty-message {\n  color: var(--text-muted);\n  padding: 40px 16px;\n  text-align: center;\n}\n\n"
+      }
+    },
+    {
+      "name": "template-css-head",
+      "request": {
+        "method": "HEAD",
+        "path": "/__templates/directory-listing.css",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "3315",
+        "content-type": "text/css; charset=utf-8",
+        "etag": "W/\"cf3-NAlaxjaNkkRlzTkVlHB1WsSLh6Y\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "template-missing",
+      "request": {
+        "method": "GET",
+        "path": "/__templates/missing.css",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"9-R1yEhnOj95+nePAcK9WnIdTEFwc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Not found"
+      }
+    },
+    {
+      "name": "template-wrong-type",
+      "request": {
+        "method": "GET",
+        "path": "/__templates/x.js",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"9-R1yEhnOj95+nePAcK9WnIdTEFwc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Not found"
+      }
+    },
+    {
+      "name": "template-escape",
+      "request": {
+        "method": "GET",
+        "path": "/__templates/..%2Fserver.js",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"9-R1yEhnOj95+nePAcK9WnIdTEFwc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Not found"
+      }
+    },
+    {
+      "name": "template-nested",
+      "request": {
+        "method": "GET",
+        "path": "/__templates/a/b.css",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "clayjs-js",
+      "request": {
+        "method": "GET",
+        "path": "/_/clayjs/1.23.0/clay.js",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-length": "7174",
+        "content-type": "text/javascript; charset=utf-8",
+        "etag": "\"511132af71553ada4197471a5b61366431d1fc6a889a4414c5d503bb232bf741\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "/* clayjs bootstrap. https://clayjs.com */\n(function () {\n  // Suppress every vendored bundle's window auto-export; the loader assembles\n  // window.clay explicitly.\n  window.__hyperclayNoAutoExport = true;\n\n  // Merge into any window.clay a satellite already created; never replace it.\n  var clay = window.clay = window.clay || {};\n  // A second core tag is a no-op: the original boot's `ready` promise survives.\n  // A FAILED boot resets the sentinel so a corrected tag can retry; the retry\n  // resolves the ORIGINAL `ready` promise via the stashed resolver.\n  if (clay.__booted) return;\n\n  function mintReady() {\n    clay.ready = new Promise(function (res, rej) {\n      clay.__readyResolve = res;\n      clay.__readyReject = rej;\n    });\n    // Nobody may be awaiting a failed boot's promise, and an unhandled rejection\n    // in the console is noise on top of the error we already logged.\n    clay.ready.catch(function () {});\n  }\n\n  if (!clay.ready) mintReady();\n\n  // clay.start runs app code once per page, after boot. A live-sync merge can\n  // re-insert an inline script and run it again; the repeat call is a no-op.\n  // It lives in the bootstrap so an inline script can call it before boot ends.\n  if (!clay.start) {\n    var started = Object.create(null);\n    clay.start = function (name, fn) {\n      if (typeof name === \"function\") { fn = name; name = \"\"; }\n      if (started[name]) return;\n      started[name] = true;\n      // A failed boot rejects the old promise after minting a new one, so a call\n      // made before the failure waits for the corrected tag's boot instead.\n      var wait = function () {\n        var ready = clay.ready;\n        return ready.then(fn, function (err) {\n          if (clay.ready === ready) throw err;\n          return wait();\n        });\n      };\n      return wait();\n    };\n  }\n\n  var script = document.currentScript;\n  if (!script || !script.src) {\n    console.error(\"clayjs: could not determine my own URL (load me with a classic <script src=...>, not type=\\\"module\\\")\");\n    return;\n  }\n  clay.__booted = true;\n\n  var url = new URL(script.src, location.href);\n  // The query and the fragment come off before the last slash is found. Leaving them\n  // on split the base inside them, so clay.js?next=/a/b imported \".../clay.js?next=/a/src/loader.js\"\n  // and the library never booted.\n  var path = url.href.split(\"#\")[0].split(\"?\")[0];\n  var base = path.slice(0, path.lastIndexOf(\"/\"));\n  // In the npm tarball the entry scripts sit in entries/ while src/ stays beside it\n  // at the package root, so a CDN that serves package paths literally (jsDelivr,\n  // unpkg) would look for src/ one directory too deep and load nothing. Stepping out\n  // of an \"entries\" segment makes those URLs resolve. clayjs.com never has the\n  // segment: build.js flattens entries/ into each version prefix, so this is a no-op\n  // there. The question is asked of the pathname, because asking it of the whole URL\n  // matched a host merely named \"entries\" and sent the import to another origin.\n  if (url.pathname.slice(0, url.pathname.lastIndexOf(\"/\")).slice(-8) === \"/entries\") {\n    base = base.slice(0, -8);\n  }\n\n  var __clayChunks = (function (M) {\n  var clay = window.clay = window.clay || {};\n  var dir = new URL(M.dir, base + \"/\").href;\n  var tree = base.slice(-5) === \"/dist\" ? base.slice(0, -5) : base;\n  var have = {};\n  document.head.querySelectorAll('link[rel=\"modulepreload\"]').forEach(function (link) { have[link.href] = true; });\n  // Only an explicit ?editmode=true asks for the supplement, or the window.clayEditMode\n  // global a standalone page sets before this script; the owner cookie is not an edit\n  // request, because an owner who opens a document in view resolves to view.\n  function __clayLikelyEdit(search) {\n    var asked = new URLSearchParams(search).get(\"editmode\");\n    if (asked) return asked === \"true\";\n    if (typeof clayEditMode !== \"undefined\") return Boolean(clayEditMode);\n    return typeof __hyperclayEditMode !== \"undefined\" && Boolean(__hyperclayEditMode);\n  }\n  var likelyEdit = __clayLikelyEdit(window.location.search);\n  // The supplement an edit page is about to import, preloaded like the manifest.\n  if (likelyEdit) M.preload.push(M.edit);\n  M.preload.forEach(function (file) {\n    var href = dir + file;\n    if (have[href]) return;\n    have[href] = true;\n    var link = document.createElement(\"link\");\n    link.rel = \"modulepreload\";\n    link.href = href;\n    link.setAttribute(\"clay\", \"no-save\");\n    document.head.appendChild(link);\n  });\n  if (!clay.__runtime) {\n    clay.__runtime = Promise.all([\n      import(dir + M.manifest),\n      likelyEdit ? import(dir + M.edit).catch(function () { return null; }) : null\n    ]).then(function (r) {\n      var manifest = r[0].default;\n      manifest.base = dir;\n      var edit = r[1] ? r[1].default : null;\n      var hints = null;\n      // The cached hint fetch a resolved edit, draft or first entry uses. A failed one\n      // clears itself for retry and never selects another release.\n      function loadEditHints() {\n        if (!hints) {\n          hints = (edit ? Promise.resolve(edit) : import(dir + M.edit).then(function (m) { return m.default; }))\n            .catch(function (err) { hints = null; throw err; });\n        }\n        return hints;\n      }\n      return { chunks: true, dir: dir, manifest: manifest, edit: edit, loadEditHints: loadEditHints };\n    }, function (err) {\n      console.warn(\"clayjs: the bundled runtime did not load, loading the module tree instead:\", err);\n      return { chunks: false, tree: tree };\n    });\n  }\n  return { tree: tree, runtime: clay.__runtime };\n})({\"dir\":\"m/\",\"manifest\":\"manifest-1D2F5CA5.js\",\"edit\":\"manifest-edit-F7CC5CFD.js\",\"preload\":[\"loader-FBDE2UAB.js\",\"c-RS77ODLY.js\",\"c-7SWMYKAI.js\",\"c-UGHH4MB3.js\",\"c-LA2BW7UY.js\",\"c-IJUK2GPW.js\",\"c-VG5XIN4T.js\",\"c-2YYDMLNZ.js\",\"c-HA6INT6J.js\",\"c-WRBKEJD4.js\",\"c-ICMAOOGK.js\",\"c-VHNSBD2M.js\",\"c-46XYM55L.js\",\"c-FILLTJA7.js\",\"c-VKEDWYDF.js\",\"c-CYWLPPUS.js\",\"manifest-1D2F5CA5.js\",\"core/draft-mode-WSQAT67S.js\",\"c-N7JPUPGC.js\",\"core/is-edit-mode-GCX6767E.js\",\"c-3O7OBDCM.js\",\"c-BPF2NSPV.js\",\"c-P7KNDG34.js\",\"lib/region-policy-KWBPROWF.js\"]})\n  __clayChunks.runtime.then(function (R) {\n  if (!R.chunks) return import(__clayChunks.tree + \"/src/loader.js\");\n  window.clay.__chunked = true;\n  return import(R.dir + R.manifest.entries[\"loader.js\"]).then(function (m) {\n    return { boot: function (b, p, resolve) { return m.boot(b, p, resolve, R.manifest, R.edit, R.loadEditHints); } };\n  });\n})\n    .then(function (m) { return m.boot(base, url.searchParams, clay.__readyResolve); })\n    .catch(function (err) {\n      clay.__booted = false;\n      console.error(\"clayjs failed to load:\", err);\n      // Settle the promise so `await clay.ready` fails loudly instead of hanging\n      // forever with nothing to catch. Then mint a fresh one: a promise settles\n      // once, so without this the corrected retry tag would call __readyResolve on\n      // an already-rejected promise and every later await would keep throwing even\n      // though the retry succeeded.\n      var reject = clay.__readyReject;\n      mintReady();\n      if (reject) reject(err);\n    });\n})();\n"
+      }
+    },
+    {
+      "name": "clayjs-js-conditional",
+      "request": {
+        "method": "GET",
+        "path": "/_/clayjs/1.23.0/clay.js",
+        "headers": {
+          "If-None-Match": "\"511132af71553ada4197471a5b61366431d1fc6a889a4414c5d503bb232bf741\""
+        },
+        "ifNoneMatchFrom": "clayjs-js"
+      },
+      "status": 304,
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "text/javascript; charset=utf-8",
+        "etag": "\"511132af71553ada4197471a5b61366431d1fc6a889a4414c5d503bb232bf741\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "clayjs-js-head",
+      "request": {
+        "method": "HEAD",
+        "path": "/_/clayjs/1.23.0/clay.js",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-length": "7174",
+        "content-type": "text/javascript; charset=utf-8",
+        "etag": "\"511132af71553ada4197471a5b61366431d1fc6a889a4414c5d503bb232bf741\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "clayjs-css",
+      "request": {
+        "method": "GET",
+        "path": "/_/clayjs/1.23.0/page/themes/light-1.css",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-length": "17375",
+        "content-type": "text/css; charset=utf-8",
+        "etag": "\"163308da61ea32097a9c7235480db7d3d722db83a67e5ba4fea850f74716657f\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "/* Light 1: warm paper, Inter body under a Newsreader serif title, hairline chrome that darkens one small step on movement, from the parent bake-off seat. */\n@font-face {\n  font-family: \"Newsreader\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 200 800;\n  src: url(../../fonts/newsreader-vietnamese-opsz-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;\n}\n\n@font-face {\n  font-family: \"Newsreader\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 200 800;\n  src: url(../../fonts/newsreader-latin-ext-opsz-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;\n}\n\n@font-face {\n  font-family: \"Newsreader\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 200 800;\n  src: url(../../fonts/newsreader-latin-opsz-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;\n}\n\n@font-face {\n  font-family: \"Inter\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 100 900;\n  src: url(../../fonts/inter-cyrillic-ext-wght-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;\n}\n\n@font-face {\n  font-family: \"Inter\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 100 900;\n  src: url(../../fonts/inter-cyrillic-wght-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;\n}\n\n@font-face {\n  font-family: \"Inter\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 100 900;\n  src: url(../../fonts/inter-greek-ext-wght-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+1F00-1FFF;\n}\n\n@font-face {\n  font-family: \"Inter\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 100 900;\n  src: url(../../fonts/inter-greek-wght-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF;\n}\n\n@font-face {\n  font-family: \"Inter\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 100 900;\n  src: url(../../fonts/inter-vietnamese-wght-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;\n}\n\n@font-face {\n  font-family: \"Inter\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 100 900;\n  src: url(../../fonts/inter-latin-ext-wght-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;\n}\n\n@font-face {\n  font-family: \"Inter\";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 100 900;\n  src: url(../../fonts/inter-latin-wght-normal.woff2) format(\"woff2-variations\");\n  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;\n}\n\n\n\n@layer page {\n  article[data-page] {\n    --page-link: #164583;\n    --page-font-mono: ui-monospace, \"SF Mono\", Menlo, Consolas, monospace;\n    --page-color-gray: #5B5953; --page-color-brown: #8A5A1E; --page-color-orange: #B4531A; --page-color-yellow: #7A6210; --page-color-green: #3E6A28;\n    --page-color-blue: #1F5A8A; --page-color-purple: #5E4596; --page-color-pink: #A23E6E; --page-color-red: #9E3B2F;\n    --page-mark-bg-gray: rgba(35, 34, 31, 0.12); --page-mark-bg-brown: rgba(138, 90, 30, 0.20); --page-mark-bg-orange: rgba(180, 83, 26, 0.20);\n    --page-mark-bg-yellow: rgba(122, 98, 16, 0.22); --page-mark-bg-green: rgba(62, 106, 40, 0.20); --page-mark-bg-blue: rgba(31, 90, 138, 0.18);\n    --page-mark-bg-purple: rgba(94, 69, 150, 0.18); --page-mark-bg-pink: rgba(162, 62, 110, 0.18); --page-mark-bg-red: rgba(158, 59, 47, 0.18);\n    min-height: 100vh;\n    box-sizing: border-box;\n    padding: var(--page-pad-top) 16px 30vh;\n    background: var(--page-bg);\n    color: var(--page-ink);\n    font-family: var(--page-font);\n    font-size: var(--page-font-size);\n    line-height: var(--page-line-height);\n    overflow-wrap: break-word;\n  }\n  article[data-page] ::selection { background: var(--page-selection); }\n  article[data-page] > * { max-width: var(--page-measure); margin: var(--page-block-gap) auto; }\n  article[data-page] > h1 { font-family: var(--page-font-display); font-size: var(--page-h1-size); font-weight: var(--page-h1-weight); letter-spacing: var(--page-h1-tracking); line-height: var(--page-h1-line); color: var(--page-ink-strong); margin-block: 0 0.6em; }\n  article[data-page] > h2 { font-family: var(--page-font-heading); font-size: var(--page-h2-size); font-weight: var(--page-h2-weight); color: var(--page-ink-strong); line-height: 1.35; margin-block-start: 1.4em; }\n  article[data-page] > h3 { font-family: var(--page-font-heading); font-size: var(--page-h3-size); font-weight: var(--page-h3-weight); color: var(--page-ink-strong); margin-block-start: 1.2em; }\n  article[data-page] a { color: var(--page-link, var(--page-accent)); }\n  article[data-page] code { font-family: var(--page-font-mono); font-size: 0.88em; background: var(--page-code-bg); color: var(--page-code-ink); border-radius: 4px; padding: 0.1em 0.3em; }\n  article[data-page] pre { position: relative; padding: 32px 14px 12px; font-family: var(--page-font-mono); font-size: 0.88em; background: var(--page-code-bg); color: var(--page-code-ink); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }\n  article[data-page] pre[data-lang] { white-space: pre; overflow-wrap: normal; }\n  article[data-page] pre code { display: block; overflow-x: auto; background: none; padding: 0; font-size: inherit; }\n  article[data-page] .page-callout { background: var(--page-callout-bg); border: 1px solid var(--page-callout-line); border-radius: 8px; padding: 10px 14px; }\n  article[data-page] hr { border: 0; border-top: 1px solid var(--page-rule); margin-block: 1.2em; }\n  article[data-page] ul, article[data-page] ol { padding-inline-start: var(--page-indent); }\n  article[data-page] li { padding-inline-start: 0; }\n  article[data-page] li::marker { color: var(--page-marker); }\n  article[data-page] li:has(> input[type=\"checkbox\"]) { list-style: none; }\n  article[data-page] li > input[type=\"checkbox\"] { appearance: none; width: var(--page-check-size); height: var(--page-check-size); margin: 0 calc(var(--page-indent) - var(--page-check-size)) 0 0; vertical-align: -0.12em; border: 1px solid var(--page-check-border); border-radius: var(--page-check-radius); }\n  article[data-page] li > input[type=\"checkbox\"]:checked { background: var(--page-check-fill); border-color: var(--page-check-fill); }\n  article[data-page] li > input[type=\"checkbox\"]:checked::after { content: \"\"; display: block; width: 100%; height: 100%; background: var(--page-check-ink); -webkit-mask: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.8 8.4l2.9 2.9 5.5-6.4' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\") center / 72% no-repeat; mask: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.8 8.4l2.9 2.9 5.5-6.4' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\") center / 72% no-repeat; }\n  article[data-page] li:has(> input[type=\"checkbox\"]:checked) { color: var(--page-done-ink); text-decoration: line-through; }\n  article[data-page] details { padding-inline-start: var(--page-indent); }\n  article[data-page] summary { color: var(--page-toggle-ink); cursor: pointer; }\n  article[data-page] figure { max-width: var(--page-measure); }\n  article[data-page] figure img, article[data-page] figure svg { display: block; max-width: 100%; height: auto; }\n  article[data-page] figcaption { color: var(--page-ink-soft); font-size: 0.88em; text-align: center; }\n  article[data-page] [data-type=\"file\"] { padding: 8px 12px; border: 1px solid var(--page-rule); border-radius: 8px; }\n  article[data-page] table { width: 100%; border-collapse: collapse; border: 1px solid var(--page-rule); border-radius: 8px; }\n  article[data-page] th, article[data-page] td { min-width: 120px; padding: 6px 10px; border-inline-end: 1px solid var(--page-rule); border-block-end: 1px solid var(--page-rule); text-align: start; white-space: pre-wrap; }\n  article[data-page] th { background: var(--page-code-bg); color: var(--page-ink-soft); font-weight: 600; }\n  article[data-page] th[data-kind=\"number\"], article[data-page] td[data-kind=\"number\"] { text-align: end; }\n  article[data-page] blockquote { color: var(--page-ink-soft); padding-inline-start: var(--page-indent); }\n  article[data-page] span[data-color=\"gray\"] { color: var(--page-color-gray); }\n  article[data-page] span[data-color=\"brown\"] { color: var(--page-color-brown); }\n  article[data-page] span[data-color=\"orange\"] { color: var(--page-color-orange); }\n  article[data-page] span[data-color=\"yellow\"] { color: var(--page-color-yellow); }\n  article[data-page] span[data-color=\"green\"] { color: var(--page-color-green); }\n  article[data-page] span[data-color=\"blue\"] { color: var(--page-color-blue); }\n  article[data-page] span[data-color=\"purple\"] { color: var(--page-color-purple); }\n  article[data-page] span[data-color=\"pink\"] { color: var(--page-color-pink); }\n  article[data-page] span[data-color=\"red\"] { color: var(--page-color-red); }\n  article[data-page] mark[data-color=\"gray\"] { background: var(--page-mark-bg-gray); }\n  article[data-page] mark[data-color=\"brown\"] { background: var(--page-mark-bg-brown); }\n  article[data-page] mark[data-color=\"orange\"] { background: var(--page-mark-bg-orange); }\n  article[data-page] mark[data-color=\"yellow\"] { background: var(--page-mark-bg-yellow); }\n  article[data-page] mark[data-color=\"green\"] { background: var(--page-mark-bg-green); }\n  article[data-page] mark[data-color=\"blue\"] { background: var(--page-mark-bg-blue); }\n  article[data-page] mark[data-color=\"purple\"] { background: var(--page-mark-bg-purple); }\n  article[data-page] mark[data-color=\"pink\"] { background: var(--page-mark-bg-pink); }\n  article[data-page] mark[data-color=\"red\"] { background: var(--page-mark-bg-red); }\n  article[data-page] mark { color: inherit; }\n}\n\n\n\n:where(article[data-page], .page-shell) {\n  --chart-1: #2F5E9E;\n  --chart-2: #164583;\n  --chart-3: #5B5953;\n  --chart-4: #23221F;\n  --chart-5: #A1A09B;\n  --chart-6: #6B6862;\n  --chart-text: #23221F;\n  --page-bg: #F7F6F2;\n  --page-ink: #23221F;\n  --page-ink-strong: #23221F;\n  --page-ink-soft: #5B5953;\n  --page-ink-faint: #A1A09B;\n  --page-rule: rgba(35, 34, 31, 0.08);\n  --page-accent: #2F5E9E;\n  --page-link: #164583;\n  --page-caret: #2F5E9E;\n  --page-selection: rgba(88, 120, 170, 0.20);\n\n  --page-font: Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif;\n  --page-font-display: Newsreader, \"Iowan Old Style\", Georgia, serif;\n  --page-font-heading: Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif;\n  --page-font-mono: ui-monospace, \"SF Mono\", Menlo, monospace;\n  --page-font-size: 17px;\n  --page-line-height: 1.65;\n  --page-measure: 632px;\n  --page-pad-top: 120px;\n  --page-h1-size: 40px;\n  --page-h1-weight: 500;\n  --page-h1-tracking: -0.01em;\n  --page-h1-line: 1.15;\n  --page-h2-size: 19px;\n  --page-h2-weight: 600;\n  --page-h3-size: 17px;\n  --page-h3-weight: 600;\n  --page-block-gap: 0.8em;\n  --page-indent: 26px;\n\n  --page-marker: #5B5953;\n  --page-check-size: 15px;\n  --page-check-radius: 4px;\n  --page-check-border: rgba(35, 34, 31, 0.30);\n  --page-check-fill: #5B5953;\n  --page-check-ink: #F7F6F2;\n  --page-done-ink: #5B5953;\n  --page-toggle-ink: #5B5953;\n  --page-callout-bg: rgba(35, 34, 31, 0.035);\n  --page-callout-line: transparent;\n  --page-code-bg: rgba(35, 34, 31, 0.045);\n  --page-code-ink: #23221F;\n\n  --page-chrome-ink-rest: rgba(35, 34, 31, 0.42);\n  --page-chrome-ink-moved: rgba(35, 34, 31, 0.62);\n  --page-chrome-bg-rest: rgba(35, 34, 31, 0.035);\n  --page-chrome-bg-moved: rgba(35, 34, 31, 0.06);\n  --page-chrome-line-rest: rgba(35, 34, 31, 0.22);\n  --page-chrome-line-moved: rgba(35, 34, 31, 0.36);\n  --page-chrome-shadow-rest: none;\n  --page-chrome-shadow-moved: none;\n  --page-chrome-radius: 7px;\n  --page-plus-size: 24px;\n  --page-fade: 250ms;\n\n  --page-pop-bg: #FBFAF7;\n  --page-pop-ink: #23221F;\n  --page-pop-muted: #5B5953;\n  --page-pop-line: rgba(35, 34, 31, 0.08);\n  --page-pop-shadow: 0 1px 2px rgba(35, 34, 31, 0.05), 0 8px 24px rgba(35, 34, 31, 0.07);\n  --page-pop-hover: rgba(35, 34, 31, 0.06);\n  --page-pop-radius: 12px;\n  --page-bar-bg: #F7F6F2;\n  --page-bar-ink: #5B5953;\n  --page-scrim: rgba(35, 34, 31, 0.10);\n\n  -webkit-font-smoothing: antialiased;\n}\n\narticle[data-page] figure[data-type=\"chart\"] { --chart-1: #2F5E9E; --chart-2: #164583; --chart-3: #5B5953; --chart-4: #23221F; --chart-5: #A1A09B; --chart-6: #6B6862; --chart-text: #23221F; max-width: 100%; }\narticle[data-page] figure[data-type=\"chart\"] > svg { display: block; width: 100%; height: auto; color: var(--chart-text); font: 12px Inter, sans-serif; }\n\n:is(article[data-page], .page-shell) .page-li {\n  --page-block-gap: 0.35em;\n}\n\n:is(article[data-page], .page-shell .page-editor) > h1:first-child {\n  margin-bottom: 0.7em;\n}\n\n:is(article[data-page], .page-shell .page-editor) > h2 {\n  margin-top: 1.6em;\n  line-height: 1.4;\n}\n\n:is(article[data-page], .page-shell) .page-li[data-kind=\"bullet\"][data-indent=\"1\"]::before,\n:is(article[data-page], .page-shell) .page-li[data-kind=\"bullet\"][data-indent=\"3\"]::before,\n:is(article[data-page], .page-shell) .page-li[data-kind=\"bullet\"][data-indent=\"5\"]::before,\n:is(article[data-page], .page-shell) .page-li[data-kind=\"bullet\"][data-indent=\"7\"]::before {\n  background: none;\n  border: 1.5px solid currentColor;\n}\n\n:is(article[data-page], .page-shell) .page-li[data-kind=\"ordered\"]::before {\n  font-size: 15px;\n  font-variant-numeric: tabular-nums;\n}\n\n:is(article[data-page], .page-shell) .page-li[data-kind=\"check\"]::before {\n  border-width: 1.5px;\n}\n\n:is(article[data-page], .page-shell) .page-li[data-kind=\"check\"][data-checked=\"true\"] {\n  text-decoration-color: rgba(35, 34, 31, 0.30);\n}\n\n.page-shell .page-toggle-button::before {\n  content: \"\";\n  display: block;\n  width: 22px;\n  height: 22px;\n  background: currentColor;\n  clip-path: polygon(37.5% 28%, 65.6% 50%, 37.5% 72%);\n}\n\n.page-shell .page-dock {\n  gap: 2px;\n  padding: 4px;\n  border-radius: 10px;\n}\n\n.page-shell .page-dock .page-tool,\n.page-shell .page-bubble .page-tool {\n  width: 30px;\n  height: 28px;\n  border-radius: 6px;\n  font: 600 13px/1 Inter, system-ui, sans-serif;\n}\n\n.page-shell .page-dock .page-tool svg,\n.page-shell .page-bubble .page-tool svg {\n  width: 15px;\n  height: 15px;\n}\n\n.page-shell .page-dock .page-tool-turn,\n.page-shell .page-bubble .page-tool-turn {\n  width: auto;\n  gap: 4px;\n  padding: 0 8px;\n  font-weight: 500;\n}\n\n.page-shell .page-tool-sep {\n  width: 1px;\n  height: 16px;\n  margin: 0 3px;\n  background: currentColor;\n  opacity: 0.5;\n}\n\n.page-shell .page-plus svg {\n  width: 12px;\n  height: 12px;\n}\n\n.page-shell .page-bubble {\n  gap: 1px;\n  padding: 3px;\n  border-radius: 9px;\n  color: #5B5953;\n}\n\n.page-shell .page-menu {\n  width: 264px;\n  padding: 6px;\n  font-size: 14px;\n}\n\n.page-shell .page-menu-title {\n  padding: 6px 10px 8px;\n  font-size: 13px;\n  color: #5B5953;\n  opacity: 0.7;\n}\n\n.page-shell .page-menu-item {\n  gap: 10px;\n  padding: 6px 10px;\n  border-radius: 7px;\n}\n\n.page-shell .page-menu-icon {\n  flex: none;\n  display: grid;\n  place-items: center;\n  width: 26px;\n  height: 26px;\n  border-radius: 6px;\n  border: 1px solid rgba(35, 34, 31, 0.08);\n  color: #5B5953;\n  font: 500 12px/1 Inter, system-ui, sans-serif;\n}\n\n.page-shell .page-menu-icon svg {\n  width: 14px;\n  height: 14px;\n}\n\n.page-shell .page-menu-hint {\n  margin-left: auto;\n  color: #5B5953;\n  opacity: 0.6;\n  font: 400 12px/1 ui-monospace, Menlo, monospace;\n}\n\n@media (max-width: 560px) {\n  :where(article[data-page], .page-shell) {\n    --page-font-size: 16px;\n    --page-pad-top: 64px;\n    --page-h1-size: 30px;\n    --page-indent: 20px;\n  }\n\n  :is(article[data-page], .page-shell .page-editor) > h1:first-child {\n    margin-bottom: 0.67em;\n  }\n\n  .page-shell .page-bubble {\n    border-radius: 0;\n    border-width: 1px 0 0;\n    border-color: rgba(35, 34, 31, 0.08);\n    box-shadow: none;\n  }\n\n  .page-shell .page-bubble .page-tool {\n    width: 44px;\n    height: 44px;\n  }\n\n  .page-shell .page-plus {\n    width: 36px;\n    height: 36px;\n    border-radius: 10px;\n  }\n\n  .page-shell .page-menu {\n    width: auto;\n    padding: 6px 8px calc(14px + env(safe-area-inset-bottom));\n    border-radius: 16px 16px 0 0;\n    border-bottom: 0;\n    font-size: 16px;\n  }\n\n  .page-shell .page-menu-item {\n    min-height: 48px;\n  }\n\n  .page-shell .page-menu-icon {\n    width: 32px;\n    height: 32px;\n  }\n\n  .page-shell .page-menu-hint {\n    display: none;\n  }\n}\n"
+      }
+    },
+    {
+      "name": "clayjs-missing",
+      "request": {
+        "method": "GET",
+        "path": "/_/clayjs/1.23.0/missing.js",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"9-R1yEhnOj95+nePAcK9WnIdTEFwc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Not found"
+      }
+    },
+    {
+      "name": "clayjs-wrong-version",
+      "request": {
+        "method": "GET",
+        "path": "/_/clayjs/0.0.0/clay.js",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"9-R1yEhnOj95+nePAcK9WnIdTEFwc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Not found"
+      }
+    },
+    {
+      "name": "clayjs-bare",
+      "request": {
+        "method": "GET",
+        "path": "/clayjs/1.23.0/clay.js",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "a.html",
+      "sha256": "2c2271f0d96ced198bd7cc624cd62673401d18b60522510218abeac67ca07da8"
+    }
+  ]
+}

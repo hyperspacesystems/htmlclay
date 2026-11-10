@@ -100,7 +100,10 @@ func weakEntityETag(body []byte) string {
 }
 
 func weakStatETag(info os.FileInfo) string {
-	return fmt.Sprintf(`W/"%x-%x"`, info.Size(), info.ModTime().UnixMilli())
+	// send reads the stamp as a Date, which rounds a sub-millisecond mtime to
+	// the nearest millisecond rather than dropping the fraction.
+	modified := info.ModTime().Round(time.Millisecond).UnixMilli()
+	return fmt.Sprintf(`W/"%x-%x"`, info.Size(), modified)
 }
 
 func requestFresh(r *http.Request, h http.Header, status int) bool {

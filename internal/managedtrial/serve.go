@@ -17,10 +17,12 @@ import (
 // rootServer answers one root: Local's static catch-all, its document lane, its
 // folder listings and its error body.
 type rootServer struct {
-	baseDir  string
-	registry *consentRegistry
-	selected string
-	releases map[string]clayruntime.Release
+	baseDir     string
+	registry    *consentRegistry
+	localSource string
+	runtimeDir  string
+	selected    string
+	releases    map[string]clayruntime.Release
 }
 
 // htmlRoutePattern is Local's SPA-aware route: the document names an .html or
@@ -40,10 +42,12 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	registry := newConsentRegistry(root.path, nil)
 	registry.Ready()
 	return &rootServer{
-		baseDir:  registry.BaseReal(),
-		registry: registry,
-		selected: runtime.Selected,
-		releases: runtime.Releases,
+		baseDir:     registry.BaseReal(),
+		registry:    registry,
+		localSource: cfg.localSource,
+		runtimeDir:  runtime.Dir,
+		selected:    runtime.Selected,
+		releases:    runtime.Releases,
 	}, nil
 }
 
@@ -52,12 +56,24 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Express matches its routes against the still-encoded path, so a `%2F`
+	// inside a segment does not split it here either.
+	rawPath := r.URL.EscapedPath()
+	favicon, isFavicon := faviconFiles[strings.TrimSuffix(rawPath, "/")]
+	_, isTemplate := templateFilename(rawPath)
+	getOrHead := r.Method == http.MethodGet || r.Method == http.MethodHead
 	var err error
 	switch {
-	case marked && (r.Method == http.MethodGet || r.Method == http.MethodHead) && urlPath == "/meta":
+	case marked && getOrHead && urlPath == "/meta":
 		err = s.serveMeta(w, r)
-	case marked && (r.Method == http.MethodGet || r.Method == http.MethodHead) && urlPath == "/page-state":
+	case marked && getOrHead && urlPath == "/page-state":
 		err = s.servePageState(w, r)
+	case getOrHead && isFavicon:
+		err = s.serveFavicon(w, r, favicon)
+	case getOrHead && isTemplate:
+		err = s.serveTemplate(w, r, rawPath)
+	case marked && getOrHead && strings.HasPrefix(rawPath, "/_/clayjs/"):
+		err = s.serveRuntimeAsset(w, r)
 	default:
 		err = s.serve(w, r, marked)
 	}

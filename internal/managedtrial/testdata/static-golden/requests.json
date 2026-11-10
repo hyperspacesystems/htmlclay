@@ -1,0 +1,21 @@
+[
+  { "name": "favicon-ico", "method": "GET", "path": "/favicon.ico", "headers": {} },
+  { "name": "favicon-svg", "method": "GET", "path": "/favicon.svg", "headers": {} },
+  { "name": "favicon-png", "method": "GET", "path": "/favicon.png", "headers": {} },
+  { "name": "favicon-svg-head", "method": "HEAD", "path": "/favicon.svg", "headers": {} },
+  { "name": "favicon-svg-conditional", "method": "GET", "path": "/favicon.svg", "headers": {}, "ifNoneMatchFrom": "favicon-svg" },
+  { "name": "favicon-marked", "method": "GET", "path": "/_/favicon.ico", "headers": {} },
+  { "name": "template-css", "method": "GET", "path": "/__templates/directory-listing.css", "headers": {} },
+  { "name": "template-css-head", "method": "HEAD", "path": "/__templates/directory-listing.css", "headers": {} },
+  { "name": "template-missing", "method": "GET", "path": "/__templates/missing.css", "headers": {} },
+  { "name": "template-wrong-type", "method": "GET", "path": "/__templates/x.js", "headers": {} },
+  { "name": "template-escape", "method": "GET", "path": "/__templates/..%2Fserver.js", "headers": {} },
+  { "name": "template-nested", "method": "GET", "path": "/__templates/a/b.css", "headers": {} },
+  { "name": "clayjs-js", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/clay.js", "headers": {} },
+  { "name": "clayjs-js-conditional", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/clay.js", "headers": {}, "ifNoneMatchFrom": "clayjs-js" },
+  { "name": "clayjs-js-head", "method": "HEAD", "path": "/_/clayjs/{CLAYJS_VERSION}/clay.js", "headers": {} },
+  { "name": "clayjs-css", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/page/themes/light-1.css", "headers": {} },
+  { "name": "clayjs-missing", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/missing.js", "headers": {} },
+  { "name": "clayjs-wrong-version", "method": "GET", "path": "/_/clayjs/0.0.0/clay.js", "headers": {} },
+  { "name": "clayjs-bare", "method": "GET", "path": "/clayjs/{CLAYJS_VERSION}/clay.js", "headers": {} }
+]

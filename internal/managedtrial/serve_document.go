@@ -233,6 +233,7 @@ func htmlCommentEnd(str string, from int) int {
 
 // runtimeRelease is one release Local bundles, as its own manifest names it.
 type runtimeRelease struct {
+	Dir      string
 	Selected string
 	Releases map[string]clayruntime.Release
 }
@@ -272,5 +273,5 @@ func loadRuntimeReleases(localSource string) (runtimeRelease, error) {
 	if _, ok := releases[manifest.Selected]; !ok {
 		return runtimeRelease{}, fmt.Errorf("--local-source: the selected release %q is not bundled", manifest.Selected)
 	}
-	return runtimeRelease{Selected: manifest.Selected, Releases: releases}, nil
+	return runtimeRelease{Dir: dir, Selected: manifest.Selected, Releases: releases}, nil
 }

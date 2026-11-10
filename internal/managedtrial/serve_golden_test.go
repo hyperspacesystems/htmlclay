@@ -105,6 +105,14 @@ func runGoldenCases(t *testing.T, caseDir, localSource string, normalize func(*s
 		t.Fatalf("requests.json holds %d cases, golden.json %d", len(requests), len(golden.Cases))
 	}
 
+	runtime, err := loadRuntimeReleases(localSource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range requests {
+		requests[i].Path = strings.ReplaceAll(requests[i].Path, "{CLAYJS_VERSION}", runtime.Selected)
+	}
+
 	root := serveGoldenRoot(t, caseDir)
 	handler, err := newRootHandler(rootSpec{id: "root-a", path: root}, config{localSource: localSource})
 	if err != nil {

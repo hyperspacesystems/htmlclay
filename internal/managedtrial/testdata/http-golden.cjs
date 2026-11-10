@@ -90,6 +90,18 @@ function substitutePort(value, port) {
   return String(value).split('{PORT}').join(String(port))
 }
 
+// clayjsVersion is the release the checkout's offline-runtime manifest selects,
+// the version every {CLAYJS_VERSION} in a case's path stands for.
+function clayjsVersion(out) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(out, 'src', 'main', 'offline-runtime', 'manifest.json'), 'utf8'))
+  if (!manifest.selected) throw new Error('the checkout names no selected ClayJS release')
+  return manifest.selected
+}
+
+function substituteVersion(value, version) {
+  return String(value).split('{CLAYJS_VERSION}').join(version)
+}
+
 function answerJSON(answer) {
   if (answer.body.text !== undefined) return JSON.parse(answer.body.text)
   return JSON.parse(Buffer.from(answer.body.base64, 'base64').toString('utf8'))
@@ -189,12 +201,14 @@ async function main() {
   }
   const port = new URL(entry.url).port
 
+  const version = clayjsVersion(checkout)
   const answers = []
   try {
     for (const testCase of requests) {
+      const path = substituteVersion(testCase.path, version)
       const headers = {}
       for (const name of Object.keys(testCase.headers || {})) {
-        headers[name] = substitutePort(testCase.headers[name], port)
+        headers[name] = substituteVersion(substitutePort(testCase.headers[name], port), version)
       }
       if (testCase.ifNoneMatchFrom) {
         const answered = answers.find((answer) => answer.name === testCase.ifNoneMatchFrom)
@@ -212,7 +226,7 @@ async function main() {
         }
         headers['If-Match'] = value
       }
-      answers.push(await request(Number(port), testCase, headers))
+      answers.push(await request(Number(port), { ...testCase, path }, headers))
     }
   } catch (error) {
     child.kill('SIGKILL')
