@@ -570,10 +570,24 @@ func (a *controlAPI) serveRead(w http.ResponseWriter, r *http.Request) {
 	}
 	unlock := fileLocks.lock(filePath)
 	defer unlock()
-	state, err := readFile(filePath)
+	answer, err := readSnapshot(root.baseDir, name, filePath)
 	if err != nil {
 		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
 		return
+	}
+	writeControlJSON(w, http.StatusOK, answer)
+}
+
+// readSnapshot is one document as GET /v1/read and every consultation send it,
+// read by a caller that holds the document's lock: the native exists,
+// checksum and bytes, then fileSha256, identity, and for a UTF-8 page document
+// its logical form and its stored page-state record exactly as the sidecar
+// holds it (rev, tag, generation, prev), because Local's page-state readers
+// resolve revisions and lineage from the whole record.
+func readSnapshot(baseDir, name, filePath string) (orderedObject, error) {
+	state, err := readFile(filePath)
+	if err != nil {
+		return nil, err
 	}
 	answer := orderedObject{{Key: "exists", Value: state != nil}}
 	if state == nil {
@@ -587,8 +601,7 @@ func (a *controlAPI) serveRead(w http.ResponseWriter, r *http.Request) {
 	}
 	identity, err := identityOfPath(filePath)
 	if err != nil {
-		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
-		return
+		return nil, err
 	}
 	var fileSha256 any
 	var identityValue any
@@ -607,19 +620,17 @@ func (a *controlAPI) serveRead(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if state != nil && pageExtension.MatchString(name) && utf8.Valid(state.Bytes) {
-		logicalText, err := logicalDocument(root.baseDir, name, string(state.Bytes))
+		logicalText, err := logicalDocument(baseDir, name, string(state.Bytes))
 		if err != nil {
-			writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
-			return
+			return nil, err
 		}
 		logical = controlBytesValue(logicalText)
-		record, err := readPageState(root.baseDir, name, PageStateReadOptions{Rev: pageRev(string(state.Bytes))})
+		stored, err := readStored(baseDir, name)
 		if err != nil {
-			writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
-			return
+			return nil, err
 		}
-		if record != nil {
-			sidecar = record
+		if stored != nil {
+			sidecar = stored
 		}
 	}
 	answer = append(answer,
@@ -628,7 +639,7 @@ func (a *controlAPI) serveRead(w http.ResponseWriter, r *http.Request) {
 		kv{Key: "logical", Value: logical},
 		kv{Key: "sidecar", Value: sidecar},
 	)
-	writeControlJSON(w, http.StatusOK, answer)
+	return answer, nil
 }
 
 // controlDurableBody is one POST /v1/durable.

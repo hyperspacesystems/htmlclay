@@ -161,6 +161,8 @@ type commitHost struct {
 	hooks    commitHooks
 	store    *snapshotStore
 	releases map[string]clayruntime.Release
+	// service is the JS service this root's writes consult, or nil.
+	service *serviceLink
 }
 
 // newCommitHost builds the commit core for one served folder.

@@ -59,6 +59,52 @@ func stalePageLineage(baseDir, name, content string) (bool, error) {
 	return false, nil
 }
 
+// rebaseVersions is what Local's rebaseStaleSave reads for one incoming page
+// (page-rebase.js:25-58), sent with an admit so the service never reads the
+// served folder: the newest staleVersionWindow version files whose page rev is
+// the incoming one, when the incoming page carries a rev, no page state, and a
+// rev other than the stored file's own record. Otherwise none. Unreadable
+// history is none, as it is for the rebase.
+func rebaseVersions(baseDir, name, incoming string) []orderedObject {
+	found := []orderedObject{}
+	if _, state := splitPage(incoming); state != nil {
+		return found
+	}
+	rev := pageRev(incoming)
+	if rev == "" {
+		return found
+	}
+	data, err := os.ReadFile(upathJoin(baseDir, name))
+	if err != nil {
+		return found
+	}
+	record, err := readPageState(baseDir, name, PageStateReadOptions{Rev: pageRev(string(data)), Exact: true})
+	if err != nil || record == nil || record.Rev == rev {
+		return found
+	}
+	versions, err := newestVersionFiles(baseDir, name)
+	if err != nil {
+		return found
+	}
+	if len(versions) > staleVersionWindow {
+		versions = versions[:staleVersionWindow]
+	}
+	for _, file := range versions {
+		versionBytes, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		versionHTML := string(versionBytes)
+		if strings.Contains(versionHTML, rev) && pageRev(versionHTML) == rev {
+			found = append(found, orderedObject{
+				{Key: "name", Value: filepath.Base(file)},
+				{Key: "bytes", Value: controlBytesValue(versionBytes)},
+			})
+		}
+	}
+	return found
+}
+
 // newestVersionFiles is a document's version files, newest first, as the save
 // path lists them: history is read only from inside the served folder, so a
 // versions directory reached through a symlink yields nothing.

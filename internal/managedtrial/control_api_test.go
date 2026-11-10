@@ -463,8 +463,8 @@ func TestControlReadCoherent(t *testing.T) {
 		t.Fatalf("read page.html: logical = %v, want the stored file with its merge state back", answer["logical"])
 	}
 	sidecar, ok := answer["sidecar"].(map[string]any)
-	if !ok || sidecar["rev"] != rev {
-		t.Fatalf("read page.html: sidecar = %v, want the record for %s", answer["sidecar"], rev)
+	if !ok || sidecar["v"] != float64(1) || sidecar["rev"] != rev || sidecar["tag"] != saveGoldenYJSTag {
+		t.Fatalf("read page.html: sidecar = %v, want the stored record for %s", answer["sidecar"], rev)
 	}
 	sum := sha256.Sum256([]byte(stored))
 	if answer["fileSha256"] != hex.EncodeToString(sum[:]) {

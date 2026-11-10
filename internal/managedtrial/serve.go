@@ -66,6 +66,10 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	tailwind := newTailwindHost(baseDir, cfg.localSource, registry)
 	hooks.tailwind = tailwind
 	host := newCommitHost(baseDir, root.id, registry, hooks, runtime.Releases)
+	host.service = cfg.service
+	if cfg.service != nil {
+		cfg.service.setRoot(root.id, baseDir)
+	}
 	worker, err := readSyncWorker(cfg.localSource)
 	if err != nil {
 		return nil, err

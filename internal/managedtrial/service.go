@@ -50,8 +50,9 @@ type serviceLink struct {
 	unconfirmed *unconfirmedSet
 	client      *http.Client
 
-	mu   sync.Mutex
-	peer servicePeer
+	mu    sync.Mutex
+	peer  servicePeer
+	roots map[string]string
 }
 
 func newServiceLink(events *eventRing, peer servicePeer) *serviceLink {
@@ -61,7 +62,29 @@ func newServiceLink(events *eventRing, peer servicePeer) *serviceLink {
 		unconfirmed: newUnconfirmedSet(),
 		client:      &http.Client{Transport: &http.Transport{Proxy: nil, DisableCompression: true}},
 		peer:        peer,
+		roots:       make(map[string]string),
 	}
+}
+
+// setRoot records one served root's real folder, where a recovered copy for
+// that root is written.
+func (l *serviceLink) setRoot(id, baseDir string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.roots[id] = baseDir
+}
+
+func (l *serviceLink) rootDir(id string) (string, bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	dir, ok := l.roots[id]
+	return dir, ok
+}
+
+// barred reports a document Go wrote without the service confirming it: every
+// semantic write to it waits for POST /v1/reconciled.
+func (l *serviceLink) barred(canonicalPath string) bool {
+	return l.unconfirmed.has(canonicalPath)
 }
 
 func (l *serviceLink) setPeer(peer servicePeer) {

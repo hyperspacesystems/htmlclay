@@ -162,8 +162,9 @@ not yet renamed into place. After `exists`, `checksum` and `bytes` it carries
 `fileSha256`, `identity` (`dev`, `ino`, `mtimeNs` as decimal strings, `size` as a
 number: Node's bigint `stat`, volume serial and file index on Windows), and, for a
 page document whose bytes are UTF-8, `logical` (the document with its merge state
-put back) and `sidecar` (the page-state record that state came from); each is null
-when it does not apply.
+put back) and `sidecar` (the stored page-state record as the sidecar holds it
+(`v`, `rev`, `tag`, `generation`, `prev`), or null); each is null when it does not
+apply.
 
 ## `POST /v1/durable`
 
@@ -265,3 +266,12 @@ the service's address after the supervisor restarts it. A page document Go
 wrote without the service confirming it is listed by `GET /v1/unconfirmed`,
 announced once by an `{"type":"unconfirmed","root","rel","cursor"}` frame, and
 lifted by `POST /v1/reconciled {root, name}`.
+
+A consultation (`consult.go`) sends `admit` with `current` (the `/v1/read`
+snapshot read under the held lock), `versions` (the version files a stale-save
+rebase reads) and the five lane headers, every one present; runs artifact
+batches until an answer is not pending (at most 16); writes `safety-version`
+beside the document's versions and `recovered-copy` under the named root's
+`.hyperclay/recovered/`; and sends `settle` with the written file's `identity`.
+A failed settle after the bytes landed marks the document unconfirmed and
+retries `abort settle-failed`.
