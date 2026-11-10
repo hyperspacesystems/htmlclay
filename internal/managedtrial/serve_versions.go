@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/pageadmission"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
 
@@ -348,9 +349,30 @@ func (s *rootServer) restoreVersion(r *http.Request, rel, versionName, filePath 
 	html := stripSaveToken(string(data))
 	// Without rooms: Local stamps the stored page record's revision onto these
 	// bytes so open tabs merge the restore onto the page they hold, and keeps the
-	// page-format floor the live document had established. The trial keeps no
-	// page state and announces no page format, so the version's bytes are the
-	// bytes written.
+	// page-format floor the live document had established.
+	state, err := readPageState(s.baseDir, rel, PageStateReadOptions{})
+	if err != nil {
+		return nil, "", err
+	}
+	// A restore is a person's explicit choice, so it is never refused; it only
+	// keeps the floor the document already established.
+	storedFloor := pageadmission.PageFormatFloor(string(currentBytes))
+	stamped := ""
+	if state != nil {
+		if _, versionState := splitPage(html); versionState == nil {
+			floor := storedFloor
+			if carried := pageadmission.PageFormatFloor(html); carried > floor {
+				floor = carried
+			}
+			stamped, _ = stampPageRev(html, state.Rev, floor)
+		}
+	}
+	edit := stamped != ""
+	if edit {
+		html = stamped
+	} else {
+		html = pageadmission.WithPageFormatFloor(html, storedFloor)
+	}
 	if !hasHTMLRoot(html) {
 		return &versionRefusal{
 			Status:  http.StatusUnprocessableEntity,
@@ -358,7 +380,7 @@ func (s *rootServer) restoreVersion(r *http.Request, rel, versionName, filePath 
 		}, "", nil
 	}
 
-	published, err := s.publishHostWrite(rel, filePath, html, false, true, "restore")
+	published, err := s.publishHostWrite(rel, filePath, html, edit, true, "restore")
 	if err != nil {
 		return nil, "", err
 	}

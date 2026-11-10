@@ -199,5 +199,63 @@
       "case": "versions-list",
       "json": "versions.1.name"
     }
+  },
+  {
+    "name": "save-paged-a",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/paged.html",
+      "Content-Type": "text/html"
+    },
+    "bodyFile": "paged-a.html"
+  },
+  {
+    "name": "save-paged-b",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/paged.html",
+      "Content-Type": "text/html"
+    },
+    "bodyFile": "paged-b.html"
+  },
+  {
+    "name": "paged-versions",
+    "method": "GET",
+    "path": "/_/versions/paged.html"
+  },
+  {
+    "name": "restore-paged",
+    "method": "POST",
+    "path": "/_/restore/paged.html/{FROM}",
+    "fromCase": {
+      "case": "paged-versions",
+      "json": "versions.1.name"
+    }
+  },
+  {
+    "name": "paged-restored",
+    "method": "GET",
+    "path": "/paged.html"
+  },
+  {
+    "name": "floored-versions",
+    "method": "GET",
+    "path": "/_/versions/floored.html"
+  },
+  {
+    "name": "restore-floored",
+    "method": "POST",
+    "path": "/_/restore/floored.html/{FROM}",
+    "fromCase": {
+      "case": "floored-versions",
+      "json": "versions.0.name"
+    }
+  },
+  {
+    "name": "floored-restored",
+    "method": "GET",
+    "path": "/floored.html"
   }
 ]
