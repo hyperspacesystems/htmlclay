@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -35,62 +36,47 @@ var structureKinds = map[string]structurePolicy{
 	"sync-trash": {retire: true, crossDevice: true},
 }
 
-// structureEntry is one resolved step: the canonical path a name is at now and
-// the canonical path it is going to.
+// structureEntry is one resolved step: the canonical path a name is at now, the
+// canonical path it is going to, the root-relative names the step gave, and the
+// page-state work Local's workspace command does after the step.
 type structureEntry struct {
-	FromPath string
-	ToPath   string
-	IsDir    bool
+	FromPath  string
+	ToPath    string
+	IsDir     bool
+	FromName  string
+	ToName    string
+	PageState string
 }
 
 // structureResult mirrors Local's structure answer. Err carries the failure
 // itself, which Local keeps as a non-enumerable `error` on the answer.
 type structureResult struct {
-	Outcome   string
-	Completed int
-	Reason    string
-	Err       error
+	Outcome      string
+	Completed    int
+	Reason       string
+	Err          error
+	PageStateErr error
 }
 
 // metadataDirName is Local's METADATA_DIR, the one folder a duplicate copies
 // whole without walking it.
 const metadataDirName = ".hyperclay"
 
-// structureLockPaths is every canonical path a structure change names, sorted
-// and deduplicated so two changes that touch the same two files always take
-// their locks in the same order.
-func structureLockPaths(entries []structureEntry) []string {
-	seen := make(map[string]bool, len(entries)*2)
-	paths := make([]string, 0, len(entries)*2)
-	for _, entry := range entries {
-		for _, path := range []string{entry.FromPath, entry.ToPath} {
-			if path == "" || seen[path] {
-				continue
-			}
-			seen[path] = true
-			paths = append(paths, path)
-		}
-	}
-	sort.Strings(paths)
-	return paths
-}
-
 // restructure is Local's restructure. There is no authority to plan against
 // without rooms, so the outcome is the moves themselves.
 func (h *commitHost) restructure(kind string, entries []structureEntry) (structureResult, error) {
+	unlock := h.locks.lockStructure()
+	defer unlock()
+	switch kind {
+	case "folder":
+		return h.makeFolders(entries), nil
+	case "empty-trash":
+		return h.emptyTrash(), nil
+	}
 	policy, ok := structureKinds[kind]
 	if !ok {
 		return structureResult{}, fmt.Errorf("Unknown structure kind: %s", kind)
 	}
-	unlocks := make([]func(), 0, 2*len(entries))
-	for _, path := range structureLockPaths(entries) {
-		unlocks = append(unlocks, h.locks.lock(path))
-	}
-	defer func() {
-		for _, unlock := range unlocks {
-			unlock()
-		}
-	}()
 
 	completed := 0
 	var failure error
@@ -116,7 +102,70 @@ func (h *commitHost) restructure(kind string, entries []structureEntry) (structu
 		}
 		completed = index + 1
 	}
+	for _, entry := range entries[:completed] {
+		var err error
+		switch {
+		case entry.PageState == "move" && entry.IsDir:
+			err = movePageStateDir(h.baseDir, entry.FromName, entry.ToName)
+		case entry.PageState == "move":
+			err = movePageState(h.baseDir, entry.FromName, entry.ToName)
+		case entry.PageState == "drop" && entry.IsDir:
+			err = dropPageStateDir(h.baseDir, entry.FromName)
+		case entry.PageState == "drop":
+			err = dropPageState(h.baseDir, entry.FromName)
+		}
+		if err != nil {
+			result := structureAnswer(completed, failure)
+			result.PageStateErr = err
+			return result, nil
+		}
+	}
 	return structureAnswer(completed, failure), nil
+}
+
+// makeFolders is the workspace's folder command: each step's destination made
+// as one new directory, never its parents, stopping at the first failure.
+func (h *commitHost) makeFolders(entries []structureEntry) structureResult {
+	completed := 0
+	var failure error
+	for index, entry := range entries {
+		if err := os.Mkdir(entry.ToPath, 0o777); err != nil {
+			failure = err
+			break
+		}
+		completed = index + 1
+	}
+	return structureAnswer(completed, failure)
+}
+
+// emptyTrash is the workspace's empty-trash command: everything inside the
+// root's `.trash/` removed, the folder itself kept. A missing Trash is already
+// empty; a `.trash` that is not a directory is refused as Local's
+// assertTrashDirectory refuses it.
+func (h *commitHost) emptyTrash() structureResult {
+	trash := filepath.Join(h.baseDir, ".trash")
+	info, err := os.Lstat(trash)
+	if errors.Is(err, fs.ErrNotExist) {
+		return structureAnswer(0, nil)
+	}
+	if err != nil {
+		return structureAnswer(0, err)
+	}
+	if !info.IsDir() {
+		return structureAnswer(0, &os.PathError{Op: "lstat", Path: trash, Err: syscall.ENOTDIR})
+	}
+	names, err := os.ReadDir(trash)
+	if err != nil {
+		return structureAnswer(0, err)
+	}
+	completed := 0
+	for _, entry := range names {
+		if err := os.RemoveAll(filepath.Join(trash, entry.Name())); err != nil {
+			return structureAnswer(completed, err)
+		}
+		completed++
+	}
+	return structureAnswer(completed, nil)
 }
 
 // structureAnswer is Local's outcome/completed/reason triple: a failure after

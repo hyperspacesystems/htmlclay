@@ -288,10 +288,66 @@ type controlStructureBody struct {
 	Steps []controlStructureStep `json:"steps"`
 }
 
-// controlStructureStep is one logical move: where a name is and where it goes.
+// controlStructureStep is one logical move: where a name is and where it goes,
+// plus the page-state work the step carries.
 type controlStructureStep struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	PageState string `json:"pageState"`
+}
+
+// validateStructureSteps is the shape check every restructure makes before any
+// op is begun: the workspace kinds carry their own step shapes, and a page-state
+// move or drop is only what its kind can carry.
+func validateStructureSteps(kind string, steps []controlStructureStep) string {
+	switch kind {
+	case "empty-trash":
+		if len(steps) != 0 {
+			return "empty-trash takes no steps"
+		}
+		return ""
+	case "folder":
+		for _, step := range steps {
+			if step.From != "" || step.To == "" {
+				return "folder steps carry only a destination"
+			}
+			if step.PageState != "" {
+				return "folder steps carry no page state"
+			}
+		}
+		return ""
+	}
+	for _, step := range steps {
+		if step.From == "" || step.To == "" {
+			return "structure steps need from and to"
+		}
+		switch step.PageState {
+		case "":
+		case "move":
+			if kind != "move" && kind != "sync-move" {
+				return "pageState move needs kind move or sync-move"
+			}
+		case "drop":
+			if kind != "trash" && kind != "sync-trash" {
+				return "pageState drop needs kind trash or sync-trash"
+			}
+		default:
+			return "Unknown pageState: " + step.PageState
+		}
+	}
+	return ""
+}
+
+// structurePageStateValue is the answer's pageState: nothing when the page state
+// was carried, else the failure's code as `reason` reports it.
+func structurePageStateValue(err error) any {
+	if err == nil {
+		return nil
+	}
+	if code := structureErrorCode(err); code != "" && code != "failed" {
+		return code
+	}
+	return err.Error()
 }
 
 // serveRestructure is POST /v1/restructure: G6b's restructure over the paths the
@@ -305,12 +361,20 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if message := validateStructureSteps(body.Kind, body.Steps); message != "" {
+		writeControlJSON(w, http.StatusBadRequest, controlError{Error: message})
+		return
+	}
 	entries := make([]structureEntry, 0, len(body.Steps))
 	for _, step := range body.Steps {
-		fromPath, err := resolveWritePath(root.registry, step.From)
-		if err != nil {
-			writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
-			return
+		fromPath := ""
+		if step.From != "" {
+			resolved, err := resolveWritePath(root.registry, step.From)
+			if err != nil {
+				writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
+				return
+			}
+			fromPath = resolved
 		}
 		toPath, err := resolveWritePath(root.registry, step.To)
 		if err != nil {
@@ -318,10 +382,19 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		isDir := false
-		if info, statErr := os.Stat(fromPath); statErr == nil {
-			isDir = info.IsDir()
+		if fromPath != "" {
+			if info, statErr := os.Stat(fromPath); statErr == nil {
+				isDir = info.IsDir()
+			}
 		}
-		entries = append(entries, structureEntry{FromPath: fromPath, ToPath: toPath, IsDir: isDir})
+		entries = append(entries, structureEntry{
+			FromPath:  fromPath,
+			ToPath:    toPath,
+			IsDir:     isDir,
+			FromName:  step.From,
+			ToName:    step.To,
+			PageState: step.PageState,
+		})
 	}
 
 	opID := body.OpID
@@ -345,6 +418,7 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 		{Key: "outcome", Value: result.Outcome},
 		{Key: "completed", Value: result.Completed},
 		{Key: "reason", Value: nullableString(result.Reason)},
+		{Key: "pageState", Value: structurePageStateValue(result.PageStateErr)},
 		{Key: "opId", Value: opID},
 		{Key: "cursor", Value: cursor},
 	})
@@ -371,6 +445,23 @@ func (a *controlAPI) servePageState(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	var unlock func()
+	switch body.Op {
+	case "write":
+		filePath, resolveErr := resolveWritePath(root.registry, body.Name)
+		if resolveErr != nil {
+			writeControlJSON(w, controlErrorStatus(resolveErr), controlError{Error: resolveErr.Error()})
+			return
+		}
+		unlock = fileLocks.lock(filePath)
+	case "move", "moveDir", "drop", "dropDir":
+		unlock = fileLocks.lockStructure()
+	default:
+		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "Unknown page-state operation: " + body.Op})
+		return
+	}
+	defer unlock()
+
 	opID := body.OpID
 	if opID == "" {
 		opID = newOpID()
@@ -392,9 +483,6 @@ func (a *controlAPI) servePageState(w http.ResponseWriter, r *http.Request) {
 		err = dropPageState(root.baseDir, body.Name)
 	case "dropDir":
 		err = dropPageStateDir(root.baseDir, body.Name)
-	default:
-		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "Unknown page-state operation: " + body.Op})
-		return
 	}
 	if err != nil {
 		root.events.finishOp(opID, "refused", "", "")

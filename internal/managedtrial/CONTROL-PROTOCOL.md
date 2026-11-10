@@ -77,13 +77,22 @@ answers `200` with `outcome: "indeterminate"`, never `committed`.
   "steps": [ { "from": "a.html", "to": "b.html" } ] }
 ```
 
-`kind` is one of G6b's `STRUCTURE_KINDS`: `move`, `trash`, `duplicate`,
-`sync-move`, `sync-trash`. Go resolves both names of every step and runs G6b's
-`restructure`, answering Local's `StructureResult`:
+`kind` is one of G6b's `STRUCTURE_KINDS` (`move`, `trash`, `duplicate`,
+`sync-move`, `sync-trash`) or one of the two workspace kinds: `folder`, whose
+steps carry only `to` and each make one new directory (never its parents), and
+`empty-trash`, which takes no steps and removes everything inside the root's
+`.trash/`. A step may carry `"pageState": "move"` (kinds `move`, `sync-move`) or
+`"pageState": "drop"` (kinds `trash`, `sync-trash`): after the moves, every
+completed step's page state is moved or dropped (the folder form for a
+directory) inside the same exclusive section, as Local's workspace command does
+after a completed step. A restructure holds the process-wide structure gate, so
+no document write and no other structure change runs until it answers. Go
+resolves both names of every step and answers Local's `StructureResult`:
 
 ```json
 { "outcome": "committed" | "partial" | "failed",
   "completed": 1, "reason": null | "ENOENT" | "…",
+  "pageState": null | "ENOENT" | "…",
   "opId": "…", "cursor": "<epoch>:<seq>" }
 ```
 
@@ -106,7 +115,9 @@ where the stream stands when it answers.
 - `dropDir` removes a folder's mirror.
 
 Each returns nothing in Local, so the answer body is `null` with status `200`.
-Any other `op` is `400` with `Unknown page-state operation: <op>`.
+Any other `op` is `400` with `Unknown page-state operation: <op>`. A `write`
+holds the document's lock; `move`, `moveDir`, `drop` and `dropDir` hold the
+structure gate.
 
 ## `POST /v1/snapshot/take`
 

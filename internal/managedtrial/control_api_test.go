@@ -292,3 +292,39 @@ func TestControlCommitRoundTrip(t *testing.T) {
 		t.Fatalf("checkpoint: status = %d, answer = %v", status, answer)
 	}
 }
+
+// TestControlRestructureWorkspaceKinds proves the route's shape check and the
+// two workspace kinds: a page state its kind cannot carry or an empty-trash with
+// steps is a 400 before anything runs, and a folder step makes its directory
+// and answers no page state.
+func TestControlRestructureWorkspaceKinds(t *testing.T) {
+	root := controlTestRoot(t, "root-0")
+	server := controlTestServer(t, root)
+
+	status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/restructure", map[string]any{
+		"root": "root-0", "kind": "move",
+		"steps": []map[string]any{{"from": "a.html", "to": "b.html", "pageState": "drop"}},
+	})
+	if status != http.StatusBadRequest || answer["error"] == nil {
+		t.Fatalf("move with a page-state drop: status = %d, answer = %v, want 400", status, answer)
+	}
+
+	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/restructure", map[string]any{
+		"root": "root-0", "kind": "empty-trash",
+		"steps": []map[string]any{{"from": "a.html", "to": "b.html"}},
+	})
+	if status != http.StatusBadRequest || answer["error"] == nil {
+		t.Fatalf("empty-trash with a step: status = %d, answer = %v, want 400", status, answer)
+	}
+
+	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/restructure", map[string]any{
+		"root": "root-0", "kind": "folder",
+		"steps": []map[string]any{{"to": "made"}},
+	})
+	if status != http.StatusOK || answer["outcome"] != "committed" || answer["pageState"] != nil {
+		t.Fatalf("folder: status = %d, answer = %v, want committed with no page state", status, answer)
+	}
+	if info, err := os.Stat(filepath.Join(root.baseDir, "made")); err != nil || !info.IsDir() {
+		t.Fatalf("folder made no directory: %v", err)
+	}
+}
