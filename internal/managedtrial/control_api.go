@@ -102,6 +102,8 @@ func (a *controlAPI) route(r *http.Request) http.HandlerFunc {
 		return a.serveRead
 	case r.URL.Path == "/v1/durable" && r.Method == http.MethodPost:
 		return a.serveDurable
+	case r.URL.Path == "/v1/fault" && r.Method == http.MethodPost:
+		return a.serveFault
 	case strings.HasPrefix(r.URL.Path, "/v1/op/") && (r.Method == http.MethodGet || r.Method == http.MethodHead):
 		return a.serveOp
 	case r.URL.Path == "/v1/events" && (r.Method == http.MethodGet || r.Method == http.MethodHead):
@@ -316,6 +318,11 @@ func (a *controlAPI) serveCommit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		root.events.finishOp(opID, "refused", "", "")
 		writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
+		return
+	}
+
+	if takeFault(faultDropReply, body.Name) {
+		dropControlReply(w)
 		return
 	}
 
@@ -705,6 +712,48 @@ func syncDurableDir(dir string) error {
 		return err
 	}
 	return nil
+}
+
+// controlFaultBody is one POST /v1/fault: the fault point a harness arms, the
+// logical path it fires for, and how many writes take it.
+type controlFaultBody struct {
+	Point string `json:"point"`
+	Rel   string `json:"rel"`
+	Count *int   `json:"count"`
+}
+
+// controlFaultMaxCount bounds how many writes one arming covers.
+const controlFaultMaxCount = 100
+
+// serveFault is POST /v1/fault: a harness arms one of the trial's fault points,
+// or clears them all.
+func (a *controlAPI) serveFault(w http.ResponseWriter, r *http.Request) {
+	var body controlFaultBody
+	if !decodeControlJSON(w, r, &body) {
+		return
+	}
+	if body.Point == "clear" {
+		clearFaults()
+		writeControlJSON(w, http.StatusOK, orderedObject{{Key: "armed", Value: 0}})
+		return
+	}
+	if !faultPoints[body.Point] {
+		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "unknown fault point: " + body.Point})
+		return
+	}
+	if body.Rel == "" {
+		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "fault needs a rel"})
+		return
+	}
+	count := 1
+	if body.Count != nil {
+		count = *body.Count
+	}
+	if count < 1 || count > controlFaultMaxCount {
+		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "fault count out of range"})
+		return
+	}
+	writeControlJSON(w, http.StatusOK, orderedObject{{Key: "armed", Value: armFault(body.Point, body.Rel, count)}})
 }
 
 // serveDurable is POST /v1/durable: the proof a checkpoint's bytes are durable

@@ -316,6 +316,25 @@ Outcomes are kept for this process only: the last 10,000, or 10 minutes,
 whichever is smaller. Commits and restructures and page-state operations are all
 recorded; an operation that failed is recorded as `refused`.
 
+## `POST /v1/fault`
+
+```json
+{ "point": "kill-before-rename", "rel": "doc.html", "count": 1 }
+```
+
+```json
+{ "armed": 1 } | { "armed": 0 }
+```
+
+A harness arms one of the trial's fault points, and the next matching write takes
+it: `kill-before-rename` and `kill-after-rename` kill the process on either side
+of the replacing rename, `durable-fail` makes the directory sync after the rename
+fail so the room is left dirty, and `drop-reply` closes a commit's connection
+with no answer so a retry must ask `/v1/op` first. `rel` is the logical document
+path (or path suffix) the fault fires for, `count` is how many writes take it
+(1 to 100, 1 when absent), and `point: "clear"` disarms every fault and answers
+`{"armed":0}`. Anything else is a 400.
+
 ## `GET /v1/events?since=<cursor>`
 
 Newline-delimited JSON frames. A cursor is `<epoch>:<seq>`: the epoch is 16

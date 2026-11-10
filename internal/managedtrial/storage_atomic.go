@@ -161,15 +161,25 @@ func atomicWriteFile(filePath string, content []byte, beforeRename func() error,
 		os.Remove(tmpPath)
 		return err
 	}
+	if takeFault(faultKillBeforeRename, filePath) {
+		killSelf()
+	}
 	if err := renameWithRetry(tmpPath, filePath, beforeRename); err != nil {
 		os.Remove(tmpPath)
 		return err
 	}
 
-	if err := atomicDirSync(dir); err != nil {
-		if durable && !dirSyncUnsupported(err, runtime.GOOS) {
-			return &AfterRenameError{Err: err}
+	syncErr := atomicDirSync(dir)
+	if syncErr == nil && durable && takeFault(faultDurableFail, filePath) {
+		syncErr = &os.PathError{Op: "fsync", Path: dir, Err: syscall.EIO}
+	}
+	if syncErr != nil {
+		if durable && !dirSyncUnsupported(syncErr, runtime.GOOS) {
+			return &AfterRenameError{Err: syncErr}
 		}
+	}
+	if takeFault(faultKillAfterRename, filePath) {
+		killSelf()
 	}
 	return nil
 }
