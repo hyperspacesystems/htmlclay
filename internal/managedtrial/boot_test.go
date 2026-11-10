@@ -222,6 +222,16 @@ func TestRefuseLiveRoot(t *testing.T) {
 		t.Fatalf("sibling %q was refused: %v", sibling, err)
 	}
 
+	for _, parent := range []string{filepath.Dir(live), filepath.Dir(filepath.Dir(live)), string(filepath.Separator)} {
+		err := RefuseLiveRoot(parent, live)
+		if err == nil {
+			t.Fatalf("parent %q of the live folder was not refused", parent)
+		}
+		if !strings.Contains(err.Error(), "contains") || !strings.Contains(err.Error(), "LOCAL_APPS") {
+			t.Fatalf("parent %q error %q does not say it contains LOCAL_APPS", parent, err)
+		}
+	}
+
 	defaultLive, err := DefaultLiveRoot()
 	if err != nil {
 		t.Fatalf("DefaultLiveRoot: %v", err)

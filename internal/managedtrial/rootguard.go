@@ -12,10 +12,11 @@ import (
 	"strings"
 )
 
-// RefuseLiveRoot fails when root is, or resolves inside, the live Hyperclay
-// Local apps folder. That folder syncs to hyperclay.com within seconds, so a
-// trial host writing there would change production. It answers from the paths
-// alone, so it never depends on the folder existing.
+// RefuseLiveRoot fails when root is, resolves inside, or contains the live
+// Hyperclay Local apps folder. That folder syncs to hyperclay.com within
+// seconds, so a trial host writing there would change production, and a root
+// above it serves its documents as ordinary children. It answers from the
+// paths alone, so it never depends on the folder existing.
 func RefuseLiveRoot(root, liveRoot string) error {
 	resolved, err := realPath(root)
 	if err != nil {
@@ -25,10 +26,25 @@ func RefuseLiveRoot(root, liveRoot string) error {
 	if err != nil {
 		return err
 	}
-	if resolved == live || strings.HasPrefix(resolved, live+string(filepath.Separator)) {
+	if within(resolved, live) {
 		return errors.New("--root " + root + " is inside " + live + " (LOCAL_APPS), which syncs to hyperclay.com; refusing to serve it")
 	}
+	if within(live, resolved) {
+		return errors.New("--root " + root + " contains " + live + " (LOCAL_APPS), which syncs to hyperclay.com; refusing to serve it")
+	}
 	return nil
+}
+
+// within reports whether path is dir or lies below it.
+func within(path, dir string) bool {
+	if path == dir {
+		return true
+	}
+	prefix := dir
+	if !strings.HasSuffix(prefix, string(filepath.Separator)) {
+		prefix += string(filepath.Separator)
+	}
+	return strings.HasPrefix(path, prefix)
 }
 
 // DefaultLiveRoot is the live Hyperclay Local apps folder for this user.
