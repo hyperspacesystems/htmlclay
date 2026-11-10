@@ -97,9 +97,14 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 			closeBound()
 			return fmt.Errorf("--root %q: %w", root.path, err)
 		}
+		handler, err := newRootHandler(root, cfg)
+		if err != nil {
+			closeBound()
+			return err
+		}
 		bound = append(bound, boundServer{
 			srv: &http.Server{
-				Handler:           newRootHandler(ln.Addr().(*net.TCPAddr).Port),
+				Handler:           handler,
 				ReadHeaderTimeout: readHeaderLimit,
 			},
 			ln: ln,
@@ -279,15 +284,8 @@ func listenAddress(port, index int) string {
 	return fmt.Sprintf("127.0.0.1:%d", port+index)
 }
 
-// newRootHandler serves one root. Later steps replace it with the real routes.
-func newRootHandler(rootPort int) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, _, ok := gate(w, r, rootPort); !ok {
-			return
-		}
-		poweredBy(w)
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = io.WriteString(w, "Not found")
-	})
+// newRootHandler serves one root: Local's static catch-all, its document lane
+// and its folder listings.
+func newRootHandler(root rootSpec, cfg config) (http.Handler, error) {
+	return newRootServer(root, cfg)
 }

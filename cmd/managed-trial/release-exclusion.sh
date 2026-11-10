@@ -19,10 +19,11 @@ trap 'rm -rf "$tmp"' EXIT
 
 status=0
 
-# 1. No untagged file may change relative to the base commit.
+# 1. No untagged file may change relative to the base commit. Paths are read
+# unquoted so a non-ASCII name is still compared as the path it is.
 {
-	git diff --name-only "$base" -- .
-	git ls-files --others --exclude-standard
+	git -c core.quotePath=false diff --name-only "$base" -- .
+	git -c core.quotePath=false ls-files --others --exclude-standard
 } | sort -u >"$tmp/changed.txt"
 : >"$tmp/untagged.txt"
 while IFS= read -r file; do

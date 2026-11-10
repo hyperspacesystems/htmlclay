@@ -1,0 +1,802 @@
+{
+  "cases": [
+    {
+      "name": "root",
+      "request": {
+        "method": "GET",
+        "path": "/",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "14223",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"378f-Ah/A8DtJOuIl40oeBrGL0fY5RDE\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Home - Hyperclay Local</title>\n  <link rel=\"icon\" href=\"/favicon.ico\" sizes=\"32x32\">\n  <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">\n  <link rel=\"icon\" href=\"/favicon.png\" type=\"image/png\" sizes=\"32x32\">\n  <link rel=\"stylesheet\" href=\"/__templates/directory-listing.css\">\n</head>\n<body>\n  <div class=\"container\">\n    <header class=\"header\">\n      <nav class=\"breadcrumbs\">\n                  <span class=\"breadcrumb-icon\">\n            <svg width=\"30\" viewBox=\"0 0 23 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n              <path d=\"M1.3 18.3V1.6h8.3v3.1h11.5v13.6H1.3Z\" stroke=\"#B7BEFB\" stroke-width=\"2.3\"/>\n            </svg>\n          </span>\n          <span class=\"breadcrumb-current\">Home</span>\n              </nav>\n      <div class=\"settings-container\">\n        <button class=\"settings-btn\" onclick=\"this.parentElement.classList.toggle('open')\">\n          <svg style=\"width:100%\" viewBox=\"0 0 1417 1291\" fill=\"#B7BEFB\" xmlns=\"http://www.w3.org/2000/svg\">\n            <path d=\"M0 105.107H103V1176.11H0V105.107Z\"/>\n            <path d=\"M1313.78 105.107H1416.78V1186.5H1313.78V105.107Z\"/>\n            <path d=\"M103.723 0H1313.72V105H103.723V0Z\"/>\n            <path d=\"M1225.28 1190.56H189.496V1069H102.054V1290.33H1309.28V1186.5H1314.72V1069H1225.28L1225.28 1190.56Z\"/>\n            <path d=\"M251.509 952.893H1165.28V251.56H251.496V952L251.509 952.893ZM873.736 448.893H990.179V565.336H873.736V448.893ZM563.509 699.56H852.403V816.003H563.509V699.56ZM425.736 448.893H542.179V565.336H425.736V448.893Z\"/>\n          </svg>\n        </button>\n        <div class=\"settings-menu\">\n          <a href=\"https://hyperclaylocal.com/docs/guide/sync/#connect-your-sync-key\" target=\"_blank\" class=\"menu-item\">Get sync key</a>\n          <a href=\"https://github.com/panphora/hyperclay-platform\" target=\"_blank\" class=\"menu-item\">Report issues</a>\n          <a href=\"https://hyperclaylocal.com/\" target=\"_blank\" class=\"menu-item\">Hyperclay Local</a>\n        </div>\n      </div>\n    </header>\n\n    <div class=\"file-list\">\n              <hr class=\"divider-dashed\">\n\n                  <a href=\"/assets-board\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n              <svg viewBox=\"0 0 23 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                <path d=\"M1.3 18.3V1.6h8.3v3.1h11.5v13.6H1.3Z\" stroke=\"#fff\" stroke-width=\"2.3\"/>\n              </svg>\n            </span>\n            <span class=\"list-item-link\">assets-<wbr>board</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/empty-folder\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n              <svg viewBox=\"0 0 23 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                <path d=\"M1.3 18.3V1.6h8.3v3.1h11.5v13.6H1.3Z\" stroke=\"#fff\" stroke-width=\"2.3\"/>\n              </svg>\n            </span>\n            <span class=\"list-item-link\">empty-<wbr>folder</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/folder\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n              <svg viewBox=\"0 0 23 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                <path d=\"M1.3 18.3V1.6h8.3v3.1h11.5v13.6H1.3Z\" stroke=\"#fff\" stroke-width=\"2.3\"/>\n              </svg>\n            </span>\n            <span class=\"list-item-link\">folder</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/node_modules\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n              <svg viewBox=\"0 0 23 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                <path d=\"M1.3 18.3V1.6h8.3v3.1h11.5v13.6H1.3Z\" stroke=\"#fff\" stroke-width=\"2.3\"/>\n              </svg>\n            </span>\n            <span class=\"list-item-link\">node_<wbr>modules</span>\n          </a>\n          <hr class=\"divider-dashed\">\n        \n                  <a href=\"/a%20b.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">a b<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/a.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">a<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/b.htmlclay\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">b<wbr>.htmlclay</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/bom.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">bom<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/caf%C3%A9.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">café<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/img.png\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 48 50\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M28.0984 3.6887V17.7537H40.7084\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                  <path d=\"M40.4368 14.9504L28.0596 3H8V46H40.4368V14.9504Z\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">img<wbr>.png</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/index.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">index<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/latin1.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">latin<wbr>1<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/noext\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 48 50\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M28.0984 3.6887V17.7537H40.7084\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                  <path d=\"M40.4368 14.9504L28.0596 3H8V46H40.4368V14.9504Z\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">noext</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/paged.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">paged<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/style.css\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 48 50\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M28.0984 3.6887V17.7537H40.7084\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                  <path d=\"M40.4368 14.9504L28.0596 3H8V46H40.4368V14.9504Z\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">style<wbr>.css</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/x.svg\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 48 50\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M28.0984 3.6887V17.7537H40.7084\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                  <path d=\"M40.4368 14.9504L28.0596 3H8V46H40.4368V14.9504Z\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">x<wbr>.svg</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  </div>\n\n  </div>\n  <script>\n    document.addEventListener('click', (e) => {\n      const container = document.querySelector('.settings-container');\n      if (!container.contains(e.target)) {\n        container.classList.remove('open');\n      }\n    });\n  </script>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "name": "root-head",
+      "request": {
+        "method": "HEAD",
+        "path": "/",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "14223",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"378f-Ah/A8DtJOuIl40oeBrGL0fY5RDE\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "index",
+      "request": {
+        "method": "GET",
+        "path": "/index.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "162",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"a2-dzB7wFM7ok8/U7fS6YYUJdBhOyE\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html documentetag=\"a7af6f9d6d2b5d6c\" lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>Home</title>\n</head>\n<body><h1>Home</h1></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "a-html",
+      "request": {
+        "method": "GET",
+        "path": "/a.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "429",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html documentetag=\"65a6e4ce7d3e7828\" lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>A</title>\n  <script type=\"application/json\" id=\"clay-runtime-map\" clay=\"no-save no-watch no-snapshot\">{\"schema\":1,\"version\":\"1.23.0\",\"entries\":[{\"original\":\"https://clayjs.com/v1/clay.js\",\"local\":\"/_/clayjs/1.23.0/clay.js\"}]}</script><script src=\"/_/clayjs/1.23.0/clay.js\"></script>\n</head>\n<body><h1>A</h1></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "a-html-document",
+      "request": {
+        "method": "GET",
+        "path": "/a.html",
+        "headers": {
+          "Sec-Fetch-Dest": "document"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "429",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html documentetag=\"65a6e4ce7d3e7828\" lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>A</title>\n  <script type=\"application/json\" id=\"clay-runtime-map\" clay=\"no-save no-watch no-snapshot\">{\"schema\":1,\"version\":\"1.23.0\",\"entries\":[{\"original\":\"https://clayjs.com/v1/clay.js\",\"local\":\"/_/clayjs/1.23.0/clay.js\"}]}</script><script src=\"/_/clayjs/1.23.0/clay.js\"></script>\n</head>\n<body><h1>A</h1></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "a-html-source",
+      "request": {
+        "method": "GET",
+        "path": "/a.html",
+        "headers": {
+          "Clay-Source": "1"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "212",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"d4-8OQY1A8QwjNMmsLFizFJYgQMRc4\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html documentetag=\"65a6e4ce7d3e7828\" lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>A</title>\n  <script src=\"https://clayjs.com/v1/clay.js\"></script>\n</head>\n<body><h1>A</h1></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "a-html-conditional",
+      "request": {
+        "method": "GET",
+        "path": "/a.html",
+        "headers": {
+          "If-None-Match": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\""
+        },
+        "ifNoneMatchFrom": "a-html"
+      },
+      "status": 304,
+      "headers": {
+        "etag": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "a-html-head",
+      "request": {
+        "method": "HEAD",
+        "path": "/a.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "429",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "b-htmlclay",
+      "request": {
+        "method": "GET",
+        "path": "/b.htmlclay",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "152",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"98-x1Of1uHm6r3sUMXAZeYV8y1Yudg\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!doctype html>\n<html documentetag=\"fe81df30b0c75eae\" lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>B</title>\n</head>\n<body>\n<p>b</p>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "name": "latin1",
+      "request": {
+        "method": "GET",
+        "path": "/latin1.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "157",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"9d-Rpc3B9PdJXDImyGK6DfIrib+ndM\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "base64": "PCFET0NUWVBFIGh0bWw+CjxodG1sIGRvY3VtZW50ZXRhZz0iYjhhMjI4ODk3YzUxZmRmMSIgbGFuZz0iZnIiPgo8aGVhZD48bWV0YSBjaGFyc2V0PSJpc28tODg1OS0xIj48dGl0bGU+Q2FmPC90aXRsZT48L2hlYWQ+Cjxib2R5PjxwPmNhZuk8L3A+PC9ib2R5Pgo8L2h0bWw+Cg=="
+      }
+    },
+    {
+      "name": "bom",
+      "request": {
+        "method": "GET",
+        "path": "/bom.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "154",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"9a-DjVmWa6z7qABnVha6xCw4k8vu/w\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "﻿<!DOCTYPE html>\n<html documentetag=\"3916ee7eed901a39\" lang=\"en\">\n<head><meta charset=\"utf-8\"><title>BOM</title></head>\n<body><p>bom</p></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "space",
+      "request": {
+        "method": "GET",
+        "path": "/a%20b.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "151",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"97-lhfItcNyPFPUB1RCjd+XbIRpOCM\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html documentetag=\"010cb1b6422d6d9d\" lang=\"en\">\n<head><meta charset=\"utf-8\"><title>A B</title></head>\n<body><p>a b</p></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "unicode",
+      "request": {
+        "method": "GET",
+        "path": "/caf%C3%A9.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "155",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"9b-DpXaWpmnm6Cz2b7JhYRjexvyZj0\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html documentetag=\"e213e797c9fce539\" lang=\"fr\">\n<head><meta charset=\"utf-8\"><title>Café</title></head>\n<body><p>café</p></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "paged",
+      "request": {
+        "method": "GET",
+        "path": "/paged.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "423",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1a7-5p/hjIVDk3Dc58wOap6XP4bjhQo\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!doctype html>\n<html documentetag=\"313361cb66b8d948\">\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "name": "folder-slash",
+      "request": {
+        "method": "GET",
+        "path": "/folder/",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "4177",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1051-Qo2z/XRI3lQWokp9EgpyxKutJXQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>folder - Hyperclay Local</title>\n  <link rel=\"icon\" href=\"/favicon.ico\" sizes=\"32x32\">\n  <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">\n  <link rel=\"icon\" href=\"/favicon.png\" type=\"image/png\" sizes=\"32x32\">\n  <link rel=\"stylesheet\" href=\"/__templates/directory-listing.css\">\n</head>\n<body>\n  <div class=\"container\">\n    <header class=\"header\">\n      <nav class=\"breadcrumbs\">\n                  <a href=\"/\" class=\"breadcrumb-icon\">\n            <svg width=\"30\" viewBox=\"0 0 23 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n              <path d=\"M1.3 18.3V1.6h8.3v3.1h11.5v13.6H1.3Z\" stroke=\"#B7BEFB\" stroke-width=\"2.3\"/>\n            </svg>\n          </a>\n                      <span class=\"breadcrumb-separator\">/</span>\n                          <span class=\"breadcrumb-current\">folder</span>\n                                    </nav>\n      <div class=\"settings-container\">\n        <button class=\"settings-btn\" onclick=\"this.parentElement.classList.toggle('open')\">\n          <svg style=\"width:100%\" viewBox=\"0 0 1417 1291\" fill=\"#B7BEFB\" xmlns=\"http://www.w3.org/2000/svg\">\n            <path d=\"M0 105.107H103V1176.11H0V105.107Z\"/>\n            <path d=\"M1313.78 105.107H1416.78V1186.5H1313.78V105.107Z\"/>\n            <path d=\"M103.723 0H1313.72V105H103.723V0Z\"/>\n            <path d=\"M1225.28 1190.56H189.496V1069H102.054V1290.33H1309.28V1186.5H1314.72V1069H1225.28L1225.28 1190.56Z\"/>\n            <path d=\"M251.509 952.893H1165.28V251.56H251.496V952L251.509 952.893ZM873.736 448.893H990.179V565.336H873.736V448.893ZM563.509 699.56H852.403V816.003H563.509V699.56ZM425.736 448.893H542.179V565.336H425.736V448.893Z\"/>\n          </svg>\n        </button>\n        <div class=\"settings-menu\">\n          <a href=\"https://hyperclaylocal.com/docs/guide/sync/#connect-your-sync-key\" target=\"_blank\" class=\"menu-item\">Get sync key</a>\n          <a href=\"https://github.com/panphora/hyperclay-platform\" target=\"_blank\" class=\"menu-item\">Report issues</a>\n          <a href=\"https://hyperclaylocal.com/\" target=\"_blank\" class=\"menu-item\">Hyperclay Local</a>\n        </div>\n      </div>\n    </header>\n\n    <div class=\"file-list\">\n              <hr class=\"divider-dashed\">\n\n        \n                  <a href=\"/folder/app.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">app<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/folder/notes.txt\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 48 50\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M28.0984 3.6887V17.7537H40.7084\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                  <path d=\"M40.4368 14.9504L28.0596 3H8V46H40.4368V14.9504Z\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">notes<wbr>.txt</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  </div>\n\n  </div>\n  <script>\n    document.addEventListener('click', (e) => {\n      const container = document.querySelector('.settings-container');\n      if (!container.contains(e.target)) {\n        container.classList.remove('open');\n      }\n    });\n  </script>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "name": "folder",
+      "request": {
+        "method": "GET",
+        "path": "/folder",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "4177",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1051-Qo2z/XRI3lQWokp9EgpyxKutJXQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>folder - Hyperclay Local</title>\n  <link rel=\"icon\" href=\"/favicon.ico\" sizes=\"32x32\">\n  <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">\n  <link rel=\"icon\" href=\"/favicon.png\" type=\"image/png\" sizes=\"32x32\">\n  <link rel=\"stylesheet\" href=\"/__templates/directory-listing.css\">\n</head>\n<body>\n  <div class=\"container\">\n    <header class=\"header\">\n      <nav class=\"breadcrumbs\">\n                  <a href=\"/\" class=\"breadcrumb-icon\">\n            <svg width=\"30\" viewBox=\"0 0 23 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n              <path d=\"M1.3 18.3V1.6h8.3v3.1h11.5v13.6H1.3Z\" stroke=\"#B7BEFB\" stroke-width=\"2.3\"/>\n            </svg>\n          </a>\n                      <span class=\"breadcrumb-separator\">/</span>\n                          <span class=\"breadcrumb-current\">folder</span>\n                                    </nav>\n      <div class=\"settings-container\">\n        <button class=\"settings-btn\" onclick=\"this.parentElement.classList.toggle('open')\">\n          <svg style=\"width:100%\" viewBox=\"0 0 1417 1291\" fill=\"#B7BEFB\" xmlns=\"http://www.w3.org/2000/svg\">\n            <path d=\"M0 105.107H103V1176.11H0V105.107Z\"/>\n            <path d=\"M1313.78 105.107H1416.78V1186.5H1313.78V105.107Z\"/>\n            <path d=\"M103.723 0H1313.72V105H103.723V0Z\"/>\n            <path d=\"M1225.28 1190.56H189.496V1069H102.054V1290.33H1309.28V1186.5H1314.72V1069H1225.28L1225.28 1190.56Z\"/>\n            <path d=\"M251.509 952.893H1165.28V251.56H251.496V952L251.509 952.893ZM873.736 448.893H990.179V565.336H873.736V448.893ZM563.509 699.56H852.403V816.003H563.509V699.56ZM425.736 448.893H542.179V565.336H425.736V448.893Z\"/>\n          </svg>\n        </button>\n        <div class=\"settings-menu\">\n          <a href=\"https://hyperclaylocal.com/docs/guide/sync/#connect-your-sync-key\" target=\"_blank\" class=\"menu-item\">Get sync key</a>\n          <a href=\"https://github.com/panphora/hyperclay-platform\" target=\"_blank\" class=\"menu-item\">Report issues</a>\n          <a href=\"https://hyperclaylocal.com/\" target=\"_blank\" class=\"menu-item\">Hyperclay Local</a>\n        </div>\n      </div>\n    </header>\n\n    <div class=\"file-list\">\n              <hr class=\"divider-dashed\">\n\n        \n                  <a href=\"/folder/app.html\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 44 44\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M5.3501 12.9C10.7501 16.95 23.8001 22.8 38.6501 12.9\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M4 25.5C15.7 32.7 26.95 32.7 40 25.5\" stroke=\"#fff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n                  <path d=\"M17.1498 3.55C13.1001 10.75 9.04992 28.75 17.1498 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <path d=\"M27.3002 3.55C31.3499 10.75 35.4 28.75 27.3002 40\" stroke=\"#fff\" stroke-width=\"4\"/>\n                  <circle cx=\"22.0001\" cy=\"22\" r=\"18.9\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">app<wbr>.html</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  <a href=\"/folder/notes.txt\" class=\"list-item\">\n            <span class=\"list-item-icon\">\n                              <svg viewBox=\"0 0 48 50\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                  <path d=\"M28.0984 3.6887V17.7537H40.7084\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                  <path d=\"M40.4368 14.9504L28.0596 3H8V46H40.4368V14.9504Z\" stroke=\"#fff\" stroke-width=\"4.5\"/>\n                </svg>\n                          </span>\n            <span class=\"list-item-link\">notes<wbr>.txt</span>\n          </a>\n          <hr class=\"divider-dashed\">\n                  </div>\n\n  </div>\n  <script>\n    document.addEventListener('click', (e) => {\n      const container = document.querySelector('.settings-container');\n      if (!container.contains(e.target)) {\n        container.classList.remove('open');\n      }\n    });\n  </script>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "name": "folder-document-route",
+      "request": {
+        "method": "GET",
+        "path": "/folder/app.html/dashboard",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "151",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"97-VarfE2Wf+MN2IKfHiMVi8pWQcgI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html documentetag=\"3c3ff64dc0f9118a\" lang=\"en\">\n<head><meta charset=\"utf-8\"><title>App</title></head>\n<body><p>app</p></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "empty-folder",
+      "request": {
+        "method": "GET",
+        "path": "/empty-folder/",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "2650",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"a5a-I8Kp2i6ZZhCVgU9OFRhMl9MJGsU\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>empty-folder - Hyperclay Local</title>\n  <link rel=\"icon\" href=\"/favicon.ico\" sizes=\"32x32\">\n  <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">\n  <link rel=\"icon\" href=\"/favicon.png\" type=\"image/png\" sizes=\"32x32\">\n  <link rel=\"stylesheet\" href=\"/__templates/directory-listing.css\">\n</head>\n<body>\n  <div class=\"container\">\n    <header class=\"header\">\n      <nav class=\"breadcrumbs\">\n                  <a href=\"/\" class=\"breadcrumb-icon\">\n            <svg width=\"30\" viewBox=\"0 0 23 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n              <path d=\"M1.3 18.3V1.6h8.3v3.1h11.5v13.6H1.3Z\" stroke=\"#B7BEFB\" stroke-width=\"2.3\"/>\n            </svg>\n          </a>\n                      <span class=\"breadcrumb-separator\">/</span>\n                          <span class=\"breadcrumb-current\">empty-folder</span>\n                                    </nav>\n      <div class=\"settings-container\">\n        <button class=\"settings-btn\" onclick=\"this.parentElement.classList.toggle('open')\">\n          <svg style=\"width:100%\" viewBox=\"0 0 1417 1291\" fill=\"#B7BEFB\" xmlns=\"http://www.w3.org/2000/svg\">\n            <path d=\"M0 105.107H103V1176.11H0V105.107Z\"/>\n            <path d=\"M1313.78 105.107H1416.78V1186.5H1313.78V105.107Z\"/>\n            <path d=\"M103.723 0H1313.72V105H103.723V0Z\"/>\n            <path d=\"M1225.28 1190.56H189.496V1069H102.054V1290.33H1309.28V1186.5H1314.72V1069H1225.28L1225.28 1190.56Z\"/>\n            <path d=\"M251.509 952.893H1165.28V251.56H251.496V952L251.509 952.893ZM873.736 448.893H990.179V565.336H873.736V448.893ZM563.509 699.56H852.403V816.003H563.509V699.56ZM425.736 448.893H542.179V565.336H425.736V448.893Z\"/>\n          </svg>\n        </button>\n        <div class=\"settings-menu\">\n          <a href=\"https://hyperclaylocal.com/docs/guide/sync/#connect-your-sync-key\" target=\"_blank\" class=\"menu-item\">Get sync key</a>\n          <a href=\"https://github.com/panphora/hyperclay-platform\" target=\"_blank\" class=\"menu-item\">Report issues</a>\n          <a href=\"https://hyperclaylocal.com/\" target=\"_blank\" class=\"menu-item\">Hyperclay Local</a>\n        </div>\n      </div>\n    </header>\n\n    <div class=\"file-list\">\n              <p class=\"empty-message\">This directory is empty</p>\n          </div>\n\n  </div>\n  <script>\n    document.addEventListener('click', (e) => {\n      const container = document.querySelector('.settings-container');\n      if (!container.contains(e.target)) {\n        container.classList.remove('open');\n      }\n    });\n  </script>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "name": "missing-html",
+      "request": {
+        "method": "GET",
+        "path": "/missing.html",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "missing-png",
+      "request": {
+        "method": "GET",
+        "path": "/missing.png",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "missing-folder",
+      "request": {
+        "method": "GET",
+        "path": "/folder/missing/",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "malformed-escape",
+      "request": {
+        "method": "GET",
+        "path": "/%E0%A4.html",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"b-cEN6MKefADJ1aAV2WmWqUtBSgdI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Bad request"
+      }
+    },
+    {
+      "name": "traversal-encoded",
+      "request": {
+        "method": "GET",
+        "path": "/..%2Findex.html",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"b-cEN6MKefADJ1aAV2WmWqUtBSgdI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Bad request"
+      }
+    },
+    {
+      "name": "page-state-dir",
+      "request": {
+        "method": "GET",
+        "path": "/.hyperclay/page-state/",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "css",
+      "request": {
+        "method": "GET",
+        "path": "/style.css",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "108",
+        "content-type": "text/css; charset=UTF-8",
+        "etag": "W/\"6c-16f6435cc88\"",
+        "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "body {\n  font-family: system-ui, sans-serif;\n  margin: 0 auto;\n  max-width: 40rem;\n}\n\nh1 {\n  color: #334;\n}\n"
+      }
+    },
+    {
+      "name": "css-conditional",
+      "request": {
+        "method": "GET",
+        "path": "/style.css",
+        "headers": {
+          "If-None-Match": "W/\"6c-16f6435cc88\""
+        },
+        "ifNoneMatchFrom": "css"
+      },
+      "status": 304,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "etag": "W/\"6c-16f6435cc88\"",
+        "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "png-range",
+      "request": {
+        "method": "GET",
+        "path": "/img.png",
+        "headers": {
+          "Range": "bytes=0-99"
+        }
+      },
+      "status": 206,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "100",
+        "content-range": "bytes 0-99/1041",
+        "content-type": "image/png",
+        "etag": "W/\"411-16f6435cc88\"",
+        "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAIAAAAC64paAAAD2ElEQVR4nAXBIYisWhgA4B9uuPDE265BtsgGYbEMCE4bNEw7pgnCaVq0iEXEYhBtwgm2g8UgaBrTKTLJwTJFpw=="
+      }
+    },
+    {
+      "name": "png-range-unsatisfiable",
+      "request": {
+        "method": "GET",
+        "path": "/img.png",
+        "headers": {
+          "Range": "bytes=9999-"
+        }
+      },
+      "status": 416,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "21",
+        "content-range": "bytes */1041",
+        "content-type": "image/png; charset=utf-8",
+        "etag": "W/\"411-16f6435cc88\"",
+        "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Internal server error"
+      }
+    },
+    {
+      "name": "svg",
+      "request": {
+        "method": "GET",
+        "path": "/x.svg",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-disposition": "attachment",
+        "content-length": "183",
+        "content-type": "image/svg+xml",
+        "etag": "W/\"b7-16f6435cc88\"",
+        "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"40\" viewBox=\"0 0 40 40\">\n  <rect width=\"40\" height=\"40\" fill=\"#fff\"/>\n  <circle cx=\"20\" cy=\"20\" r=\"14\" fill=\"#345\"/>\n</svg>\n"
+      }
+    },
+    {
+      "name": "noext",
+      "request": {
+        "method": "GET",
+        "path": "/noext",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "18",
+        "content-type": "application/octet-stream",
+        "etag": "W/\"12-16f6435cc88\"",
+        "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "no extension here\n"
+      }
+    },
+    {
+      "name": "uploads-page",
+      "request": {
+        "method": "GET",
+        "path": "/assets-board/up.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-disposition": "attachment",
+        "content-length": "117",
+        "content-type": "text/html; charset=UTF-8",
+        "etag": "W/\"75-16f6435cc88\"",
+        "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><title>Up</title></head>\n<body><p>up</p></body>\n</html>\n"
+      }
+    },
+    {
+      "name": "node-modules",
+      "request": {
+        "method": "GET",
+        "path": "/node_modules/pkg/index.js",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "34",
+        "content-type": "application/javascript; charset=UTF-8",
+        "etag": "W/\"22-16f6435cc88\"",
+        "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "module.exports = { name: 'pkg' };\n"
+      }
+    },
+    {
+      "name": "marked-save",
+      "request": {
+        "method": "GET",
+        "path": "/_/save/a.html",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "marked-unknown",
+      "request": {
+        "method": "GET",
+        "path": "/_/nope/a.html",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "dotdot-raw",
+      "request": {
+        "method": "GET",
+        "path": "/folder/app.html/../../index.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "151",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"97-VarfE2Wf+MN2IKfHiMVi8pWQcgI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html>\n<html documentetag=\"3c3ff64dc0f9118a\" lang=\"en\">\n<head><meta charset=\"utf-8\"><title>App</title></head>\n<body><p>app</p></body>\n</html>\n"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": ".hyperclay/page-state/paged.html.json",
+      "sha256": "0209d1f54eed6f7741bfd26f03f058f677873b901bd87ce493dcf7569928075c"
+    },
+    {
+      "path": "a b.html",
+      "sha256": "010cb1b6422d6d9dac9481ca555f002faae345b07feda76497b9a892444a3a1d"
+    },
+    {
+      "path": "a.html",
+      "sha256": "65a6e4ce7d3e7828d5e2ed484fb3a8be7a37f4f63714dc407b4abab86fa23cac"
+    },
+    {
+      "path": "assets-board/up.html",
+      "sha256": "58f0ba7da02d768d25e39e3a02b4de7405cd574516916ddcb810e990117775f6"
+    },
+    {
+      "path": "b.htmlclay",
+      "sha256": "fe81df30b0c75eae8c68e75fba1acfddf8966b49fc9ab9e304a5ebd53832588e"
+    },
+    {
+      "path": "bom.html",
+      "sha256": "3916ee7eed901a39354bede0b79f05c9a0164f60a327e87a7d13903b8a559eb9"
+    },
+    {
+      "path": "café.html",
+      "sha256": "e213e797c9fce5398eaf4240be555eec6f225e085ef507061cce628b740b5bb1"
+    },
+    {
+      "path": "empty-folder/.keep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "folder/app.html",
+      "sha256": "3c3ff64dc0f9118ad3ed1c52787b43a8df794bbceb4f9ac723fa503cbc3cde23"
+    },
+    {
+      "path": "folder/notes.txt",
+      "sha256": "444e0fffbd825e9610ff5b199485707a0c895339ae80c15cc8a8aee41b106fda"
+    },
+    {
+      "path": "img.png",
+      "sha256": "470cfb07f28079bbf0f682e09ac3b811f19fb5b28c2f5a8f53e6ec0c8c636fdb"
+    },
+    {
+      "path": "index.html",
+      "sha256": "a7af6f9d6d2b5d6c2d8916cea5395353380e0570759720b857907b7b6a188ae1"
+    },
+    {
+      "path": "latin1.html",
+      "sha256": "b8a228897c51fdf127309129e3c15a5a7077653424683193ce54dbcd6b8d3658"
+    },
+    {
+      "path": "node_modules/pkg/index.js",
+      "sha256": "a42cc0fb6fe06b5dc53236423d5de578141b04630e831d5146d98f204b6508ef"
+    },
+    {
+      "path": "noext",
+      "sha256": "fda1001b1c32a3bf54a3780d58cb7c5cfc4c5220a41a79547cdebb7abc090061"
+    },
+    {
+      "path": "paged.html",
+      "sha256": "bb685e66555bab6407cc62ab24effe2b910e32e99d34477a23384689d71ba507"
+    },
+    {
+      "path": "style.css",
+      "sha256": "d3ee6fea61f451387343c5679407c467ca816fc7740fea2c33c078dba4638916"
+    },
+    {
+      "path": "x.svg",
+      "sha256": "68cafaaa7f5f2b8656e2de10245932095a961b67c0b231aa4a113ff519c1e638"
+    }
+  ]
+}

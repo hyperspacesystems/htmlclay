@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -267,17 +269,23 @@ func TestGatesBareAllowed(t *testing.T) {
 }
 
 func TestGatesRootHandlerCarriesCookiesAndPoweredBy(t *testing.T) {
-	handler := newRootHandler(4321)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html><body>hi</body></html>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	registry := newConsentRegistry(dir, nil)
+	registry.Ready()
+	handler := &rootServer{baseDir: registry.BaseReal(), registry: registry}
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, newGateRequest("GET", "/index.html", nil))
+	handler.ServeHTTP(recorder, withLocalPort(newGateRequest("GET", "/index.html", nil), 4321))
 	if got := recorder.Header().Get("X-Powered-By"); got != "Express" {
 		t.Errorf("X-Powered-By = %q", got)
 	}
 	if got := len(recorder.Header().Values("Set-Cookie")); got != 2 {
 		t.Errorf("cookies = %d, want 2", got)
 	}
-	if recorder.Code != http.StatusNotFound || recorder.Body.String() != "Not found" {
-		t.Errorf("placeholder = %d %q", recorder.Code, recorder.Body.String())
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "hi") {
+		t.Errorf("document = %d %q", recorder.Code, recorder.Body.String())
 	}
 }
 

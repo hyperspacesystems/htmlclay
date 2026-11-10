@@ -101,10 +101,10 @@ func TestRunServesEveryRootAndStopsOnStdinEOF(t *testing.T) {
 		if status != http.StatusNotFound {
 			t.Fatalf("GET %s/anything = %d, want 404", root.URL, status)
 		}
-		if body != "Not found" {
-			t.Fatalf("root body = %q, want %q", body, "Not found")
+		if body != "File not found" {
+			t.Fatalf("root body = %q, want %q", body, "File not found")
 		}
-		if contentType != "text/plain; charset=utf-8" {
+		if contentType != "text/html; charset=utf-8" {
 			t.Fatalf("root content type = %q", contentType)
 		}
 	}
@@ -308,6 +308,18 @@ func writeLocalSource(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(main, "server.js"), []byte("// server\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runtimeDir := filepath.Join(main, "offline-runtime")
+	if err := os.MkdirAll(filepath.Join(runtimeDir, "1.0.0"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"schema":1,"selected":"1.0.0","versions":["1.0.0"]}`
+	if err := os.WriteFile(filepath.Join(runtimeDir, "manifest.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	index := `{"schema":1,"version":"1.0.0","files":{"clay.js":{"sha256":"` + strings.Repeat("0", 64) + `","type":"application/javascript","bytes":1}},"aliases":{}}`
+	if err := os.WriteFile(filepath.Join(runtimeDir, "1.0.0", "offline-manifest.json"), []byte(index), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return dir
