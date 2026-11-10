@@ -1,0 +1,1894 @@
+{
+  "scenarios": [
+    {
+      "name": "browser-save",
+      "seed": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "browser-save",
+          "name": "a.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "userDriven": true,
+          "saveId": "save-1",
+          "dataLossPrev": null
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "4ea067a4ad84bebb",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "a.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "a.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.broadcast",
+          "args": [
+            "a.html",
+            {
+              "html": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "sender": "server-save"
+            },
+            {
+              "lane": "saved"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.provenanceForLocalSave",
+          "args": [
+            true
+          ],
+          "returns": "ui-gestured"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "a.html",
+              "newHtml": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "prevContent": null,
+              "prov": "ui-gestured"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "a.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": ".hyperclay/versions/a/2026-11-01-01-00-00-000-0500-001.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        },
+        {
+          "path": ".hyperclay/versions/a/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        },
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ]
+    },
+    {
+      "name": "browser-save-repeat",
+      "seed": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "browser-save",
+          "name": "a.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "userDriven": true,
+          "saveId": "save-1",
+          "dataLossPrev": null
+        },
+        {
+          "clock": 1793512801000,
+          "kind": "browser-save",
+          "name": "a.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "userDriven": true,
+          "saveId": "save-2",
+          "dataLossPrev": null
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "4ea067a4ad84bebb",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        },
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "4ea067a4ad84bebb",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "a.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "a.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.broadcast",
+          "args": [
+            "a.html",
+            {
+              "html": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "sender": "server-save"
+            },
+            {
+              "lane": "saved"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.provenanceForLocalSave",
+          "args": [
+            true
+          ],
+          "returns": "ui-gestured"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "a.html",
+              "newHtml": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "prevContent": null,
+              "prov": "ui-gestured"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "a.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "a.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "a.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.broadcast",
+          "args": [
+            "a.html",
+            {
+              "html": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "sender": "server-save"
+            },
+            {
+              "lane": "saved"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.provenanceForLocalSave",
+          "args": [
+            true
+          ],
+          "returns": "ui-gestured"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "a.html",
+              "newHtml": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "prevContent": null,
+              "prov": "ui-gestured"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "a.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": ".hyperclay/versions/a/2026-11-01-01-00-00-000-0500-001.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        },
+        {
+          "path": ".hyperclay/versions/a/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        },
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ]
+    },
+    {
+      "name": "expected-checksum-mismatch",
+      "seed": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "browser-save",
+          "name": "a.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "userDriven": true,
+          "dataLossPrev": null,
+          "expected": {
+            "type": "checksum",
+            "value": "0000000000000000"
+          }
+        }
+      ],
+      "results": [
+        {
+          "outcome": "refused",
+          "reason": "changed",
+          "etag": null,
+          "stored": null,
+          "content": null
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [],
+      "pages": [],
+      "tree": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ]
+    },
+    {
+      "name": "expected-absent",
+      "seed": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "browser-save",
+          "name": "a.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "userDriven": false,
+          "dataLossPrev": null,
+          "expected": {
+            "type": "absent"
+          }
+        }
+      ],
+      "results": [
+        {
+          "outcome": "refused",
+          "reason": "changed",
+          "etag": null,
+          "stored": null,
+          "content": null
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [],
+      "pages": [],
+      "tree": [
+        {
+          "path": "a.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ]
+    },
+    {
+      "name": "page-inline-tag",
+      "seed": [
+        {
+          "path": "p.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "p.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "browser-save",
+          "name": "p.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "userDriven": true,
+          "dataLossPrev": null
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "b1a415dbb774d630",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "p.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "p.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.broadcast",
+          "args": [
+            "p.html",
+            {
+              "html": {
+                "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+                "length": 257
+              },
+              "sender": "server-save"
+            },
+            {
+              "lane": "saved"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.provenanceForLocalSave",
+          "args": [
+            true
+          ],
+          "returns": "ui-gestured"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "p.html",
+              "newHtml": {
+                "sha256": "b1a415dbb774d63014d369f0df9dbf67a516ed41c70707da2fbd095926214b61",
+                "length": 513
+              },
+              "prevContent": null,
+              "prov": "ui-gestured"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "p.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [
+        "00000000000000000000000000000000"
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/page-state/p.html.json",
+          "b64": "eyJ2IjoxLCJyZXYiOiIwOTMzNjA5OTMxMzBkODE4IiwidGFnIjoiPHNjcmlwdCB0eXBlPVwiYXBwbGljYXRpb24vanNvblwiIG1lcmdlPVwicGFnZVwiIGNsYXk9XCJsaXZlXCI+e1widlwiOjEsXCJnXCI6MCxcInlcIjp7XCJzZWVkXCI6XCJBQUFDUVFNRUFRQUlRZ0FMSndBb0FRVUFKd0FvQUlVa0hHRjBkSEp6ZEdsMGJHVnNaWFpsYkhSbWJHOTNZWFIwY25Od01YUkZBUUVFQlFJQkJ3RUFBQUVCQVFBQ1FRQUNRUUVCQndCOUFYY0hhR1ZoWkdsdVozWUJBV0ozQlhScGRHeGxkd2x3WVhKaFozSmhjR2gyQVFGaWR3SndNUUE9XCJ9fTwvc2NyaXB0PiIsImdlbmVyYXRpb24iOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCJ9"
+        },
+        {
+          "path": ".hyperclay/versions/p/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": "p.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "page-state-restored",
+      "seed": [
+        {
+          "path": "p.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "p.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "browser-save",
+          "name": "p.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "userDriven": true,
+          "dataLossPrev": null
+        },
+        {
+          "clock": 1793512801000,
+          "kind": "browser-save",
+          "name": "p.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "userDriven": true,
+          "dataLossPrev": null
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "b1a415dbb774d630",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n"
+        },
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "b1a415dbb774d630",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "p.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "p.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.broadcast",
+          "args": [
+            "p.html",
+            {
+              "html": {
+                "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+                "length": 257
+              },
+              "sender": "server-save"
+            },
+            {
+              "lane": "saved"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.provenanceForLocalSave",
+          "args": [
+            true
+          ],
+          "returns": "ui-gestured"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "p.html",
+              "newHtml": {
+                "sha256": "b1a415dbb774d63014d369f0df9dbf67a516ed41c70707da2fbd095926214b61",
+                "length": 513
+              },
+              "prevContent": null,
+              "prov": "ui-gestured"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "p.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "p.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "p.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.broadcast",
+          "args": [
+            "p.html",
+            {
+              "html": {
+                "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+                "length": 257
+              },
+              "sender": "server-save"
+            },
+            {
+              "lane": "saved"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.provenanceForLocalSave",
+          "args": [
+            true
+          ],
+          "returns": "ui-gestured"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "p.html",
+              "newHtml": {
+                "sha256": "b1a415dbb774d63014d369f0df9dbf67a516ed41c70707da2fbd095926214b61",
+                "length": 513
+              },
+              "prevContent": null,
+              "prov": "ui-gestured"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "p.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [
+        "00000000000000000000000000000000"
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/page-state/p.html.json",
+          "b64": "eyJ2IjoxLCJyZXYiOiIwOTMzNjA5OTMxMzBkODE4IiwidGFnIjoiPHNjcmlwdCB0eXBlPVwiYXBwbGljYXRpb24vanNvblwiIG1lcmdlPVwicGFnZVwiIGNsYXk9XCJsaXZlXCI+e1widlwiOjEsXCJnXCI6MCxcInlcIjp7XCJzZWVkXCI6XCJBQUFDUVFNRUFRQUlRZ0FMSndBb0FRVUFKd0FvQUlVa0hHRjBkSEp6ZEdsMGJHVnNaWFpsYkhSbWJHOTNZWFIwY25Od01YUkZBUUVFQlFJQkJ3RUFBQUVCQVFBQ1FRQUNRUUVCQndCOUFYY0hhR1ZoWkdsdVozWUJBV0ozQlhScGRHeGxkd2x3WVhKaFozSmhjR2gyQVFGaWR3SndNUUE9XCJ9fTwvc2NyaXB0PiIsImdlbmVyYXRpb24iOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCJ9"
+        },
+        {
+          "path": ".hyperclay/versions/p/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": "p.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "data-api",
+      "seed": [
+        {
+          "path": "d.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "d.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "data-api",
+          "name": "d.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "userDriven": false,
+          "dataLossPrev": null
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "4ea067a4ad84bebb",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "d.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "d.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.notify",
+          "args": [
+            "d.html",
+            {
+              "action": "reload",
+              "data": {
+                "etag": "4ea067a4ad84bebb",
+                "html": {
+                  "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                  "length": 139
+                },
+                "kind": "external-change",
+                "sender": "data-api"
+              },
+              "msg": "d.html was updated through the data API",
+              "msgType": "warning"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.broadcast",
+          "args": [
+            "d.html",
+            {
+              "html": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "sender": "data-api"
+            },
+            {
+              "lane": "saved"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "d.html",
+              "newHtml": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "prevContent": null,
+              "prov": "external"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "d.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": ".hyperclay/versions/d/2026-11-01-01-00-00-000-0500-001.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        },
+        {
+          "path": ".hyperclay/versions/d/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        },
+        {
+          "path": "d.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ]
+    },
+    {
+      "name": "create",
+      "seed": [
+        {
+          "path": "existing.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "existing.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "create",
+          "name": "fresh.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        },
+        {
+          "clock": 1793512801000,
+          "kind": "create",
+          "name": "existing.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "4ea067a4ad84bebb",
+          "checksum": null,
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        },
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "4ea067a4ad84bebb",
+          "checksum": null,
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "fresh.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "fresh.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "existing.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "existing.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": "existing.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        },
+        {
+          "path": "fresh.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ]
+    },
+    {
+      "name": "sync-download-string",
+      "seed": [
+        {
+          "path": "s.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "s.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "sync-download",
+          "name": "s.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": null,
+          "checksum": "4ea067a4ad84bebb",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "emit",
+          "args": [
+            "backup-created",
+            {
+              "backup": {
+                "path": ".hyperclay/versions/s/2026-11-01-01-00-00-000-0500.html"
+              },
+              "original": "s"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "s.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "s.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "refreshDerivedArtifacts",
+          "args": [
+            {
+              "path": "."
+            },
+            "s.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "s.html",
+              "newHtml": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "prevContent": {
+                "sha256": "19f8af9acc51eec0ae843f06bc44a87a9b05592d821e6bd850a56a7de787a524",
+                "length": 126
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "s.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": ".hyperclay/versions/s/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        },
+        {
+          "path": "s.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ]
+    },
+    {
+      "name": "sync-download-binary",
+      "seed": [],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "sync-download",
+          "name": "img/logo.png",
+          "b64": "iVBORw0KGgoAAf/+fw=="
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": null,
+          "checksum": "0490897d959e99c5",
+          "stored": {
+            "b64": "iVBORw0KGgoAAf/+fw=="
+          },
+          "content": {
+            "b64": "iVBORw0KGgoAAf/+fw=="
+          }
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "img/logo.png"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "img/logo.png",
+            {
+              "sha256": "0490897d959e99c59e433488a75ca05b31a05e7b10e03b1758205ae4ed864d0c"
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": "img/logo.png",
+          "b64": "iVBORw0KGgoAAf/+fw=="
+        }
+      ]
+    },
+    {
+      "name": "sync-download-latin1",
+      "seed": [],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "sync-download",
+          "name": "weird.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sPjxib2R5PjxwPmNhZuk8L3A+PC9ib2R5PjwvaHRtbD4K"
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": null,
+          "checksum": "bce7da38a60b328e",
+          "stored": {
+            "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sPjxib2R5PjxwPmNhZuk8L3A+PC9ib2R5PjwvaHRtbD4K"
+          },
+          "content": {
+            "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sPjxib2R5PjxwPmNhZuk8L3A+PC9ib2R5PjwvaHRtbD4K"
+          }
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "weird.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "weird.html",
+            {
+              "sha256": "bce7da38a60b328e7b2b026718b25198a67066312dd56b9583dc6d4290a52238"
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": "weird.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sPjxib2R5PjxwPmNhZuk8L3A+PC9ib2R5PjwvaHRtbD4K"
+        }
+      ]
+    },
+    {
+      "name": "sync-download-modified-at",
+      "seed": [
+        {
+          "path": "m.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "m.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "sync-download",
+          "name": "m.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "modifiedAt": 1620194828009
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": null,
+          "checksum": "4ea067a4ad84bebb",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {
+        "m.html": 1620194828009
+      },
+      "hooks": [
+        {
+          "fn": "emit",
+          "args": [
+            "backup-created",
+            {
+              "backup": {
+                "path": ".hyperclay/versions/m/2026-11-01-01-00-00-000-0500.html"
+              },
+              "original": "m"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "m.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "m.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "refreshDerivedArtifacts",
+          "args": [
+            {
+              "path": "."
+            },
+            "m.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "m.html",
+              "newHtml": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "prevContent": {
+                "sha256": "19f8af9acc51eec0ae843f06bc44a87a9b05592d821e6bd850a56a7de787a524",
+                "length": 126
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "m.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": ".hyperclay/versions/m/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
+        },
+        {
+          "path": "m.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ]
+    },
+    {
+      "name": "sync-download-page-record",
+      "seed": [
+        {
+          "path": "r.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [
+        {
+          "path": "r.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "sync-download",
+          "name": "r.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "pageRecord": {
+            "v": 1,
+            "rev": "093360993130d818",
+            "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+          }
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": null,
+          "checksum": "840df49a4f93c7cc",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "emit",
+          "args": [
+            "backup-created",
+            {
+              "backup": {
+                "path": ".hyperclay/versions/r/2026-11-01-01-00-00-000-0500.html"
+              },
+              "original": "r"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "r.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "r.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "refreshDerivedArtifacts",
+          "args": [
+            {
+              "path": "."
+            },
+            "r.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "r.html",
+              "newHtml": {
+                "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+                "length": 257
+              },
+              "prevContent": {
+                "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+                "length": 257
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "r.html",
+            {
+              "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c",
+              "length": 257
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [
+        "00000000000000000000000000000000"
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/page-state/r.html.json",
+          "b64": "eyJ2IjoxLCJyZXYiOiIwOTMzNjA5OTMxMzBkODE4IiwidGFnIjoiPHNjcmlwdCB0eXBlPVwiYXBwbGljYXRpb24vanNvblwiIG1lcmdlPVwicGFnZVwiIGNsYXk9XCJsaXZlXCI+e1widlwiOjEsXCJnXCI6MCxcInlcIjp7XCJzZWVkXCI6XCJBQUFDUVFNRUFRQUlRZ0FMSndBb0FRVUFKd0FvQUlVa0hHRjBkSEp6ZEdsMGJHVnNaWFpsYkhSbWJHOTNZWFIwY25Od01YUkZBUUVFQlFJQkJ3RUFBQUVCQVFBQ1FRQUNRUUVCQndCOUFYY0hhR1ZoWkdsdVozWUJBV0ozQlhScGRHeGxkd2x3WVhKaFozSmhjR2gyQVFGaWR3SndNUUE9XCJ9fTwvc2NyaXB0PiIsImdlbmVyYXRpb24iOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCJ9"
+        },
+        {
+          "path": ".hyperclay/versions/r/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": "r.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9IjA5MzM2MDk5MzEzMGQ4MTgiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "sync-download-subfolder",
+      "seed": [],
+      "storedRecord": null,
+      "storedRecordB64": null,
+      "versionAtRevA": null,
+      "before": [],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "sync-download",
+          "name": "deep/new/folder/doc.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": null,
+          "checksum": "4ea067a4ad84bebb",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "deep/new/folder/doc.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "deep/new/folder/doc.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "refreshDerivedArtifacts",
+          "args": [
+            {
+              "path": "."
+            },
+            "deep/new/folder/doc.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "deep/new/folder/doc.html",
+              "newHtml": {
+                "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+                "length": 139
+              },
+              "prevContent": null,
+              "prov": "external"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "deep/new/folder/doc.html",
+            {
+              "sha256": "4ea067a4ad84bebbc8f15b7509ab1c00b90fd08fe4ce9f7335ce3562e2d40c49",
+              "length": 139
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [],
+      "tree": [
+        {
+          "path": "deep/new/folder/doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5Ud288L2gxPgo8cD5BZnRlcjwvcD4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ]
+    },
+    {
+      "name": "ad2-stale-lineage",
+      "seed": [
+        {
+          "path": "stale.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9ImJiYmJiYmJiYmJiYmJiYmIiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "storedRecord": {
+        "v": 1,
+        "rev": "bbbbbbbbbbbbbbbb",
+        "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+      },
+      "storedRecordB64": "eyJ2IjoxLCJyZXYiOiJiYmJiYmJiYmJiYmJiYmJiIiwidGFnIjoiPHNjcmlwdCB0eXBlPVwiYXBwbGljYXRpb24vanNvblwiIG1lcmdlPVwicGFnZVwiIGNsYXk9XCJsaXZlXCI+e1widlwiOjEsXCJnXCI6MCxcInlcIjp7XCJzZWVkXCI6XCJBQUFDUVFNRUFRQUlRZ0FMSndBb0FRVUFKd0FvQUlVa0hHRjBkSEp6ZEdsMGJHVnNaWFpsYkhSbWJHOTNZWFIwY25Od01YUkZBUUVFQlFJQkJ3RUFBQUVCQVFBQ1FRQUNRUUVCQndCOUFYY0hhR1ZoWkdsdVozWUJBV0ozQlhScGRHeGxkd2x3WVhKaFozSmhjR2gyQVFGaWR3SndNUUE9XCJ9fTwvc2NyaXB0PiJ9",
+      "versionAtRevA": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"aaaaaaaaaaaaaaaa\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+      "before": [
+        {
+          "path": ".hyperclay/page-state/stale.html.json",
+          "b64": "eyJ2IjoxLCJyZXYiOiJiYmJiYmJiYmJiYmJiYmJiIiwidGFnIjoiPHNjcmlwdCB0eXBlPVwiYXBwbGljYXRpb24vanNvblwiIG1lcmdlPVwicGFnZVwiIGNsYXk9XCJsaXZlXCI+e1widlwiOjEsXCJnXCI6MCxcInlcIjp7XCJzZWVkXCI6XCJBQUFDUVFNRUFRQUlRZ0FMSndBb0FRVUFKd0FvQUlVa0hHRjBkSEp6ZEdsMGJHVnNaWFpsYkhSbWJHOTNZWFIwY25Od01YUkZBUUVFQlFJQkJ3RUFBQUVCQVFBQ1FRQUNRUUVCQndCOUFYY0hhR1ZoWkdsdVozWUJBV0ozQlhScGRHeGxkd2x3WVhKaFozSmhjR2gyQVFGaWR3SndNUUE9XCJ9fTwvc2NyaXB0PiJ9"
+        },
+        {
+          "path": ".hyperclay/versions/stale/2026-09-01-00-00-00-000+0000.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9ImFhYWFhYWFhYWFhYWFhYWEiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": "stale.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9ImJiYmJiYmJiYmJiYmJiYmIiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "requests": [
+        {
+          "clock": 1793512800000,
+          "kind": "browser-save",
+          "name": "stale.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"aaaaaaaaaaaaaaaa\"><h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n",
+          "userDriven": true,
+          "dataLossPrev": null
+        }
+      ],
+      "results": [
+        {
+          "outcome": "committed",
+          "reason": null,
+          "etag": "e43af6dcccb029e6",
+          "stored": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"bbbbbbbbbbbbbbbb\">\n<h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p>\n</article>\n</body>\n</html>\n",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"bbbbbbbbbbbbbbbb\">\n<h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p>\n</article>\n</body>\n</html>\n",
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"bbbbbbbbbbbbbbbb\">\n<h1 data-id=\"title\">Title</h1>\n<p data-id=\"p1\">Body</p>\n</article>\n</body>\n</html>\n"
+        }
+      ],
+      "modifiedTimes": {},
+      "hooks": [
+        {
+          "fn": "dataGuard.markPending",
+          "args": [
+            {
+              "path": "."
+            },
+            "stale.html",
+            {
+              "sha256": "7904edf0dac9316a8e1f5900dd7a6356b883de9843460c8938603e9f872cee00",
+              "length": 259
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.markBrowserSave",
+          "args": [
+            "stale.html"
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.broadcast",
+          "args": [
+            "stale.html",
+            {
+              "html": {
+                "sha256": "7904edf0dac9316a8e1f5900dd7a6356b883de9843460c8938603e9f872cee00",
+                "length": 259
+              },
+              "sender": "server-save"
+            },
+            {
+              "lane": "saved"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "dataGuard.provenanceForLocalSave",
+          "args": [
+            true
+          ],
+          "returns": "ui-gestured"
+        },
+        {
+          "fn": "dataGuard.runDataLossGuard",
+          "args": [
+            {
+              "baseDir": {
+                "path": "."
+              },
+              "live": "<live>",
+              "name": "stale.html",
+              "newHtml": {
+                "sha256": "e43af6dcccb029e6f18c537e690b3256a0857d0980f8799814b1a22914e1b95d",
+                "length": 515
+              },
+              "prevContent": null,
+              "prov": "ui-gestured"
+            }
+          ],
+          "returns": "<promise>"
+        },
+        {
+          "fn": "dataGuard.noteSeen",
+          "args": [
+            {
+              "path": "."
+            },
+            "stale.html",
+            {
+              "sha256": "7904edf0dac9316a8e1f5900dd7a6356b883de9843460c8938603e9f872cee00",
+              "length": 259
+            }
+          ],
+          "returns": "<promise>"
+        }
+      ],
+      "pages": [
+        "00000000000000000000000000000000"
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/page-state/stale.html.json",
+          "b64": "eyJ2IjoxLCJyZXYiOiJiYmJiYmJiYmJiYmJiYmJiIiwidGFnIjoiPHNjcmlwdCB0eXBlPVwiYXBwbGljYXRpb24vanNvblwiIG1lcmdlPVwicGFnZVwiIGNsYXk9XCJsaXZlXCI+e1widlwiOjEsXCJnXCI6MCxcInlcIjp7XCJzZWVkXCI6XCJBQUFDUVFNRUFRQUlRZ0FMSndBb0FRVUFKd0FvQUlVa0hHRjBkSEp6ZEdsMGJHVnNaWFpsYkhSbWJHOTNZWFIwY25Od01YUkZBUUVFQlFJQkJ3RUFBQUVCQVFBQ1FRQUNRUUVCQndCOUFYY0hhR1ZoWkdsdVozWUJBV0ozQlhScGRHeGxkd2x3WVhKaFozSmhjR2gyQVFGaWR3SndNUUE9XCJ9fTwvc2NyaXB0PiIsImdlbmVyYXRpb24iOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCJ9"
+        },
+        {
+          "path": ".hyperclay/versions/stale/2026-09-01-00-00-00-000+0000.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9ImFhYWFhYWFhYWFhYWFhYWEiPjxoMSBkYXRhLWlkPSJ0aXRsZSI+VGl0bGU8L2gxPgo8cCBkYXRhLWlkPSJwMSI+Qm9keTwvcD48L2FydGljbGU+CjwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": ".hyperclay/versions/stale/2026-11-01-01-00-00-000-0500.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9ImJiYmJiYmJiYmJiYmJiYmIiPgo8aDEgZGF0YS1pZD0idGl0bGUiPlRpdGxlPC9oMT4KPHAgZGF0YS1pZD0icDEiPkJvZHk8L3A+CjwvYXJ0aWNsZT4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        },
+        {
+          "path": "stale.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxhcnRpY2xlIGNsYXNzPSJwYWdlIiBjbGF5PSJmcmVlemUiIGRhdGEtcGFnZT0iMSIgZGF0YS1yZXY9ImJiYmJiYmJiYmJiYmJiYmIiPgo8aDEgZGF0YS1pZD0idGl0bGUiPlRpdGxlPC9oMT4KPHAgZGF0YS1pZD0icDEiPkJvZHk8L3A+CjwvYXJ0aWNsZT4KPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ]
+    }
+  ]
+}
