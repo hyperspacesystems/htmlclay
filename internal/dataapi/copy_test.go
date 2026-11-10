@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 type copyFixture struct {
@@ -16,7 +18,7 @@ type copyFixture struct {
 // TestStripCopyContentFixture runs the accepted cross-implementation fixture set: the same inputs
 // the reference filters, so a difference here is a difference from the export's answer.
 func TestStripCopyContentFixture(t *testing.T) {
-	raw, err := os.ReadFile("testdata/copy-content.json")
+	raw, err := os.ReadFile(testutil.VectorPath(t, "copy-content.json"))
 	if err != nil {
 		t.Fatalf("read fixture: %v", err)
 	}

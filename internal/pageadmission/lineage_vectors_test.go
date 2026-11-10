@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/specwire"
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 type lineageVectors struct {
@@ -65,7 +66,7 @@ func (w lineageWrite) goResult(t *testing.T, seedStamp string) string {
 }
 
 func TestPageLineageVectors(t *testing.T) {
-	raw, err := os.ReadFile("testdata/page-lineage.json")
+	raw, err := os.ReadFile(testutil.VectorPath(t, "page-lineage.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +102,7 @@ func TestPageLineageVectors(t *testing.T) {
 }
 
 func TestNothingToWrite(t *testing.T) {
-	raw, err := os.ReadFile("testdata/page-lineage.json")
+	raw, err := os.ReadFile(testutil.VectorPath(t, "page-lineage.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"golang.org/x/net/html"
@@ -22,7 +19,7 @@ func TestConformanceWrite(t *testing.T) {
 	var matched, errored, skipped, queries int
 
 	for _, name := range caseNames(t) {
-		meta := parseMeta(t, filepath.Join(corpusDir, "cases", name+".meta"))
+		meta := parseMeta(t, name)
 		if meta.face != "write" && meta.face != "write-query" {
 			continue
 		}
@@ -252,14 +249,9 @@ func writeErrorDetails(err error) Value {
 //
 // The seed corpus is every write case's source plus the documents the offsets are pinned against.
 func FuzzSpliceNeverLies(f *testing.F) {
-	metas, err := filepath.Glob(filepath.Join(corpusDir, "cases", "*.meta"))
-	if err != nil {
-		f.Fatal(err)
-	}
-	for _, meta := range metas {
-		src, err := os.ReadFile(strings.TrimSuffix(meta, ".meta") + ".html")
-		if err == nil {
-			f.Add(src)
+	for _, name := range caseNames(f) {
+		if src, ok := readCaseFile(f, name, ".html"); ok {
+			f.Add([]byte(src))
 		}
 	}
 	for _, doc := range offsetDocs {

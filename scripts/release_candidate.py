@@ -15,7 +15,6 @@ MAC_RUNNER = "${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}"
 
 
 def job_graph():
-    checkout = Path(__file__).resolve().parents[1]
     jobs = [{"id": "verify", "kind": "verify", "needs": []}]
     for platform, runner in (("macos", MAC_RUNNER), ("linux", "ubuntu-latest"),
                              ("windows", "windows-latest")):
@@ -25,10 +24,9 @@ def job_graph():
         {"id": "license", "kind": "test", "runner": "ubuntu-latest",
          "command": "python3 scripts/ablation-check.py LICENSE", "needs": ["verify"]},
         {"id": "conformance", "kind": "test", "runner": "ubuntu-latest",
-         "command": "go test ./internal/server -run TestMalleableHTMLFileHostGate -count=1 -v",
-         "env": {"HTMLCLAY_HOST_GATE": "1",
-                 "HTMLCLAY_HOST_GATE_RUNNER": str(checkout / "testdata/conformance/host-test.mjs"),
-                 "HTMLCLAY_HOST_GATE_CWD": str(checkout)}, "needs": ["verify"]},
+         "command": "npm ci && npx --no-install playwright install --with-deps chromium "
+                    "&& node scripts/conformance-candidate.mjs --platform linux",
+         "needs": ["verify"], "artifacts": ["conformance-linux"]},
     ])
     for platform in ("linux", "windows"):
         for arch in ("amd64", "arm64"):
@@ -102,6 +100,8 @@ def job_graph():
                                  "$CANDIDATE_DIR" if check == "install-uninstall" else "$CANDIDATE_DIR/htmlclay",
                                  "CHECKS": check},
                          "command": "bash scripts/linux-checks/run-all.sh",
+                         "artifacts": ([f"conformance-linux-{arch}-artifact"]
+                                       if check == "serve-save" else []),
                          "diagnostics": "linux-check-artifacts/", "diagnostics_when": "always"})
     return jobs
 

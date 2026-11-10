@@ -76,8 +76,19 @@ class PlatformWorkflowTests(unittest.TestCase):
             self.assertIn('platform_candidate_io.py extract candidate-input/candidate.tar.gz candidate', extract['run'])
             self.assertEqual(extract['working-directory'], '.')
         conformance = next(s for s in self.jobs['conformance']['steps'] if s.get('name') == 'Conformance gate')
-        self.assertEqual(conformance['env']['HTMLCLAY_HOST_GATE_CWD'], '${{ github.workspace }}/candidate')
-        self.assertEqual(conformance['env']['HTMLCLAY_HOST_GATE_RUNNER'], '${{ github.workspace }}/candidate/testdata/conformance/host-test.mjs')
+        self.assertEqual(conformance['run'], 'node scripts/conformance-candidate.mjs --platform linux')
+        self.assertNotIn('env', conformance)
+        evidence = [s for s in self.jobs['conformance']['steps']
+                    if s.get('uses') == 'actions/upload-artifact@v4' and s['with']['name'].startswith('conformance-')]
+        self.assertEqual([step['with'] for step in evidence], [{
+            'name': 'conformance-linux',
+            'path': 'candidate/.conformance/conformance-linux.json',
+            'if-no-files-found': 'error',
+        }])
+        self.assertEqual([step['if'] for step in evidence], ['always()'])
+        driver = next(s for s in self.jobs['conformance']['steps'] if s.get('name') == 'Install the browser driver')
+        self.assertEqual(driver['run'].splitlines(),
+                         ['npm ci', 'npx --no-install playwright install --with-deps chromium'])
         for graph in core.job_graph():
             if graph['kind'] != 'desktop':
                 continue
@@ -87,6 +98,19 @@ class PlatformWorkflowTests(unittest.TestCase):
             self.assertEqual(check['env']['HTMLCLAY_BIN'], '${{ github.workspace }}/retained/package/htmlclay')
             self.assertEqual(check['env']['CHECKS'], graph['env']['CHECKS'])
             self.assertTrue(any('download out "' + graph['artifact'] + '"' in s.get('run', '') for s in job['steps']))
+            evidence = [s for s in job['steps']
+                        if s.get('uses') == 'actions/upload-artifact@v4'
+                        and s['with']['name'].startswith('conformance-')]
+            if graph['env']['CHECKS'] == 'serve-save':
+                self.assertEqual(check['env']['CONFORMANCE_PLATFORM'], 'linux-' + graph['arch'] + '-artifact')
+                self.assertEqual([step['with'] for step in evidence], [{
+                    'name': graph['artifacts'][0],
+                    'path': 'candidate/.conformance/' + graph['artifacts'][0] + '.json',
+                    'if-no-files-found': 'error',
+                }])
+                self.assertEqual([step['if'] for step in evidence], ['always()'])
+            else:
+                self.assertEqual(evidence, [])
             diagnostics = job['steps'][-1]
             self.assertEqual(diagnostics['if'], 'always()')
 
@@ -107,7 +131,9 @@ class PlatformWorkflowTests(unittest.TestCase):
                     self.assertEqual(artifact['if-no-files-found'], 'error')
                     allowed = ('identity/identity.json' if artifact['name'] == 'identity'
                                else 'desktop-diagnostics.tar.gz' if artifact['name'] == name + '-diagnostics'
-                               and name.startswith('linux-') else None)
+                               and name.startswith('linux-')
+                               else 'candidate/.conformance/' + artifact['name'] + '.json'
+                               if artifact['name'].startswith('conformance-') else None)
                     self.assertEqual(artifact['path'], allowed,
                                      'GitHub artifacts must contain only identity or check diagnostics')
                 if step.get('name', '').startswith('Retain '):
@@ -115,12 +141,17 @@ class PlatformWorkflowTests(unittest.TestCase):
                     self.assertIn('platform_candidate_io.py" retain ', step['run'])
                 if 'AWS_ACCESS_KEY_ID' in step.get('env', {}):
                     self.assertTrue(step['name'].startswith(('Retain ', 'Download ', 'Transfer ')))
-        self.assertEqual(len(uploads), 11)
+        self.assertEqual(len(uploads), 14)
         contract = json.loads(subprocess.check_output(
             [sys.executable, str(ROOT / 'scripts/release_candidate.py'), 'contract'], text=True))
         self.assertEqual(list(self.jobs), contract['checks'])
+        evidence = ['conformance-linux', 'conformance-linux-amd64-artifact', 'conformance-linux-arm64-artifact']
+        self.assertEqual([name for name in contract['artifacts'] if name.startswith('conformance-')], evidence)
+        self.assertEqual(sorted(artifact['name'] for artifact in uploads
+                                if artifact['name'].startswith('conformance-')), sorted(evidence))
         self.assertCountEqual([name.replace('${{ needs.verify.outputs.version }}', '{version}') for name in retained],
-                              [name for name in contract['artifacts'] if name != 'identity'])
+                              [name for name in contract['artifacts']
+                               if name != 'identity' and name not in evidence])
         source = (ROOT / 'scripts/platform_candidate_io.py').read_text()
         self.assertIn('BUCKET = "hyperclay-candidates"', source)
         self.assertNotIn('s3://', source)

@@ -722,7 +722,7 @@ func TestDataLossCrossSiteRefused(t *testing.T) {
 }
 
 // Discovery names the address a client should read, and only for a document the
-// guard can key. The capability itself is not announced yet.
+// guard can key, and a keyable document's meta announces the capability.
 func TestDataGuardMetaHref(t *testing.T) {
 	srv, f, _ := guardTestServer(t, string(lossParityPage("T", "alpha")))
 	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
@@ -750,10 +750,14 @@ func TestDataGuardMetaHref(t *testing.T) {
 	if want := "/_/data-loss/" + f.Token; meta.Document.DataGuard.Href != want {
 		t.Errorf("dataGuard.href = %q, want %q", meta.Document.DataGuard.Href, want)
 	}
+	announced := false
 	for _, ext := range meta.Extensions {
 		if ext == "data-guard-v1" {
-			t.Errorf("extensions announced data-guard-v1 before the capability is ready")
+			announced = true
 		}
+	}
+	if !announced {
+		t.Errorf("extensions did not announce data-guard-v1: %v", meta.Extensions)
 	}
 
 	plain, plainFile, _ := setupHandlerTest(t)

@@ -133,6 +133,15 @@ func TestTokenOnlyStrippedFromHTMLTag(t *testing.T) {
 	}
 }
 
+func TestStripTokenRemovesSiteVisibility(t *testing.T) {
+	in := []byte(`<html sitevisibility="private" data-sitevisibility="user" lang="en"><body><div sitevisibility="child">hi</div></body></html>`)
+	out := StripToken(in)
+	expected := []byte(`<html data-sitevisibility="user" lang="en"><body><div sitevisibility="child">hi</div></body></html>`)
+	if !bytes.Equal(out, expected) {
+		t.Errorf("got %q, want %q", out, expected)
+	}
+}
+
 func TestStripDoesNotTouchTokenElsewhere(t *testing.T) {
 	in := []byte(`<html savetoken="tok" htmlclaytoken="tok"><div savetoken="user-data">keep</div></html>`)
 	out := StripToken(in)

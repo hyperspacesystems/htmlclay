@@ -27,6 +27,11 @@ func attrPattern(name string) *regexp.Regexp {
 // Ephemeral, per-file and per-tab, stripped before anything is written.
 var tokenAttrs = []*regexp.Regexp{attrPattern("savetoken"), attrPattern("htmlclaytoken")}
 
+// strippedAttrs are the root attributes a save removes: the save token in both
+// spellings, and sitevisibility, which a hosted editor stamps on what it serves
+// and which must never reach a file (spec section 9).
+var strippedAttrs = []*regexp.Regexp{attrPattern("savetoken"), attrPattern("htmlclaytoken"), attrPattern("sitevisibility")}
+
 // Durable identity, so version history follows a document through a rename or a
 // move rather than following its path.
 var documentIDAttrs = []*regexp.Regexp{attrPattern("documentid"), attrPattern("htmlclayid")}
@@ -238,10 +243,37 @@ func IsCompleteHTMLDocument(data []byte) bool {
 // Injecting clears them all before writing, so serving the same document twice
 // cannot leave a stale value behind under one of the names.
 func removeAll(attrs []byte, patterns []*regexp.Regexp) []byte {
-	for _, p := range patterns {
-		attrs = p.ReplaceAll(attrs, nil)
+	if len(patterns) == 0 {
+		return attrs
 	}
-	return attrs
+	var out []byte
+	at := 0
+	for _, m := range rootAttributeToken.FindAllSubmatchIndex(attrs, -1) {
+		name := attrs[m[2]:m[3]]
+		drop := false
+		for _, p := range patterns {
+			candidate := make([]byte, 0, len(name)+5)
+			candidate = append(candidate, ' ')
+			candidate = append(candidate, name...)
+			candidate = append(candidate, `="x"`...)
+			if p.Match(candidate) {
+				drop = true
+				break
+			}
+		}
+		if !drop {
+			continue
+		}
+		if out == nil {
+			out = make([]byte, 0, len(attrs))
+		}
+		out = append(out, attrs[at:m[0]]...)
+		at = m[1]
+	}
+	if out == nil {
+		return attrs
+	}
+	return append(out, attrs[at:]...)
 }
 
 // injectAttr writes value under every name in names, having first removed every
@@ -356,13 +388,17 @@ func InjectToken(data []byte, value string) []byte {
 // saved by a pre-rename build arrives carrying htmlclaytoken, and a strip that
 // only knew the new name would write a live credential to disk.
 //
+// It also removes sitevisibility, an ephemeral root attribute a hosted editor
+// stamps on the page it serves (spec section 9), so a save never writes it to a
+// file.
+//
 // The stamp is in here because it is the other piece of ephemeral response
 // metadata: a tab that saved the bytes it was served would freeze one response's
 // version into the file, and the next reader would be told it holds a document it
 // does not. Every ingress of client bytes already runs through this function, so
 // the stamp is stripped on all of them without a call site that can be forgotten.
 func StripToken(data []byte) []byte {
-	return StripDocumentETag(stripAttr(data, tokenAttrs))
+	return StripDocumentETag(stripAttr(data, strippedAttrs))
 }
 
 // StripDocumentETag removes any documentetag attribute from the root tag, leaving

@@ -1,19 +1,24 @@
 package dataapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 const corpusDir = "testdata/conformance"
 
-// caseMeta is the flat `key: value` sidecar each case carries. Unknown keys and repeated `note:`
-// lines are ignored, matching scripts/conformance.mjs.
+// caseMeta is the case classification scripts/conformance.mjs used to write as a flat `key: value`
+// sidecar beside each case, rebuilt from the fields data-api.json carries.
 type caseMeta struct {
 	tier   string
 	face   string
@@ -22,69 +27,127 @@ type caseMeta struct {
 	skip   map[string]string
 }
 
-// skipReason returns why this host skips the case, if it does. `skip:` is repeatable and scoped by
-// host, so a case can be skipped here while still pinning the reference's behavior over there —
-// which is exactly what the two deliberately-fixed props warts need.
+// skipReason returns why this host skips the case, if it does. A skip names its host, so a case can
+// be skipped here while still pinning the reference's behavior over there — which is exactly what
+// the two deliberately-fixed props warts need.
 func (m caseMeta) skipReason() string { return m.skip["htmlclay"] }
 
-func parseMeta(t *testing.T, path string) caseMeta {
-	t.Helper()
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read meta: %v", err)
-	}
-	m := caseMeta{tier: "1", face: "query", expect: "ok", token: "api", skip: map[string]string{}}
-	for _, line := range strings.Split(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		i := strings.Index(line, ":")
-		if line == "" || strings.HasPrefix(line, "#") || i < 0 {
-			continue
-		}
-		key := strings.TrimSpace(line[:i])
-		value := strings.TrimSpace(line[i+1:])
-		switch key {
-		case "tier":
-			m.tier = value
-		case "face":
-			m.face = value
-		case "token":
-			m.token = value
-		case "expect":
-			m.expect = value
-		case "skip":
-			host, reason, _ := strings.Cut(value, "=")
-			m.skip[strings.TrimSpace(host)] = strings.TrimSpace(reason)
-		}
-	}
-	return m
+// conformanceCase is one case out of the package's data-api.json. That file is the packed form of
+// what `make sync-conformance` used to copy into the case directory: the .html, the optional
+// .rules and .data.json, the meta fields, and every artifact the reference produced, keyed by the
+// suffix the case directory spelled as a separate file.
+type conformanceCase struct {
+	meta  caseMeta
+	files map[string]string
 }
 
-func caseNames(t *testing.T) []string {
-	t.Helper()
-	metas, err := filepath.Glob(filepath.Join(corpusDir, "cases", "*.meta"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(metas) == 0 {
-		t.Fatalf("no cases in %s — run `make sync-conformance`", corpusDir)
-	}
-	names := make([]string, 0, len(metas))
-	for _, p := range metas {
-		names = append(names, strings.TrimSuffix(filepath.Base(p), ".meta"))
-	}
-	return names
+type conformanceCorpus struct {
+	order []string
+	cases map[string]*conformanceCase
 }
 
-func readCaseFile(t *testing.T, name, ext string) (string, bool) {
+var (
+	corpusOnce sync.Once
+	corpusData *conformanceCorpus
+)
+
+func conformance(t testing.TB) *conformanceCorpus {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(corpusDir, "cases", name+ext))
-	if errors.Is(err, os.ErrNotExist) {
-		return "", false
+	corpusOnce.Do(func() { corpusData = loadConformance(t) })
+	return corpusData
+}
+
+func loadConformance(t testing.TB) *conformanceCorpus {
+	t.Helper()
+
+	var packed []struct {
+		Name   string   `json:"name"`
+		HTML   string   `json:"html"`
+		Rules  *string  `json:"rules"`
+		Face   string   `json:"face"`
+		Tier   int      `json:"tier"`
+		Skip   []string `json:"skip"`
+		Expect struct {
+			Data  json.RawMessage            `json:"data"`
+			Files map[string]json.RawMessage `json:"files"`
+		} `json:"expect"`
 	}
-	if err != nil {
-		t.Fatalf("read %s%s: %v", name, ext, err)
+	testutil.LoadVectors(t, "data-api.json", &packed)
+	if len(packed) < 83 {
+		t.Fatalf("data-api.json carries %d cases, want at least the 83 the corpus held", len(packed))
 	}
-	return string(b), true
+
+	corpus := &conformanceCorpus{cases: map[string]*conformanceCase{}}
+	for _, c := range packed {
+		if _, seen := corpus.cases[c.Name]; seen {
+			t.Fatalf("data-api.json names %s twice", c.Name)
+		}
+		meta := caseMeta{tier: strconv.Itoa(c.Tier), face: c.Face, expect: "ok", token: "api", skip: map[string]string{}}
+		if _, failed := c.Expect.Files["error.json"]; failed {
+			meta.expect = "error"
+		}
+		for _, line := range c.Skip {
+			host, reason, _ := strings.Cut(line, "=")
+			meta.skip[strings.TrimSpace(host)] = strings.TrimSpace(reason)
+		}
+		files := map[string]string{".html": c.HTML}
+		if c.Rules != nil {
+			files[".rules"] = *c.Rules
+		}
+		if len(c.Expect.Data) > 0 {
+			files[".data.json"] = compactJSON(t, c.Name+".data.json", c.Expect.Data)
+		}
+		for suffix, raw := range c.Expect.Files {
+			if strings.HasSuffix(suffix, ".html") {
+				var text string
+				if err := json.Unmarshal(raw, &text); err != nil {
+					t.Fatalf("data-api.json: %s.%s: %v", c.Name, suffix, err)
+				}
+				files["."+suffix] = text
+				continue
+			}
+			files["."+suffix] = compactJSON(t, c.Name+"."+suffix, raw)
+		}
+		corpus.cases[c.Name] = &conformanceCase{meta: meta, files: files}
+		corpus.order = append(corpus.order, c.Name)
+	}
+	return corpus
+}
+
+// compactJSON strips the whitespace from one expected artifact without touching its key order: the
+// assertions compare through the package's own decoder and marshaller, so a reordered object would
+// fail an extraction the reference got right.
+func compactJSON(t testing.TB, what string, raw json.RawMessage) string {
+	t.Helper()
+	var out bytes.Buffer
+	if err := json.Compact(&out, raw); err != nil {
+		t.Fatalf("data-api.json: %s: %v", what, err)
+	}
+	return out.String()
+}
+
+func caseNames(t testing.TB) []string {
+	t.Helper()
+	return conformance(t).order
+}
+
+func parseMeta(t testing.TB, name string) caseMeta {
+	t.Helper()
+	c := conformance(t).cases[name]
+	if c == nil {
+		t.Fatalf("%s is not in data-api.json", name)
+	}
+	return c.meta
+}
+
+func readCaseFile(t testing.TB, name, ext string) (string, bool) {
+	t.Helper()
+	c := conformance(t).cases[name]
+	if c == nil {
+		t.Fatalf("%s is not in data-api.json", name)
+	}
+	source, ok := c.files[ext]
+	return source, ok
 }
 
 // TestConformanceParseContract is the phase-2 half of the corpus: for every case whose rules come
@@ -98,7 +161,7 @@ func TestConformanceParseContract(t *testing.T) {
 	var checked, negative int
 
 	for _, name := range caseNames(t) {
-		meta := parseMeta(t, filepath.Join(corpusDir, "cases", name+".meta"))
+		meta := parseMeta(t, name)
 		source, hasRules := readCaseFile(t, name, ".rules")
 		if !hasRules {
 			// face: tag — rules live in the document and need the script-tag reader (phase 3).
@@ -213,7 +276,7 @@ func TestConformanceExtraction(t *testing.T) {
 	var ok, errored, skipped int
 
 	for _, name := range caseNames(t) {
-		meta := parseMeta(t, filepath.Join(corpusDir, "cases", name+".meta"))
+		meta := parseMeta(t, name)
 
 		t.Run(name, func(t *testing.T) {
 			if r := meta.skipReason(); r != "" {

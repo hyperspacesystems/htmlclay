@@ -382,7 +382,8 @@ class PromotionTests(unittest.TestCase):
         contract = json.loads(subprocess.check_output(
             [sys.executable, str(ROOT / 'scripts/release_candidate.py'), 'contract'], text=True))
         expected = {name.replace('{version}', self.record['version'])
-                    for name in contract['artifacts'] if name != 'identity'}
+                    for name in contract['artifacts']
+                    if name != 'identity' and not name.startswith('conformance-')}
         self.assertEqual({row['name'] for row in self.record['files']}, expected)
         promotion.validate(self.record)
 

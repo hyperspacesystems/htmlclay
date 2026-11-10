@@ -196,6 +196,35 @@ func TestSaveStripsALegacyToken(t *testing.T) {
 	}
 }
 
+// A hosted editor stamps `sitevisibility` on the page it serves (spec section 9).
+// That page saves itself back through the same route, so a strip that did not know
+// the attribute would freeze one editor's visibility into the file.
+func TestSaveStripsSiteVisibility(t *testing.T) {
+	srv, f, _ := setupHandlerTest(t)
+
+	body := `<html sitevisibility="private" lang="en"><body>edited in a hosted tab</body></html>`
+	req := httptest.NewRequest("POST", "/_/save/"+f.Token, strings.NewReader(body))
+	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
+	sameOriginHeaders(req)
+
+	w := httptest.NewRecorder()
+	srv.httpServer.Handler.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("save: got %d, want 200", w.Code)
+	}
+
+	saved, err := os.ReadFile(f.AbsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(saved), "sitevisibility") {
+		t.Errorf("a stale sitevisibility reached disk: %q", saved)
+	}
+	if !strings.Contains(string(saved), "edited in a hosted tab") {
+		t.Error("the save did not land")
+	}
+}
+
 // Every .htmlclay file saved before the rename carries `htmlclayid` on disk, and
 // its whole version history is filed under that value. Serving must read it,
 // because a file whose id is not recognised is given a fresh one and loses every

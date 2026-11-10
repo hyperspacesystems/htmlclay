@@ -119,7 +119,7 @@ func writeFormatRefusal(w http.ResponseWriter, refusal *pageadmission.FormatRefu
 // promises that `document.pageState.href` returns the page state stored with the exact
 // file bytes and backup identity, so a client may retire journaled page work against it
 // (Document 12 Step 8).
-var hostExtensions = []string{"conditional", "data-read", "data-write", "page", "page-awareness-v1", "page-recovery-v1", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
+var hostExtensions = []string{"conditional", "data-guard-v1", "data-read", "data-write", "page", "page-awareness-v1", "page-recovery-v1", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
 
 // maxSaveIDLen caps the §6 receipt id this host will remember. The spec asks for
 // at least 128 bits of randomness, which is 32 hex characters or 22 in base64url;

@@ -152,17 +152,14 @@ class ReleaseCandidateTests(unittest.TestCase):
                         self.assertEqual((root / "unpacked" / name).read_bytes(),
                                          (package / name).read_bytes())
 
-    def test_conformance_paths_are_absolute_and_rooted_at_checkout(self):
+    def test_conformance_runs_the_candidate_wrapper_with_no_host_gate_env(self):
         job = next(job for job in candidate.job_graph() if job["id"] == "conformance")
-        checkout = SCRIPT.parent.parent
-        runner = Path(job["env"]["HTMLCLAY_HOST_GATE_RUNNER"])
-        cwd = Path(job["env"]["HTMLCLAY_HOST_GATE_CWD"])
-        self.assertTrue(runner.is_absolute())
-        self.assertTrue(cwd.is_absolute())
-        self.assertEqual(runner, checkout / "testdata/conformance/host-test.mjs")
-        self.assertEqual(cwd, checkout)
-        self.assertTrue(runner.is_file())
-        self.assertTrue((runner.parent / "host-test.html").is_file())
+        self.assertEqual(job["command"],
+                         "npm ci && npx --no-install playwright install --with-deps chromium "
+                         "&& node scripts/conformance-candidate.mjs --platform linux")
+        self.assertEqual(job["artifacts"], ["conformance-linux"])
+        self.assertNotIn("env", job)
+        self.assertNotIn("TestMalleableHTMLFileHostGate", job["command"])
 
     def test_signing_tailwind_and_update_inventory(self):
         jobs = {job["id"]: job for job in candidate.job_graph()}

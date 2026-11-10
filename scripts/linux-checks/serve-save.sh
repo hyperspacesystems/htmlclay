@@ -9,7 +9,10 @@ command -v node >/dev/null || fail "node is required (the conformance runner is 
 
 DOCS="$HOME/docs"; trust_folder "$DOCS"
 PAGE="_mhf-host-test.htmlclay"
-cp "$REPO/testdata/conformance/host-test.html" "$DOCS/$PAGE"
+PACKAGE_DIR="$(cd "$REPO" && node -p "require('node:path').dirname(require.resolve('@panphora/host-conformance/package.json'))")" \
+  || fail "the installed conformance package has no page to serve"
+[ -f "$PACKAGE_DIR/page/host-test.html" ] || fail "the installed conformance package has no page to serve"
+cp "$PACKAGE_DIR/page/host-test.html" "$DOCS/$PAGE"
 
 start_app --no-tray "$DOCS/$PAGE"; PID=$APP_PID
 wait_for_file "$LAB/opened-urls" 30 || fail "the app never asked the browser to open a URL"
@@ -30,10 +33,19 @@ code="$(curl -s -o /dev/null -w '%{http_code}' "$ORIGIN$URLPATH")"
 [ "$code" = "200" ] || fail "own origin got $code, expected 200"
 pass "Host gate: 403 foreign, 200 own"
 
-( cd "$REPO" && node testdata/conformance/host-test.mjs --url "$ORIGIN" --page "${URLPATH#/}" --token-from-page ) > "$LAB/conformance.log" 2>&1 \
-  || { keep "$LAB/conformance.log"; fail "conformance run failed: $(tail -20 "$LAB/conformance.log")"; }
-keep "$LAB/conformance.log"
-pass "conformance page passed from the app's own origin"
+if [ -f "$REPO/platform-candidate.json" ] && [ -f "$REPO/candidate.json" ]; then
+  ( cd "$REPO" && node scripts/conformance-candidate.mjs --platform "${CONFORMANCE_PLATFORM:-}" \
+      --url "$ORIGIN" --root "$HOME" --page "${URLPATH#/}" --doc "$URLPATH" --target "$URLPATH" ) \
+    > "$LAB/conformance.log" 2>&1 \
+    || { keep "$LAB/conformance.log"; fail "candidate conformance failed: $(tail -20 "$LAB/conformance.log")"; }
+  keep "$LAB/conformance.log"
+  pass "conformance evidence recorded from the app's own origin"
+else
+  ( cd "$REPO" && node scripts/conformance.mjs --url "$ORIGIN" --root "$HOME" --page "${URLPATH#/}" --doc "$URLPATH" --target "$URLPATH" ) > "$LAB/conformance.log" 2>&1 \
+    || { keep "$LAB/conformance.log"; fail "conformance run failed: $(tail -20 "$LAB/conformance.log")"; }
+  keep "$LAB/conformance.log"
+  pass "conformance page passed from the app's own origin"
+fi
 
 stop_app "$PID"; rc=$APP_RC
 [ "$rc" = "0" ] || fail "exit code $rc on SIGTERM"

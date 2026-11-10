@@ -5,7 +5,8 @@
   "description": "Tooling wrapper for the htmlclay Go app: Go tests and the local Worker preview. htmlclay.com deploys itself from git on push to main, so there is no deploy command. Not the app itself.",
   "scripts": {
     "test": "go test ./...",
-    "dev": "wrangler dev"
+    "dev": "wrangler dev",
+    "conformance": "node scripts/conformance.mjs"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,8 @@
   },
   "homepage": "https://htmlclay.com",
   "devDependencies": {
+    "@panphora/host-conformance": "file:npm-vendor/host-conformance.tgz",
+    "playwright": "1.64.1",
     "wrangler": "^4.98.0"
   },
   "hyper": {

@@ -262,14 +262,16 @@ jobs:
         node-version: '24'
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Conformance gate
-      run: go test ./internal/server -run TestMalleableHTMLFileHostGate -count=1 -v
-      env:
-        HTMLCLAY_HOST_GATE: '1'
-        HTMLCLAY_HOST_GATE_RUNNER: ${{ github.workspace }}/candidate/testdata/conformance/host-test.mjs
-        HTMLCLAY_HOST_GATE_CWD: ${{ github.workspace }}/candidate
+      run: node scripts/conformance-candidate.mjs --platform linux
+    - uses: actions/upload-artifact@v4
+      with:
+        name: conformance-linux
+        path: candidate/.conformance/conformance-linux.json
+        if-no-files-found: error
+      if: always()
   build-linux-amd64:
     name: build-linux-amd64
     runs-on: ubuntu-24.04
@@ -1050,8 +1052,8 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
@@ -1118,14 +1120,21 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
         CHECKS: serve-save
+        CONFORMANCE_PLATFORM: linux-amd64-artifact
         HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
         HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - uses: actions/upload-artifact@v4
+      with:
+        name: conformance-linux-amd64-artifact
+        path: candidate/.conformance/conformance-linux-amd64-artifact.json
+        if-no-files-found: error
+      if: always()
     - name: Bundle desktop diagnostics
       run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
       if: always()
@@ -1186,8 +1195,8 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
@@ -1254,8 +1263,8 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
@@ -1322,8 +1331,8 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
@@ -1390,8 +1399,8 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
@@ -1458,14 +1467,21 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
         CHECKS: serve-save
+        CONFORMANCE_PLATFORM: linux-arm64-artifact
         HTMLCLAY_PACKAGE_DIR: ${{ github.workspace }}/retained/package
         HTMLCLAY_BIN: ${{ github.workspace }}/retained/package/htmlclay
+    - uses: actions/upload-artifact@v4
+      with:
+        name: conformance-linux-arm64-artifact
+        path: candidate/.conformance/conformance-linux-arm64-artifact.json
+        if-no-files-found: error
+      if: always()
     - name: Bundle desktop diagnostics
       run: tar czf "$GITHUB_WORKSPACE/desktop-diagnostics.tar.gz" -C linux-check-artifacts .
       if: always()
@@ -1526,8 +1542,8 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
@@ -1594,8 +1610,8 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
@@ -1662,8 +1678,8 @@ jobs:
         sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
     - name: Install the browser driver
       run: |
-        npm install --no-save playwright
-        npx playwright install --with-deps chromium
+        npm ci
+        npx --no-install playwright install --with-deps chromium
     - name: Linux check
       run: bash scripts/linux-checks/run-all.sh
       env:
