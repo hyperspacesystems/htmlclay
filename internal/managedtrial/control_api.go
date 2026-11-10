@@ -321,13 +321,8 @@ func (a *controlAPI) serveCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if takeFault(faultDropReply, body.Name) {
-		dropControlReply(w)
-		return
-	}
-
 	cursor := result.Cursor
-	writeControlJSON(w, http.StatusOK, orderedObject{
+	answer := orderedObject{
 		{Key: "outcome", Value: result.Outcome},
 		{Key: "reason", Value: nullableString(result.Reason)},
 		{Key: "refusal", Value: refusalValue(result.Refusal)},
@@ -337,7 +332,22 @@ func (a *controlAPI) serveCommit(w http.ResponseWriter, r *http.Request) {
 		{Key: "content", Value: controlBytesValue(result.Content)},
 		{Key: "opId", Value: opID},
 		{Key: "cursor", Value: cursor},
-	})
+	}
+	encoded, err := json.Marshal(answer)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	root.events.recordOpAnswer(opID, encoded)
+
+	if takeFault(faultDropReply, body.Name) {
+		dropControlReply(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(encoded)
 }
 
 // controlErrorStatus is the status an error a route could not answer with a
@@ -849,6 +859,9 @@ func (a *controlAPI) serveOp(w http.ResponseWriter, r *http.Request) {
 	}
 	if record.cursor != "" {
 		answer = append(answer, kv{Key: "cursor", Value: record.cursor})
+	}
+	if len(record.answer) > 0 {
+		answer = append(answer, kv{Key: "answer", Value: json.RawMessage(record.answer)})
 	}
 	writeControlJSON(w, http.StatusOK, answer)
 }

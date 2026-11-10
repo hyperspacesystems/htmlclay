@@ -40,11 +40,12 @@ type ringFrame struct {
 }
 
 // opRecord is what one opId became: its state, the checksum the write landed,
-// and the cursor of the frame that reported it.
+// the cursor of the frame that reported it, and the reply a commit answered.
 type opRecord struct {
 	state    string
 	checksum string
 	cursor   string
+	answer   []byte
 	at       time.Time
 }
 
@@ -166,10 +167,11 @@ func (r *eventRing) beginOp(opID string) {
 	defer r.mu.Unlock()
 	now := time.Now()
 	r.pruneOps(now)
-	if _, ok := r.ops[opID]; !ok {
+	record, ok := r.ops[opID]
+	if !ok {
 		r.opOrder = append(r.opOrder, opID)
 	}
-	r.ops[opID] = opRecord{state: "running", at: now}
+	r.ops[opID] = opRecord{state: "running", answer: record.answer, at: now}
 }
 
 // claimOp begins an op the caller named, unless this process has already seen
@@ -197,10 +199,27 @@ func (r *eventRing) finishOp(opID, state, checksum, cursor string) {
 	defer r.mu.Unlock()
 	now := time.Now()
 	r.pruneOps(now)
-	if _, ok := r.ops[opID]; !ok {
+	record, ok := r.ops[opID]
+	if !ok {
 		r.opOrder = append(r.opOrder, opID)
 	}
-	r.ops[opID] = opRecord{state: state, checksum: checksum, cursor: cursor, at: now}
+	r.ops[opID] = opRecord{state: state, checksum: checksum, cursor: cursor, answer: record.answer, at: now}
+}
+
+// recordOpAnswer keeps the reply a commit answered, so a caller whose reply was
+// lost reads the same bytes from /v1/op. It changes nothing else in the record.
+func (r *eventRing) recordOpAnswer(opID string, answer []byte) {
+	if opID == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	record, ok := r.ops[opID]
+	if !ok {
+		return
+	}
+	record.answer = append([]byte(nil), answer...)
+	r.ops[opID] = record
 }
 
 // currentCursor is where the stream stands now, for a route that answers a

@@ -316,6 +316,10 @@ Outcomes are kept for this process only: the last 10,000, or 10 minutes,
 whichever is smaller. Commits and restructures and page-state operations are all
 recorded; an operation that failed is recorded as `refused`.
 
+A finished commit's record also carries `answer`: the exact reply `/v1/commit`
+answered for it, so a caller whose reply was lost (for example under the
+`drop-reply` fault) reads the answer it missed from `/v1/op` before it retries.
+
 ## `POST /v1/fault`
 
 ```json

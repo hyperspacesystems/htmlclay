@@ -220,6 +220,19 @@ func TestFaultDropReply(t *testing.T) {
 	if status != http.StatusOK || answer["state"] != "committed" {
 		t.Fatalf("op %s: status = %d, answer = %v, want a committed op", opID, status, answer)
 	}
+	missed, ok := answer["answer"].(map[string]any)
+	if !ok {
+		t.Fatalf("op %s: answer = %v, want the reply the commit lost", opID, answer)
+	}
+	if missed["outcome"] != "committed" || missed["opId"] != opID {
+		t.Fatalf("op %s: answer = %v, want the committed save's own reply", opID, missed)
+	}
+	if etag, _ := missed["etag"].(string); etag == "" {
+		t.Fatalf("op %s: answer = %v, want an etag", opID, missed)
+	}
+	if stored, text := controlText(t, missed["stored"]); !text || stored != saved {
+		t.Fatalf("op %s: answer stored = %v, want the committed bytes", opID, missed["stored"])
+	}
 	if content := faultFileContent(t, filepath.Join(root.baseDir, "notes.html")); content != saved {
 		t.Fatalf("drop-reply: content = %q, want the saved bytes", content)
 	}

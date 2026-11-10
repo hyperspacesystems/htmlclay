@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -330,6 +331,82 @@ func TestControlRestructureWorkspaceKinds(t *testing.T) {
 	}
 	if info, err := os.Stat(filepath.Join(root.baseDir, "made")); err != nil || !info.IsDir() {
 		t.Fatalf("folder made no directory: %v", err)
+	}
+}
+
+// TestControlOpAnswerIsTheCommitReply is P12's reconciliation: a commit's whole
+// reply is kept with its op record, so a caller whose reply was lost reads back
+// exactly the answer it missed.
+func TestControlOpAnswerIsTheCommitReply(t *testing.T) {
+	root := controlTestRoot(t, "root-0")
+	server := controlTestServer(t, root)
+
+	doc := "<!doctype html>\n<html lang=\"en\">\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+	const opID = "9999999999999999"
+	status, reply := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/commit", map[string]any{
+		"opId":  opID,
+		"root":  "root-0",
+		"name":  "a.html",
+		"kind":  "create",
+		"bytes": map[string]any{"encoding": "utf8", "data": doc},
+	})
+	if status != http.StatusOK || reply["outcome"] != "committed" {
+		t.Fatalf("create a.html: status = %d, answer = %v", status, reply)
+	}
+
+	status, op := controlJSON(t, server, controlSecret, http.MethodGet, "/v1/op/"+opID, nil)
+	if status != http.StatusOK || op["state"] != "committed" {
+		t.Fatalf("op %s: status = %d, answer = %v, want a committed op", opID, status, op)
+	}
+	kept, ok := op["answer"].(map[string]any)
+	if !ok {
+		t.Fatalf("op %s: answer = %v, want the commit's reply", opID, op)
+	}
+	if !reflect.DeepEqual(kept, reply) {
+		t.Fatalf("op %s answer:\n got %v\nwant the commit's reply %v", opID, kept, reply)
+	}
+}
+
+// TestControlOpAnswerRefused is the refusal beside it: a save Go refuses answers
+// its refusal reply, and the op record keeps that reply under `refused`.
+func TestControlOpAnswerRefused(t *testing.T) {
+	root := controlTestRoot(t, "root-0")
+	server := controlTestServer(t, root)
+
+	doc := "<!doctype html>\n<html lang=\"en\">\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+	if status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/commit", map[string]any{
+		"opId":  "1212121212121212",
+		"root":  "root-0",
+		"name":  "r.html",
+		"kind":  "create",
+		"bytes": map[string]any{"encoding": "utf8", "data": doc},
+	}); status != http.StatusOK || answer["outcome"] != "committed" {
+		t.Fatalf("create r.html: status = %d, answer = %v", status, answer)
+	}
+
+	const opID = "3434343434343434"
+	status, reply := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/commit", map[string]any{
+		"opId":     opID,
+		"root":     "root-0",
+		"name":     "r.html",
+		"kind":     "browser-save",
+		"bytes":    map[string]any{"encoding": "utf8", "data": doc},
+		"expected": map[string]any{"type": "checksum", "value": "0000000000000000"},
+	})
+	if status != http.StatusOK || reply["outcome"] != "refused" || reply["reason"] != "changed" {
+		t.Fatalf("save with a stale checksum: status = %d, answer = %v, want a changed refusal", status, reply)
+	}
+
+	status, op := controlJSON(t, server, controlSecret, http.MethodGet, "/v1/op/"+opID, nil)
+	if status != http.StatusOK || op["state"] != "refused" {
+		t.Fatalf("op %s: status = %d, answer = %v, want a refused op", opID, status, op)
+	}
+	kept, ok := op["answer"].(map[string]any)
+	if !ok {
+		t.Fatalf("op %s: answer = %v, want the refusal reply the commit answered", opID, op)
+	}
+	if kept["outcome"] != "refused" || kept["reason"] != "changed" {
+		t.Fatalf("op %s: answer = %v, want the changed refusal", opID, kept)
 	}
 }
 
