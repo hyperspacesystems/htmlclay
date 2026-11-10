@@ -4,6 +4,7 @@ package managedtrial
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -92,6 +93,12 @@ func syncDirectory(dir string) error {
 	return err
 }
 
+// atomicDirSync is the directory fsync atomicWriteFile runs after the rename. It
+// is a variable so a test can make it fail and prove that a write whose bytes
+// landed, but whose directory entry may not survive, is reported as
+// indeterminate rather than committed.
+var atomicDirSync = syncDirectory
+
 // renameWithRetry publishes tmpPath at filePath, running beforeRename first so a
 // caller can re-check the target once the temp is durable.
 func renameWithRetry(tmpPath, filePath string, beforeRename func() error) error {
@@ -159,12 +166,21 @@ func atomicWriteFile(filePath string, content []byte, beforeRename func() error,
 		return err
 	}
 
-	if err := syncDirectory(dir); err != nil {
-		if durable && !hasErrno(err, atomicDirSyncUnsupportedCodes) {
+	if err := atomicDirSync(dir); err != nil {
+		if durable && !dirSyncUnsupported(err, runtime.GOOS) {
 			return &AfterRenameError{Err: err}
 		}
 	}
 	return nil
+}
+
+// dirSyncUnsupported reports a directory fsync failure that means the platform
+// cannot sync a directory, which Local ignores through DIR_SYNC_UNSUPPORTED. On
+// Windows, libuv maps every such failure into that set, but Go's syscall.EACCES
+// there is not ERROR_ACCESS_DENIED, so a permission-class error is matched by
+// kind and any Windows directory sync failure counts as unsupported.
+func dirSyncUnsupported(err error, goos string) bool {
+	return goos == "windows" || hasErrno(err, atomicDirSyncUnsupportedCodes) || errors.Is(err, fs.ErrPermission)
 }
 
 // fillAtomicTemp writes, syncs, remodes and closes the temp file, so the caller
