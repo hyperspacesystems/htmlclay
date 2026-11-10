@@ -42,6 +42,34 @@ var trialMetaExtensions = []string{
 	"wire",
 }
 
+// managedMetaExtensions is what Local announces with its room authority, its
+// relay and a person (server.js /_/meta, sorted as Local sorts it): the
+// list the full-host stage announces once the JS service is attached, because
+// the service answers the rooms, the live streams and presence, and normalizes
+// every page document save.
+var managedMetaExtensions = []string{
+	"conditional",
+	"data-guard-v1",
+	"data-read",
+	"data-write",
+	"format",
+	"live-data",
+	"live-provenance",
+	"page",
+	"page-awareness-v1",
+	"page-format-v1",
+	"page-recovery-v1",
+	"people",
+	"presence",
+	"receipts",
+	"record-awareness-v1",
+	"scoped-stylesheet",
+	"sync",
+	"sync-worker",
+	"upload",
+	"wire",
+}
+
 // documentTargetPattern is Local's validateAndResolvePath extension check: a
 // document block is only ever answered for a page file.
 var documentTargetPattern = regexp.MustCompile(`\.(html|htmlclay)$`)
@@ -155,9 +183,13 @@ func invalidFilePathError() error {
 // stamp of the document the request names, withheld by omission on every
 // failure.
 func (s *rootServer) serveMeta(w http.ResponseWriter, r *http.Request) error {
+	extensions := trialMetaExtensions
+	if s.service != nil {
+		extensions = managedMetaExtensions
+	}
 	body := orderedObject{
 		{Key: "spec", Value: 1},
-		{Key: "extensions", Value: trialMetaExtensions},
+		{Key: "extensions", Value: extensions},
 	}
 	if href := documentURLHeader(r); href != "" {
 		document := s.metaDocument(href)
