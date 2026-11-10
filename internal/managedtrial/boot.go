@@ -151,11 +151,13 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	for _, site := range sites {
 		site.watcher.start()
 	}
-
 	if _, err := fmt.Fprintf(stdout, "READY %s\n", line); err != nil {
 		shutdownAll(bound)
 		return err
 	}
+	// Snapshot entries nobody uploaded go stale, on the interval Local's
+	// root-server pool sweeps them.
+	stopSweep := startSnapshotSweep()
 	_, _ = fmt.Fprintf(stderr, "managed-trial: serving %d roots, control on %s\n", len(roots), ready.Control)
 
 	stdinClosed := make(chan struct{})
@@ -174,6 +176,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 	}
 
+	stopSweep()
 	for _, site := range sites {
 		site.watcher.stop()
 	}

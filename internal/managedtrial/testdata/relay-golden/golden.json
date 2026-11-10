@@ -1,0 +1,481 @@
+{
+  "streams": [
+    {
+      "name": "A",
+      "request": {
+        "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1793512800000\ndata: {\"seq\":1793512800000}",
+        ": connected",
+        "id: 1793512800000\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\",\"sender\":\"tab-A\",\"seq\":1793512800000,\"identityMap\":{\"0\":\"title\",\"1\":\"items\"},\"etag\":\"W/\\\"relay-1\\\"\"}",
+        "id: 1793512800002\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n<head><meta charset=\\\"utf-8\\\"><title>Notes</title></head>\\n<body><p>Legacy address.</p></body>\\n</html>\",\"sender\":\"tab-A\",\"seq\":1793512800002}"
+      ],
+      "buffer": ""
+    },
+    {
+      "name": "B",
+      "request": {
+        "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html&lane=saved",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1793512800000\ndata: {\"seq\":1793512800000}",
+        ": connected",
+        "id: 1793512800001\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">A viewer document.</p>\\n  </body>\\n</html>\\n\",\"sender\":\"tab-A\",\"seq\":1793512800001}"
+      ],
+      "buffer": ""
+    },
+    {
+      "name": "C",
+      "request": {
+        "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/other.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1793512800000\ndata: {\"seq\":1793512800000}",
+        ": connected"
+      ],
+      "buffer": ""
+    }
+  ],
+  "cases": [
+    {
+      "name": "relay-snapshot",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\", \"identityMap\": {\"0\": \"title\", \"1\": \"items\"}, \"etag\": \"W/\\\"relay-1\\\"\"}"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "16",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"10-oV4hJxRVSENxc/wX8+mA4/Pe4tA\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"success\":true}"
+      }
+    },
+    {
+      "name": "relay-document",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"document\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">A viewer document.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "16",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"10-oV4hJxRVSENxc/wX8+mA4/Pe4tA\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"success\":true}"
+      }
+    },
+    {
+      "name": "relay-both",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"document\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">A viewer document.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "53",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"35-F6eOGgKKtx57+A+RI0nxSKqkz/k\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Send exactly one of snapshot or document.\"}"
+      }
+    },
+    {
+      "name": "relay-neither",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"sender\": \"tab-A\"}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "53",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"35-F6eOGgKKtx57+A+RI0nxSKqkz/k\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Send exactly one of snapshot or document.\"}"
+      }
+    },
+    {
+      "name": "relay-html-on-spec",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"html\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "53",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"35-F6eOGgKKtx57+A+RI0nxSKqkz/k\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Send exactly one of snapshot or document.\"}"
+      }
+    },
+    {
+      "name": "relay-snapshot-not-string",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"snapshot\": 7, \"sender\": \"tab-A\"}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "53",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"35-Z6ARPQFQbIOWcwv+Y3A4mV95zwg\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"a snapshot or a document must be a string\"}"
+      }
+    },
+    {
+      "name": "relay-identity-map-not-object",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\", \"identityMap\": [\"a\"]}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "47",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2f-o9ruDP5q5ya132jxAvviuaYlVE8\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"identityMap must be a plain object.\"}"
+      }
+    },
+    {
+      "name": "relay-etag-not-string",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\", \"etag\": 12}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"22-f8nugro/k01L4WjzCaKIRUB223I\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"etag must be a string.\"}"
+      }
+    },
+    {
+      "name": "relay-snapshot-fragment",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"snapshot\": \"<p class=\\\"notes\\\">not a document</p>\", \"sender\": \"tab-A\"}"
+      },
+      "status": 422,
+      "headers": {
+        "content-length": "41",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"29-2A4kPIJ4eJhHy7xN42wJ6Qpdveg\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Not a complete HTML document.\"}"
+      }
+    },
+    {
+      "name": "relay-no-document-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "43",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2b-aCg90nzD5HW87XKrZ9rPAvwMUKo\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Document-URL header is required\"}"
+      }
+    },
+    {
+      "name": "relay-unresolvable-document-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/not-a-page.txt"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "29",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"1d-tPwVUxxqMgqbBYRFqgt326smyIc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Invalid file path\"}"
+      }
+    },
+    {
+      "name": "relay-invalid-json",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "application/json"
+        },
+        "body": "{\"snapshot\":"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"b-cEN6MKefADJ1aAV2WmWqUtBSgdI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Bad request"
+      }
+    },
+    {
+      "name": "relay-too-large",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "application/json"
+        }
+      },
+      "status": 413,
+      "headers": {
+        "content-length": "21",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Internal server error"
+      }
+    },
+    {
+      "name": "relay-cross-site",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Origin": "http://example.com"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+      },
+      "status": 403,
+      "headers": {
+        "content-length": "66",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"42-PRZnoGODbU6vamWTU7neO1WPQnk\"",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Cross-origin requests are not allowed.\",\"msgType\":\"error\"}"
+      }
+    },
+    {
+      "name": "relay-html-legacy",
+      "request": {
+        "method": "POST",
+        "path": "/live-sync/save",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        },
+        "body": "{\"html\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n<head><meta charset=\\\"utf-8\\\"><title>Notes</title></head>\\n<body><p>Legacy address.</p></body>\\n</html>\", \"sender\": \"tab-A\"}"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "16",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"10-oV4hJxRVSENxc/wX8+mA4/Pe4tA\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"success\":true}"
+      }
+    },
+    {
+      "name": "relay-floor-without-capability",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/floor.html"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+      },
+      "status": 409,
+      "headers": {
+        "content-length": "122",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"7a-FnOGyB13zz9YeJ8jG62SbKNxEn8\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"code\":\"page-format-upgrade-required\",\"msg\":\"This document uses a newer page format; update the editor to keep writing.\"}"
+      }
+    },
+    {
+      "name": "relay-floor-with-capability",
+      "request": {
+        "method": "POST",
+        "path": "/_/sync",
+        "headers": {
+          "Content-Type": "application/json",
+          "Document-URL": "http://127.0.0.1:{PORT}/floor.html",
+          "X-Clay-Page-Format": "1"
+        },
+        "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "16",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"10-oV4hJxRVSENxc/wX8+mA4/Pe4tA\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"success\":true}"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "floor.html",
+      "sha256": "d7f2edd2e1a1fd4013092020c13a384ab18e34071b944ffb1391d8920b1aa5f1"
+    },
+    {
+      "path": "notes.html",
+      "sha256": "1931b38d81670f9294ec369ea2284ae08a1621110572cd9c8143467d5c9b8b2a"
+    },
+    {
+      "path": "other.html",
+      "sha256": "8ef1812acd945f15a24470c7cd16f8d45da3f8d38abb466316c6017e179862e1"
+    }
+  ],
+  "clock": 1793512800000,
+  "pages": []
+}

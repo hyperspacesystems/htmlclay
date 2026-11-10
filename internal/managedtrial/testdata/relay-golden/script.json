@@ -1,0 +1,245 @@
+[
+  {
+    "op": "open",
+    "name": "A",
+    "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "open",
+    "name": "B",
+    "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html&lane=saved",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "open",
+    "name": "C",
+    "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/other.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "request",
+    "name": "relay-snapshot",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\", \"identityMap\": {\"0\": \"title\", \"1\": \"items\"}, \"etag\": \"W/\\\"relay-1\\\"\"}"
+  },
+  {
+    "op": "wait",
+    "ms": 100
+  },
+  {
+    "op": "request",
+    "name": "relay-document",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"document\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">A viewer document.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "wait",
+    "ms": 100
+  },
+  {
+    "op": "request",
+    "name": "relay-both",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"document\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">A viewer document.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-neither",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-html-on-spec",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"html\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-snapshot-not-string",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"snapshot\": 7, \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-identity-map-not-object",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\", \"identityMap\": [\"a\"]}"
+  },
+  {
+    "op": "request",
+    "name": "relay-etag-not-string",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\", \"etag\": 12}"
+  },
+  {
+    "op": "request",
+    "name": "relay-snapshot-fragment",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"snapshot\": \"<p class=\\\"notes\\\">not a document</p>\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-no-document-url",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-unresolvable-document-url",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/not-a-page.txt"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-invalid-json",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "application/json"
+    },
+    "body": "{\"snapshot\":"
+  },
+  {
+    "op": "request",
+    "name": "relay-too-large",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "application/json"
+    },
+    "bodyRepeat": {
+      "unit": "a",
+      "times": 10485761
+    }
+  },
+  {
+    "op": "request",
+    "name": "relay-cross-site",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Origin": "http://example.com"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-html-legacy",
+    "method": "POST",
+    "path": "/live-sync/save",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "body": "{\"html\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n<head><meta charset=\\\"utf-8\\\"><title>Notes</title></head>\\n<body><p>Legacy address.</p></body>\\n</html>\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "wait",
+    "ms": 100
+  },
+  {
+    "op": "request",
+    "name": "relay-floor-without-capability",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/floor.html"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "request",
+    "name": "relay-floor-with-capability",
+    "method": "POST",
+    "path": "/_/sync",
+    "headers": {
+      "Content-Type": "application/json",
+      "Document-URL": "http://127.0.0.1:{PORT}/floor.html",
+      "X-Clay-Page-Format": "1"
+    },
+    "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
+  },
+  {
+    "op": "wait",
+    "ms": 100
+  },
+  {
+    "op": "close",
+    "name": "A"
+  },
+  {
+    "op": "close",
+    "name": "B"
+  },
+  {
+    "op": "close",
+    "name": "C"
+  }
+]

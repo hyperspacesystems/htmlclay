@@ -36,10 +36,18 @@ type liveScriptStep struct {
 	Headers         map[string]string `json:"headers"`
 	Body            *string           `json:"body"`
 	BodyFile        string            `json:"bodyFile"`
+	BodyRepeat      *liveBodyRepeat   `json:"bodyRepeat"`
 	FromCase        *serveIfMatchFrom `json:"fromCase"`
 	IfMatchFrom     *serveIfMatchFrom `json:"ifMatchFrom"`
 	IfNoneMatchFrom string            `json:"ifNoneMatchFrom"`
 	MS              int               `json:"ms"`
+}
+
+// liveBodyRepeat is one request body the recorder builds by repeating a unit: a
+// body over the route's limit is too large to write out and too large to record.
+type liveBodyRepeat struct {
+	Unit  string `json:"unit"`
+	Times int    `json:"times"`
 }
 
 type liveStreamAnswer struct {
@@ -82,7 +90,14 @@ func TestLiveGolden(t *testing.T) {
 	if localSource == "" {
 		t.Skip("MANAGED_TRIAL_LOCAL_SOURCE is unset: the golden answers were recorded from a real Hyperclay Local checkout")
 	}
-	caseDir := filepath.Join("testdata", "live-golden")
+	runLiveGolden(t, filepath.Join("testdata", "live-golden"), localSource, liveJudgedCase)
+}
+
+// runLiveGolden replays one recorded case directory. judgedCase is the one case
+// whose answer, files and frames are judged by the data they hold rather than
+// byte for byte; a directory with no such case passes "".
+func runLiveGolden(t *testing.T, caseDir, localSource, judgedCase string) {
+	t.Helper()
 	var golden liveGolden
 	raw, err := os.ReadFile(filepath.Join(caseDir, "golden.json"))
 	if err != nil {
@@ -148,6 +163,9 @@ func TestLiveGolden(t *testing.T) {
 				requestPath = strings.ReplaceAll(requestPath, "{FROM}", resolveJSONField(t, step.Name, *step.FromCase, answered))
 			}
 			body := serveRequestBody(t, caseDir, serveRequest{Body: step.Body, BodyFile: step.BodyFile})
+			if step.BodyRepeat != nil {
+				body = []byte(strings.Repeat(step.BodyRepeat.Unit, step.BodyRepeat.Times))
+			}
 			status, gotHeaders, answer := serveSend(t, address, step.Method, requestPath, headers, body, port)
 			answered[step.Name] = serveAnswer{Name: step.Name, Status: status, Headers: gotHeaders, Answer: answer}
 			answerOrder = append(answerOrder, step.Name)
@@ -167,7 +185,10 @@ func TestLiveGolden(t *testing.T) {
 	if len(answerOrder) != len(golden.Cases) {
 		t.Fatalf("the script sent %d requests, the golden holds %d", len(answerOrder), len(golden.Cases))
 	}
-	restored := liveGoldenCaseBody(t, golden, liveJudgedCase)
+	var restored []byte
+	if judgedCase != "" {
+		restored = liveGoldenCaseBody(t, golden, judgedCase)
+	}
 	for i, want := range golden.Streams {
 		if streamOrder[i] != want.Name {
 			t.Fatalf("stream %d is %q in the script and %q in the golden", i, streamOrder[i], want.Name)
@@ -189,7 +210,7 @@ func TestLiveGolden(t *testing.T) {
 		}
 		got := answered[want.Name]
 		t.Run("case-"+want.Name, func(t *testing.T) {
-			compareLiveAnswer(t, got, want)
+			compareLiveAnswer(t, got, want, judgedCase)
 		})
 	}
 	compareLiveFiles(t, root, serveFileList(t, root), golden.Files, restored)
@@ -405,13 +426,13 @@ func compareLiveFrames(t *testing.T, want liveStreamAnswer, got []string, restor
 // compareLiveAnswer compares one request's answer exactly, except the document a
 // guard Restore wrote: its body is judged by the data it holds and its two body
 // stamps are recomputed from this host's own bytes.
-func compareLiveAnswer(t *testing.T, got, want serveAnswer) {
+func compareLiveAnswer(t *testing.T, got, want serveAnswer, judgedCase string) {
 	t.Helper()
 	if got.Status != want.Status {
 		t.Errorf("status = %d, want %d", got.Status, want.Status)
 	}
 	wantBody := serveDecodeBody(t, want.Body)
-	if want.Name == liveJudgedCase {
+	if want.Name == judgedCase {
 		if expected := ownStampHeaders(want.Headers, got.Answer); !reflect.DeepEqual(got.Headers, expected) {
 			t.Errorf("headers = %v, want %v", got.Headers, expected)
 		}

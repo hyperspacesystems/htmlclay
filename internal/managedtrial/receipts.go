@@ -20,11 +20,14 @@ type etagRecord struct {
 }
 
 // snapshotEntry is what one document owes platform sync. HTML is nil when only
-// the provenance half is known.
+// the provenance half is known, and UserDrivenSet is the difference between a
+// save that named no provenance at all and one that named `false`: Local keeps
+// that third state, and an upload cannot tell "not user driven" from "unknown".
 type snapshotEntry struct {
-	HTML       *string
-	UserDriven bool
-	Timestamp  int64
+	HTML          *string
+	UserDriven    bool
+	UserDrivenSet bool
+	Timestamp     int64
 }
 
 // snapshotStore is one root's receipts store.

@@ -326,6 +326,7 @@ async function main() {
         }
         let body
         if (step.bodyFile) body = fs.readFileSync(path.join(caseDir, step.bodyFile))
+        else if (step.bodyRepeat) body = step.bodyRepeat.unit.repeat(step.bodyRepeat.times)
         else if (step.body !== undefined) body = step.body
         let requestPath = substitute(step.path, port, streams)
         if (step.fromCase) {

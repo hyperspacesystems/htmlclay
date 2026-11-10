@@ -230,7 +230,7 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 	// The provenance bit for platform sync, merged rather than replaced with the
 	// snapshot /live-sync/save contributes.
 	previous, _ := h.store.snapshot(request.Name)
-	entry := snapshotEntry{UserDriven: request.UserDriven, Timestamp: time.Now().UnixMilli()}
+	entry := snapshotEntry{UserDriven: request.UserDriven, UserDrivenSet: request.UserDrivenSet, Timestamp: time.Now().UnixMilli()}
 	if previous.HTML != nil {
 		entry.HTML = previous.HTML
 	}

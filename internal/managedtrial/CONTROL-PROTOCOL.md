@@ -108,6 +108,31 @@ where the stream stands when it answers.
 Each returns nothing in Local, so the answer body is `null` with status `200`.
 Any other `op` is `400` with `Unknown page-state operation: <op>`.
 
+## `POST /v1/snapshot/take`
+
+```json
+{ "root": "root-0", "name": "a.html" }
+```
+
+Local's `getAndClearSnapshot` (`server.js:187-194`): what the document owes the
+platform on its next sync upload, read once through the relay's snapshot map
+(G6a's store) and cleared, so a second upload cannot send the same working state
+twice.
+
+```json
+{ "snapshot": { "html": "<!doctype html>…", "userDriven": true } } |
+{ "snapshot": { "html": null, "userDriven": true } } |
+{ "snapshot": null }
+```
+
+`html` is the last snapshot the document relayed through `POST /_/sync`, and
+`null` when only a save has written the entry. `userDriven` is the provenance
+bit the document's last save left, and it is absent when neither lane named one
+(Local's `undefined`, the `ui-unknown` an upload reports). `snapshot` is `null`
+when the document owes nothing: no entry at all, or an entry that names neither
+half. An entry older than five minutes is dropped by the host's sweep before any
+caller can take it.
+
 ## `GET /v1/read?root=root-0&name=a.html`
 
 Local's `read` (`document-host.js:137-146`), which takes no lock:

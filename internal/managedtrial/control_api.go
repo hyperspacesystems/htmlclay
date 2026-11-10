@@ -83,6 +83,8 @@ func (a *controlAPI) route(r *http.Request) http.HandlerFunc {
 		return a.serveRestructure
 	case r.URL.Path == "/v1/page-state" && r.Method == http.MethodPost:
 		return a.servePageState
+	case r.URL.Path == "/v1/snapshot/take" && r.Method == http.MethodPost:
+		return a.serveSnapshotTake
 	case r.URL.Path == "/v1/read" && (r.Method == http.MethodGet || r.Method == http.MethodHead):
 		return a.serveRead
 	case strings.HasPrefix(r.URL.Path, "/v1/op/") && (r.Method == http.MethodGet || r.Method == http.MethodHead):
@@ -401,6 +403,40 @@ func (a *controlAPI) servePageState(w http.ResponseWriter, r *http.Request) {
 	}
 	root.events.finishOp(opID, "committed", "", "")
 	writeControlJSON(w, http.StatusOK, nil)
+}
+
+// controlSnapshotTakeBody is one POST /v1/snapshot/take.
+type controlSnapshotTakeBody struct {
+	Root string `json:"root"`
+	Name string `json:"name"`
+}
+
+// serveSnapshotTake is POST /v1/snapshot/take: Local's getAndClearSnapshot,
+// the one read the sync engine makes before it uploads a page. The answer
+// carries the working snapshot the relay cached and the provenance bit the last
+// save left, and the entry is gone afterwards whether or not the caller uses it.
+func (a *controlAPI) serveSnapshotTake(w http.ResponseWriter, r *http.Request) {
+	var body controlSnapshotTakeBody
+	if !decodeControlJSON(w, r, &body) {
+		return
+	}
+	root, ok := a.root(w, body.Root)
+	if !ok {
+		return
+	}
+	entry, found := snapshotStoreFor(root.id).getAndClearSnapshot(body.Name)
+	if !found {
+		writeControlJSON(w, http.StatusOK, orderedObject{{Key: "snapshot", Value: nil}})
+		return
+	}
+	snapshot := orderedObject{{Key: "html", Value: nil}}
+	if entry.HTML != nil {
+		snapshot[0].Value = *entry.HTML
+	}
+	if entry.UserDrivenSet {
+		snapshot = append(snapshot, kv{Key: "userDriven", Value: entry.UserDriven})
+	}
+	writeControlJSON(w, http.StatusOK, orderedObject{{Key: "snapshot", Value: snapshot}})
 }
 
 // serveRead is GET /v1/read: Local's `read`, which takes no lock.

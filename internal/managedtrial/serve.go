@@ -133,6 +133,8 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveSyncWorker(w, r)
 	case getOrHead && (urlPath == "/sync" || urlPath == "/live-sync/stream"):
 		err = s.serveLiveStream(w, r)
+	case r.Method == http.MethodPost && relayAddress(urlPath) && bareAllowed(urlPath, marked):
+		err = s.serveRelay(w, r, urlPath)
 	case r.Method == http.MethodPost && urlPath == "/save" && bareAllowed(urlPath, marked):
 		err = s.serveSave(w, r)
 	case getOrHead && isFavicon:
