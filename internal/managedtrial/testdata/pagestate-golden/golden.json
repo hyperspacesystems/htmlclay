@@ -1,0 +1,2940 @@
+{
+  "generatedWith": {
+    "module": "src/main/page-state-store.js",
+    "appendedExports": [
+      "diskRev",
+      "pageStateDirPath"
+    ],
+    "generationStub": "counter-hex",
+    "rooms": "@panphora/clayjs/server/rooms"
+  },
+  "scenarios": [
+    {
+      "name": "store a page with a tag",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "store again with a new data-rev",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "store after the file was replaced from outside",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "writeFile",
+          "path": "notes.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"3333333333333333\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"4444444444444444\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        null,
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"4444444444444444\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"3333333333333333\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"4444444444444444\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000002\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"4444444444444444\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "read page state by revision",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "1111111111111111"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "2222222222222222"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "5555555555555555"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "exact": true
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "1111111111111111",
+          "exact": true
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "2222222222222222",
+          "exact": true
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "5555555555555555",
+          "exact": true
+        },
+        {
+          "kind": "readPageRecord",
+          "name": "notes.html",
+          "rev": "1111111111111111"
+        },
+        {
+          "kind": "readPageRecord",
+          "name": "notes.html",
+          "rev": "2222222222222222"
+        },
+        {
+          "kind": "readPageRecord",
+          "name": "notes.html"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "v": 1,
+          "rev": "2222222222222222",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        {
+          "v": 1,
+          "rev": "1111111111111111",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        {
+          "v": 1,
+          "rev": "2222222222222222",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        {
+          "v": 1,
+          "rev": "2222222222222222",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        null,
+        {
+          "v": 1,
+          "rev": "1111111111111111",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        {
+          "v": 1,
+          "rev": "2222222222222222",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        null,
+        {
+          "rev": "1111111111111111",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>",
+          "generation": "00000000000000000000000000000001"
+        },
+        {
+          "rev": "2222222222222222",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>",
+          "generation": "00000000000000000000000000000001"
+        },
+        null
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "logicalDocument composes the tag back",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "logicalDocument",
+          "name": "notes.html",
+          "stored": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "logicalDocument",
+          "name": "notes.html",
+          "stored": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "logicalBytes",
+          "name": "notes.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "logicalDocument",
+          "name": "other.html",
+          "stored": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "logicalBytes",
+          "name": "other.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "logicalDocument",
+          "name": "notes.html",
+          "stored": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "document": "<!doctype html>\n<html>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "document": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "bytes": "<!doctype html>\n<html>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "document": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "bytes": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "document": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "legacy sidecar adopted on read",
+      "steps": [
+        {
+          "kind": "writeFile",
+          "path": "notes.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.json",
+          "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "1111111111111111"
+        },
+        {
+          "kind": "readPageRecord",
+          "name": "notes.html",
+          "rev": "1111111111111111"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        {
+          "v": 1,
+          "rev": "1111111111111111",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        {
+          "rev": "1111111111111111",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>",
+          "generation": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "legacy sidecar beside the new one",
+      "steps": [
+        {
+          "kind": "writeFile",
+          "path": "notes.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.json",
+          "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.html.json",
+          "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "2222222222222222"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "1111111111111111"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        null,
+        {
+          "v": 1,
+          "rev": "2222222222222222",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        {
+          "v": 1,
+          "rev": "2222222222222222",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "legacy sidecar beside the other extension",
+      "steps": [
+        {
+          "kind": "writeFile",
+          "path": "notes.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "writeFile",
+          "path": "notes.htmlclay",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.json",
+          "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "entries": [
+        [
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "notes.htmlclay",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "notes.htmlclay",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "notes.htmlclay",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "legacy sidecar for htmlclay when no html document",
+      "steps": [
+        {
+          "kind": "writeFile",
+          "path": "notes.htmlclay",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.json",
+          "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.htmlclay",
+          "rev": "1111111111111111"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        {
+          "v": 1,
+          "rev": "1111111111111111",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": "notes.htmlclay",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": "notes.htmlclay",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.htmlclay.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\"}"
+          },
+          {
+            "path": "notes.htmlclay",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "corrupt sidecar",
+      "steps": [
+        {
+          "kind": "writeFile",
+          "path": "notes.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.html.json",
+          "text": "not json"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.html.json",
+          "text": "{\"v\":2,\"rev\":\"1111111111111111\",\"tag\":\"T\"}"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.html.json",
+          "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"generation\":\"nope\"}"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html"
+        },
+        {
+          "kind": "readPageRecord",
+          "name": "notes.html",
+          "rev": "1111111111111111"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.html.json",
+          "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"prev\":{\"rev\":\"2222222222222222\"}}"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "2222222222222222"
+        },
+        {
+          "kind": "writeFile",
+          "path": ".hyperclay/page-state/notes.html.json",
+          "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"prev\":{\"rev\":\"2222222222222222\",\"tag\":\"P\",\"generation\":\"00000000000000000000000000000009\"}}"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html",
+          "rev": "2222222222222222"
+        },
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"3333333333333333\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "v": 1,
+          "rev": "1111111111111111",
+          "tag": "T"
+        },
+        null,
+        null,
+        {
+          "v": 1,
+          "rev": "1111111111111111",
+          "tag": "T"
+        },
+        null,
+        {
+          "v": 1,
+          "rev": "2222222222222222",
+          "tag": "P"
+        },
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"3333333333333333\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "not json"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "not json"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":2,\"rev\":\"1111111111111111\",\"tag\":\"T\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":2,\"rev\":\"1111111111111111\",\"tag\":\"T\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"generation\":\"nope\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"generation\":\"nope\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"generation\":\"nope\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"prev\":{\"rev\":\"2222222222222222\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"prev\":{\"rev\":\"2222222222222222\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"prev\":{\"rev\":\"2222222222222222\",\"tag\":\"P\",\"generation\":\"00000000000000000000000000000009\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"T\",\"prev\":{\"rev\":\"2222222222222222\",\"tag\":\"P\",\"generation\":\"00000000000000000000000000000009\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"3333333333333333\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"T\"}}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"3333333333333333\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "writePageState writes Local exact bytes",
+      "steps": [
+        {
+          "kind": "writePageState",
+          "name": "notes.html",
+          "state": {
+            "v": 1,
+            "rev": "1111111111111111",
+            "tag": "<script merge=\"page\" clay=\"live\">&amp;é</script>"
+          }
+        },
+        {
+          "kind": "readPageRecord",
+          "name": "notes.html",
+          "rev": "1111111111111111"
+        },
+        {
+          "kind": "writePageState",
+          "name": "notes.html",
+          "state": {
+            "v": 1,
+            "rev": "2222222222222222",
+            "tag": "second"
+          }
+        },
+        {
+          "kind": "readPageRecord",
+          "name": "notes.html",
+          "rev": "1111111111111111"
+        },
+        {
+          "kind": "readPageRecord",
+          "name": "notes.html",
+          "rev": "2222222222222222"
+        }
+      ],
+      "results": [
+        null,
+        {
+          "rev": "1111111111111111",
+          "tag": "<script merge=\"page\" clay=\"live\">&amp;é</script>",
+          "generation": "00000000000000000000000000000001"
+        },
+        null,
+        {
+          "rev": "1111111111111111",
+          "tag": "<script merge=\"page\" clay=\"live\">&amp;é</script>",
+          "generation": "00000000000000000000000000000001"
+        },
+        {
+          "rev": "2222222222222222",
+          "tag": "second",
+          "generation": "00000000000000000000000000000002"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script merge=\\\"page\\\" clay=\\\"live\\\">&amp;é</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script merge=\\\"page\\\" clay=\\\"live\\\">&amp;é</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"second\",\"generation\":\"00000000000000000000000000000002\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script merge=\\\"page\\\" clay=\\\"live\\\">&amp;é</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"second\",\"generation\":\"00000000000000000000000000000002\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script merge=\\\"page\\\" clay=\\\"live\\\">&amp;é</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"second\",\"generation\":\"00000000000000000000000000000002\",\"prev\":{\"rev\":\"1111111111111111\",\"tag\":\"<script merge=\\\"page\\\" clay=\\\"live\\\">&amp;é</script>\",\"generation\":\"00000000000000000000000000000001\"}}"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "movePageState for a document",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "movePageState",
+          "from": "notes.html",
+          "to": "sub/renamed.html"
+        },
+        {
+          "kind": "readPageState",
+          "name": "sub/renamed.html",
+          "rev": "1111111111111111"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html"
+        },
+        {
+          "kind": "movePageState",
+          "from": "missing.html",
+          "to": "elsewhere.html"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        null,
+        {
+          "v": 1,
+          "rev": "1111111111111111",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        null,
+        null
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/renamed.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/renamed.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/renamed.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/renamed.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "movePageStateDir for a folder",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "sub/one.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "storePageState",
+          "name": "sub/two.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "movePageStateDir",
+          "from": "sub",
+          "to": "renamed"
+        },
+        {
+          "kind": "readPageState",
+          "name": "renamed/two.html",
+          "rev": "2222222222222222"
+        },
+        {
+          "kind": "movePageStateDir",
+          "from": "missing",
+          "to": "elsewhere"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        },
+        null,
+        {
+          "v": 1,
+          "rev": "2222222222222222",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        null
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/one.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/one.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/two.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000002\"}"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub/two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed/one.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed/two.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000002\"}"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub/two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed/one.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed/two.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000002\"}"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub/two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed/one.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": ".hyperclay/page-state/renamed/two.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000002\"}"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub/two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "dropPageState and dropPageStateDir",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "dropPageState",
+          "name": "notes.html"
+        },
+        {
+          "kind": "readPageState",
+          "name": "notes.html"
+        },
+        {
+          "kind": "dropPageState",
+          "name": "notes.html"
+        },
+        {
+          "kind": "storePageState",
+          "name": "sub/one.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "storePageState",
+          "name": "sub/two.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "dropPageStateDir",
+          "name": "sub"
+        },
+        {
+          "kind": "dropPageStateDir",
+          "name": "missing"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        null,
+        null,
+        null,
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        },
+        null,
+        null
+      ],
+      "entries": [
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/one.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000002\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/one.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000002\"}"
+          },
+          {
+            "path": ".hyperclay/page-state/sub/two.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"2222222222222222\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000003\"}"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub/two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub/two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": "notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub",
+            "kind": "dir"
+          },
+          {
+            "path": "sub/one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "sub/two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "subfolder and non-ascii name",
+      "steps": [
+        {
+          "kind": "pageStatePath",
+          "name": "folder/naïve notes.html"
+        },
+        {
+          "kind": "pageStateDirPath",
+          "name": "folder/naïve notes"
+        },
+        {
+          "kind": "storePageState",
+          "name": "folder/naïve notes.html",
+          "html": "<!doctype html>\n<html>\n<body>\n  <script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "readPageState",
+          "name": "folder/naïve notes.html",
+          "rev": "1111111111111111"
+        },
+        {
+          "kind": "pageStatePath",
+          "name": "notes.html"
+        },
+        {
+          "kind": "pageStateDirPath",
+          "name": ""
+        }
+      ],
+      "results": [
+        {
+          "path": "root/.hyperclay/page-state/folder/naïve notes.html.json"
+        },
+        {
+          "path": "root/.hyperclay/page-state/folder/naïve notes"
+        },
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "v": 1,
+          "rev": "1111111111111111",
+          "tag": "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+        },
+        {
+          "path": "root/.hyperclay/page-state/notes.html.json"
+        },
+        {
+          "path": "root/.hyperclay/page-state"
+        }
+      ],
+      "entries": [
+        [],
+        [],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/folder",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/folder/naïve notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "folder",
+            "kind": "dir"
+          },
+          {
+            "path": "folder/naïve notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/folder",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/folder/naïve notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "folder",
+            "kind": "dir"
+          },
+          {
+            "path": "folder/naïve notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/folder",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/folder/naïve notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "folder",
+            "kind": "dir"
+          },
+          {
+            "path": "folder/naïve notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": ".hyperclay",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/folder",
+            "kind": "dir"
+          },
+          {
+            "path": ".hyperclay/page-state/folder/naïve notes.html.json",
+            "kind": "file",
+            "text": "{\"v\":1,\"rev\":\"1111111111111111\",\"tag\":\"<script type=\\\"application/json\\\" merge=\\\"page\\\" clay=\\\"live\\\">{\\\"v\\\":1,\\\"g\\\":0,\\\"y\\\":{\\\"seed\\\":\\\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\\\"}}</script>\",\"generation\":\"00000000000000000000000000000001\"}"
+          },
+          {
+            "path": "folder",
+            "kind": "dir"
+          },
+          {
+            "path": "folder/naïve notes.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a name that tries to escape",
+      "steps": [
+        {
+          "kind": "pageStatePath",
+          "name": "../x.html"
+        },
+        {
+          "kind": "pageStateDirPath",
+          "name": "../x"
+        },
+        {
+          "kind": "pageStatePath",
+          "name": "notes.html"
+        },
+        {
+          "kind": "writePageState",
+          "name": "../x.html",
+          "state": {
+            "v": 1,
+            "rev": "1111111111111111",
+            "tag": "t"
+          }
+        },
+        {
+          "kind": "dropPageState",
+          "name": "../x.html"
+        },
+        {
+          "kind": "movePageState",
+          "from": "notes.html",
+          "to": "../x.html"
+        },
+        {
+          "kind": "readPageState",
+          "name": "../x.html"
+        }
+      ],
+      "results": [
+        {
+          "error": "Page state path escapes base directory"
+        },
+        {
+          "error": "Page state path escapes base directory"
+        },
+        {
+          "path": "root/.hyperclay/page-state/notes.html.json"
+        },
+        {
+          "error": "Page state path escapes base directory"
+        },
+        {
+          "error": "Page state path escapes base directory"
+        },
+        {
+          "error": "Page state path escapes base directory"
+        },
+        {
+          "error": "Page state path escapes base directory"
+        }
+      ],
+      "entries": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "name": "diskRev for a file with and without an article",
+      "steps": [
+        {
+          "kind": "writeFile",
+          "path": "one.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "diskRev",
+          "name": "one.html"
+        },
+        {
+          "kind": "writeFile",
+          "path": "plain.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "diskRev",
+          "name": "plain.html"
+        },
+        {
+          "kind": "diskRev",
+          "name": "missing.html"
+        },
+        {
+          "kind": "writeFile",
+          "path": "two.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "diskRev",
+          "name": "two.html"
+        },
+        {
+          "kind": "writeFile",
+          "path": "untagged.html",
+          "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"hyper-source\" content=\"https://hyperclay.com/templates/page/hosted/latest.html\">\n<meta name=\"hyper-version\" content=\"1.0.0\">\n<meta name=\"clay-template\" content=\"page hosted\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Untitled</title>\n<meta name=\"application-name\" content=\"Document\">\n<link rel=\"stylesheet\" href=\"https://clayjs.com/v1/src/page/themes/light-1.css\">\n<style>body { margin: 0 }</style>\n<script type=\"application/json\" merge=\"page.tools\" clay=\"live\">{}</script>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\"></h1>\n<p data-id=\"p1\"></p></article>\n<script src=\"https://clayjs.com/v1/clay.js?plugins=page\"></script>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "diskRev",
+          "name": "untagged.html"
+        }
+      ],
+      "results": [
+        null,
+        {
+          "rev": "1111111111111111"
+        },
+        null,
+        {
+          "rev": null
+        },
+        {
+          "rev": null
+        },
+        null,
+        {
+          "rev": null
+        },
+        null,
+        {
+          "rev": "093360993130d818"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n"
+          },
+          {
+            "path": "two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n"
+          },
+          {
+            "path": "two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n"
+          },
+          {
+            "path": "two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "untagged.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"hyper-source\" content=\"https://hyperclay.com/templates/page/hosted/latest.html\">\n<meta name=\"hyper-version\" content=\"1.0.0\">\n<meta name=\"clay-template\" content=\"page hosted\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Untitled</title>\n<meta name=\"application-name\" content=\"Document\">\n<link rel=\"stylesheet\" href=\"https://clayjs.com/v1/src/page/themes/light-1.css\">\n<style>body { margin: 0 }</style>\n<script type=\"application/json\" merge=\"page.tools\" clay=\"live\">{}</script>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\"></h1>\n<p data-id=\"p1\"></p></article>\n<script src=\"https://clayjs.com/v1/clay.js?plugins=page\"></script>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "one.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n"
+          },
+          {
+            "path": "two.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "untagged.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"hyper-source\" content=\"https://hyperclay.com/templates/page/hosted/latest.html\">\n<meta name=\"hyper-version\" content=\"1.0.0\">\n<meta name=\"clay-template\" content=\"page hosted\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Untitled</title>\n<meta name=\"application-name\" content=\"Document\">\n<link rel=\"stylesheet\" href=\"https://clayjs.com/v1/src/page/themes/light-1.css\">\n<style>body { margin: 0 }</style>\n<script type=\"application/json\" merge=\"page.tools\" clay=\"live\">{}</script>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\"></h1>\n<p data-id=\"p1\"></p></article>\n<script src=\"https://clayjs.com/v1/clay.js?plugins=page\"></script>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "store is a no-op without a tag",
+      "steps": [
+        {
+          "kind": "storePageState",
+          "name": "plain.html",
+          "html": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "storePageState",
+          "name": "no-rev.html",
+          "html": "<!doctype html>\n<html>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "storePageState",
+          "name": "untagged.html",
+          "html": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"hyper-source\" content=\"https://hyperclay.com/templates/page/hosted/latest.html\">\n<meta name=\"hyper-version\" content=\"1.0.0\">\n<meta name=\"clay-template\" content=\"page hosted\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Untitled</title>\n<meta name=\"application-name\" content=\"Document\">\n<link rel=\"stylesheet\" href=\"https://clayjs.com/v1/src/page/themes/light-1.css\">\n<style>body { margin: 0 }</style>\n<script type=\"application/json\" merge=\"page.tools\" clay=\"live\">{}</script>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\"></h1>\n<p data-id=\"p1\"></p></article>\n<script src=\"https://clayjs.com/v1/clay.js?plugins=page\"></script>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "file": "<!doctype html>\n<html>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n</body>\n</html>\n"
+        },
+        {
+          "file": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"hyper-source\" content=\"https://hyperclay.com/templates/page/hosted/latest.html\">\n<meta name=\"hyper-version\" content=\"1.0.0\">\n<meta name=\"clay-template\" content=\"page hosted\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Untitled</title>\n<meta name=\"application-name\" content=\"Document\">\n<link rel=\"stylesheet\" href=\"https://clayjs.com/v1/src/page/themes/light-1.css\">\n<style>body { margin: 0 }</style>\n<script type=\"application/json\" merge=\"page.tools\" clay=\"live\">{}</script>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\"></h1>\n<p data-id=\"p1\"></p></article>\n<script src=\"https://clayjs.com/v1/clay.js?plugins=page\"></script>\n</body>\n</html>\n"
+        }
+      ],
+      "entries": [
+        [
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "no-rev.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          }
+        ],
+        [
+          {
+            "path": "no-rev.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n</body>\n</html>\n"
+          },
+          {
+            "path": "plain.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+          },
+          {
+            "path": "untagged.html",
+            "kind": "file",
+            "text": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"hyper-source\" content=\"https://hyperclay.com/templates/page/hosted/latest.html\">\n<meta name=\"hyper-version\" content=\"1.0.0\">\n<meta name=\"clay-template\" content=\"page hosted\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Untitled</title>\n<meta name=\"application-name\" content=\"Document\">\n<link rel=\"stylesheet\" href=\"https://clayjs.com/v1/src/page/themes/light-1.css\">\n<style>body { margin: 0 }</style>\n<script type=\"application/json\" merge=\"page.tools\" clay=\"live\">{}</script>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\"></h1>\n<p data-id=\"p1\"></p></article>\n<script src=\"https://clayjs.com/v1/clay.js?plugins=page\"></script>\n</body>\n</html>\n"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "logical document without a base",
+      "steps": [
+        {
+          "kind": "logicalDocument",
+          "base": "",
+          "name": "notes.html",
+          "stored": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "logicalBytes",
+          "base": "",
+          "name": "notes.html",
+          "text": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "kind": "logicalDocument",
+          "base": "",
+          "name": "",
+          "stored": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "results": [
+        {
+          "document": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "bytes": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        },
+        {
+          "document": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        }
+      ],
+      "entries": [
+        [],
+        [],
+        []
+      ]
+    }
+  ],
+  "revs": [
+    {
+      "name": "one article",
+      "input": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n",
+      "rev": "1111111111111111"
+    },
+    {
+      "name": "one article with no data-rev",
+      "input": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "rev": null
+    },
+    {
+      "name": "two articles",
+      "input": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"2222222222222222\"></article>\n</body>\n</html>\n",
+      "rev": null
+    },
+    {
+      "name": "no article",
+      "input": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n",
+      "rev": null
+    },
+    {
+      "name": "article inside template beside a real one",
+      "input": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\" data-rev=\"2222222222222222\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n",
+      "rev": "1111111111111111"
+    },
+    {
+      "name": "article inside noscript beside a real one",
+      "input": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n",
+      "rev": "1111111111111111"
+    },
+    {
+      "name": "ypage template",
+      "input": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Untitled</title>\n<meta name=\"application-name\" content=\"Document\">\n<link rel=\"stylesheet\" href=\"https://clayjs.com/v1/src/page/themes/light-1.css\">\n<style>body { margin: 0 }</style>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<script type=\"application/json\" merge=\"page.tools\" clay=\"live\">{}</script>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\"></h1>\n<p data-id=\"p1\"></p></article>\n<script src=\"https://clayjs.com/v1/clay.js?plugins=page\"></script>\n</body>\n</html>\n",
+      "rev": "093360993130d818"
+    },
+    {
+      "name": "untagged template",
+      "input": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"hyper-source\" content=\"https://hyperclay.com/templates/page/hosted/latest.html\">\n<meta name=\"hyper-version\" content=\"1.0.0\">\n<meta name=\"clay-template\" content=\"page hosted\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Untitled</title>\n<meta name=\"application-name\" content=\"Document\">\n<link rel=\"stylesheet\" href=\"https://clayjs.com/v1/src/page/themes/light-1.css\">\n<style>body { margin: 0 }</style>\n<script type=\"application/json\" merge=\"page.tools\" clay=\"live\">{}</script>\n</head>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"><h1 data-id=\"title\"></h1>\n<p data-id=\"p1\"></p></article>\n<script src=\"https://clayjs.com/v1/clay.js?plugins=page\"></script>\n</body>\n</html>\n",
+      "rev": "093360993130d818"
+    }
+  ]
+}

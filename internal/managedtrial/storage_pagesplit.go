@@ -198,6 +198,17 @@ func pageNewlineOf(source string, from int) string {
 	return "\n"
 }
 
+// pageRev is ClayJS's pageRev: the revision of the one non-inert
+// article[data-page] in a document, or nothing when it has no such single
+// article or the article carries no data-rev.
+func pageRev(source string) string {
+	found := locatePageSplit(source)
+	if found.articles != 1 {
+		return ""
+	}
+	return found.rev
+}
+
 // splitPage removes the page editor's merge state from a page document and
 // returns it as a record: the file without the tag, and the tag with the
 // revision of the article it belongs to. A document that is not exactly one
