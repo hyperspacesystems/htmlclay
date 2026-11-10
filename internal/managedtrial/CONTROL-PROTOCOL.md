@@ -85,6 +85,55 @@ A name Go cannot resolve, or a lane that fails before writing, answers `400`;
 a write whose bytes landed but whose directory entry may not survive still
 answers `200` with `outcome: "indeterminate"`, never `committed`.
 
+## `POST /v1/checkpoint`
+
+```json
+{ "opId": "…", "root": "root-0", "name": "index.html",
+  "roomIdentity": "…", "generation": 12 | null }
+```
+
+Local's checkpoint, run by this host: the JS service's checkpoint scheduler
+posts one for a dirty room, and Go does the write. A checkpoint needs the JS
+service (404 `{"error":"checkpoint needs the service"}` without one), a page
+document and a room identity (400 otherwise). Under the document's lock, after
+refusing a barred document and reading the identity, the bytes and the
+snapshot, Go asks the service to render the room with `POST
+/v1/render-checkpoint`: the consultation's usual fields plus `roomIdentity`,
+`generation` and `current`, with `opHandle` set to this opId and `lane` `save`
+and `origin` `checkpoint`. There is no `claim` and no `captureId` in that call:
+the room, its target and the admission claim are the service's, found by
+`opHandle`.
+
+A `render` answer runs the save lane with origin `checkpoint`,
+`userDriven: false`, `saveId: ""` and `dataLossPrev` from the file it read,
+through the same lock: `admit` and `settle` run as they do for any save. The
+file's identity is checked again immediately before the rename, as Local's
+checkpoint does; a file that changed since it was read answers `refused` with
+`invalid-identity`, and nothing replaces it.
+
+```json
+{ "kind": "ok", "revision": 4 | null,
+  "written": { "encoding": "utf8", "data": "…" } | null,
+  "opId": "…", "cursor": "<epoch>:<seq>" } |
+{ "kind": "clean" | "current", "reason": null | "…",
+  "opId": "…", "cursor": null } |
+{ "kind": "refused", "reason": "…" | "invalid-identity",
+  "opId": "…", "cursor": null } |
+{ "kind": "indeterminate", "reason": "…",
+  "opId": "…", "cursor": "<epoch>:<seq>" }
+```
+
+`ok` reports the render's `revision` and the save's `written` bytes (`null`
+unless the write committed), plus the opId and its frame's cursor, whatever the
+save's outcome other than indeterminate. `clean`, `current` and `refused` are
+the render's own answers passed through, with its `reason`. `refused` with
+`invalid-identity` is the identity check before the rename.
+
+A barred document, or a service that cannot be reached, answers `503` with
+`{"reason":"unconfirmed","retryable":true}` or
+`{"reason":"service-unavailable","retryable":true}` and a `Retry-After`, so the
+service's checkpoint throws and its scheduler retries.
+
 ## `POST /v1/restructure`
 
 ```json

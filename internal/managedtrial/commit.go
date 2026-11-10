@@ -84,6 +84,10 @@ type commitRequest struct {
 	ConsultOrigin string
 	// CaptureID is the checkpoint capture a write stores, marked saved on settle.
 	CaptureID *string
+	// BeforeRename runs immediately before the document's rename; an error
+	// leaves the document as it was. A checkpoint checks there that the file is
+	// still the one it read.
+	BeforeRename func() error
 }
 
 // commitExpectation is Local's `expected`: the precondition a request is judged
@@ -109,6 +113,11 @@ type commitResult struct {
 	Cursor  string
 	Refusal *serviceRefusal // a refusal answered to the client as it was decided
 }
+
+// errCheckpointTargetChanged is Local's `moved-or-deleted` from a checkpoint's
+// identity check: the file is not the one the checkpoint read, so nothing
+// replaced it.
+var errCheckpointTargetChanged = errors.New("Checkpoint target changed since it was read")
 
 // refused is Local's refusal shape.
 func refused(reason string) commitResult {
@@ -363,13 +372,13 @@ func (h *commitHost) canonicalForWrite(html string) string {
 
 // placeBytes is Local's placeBytes: the sidecar lands before the file, and only
 // the file part reaches disk.
-func (h *commitHost) placeBytes(name, filePath, logical string) (string, error) {
+func (h *commitHost) placeBytes(name, filePath, logical string, beforeRename func() error) (string, error) {
 	stored, err := storePageState(h.baseDir, name, logical, true)
 	if err != nil {
 		return "", err
 	}
 	h.hooks.MarkPending(h.baseDir, name, stored)
-	if err := atomicWriteFile(filePath, []byte(stored), nil, true); err != nil {
+	if err := atomicWriteFile(filePath, []byte(stored), beforeRename, true); err != nil {
 		return "", err
 	}
 	h.hooks.MarkBrowserSave(name)

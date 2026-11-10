@@ -84,7 +84,7 @@ func (h *commitHost) commitReplace(request *commitRequest, filePath string) (com
 
 	CreateBackup(h.baseDir, backupName, []byte(fileContent), nil)
 
-	stored, err := h.placeBytes(request.Name, filePath, content)
+	stored, err := h.placeBytes(request.Name, filePath, content, nil)
 	if err != nil {
 		if consult != nil {
 			consult.settleFailed(err, "server-save")

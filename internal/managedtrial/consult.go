@@ -34,6 +34,10 @@ type serviceAnswer struct {
 	Headers     map[string]string `json:"headers"`
 	OK          *bool             `json:"ok"`
 	Error       string            `json:"error"`
+	Kind        string            `json:"kind"`
+	Revision    json.RawMessage   `json:"revision"`
+	CaptureID   *string           `json:"captureId"`
+	Reason      string            `json:"reason"`
 }
 
 // serviceArtifact is one file the service needs written before its handler
@@ -311,6 +315,36 @@ func (c *consultation) settle(args settleArgs) error {
 		return err
 	}
 	return nil
+}
+
+// renderCheckpoint asks the service to render a dirty room while this host
+// holds the document's lock (protocol v1, render-checkpoint). current is the
+// snapshot the render is judged against; the room, its target and its
+// admission claim are the service's, found by opHandle.
+func (c *consultation) renderCheckpoint(roomIdentity string, generation json.RawMessage, current orderedObject) (serviceAnswer, error) {
+	var gen any
+	if len(generation) > 0 {
+		gen = generation
+	}
+	body := append(c.head(),
+		kv{Key: "roomIdentity", Value: roomIdentity},
+		kv{Key: "generation", Value: gen},
+		kv{Key: "current", Value: current},
+	)
+	answer, err := c.call("/v1/render-checkpoint", body)
+	if err != nil {
+		return serviceAnswer{}, err
+	}
+	switch answer.Kind {
+	case "render":
+		if answer.Logical == nil {
+			return serviceAnswer{}, errors.New("render-checkpoint: render without logical")
+		}
+	case "clean", "current", "refused":
+	default:
+		return serviceAnswer{}, fmt.Errorf("render-checkpoint: unknown kind %q", answer.Kind)
+	}
+	return answer, nil
 }
 
 // end aborts a consultation that never reached settle, naming why.

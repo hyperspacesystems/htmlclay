@@ -84,6 +84,8 @@ func (a *controlAPI) route(r *http.Request) http.HandlerFunc {
 	switch {
 	case r.URL.Path == "/v1/commit" && r.Method == http.MethodPost:
 		return a.serveCommit
+	case r.URL.Path == "/v1/checkpoint" && r.Method == http.MethodPost:
+		return a.serveCheckpoint
 	case r.URL.Path == "/v1/restructure" && r.Method == http.MethodPost:
 		return a.serveRestructure
 	case r.URL.Path == "/v1/page-state" && r.Method == http.MethodPost:

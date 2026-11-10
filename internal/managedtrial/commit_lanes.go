@@ -229,7 +229,7 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 	}
 
 	// The sidecar lands before the file, and only the file part reaches disk.
-	stored, err := h.placeBytes(request.Name, filePath, content)
+	stored, err := h.placeBytes(request.Name, filePath, content, request.BeforeRename)
 	if err != nil {
 		if consult != nil {
 			consult.settleFailed(err, saveSender(policy))
