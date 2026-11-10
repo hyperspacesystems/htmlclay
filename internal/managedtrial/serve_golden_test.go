@@ -76,6 +76,12 @@ type serveGolden struct {
 type goldenOptions struct {
 	normalize func(*serveAnswer)
 	skipFile  func(path string) bool
+	// ownStatCases names, by case, a file this host wrote during the run and
+	// whose answer stamps it. A write's own instant is nobody else's, so those
+	// two headers (etag, last-modified) are recomputed from the file on disk the
+	// way ownStampHeaders recomputes a data-judged answer's body headers, rather
+	// than compared against Local's recording. Everything else stays exact.
+	ownStatCases map[string]string
 	// dataJudgedCases and dataJudgedFiles are the one decided byte difference:
 	// Local writes data (a guard Restore, a data API write) through cheerio, which
 	// re-serializes the whole document, while dataapi splices only the changed
@@ -195,6 +201,13 @@ func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options golde
 			if normalize != nil {
 				normalize(&expected)
 			}
+			if writtenPath, ok := options.ownStatCases[request.Name]; ok {
+				info, err := os.Stat(filepath.Join(root, filepath.FromSlash(writtenPath)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				expected.Headers = ownStatHeaders(expected.Headers, info)
+			}
 			if status != expected.Status {
 				t.Errorf("status = %d, want %d", status, expected.Status)
 			}
@@ -245,6 +258,19 @@ func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options golde
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("the root's files changed: got %v, want %v", got, want)
 	}
+}
+
+// ownStatHeaders is Local's recorded headers with the two that stamp a file this
+// host wrote (etag, last-modified) recomputed from that file's own size and
+// mtime.
+func ownStatHeaders(recorded map[string]string, info os.FileInfo) map[string]string {
+	headers := make(map[string]string, len(recorded))
+	for key, value := range recorded {
+		headers[key] = value
+	}
+	headers["etag"] = weakStatETag(info)
+	headers["last-modified"] = info.ModTime().UTC().Format(http.TimeFormat)
+	return headers
 }
 
 // ownStampHeaders is Local's recorded headers with the two that stamp the body

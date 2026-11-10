@@ -1,0 +1,194 @@
+[
+  {
+    "name": "upload-png-apps",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/png.bin"
+  },
+  {
+    "name": "upload-png-get",
+    "method": "GET",
+    "path": "{FROM}",
+    "fromCase": {
+      "case": "upload-png-apps",
+      "json": "uploads.0.url"
+    }
+  },
+  {
+    "name": "upload-png-head",
+    "method": "HEAD",
+    "path": "{FROM}",
+    "fromCase": {
+      "case": "upload-png-apps",
+      "json": "uploads.0.url"
+    }
+  },
+  {
+    "name": "upload-png-again",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/png.bin"
+  },
+  {
+    "name": "upload-index-root",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/index.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/png.bin"
+  },
+  {
+    "name": "upload-missing-document",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/nope.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/png.bin"
+  },
+  {
+    "name": "upload-missing-folder",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/missing/x.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/png.bin"
+  },
+  {
+    "name": "upload-no-document-url",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/png.bin"
+  },
+  {
+    "name": "upload-refused-html",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/html.bin"
+  },
+  {
+    "name": "upload-svg",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/svg.bin"
+  },
+  {
+    "name": "upload-empty-part",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/other/y.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/empty.bin"
+  },
+  {
+    "name": "upload-no-file-part",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/other/y.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/nofile.bin"
+  },
+  {
+    "name": "upload-malformed",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/other/y.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+    },
+    "bodyFile": "bodies/malformed.bin"
+  },
+  {
+    "name": "upload-not-multipart",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+      "Content-Type": "text/plain"
+    },
+    "body": "not a form"
+  },
+  {
+    "name": "upload-cross-site-origin",
+    "method": "POST",
+    "path": "/_/upload",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+      "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden",
+      "Origin": "http://evil.example"
+    },
+    "bodyFile": "bodies/png.bin"
+  },
+  {
+    "name": "uploads-get-missing",
+    "method": "GET",
+    "path": "/_/uploads/missing.png"
+  },
+  {
+    "name": "uploads-get-traversal",
+    "method": "GET",
+    "path": "/_/uploads/../index.html"
+  },
+  {
+    "name": "reveal-with-document-url",
+    "method": "POST",
+    "path": "/_/reveal",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html"
+    }
+  },
+  {
+    "name": "reveal-no-document-url",
+    "method": "POST",
+    "path": "/_/reveal"
+  },
+  {
+    "name": "duplicate-with-document-url",
+    "method": "POST",
+    "path": "/_/duplicate",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html"
+    }
+  },
+  {
+    "name": "duplicate-no-document-url",
+    "method": "POST",
+    "path": "/_/duplicate"
+  },
+  {
+    "name": "reveal-missing-document",
+    "method": "POST",
+    "path": "/_/reveal",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/nope.html"
+    }
+  }
+]

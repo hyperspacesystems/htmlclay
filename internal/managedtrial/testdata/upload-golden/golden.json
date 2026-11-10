@@ -1,0 +1,527 @@
+{
+  "cases": [
+    {
+      "name": "upload-png-apps",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/png.bin"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "151",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"97-Qfb0kPT2XRQKK4tqf3UZTI4cpxI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Uploaded\",\"msgType\":\"success\",\"uploads\":[{\"name\":\"photo-497790.png\",\"url\":\"/_/uploads/assets-x/photo-497790.png\",\"bytes\":70,\"access\":\"local\"}]}"
+      }
+    },
+    {
+      "name": "upload-png-get",
+      "request": {
+        "method": "GET",
+        "path": "/_/uploads/assets-x/photo-497790.png",
+        "headers": {},
+        "fromCase": {
+          "case": "upload-png-apps",
+          "json": "uploads.0.url"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "70",
+        "content-type": "image/png",
+        "etag": "W/\"46-1a195b17f00\"",
+        "last-modified": "Sun, 01 Nov 2026 06:00:00 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+      }
+    },
+    {
+      "name": "upload-png-head",
+      "request": {
+        "method": "HEAD",
+        "path": "/_/uploads/assets-x/photo-497790.png",
+        "headers": {},
+        "fromCase": {
+          "case": "upload-png-apps",
+          "json": "uploads.0.url"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "70",
+        "content-type": "image/png",
+        "etag": "W/\"46-1a195b17f00\"",
+        "last-modified": "Sun, 01 Nov 2026 06:00:00 GMT",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": ""
+      }
+    },
+    {
+      "name": "upload-png-again",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/png.bin"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "151",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"97-Qfb0kPT2XRQKK4tqf3UZTI4cpxI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Uploaded\",\"msgType\":\"success\",\"uploads\":[{\"name\":\"photo-497790.png\",\"url\":\"/_/uploads/assets-x/photo-497790.png\",\"bytes\":70,\"access\":\"local\"}]}"
+      }
+    },
+    {
+      "name": "upload-index-root",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/index.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/png.bin"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "155",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"9b-hC0/zla2EbRYFJwHz0XZG1GYfCs\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Uploaded\",\"msgType\":\"success\",\"uploads\":[{\"name\":\"photo-497790.png\",\"url\":\"/_/uploads/assets-index/photo-497790.png\",\"bytes\":70,\"access\":\"local\"}]}"
+      }
+    },
+    {
+      "name": "upload-missing-document",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/nope.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/png.bin"
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "76",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"4c-z2yyi9lKV3PZX0wg1o5a3a1E36s\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"That document does not exist.\",\"msgType\":\"error\",\"code\":\"not-found\"}"
+      }
+    },
+    {
+      "name": "upload-missing-folder",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/missing/x.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/png.bin"
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "76",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"4c-z2yyi9lKV3PZX0wg1o5a3a1E36s\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"That document does not exist.\",\"msgType\":\"error\",\"code\":\"not-found\"}"
+      }
+    },
+    {
+      "name": "upload-no-document-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/png.bin"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "78",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"4e-SCPBl6Y/eE/pirX32Qxdj78HosQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Document-URL header required.\",\"msgType\":\"error\",\"code\":\"bad-request\"}"
+      }
+    },
+    {
+      "name": "upload-refused-html",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/html.bin"
+      },
+      "status": 415,
+      "headers": {
+        "content-length": "91",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"5b-PcG30Wjyoys6PWrez2zgwqYyLDs\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"That kind of file cannot be uploaded.\",\"msgType\":\"error\",\"code\":\"unsupported-type\"}"
+      }
+    },
+    {
+      "name": "upload-svg",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/svg.bin"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "149",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"95-/hkb33knnbzSMiikukiwLXrRblM\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Uploaded\",\"msgType\":\"success\",\"uploads\":[{\"name\":\"logo-8d9b4b.svg\",\"url\":\"/_/uploads/assets-x/logo-8d9b4b.svg\",\"bytes\":46,\"access\":\"local\"}]}"
+      }
+    },
+    {
+      "name": "upload-empty-part",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/other/y.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/empty.bin"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "150",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"96-9v9UpAHGFDQtk56yyxIf9evUqPI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Uploaded\",\"msgType\":\"success\",\"uploads\":[{\"name\":\"empty-e3b0c4.txt\",\"url\":\"/_/uploads/assets-y/empty-e3b0c4.txt\",\"bytes\":0,\"access\":\"local\"}]}"
+      }
+    },
+    {
+      "name": "upload-no-file-part",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/other/y.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/nofile.bin"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"43-GxlmC0C1b+v5TCoUFO4IfhWnO5I\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"No file to upload.\",\"msgType\":\"error\",\"code\":\"bad-request\"}"
+      }
+    },
+    {
+      "name": "upload-malformed",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/other/y.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden"
+        },
+        "bodyFile": "bodies/malformed.bin"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "75",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"4b-1u1mhZD3W56oLltnafGCVBZdNjU\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Could not read the upload.\",\"msgType\":\"error\",\"code\":\"bad-request\"}"
+      }
+    },
+    {
+      "name": "upload-not-multipart",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+          "Content-Type": "text/plain"
+        },
+        "body": "not a form"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "82",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"52-oxNne4hKIP6mW/Ip3DHcQThTz7o\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Expected a multipart form upload.\",\"msgType\":\"error\",\"code\":\"bad-request\"}"
+      }
+    },
+    {
+      "name": "upload-cross-site-origin",
+      "request": {
+        "method": "POST",
+        "path": "/_/upload",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html",
+          "Content-Type": "multipart/form-data; boundary=----htmlclay-upload-golden",
+          "Origin": "http://evil.example"
+        },
+        "bodyFile": "bodies/png.bin"
+      },
+      "status": 403,
+      "headers": {
+        "content-length": "66",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"42-PRZnoGODbU6vamWTU7neO1WPQnk\"",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Cross-origin requests are not allowed.\",\"msgType\":\"error\"}"
+      }
+    },
+    {
+      "name": "uploads-get-missing",
+      "request": {
+        "method": "GET",
+        "path": "/_/uploads/missing.png",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "uploads-get-traversal",
+      "request": {
+        "method": "GET",
+        "path": "/_/uploads/../index.html",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"b-cEN6MKefADJ1aAV2WmWqUtBSgdI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Bad request"
+      }
+    },
+    {
+      "name": "reveal-with-document-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/reveal",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html"
+        }
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "57",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"39-VIJUDJmqCE9pVqv2TWpteZdqXlE\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":false,\"message\":\"These actions are not available.\"}"
+      }
+    },
+    {
+      "name": "reveal-no-document-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/reveal",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "43",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2b-4BkSJjOKf41I4inkAZAjecIpYao\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":false,\"message\":\"No document named.\"}"
+      }
+    },
+    {
+      "name": "duplicate-with-document-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/duplicate",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/apps/x.html"
+        }
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "57",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"39-VIJUDJmqCE9pVqv2TWpteZdqXlE\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":false,\"message\":\"These actions are not available.\"}"
+      }
+    },
+    {
+      "name": "duplicate-no-document-url",
+      "request": {
+        "method": "POST",
+        "path": "/_/duplicate",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "43",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2b-4BkSJjOKf41I4inkAZAjecIpYao\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":false,\"message\":\"No document named.\"}"
+      }
+    },
+    {
+      "name": "reveal-missing-document",
+      "request": {
+        "method": "POST",
+        "path": "/_/reveal",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/nope.html"
+        }
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "43",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2b-4BkSJjOKf41I4inkAZAjecIpYao\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":false,\"message\":\"No document named.\"}"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "apps/x.html",
+      "sha256": "3efc35bca07e2f5645f69ecc9edc442f76d99f1effbd4fccc1911550c845c9d5"
+    },
+    {
+      "path": "index.html",
+      "sha256": "2b883aa7c744d7ec26768d90117f0e3ad09330c367bcefc378442c939b4b337c"
+    },
+    {
+      "path": "other/y.html",
+      "sha256": "25b897722d7cd846c1feedea5aa557c0748f55d973738d210756443b8beeba50"
+    },
+    {
+      "path": "uploads/assets-index/photo-497790.png",
+      "sha256": "497790947d4666760ce38f3c00e852c71fdb66cae849bae8e9ede352719e1581"
+    },
+    {
+      "path": "uploads/assets-x/logo-8d9b4b.svg",
+      "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+    },
+    {
+      "path": "uploads/assets-x/photo-497790.png",
+      "sha256": "497790947d4666760ce38f3c00e852c71fdb66cae849bae8e9ede352719e1581"
+    },
+    {
+      "path": "uploads/assets-y/empty-e3b0c4.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "clock": 1793512800000,
+  "pages": []
+}

@@ -75,6 +75,8 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	versionTail, hasVersionTail := routeTail(urlPath, "/version/")
 	restoreTail, hasRestoreTail := routeTail(urlPath, "/restore/")
 	dataLossTail, hasDataLossTail := routeTail(urlPath, "/data-loss/")
+	// Express matches its routes non-strictly, so `/upload` answers `/upload/` too.
+	systemPath := strings.TrimSuffix(urlPath, "/")
 	var err error
 	switch {
 	case marked && getOrHead && urlPath == "/data-loss":
@@ -89,6 +91,12 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveVersion(w, r, versionTail)
 	case marked && r.Method == http.MethodPost && hasRestoreTail:
 		err = s.serveRestore(w, r, restoreTail)
+	case marked && r.Method == http.MethodPost && systemPath == "/upload":
+		err = s.serveUpload(w, r)
+	case marked && r.Method == http.MethodPost && documentActionSegments[systemPath]:
+		err = s.serveDocumentAction(w, r)
+	case marked && getOrHead && strings.HasPrefix(rawPath, "/_/uploads/") && len(rawPath) > len("/_/uploads/"):
+		err = s.serveUploadFile(w, r)
 	case marked && getOrHead && urlPath == "/meta":
 		err = s.serveMeta(w, r)
 	case marked && getOrHead && urlPath == "/page-state":

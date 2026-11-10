@@ -1,0 +1,6 @@
+------htmlclay-upload-golden
+Content-Disposition: form-data; name="file"; filename="logo.svg"
+Content-Type: image/svg+xml
+
+<svg xmlns="http://www.w3.org/2000/svg"></svg>
+------htmlclay-upload-golden--
