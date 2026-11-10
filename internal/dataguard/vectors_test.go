@@ -62,6 +62,9 @@ var vectorRunners = map[string]func(args []dataapi.Value) dataapi.Value{
 		prov, _ := args[0].(string)
 		return LossSummaryOf(Provenance(prov), ClassifyDestruction(args[1], args[2]))
 	},
+	"droppedItems": func(args []dataapi.Value) dataapi.Value {
+		return DroppedItems(args[0], args[1])
+	},
 }
 
 func repoRoot() string {
