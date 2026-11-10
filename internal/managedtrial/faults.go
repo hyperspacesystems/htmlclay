@@ -18,6 +18,7 @@ const (
 	faultKillAfterRename  = "kill-after-rename"
 	faultDurableFail      = "durable-fail"
 	faultDropReply        = "drop-reply"
+	faultTailwindHold     = "tailwind-hold"
 )
 
 var faultPoints = map[string]bool{
@@ -25,6 +26,7 @@ var faultPoints = map[string]bool{
 	faultKillAfterRename:  true,
 	faultDurableFail:      true,
 	faultDropReply:        true,
+	faultTailwindHold:     true,
 }
 
 type armedFault struct {
@@ -58,6 +60,55 @@ func clearFaults() {
 	faults.Lock()
 	faults.armed = nil
 	faults.Unlock()
+	releaseTailwind("")
+}
+
+// tailwindHolds are compiles a tailwind-hold fault stopped, by stylesheet name,
+// each waiting for its channel to close.
+var tailwindHolds struct {
+	sync.Mutex
+	waiting map[string][]chan struct{}
+}
+
+// holdTailwind blocks a compile of name while a harness holds it.
+func holdTailwind(name string) {
+	if !takeFault(faultTailwindHold, name) {
+		return
+	}
+	released := make(chan struct{})
+	tailwindHolds.Lock()
+	if tailwindHolds.waiting == nil {
+		tailwindHolds.waiting = map[string][]chan struct{}{}
+	}
+	tailwindHolds.waiting[name] = append(tailwindHolds.waiting[name], released)
+	tailwindHolds.Unlock()
+	<-released
+}
+
+// releaseTailwind lets every held compile of name go on, and answers how many
+// were waiting. An empty name releases them all.
+func releaseTailwind(name string) int {
+	tailwindHolds.Lock()
+	defer tailwindHolds.Unlock()
+	count := 0
+	for held, channels := range tailwindHolds.waiting {
+		if name != "" && held != name {
+			continue
+		}
+		for _, channel := range channels {
+			close(channel)
+			count++
+		}
+		delete(tailwindHolds.waiting, held)
+	}
+	return count
+}
+
+// heldTailwind answers how many compiles of name are waiting.
+func heldTailwind(name string) int {
+	tailwindHolds.Lock()
+	defer tailwindHolds.Unlock()
+	return len(tailwindHolds.waiting[name])
 }
 
 // takeFault reports whether a fault armed for point names target, a file path

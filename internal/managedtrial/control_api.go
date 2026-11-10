@@ -737,6 +737,14 @@ func (a *controlAPI) serveFault(w http.ResponseWriter, r *http.Request) {
 		writeControlJSON(w, http.StatusOK, orderedObject{{Key: "armed", Value: 0}})
 		return
 	}
+	if body.Point == "release" {
+		writeControlJSON(w, http.StatusOK, orderedObject{{Key: "released", Value: releaseTailwind(body.Rel)}})
+		return
+	}
+	if body.Point == "held" {
+		writeControlJSON(w, http.StatusOK, orderedObject{{Key: "held", Value: heldTailwind(body.Rel)}})
+		return
+	}
 	if !faultPoints[body.Point] {
 		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "unknown fault point: " + body.Point})
 		return

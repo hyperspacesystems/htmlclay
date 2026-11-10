@@ -7,9 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // errKilled is what a test's killSelf panics with, so a write that reaches a
@@ -250,4 +254,174 @@ func TestFaultRoute(t *testing.T) {
 	}); status != http.StatusUnauthorized {
 		t.Fatalf("no bearer: status = %d, answer = %v, want 401", status, answer)
 	}
+}
+
+// tailwindCompileRecorder records the documents the pinned compiler was asked
+// about, so a test can say whether and for which bytes it ran.
+type tailwindCompileRecorder struct {
+	mu       sync.Mutex
+	compiled []string
+}
+
+func recordTailwindCompiles(t *testing.T) *tailwindCompileRecorder {
+	t.Helper()
+	recorder := &tailwindCompileRecorder{}
+	previous := tailwindCompiler
+	tailwindCompiler = func(localSource, html string) (string, error) {
+		recorder.mu.Lock()
+		recorder.compiled = append(recorder.compiled, html)
+		recorder.mu.Unlock()
+		return tailwindCSSFor(html), nil
+	}
+	t.Cleanup(func() { tailwindCompiler = previous })
+	return recorder
+}
+
+func (r *tailwindCompileRecorder) saw(html string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, compiled := range r.compiled {
+		if compiled == html {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *tailwindCompileRecorder) waitFor(t *testing.T, html string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for !r.saw(html) {
+		if time.Now().After(deadline) {
+			t.Fatalf("the compiler was not called for the expected document within 2s")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// tailwindHoldFixture serves one root with a document linking
+// /tailwindcss/site.css, and a control server to arm and release the hold.
+func tailwindHoldFixture(t *testing.T) (root, address string, port int, control *httptest.Server) {
+	t.Helper()
+	clearFaults()
+	t.Cleanup(clearFaults)
+	localSource := requireTailwindLocalSource(t)
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFile(t, root, "site.html", []byte(tailwindSitePage("base")))
+	handler, err := newRootHandler(rootSpec{id: "root-tailwind-hold", path: root}, config{localSource: localSource})
+	if err != nil {
+		t.Fatal(err)
+	}
+	address, port = serveTestServer(t, handler)
+	control = controlTestServer(t, controlTestRoot(t, "root-tailwind-hold-control"))
+	return root, address, port, control
+}
+
+func waitForHeldTailwind(t *testing.T, control *httptest.Server, name string, want float64) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+			"point": "held", "rel": name,
+		})
+		if status != http.StatusOK {
+			t.Fatalf("held %s: status = %d, answer = %v", name, status, answer)
+		}
+		if answer["held"] == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("held %s = %v, want %v within 2s", name, answer["held"], want)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func tailwindSitePage(classes string) string {
+	return strings.Replace(tailwindPage(classes), "/tailwindcss/tw.css", "/tailwindcss/site.css", 1)
+}
+
+// TestFaultTailwindHold is P11 in the real binary: a held compile lets the save
+// answer with the old stylesheet, and releasing the hold lets it install.
+func TestFaultTailwindHold(t *testing.T) {
+	root, address, port, control := tailwindHoldFixture(t)
+	recorder := recordTailwindCompiles(t)
+	first := tailwindSitePage("one")
+
+	if status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "tailwind-hold", "rel": "site",
+	}); status != http.StatusOK || answer["armed"] != float64(1) {
+		t.Fatalf("arm tailwind-hold: status = %d, answer = %v, want armed 1", status, answer)
+	}
+	tailwindSave(t, address, port, "site.html", first)
+	waitForHeldTailwind(t, control, "site", 1)
+	if recorder.saw(first) {
+		t.Fatal("the held compile called the compiler before it was released")
+	}
+
+	if status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "release", "rel": "site",
+	}); status != http.StatusOK || answer["released"] != float64(1) {
+		t.Fatalf("release site: status = %d, answer = %v, want released 1", status, answer)
+	}
+	recorder.waitFor(t, first)
+	waitForTailwindCSS(t, tailwindCSSPath(root, "site"), tailwindCSSFor(first))
+}
+
+// TestFaultTailwindHoldOlderCompileLoses is P11's ordering rule in the real
+// binary: an older compile released after a newer one installed writes nothing.
+func TestFaultTailwindHoldOlderCompileLoses(t *testing.T) {
+	root, address, port, control := tailwindHoldFixture(t)
+	recorder := recordTailwindCompiles(t)
+	first, second := tailwindSitePage("one"), tailwindSitePage("two")
+
+	if status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "tailwind-hold", "rel": "site", "count": 1,
+	}); status != http.StatusOK || answer["armed"] != float64(1) {
+		t.Fatalf("arm tailwind-hold: status = %d, answer = %v, want armed 1", status, answer)
+	}
+	tailwindSave(t, address, port, "site.html", first)
+	waitForHeldTailwind(t, control, "site", 1)
+
+	tailwindSave(t, address, port, "site.html", second)
+	waitForTailwindCSS(t, tailwindCSSPath(root, "site"), tailwindCSSFor(second))
+
+	if status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "release", "rel": "site",
+	}); status != http.StatusOK || answer["released"] != float64(1) {
+		t.Fatalf("release site: status = %d, answer = %v, want released 1", status, answer)
+	}
+	recorder.waitFor(t, first)
+	time.Sleep(200 * time.Millisecond)
+
+	if got := readTailwindCSS(t, root, "site"); got != tailwindCSSFor(second) {
+		t.Errorf("stylesheet = %q, want the newer save's %q", got, tailwindCSSFor(second))
+	}
+}
+
+// TestFaultTailwindHoldClear is clear's contract over a held compile: clearing
+// every fault releases it.
+func TestFaultTailwindHoldClear(t *testing.T) {
+	_, address, port, control := tailwindHoldFixture(t)
+	recorder := recordTailwindCompiles(t)
+	first := tailwindSitePage("one")
+
+	if status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "tailwind-hold", "rel": "site",
+	}); status != http.StatusOK || answer["armed"] != float64(1) {
+		t.Fatalf("arm tailwind-hold: status = %d, answer = %v, want armed 1", status, answer)
+	}
+	tailwindSave(t, address, port, "site.html", first)
+	waitForHeldTailwind(t, control, "site", 1)
+
+	if status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "clear",
+	}); status != http.StatusOK || answer["armed"] != float64(0) {
+		t.Fatalf("clear: status = %d, answer = %v, want armed 0", status, answer)
+	}
+	recorder.waitFor(t, first)
+	waitForHeldTailwind(t, control, "site", 0)
 }

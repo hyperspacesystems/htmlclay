@@ -335,6 +335,36 @@ path (or path suffix) the fault fires for, `count` is how many writes take it
 (1 to 100, 1 when absent), and `point: "clear"` disarms every fault and answers
 `{"armed":0}`. Anything else is a 400.
 
+`tailwind-hold` stops a save's Tailwind compile before it starts, and `rel` is
+the stylesheet name, the `<name>` of `/tailwindcss/<name>.css`. The save answers
+and the stylesheet stays as it was until the harness lets the compile go:
+
+```json
+{ "point": "tailwind-hold", "rel": "site", "count": 1 }
+```
+
+```json
+{ "point": "release", "rel": "site" }
+```
+
+```json
+{ "released": 1 } | { "released": 0 }
+```
+
+`release` lets every held compile of `rel` go on and answers how many were
+waiting; an empty `rel` releases them all. A compile still refuses to write when
+the document no longer holds the bytes it compiled from, so an older compile
+released after a newer save installs nothing. `held` answers how many compiles of
+`rel` are waiting:
+
+```json
+{ "point": "held", "rel": "site" }
+```
+
+```json
+{ "held": 1 }
+```
+
 ## `GET /v1/events?since=<cursor>`
 
 Newline-delimited JSON frames. A cursor is `<epoch>:<seq>`: the epoch is 16
