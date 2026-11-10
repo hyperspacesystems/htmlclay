@@ -38,6 +38,7 @@ type serviceAnswer struct {
 	Revision    json.RawMessage   `json:"revision"`
 	CaptureID   *string           `json:"captureId"`
 	Reason      string            `json:"reason"`
+	Action      string            `json:"action"`
 }
 
 // serviceArtifact is one file the service needs written before its handler
@@ -343,6 +344,29 @@ func (c *consultation) renderCheckpoint(roomIdentity string, generation json.Raw
 	case "clean", "current", "refused":
 	default:
 		return serviceAnswer{}, fmt.Errorf("render-checkpoint: unknown kind %q", answer.Kind)
+	}
+	return answer, nil
+}
+
+// observe tells the service about an outside add, change or removal of a page
+// document while this host holds the document's lock (protocol v1, observe).
+func (c *consultation) observe(event string, current orderedObject) (serviceAnswer, error) {
+	body := append(c.head(),
+		kv{Key: "event", Value: event},
+		kv{Key: "current", Value: current},
+	)
+	answer, err := c.call("/v1/observe", body)
+	if err != nil {
+		return serviceAnswer{}, err
+	}
+	switch answer.Action {
+	case "none":
+	case "rebase":
+		if answer.Logical == nil {
+			return serviceAnswer{}, errors.New("observe: rebase without logical")
+		}
+	default:
+		return serviceAnswer{}, fmt.Errorf("observe: unknown action %q", answer.Action)
 	}
 	return answer, nil
 }

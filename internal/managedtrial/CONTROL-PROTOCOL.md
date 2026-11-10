@@ -364,3 +364,15 @@ The other write lanes consult the service the same way:
   `sync-engine`; a failed settle answers `indeterminate`;
 - a `create` write to a page document asks no `admit`, and `settle`s with origin
   `create` and sender `server-save`; a failed settle answers `indeterminate`.
+
+The watcher's observations reach the service as `/v1/observe`: after its guard
+pass, for every page-document `add`, `change` and `unlink` the watcher reports,
+Go takes the document's lock, reads the `/v1/read` snapshot and sends `observe`
+with that `current` and the event. Every reported event is sent, the ones its
+own writes cause included: the service judges its own confirmed writes `none`
+from the authority's stamp, so Go keeps no record of them. A `rebase` answer
+runs the `external-rebase` lane under the same lock with `expected` the
+snapshot's `checksum`, so an edit that landed meanwhile refuses `changed` and is
+observed on its own next poll. An unconfirmed document is skipped (the service
+reconciles it from a fresh read), and a failure is logged: the watcher has no
+caller to answer.

@@ -47,13 +47,17 @@ func newControlRoot(id, baseDir string, registry *consentRegistry, host *commitH
 	if host != nil {
 		host.events = events
 	}
+	watcher := newRootWatcher(id, baseDir, events, guardLiveOf(host))
+	if host != nil {
+		watcher.observe = host.observeOutside
+	}
 	return &controlRoot{
 		id:       id,
 		baseDir:  baseDir,
 		registry: registry,
 		commit:   host,
 		events:   events,
-		watcher:  newRootWatcher(id, baseDir, events, guardLiveOf(host)),
+		watcher:  watcher,
 	}
 }
 

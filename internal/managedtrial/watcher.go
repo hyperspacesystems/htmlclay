@@ -73,10 +73,13 @@ type rootWatcher struct {
 	// guardLive is where an outside edit's data-loss event goes, the way
 	// root-observer hands its own root live to the guard.
 	guardLive guardLive
-	known     map[string]watchEntry
-	pending   map[string]watchPending
-	halt      chan struct{}
-	done      chan struct{}
+	// observe tells the full host's service about a page document the watcher
+	// reports (commitHost.observeOutside); nil when no host is attached.
+	observe func(event, rel string)
+	known   map[string]watchEntry
+	pending map[string]watchPending
+	halt    chan struct{}
+	done    chan struct{}
 }
 
 func newRootWatcher(rootID, baseDir string, events *eventRing, guardLive guardLive) *rootWatcher {
@@ -211,9 +214,10 @@ func watchEventName(seen, isDir bool) string {
 
 // publish appends the observation's frame and, for a document someone else
 // wrote, runs the data-loss guard's outside-edit pass, which reaches the tabs
-// through the root's live channel. Root-observer's own external-change notice
-// and its saved-lane broadcast are the full-host stage's: the adoption
-// classifier that decides between them is not ported yet.
+// through the root's live channel. Root-observer's saved-lane broadcast is the
+// full-host stage's: the adoption classifier that decides it is not ported yet.
+// With a service attached, the room's own observation follows: the service
+// judges the edit as Local's observer does (observeOutside).
 func (w *rootWatcher) publish(event, rel string, entry watchEntry) {
 	w.events.changeFrame(w.rootID, event, rel)
 	if entry.isDir || !isDocumentName(rel) {
@@ -221,12 +225,12 @@ func (w *rootWatcher) publish(event, rel string, entry watchEntry) {
 	}
 	// Root-observer runs the guard for a changed document only: an added one
 	// has no last-seen bytes to lose.
-	if event != "change" {
-		return
+	if event == "change" {
+		if bytes, err := os.ReadFile(filepath.Join(w.baseDir, filepath.FromSlash(rel))); err == nil {
+			catchUpOutsideEdit(w.baseDir, rel, bytes, string(bytes), w.guardLive)
+		}
 	}
-	bytes, err := os.ReadFile(filepath.Join(w.baseDir, filepath.FromSlash(rel)))
-	if err != nil {
-		return
+	if w.observe != nil && (event == "add" || event == "change" || event == "unlink") {
+		w.observe(event, rel)
 	}
-	catchUpOutsideEdit(w.baseDir, rel, bytes, string(bytes), w.guardLive)
 }
