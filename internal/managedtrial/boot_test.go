@@ -1,4 +1,4 @@
-//go:build managedtrial
+//go:build managedtrial && !windows
 
 package managedtrial
 

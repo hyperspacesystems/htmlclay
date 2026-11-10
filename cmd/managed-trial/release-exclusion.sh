@@ -43,12 +43,13 @@ else
 	echo "untagged-changes: none"
 fi
 
-# 2. Every trial file starts with the managedtrial build tag.
+# 2. Every trial file starts with the managedtrial build tag, alone or joined by
+# `&&` to further terms (an OS split), so no build without the tag can select it.
 tag_failed=0
 : >"$tmp/tag-lines.txt"
 while IFS= read -r file; do
 	first=$(head -n 1 "$file")
-	if [ "$first" != "//go:build managedtrial" ]; then
+	if ! [[ "$first" =~ ^//go:build\ managedtrial(\ \&\&\ \!?[a-z0-9_]+)*$ ]]; then
 		echo "  $file: ${first}" >>"$tmp/tag-lines.txt"
 		tag_failed=1
 	fi

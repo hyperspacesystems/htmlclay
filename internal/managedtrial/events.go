@@ -156,6 +156,22 @@ func (r *eventRing) beginOp(opID string) {
 	r.ops[opID] = opRecord{state: "running", at: now}
 }
 
+// claimOp begins an op the caller named, unless this process has already seen
+// that opId: a reused id is refused rather than overwriting the outcome a
+// caller that lost its reply will read.
+func (r *eventRing) claimOp(opID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	now := time.Now()
+	r.pruneOps(now)
+	if _, ok := r.ops[opID]; ok {
+		return false
+	}
+	r.opOrder = append(r.opOrder, opID)
+	r.ops[opID] = opRecord{state: "running", at: now}
+	return true
+}
+
 // finishOp records what an op became.
 func (r *eventRing) finishOp(opID, state, checksum, cursor string) {
 	if opID == "" {

@@ -82,7 +82,7 @@ func TestWatcherOutsideEdit(t *testing.T) {
 
 	// The outside edit that loses data: three items on disk, then a person's
 	// editor rewrites the file in place.
-	watcherCommit(t, server, "save-lose", "browser-save", "lose.html", watcherDocument("alpha", "bravo", "charlie"))
+	watcherCommit(t, server, "a1a1a1a1a1a1a1a1", "browser-save", "lose.html", watcherDocument("alpha", "bravo", "charlie"))
 	watcher.known = watcher.snapshot()
 
 	lose := filepath.Join(site.baseDir, "lose.html")
@@ -128,9 +128,9 @@ func TestWatcherOutsideEdit(t *testing.T) {
 
 	// The host's own write is a commit frame, and the outside-edit pass must not
 	// judge it: a guard run on these bytes would raise an external event.
-	watcherCommit(t, server, "save-own", "browser-save", "own.html", watcherDocument("alpha", "bravo", "charlie"))
+	watcherCommit(t, server, "b2b2b2b2b2b2b2b2", "browser-save", "own.html", watcherDocument("alpha", "bravo", "charlie"))
 	watcher.known = watcher.snapshot()
-	watcherCommit(t, server, "create-own", "create", "own.html", watcherDocument("alpha"))
+	watcherCommit(t, server, "c3c3c3c3c3c3c3c3", "create", "own.html", watcherDocument("alpha"))
 	watcher.examine(base.Add(2 * time.Second))
 	watcher.examine(base.Add(3 * time.Second))
 

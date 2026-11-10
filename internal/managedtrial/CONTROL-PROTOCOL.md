@@ -146,7 +146,7 @@ caller can take it.
 
 ## `GET /v1/read?root=root-0&name=a.html`
 
-Local's `read` (`document-host.js:137-146`), which takes no lock:
+Local's `read` (`document-host.js:137-146`), taken under the document's lock:
 
 ```json
 { "exists": true,
@@ -156,6 +156,30 @@ Local's `read` (`document-host.js:137-146`), which takes no lock:
 
 A file that is not there answers `200` with `{"exists": false, "checksum": null,
 "bytes": null}`; an unreadable one answers `500`.
+
+The read holds the document's lock, so it never sees a sidecar written for bytes
+not yet renamed into place. After `exists`, `checksum` and `bytes` it carries
+`fileSha256`, `identity` (`dev`, `ino`, `mtimeNs` as decimal strings, `size` as a
+number: Node's bigint `stat`, volume serial and file index on Windows), and, for a
+page document whose bytes are UTF-8, `logical` (the document with its merge state
+put back) and `sidecar` (the page-state record that state came from); each is null
+when it does not apply.
+
+## `POST /v1/durable`
+
+```json
+{ "root": "root-0", "name": "a.html", "checksum": "<the bytes' checksum>" }
+```
+
+```json
+{ "durable": true, "checksum": "<the checksum>" } |
+{ "changed": true, "checksum": "<the current checksum>" | null }
+```
+
+Under the document's lock, if the file still holds the bytes `checksum` names, Go
+fsyncs the file, its page-state sidecar and their directories; the JS service
+uses it to prove a checkpoint durable after an `indeterminate` write. `changed`
+answers when the file holds other bytes or is not there, and changes nothing.
 
 ## `GET /v1/op/<opId>`
 
@@ -167,11 +191,12 @@ A file that is not there answers `200` with `{"exists": false, "checksum": null,
 { "state": "indeterminate", "checksum": "…", "cursor": "<epoch>:<seq>" }
 ```
 
-`unknown` is any opId this process never saw. An opId reused by a second request
-is overwritten by the second one's outcome. Outcomes are kept for this process
-only: the last 10,000, or 10 minutes, whichever is smaller. Commits and
-restructures and page-state operations are all recorded; an operation that
-failed is recorded as `refused`.
+`unknown` is any opId this process never saw. A caller's opId is 16 to 64
+lowercase hex (400 otherwise) and new to this process: a reused one is refused
+`409 {"error":"op-reused"}` while its outcome is kept. With none, Go makes one.
+Outcomes are kept for this process only: the last 10,000, or 10 minutes,
+whichever is smaller. Commits and restructures and page-state operations are all
+recorded; an operation that failed is recorded as `refused`.
 
 ## `GET /v1/events?since=<cursor>`
 

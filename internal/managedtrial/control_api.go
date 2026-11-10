@@ -4,12 +4,17 @@ package managedtrial
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"unicode/utf8"
 )
@@ -87,6 +92,8 @@ func (a *controlAPI) route(r *http.Request) http.HandlerFunc {
 		return a.serveSnapshotTake
 	case r.URL.Path == "/v1/read" && (r.Method == http.MethodGet || r.Method == http.MethodHead):
 		return a.serveRead
+	case r.URL.Path == "/v1/durable" && r.Method == http.MethodPost:
+		return a.serveDurable
 	case strings.HasPrefix(r.URL.Path, "/v1/op/") && (r.Method == http.MethodGet || r.Method == http.MethodHead):
 		return a.serveOp
 	case r.URL.Path == "/v1/events" && (r.Method == http.MethodGet || r.Method == http.MethodHead):
@@ -170,6 +177,29 @@ func decodeControlJSON(w http.ResponseWriter, r *http.Request, target any) bool 
 	return true
 }
 
+// controlOpID is the shape a caller's opId has: 16 to 64 lowercase hex.
+var controlOpID = regexp.MustCompile("^[0-9a-f]{16,64}$")
+
+// claimControlOp is the opId rule every mutating control route shares: none
+// given means Go makes one; one given must be 16 to 64 lowercase hex and new to
+// this process. It answers the refusal itself and reports false.
+func claimControlOp(w http.ResponseWriter, events *eventRing, given string) (string, bool) {
+	if given == "" {
+		opID := newOpID()
+		events.beginOp(opID)
+		return opID, true
+	}
+	if !controlOpID.MatchString(given) {
+		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "invalid opId"})
+		return "", false
+	}
+	if !events.claimOp(given) {
+		writeControlJSON(w, http.StatusConflict, controlError{Error: "op-reused"})
+		return "", false
+	}
+	return given, true
+}
+
 // controlCommitBody is one POST /v1/commit.
 type controlCommitBody struct {
 	OpID       string            `json:"opId"`
@@ -244,12 +274,11 @@ func (a *controlAPI) serveCommit(w http.ResponseWriter, r *http.Request) {
 		request.UserDrivenSet = true
 	}
 
-	opID := body.OpID
-	if opID == "" {
-		opID = newOpID()
+	opID, ok := claimControlOp(w, root.events, body.OpID)
+	if !ok {
+		return
 	}
 	request.OpID = opID
-	root.events.beginOp(opID)
 	result, err := root.commit.commit(request)
 	if err != nil {
 		root.events.finishOp(opID, "refused", "", "")
@@ -397,12 +426,11 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	opID := body.OpID
-	if opID == "" {
-		opID = newOpID()
-	}
 	cursor := root.events.currentCursor()
-	root.events.beginOp(opID)
+	opID, ok := claimControlOp(w, root.events, body.OpID)
+	if !ok {
+		return
+	}
 	result, err := root.commit.restructure(body.Kind, entries)
 	if err != nil {
 		root.events.finishOp(opID, "refused", "", cursor)
@@ -462,11 +490,10 @@ func (a *controlAPI) servePageState(w http.ResponseWriter, r *http.Request) {
 	}
 	defer unlock()
 
-	opID := body.OpID
-	if opID == "" {
-		opID = newOpID()
+	opID, ok := claimControlOp(w, root.events, body.OpID)
+	if !ok {
+		return
 	}
-	root.events.beginOp(opID)
 	var err error
 	switch body.Op {
 	case "write":
@@ -527,17 +554,22 @@ func (a *controlAPI) serveSnapshotTake(w http.ResponseWriter, r *http.Request) {
 	writeControlJSON(w, http.StatusOK, orderedObject{{Key: "snapshot", Value: snapshot}})
 }
 
-// serveRead is GET /v1/read: Local's `read`, which takes no lock.
+// serveRead is GET /v1/read: one coherent snapshot of a document, taken under
+// the document's lock, so the bytes and the page state they were read with are
+// never a pair from two different saves.
 func (a *controlAPI) serveRead(w http.ResponseWriter, r *http.Request) {
 	root, ok := a.root(w, r.URL.Query().Get("root"))
 	if !ok {
 		return
 	}
-	filePath, err := resolveWritePath(root.registry, r.URL.Query().Get("name"))
+	name := r.URL.Query().Get("name")
+	filePath, err := resolveWritePath(root.registry, name)
 	if err != nil {
 		writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
 		return
 	}
+	unlock := fileLocks.lock(filePath)
+	defer unlock()
 	state, err := readFile(filePath)
 	if err != nil {
 		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
@@ -553,7 +585,150 @@ func (a *controlAPI) serveRead(w http.ResponseWriter, r *http.Request) {
 			kv{Key: "bytes", Value: controlBytesValue(state.Bytes)},
 		)
 	}
+	identity, err := identityOfPath(filePath)
+	if err != nil {
+		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+		return
+	}
+	var fileSha256 any
+	var identityValue any
+	var logical any
+	var sidecar any
+	if state != nil {
+		sum := sha256.Sum256(state.Bytes)
+		fileSha256 = hex.EncodeToString(sum[:])
+	}
+	if identity != nil {
+		identityValue = orderedObject{
+			{Key: "dev", Value: identity.Dev},
+			{Key: "ino", Value: identity.Ino},
+			{Key: "size", Value: identity.Size},
+			{Key: "mtimeNs", Value: identity.MtimeNs},
+		}
+	}
+	if state != nil && pageExtension.MatchString(name) && utf8.Valid(state.Bytes) {
+		logicalText, err := logicalDocument(root.baseDir, name, string(state.Bytes))
+		if err != nil {
+			writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+			return
+		}
+		logical = controlBytesValue(logicalText)
+		record, err := readPageState(root.baseDir, name, PageStateReadOptions{Rev: pageRev(string(state.Bytes))})
+		if err != nil {
+			writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+			return
+		}
+		if record != nil {
+			sidecar = record
+		}
+	}
+	answer = append(answer,
+		kv{Key: "fileSha256", Value: fileSha256},
+		kv{Key: "identity", Value: identityValue},
+		kv{Key: "logical", Value: logical},
+		kv{Key: "sidecar", Value: sidecar},
+	)
 	writeControlJSON(w, http.StatusOK, answer)
+}
+
+// controlDurableBody is one POST /v1/durable.
+type controlDurableBody struct {
+	Root     string `json:"root"`
+	Name     string `json:"name"`
+	Checksum string `json:"checksum"`
+}
+
+// syncFile makes one file's bytes durable.
+func syncFile(filePath string) error {
+	handle, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	err = handle.Sync()
+	if closeErr := handle.Close(); err == nil {
+		err = closeErr
+	}
+	return err
+}
+
+// syncDurableDir syncs one directory, ignoring the failure of a platform that
+// cannot sync a directory at all, as atomicWriteFile does.
+func syncDurableDir(dir string) error {
+	if err := atomicDirSync(dir); err != nil && !dirSyncUnsupported(err, runtime.GOOS) {
+		return err
+	}
+	return nil
+}
+
+// serveDurable is POST /v1/durable: the proof a checkpoint's bytes are durable
+// after an indeterminate write. Under the document's lock, a file that still
+// holds the bytes the caller names has it, its sidecar and their directories
+// synced.
+func (a *controlAPI) serveDurable(w http.ResponseWriter, r *http.Request) {
+	var body controlDurableBody
+	if !decodeControlJSON(w, r, &body) {
+		return
+	}
+	root, ok := a.root(w, body.Root)
+	if !ok {
+		return
+	}
+	filePath, err := resolveWritePath(root.registry, body.Name)
+	if err != nil {
+		writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
+		return
+	}
+	unlock := fileLocks.lock(filePath)
+	defer unlock()
+	state, err := readFile(filePath)
+	if err != nil {
+		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+		return
+	}
+	if state == nil || state.Checksum != body.Checksum {
+		var checksum any
+		if state != nil {
+			checksum = state.Checksum
+		}
+		writeControlJSON(w, http.StatusOK, orderedObject{
+			{Key: "changed", Value: true},
+			{Key: "checksum", Value: checksum},
+		})
+		return
+	}
+	if err := syncFile(filePath); err != nil {
+		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+		return
+	}
+	sidecarDir := ""
+	if pageExtension.MatchString(body.Name) {
+		target, err := pageStatePath(root.baseDir, body.Name)
+		if err != nil {
+			writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+			return
+		}
+		if pageStateExists(target) {
+			if err := syncFile(target); err != nil {
+				writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+				return
+			}
+			sidecarDir = filepath.Dir(target)
+		}
+	}
+	if err := syncDurableDir(filepath.Dir(filePath)); err != nil {
+		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+		return
+	}
+	if sidecarDir != "" {
+		if err := syncDurableDir(sidecarDir); err != nil {
+			writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
+			return
+		}
+	}
+	writeControlJSON(w, http.StatusOK, orderedObject{
+		{Key: "durable", Value: true},
+		{Key: "checksum", Value: state.Checksum},
+	})
 }
 
 // serveOp is GET /v1/op/<opId>: what became of one request.

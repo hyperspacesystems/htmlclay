@@ -103,7 +103,7 @@ func TestEventsCursor(t *testing.T) {
 	}
 
 	status, answer := controlJSON(t, controlServer, controlSecret, http.MethodPost, "/v1/commit", map[string]any{
-		"opId":  "control-1",
+		"opId":  "8888888888888888",
 		"root":  "root-a",
 		"name":  "b.html",
 		"kind":  "create",
@@ -125,7 +125,7 @@ func TestEventsCursor(t *testing.T) {
 		t.Fatalf("the HTTP save's frame carries no opId: %v", saved)
 	}
 	created := frames[1]
-	if created["type"] != "commit" || created["kind"] != "create" || created["rel"] != "b.html" || created["opId"] != "control-1" {
+	if created["type"] != "commit" || created["kind"] != "create" || created["rel"] != "b.html" || created["opId"] != "8888888888888888" {
 		t.Fatalf("the second frame is %v, want the control commit's", created)
 	}
 	firstCursor, _ := saved["cursor"].(string)
@@ -134,7 +134,7 @@ func TestEventsCursor(t *testing.T) {
 	}
 
 	replayed := eventLine(t, controlServer, firstCursor)
-	if replayed["type"] != "commit" || replayed["opId"] != "control-1" {
+	if replayed["type"] != "commit" || replayed["opId"] != "8888888888888888" {
 		t.Fatalf("resuming from %q replayed %v, want the control commit", firstCursor, replayed)
 	}
 
