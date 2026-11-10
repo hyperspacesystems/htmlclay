@@ -1,0 +1,2149 @@
+{
+  "zone": "America/New_York",
+  "secondZone": "Asia/Kolkata",
+  "timestamps": {
+    "America/New_York": [
+      {
+        "instant": 1710053999999,
+        "stamp": "2024-03-10-01-59-59-999-0500"
+      },
+      {
+        "instant": 1710054000000,
+        "stamp": "2024-03-10-03-00-00-000-0400"
+      },
+      {
+        "instant": 1730611800000,
+        "stamp": "2024-11-03-01-30-00-000-0400"
+      },
+      {
+        "instant": 1730615400000,
+        "stamp": "2024-11-03-01-30-00-000-0500"
+      },
+      {
+        "instant": 1730617199999,
+        "stamp": "2024-11-03-01-59-59-999-0500"
+      },
+      {
+        "instant": 1730617200000,
+        "stamp": "2024-11-03-02-00-00-000-0500"
+      },
+      {
+        "instant": 1720108800000,
+        "stamp": "2024-07-04-12-00-00-000-0400"
+      },
+      {
+        "instant": 1705294800000,
+        "stamp": "2024-01-15-00-00-00-000-0500"
+      },
+      {
+        "instant": 1705294800007,
+        "stamp": "2024-01-15-00-00-00-007-0500"
+      }
+    ],
+    "Asia/Kolkata": [
+      {
+        "instant": 1710053999999,
+        "stamp": "2024-03-10-12-29-59-999+0530"
+      },
+      {
+        "instant": 1710054000000,
+        "stamp": "2024-03-10-12-30-00-000+0530"
+      },
+      {
+        "instant": 1730611800000,
+        "stamp": "2024-11-03-11-00-00-000+0530"
+      },
+      {
+        "instant": 1730615400000,
+        "stamp": "2024-11-03-12-00-00-000+0530"
+      },
+      {
+        "instant": 1730617199999,
+        "stamp": "2024-11-03-12-29-59-999+0530"
+      },
+      {
+        "instant": 1730617200000,
+        "stamp": "2024-11-03-12-30-00-000+0530"
+      },
+      {
+        "instant": 1720108800000,
+        "stamp": "2024-07-04-21-30-00-000+0530"
+      },
+      {
+        "instant": 1705294800000,
+        "stamp": "2024-01-15-10-30-00-000+0530"
+      },
+      {
+        "instant": 1705294800007,
+        "stamp": "2024-01-15-10-30-00-007+0530"
+      }
+    ]
+  },
+  "constants": {
+    "versionsDir": ".hyperclay/versions",
+    "recoveredDir": ".hyperclay/recovered",
+    "maxAgeMs": 5184000000,
+    "keepNewest": 20,
+    "versionName": "^(\\d{4})-(\\d{2})-(\\d{2})-(\\d{2})-(\\d{2})-(\\d{2})-(\\d{3})(Z|[+-]\\d{4})?(?:-(\\d{3}))?\\.[A-Za-z0-9]+$",
+    "versionNameFlags": ""
+  },
+  "scenarios": [
+    {
+      "name": "publish-same-millisecond",
+      "setup": [
+        {
+          "op": "mkdir",
+          "path": ".hyperclay/versions/site"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "createBackup",
+          "clock": 1793511000431,
+          "site": "site",
+          "contentB64": "PGgxPm9uZTwvaDE+Cg=="
+        },
+        {
+          "kind": "createBackup",
+          "clock": 1793511000431,
+          "site": "site",
+          "contentB64": "PGgxPnR3bzwvaDE+Cg=="
+        },
+        {
+          "kind": "createBackup",
+          "clock": 1793511000431,
+          "site": "site",
+          "contentB64": "PGgxPnRocmVlPC9oMT4K"
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBackup",
+          "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html"
+        },
+        {
+          "kind": "createBackup",
+          "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html"
+        },
+        {
+          "kind": "createBackup",
+          "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400-002.html"
+        }
+      ],
+      "console": [
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html"
+        },
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html"
+        },
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/site/2026-11-01-01-30-00-431-0400-002.html"
+        }
+      ],
+      "emit": [
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "site"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html"
+            }
+          ]
+        },
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "site"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html"
+            }
+          ]
+        },
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "site"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400-002.html"
+            }
+          ]
+        }
+      ],
+      "log": [
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Backup created",
+          "fields": [
+            {
+              "key": "site",
+              "value": "site"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-11-01-01-30-00-431-0400.html"
+            }
+          ]
+        },
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Backup created",
+          "fields": [
+            {
+              "key": "site",
+              "value": "site"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-11-01-01-30-00-431-0400-001.html"
+            }
+          ]
+        },
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Backup created",
+          "fields": [
+            {
+              "key": "site",
+              "value": "site"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-11-01-01-30-00-431-0400-002.html"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html",
+          "size": 13,
+          "sha256": "8e626236d6e9de3683776357d75d752b8d0fa8d78647fda92ac3e437b1b48883"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400-002.html",
+          "size": 15,
+          "sha256": "3621ab4ec3776c5d8402e4351740042c14969fcd975be6c82a0d2ead9b48e70d"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html",
+          "size": 13,
+          "sha256": "0ca90a10a514b09ebeeceb99409ca20113e4e7f3db6f2b639a3c7fe0e7ec49b5"
+        }
+      ]
+    },
+    {
+      "name": "publish-clock-rollback",
+      "setup": [
+        {
+          "op": "mkdir",
+          "path": ".hyperclay/versions/site"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "createBackup",
+          "clock": 1793511000431,
+          "site": "site",
+          "contentB64": "PGgxPmZpcnN0PC9oMT4K"
+        },
+        {
+          "kind": "createBackup",
+          "clock": 1793510995000,
+          "site": "site",
+          "contentB64": "PGgxPnJvbGxlZCBiYWNrPC9oMT4K"
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBackup",
+          "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html"
+        },
+        {
+          "kind": "createBackup",
+          "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html"
+        }
+      ],
+      "console": [
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html"
+        },
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html"
+        }
+      ],
+      "emit": [
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "site"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html"
+            }
+          ]
+        },
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "site"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html"
+            }
+          ]
+        }
+      ],
+      "log": [
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Backup created",
+          "fields": [
+            {
+              "key": "site",
+              "value": "site"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-11-01-01-30-00-431-0400.html"
+            }
+          ]
+        },
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Backup created",
+          "fields": [
+            {
+              "key": "site",
+              "value": "site"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-11-01-01-30-00-431-0400-001.html"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html",
+          "size": 21,
+          "sha256": "67b2969e45c2ff052bad3af48b7b06378b8b911f9efa105d8f9654135dffa45f"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html",
+          "size": 15,
+          "sha256": "192b8a8e6bbed62740497a5c0e5e9684cc177f1ae242f401b1a47c279e4a5fc1"
+        }
+      ]
+    },
+    {
+      "name": "backup-subfolder",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "createBackup",
+          "clock": 1783180800000,
+          "site": "blog/posts",
+          "contentB64": "PHA+bmVzdGVkPC9wPgo="
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBackup",
+          "value": "<root>/.hyperclay/versions/blog/posts/2026-07-04-12-00-00-000-0400.html"
+        }
+      ],
+      "console": [
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/blog/posts/2026-07-04-12-00-00-000-0400.html"
+        }
+      ],
+      "emit": [
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "blog/posts"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/blog/posts/2026-07-04-12-00-00-000-0400.html"
+            }
+          ]
+        }
+      ],
+      "log": [
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Backup created",
+          "fields": [
+            {
+              "key": "site",
+              "value": "blog/posts"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-07-04-12-00-00-000-0400.html"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".hyperclay/versions/blog/posts/2026-07-04-12-00-00-000-0400.html",
+          "size": 14,
+          "sha256": "589f89f73e5d6da8397a37115a5a3720d6634e3381b0d4995310190edf2c3044"
+        }
+      ]
+    },
+    {
+      "name": "backup-spaced-unicode",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "createBackup",
+          "clock": 1783180800000,
+          "site": "Folder With Space/café",
+          "contentB64": "PHA+aMOpbGxvPC9wPgo="
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBackup",
+          "value": "<root>/.hyperclay/versions/Folder With Space/café/2026-07-04-12-00-00-000-0400.html"
+        }
+      ],
+      "console": [
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/Folder With Space/café/2026-07-04-12-00-00-000-0400.html"
+        }
+      ],
+      "emit": [
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "Folder With Space/café"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/Folder With Space/café/2026-07-04-12-00-00-000-0400.html"
+            }
+          ]
+        }
+      ],
+      "log": [
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Backup created",
+          "fields": [
+            {
+              "key": "site",
+              "value": "Folder With Space/café"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-07-04-12-00-00-000-0400.html"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".hyperclay/versions/Folder With Space/café/2026-07-04-12-00-00-000-0400.html",
+          "size": 14,
+          "sha256": "00e618eabbec3e5aee48db7938421be54dc4541977e99159ab16dfeb7ee72873"
+        }
+      ]
+    },
+    {
+      "name": "binary-upload",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "createBinaryBackup",
+          "clock": 1783180800000,
+          "upload": "images/logo.png",
+          "contentB64": "iVBORwAB//5/"
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBinaryBackup",
+          "value": "<root>/.hyperclay/versions/images/logo/2026-07-04-12-00-00-000-0400.png"
+        }
+      ],
+      "console": [
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/images/logo/2026-07-04-12-00-00-000-0400.png"
+        }
+      ],
+      "emit": [
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "images/logo.png"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/images/logo/2026-07-04-12-00-00-000-0400.png"
+            },
+            {
+              "key": "type",
+              "value": "upload"
+            }
+          ]
+        }
+      ],
+      "log": [
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Binary backup created",
+          "fields": [
+            {
+              "key": "upload",
+              "value": "images/logo.png"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-07-04-12-00-00-000-0400.png"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".hyperclay/versions/images/logo/2026-07-04-12-00-00-000-0400.png",
+          "size": 9,
+          "sha256": "3cdb0c7e3f9780385e4dc3a78576c19851a9762894b1002b5c504c0a06b1581e"
+        }
+      ]
+    },
+    {
+      "name": "binary-upload-if-exists-missing",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "createBinaryBackupIfExists",
+          "clock": 1783180800000,
+          "filePath": "images/missing.png",
+          "upload": "images/missing.png"
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBinaryBackupIfExists",
+          "value": null
+        }
+      ],
+      "console": [],
+      "emit": [],
+      "log": [],
+      "files": []
+    },
+    {
+      "name": "recovered-copy",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "publishRecoveredCopy",
+          "clock": 1793687400000,
+          "rel": "docs/my page.html",
+          "html": "<p>recovered</p>\n"
+        }
+      ],
+      "results": [
+        {
+          "kind": "publishRecoveredCopy",
+          "value": {
+            "error": null,
+            "filename": "2026-11-03-01-30-00-000-0500.html",
+            "full": "<root>/.hyperclay/recovered/docs/my page/2026-11-03-01-30-00-000-0500.html"
+          }
+        }
+      ],
+      "console": [],
+      "emit": [],
+      "log": [],
+      "files": [
+        {
+          "path": ".hyperclay/recovered/docs/my page/2026-11-03-01-30-00-000-0500.html",
+          "size": 17,
+          "sha256": "500ad48cb3b05f8fc8b0ae0140044323a17732306fe7f1c6329e8bcaa5e08c03"
+        }
+      ]
+    },
+    {
+      "name": "recovered-copy-invalid-path",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "publishRecoveredCopy",
+          "clock": 1793687400000,
+          "rel": "../escape.html",
+          "html": "<p>nope</p>\n"
+        }
+      ],
+      "results": [
+        {
+          "kind": "publishRecoveredCopy",
+          "value": {
+            "error": "Invalid recovered document path",
+            "filename": null,
+            "full": null
+          }
+        }
+      ],
+      "console": [],
+      "emit": [],
+      "log": [],
+      "files": []
+    },
+    {
+      "name": "backup-if-exists-missing",
+      "setup": [],
+      "actions": [
+        {
+          "kind": "createBackupIfExists",
+          "clock": 1783180800000,
+          "filePath": "missing.html",
+          "site": "site"
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBackupIfExists",
+          "value": null
+        }
+      ],
+      "console": [],
+      "emit": [],
+      "log": [],
+      "files": []
+    },
+    {
+      "name": "backup-if-exists-present",
+      "setup": [
+        {
+          "op": "write",
+          "path": "site.html",
+          "contentB64": "PHA+bGl2ZTwvcD4K"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "createBackupIfExists",
+          "clock": 1783180800000,
+          "filePath": "site.html",
+          "site": "site"
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBackupIfExists",
+          "value": "<root>/.hyperclay/versions/site/2026-07-04-12-00-00-000-0400.html"
+        }
+      ],
+      "console": [
+        {
+          "level": "log",
+          "message": "[BACKUP] Created: .hyperclay/versions/site/2026-07-04-12-00-00-000-0400.html"
+        }
+      ],
+      "emit": [
+        {
+          "event": "backup-created",
+          "fields": [
+            {
+              "key": "original",
+              "value": "site"
+            },
+            {
+              "key": "backup",
+              "value": "<root>/.hyperclay/versions/site/2026-07-04-12-00-00-000-0400.html"
+            }
+          ]
+        }
+      ],
+      "log": [
+        {
+          "level": "info",
+          "tag": "BACKUP",
+          "message": "Backup created",
+          "fields": [
+            {
+              "key": "site",
+              "value": "site"
+            },
+            {
+              "key": "backupFile",
+              "value": "2026-07-04-12-00-00-000-0400.html"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".hyperclay/versions/site/2026-07-04-12-00-00-000-0400.html",
+          "size": 12,
+          "sha256": "706f00f27fe8c33a96a94675fbb639e8bf8739dee25a595929fd6cc4e01573be"
+        },
+        {
+          "path": "site.html",
+          "size": 12,
+          "sha256": "706f00f27fe8c33a96a94675fbb639e8bf8739dee25a595929fd6cc4e01573be"
+        }
+      ]
+    },
+    {
+      "name": "parse-names",
+      "setup": [
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html",
+          "contentB64": "YQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html",
+          "mtimeMs": 1893456000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0500.html",
+          "contentB64": "Ygo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0500.html",
+          "mtimeMs": 1893456000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-10-12-00-00-000Z.html",
+          "contentB64": "Ywo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-10-12-00-00-000Z.html",
+          "mtimeMs": 1893456000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-01-09-00-00-000.html",
+          "contentB64": "ZAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-01-09-00-00-000.html",
+          "mtimeMs": 1609459200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html",
+          "contentB64": "ZQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html",
+          "mtimeMs": 1893456000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431+0530.html",
+          "contentB64": "Zgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431+0530.html",
+          "mtimeMs": 1893456000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/notes.txt",
+          "contentB64": "Zwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/notes.txt",
+          "mtimeMs": 1893456000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/.hyperclay-ver-deadbeef.tmp",
+          "contentB64": "aAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/.hyperclay-ver-deadbeef.tmp",
+          "mtimeMs": 1893456000000
+        }
+      ],
+      "actions": [
+        {
+          "kind": "parse",
+          "dir": ".hyperclay/versions/site",
+          "filenames": [
+            "2026-11-01-01-30-00-431-0400.html",
+            "2026-11-01-01-30-00-431-0500.html",
+            "2026-03-10-12-00-00-000Z.html",
+            "2026-05-01-09-00-00-000.html",
+            "2026-11-01-01-30-00-431-0400-001.html",
+            "2026-11-01-01-30-00-431+0530.html",
+            "notes.txt",
+            ".hyperclay-ver-deadbeef.tmp"
+          ]
+        }
+      ],
+      "results": [
+        {
+          "kind": "parse",
+          "value": {
+            "rows": [
+              {
+                "filename": "2026-11-01-01-30-00-431-0400.html",
+                "mtimeMs": 1893456000000,
+                "isVersion": true,
+                "parsed": 1793511000431,
+                "sortKey": 1793511000431,
+                "suffix": 0,
+                "stamp": "2026-11-01-01-30-00-431-0400"
+              },
+              {
+                "filename": "2026-11-01-01-30-00-431-0500.html",
+                "mtimeMs": 1893456000000,
+                "isVersion": true,
+                "parsed": 1793514600431,
+                "sortKey": 1793514600431,
+                "suffix": 0,
+                "stamp": "2026-11-01-01-30-00-431-0500"
+              },
+              {
+                "filename": "2026-03-10-12-00-00-000Z.html",
+                "mtimeMs": 1893456000000,
+                "isVersion": true,
+                "parsed": 1773144000000,
+                "sortKey": 1773144000000,
+                "suffix": 0,
+                "stamp": "2026-03-10-12-00-00-000Z"
+              },
+              {
+                "filename": "2026-05-01-09-00-00-000.html",
+                "mtimeMs": 1609459200000,
+                "isVersion": true,
+                "parsed": null,
+                "sortKey": 1609459200000,
+                "suffix": 0,
+                "stamp": "2026-05-01-09-00-00-000"
+              },
+              {
+                "filename": "2026-11-01-01-30-00-431-0400-001.html",
+                "mtimeMs": 1893456000000,
+                "isVersion": true,
+                "parsed": 1793511000431,
+                "sortKey": 1793511000431,
+                "suffix": 1,
+                "stamp": "2026-11-01-01-30-00-431-0400"
+              },
+              {
+                "filename": "2026-11-01-01-30-00-431+0530.html",
+                "mtimeMs": 1893456000000,
+                "isVersion": true,
+                "parsed": 1793476800431,
+                "sortKey": 1793476800431,
+                "suffix": 0,
+                "stamp": "2026-11-01-01-30-00-431+0530"
+              },
+              {
+                "filename": "notes.txt",
+                "mtimeMs": 1893456000000,
+                "isVersion": false,
+                "parsed": null,
+                "sortKey": 1893456000000,
+                "suffix": 0,
+                "stamp": null
+              },
+              {
+                "filename": ".hyperclay-ver-deadbeef.tmp",
+                "mtimeMs": 1893456000000,
+                "isVersion": false,
+                "parsed": null,
+                "sortKey": 1893456000000,
+                "suffix": 0,
+                "stamp": null
+              }
+            ]
+          }
+        }
+      ],
+      "console": [],
+      "emit": [],
+      "log": [],
+      "files": [
+        {
+          "path": ".hyperclay/versions/site/.hyperclay-ver-deadbeef.tmp",
+          "size": 2,
+          "sha256": "91ee5e9f42ba3d34e414443b36a27b797a56a47aad6bb1e4c1769e69c77ce0ca"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-03-10-12-00-00-000Z.html",
+          "size": 2,
+          "sha256": "a3a5e715f0cc574a73c3f9bebb6bc24f32ffd5b67b387244c2c909da779a1478"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-01-09-00-00-000.html",
+          "size": 2,
+          "sha256": "8d74beec1be996322ad76813bafb92d40839895d6dd7ee808b17ca201eac98be"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431+0530.html",
+          "size": 2,
+          "sha256": "092fcfbbcfca3b5be7ae1b5e58538e92c35ab273ae13664fed0d67484c8e78a6"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400-001.html",
+          "size": 2,
+          "sha256": "a2bbdb2de53523b8099b37013f251546f3d65dbe7a0774fa41af0a4176992fd4"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0400.html",
+          "size": 2,
+          "sha256": "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-11-01-01-30-00-431-0500.html",
+          "size": 2,
+          "sha256": "0263829989b6fd954f72baaf2fc64bc2e2f01d692d4de72986ea808f6e99813f"
+        },
+        {
+          "path": ".hyperclay/versions/site/notes.txt",
+          "size": 2,
+          "sha256": "768c71d785bf6bbbf8c4d6af6582041f2659027140a962cd0c55b11eddfd5e3d"
+        }
+      ]
+    },
+    {
+      "name": "prune-site",
+      "setup": [
+        {
+          "op": "mkdir",
+          "path": ".hyperclay/versions/site"
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-06-01-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAwCg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-06-01-12-00-00-000-0400.html",
+          "mtimeMs": 1780329600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-29-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxCg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-29-12-00-00-000-0400.html",
+          "mtimeMs": 1780070400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-26-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyCg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-26-12-00-00-000-0400.html",
+          "mtimeMs": 1779811200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-23-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAzCg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-23-12-00-00-000-0400.html",
+          "mtimeMs": 1779552000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-20-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA0Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-20-12-00-00-000-0400.html",
+          "mtimeMs": 1779292800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-17-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA1Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-17-12-00-00-000-0400.html",
+          "mtimeMs": 1779033600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-14-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA2Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-14-12-00-00-000-0400.html",
+          "mtimeMs": 1778774400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-11-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA3Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-11-12-00-00-000-0400.html",
+          "mtimeMs": 1778515200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-08-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA4Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-08-12-00-00-000-0400.html",
+          "mtimeMs": 1778256000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-05-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA5Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-05-12-00-00-000-0400.html",
+          "mtimeMs": 1777996800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-02-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxMAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-02-12-00-00-000-0400.html",
+          "mtimeMs": 1777737600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-29-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxMQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-29-12-00-00-000-0400.html",
+          "mtimeMs": 1777478400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-26-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxMgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-26-12-00-00-000-0400.html",
+          "mtimeMs": 1777219200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-23-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxMwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-23-12-00-00-000-0400.html",
+          "mtimeMs": 1776960000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-20-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxNAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-20-12-00-00-000-0400.html",
+          "mtimeMs": 1776700800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-17-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxNQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-17-12-00-00-000-0400.html",
+          "mtimeMs": 1776441600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-14-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxNgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-14-12-00-00-000-0400.html",
+          "mtimeMs": 1776182400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-11-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxNwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-11-12-00-00-000-0400.html",
+          "mtimeMs": 1775923200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-08-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxOAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-08-12-00-00-000-0400.html",
+          "mtimeMs": 1775664000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-05-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxOQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-05-12-00-00-000-0400.html",
+          "mtimeMs": 1775404800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-02-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyMAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-02-12-00-00-000-0400.html",
+          "mtimeMs": 1775145600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-30-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyMQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-30-12-00-00-000-0400.html",
+          "mtimeMs": 1774886400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-27-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyMgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-27-12-00-00-000-0400.html",
+          "mtimeMs": 1774627200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-24-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyMwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-24-12-00-00-000-0400.html",
+          "mtimeMs": 1774368000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-21-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyNAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-21-12-00-00-000-0400.html",
+          "mtimeMs": 1774108800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-18-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyNQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-18-12-00-00-000-0400.html",
+          "mtimeMs": 1773849600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-15-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyNgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-15-12-00-00-000-0400.html",
+          "mtimeMs": 1773590400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-12-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyNwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-12-12-00-00-000-0400.html",
+          "mtimeMs": 1773331200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-09-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyOAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-09-12-00-00-000-0400.html",
+          "mtimeMs": 1773072000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-06-11-00-00-000-0500.html",
+          "contentB64": "dmVyc2lvbiAyOQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-06-11-00-00-000-0500.html",
+          "mtimeMs": 1772812800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2020-01-01-00-00-00-000.html",
+          "contentB64": "b2xkIGxlZ2FjeQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2020-01-01-00-00-00-000.html",
+          "mtimeMs": 1763049600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2021-05-05-05-05-05-000.html",
+          "contentB64": "ZnJlc2ggbGVnYWN5Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2021-05-05-05-05-05-000.html",
+          "mtimeMs": 1780243200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/notes.txt",
+          "contentB64": "bm90IGEgdmVyc2lvbgo="
+        }
+      ],
+      "actions": [
+        {
+          "kind": "pruneSiteVersions",
+          "clock": 1780329600000,
+          "now": 1780329600000,
+          "dir": ".hyperclay/versions/site"
+        }
+      ],
+      "results": [
+        {
+          "kind": "pruneSiteVersions",
+          "value": {
+            "kept": 22,
+            "deleted": [
+              "2026-03-30-12-00-00-000-0400.html",
+              "2026-03-27-12-00-00-000-0400.html",
+              "2026-03-24-12-00-00-000-0400.html",
+              "2026-03-21-12-00-00-000-0400.html",
+              "2026-03-18-12-00-00-000-0400.html",
+              "2026-03-15-12-00-00-000-0400.html",
+              "2026-03-12-12-00-00-000-0400.html",
+              "2026-03-09-12-00-00-000-0400.html",
+              "2026-03-06-11-00-00-000-0500.html",
+              "2020-01-01-00-00-00-000.html"
+            ]
+          }
+        }
+      ],
+      "console": [],
+      "emit": [],
+      "log": [],
+      "files": [
+        {
+          "path": ".hyperclay/versions/site/2021-05-05-05-05-05-000.html",
+          "size": 13,
+          "sha256": "2c1edbac715bcd621c54e37d4c3ccd835e906bc9dac62874963ae03bf4dac466"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-02-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "fe9da37b2fd7fcf2084fdbfc342560de85eee12d625a1de4c12b81dd2b3a05a6"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-05-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "38f2c6bf98e6ec4ff469a118035d0ce272451f7bab2ccf7ac097f873192fc0ad"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-08-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "044e1306dba591b3d1d499f2091f219a6655ef4700995a7f01fb21c2b3fe431e"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-11-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "d7b503d8f9ed7268c3bf5f38319625d484be3c122c9d340855a9b50ba456c7fa"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-14-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "deff3ef1dd927d8a54213bfc004e1ecd813f07beee59cc9042ba689268a8eb27"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-17-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "b049de1adc76e26c79b9751bbb80fa0ad82db7f721afbe229d43ea79b3d47a52"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-20-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "6890ce8d35b00a4bd72ae9a26de80391108f33b066949201691415f99cc14b36"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-23-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "5fe3047381842d6890aff6652617768e8277a120a5864192d76e8b0ee92f96c8"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-26-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "85116508ae31dfdaf0db16c90d9d5d05be45a75fa6f4b795ef2b91d8d2d8963d"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-29-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "d2619596d82dd0d27478ed527180489e297682d725fe8f354ef7e0c41e676671"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-02-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "43b6ec33fd1d0a11829f1cbb8e094d33510b52182b6dcfa6a9caf3eae5b2f896"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-05-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "732086df3fd1e1e435d251cb3ada8e876bca00d5db05476dfc7acedde3b8020d"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-08-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "3717e7fdfe695f35516f7df62d756a63b49959c5944c94d27ead078f058b5fd4"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-11-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "c2b89cb77160c6cfeac315bea665699c0dc2a9e507cb81eaf072857e6ef7efeb"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-14-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "4fb5bdf7a6e459b8d325642a81f18767d93dfcdef086570312d60eb275fc983b"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-17-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "15b032fef7c26abe424ecf09826741d2144df9b309e4f2e16974fda3c76e63cc"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-20-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "11e7ea06748630c04e0e7296a8a18015c2f638d1a0756992af8a4ccfbe844061"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-23-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "77774d2f39299ce8479e4bd4f37ad338057ba8480abd7aedcf17186129702f74"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-26-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "b03d44cd60d71de68a4aca7808c6f768802f6d6c414430ff8ccea10c1aa57b4c"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-29-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "3a79bf37b571938d1f2907afb6a643f48088b83769dde8bc58f5ee866a5c3636"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-06-01-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "be4580e057838d0261635aa02107e837da5ddac2b8b2cd2466165913b4898205"
+        },
+        {
+          "path": ".hyperclay/versions/site/notes.txt",
+          "size": 14,
+          "sha256": "52362cae53ea4024f9b60b6b9ddc9609f122db80b5f99759957ba1456576b6ef"
+        }
+      ]
+    },
+    {
+      "name": "prune-all",
+      "setup": [
+        {
+          "op": "mkdir",
+          "path": ".hyperclay/versions/site"
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-06-01-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAwCg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-06-01-12-00-00-000-0400.html",
+          "mtimeMs": 1780329600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-29-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxCg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-29-12-00-00-000-0400.html",
+          "mtimeMs": 1780070400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-26-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyCg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-26-12-00-00-000-0400.html",
+          "mtimeMs": 1779811200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-23-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAzCg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-23-12-00-00-000-0400.html",
+          "mtimeMs": 1779552000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-20-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA0Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-20-12-00-00-000-0400.html",
+          "mtimeMs": 1779292800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-17-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA1Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-17-12-00-00-000-0400.html",
+          "mtimeMs": 1779033600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-14-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA2Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-14-12-00-00-000-0400.html",
+          "mtimeMs": 1778774400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-11-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA3Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-11-12-00-00-000-0400.html",
+          "mtimeMs": 1778515200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-08-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA4Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-08-12-00-00-000-0400.html",
+          "mtimeMs": 1778256000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-05-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiA5Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-05-12-00-00-000-0400.html",
+          "mtimeMs": 1777996800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-05-02-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxMAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-05-02-12-00-00-000-0400.html",
+          "mtimeMs": 1777737600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-29-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxMQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-29-12-00-00-000-0400.html",
+          "mtimeMs": 1777478400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-26-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxMgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-26-12-00-00-000-0400.html",
+          "mtimeMs": 1777219200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-23-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxMwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-23-12-00-00-000-0400.html",
+          "mtimeMs": 1776960000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-20-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxNAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-20-12-00-00-000-0400.html",
+          "mtimeMs": 1776700800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-17-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxNQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-17-12-00-00-000-0400.html",
+          "mtimeMs": 1776441600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-14-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxNgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-14-12-00-00-000-0400.html",
+          "mtimeMs": 1776182400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-11-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxNwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-11-12-00-00-000-0400.html",
+          "mtimeMs": 1775923200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-08-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxOAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-08-12-00-00-000-0400.html",
+          "mtimeMs": 1775664000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-05-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAxOQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-05-12-00-00-000-0400.html",
+          "mtimeMs": 1775404800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-04-02-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyMAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-04-02-12-00-00-000-0400.html",
+          "mtimeMs": 1775145600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-30-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyMQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-30-12-00-00-000-0400.html",
+          "mtimeMs": 1774886400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-27-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyMgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-27-12-00-00-000-0400.html",
+          "mtimeMs": 1774627200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-24-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyMwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-24-12-00-00-000-0400.html",
+          "mtimeMs": 1774368000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-21-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyNAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-21-12-00-00-000-0400.html",
+          "mtimeMs": 1774108800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-18-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyNQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-18-12-00-00-000-0400.html",
+          "mtimeMs": 1773849600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-15-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyNgo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-15-12-00-00-000-0400.html",
+          "mtimeMs": 1773590400000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-12-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyNwo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-12-12-00-00-000-0400.html",
+          "mtimeMs": 1773331200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-09-12-00-00-000-0400.html",
+          "contentB64": "dmVyc2lvbiAyOAo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-09-12-00-00-000-0400.html",
+          "mtimeMs": 1773072000000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2026-03-06-11-00-00-000-0500.html",
+          "contentB64": "dmVyc2lvbiAyOQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2026-03-06-11-00-00-000-0500.html",
+          "mtimeMs": 1772812800000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2020-01-01-00-00-00-000.html",
+          "contentB64": "b2xkIGxlZ2FjeQo="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2020-01-01-00-00-00-000.html",
+          "mtimeMs": 1763049600000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/2021-05-05-05-05-05-000.html",
+          "contentB64": "ZnJlc2ggbGVnYWN5Cg=="
+        },
+        {
+          "op": "mtime",
+          "path": ".hyperclay/versions/site/2021-05-05-05-05-05-000.html",
+          "mtimeMs": 1780243200000
+        },
+        {
+          "op": "write",
+          "path": ".hyperclay/versions/site/notes.txt",
+          "contentB64": "bm90IGEgdmVyc2lvbgo="
+        }
+      ],
+      "actions": [
+        {
+          "kind": "pruneAllVersions",
+          "clock": 1780329600000,
+          "now": 1780329600000
+        }
+      ],
+      "results": [
+        {
+          "kind": "pruneAllVersions",
+          "value": {
+            "sites": 1,
+            "deleted": 10
+          }
+        }
+      ],
+      "console": [],
+      "emit": [],
+      "log": [],
+      "files": [
+        {
+          "path": ".hyperclay/versions/site/2021-05-05-05-05-05-000.html",
+          "size": 13,
+          "sha256": "2c1edbac715bcd621c54e37d4c3ccd835e906bc9dac62874963ae03bf4dac466"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-02-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "fe9da37b2fd7fcf2084fdbfc342560de85eee12d625a1de4c12b81dd2b3a05a6"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-05-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "38f2c6bf98e6ec4ff469a118035d0ce272451f7bab2ccf7ac097f873192fc0ad"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-08-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "044e1306dba591b3d1d499f2091f219a6655ef4700995a7f01fb21c2b3fe431e"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-11-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "d7b503d8f9ed7268c3bf5f38319625d484be3c122c9d340855a9b50ba456c7fa"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-14-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "deff3ef1dd927d8a54213bfc004e1ecd813f07beee59cc9042ba689268a8eb27"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-17-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "b049de1adc76e26c79b9751bbb80fa0ad82db7f721afbe229d43ea79b3d47a52"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-20-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "6890ce8d35b00a4bd72ae9a26de80391108f33b066949201691415f99cc14b36"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-23-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "5fe3047381842d6890aff6652617768e8277a120a5864192d76e8b0ee92f96c8"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-26-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "85116508ae31dfdaf0db16c90d9d5d05be45a75fa6f4b795ef2b91d8d2d8963d"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-04-29-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "d2619596d82dd0d27478ed527180489e297682d725fe8f354ef7e0c41e676671"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-02-12-00-00-000-0400.html",
+          "size": 11,
+          "sha256": "43b6ec33fd1d0a11829f1cbb8e094d33510b52182b6dcfa6a9caf3eae5b2f896"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-05-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "732086df3fd1e1e435d251cb3ada8e876bca00d5db05476dfc7acedde3b8020d"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-08-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "3717e7fdfe695f35516f7df62d756a63b49959c5944c94d27ead078f058b5fd4"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-11-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "c2b89cb77160c6cfeac315bea665699c0dc2a9e507cb81eaf072857e6ef7efeb"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-14-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "4fb5bdf7a6e459b8d325642a81f18767d93dfcdef086570312d60eb275fc983b"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-17-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "15b032fef7c26abe424ecf09826741d2144df9b309e4f2e16974fda3c76e63cc"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-20-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "11e7ea06748630c04e0e7296a8a18015c2f638d1a0756992af8a4ccfbe844061"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-23-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "77774d2f39299ce8479e4bd4f37ad338057ba8480abd7aedcf17186129702f74"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-26-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "b03d44cd60d71de68a4aca7808c6f768802f6d6c414430ff8ccea10c1aa57b4c"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-05-29-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "3a79bf37b571938d1f2907afb6a643f48088b83769dde8bc58f5ee866a5c3636"
+        },
+        {
+          "path": ".hyperclay/versions/site/2026-06-01-12-00-00-000-0400.html",
+          "size": 10,
+          "sha256": "be4580e057838d0261635aa02107e837da5ddac2b8b2cd2466165913b4898205"
+        },
+        {
+          "path": ".hyperclay/versions/site/notes.txt",
+          "size": 14,
+          "sha256": "52362cae53ea4024f9b60b6b9ddc9609f122db80b5f99759957ba1456576b6ef"
+        }
+      ]
+    },
+    {
+      "name": "prune-refuses-symlinked-hyperclay",
+      "setup": [
+        {
+          "op": "mkdir",
+          "path": "alt/versions/site"
+        },
+        {
+          "op": "write",
+          "path": "alt/versions/site/2026-01-01-00-00-00-000-0500.html",
+          "contentB64": "eAo="
+        },
+        {
+          "op": "symlink",
+          "path": ".hyperclay",
+          "target": "alt"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "pruneSiteVersions",
+          "clock": 1780329600000,
+          "now": 1780329600000,
+          "dir": ".hyperclay/versions/site"
+        },
+        {
+          "kind": "assertVersionsChain",
+          "versionsDir": ".hyperclay/versions/site"
+        }
+      ],
+      "results": [
+        {
+          "kind": "pruneSiteVersions",
+          "value": {
+            "kept": 0,
+            "deleted": []
+          }
+        },
+        {
+          "kind": "assertVersionsChain",
+          "value": {
+            "error": "Refusing filesystem op: '<root>/.hyperclay' is a symlink or not a directory"
+          }
+        }
+      ],
+      "console": [
+        {
+          "level": "warn",
+          "message": "[BACKUP] Refusing to prune <root>/.hyperclay/versions/site (non-fatal): Refusing filesystem op: '<root>/.hyperclay' is a symlink or not a directory"
+        }
+      ],
+      "emit": [],
+      "log": [],
+      "files": [
+        {
+          "path": "alt/versions/site/2026-01-01-00-00-00-000-0500.html",
+          "size": 2,
+          "sha256": "73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac"
+        }
+      ]
+    },
+    {
+      "name": "prune-refuses-symlinked-versions",
+      "setup": [
+        {
+          "op": "mkdir",
+          "path": ".hyperclay"
+        },
+        {
+          "op": "mkdir",
+          "path": "alt-versions/site"
+        },
+        {
+          "op": "write",
+          "path": "alt-versions/site/2026-01-01-00-00-00-000-0500.html",
+          "contentB64": "eAo="
+        },
+        {
+          "op": "symlink",
+          "path": ".hyperclay/versions",
+          "target": "../alt-versions"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "pruneSiteVersions",
+          "clock": 1780329600000,
+          "now": 1780329600000,
+          "dir": ".hyperclay/versions/site"
+        },
+        {
+          "kind": "pruneAllVersions",
+          "clock": 1780329600000,
+          "now": 1780329600000
+        },
+        {
+          "kind": "assertVersionsChain",
+          "versionsDir": ".hyperclay/versions/site"
+        }
+      ],
+      "results": [
+        {
+          "kind": "pruneSiteVersions",
+          "value": {
+            "kept": 0,
+            "deleted": []
+          }
+        },
+        {
+          "kind": "pruneAllVersions",
+          "value": {
+            "sites": 0,
+            "deleted": 0
+          }
+        },
+        {
+          "kind": "assertVersionsChain",
+          "value": {
+            "error": "Refusing filesystem op: '<root>/.hyperclay/versions' is a symlink or not a directory"
+          }
+        }
+      ],
+      "console": [
+        {
+          "level": "warn",
+          "message": "[BACKUP] Refusing to prune <root>/.hyperclay/versions/site (non-fatal): Refusing filesystem op: '<root>/.hyperclay/versions' is a symlink or not a directory"
+        },
+        {
+          "level": "warn",
+          "message": "[BACKUP] Refusing to prune .hyperclay/versions under <root> (non-fatal): Refusing filesystem op: '<root>/.hyperclay/versions' is a symlink or not a directory"
+        }
+      ],
+      "emit": [],
+      "log": [],
+      "files": [
+        {
+          "path": "alt-versions/site/2026-01-01-00-00-00-000-0500.html",
+          "size": 2,
+          "sha256": "73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac"
+        }
+      ]
+    },
+    {
+      "name": "backup-refuses-symlinked-hyperclay",
+      "setup": [
+        {
+          "op": "mkdir",
+          "path": "alt/versions"
+        },
+        {
+          "op": "symlink",
+          "path": ".hyperclay",
+          "target": "alt"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "createBackup",
+          "clock": 1783180800000,
+          "site": "site",
+          "contentB64": "PHA+bm9wZTwvcD4K"
+        }
+      ],
+      "results": [
+        {
+          "kind": "createBackup",
+          "value": null
+        }
+      ],
+      "console": [
+        {
+          "level": "error",
+          "message": "[BACKUP] Failed to create backup for site: Refusing filesystem op: '<root>/.hyperclay' is a symlink or not a directory"
+        }
+      ],
+      "emit": [],
+      "log": [
+        {
+          "level": "error",
+          "tag": "BACKUP",
+          "message": "Backup creation failed",
+          "fields": [
+            {
+              "key": "site",
+              "value": "site"
+            },
+            {
+              "key": "error",
+              "value": "Refusing filesystem op: '<root>/.hyperclay' is a symlink or not a directory"
+            }
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "name": "real-chain",
+      "setup": [
+        {
+          "op": "mkdir",
+          "path": ".hyperclay/versions/site"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "assertVersionsChain",
+          "versionsDir": ".hyperclay/versions/site"
+        },
+        {
+          "kind": "assertVersionsChain",
+          "versionsDir": ".hyperclay/versions/not-yet-made"
+        }
+      ],
+      "results": [
+        {
+          "kind": "assertVersionsChain",
+          "value": {
+            "error": null
+          }
+        },
+        {
+          "kind": "assertVersionsChain",
+          "value": {
+            "error": null
+          }
+        }
+      ],
+      "console": [],
+      "emit": [],
+      "log": [],
+      "files": []
+    }
+  ]
+}
