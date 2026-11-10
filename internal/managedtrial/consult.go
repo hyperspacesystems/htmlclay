@@ -318,6 +318,66 @@ func (c *consultation) end(err error) {
 	c.link.abort(c.ID, abortReason(err))
 }
 
+// beginLane starts the consultation of one write to a page document when a
+// service is attached. It answers nil and no refusal when there is no service
+// or the name is not a page document, and a refusal when the document's last
+// settle failed and it has not been reconciled.
+func (h *commitHost) beginLane(request *commitRequest, filePath, lane, origin string) (*consultation, *commitResult) {
+	if h.service == nil || !isDocumentName(request.Name) {
+		return nil, nil
+	}
+	if h.service.barred(filePath) {
+		result := refusedBy(retryableRefusal("unconfirmed"))
+		return nil, &result
+	}
+	if request.OpID == "" {
+		request.OpID = newOpID()
+	}
+	if request.ConsultOrigin != "" {
+		origin = request.ConsultOrigin
+	}
+	return h.service.begin(request.OpID, request.OpHandle, h.rootID, h.baseDir, request.Name, filePath, lane, origin), nil
+}
+
+// admitted runs admit for one lane and decodes a proceed answer into the
+// logical document and its file part. A refusal, a service that cannot be
+// reached, or an answer that cannot be decoded comes back as the lane's
+// answer, with the consultation ended.
+func (h *commitHost) admitted(consult *consultation, args admitArgs) (string, string, *commitResult) {
+	answer, err := consult.admit(args)
+	if err != nil {
+		consult.end(err)
+		result := refusedBy(retryableRefusal("service-unavailable"))
+		return "", "", &result
+	}
+	if answer.Decision == "refuse" {
+		h.service.abort(consult.ID, "refused")
+		result := refusedBy(serviceRefusal{Status: answer.Status, Code: answer.Code, Body: answer.Body, Headers: answer.Headers})
+		return "", "", &result
+	}
+	logical, _, err := answer.Logical.decode()
+	var file []byte
+	if err == nil {
+		file, _, err = answer.File.decode()
+	}
+	if err != nil {
+		consult.end(err)
+		result := refusedBy(retryableRefusal("service-unavailable"))
+		return "", "", &result
+	}
+	return string(logical), string(file), nil
+}
+
+// settleFailed settles a write whose document write failed: indeterminate when
+// the bytes may have landed, failed when they cannot have.
+func (c *consultation) settleFailed(err error, sender string) {
+	outcome := "failed"
+	if errorCode(err) != "" {
+		outcome = "indeterminate"
+	}
+	_ = c.settle(settleArgs{Outcome: outcome, Sender: sender})
+}
+
 // abortReason is the abort reason for a call that failed before any byte of
 // the document was written.
 func abortReason(err error) string {

@@ -3,6 +3,7 @@
 package managedtrial
 
 import (
+	"log"
 	"os"
 	"regexp"
 	"time"
@@ -19,6 +20,14 @@ import (
 // as they are, with the versions and page-state record that came with them.
 func (h *commitHost) commitExact(request *commitRequest, filePath string) (commitResult, error) {
 	isDocument := request.Text && isDocumentName(request.Name)
+	var consult *consultation
+	if isDocument {
+		var refusal *commitResult
+		consult, refusal = h.beginLane(request, filePath, "exact", request.Kind)
+		if refusal != nil {
+			return *refusal, nil
+		}
+	}
 	var previous *string
 	if isDocument {
 		if data, err := os.ReadFile(filePath); err == nil {
@@ -53,6 +62,9 @@ func (h *commitHost) commitExact(request *commitRequest, filePath string) (commi
 	}
 
 	if err := atomicWriteFile(filePath, storedBytes, nil, true); err != nil {
+		if consult != nil {
+			consult.settleFailed(err, "sync-engine")
+		}
 		return commitResult{}, err
 	}
 	h.hooks.MarkBrowserSave(request.Name)
@@ -60,13 +72,28 @@ func (h *commitHost) commitExact(request *commitRequest, filePath string) (commi
 	if request.ModifiedAt != nil {
 		stamp := modifiedTime(*request.ModifiedAt)
 		if err := os.Chtimes(filePath, stamp, stamp); err != nil {
+			if consult != nil {
+				_ = consult.settle(settleArgs{Outcome: "indeterminate", Sender: "sync-engine"})
+			}
+			return commitResult{}, indefinite(err)
+		}
+	}
+	if consult != nil {
+		// Local's confirmExact: a confirmation that fails leaves the write
+		// indeterminate, as Local's does, and the document unconfirmed.
+		logical := string(request.Bytes)
+		file := stored.(string)
+		if err := consult.settle(settleArgs{Outcome: "committed", Logical: &logical, File: &file, Sender: "sync-engine"}); err != nil {
 			return commitResult{}, indefinite(err)
 		}
 	}
 
 	if isDocument {
 		if err := h.hooks.RefreshDerivedArtifacts(h.baseDir, request.Name, string(request.Bytes)); err != nil {
-			return commitResult{}, indefinite(err)
+			if consult == nil {
+				return commitResult{}, indefinite(err)
+			}
+			log.Printf("[SYNC] derived artifact refresh failed: %v", err)
 		}
 		h.hooks.RunDataLossGuard(dataLossGuardArgs{
 			BaseDir:     h.baseDir,
@@ -93,13 +120,31 @@ func (h *commitHost) commitExact(request *commitRequest, filePath string) (commi
 // commitCreate is Local's commitCreate: a brand-new document, its page state
 // split off first.
 func (h *commitHost) commitCreate(request *commitRequest, filePath string) (commitResult, error) {
+	var consult *consultation
+	if request.Text {
+		var refusal *commitResult
+		consult, refusal = h.beginLane(request, filePath, "create", request.Kind)
+		if refusal != nil {
+			return *refusal, nil
+		}
+	}
 	stored, err := storePageState(h.baseDir, request.Name, string(request.Bytes), false)
 	if err != nil {
 		return commitResult{}, err
 	}
 	h.hooks.MarkPending(h.baseDir, request.Name, stored)
 	if err := atomicWriteFile(filePath, []byte(stored), nil, true); err != nil {
+		if consult != nil {
+			consult.settleFailed(err, "server-save")
+		}
 		return commitResult{}, err
+	}
+	if consult != nil {
+		logical := string(request.Bytes)
+		etag := specwire.Etag(request.Bytes)
+		if err := consult.settle(settleArgs{Outcome: "committed", Logical: &logical, File: &stored, Etag: &etag, Sender: "server-save"}); err != nil {
+			return commitResult{}, indefinite(err)
+		}
 	}
 	content := any(stored)
 	if !request.Text {
@@ -120,44 +165,23 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 
 	var consult *consultation
 	var content, fileContent string
-	if h.service != nil && isDocumentName(request.Name) {
+	lane, origin := "save", "browser"
+	if policy.origin == "api" {
+		lane, origin = "api", "data-api"
+	}
+	consult, refusal := h.beginLane(request, filePath, lane, origin)
+	if refusal != nil {
+		return *refusal, nil
+	}
+	if consult != nil {
 		// The full-host stage: the service supplies Local's normalization, the
 		// stale rebase and the room's admission, and confirms the write once it
 		// lands (protocol v1, admit and settle).
-		if h.service.barred(filePath) {
-			return refusedBy(retryableRefusal("unconfirmed")), nil
+		var refusedAnswer *commitResult
+		content, fileContent, refusedAnswer = h.admitted(consult, admitArgs{Incoming: request.Bytes, DataLossPrev: request.DataLossPrev, Headers: request.Headers})
+		if refusedAnswer != nil {
+			return *refusedAnswer, nil
 		}
-		if request.OpID == "" {
-			request.OpID = newOpID()
-		}
-		lane, origin := "save", "browser"
-		if policy.origin == "api" {
-			lane, origin = "api", "data-api"
-		}
-		if request.ConsultOrigin != "" {
-			origin = request.ConsultOrigin
-		}
-		consult = h.service.begin(request.OpID, request.OpHandle, h.rootID, h.baseDir, request.Name, filePath, lane, origin)
-		answer, err := consult.admit(admitArgs{Incoming: request.Bytes, DataLossPrev: request.DataLossPrev, Headers: request.Headers})
-		if err != nil {
-			consult.end(err)
-			return refusedBy(retryableRefusal("service-unavailable")), nil
-		}
-		if answer.Decision == "refuse" {
-			h.service.abort(consult.ID, "refused")
-			return refusedBy(serviceRefusal{Status: answer.Status, Code: answer.Code, Body: answer.Body, Headers: answer.Headers}), nil
-		}
-		logical, _, err := answer.Logical.decode()
-		if err == nil {
-			var file []byte
-			file, _, err = answer.File.decode()
-			fileContent = string(file)
-		}
-		if err != nil {
-			consult.end(err)
-			return refusedBy(retryableRefusal("service-unavailable")), nil
-		}
-		content = string(logical)
 	} else {
 		// Normalized once, before anything is backed up: a refusal must leave no
 		// backup and no written byte behind.
@@ -208,11 +232,7 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 	stored, err := h.placeBytes(request.Name, filePath, content)
 	if err != nil {
 		if consult != nil {
-			outcome := "failed"
-			if errorCode(err) != "" {
-				outcome = "indeterminate"
-			}
-			_ = consult.settle(settleArgs{Outcome: outcome, Sender: saveSender(policy)})
+			consult.settleFailed(err, saveSender(policy))
 		}
 		return commitResult{}, err
 	}

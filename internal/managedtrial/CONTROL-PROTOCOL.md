@@ -299,3 +299,19 @@ itself. A service refusal is answered with its own status, body and headers; an
 unreachable service or an unconfirmed document is
 `503 {"reason":"service-unavailable"|"unconfirmed","retryable":true}` with
 `Retry-After: 1`, and nothing is written.
+
+The other write lanes consult the service the same way:
+
+- a `replace` write (`restore`, `guard-restore`) to a page document asks `admit`
+  with `edit` and `safety` and its request kind as `origin`, stores the service's
+  `logical` and `file` (no normalization, no safety backup and no `splitWrite` of
+  its own; a `safety-version` artifact is written before its own version backup),
+  then `settle`s with sender `server-save`;
+- an `external-rebase` write asks `admit` (the service recovers the room's
+  unsaved edits as artifacts) with origin `external`, writes the answered bytes,
+  then `settle`s with sender `file-watcher`;
+- a `sync-download` write to a page document asks no `admit`, and `settle`s once
+  the bytes and the mtime are on disk with origin `sync-download` and sender
+  `sync-engine`; a failed settle answers `indeterminate`;
+- a `create` write to a page document asks no `admit`, and `settle`s with origin
+  `create` and sender `server-save`; a failed settle answers `indeterminate`.
