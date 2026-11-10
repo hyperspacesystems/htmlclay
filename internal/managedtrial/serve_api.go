@@ -618,6 +618,10 @@ func (s *rootServer) applySiteData(w http.ResponseWriter, r *http.Request, name,
 	if result.Changed {
 		committed, err := s.commitDataAPI(name, sourcePath, result.HTML, previous)
 		if err != nil {
+			var refused *refusalError
+			if errors.As(err, &refused) {
+				return writeRefusal(w, r, refused.refusal)
+			}
 			return apiAnswer(w, r, http.StatusInternalServerError, apiInternalErrorBody)
 		}
 		written = []byte(committed)
@@ -657,6 +661,9 @@ func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previou
 	result, err := s.commit.commitLocked(request, commitLane{lane: "save", origin: "api"}, sourcePath)
 	if err != nil {
 		return "", err
+	}
+	if result.Refusal != nil {
+		return "", &refusalError{refusal: result.Refusal}
 	}
 	if result.Outcome != "committed" {
 		return "", errors.New("the write did not commit")

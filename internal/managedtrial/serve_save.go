@@ -213,6 +213,7 @@ func (s *rootServer) serveSave(w http.ResponseWriter, r *http.Request) error {
 		UserDrivenSet: userDrivenSet,
 		SaveID:        saveID,
 	}
+	request.Headers = laneHeaders(r)
 
 	// A1: the queue wraps the ENTIRE read-modify-write region, so the If-Match
 	// judgement below is made against bytes no other save can replace while it
@@ -251,6 +252,10 @@ func (s *rootServer) serveSave(w http.ResponseWriter, r *http.Request) error {
 			{Key: "msg", Value: "Server error saving file: " + err.Error()},
 			{Key: "msgType", Value: "error"},
 		})
+	}
+
+	if result.Refusal != nil {
+		return writeRefusal(w, r, result.Refusal)
 	}
 
 	if result.Outcome == "refused" {

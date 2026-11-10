@@ -118,25 +118,68 @@ func (h *commitHost) commitCreate(request *commitRequest, filePath string) (comm
 func (h *commitHost) commitSave(request *commitRequest, policy commitLane, filePath string) (commitResult, error) {
 	backupName := backupSiteName(request.Name)
 
-	// Normalized once, before anything is backed up: a refusal must leave no
-	// backup and no written byte behind.
-	content := h.canonicalForWrite(string(request.Bytes))
+	var consult *consultation
+	var content, fileContent string
+	if h.service != nil && isDocumentName(request.Name) {
+		// The full-host stage: the service supplies Local's normalization, the
+		// stale rebase and the room's admission, and confirms the write once it
+		// lands (protocol v1, admit and settle).
+		if h.service.barred(filePath) {
+			return refusedBy(retryableRefusal("unconfirmed")), nil
+		}
+		if request.OpID == "" {
+			request.OpID = newOpID()
+		}
+		lane, origin := "save", "browser"
+		if policy.origin == "api" {
+			lane, origin = "api", "data-api"
+		}
+		if request.ConsultOrigin != "" {
+			origin = request.ConsultOrigin
+		}
+		consult = h.service.begin(request.OpID, request.OpHandle, h.rootID, h.baseDir, request.Name, filePath, lane, origin)
+		answer, err := consult.admit(admitArgs{Incoming: request.Bytes, DataLossPrev: request.DataLossPrev, Headers: request.Headers})
+		if err != nil {
+			consult.end(err)
+			return refusedBy(retryableRefusal("service-unavailable")), nil
+		}
+		if answer.Decision == "refuse" {
+			h.service.abort(consult.ID, "refused")
+			return refusedBy(serviceRefusal{Status: answer.Status, Code: answer.Code, Body: answer.Body, Headers: answer.Headers}), nil
+		}
+		logical, _, err := answer.Logical.decode()
+		if err == nil {
+			var file []byte
+			file, _, err = answer.File.decode()
+			fileContent = string(file)
+		}
+		if err != nil {
+			consult.end(err)
+			return refusedBy(retryableRefusal("service-unavailable")), nil
+		}
+		content = string(logical)
+	} else {
+		// Normalized once, before anything is backed up: a refusal must leave no
+		// backup and no written byte behind.
+		content = h.canonicalForWrite(string(request.Bytes))
 
-	// AD2: where Local rebases a save made against an older page, this host
-	// refuses it, before anything is written.
-	stale, err := stalePageLineage(h.baseDir, request.Name, content)
-	if err != nil {
-		return commitResult{}, err
-	}
-	if stale {
-		return refused("stale-page-lineage"), nil
-	}
+		// AD2: where Local rebases a save made against an older page, this host
+		// refuses it, before anything is written.
+		stale, err := stalePageLineage(h.baseDir, request.Name, content)
+		if err != nil {
+			return commitResult{}, err
+		}
+		if stale {
+			return refused("stale-page-lineage"), nil
+		}
 
-	fileContent, logical, err := h.splitWrite(request.Name, content, true)
-	if err != nil {
-		return commitResult{}, err
+		var logical string
+		fileContent, logical, err = h.splitWrite(request.Name, content, true)
+		if err != nil {
+			return commitResult{}, err
+		}
+		content = logical
 	}
-	content = logical
 
 	// Check if this is the first save (no versions exist yet).
 	siteVersionsDir := upathJoin(h.baseDir, versionsDirName, backupName)
@@ -164,6 +207,13 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 	// The sidecar lands before the file, and only the file part reaches disk.
 	stored, err := h.placeBytes(request.Name, filePath, content)
 	if err != nil {
+		if consult != nil {
+			outcome := "failed"
+			if errorCode(err) != "" {
+				outcome = "indeterminate"
+			}
+			_ = consult.settle(settleArgs{Outcome: outcome, Sender: saveSender(policy)})
+		}
 		return commitResult{}, err
 	}
 
@@ -175,31 +225,49 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 		SaveID:  request.SaveID,
 	})
 
-	// A data API write has no tab behind it, so it reaches edit-mode tabs the
-	// way an external disk change does. Whether the document needs adoption is
-	// ClayJS's checkpoint classifier, which this stage has not ported: no
-	// observer is attached yet and the classifier answers false here. The
-	// full-host stage adds it.
-	adopt := false
-	if policy.origin == "api" && !adopt {
-		change := externalChange{Kind: "external-change", Sender: "data-api"}
-		if len(fileContent) <= maxExternalHTML {
-			change.HTML = fileContent
-			change.Etag = specwire.Etag([]byte(content))
-			change.HasHTML = true
+	sender := saveSender(policy)
+	if consult != nil {
+		// Local's confirmation point. The service publishes the data API notice
+		// and the saved broadcast; a failed settle leaves the document
+		// unconfirmed and its abort retried, and the write still committed,
+		// because the bytes are on disk.
+		etag := specwire.Etag([]byte(content))
+		var userDriven *bool
+		if request.UserDrivenSet {
+			value := request.UserDriven
+			userDriven = &value
 		}
-		h.hooks.Notify(request.Name, liveNotification{
-			MsgType: "warning",
-			Msg:     upathBase(request.Name) + " was updated through the data API",
-			Action:  "reload",
-			Data:    change,
+		var saveID *string
+		if request.SaveID != "" {
+			saveID = &request.SaveID
+		}
+		_ = consult.settle(settleArgs{
+			Outcome: "committed", Logical: &content, File: &fileContent, Etag: &etag,
+			Sender: sender, UserDriven: userDriven, CaptureID: request.CaptureID, SaveID: saveID,
 		})
+	} else {
+		// A data API write has no tab behind it, so it reaches edit-mode tabs the
+		// way an external disk change does. Whether the document needs adoption is
+		// ClayJS's checkpoint classifier, which this stage has not ported: no
+		// observer is attached yet and the classifier answers false here. The
+		// full-host stage adds it.
+		adopt := false
+		if policy.origin == "api" && !adopt {
+			change := externalChange{Kind: "external-change", Sender: "data-api"}
+			if len(fileContent) <= maxExternalHTML {
+				change.HTML = fileContent
+				change.Etag = specwire.Etag([]byte(content))
+				change.HasHTML = true
+			}
+			h.hooks.Notify(request.Name, liveNotification{
+				MsgType: "warning",
+				Msg:     upathBase(request.Name) + " was updated through the data API",
+				Action:  "reload",
+				Data:    change,
+			})
+		}
+		h.hooks.Broadcast(request.Name, liveMessage{HTML: fileContent, Sender: sender}, broadcastOptions{Lane: "saved"})
 	}
-	sender := "server-save"
-	if policy.origin == "api" {
-		sender = "data-api"
-	}
-	h.hooks.Broadcast(request.Name, liveMessage{HTML: fileContent, Sender: sender}, broadcastOptions{Lane: "saved"})
 
 	// The API data sidecar before the fallible Tailwind compile, and non-fatal:
 	// a sidecar error must never fail the save.
@@ -244,6 +312,14 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 		File:    fileContent,
 		HasFile: true,
 	}, nil
+}
+
+// saveSender is who a save lane write is from, as its broadcast names it.
+func saveSender(policy commitLane) string {
+	if policy.origin == "api" {
+		return "data-api"
+	}
+	return "server-save"
 }
 
 // tailwindHref is tailwind-hyperclay's extractHrefs: every href value, in order.

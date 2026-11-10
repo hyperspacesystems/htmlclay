@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
+	"strings"
 )
 
 // maxPendingBatches bounds one call's artifact loop, so a service that keeps
@@ -327,4 +329,57 @@ func abortReason(err error) string {
 		return "deadline"
 	}
 	return "failed"
+}
+
+// serviceRefusal is a refusal the service decided, or the host's own when the
+// service could not be consulted, answered to the client as it is.
+type serviceRefusal struct {
+	Status  int
+	Code    string
+	Body    json.RawMessage
+	Headers map[string]string
+}
+
+func refusedBy(refusal serviceRefusal) commitResult {
+	return commitResult{Outcome: "refused", Reason: refusal.Code, Refusal: &refusal}
+}
+
+// retryableRefusal is the host's own 503 for a write it could not admit: the
+// service did not answer, or the document waits for its reconciliation.
+func retryableRefusal(code string) serviceRefusal {
+	body, _ := json.Marshal(map[string]any{"reason": code, "retryable": true})
+	return serviceRefusal{Status: http.StatusServiceUnavailable, Code: code, Body: body, Headers: map[string]string{"Retry-After": "1"}}
+}
+
+// writeRefusal answers a client with a refusal as it was decided.
+func writeRefusal(w http.ResponseWriter, r *http.Request, refusal *serviceRefusal) error {
+	for name, value := range refusal.Headers {
+		w.Header().Set(name, value)
+	}
+	body := []byte(refusal.Body)
+	if len(body) == 0 {
+		body = []byte("{}")
+	}
+	sendJSON(w, r, refusal.Status, body)
+	return nil
+}
+
+// refusalError carries a decided refusal through a caller that answers errors.
+type refusalError struct{ refusal *serviceRefusal }
+
+func (e *refusalError) Error() string { return "refused: " + e.refusal.Code }
+
+// lowerHeaders are the request headers Local's save lanes read.
+var lowerHeaders = []string{"If-Match", "Page-Conversion", "Page-Write", "Page-Format"}
+
+// laneHeaders is the subset of a request's headers admit carries, by
+// lower-case name, present ones only.
+func laneHeaders(r *http.Request) map[string]string {
+	headers := map[string]string{}
+	for _, name := range lowerHeaders {
+		if values, ok := r.Header[http.CanonicalHeaderKey(name)]; ok && len(values) > 0 {
+			headers[strings.ToLower(name)] = values[0]
+		}
+	}
+	return headers
 }

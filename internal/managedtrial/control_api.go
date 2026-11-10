@@ -215,6 +215,27 @@ type controlCommitBody struct {
 	SaveID     string            `json:"saveId"`
 	UserDriven *bool             `json:"userDriven"`
 	Hooks      *json.RawMessage  `json:"hooks"`
+	OpHandle   *string           `json:"opHandle"`
+	Headers    map[string]string `json:"headers"`
+	Origin     string            `json:"origin"`
+	CaptureID  *string           `json:"captureId"`
+}
+
+// refusalValue is a decided refusal as the control API reports it, or null.
+func refusalValue(refusal *serviceRefusal) any {
+	if refusal == nil {
+		return nil
+	}
+	var body any = json.RawMessage(refusal.Body)
+	if len(refusal.Body) == 0 {
+		body = nil
+	}
+	return orderedObject{
+		{Key: "status", Value: refusal.Status},
+		{Key: "code", Value: refusal.Code},
+		{Key: "body", Value: body},
+		{Key: "headers", Value: refusal.Headers},
+	}
 }
 
 // controlExpected is Local's `expected`: the precondition a write is judged
@@ -249,13 +270,17 @@ func (a *controlAPI) serveCommit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &commitRequest{
-		Kind:       body.Kind,
-		Name:       body.Name,
-		Edit:       body.Edit,
-		Safety:     body.Safety,
-		SaveID:     body.SaveID,
-		ModifiedAt: body.ModifiedAt,
-		PageRecord: body.PageRecord,
+		Kind:          body.Kind,
+		Name:          body.Name,
+		Edit:          body.Edit,
+		Safety:        body.Safety,
+		SaveID:        body.SaveID,
+		ModifiedAt:    body.ModifiedAt,
+		PageRecord:    body.PageRecord,
+		OpHandle:      body.OpHandle,
+		Headers:       body.Headers,
+		ConsultOrigin: body.Origin,
+		CaptureID:     body.CaptureID,
 	}
 	if body.Expected != nil {
 		request.Expected = &commitExpectation{Type: body.Expected.Type, Value: body.Expected.Value}
@@ -290,6 +315,7 @@ func (a *controlAPI) serveCommit(w http.ResponseWriter, r *http.Request) {
 	writeControlJSON(w, http.StatusOK, orderedObject{
 		{Key: "outcome", Value: result.Outcome},
 		{Key: "reason", Value: nullableString(result.Reason)},
+		{Key: "refusal", Value: refusalValue(result.Refusal)},
 		{Key: "etag", Value: nullableString(result.Etag)},
 		{Key: "checksum", Value: nullableString(result.Checksum)},
 		{Key: "stored", Value: controlBytesValue(result.Stored)},

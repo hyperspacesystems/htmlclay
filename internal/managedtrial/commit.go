@@ -73,6 +73,17 @@ type commitRequest struct {
 	// OpID names the write in the event stream and in GET /v1/op. The control
 	// API passes the caller's; a write that arrives over HTTP gets a new one.
 	OpID string
+	// OpHandle is the opId the JS service sent with a /v1/commit, echoed in
+	// this write's consultation so the service finds its own state by it.
+	OpHandle *string
+	// Headers are the request headers Local's lanes read (lower-case names),
+	// sent with admit.
+	Headers map[string]string
+	// ConsultOrigin names the write's origin to the service when it is not the
+	// lane's own (a checkpoint).
+	ConsultOrigin string
+	// CaptureID is the checkpoint capture a write stores, marked saved on settle.
+	CaptureID *string
 }
 
 // commitExpectation is Local's `expected`: the precondition a request is judged
@@ -95,7 +106,8 @@ type commitResult struct {
 	HasChecksum bool
 	HasFile     bool
 	// Cursor is the event stream position of the frame that reported this write.
-	Cursor string
+	Cursor  string
+	Refusal *serviceRefusal // a refusal answered to the client as it was decided
 }
 
 // refused is Local's refusal shape.

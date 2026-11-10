@@ -32,7 +32,9 @@ served root in the managed trial.
   "bytes": { "encoding": "utf8", "data": "<!doctype html>…" },
   "edit": false, "safety": false, "modifiedAt": 1762000000000,
   "pageRecord": { "v": 1, "rev": "…", "tag": "…" },
-  "saveId": "…", "userDriven": true }
+  "saveId": "…", "userDriven": true,
+  "opHandle": "…", "headers": { "if-match": "…" }, "origin": "…",
+  "captureId": "…" }
 ```
 
 `kind` is one of G6's `KINDS`: `browser-save`, `data-api`, `restore`,
@@ -40,6 +42,14 @@ served root in the managed trial.
 `expected`, `pageRecord`, `modifiedAt`, `saveId`, `userDriven`, `edit` and
 `safety` are optional, and `userDriven` is a tri-state: absent means the save
 names no provenance (Local's `ui-unknown`).
+
+With a service attached, four more fields reach the write's consultation.
+`opHandle` is the opId the service sent with this commit, echoed in every
+consultation call so the service finds its own state by it. `headers` are the
+request headers Local's lanes read, by lower-case name, sent with `admit`.
+`origin` names the write's origin to the service when it is not the lane's own
+(a checkpoint). `captureId` is the checkpoint capture the write stores, marked
+saved on `settle`.
 
 The request runs G6's `commit` with that kind under the document's lock and
 answers Local's `CommitResult` plus the frame it produced:
@@ -50,12 +60,17 @@ answers Local's `CommitResult` plus the frame it produced:
   "etag": null | "…", "checksum": null | "…",
   "stored": { "encoding": "utf8", "data": "…" } | null,
   "content": { "encoding": "base64", "data": "…" } | null,
+  "refusal": null | { "status": 409, "code": "…",
+                      "body": { … } | null, "headers": { "…": "…" } },
   "opId": "…", "cursor": "<epoch>:<seq>" }
 ```
 
 `opId` is the caller's, or one Go made up when the caller sent none. `checksum`
 is the lane's own checksum when it computes one (`sync-download`) and `null`
-where Local answers `null`.
+where Local answers `null`. `refusal` is the refusal the JS service decided, as
+it was decided: its `status`, its `code`, its `body` and the `headers` it
+answers the client with. It is `null` for every write the service did not
+refuse.
 
 Refusals by the API itself, all `400` with `{"error": "…"}`:
 
@@ -275,3 +290,12 @@ beside the document's versions and `recovered-copy` under the named root's
 `.hyperclay/recovered/`; and sends `settle` with the written file's `identity`.
 A failed settle after the bytes landed marks the document unconfirmed and
 retries `abort settle-failed`.
+
+With a service attached, a save-lane write (`browser-save`, `data-api`) to a
+page document asks `admit` before its first backup and stores the service's
+`logical` and `file` (no `canonicalForWrite`, AD2 refusal or `splitWrite` of its
+own), then `settle`s after the rename and the etag record and publishes nothing
+itself. A service refusal is answered with its own status, body and headers; an
+unreachable service or an unconfirmed document is
+`503 {"reason":"service-unavailable"|"unconfirmed","retryable":true}` with
+`Retry-After: 1`, and nothing is written.
