@@ -1,0 +1,2506 @@
+{
+  "stubs": {
+    "dateNow": "counter",
+    "randomUUID": "counter"
+  },
+  "scenarios": [
+    {
+      "name": "no-rules-tag",
+      "seed": [
+        {
+          "path": "plain.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sPgogIDxib2R5PgogICAgPGgxPlBsYWluPC9oMT4KICA8L2JvZHk+CjwvaHRtbD4K"
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "plain.html",
+            "newHtml": "<!doctype html>\n<html>\n  <body>\n    <h1>Plain</h1>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html>\n  <body>\n    <h1>Plain</h1>\n  </body>\n</html>\n",
+            "prov": "external"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "plain.html",
+              "newHtml": {
+                "sha256": "f8b9a755ec4ea5b54679003c424cb33e75cfb38e986ce9c205dd6bf4489d9959",
+                "length": 69
+              },
+              "prevContent": {
+                "sha256": "f8b9a755ec4ea5b54679003c424cb33e75cfb38e986ce9c205dd6bf4489d9959",
+                "length": 69
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": null
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/plain.json",
+          "b64": "eyJiYXNlbGluZSI6bnVsbCwidWlXb3JrUGVuZGluZyI6ZmFsc2UsImV2ZW50IjpudWxsLCJzdGF0dXMiOiJub25lIn0="
+        }
+      ]
+    },
+    {
+      "name": "first-run-seeds",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "external"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": null
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6bnVsbCwic3RhdHVzIjoibm9uZSJ9"
+        }
+      ]
+    },
+    {
+      "name": "non-destructive-save",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "external"
+          }
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand, mostly</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-gestured"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "291a0b60ba291ff12bd895880e4f518db43b2d5864dc8b171edb2cfa9c0743e7",
+                "length": 883
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-gestured"
+            }
+          ],
+          "returns": null
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kLCBtb3N0bHkiLCJpdGVtcyI6WyJhbHBoYSIsImJldGEiLCJnYW1tYSJdLCJub3RlcyI6IkEgbm90ZSBsb25nIGVub3VnaCB0aGF0IHRoZSByZWNvdmVyeSBwcmV2aWV3IGhhcyB0byBjdXQgaXQ6IGl0IGtlZXBzIGdvaW5nIHBhc3QgdGhlIGVpZ2h0eSBjaGFyYWN0ZXIgcHJldmlldyBsaW1pdCBhbmQgdGhlbiBzb21lIG1vcmUuIiwicGVvcGxlIjpbeyJuYW1lIjoiQWRhIn0seyJuYW1lIjoiR3JhY2UifV0sIm1ldGEiOnsiYXV0aG9yIjoiQWRhIiwidGFnIjoiZHJhZnQifX19LCJoYXNoIjoiODY2NmE4ZTdiZTFlOWE3ZTM0YjQwNzI2NjU1YzExZDBjMDRmMDg4ZDMyYWY4MjVkMDc1NDJjZDRkMjlkY2E0NCIsImF0IjoxNzkzNTEyODAwMDAxfSwidWlXb3JrUGVuZGluZyI6dHJ1ZSwiZXZlbnQiOm51bGwsInN0YXR1cyI6Im5vbmUifQ=="
+        }
+      ]
+    },
+    {
+      "name": "destructive-browser-save",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "ui-background",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6eyJpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInJlY292ZXJhYmxlRGF0YSI6eyJhcGkiOnsidGl0bGUiOiJSZWFkaW5nIGxpc3QiLCJzdWJ0aXRsZSI6IktlcHQgYnkgaGFuZCIsIml0ZW1zIjpbImFscGhhIiwiYmV0YSIsImdhbW1hIl0sIm5vdGVzIjoiQSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS4iLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifSx7Im5hbWUiOiJHcmFjZSJ9XSwibWV0YSI6eyJhdXRob3IiOiJBZGEiLCJ0YWciOiJkcmFmdCJ9fX0sInJlY292ZXJhYmxlSHRtbEJhY2t1cCI6Ijxyb290Pi8uaHlwZXJjbGF5L2d1YXJkL2RvYy5yZWNvdmVyLmh0bWwiLCJmaXJzdERldGVjdGVkQXQiOjE3OTM1MTI4MDAwMDEsImxhc3RXcml0ZUF0IjoxNzkzNTEyODAwMDAyLCJsb3NzU3VtbWFyeSI6eyJwcm92ZW5hbmNlIjoidWktYmFja2dyb3VuZCIsImRlc3Ryb3llZEF0b21zIjo2LCJyZW1vdmVkSXRlbXMiOjEsIm1vZGlmaWVkQXRvbXMiOjEsInBhdGhzIjpbImFwaS5zdWJ0aXRsZSIsImFwaS5pdGVtc1sxXSIsImFwaS5pdGVtc1syXSIsImFwaS5ub3RlcyIsImFwaS5tZXRhLnRhZyJdfSwic3RhdHVzIjoicGVuZGluZyJ9LCJzdGF0dXMiOiJwZW5kaW5nIn0="
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "guard-event",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        },
+        {
+          "fn": "getGuardEvent",
+          "args": {
+            "name": "doc.html",
+            "currentHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "ui-background",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        },
+        {
+          "fn": "getGuardEvent",
+          "args": [
+            {
+              "currentHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6eyJpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInJlY292ZXJhYmxlRGF0YSI6eyJhcGkiOnsidGl0bGUiOiJSZWFkaW5nIGxpc3QiLCJzdWJ0aXRsZSI6IktlcHQgYnkgaGFuZCIsIml0ZW1zIjpbImFscGhhIiwiYmV0YSIsImdhbW1hIl0sIm5vdGVzIjoiQSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS4iLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifSx7Im5hbWUiOiJHcmFjZSJ9XSwibWV0YSI6eyJhdXRob3IiOiJBZGEiLCJ0YWciOiJkcmFmdCJ9fX0sInJlY292ZXJhYmxlSHRtbEJhY2t1cCI6Ijxyb290Pi8uaHlwZXJjbGF5L2d1YXJkL2RvYy5yZWNvdmVyLmh0bWwiLCJmaXJzdERldGVjdGVkQXQiOjE3OTM1MTI4MDAwMDEsImxhc3RXcml0ZUF0IjoxNzkzNTEyODAwMDAyLCJsb3NzU3VtbWFyeSI6eyJwcm92ZW5hbmNlIjoidWktYmFja2dyb3VuZCIsImRlc3Ryb3llZEF0b21zIjo2LCJyZW1vdmVkSXRlbXMiOjEsIm1vZGlmaWVkQXRvbXMiOjEsInBhdGhzIjpbImFwaS5zdWJ0aXRsZSIsImFwaS5pdGVtc1sxXSIsImFwaS5pdGVtc1syXSIsImFwaS5ub3RlcyIsImFwaS5tZXRhLnRhZyJdfSwic3RhdHVzIjoicGVuZGluZyJ9LCJzdGF0dXMiOiJwZW5kaW5nIn0="
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "resolve-restore",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        },
+        {
+          "fn": "resolveGuard",
+          "args": {
+            "name": "doc.html",
+            "id": "00000000-0000-4000-8000-000000000000",
+            "choice": "restore",
+            "currentHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "ui-background",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        },
+        {
+          "fn": "writeBack",
+          "args": [
+            {
+              "data": {
+                "items": [
+                  "alpha",
+                  "beta",
+                  "gamma"
+                ],
+                "meta": {
+                  "author": "Ada",
+                  "tag": "draft"
+                },
+                "notes": {
+                  "sha256": "c47ec790bb9d17ee179a4dea3d392b337834fd92387f2b90aadf9f3bda4f7e8a",
+                  "length": 134
+                },
+                "people": [
+                  {
+                    "name": "Ada"
+                  },
+                  {
+                    "name": "Grace"
+                  }
+                ],
+                "subtitle": "Kept by hand",
+                "title": "Reading list"
+              }
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "resolved",
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000000"
+              },
+              "msg": "Data guard resolved",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "resolveGuard",
+          "args": [
+            {
+              "choice": "restore",
+              "currentHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "id": "00000000-0000-4000-8000-000000000000",
+              "name": "doc.html"
+            }
+          ],
+          "returns": {
+            "choice": "restore",
+            "ok": true,
+            "status": "restored"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwM30sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6bnVsbCwic3RhdHVzIjoicmVzdG9yZWQifQ=="
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "resolve-dismiss",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        },
+        {
+          "fn": "resolveGuard",
+          "args": {
+            "name": "doc.html",
+            "id": "00000000-0000-4000-8000-000000000000",
+            "choice": "dismiss",
+            "currentHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "ui-background",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        },
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "resolved",
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000000"
+              },
+              "msg": "Data guard resolved",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "resolveGuard",
+          "args": [
+            {
+              "choice": "dismiss",
+              "currentHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "id": "00000000-0000-4000-8000-000000000000",
+              "name": "doc.html"
+            }
+          ],
+          "returns": {
+            "choice": "dismiss",
+            "control": {
+              "fileKey": "doc.html",
+              "recoverableDataHash": {
+                "sha256": "d29eea4b6b2b5c3f801ec91688c770348b2ce495dfca5501078b552bddcd8280",
+                "length": 64
+              }
+            },
+            "ok": true,
+            "status": "dismissed"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiIiwiaXRlbXMiOlsiYWxwaGEiXSwibm90ZXMiOiIiLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifV0sIm1ldGEiOnsiYXV0aG9yIjoiU29tZW9uZSIsInRhZyI6IiJ9fX0sImhhc2giOiIwZmIxZjczZjI5NWNlYzkwNjZkYWNmMTU1MGJhOTg2MDk0MWMzNWIwNzI5ZjU0NzA1Yjg5OWQ5OWUyMzYyNDE3IiwiYXQiOjE3OTM1MTI4MDAwMDN9LCJ1aVdvcmtQZW5kaW5nIjpmYWxzZSwiZXZlbnQiOm51bGwsInN0YXR1cyI6ImRpc21pc3NlZCJ9"
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "outside-edit",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": ".hyperclay/versions/doc/2026-09-01-00-00-00-000+0000.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "external"
+          }
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": null,
+            "prov": "external"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "external",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": null,
+              "prov": "external"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "external",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6eyJpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInJlY292ZXJhYmxlRGF0YSI6eyJhcGkiOnsidGl0bGUiOiJSZWFkaW5nIGxpc3QiLCJzdWJ0aXRsZSI6IktlcHQgYnkgaGFuZCIsIml0ZW1zIjpbImFscGhhIiwiYmV0YSIsImdhbW1hIl0sIm5vdGVzIjoiQSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS4iLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifSx7Im5hbWUiOiJHcmFjZSJ9XSwibWV0YSI6eyJhdXRob3IiOiJBZGEiLCJ0YWciOiJkcmFmdCJ9fX0sInJlY292ZXJhYmxlSHRtbEJhY2t1cCI6Ijxyb290Pi8uaHlwZXJjbGF5L2d1YXJkL2RvYy5yZWNvdmVyLmh0bWwiLCJmaXJzdERldGVjdGVkQXQiOjE3OTM1MTI4MDAwMDEsImxhc3RXcml0ZUF0IjoxNzkzNTEyODAwMDAyLCJsb3NzU3VtbWFyeSI6eyJwcm92ZW5hbmNlIjoiZXh0ZXJuYWwiLCJkZXN0cm95ZWRBdG9tcyI6NiwicmVtb3ZlZEl0ZW1zIjoxLCJtb2RpZmllZEF0b21zIjoxLCJwYXRocyI6WyJhcGkuc3VidGl0bGUiLCJhcGkuaXRlbXNbMV0iLCJhcGkuaXRlbXNbMl0iLCJhcGkubm90ZXMiLCJhcGkubWV0YS50YWciXX0sInN0YXR1cyI6InBlbmRpbmcifSwic3RhdHVzIjoicGVuZGluZyJ9"
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": ".hyperclay/versions/doc/2026-09-01-00-00-00-000+0000.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "catch-up-outside-edit",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": ".hyperclay/versions/doc/2026-09-01-00-00-00-000+0000.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "external"
+          }
+        },
+        {
+          "fn": "noteSeen",
+          "args": {
+            "name": "doc.html",
+            "bytes": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n"
+          }
+        },
+        {
+          "fn": "catchUpOutsideEdit",
+          "args": {
+            "name": "doc.html",
+            "bytes": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "html": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n"
+          }
+        },
+        {
+          "fn": "getGuardEvent",
+          "args": {
+            "name": "doc.html",
+            "currentHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "noteSeen",
+          "args": [
+            {
+              "bytes": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "external",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "catchUpOutsideEdit",
+          "args": [
+            {
+              "bytes": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "html": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "getGuardEvent",
+          "args": [
+            {
+              "currentHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "external",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6eyJpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInJlY292ZXJhYmxlRGF0YSI6eyJhcGkiOnsidGl0bGUiOiJSZWFkaW5nIGxpc3QiLCJzdWJ0aXRsZSI6IktlcHQgYnkgaGFuZCIsIml0ZW1zIjpbImFscGhhIiwiYmV0YSIsImdhbW1hIl0sIm5vdGVzIjoiQSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS4iLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifSx7Im5hbWUiOiJHcmFjZSJ9XSwibWV0YSI6eyJhdXRob3IiOiJBZGEiLCJ0YWciOiJkcmFmdCJ9fX0sInJlY292ZXJhYmxlSHRtbEJhY2t1cCI6Ijxyb290Pi8uaHlwZXJjbGF5L2d1YXJkL2RvYy5yZWNvdmVyLmh0bWwiLCJmaXJzdERldGVjdGVkQXQiOjE3OTM1MTI4MDAwMDEsImxhc3RXcml0ZUF0IjoxNzkzNTEyODAwMDAyLCJsb3NzU3VtbWFyeSI6eyJwcm92ZW5hbmNlIjoiZXh0ZXJuYWwiLCJkZXN0cm95ZWRBdG9tcyI6NiwicmVtb3ZlZEl0ZW1zIjoxLCJtb2RpZmllZEF0b21zIjoxLCJwYXRocyI6WyJhcGkuc3VidGl0bGUiLCJhcGkuaXRlbXNbMV0iLCJhcGkuaXRlbXNbMl0iLCJhcGkubm90ZXMiLCJhcGkubWV0YS50YWciXX0sInN0YXR1cyI6InBlbmRpbmcifSwic3RhdHVzIjoicGVuZGluZyIsImxhc3RTZWVuIjoiZmM5MTVkZDdiNjM1NjI3MWZhYTRhOGM0NDNjODZiYzhmMDUzNTg1YjA3Y2FhZDZmODM4OTI5MGM2MjQ0YmZiMSJ9"
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": ".hyperclay/versions/doc/2026-09-01-00-00-00-000+0000.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "mark-pending-then-seen",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "markPending",
+          "args": {
+            "name": "doc.html",
+            "bytes": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n"
+          }
+        },
+        {
+          "fn": "noteSeen",
+          "args": {
+            "name": "doc.html",
+            "bytes": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n"
+          }
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "external"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "markPending",
+          "args": [
+            {
+              "bytes": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "noteSeen",
+          "args": [
+            {
+              "bytes": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "external",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "external"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "external",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6eyJpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInJlY292ZXJhYmxlRGF0YSI6eyJhcGkiOnsidGl0bGUiOiJSZWFkaW5nIGxpc3QiLCJzdWJ0aXRsZSI6IktlcHQgYnkgaGFuZCIsIml0ZW1zIjpbImFscGhhIiwiYmV0YSIsImdhbW1hIl0sIm5vdGVzIjoiQSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS4iLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifSx7Im5hbWUiOiJHcmFjZSJ9XSwibWV0YSI6eyJhdXRob3IiOiJBZGEiLCJ0YWciOiJkcmFmdCJ9fX0sInJlY292ZXJhYmxlSHRtbEJhY2t1cCI6Ijxyb290Pi8uaHlwZXJjbGF5L2d1YXJkL2RvYy5yZWNvdmVyLmh0bWwiLCJmaXJzdERldGVjdGVkQXQiOjE3OTM1MTI4MDAwMDEsImxhc3RXcml0ZUF0IjoxNzkzNTEyODAwMDAyLCJsb3NzU3VtbWFyeSI6eyJwcm92ZW5hbmNlIjoiZXh0ZXJuYWwiLCJkZXN0cm95ZWRBdG9tcyI6NiwicmVtb3ZlZEl0ZW1zIjoxLCJtb2RpZmllZEF0b21zIjoxLCJwYXRocyI6WyJhcGkuc3VidGl0bGUiLCJhcGkuaXRlbXNbMV0iLCJhcGkuaXRlbXNbMl0iLCJhcGkubm90ZXMiLCJhcGkubWV0YS50YWciXX0sInN0YXR1cyI6InBlbmRpbmcifSwic3RhdHVzIjoicGVuZGluZyIsImxhc3RTZWVuIjoiZmM5MTVkZDdiNjM1NjI3MWZhYTRhOGM0NDNjODZiYzhmMDUzNTg1YjA3Y2FhZDZmODM4OTI5MGM2MjQ0YmZiMSJ9"
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "apply-remote-resolution",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        },
+        {
+          "fn": "applyRemoteResolution",
+          "args": {
+            "name": "doc.html",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "fn": "applyRemoteResolution",
+          "args": {
+            "name": "doc.html",
+            "hash": "df45df9ee52b39251c591934c8d7fee8911849cb59f89f63e3874a5599ddc795"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "ui-background",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        },
+        {
+          "fn": "applyRemoteResolution",
+          "args": [
+            {
+              "hash": {
+                "sha256": "60e05bd1b195af2f94112fa7197a5c88289058840ce7c6df9693756bc6250f55",
+                "length": 64
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": false
+        },
+        {
+          "fn": "applyRemoteResolution",
+          "args": [
+            {
+              "hash": {
+                "sha256": "d29eea4b6b2b5c3f801ec91688c770348b2ce495dfca5501078b552bddcd8280",
+                "length": 64
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": true
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiIiwiaXRlbXMiOlsiYWxwaGEiXSwibm90ZXMiOiIiLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifV0sIm1ldGEiOnsiYXV0aG9yIjoiU29tZW9uZSIsInRhZyI6IiJ9fX0sImhhc2giOiIwZmIxZjczZjI5NWNlYzkwNjZkYWNmMTU1MGJhOTg2MDk0MWMzNWIwNzI5ZjU0NzA1Yjg5OWQ5OWUyMzYyNDE3IiwiYXQiOjE3OTM1MTI4MDAwMDN9LCJ1aVdvcmtQZW5kaW5nIjpmYWxzZSwiZXZlbnQiOm51bGwsInN0YXR1cyI6ImRpc21pc3NlZCJ9"
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "second-destructive-save",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\"></ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\"></ul>\n    <p class=\"meta\"><span class=\"author\"></span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "ui-background",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "91e46bf176751d872f5e853276e521b8aa59d9767a4b392885b93b92253ed4b8",
+                "length": 595
+              },
+              "prevContent": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": null
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6eyJpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInJlY292ZXJhYmxlRGF0YSI6eyJhcGkiOnsidGl0bGUiOiJSZWFkaW5nIGxpc3QiLCJzdWJ0aXRsZSI6IktlcHQgYnkgaGFuZCIsIml0ZW1zIjpbImFscGhhIiwiYmV0YSIsImdhbW1hIl0sIm5vdGVzIjoiQSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS4iLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifSx7Im5hbWUiOiJHcmFjZSJ9XSwibWV0YSI6eyJhdXRob3IiOiJBZGEiLCJ0YWciOiJkcmFmdCJ9fX0sInJlY292ZXJhYmxlSHRtbEJhY2t1cCI6Ijxyb290Pi8uaHlwZXJjbGF5L2d1YXJkL2RvYy5yZWNvdmVyLmh0bWwiLCJmaXJzdERldGVjdGVkQXQiOjE3OTM1MTI4MDAwMDEsImxhc3RXcml0ZUF0IjoxNzkzNTEyODAwMDAzLCJsb3NzU3VtbWFyeSI6eyJwcm92ZW5hbmNlIjoidWktYmFja2dyb3VuZCIsImRlc3Ryb3llZEF0b21zIjo2LCJyZW1vdmVkSXRlbXMiOjEsIm1vZGlmaWVkQXRvbXMiOjEsInBhdGhzIjpbImFwaS5zdWJ0aXRsZSIsImFwaS5pdGVtc1sxXSIsImFwaS5pdGVtc1syXSIsImFwaS5ub3RlcyIsImFwaS5tZXRhLnRhZyJdfSwic3RhdHVzIjoicGVuZGluZyJ9LCJzdGF0dXMiOiJwZW5kaW5nIn0="
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "preview-limits",
+      "seed": [
+        {
+          "path": "doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj48L3VsPgogICAgPHAgY2xhc3M9Im5vdGVzIj48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+PC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj48L3NwYW4+IDxzcGFuIGNsYXNzPSJ0YWciPjwvc3Bhbj48L3A+CiAgPC9ib2R5Pgo8L2h0bWw+Cg=="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\"></ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\"></ul>\n    <p class=\"meta\"><span class=\"author\"></span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        },
+        {
+          "fn": "getGuardEvent",
+          "args": {
+            "name": "doc.html",
+            "currentHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\"></ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\"></ul>\n    <p class=\"meta\"><span class=\"author\"></span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "live.notify",
+          "args": [
+            "doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 9,
+                  "modifiedAtoms": 0,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[0]",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.author",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "ui-background",
+                  "removedItems": 2
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "— empty —",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "— empty —",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": false,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "doc.html",
+              "newHtml": {
+                "sha256": "91e46bf176751d872f5e853276e521b8aa59d9767a4b392885b93b92253ed4b8",
+                "length": 595
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 9,
+              "modifiedAtoms": 0,
+              "paths": [
+                "api.subtitle",
+                "api.items[0]",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.author",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 2
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "— empty —",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "— empty —",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": false,
+            "status": "pending"
+          }
+        },
+        {
+          "fn": "getGuardEvent",
+          "args": [
+            {
+              "currentHtml": {
+                "sha256": "91e46bf176751d872f5e853276e521b8aa59d9767a4b392885b93b92253ed4b8",
+                "length": 595
+              },
+              "name": "doc.html"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 9,
+              "modifiedAtoms": 0,
+              "paths": [
+                "api.subtitle",
+                "api.items[0]",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.author",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 2
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "— empty —",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "— empty —",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": false,
+            "status": "pending"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6eyJpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInJlY292ZXJhYmxlRGF0YSI6eyJhcGkiOnsidGl0bGUiOiJSZWFkaW5nIGxpc3QiLCJzdWJ0aXRsZSI6IktlcHQgYnkgaGFuZCIsIml0ZW1zIjpbImFscGhhIiwiYmV0YSIsImdhbW1hIl0sIm5vdGVzIjoiQSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS4iLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifSx7Im5hbWUiOiJHcmFjZSJ9XSwibWV0YSI6eyJhdXRob3IiOiJBZGEiLCJ0YWciOiJkcmFmdCJ9fX0sInJlY292ZXJhYmxlSHRtbEJhY2t1cCI6Ijxyb290Pi8uaHlwZXJjbGF5L2d1YXJkL2RvYy5yZWNvdmVyLmh0bWwiLCJmaXJzdERldGVjdGVkQXQiOjE3OTM1MTI4MDAwMDEsImxhc3RXcml0ZUF0IjoxNzkzNTEyODAwMDAyLCJsb3NzU3VtbWFyeSI6eyJwcm92ZW5hbmNlIjoidWktYmFja2dyb3VuZCIsImRlc3Ryb3llZEF0b21zIjo5LCJyZW1vdmVkSXRlbXMiOjIsIm1vZGlmaWVkQXRvbXMiOjAsInBhdGhzIjpbImFwaS5zdWJ0aXRsZSIsImFwaS5pdGVtc1swXSIsImFwaS5pdGVtc1sxXSIsImFwaS5pdGVtc1syXSIsImFwaS5ub3RlcyIsImFwaS5tZXRhLmF1dGhvciIsImFwaS5tZXRhLnRhZyJdfSwic3RhdHVzIjoicGVuZGluZyJ9LCJzdGF0dXMiOiJwZW5kaW5nIn0="
+        },
+        {
+          "path": ".hyperclay/guard/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    },
+    {
+      "name": "subfolder",
+      "seed": [
+        {
+          "path": "notes/doc.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj48L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgIDwvdWw+CiAgICA8cCBjbGFzcz0ibm90ZXMiPjwvcD4KICAgIDx1bCBjbGFzcz0icGVvcGxlIj4KICAgICAgPGxpPjxiPkFkYTwvYj48L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJtZXRhIj48c3BhbiBjbGFzcz0iYXV0aG9yIj5Tb21lb25lPC9zcGFuPiA8c3BhbiBjbGFzcz0idGFnIj48L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": ".hyperclay/versions/notes/doc/2026-09-01-00-00-00-000+0000.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ],
+      "steps": [
+        {
+          "fn": "runDataLossGuard",
+          "args": {
+            "name": "notes/doc.html",
+            "newHtml": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\"></p>\n    <ul class=\"items\">\n      <li>alpha</li>\n    </ul>\n    <p class=\"notes\"></p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Someone</span> <span class=\"tag\"></span></p>\n  </body>\n</html>\n",
+            "prevContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Doc</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"subtitle\":\"p.sub\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\",\"people\":[\"ul.people li\",{\"name\":\"b\"}],\"meta\":{\"author\":\"span.author\",\"tag\":\"span.tag\"}}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <p class=\"sub\">Kept by hand</p>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n    </ul>\n    <p class=\"notes\">A note long enough that the recovery preview has to cut it: it keeps going past the eighty character preview limit and then some more.</p>\n    <ul class=\"people\">\n      <li><b>Ada</b></li>\n      <li><b>Grace</b></li>\n    </ul>\n    <p class=\"meta\"><span class=\"author\">Ada</span> <span class=\"tag\">draft</span></p>\n  </body>\n</html>\n",
+            "prov": "ui-background"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "fn": "live.notify",
+          "args": [
+            "notes/doc.html",
+            {
+              "action": "raised",
+              "data": {
+                "canRevert": true,
+                "droppedAdditions": 0,
+                "fieldCount": 5,
+                "firstDetectedAt": 1793512800001,
+                "id": "00000000-0000-4000-8000-000000000000",
+                "lastWriteAt": 1793512800002,
+                "lossSummary": {
+                  "destroyedAtoms": 6,
+                  "modifiedAtoms": 1,
+                  "paths": [
+                    "api.subtitle",
+                    "api.items[1]",
+                    "api.items[2]",
+                    "api.notes",
+                    "api.meta.tag"
+                  ],
+                  "provenance": "ui-background",
+                  "removedItems": 1
+                },
+                "preview": [
+                  {
+                    "key": "subtitle",
+                    "now": "— empty —",
+                    "yours": "Kept by hand"
+                  },
+                  {
+                    "key": "items",
+                    "now": "alpha",
+                    "yours": "alpha, beta, gamma"
+                  },
+                  {
+                    "key": "notes",
+                    "now": "— empty —",
+                    "yours": {
+                      "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                      "length": 80
+                    }
+                  },
+                  {
+                    "key": "people",
+                    "now": "1 item",
+                    "yours": "2 items"
+                  },
+                  {
+                    "key": "meta",
+                    "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                    "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+                  }
+                ],
+                "restorable": true,
+                "status": "pending"
+              },
+              "msg": "Saved data overwritten",
+              "msgType": "data-loss"
+            }
+          ],
+          "returns": null
+        },
+        {
+          "fn": "runDataLossGuard",
+          "args": [
+            {
+              "name": "notes/doc.html",
+              "newHtml": {
+                "sha256": "fc915dd7b6356271faa4a8c443c86bc8f053585b07caad6f8389290c6244bfb1",
+                "length": 659
+              },
+              "prevContent": {
+                "sha256": "3c848038d15e98ddb2a56e1723db10bcea576d96309348116c7c5313e86e1573",
+                "length": 875
+              },
+              "prov": "ui-background"
+            }
+          ],
+          "returns": {
+            "canRevert": true,
+            "droppedAdditions": 0,
+            "fieldCount": 5,
+            "firstDetectedAt": 1793512800001,
+            "id": "00000000-0000-4000-8000-000000000000",
+            "lastWriteAt": 1793512800002,
+            "lossSummary": {
+              "destroyedAtoms": 6,
+              "modifiedAtoms": 1,
+              "paths": [
+                "api.subtitle",
+                "api.items[1]",
+                "api.items[2]",
+                "api.notes",
+                "api.meta.tag"
+              ],
+              "provenance": "ui-background",
+              "removedItems": 1
+            },
+            "preview": [
+              {
+                "key": "subtitle",
+                "now": "— empty —",
+                "yours": "Kept by hand"
+              },
+              {
+                "key": "items",
+                "now": "alpha",
+                "yours": "alpha, beta, gamma"
+              },
+              {
+                "key": "notes",
+                "now": "— empty —",
+                "yours": {
+                  "sha256": "2f8ea207d28b85d3a0225d60f912f9227864b0250542941a9b852df4a3668b91",
+                  "length": 80
+                }
+              },
+              {
+                "key": "people",
+                "now": "1 item",
+                "yours": "2 items"
+              },
+              {
+                "key": "meta",
+                "now": "{\"author\":\"Someone\",\"tag\":\"\"}",
+                "yours": "{\"author\":\"Ada\",\"tag\":\"draft\"}"
+              }
+            ],
+            "restorable": true,
+            "status": "pending"
+          }
+        }
+      ],
+      "tree": [
+        {
+          "path": ".hyperclay/guard/notes/doc.json",
+          "b64": "eyJiYXNlbGluZSI6eyJkYXRhIjp7ImFwaSI6eyJ0aXRsZSI6IlJlYWRpbmcgbGlzdCIsInN1YnRpdGxlIjoiS2VwdCBieSBoYW5kIiwiaXRlbXMiOlsiYWxwaGEiLCJiZXRhIiwiZ2FtbWEiXSwibm90ZXMiOiJBIG5vdGUgbG9uZyBlbm91Z2ggdGhhdCB0aGUgcmVjb3ZlcnkgcHJldmlldyBoYXMgdG8gY3V0IGl0OiBpdCBrZWVwcyBnb2luZyBwYXN0IHRoZSBlaWdodHkgY2hhcmFjdGVyIHByZXZpZXcgbGltaXQgYW5kIHRoZW4gc29tZSBtb3JlLiIsInBlb3BsZSI6W3sibmFtZSI6IkFkYSJ9LHsibmFtZSI6IkdyYWNlIn1dLCJtZXRhIjp7ImF1dGhvciI6IkFkYSIsInRhZyI6ImRyYWZ0In19fSwiaGFzaCI6ImRmNDVkZjllZTUyYjM5MjUxYzU5MTkzNGM4ZDdmZWU4OTExODQ5Y2I1OWY4OWY2M2UzODc0YTU1OTlkZGM3OTUiLCJhdCI6MTc5MzUxMjgwMDAwMH0sInVpV29ya1BlbmRpbmciOmZhbHNlLCJldmVudCI6eyJpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInJlY292ZXJhYmxlRGF0YSI6eyJhcGkiOnsidGl0bGUiOiJSZWFkaW5nIGxpc3QiLCJzdWJ0aXRsZSI6IktlcHQgYnkgaGFuZCIsIml0ZW1zIjpbImFscGhhIiwiYmV0YSIsImdhbW1hIl0sIm5vdGVzIjoiQSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS4iLCJwZW9wbGUiOlt7Im5hbWUiOiJBZGEifSx7Im5hbWUiOiJHcmFjZSJ9XSwibWV0YSI6eyJhdXRob3IiOiJBZGEiLCJ0YWciOiJkcmFmdCJ9fX0sInJlY292ZXJhYmxlSHRtbEJhY2t1cCI6Ijxyb290Pi8uaHlwZXJjbGF5L2d1YXJkL25vdGVzL2RvYy5yZWNvdmVyLmh0bWwiLCJmaXJzdERldGVjdGVkQXQiOjE3OTM1MTI4MDAwMDEsImxhc3RXcml0ZUF0IjoxNzkzNTEyODAwMDAyLCJsb3NzU3VtbWFyeSI6eyJwcm92ZW5hbmNlIjoidWktYmFja2dyb3VuZCIsImRlc3Ryb3llZEF0b21zIjo2LCJyZW1vdmVkSXRlbXMiOjEsIm1vZGlmaWVkQXRvbXMiOjEsInBhdGhzIjpbImFwaS5zdWJ0aXRsZSIsImFwaS5pdGVtc1sxXSIsImFwaS5pdGVtc1syXSIsImFwaS5ub3RlcyIsImFwaS5tZXRhLnRhZyJdfSwic3RhdHVzIjoicGVuZGluZyJ9LCJzdGF0dXMiOiJwZW5kaW5nIn0="
+        },
+        {
+          "path": ".hyperclay/guard/notes/doc.recover.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        },
+        {
+          "path": ".hyperclay/versions/notes/doc/2026-09-01-00-00-00-000+0000.html",
+          "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KICAgIDx0aXRsZT5Eb2M8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBkYXRhLXJ1bGVzLW5hbWU9ImFwaSIgZGF0YS1ydWxlcy12ZXJzaW9uPSIxIj57InRpdGxlIjoiaDEiLCJzdWJ0aXRsZSI6InAuc3ViIiwiaXRlbXMiOiJ1bC5pdGVtcyBsaVtdIiwibm90ZXMiOiJwLm5vdGVzIiwicGVvcGxlIjpbInVsLnBlb3BsZSBsaSIseyJuYW1lIjoiYiJ9XSwibWV0YSI6eyJhdXRob3IiOiJzcGFuLmF1dGhvciIsInRhZyI6InNwYW4udGFnIn19PC9zY3JpcHQ+CiAgPC9oZWFkPgogIDxib2R5PgogICAgPGgxPlJlYWRpbmcgbGlzdDwvaDE+CiAgICA8cCBjbGFzcz0ic3ViIj5LZXB0IGJ5IGhhbmQ8L3A+CiAgICA8dWwgY2xhc3M9Iml0ZW1zIj4KICAgICAgPGxpPmFscGhhPC9saT4KICAgICAgPGxpPmJldGE8L2xpPgogICAgICA8bGk+Z2FtbWE8L2xpPgogICAgPC91bD4KICAgIDxwIGNsYXNzPSJub3RlcyI+QSBub3RlIGxvbmcgZW5vdWdoIHRoYXQgdGhlIHJlY292ZXJ5IHByZXZpZXcgaGFzIHRvIGN1dCBpdDogaXQga2VlcHMgZ29pbmcgcGFzdCB0aGUgZWlnaHR5IGNoYXJhY3RlciBwcmV2aWV3IGxpbWl0IGFuZCB0aGVuIHNvbWUgbW9yZS48L3A+CiAgICA8dWwgY2xhc3M9InBlb3BsZSI+CiAgICAgIDxsaT48Yj5BZGE8L2I+PC9saT4KICAgICAgPGxpPjxiPkdyYWNlPC9iPjwvbGk+CiAgICA8L3VsPgogICAgPHAgY2xhc3M9Im1ldGEiPjxzcGFuIGNsYXNzPSJhdXRob3IiPkFkYTwvc3Bhbj4gPHNwYW4gY2xhc3M9InRhZyI+ZHJhZnQ8L3NwYW4+PC9wPgogIDwvYm9keT4KPC9odG1sPgo="
+        }
+      ]
+    }
+  ]
+}

@@ -52,7 +52,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		runtimeDir:  runtime.Dir,
 		selected:    runtime.Selected,
 		releases:    runtime.Releases,
-		commit:      newCommitHost(baseDir, root.id, registry, nil, runtime.Releases),
+		commit:      newCommitHost(baseDir, root.id, registry, newGuardHooks(nil), runtime.Releases),
 	}, nil
 }
 
