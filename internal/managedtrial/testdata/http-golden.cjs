@@ -113,7 +113,7 @@ function answerJSON(answer) {
 }
 
 // field reads one dotted path from a recorded JSON answer, the same way the Go
-// side resolves a case's ifMatchFrom.
+// side resolves a case's ifMatchFrom and fromCase.
 function field(value, dotted) {
   let current = value
   for (const part of dotted.split('.')) {
@@ -145,6 +145,7 @@ function request(port, testCase, headers, body) {
           headers: recordHeaders(headers, port),
           ...(testCase.ifNoneMatchFrom ? { ifNoneMatchFrom: testCase.ifNoneMatchFrom } : {}),
           ...(testCase.ifMatchFrom ? { ifMatchFrom: testCase.ifMatchFrom } : {}),
+          ...(testCase.fromCase ? { fromCase: testCase.fromCase } : {}),
           ...(testCase.body !== undefined ? { body: testCase.body } : {}),
           ...(testCase.bodyFile ? { bodyFile: testCase.bodyFile } : {}),
         },
@@ -229,7 +230,10 @@ async function main() {
   const answers = []
   try {
     for (const testCase of requests) {
-      const path = substituteVersion(testCase.path, version)
+      // A save answers before the data guard has finished writing the record it
+      // raised, so a case that reads that record waits for it to land.
+      if (testCase.waitMs) await wait(testCase.waitMs)
+      let path = substituteVersion(testCase.path, version)
       const headers = {}
       for (const name of Object.keys(testCase.headers || {})) {
         headers[name] = substituteVersion(substitutePort(testCase.headers[name], port), version)
@@ -249,6 +253,15 @@ async function main() {
           throw new Error('no ' + testCase.ifMatchFrom.json + ' in the answer for ' + testCase.ifMatchFrom.case)
         }
         headers['If-Match'] = value
+      }
+      if (testCase.fromCase) {
+        const answered = answers.find((answer) => answer.name === testCase.fromCase.case)
+        if (!answered) throw new Error('no answer recorded for ' + testCase.fromCase.case)
+        const value = field(answerJSON(answered), testCase.fromCase.json)
+        if (typeof value !== 'string' || value === '') {
+          throw new Error('no ' + testCase.fromCase.json + ' in the answer for ' + testCase.fromCase.case)
+        }
+        path = path.split('{FROM}').join(value)
       }
       let body
       if (testCase.bodyFile) body = fs.readFileSync(String(caseDir) + '/' + testCase.bodyFile)

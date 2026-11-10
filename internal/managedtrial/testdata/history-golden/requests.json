@@ -1,0 +1,203 @@
+[
+  {
+    "name": "data-loss-absent",
+    "method": "GET",
+    "path": "/_/data-loss",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    }
+  },
+  {
+    "name": "save-first",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "text/html"
+    },
+    "bodyFile": "save-one.html"
+  },
+  {
+    "name": "save-second",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "text/html"
+    },
+    "bodyFile": "save-two.html"
+  },
+  {
+    "name": "save-clobber",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "text/html",
+      "Save-Trigger": "user"
+    },
+    "bodyFile": "save-clobber.html"
+  },
+  {
+    "name": "data-loss-event",
+    "method": "GET",
+    "path": "/_/data-loss",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "waitMs": 200
+  },
+  {
+    "name": "versions-list",
+    "method": "GET",
+    "path": "/_/versions/notes.html"
+  },
+  {
+    "name": "version-read",
+    "method": "GET",
+    "path": "/_/version/notes.html/{FROM}",
+    "headers": {},
+    "fromCase": {
+      "case": "versions-list",
+      "json": "versions.1.name"
+    }
+  },
+  {
+    "name": "data-loss-restore",
+    "method": "POST",
+    "path": "/_/data-loss/{FROM}",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"file\": \"notes.html\", \"choice\": \"restore\"}",
+    "fromCase": {
+      "case": "data-loss-event",
+      "json": "event.id"
+    }
+  },
+  {
+    "name": "data-loss-cleared",
+    "method": "GET",
+    "path": "/_/data-loss",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    }
+  },
+  {
+    "name": "document-restored",
+    "method": "GET",
+    "path": "/notes.html"
+  },
+  {
+    "name": "save-clobber-again",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "text/html",
+      "Save-Trigger": "user"
+    },
+    "bodyFile": "save-clobber.html"
+  },
+  {
+    "name": "data-loss-event-again",
+    "method": "GET",
+    "path": "/_/data-loss",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    },
+    "waitMs": 200
+  },
+  {
+    "name": "data-loss-dismiss",
+    "method": "POST",
+    "path": "/_/data-loss/{FROM}",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"file\": \"notes.html\", \"choice\": \"dismiss\"}",
+    "fromCase": {
+      "case": "data-loss-event-again",
+      "json": "event.id"
+    }
+  },
+  {
+    "name": "restore-if-match",
+    "method": "POST",
+    "path": "/_/restore/notes.html/{FROM}",
+    "fromCase": {
+      "case": "versions-list",
+      "json": "versions.1.name"
+    },
+    "ifMatchFrom": {
+      "case": "save-clobber-again",
+      "json": "etag"
+    }
+  },
+  {
+    "name": "restore-no-if-match",
+    "method": "POST",
+    "path": "/_/restore/notes.html/{FROM}",
+    "fromCase": {
+      "case": "versions-list",
+      "json": "versions.1.name"
+    }
+  },
+  {
+    "name": "versions-plain",
+    "method": "GET",
+    "path": "/_/versions/plain.html"
+  },
+  {
+    "name": "versions-deep",
+    "method": "GET",
+    "path": "/_/versions/sub/deep.html"
+  },
+  {
+    "name": "versions-missing",
+    "method": "GET",
+    "path": "/_/versions/missing.html"
+  },
+  {
+    "name": "version-unknown-name",
+    "method": "GET",
+    "path": "/_/version/notes.html/nope.html"
+  },
+  {
+    "name": "version-dot-dot",
+    "method": "GET",
+    "path": "/_/version/notes.html/.."
+  },
+  {
+    "name": "data-loss-nope",
+    "method": "POST",
+    "path": "/_/data-loss/nope",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"file\": \"notes.html\", \"choice\": \"dismiss\"}"
+  },
+  {
+    "name": "data-loss-bad-json",
+    "method": "POST",
+    "path": "/_/data-loss",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{"
+  },
+  {
+    "name": "versions-unmarked",
+    "method": "GET",
+    "path": "/versions/notes.html"
+  },
+  {
+    "name": "restore-unmarked",
+    "method": "POST",
+    "path": "/restore/notes.html/{FROM}",
+    "fromCase": {
+      "case": "versions-list",
+      "json": "versions.1.name"
+    }
+  }
+]

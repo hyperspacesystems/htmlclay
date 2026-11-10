@@ -1,0 +1,610 @@
+{
+  "cases": [
+    {
+      "name": "data-loss-absent",
+      "request": {
+        "method": "GET",
+        "path": "/_/data-loss",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"e-KpCU3STDc5apTG3obO3tpCGBs0k\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"event\":null}"
+      }
+    },
+    {
+      "name": "save-first",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "text/html"
+        },
+        "bodyFile": "save-one.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-bIILsWLwURZgIV8gM3KQHVjJEJ8\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"934be184c00f7a8d\"}"
+      }
+    },
+    {
+      "name": "save-second",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "text/html"
+        },
+        "bodyFile": "save-two.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-3+luqQDyV9Eks0MGX3RsD5qK40o\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"9c96a27d32b69721\"}"
+      }
+    },
+    {
+      "name": "save-clobber",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "text/html",
+          "Save-Trigger": "user"
+        },
+        "bodyFile": "save-clobber.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-8+QGW4oAZ1t6j4pzKak4f5EbsVQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"868b0771c061a50c\"}"
+      }
+    },
+    {
+      "name": "data-loss-event",
+      "request": {
+        "method": "GET",
+        "path": "/_/data-loss",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "487",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"1e7-OqPad1/qOKDzheCcn2zng9leU+w\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"event\":{\"id\":\"00000000-0000-4000-8000-000000000001\",\"firstDetectedAt\":1793512800000,\"lastWriteAt\":1793512800000,\"lossSummary\":{\"provenance\":\"ui-gestured\",\"destroyedAtoms\":3,\"removedItems\":0,\"modifiedAtoms\":0,\"paths\":[\"api.items[1]\",\"api.items[2]\",\"api.notes\"]},\"fieldCount\":2,\"preview\":[{\"key\":\"items\",\"now\":\"alpha\",\"yours\":\"alpha, beta, gamma\"},{\"key\":\"notes\",\"now\":\"— empty —\",\"yours\":\"Kept by hand.\"}],\"droppedAdditions\":0,\"restorable\":true,\"canRevert\":true,\"status\":\"pending\"}}"
+      }
+    },
+    {
+      "name": "versions-list",
+      "request": {
+        "method": "GET",
+        "path": "/_/versions/notes.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "448",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"1c0-DNjH7nciP8H8ZvPEXhewVK6ovmw\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"name\":\"notes.html\",\"versions\":[{\"name\":\"2026-11-01-01-00-00-000-0500-003.html\",\"time\":\"2026-11-01T06:00:00.000Z\",\"seq\":3,\"size\":384},{\"name\":\"2026-11-01-01-00-00-000-0500-002.html\",\"time\":\"2026-11-01T06:00:00.000Z\",\"seq\":2,\"size\":467},{\"name\":\"2026-11-01-01-00-00-000-0500-001.html\",\"time\":\"2026-11-01T06:00:00.000Z\",\"seq\":1,\"size\":446},{\"name\":\"2026-11-01-01-00-00-000-0500.html\",\"time\":\"2026-11-01T06:00:00.000Z\",\"seq\":0,\"size\":438}]}"
+      }
+    },
+    {
+      "name": "version-read",
+      "request": {
+        "method": "GET",
+        "path": "/_/version/notes.html/2026-11-01-01-00-00-000-0500-002.html",
+        "headers": {},
+        "fromCase": {
+          "case": "versions-list",
+          "json": "versions.1.name"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "467",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1d3-g7mh9NHbCj7XWhcTAW0l5JTv0ss\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Notes</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\"}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <ul class=\"items\">\n      <li>alpha</li>\n      <li>beta</li>\n      <li>gamma</li>\n      <li>delta</li>\n    </ul>\n    <p class=\"notes\">Kept by hand, mostly.</p>\n  </body>\n</html>\n"
+      }
+    },
+    {
+      "name": "data-loss-restore",
+      "request": {
+        "method": "POST",
+        "path": "/_/data-loss/00000000-0000-4000-8000-000000000001",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "fromCase": {
+          "case": "data-loss-event",
+          "json": "event.id"
+        },
+        "body": "{\"file\": \"notes.html\", \"choice\": \"restore\"}"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "50",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"32-53HrJZHhJNb5gm777nRjkmim1Sg\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"choice\":\"restore\",\"status\":\"restored\"}"
+      }
+    },
+    {
+      "name": "data-loss-cleared",
+      "request": {
+        "method": "GET",
+        "path": "/_/data-loss",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"e-KpCU3STDc5apTG3obO3tpCGBs0k\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"event\":null}"
+      }
+    },
+    {
+      "name": "document-restored",
+      "request": {
+        "method": "GET",
+        "path": "/notes.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "452",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1c4-5q+fWq3pWIpRPkGq9xrlQDrl9kw\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html><html documentetag=\"8b31210f04b7edf0\" lang=\"en\"><head>\n    <meta charset=\"utf-8\">\n    <title>Notes</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\"}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <ul class=\"items\">\n      <li>alpha</li>\n    <li>beta</li><li>gamma</li></ul>\n    <p class=\"notes\">Kept by hand.</p>\n  \n\n</body></html>"
+      }
+    },
+    {
+      "name": "save-clobber-again",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "text/html",
+          "Save-Trigger": "user"
+        },
+        "bodyFile": "save-clobber.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-8+QGW4oAZ1t6j4pzKak4f5EbsVQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"868b0771c061a50c\"}"
+      }
+    },
+    {
+      "name": "data-loss-event-again",
+      "request": {
+        "method": "GET",
+        "path": "/_/data-loss",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "487",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"1e7-g91hzp8pcv3m+FtuspBSDk6yAi0\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"event\":{\"id\":\"00000000-0000-4000-8000-000000000002\",\"firstDetectedAt\":1793512800000,\"lastWriteAt\":1793512800000,\"lossSummary\":{\"provenance\":\"ui-gestured\",\"destroyedAtoms\":3,\"removedItems\":0,\"modifiedAtoms\":0,\"paths\":[\"api.items[1]\",\"api.items[2]\",\"api.notes\"]},\"fieldCount\":2,\"preview\":[{\"key\":\"items\",\"now\":\"alpha\",\"yours\":\"alpha, beta, gamma\"},{\"key\":\"notes\",\"now\":\"— empty —\",\"yours\":\"Kept by hand.\"}],\"droppedAdditions\":0,\"restorable\":true,\"canRevert\":true,\"status\":\"pending\"}}"
+      }
+    },
+    {
+      "name": "data-loss-dismiss",
+      "request": {
+        "method": "POST",
+        "path": "/_/data-loss/00000000-0000-4000-8000-000000000002",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "fromCase": {
+          "case": "data-loss-event-again",
+          "json": "event.id"
+        },
+        "body": "{\"file\": \"notes.html\", \"choice\": \"dismiss\"}"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "51",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"33-VVAKHztJeuHQEd2God92XNOEG1Y\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"choice\":\"dismiss\",\"status\":\"dismissed\"}"
+      }
+    },
+    {
+      "name": "restore-if-match",
+      "request": {
+        "method": "POST",
+        "path": "/_/restore/notes.html/2026-11-01-01-00-00-000-0500-002.html",
+        "headers": {
+          "If-Match": "868b0771c061a50c"
+        },
+        "ifMatchFrom": {
+          "case": "save-clobber-again",
+          "json": "etag"
+        },
+        "fromCase": {
+          "case": "versions-list",
+          "json": "versions.1.name"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "112",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"70-WPKZ5hwPq8a1uvSGRj670YF5idw\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"msg\":\"Restored 2026-11-01-01-00-00-000-0500-002.html\",\"msgType\":\"success\",\"etag\":\"9c96a27d32b69721\"}"
+      }
+    },
+    {
+      "name": "restore-no-if-match",
+      "request": {
+        "method": "POST",
+        "path": "/_/restore/notes.html/2026-11-01-01-00-00-000-0500-002.html",
+        "headers": {},
+        "fromCase": {
+          "case": "versions-list",
+          "json": "versions.1.name"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "86",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"56-cp77+ZKhwwZhqEIdTTDyZesuUqo\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"msg\":\"Restored 2026-11-01-01-00-00-000-0500-002.html\",\"msgType\":\"success\"}"
+      }
+    },
+    {
+      "name": "versions-plain",
+      "request": {
+        "method": "GET",
+        "path": "/_/versions/plain.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "45",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2d-vTwskOACc8RLh0dus6N80eysdJc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"name\":\"plain.html\",\"versions\":[]}"
+      }
+    },
+    {
+      "name": "versions-deep",
+      "request": {
+        "method": "GET",
+        "path": "/_/versions/sub/deep.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "44",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2c-Or9vixSrTj/Kwqrbdphe+6wgQvc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"name\":\"deep.html\",\"versions\":[]}"
+      }
+    },
+    {
+      "name": "versions-missing",
+      "request": {
+        "method": "GET",
+        "path": "/_/versions/missing.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "47",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"2f-/kIDU/DUXAhDeQOrkTugsC3O2Go\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"name\":\"missing.html\",\"versions\":[]}"
+      }
+    },
+    {
+      "name": "version-unknown-name",
+      "request": {
+        "method": "GET",
+        "path": "/_/version/notes.html/nope.html",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "90",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"5a-IYkWmx2c8qLH6r54RmU/cMskBDY\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":false,\"error\":\"invalid version name\",\"msg\":\"invalid version name\",\"msgType\":\"error\"}"
+      }
+    },
+    {
+      "name": "version-dot-dot",
+      "request": {
+        "method": "GET",
+        "path": "/_/version/notes.html/..",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "90",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"5a-IYkWmx2c8qLH6r54RmU/cMskBDY\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":false,\"error\":\"invalid version name\",\"msg\":\"invalid version name\",\"msgType\":\"error\"}"
+      }
+    },
+    {
+      "name": "data-loss-nope",
+      "request": {
+        "method": "POST",
+        "path": "/_/data-loss/nope",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"file\": \"notes.html\", \"choice\": \"dismiss\"}"
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "38",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"26-6NAOmIDPEXi+zxfuXSRywAhfrm0\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"No pending data-loss event\"}"
+      }
+    },
+    {
+      "name": "data-loss-bad-json",
+      "request": {
+        "method": "POST",
+        "path": "/_/data-loss",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"b-cEN6MKefADJ1aAV2WmWqUtBSgdI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Bad request"
+      }
+    },
+    {
+      "name": "versions-unmarked",
+      "request": {
+        "method": "GET",
+        "path": "/versions/notes.html",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "restore-unmarked",
+      "request": {
+        "method": "POST",
+        "path": "/restore/notes.html/2026-11-01-01-00-00-000-0500-002.html",
+        "headers": {},
+        "fromCase": {
+          "case": "versions-list",
+          "json": "versions.1.name"
+        }
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": ".hyperclay/api-v2/notes.html.json",
+      "sha256": "c12eccdd76ca6f437223b9efaf70bb71ae80de4edbc099f77f532707d0fe8cb7"
+    },
+    {
+      "path": ".hyperclay/guard/notes.json",
+      "sha256": "4dff999d4479153a91e463c707d39f00e6a9ae47cfe69c13625959835ae84ae1"
+    },
+    {
+      "path": ".hyperclay/guard/notes.recover.html",
+      "sha256": "8b31210f04b7edf05ea2c5389c6b9e95cff4abe6ca510dcf581584385b499c35"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-001.html",
+      "sha256": "934be184c00f7a8de27f95e94c8701bb8194e7dfd614193632b72b12e4e06a9e"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-002.html",
+      "sha256": "9c96a27d32b697214f29bc6b034c7029ed89885791b0d31e4d638b51db845a28"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-003.html",
+      "sha256": "868b0771c061a50c906033c1312b480c3229632be473a29cd65fc6915e767697"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-004.html",
+      "sha256": "8b31210f04b7edf05ea2c5389c6b9e95cff4abe6ca510dcf581584385b499c35"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-005.html",
+      "sha256": "868b0771c061a50c906033c1312b480c3229632be473a29cd65fc6915e767697"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-006.html",
+      "sha256": "868b0771c061a50c906033c1312b480c3229632be473a29cd65fc6915e767697"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-007.html",
+      "sha256": "9c96a27d32b697214f29bc6b034c7029ed89885791b0d31e4d638b51db845a28"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-008.html",
+      "sha256": "9c96a27d32b697214f29bc6b034c7029ed89885791b0d31e4d638b51db845a28"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-009.html",
+      "sha256": "9c96a27d32b697214f29bc6b034c7029ed89885791b0d31e4d638b51db845a28"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "1931b38d81670f9294ec369ea2284ae08a1621110572cd9c8143467d5c9b8b2a"
+    },
+    {
+      "path": "notes.html",
+      "sha256": "9c96a27d32b697214f29bc6b034c7029ed89885791b0d31e4d638b51db845a28"
+    },
+    {
+      "path": "plain.html",
+      "sha256": "f8b9a755ec4ea5b54679003c424cb33e75cfb38e986ce9c205dd6bf4489d9959"
+    },
+    {
+      "path": "sub/deep.html",
+      "sha256": "dcd90eb9ef8c7f0599e34406c2dfb9c82272ae7ec95df895c1711a2afe658a6f"
+    }
+  ],
+  "clock": 1793512800000,
+  "pages": []
+}

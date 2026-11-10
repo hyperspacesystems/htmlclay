@@ -220,6 +220,17 @@ func (s *rootServer) serveSave(w http.ResponseWriter, r *http.Request) error {
 	unlock := s.commit.locks.lock(filePath)
 	defer unlock()
 
+	// Local's dataLossPrev: the guard judges this save against the document as it
+	// stood under this lock, and keeps those bytes as the copy Revert restores.
+	// Without them it falls back to the newest version, which by then is the
+	// backup of the save that destroyed the data.
+	if data, readErr := os.ReadFile(filePath); readErr == nil {
+		if logical, logicalErr := logicalBytes(s.commit.baseDir, name, data); logicalErr == nil {
+			prev := string(logical)
+			request.DataLossPrev = &prev
+		}
+	}
+
 	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" || headerPresent(r, "If-Match") {
 		if conflict := s.judgeIfMatch(filePath, name, ifMatch); conflict != nil {
 			return s.writeConflict(w, r, name, conflict)

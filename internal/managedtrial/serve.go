@@ -67,8 +67,24 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	favicon, isFavicon := faviconFiles[strings.TrimSuffix(rawPath, "/")]
 	_, isTemplate := templateFilename(rawPath)
 	getOrHead := r.Method == http.MethodGet || r.Method == http.MethodHead
+	versionsTail, hasVersionsTail := routeTail(urlPath, "/versions/")
+	versionTail, hasVersionTail := routeTail(urlPath, "/version/")
+	restoreTail, hasRestoreTail := routeTail(urlPath, "/restore/")
+	dataLossTail, hasDataLossTail := routeTail(urlPath, "/data-loss/")
 	var err error
 	switch {
+	case marked && getOrHead && urlPath == "/data-loss":
+		err = s.serveDataLossGet(w, r)
+	case marked && r.Method == http.MethodPost && urlPath == "/data-loss":
+		err = s.serveDataLossPost(w, r, "")
+	case marked && r.Method == http.MethodPost && hasDataLossTail:
+		err = s.serveDataLossPost(w, r, dataLossTail)
+	case marked && getOrHead && hasVersionsTail:
+		err = s.serveVersions(w, r, versionsTail)
+	case marked && getOrHead && hasVersionTail:
+		err = s.serveVersion(w, r, versionTail)
+	case marked && r.Method == http.MethodPost && hasRestoreTail:
+		err = s.serveRestore(w, r, restoreTail)
 	case marked && getOrHead && urlPath == "/meta":
 		err = s.serveMeta(w, r)
 	case marked && getOrHead && urlPath == "/page-state":

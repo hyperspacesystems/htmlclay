@@ -21,6 +21,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/panphora/htmlclay/internal/dataguard"
 )
 
 type serveRequest struct {
@@ -30,8 +32,11 @@ type serveRequest struct {
 	Headers         map[string]string `json:"headers"`
 	IfNoneMatchFrom string            `json:"ifNoneMatchFrom"`
 	IfMatchFrom     *serveIfMatchFrom `json:"ifMatchFrom"`
-	Body            *string           `json:"body"`
-	BodyFile        string            `json:"bodyFile"`
+	// FromCase names a field of an earlier answer that this request's path
+	// carries, the way IfMatchFrom names one a header carries.
+	FromCase *serveIfMatchFrom `json:"fromCase"`
+	Body     *string           `json:"body"`
+	BodyFile string            `json:"bodyFile"`
 }
 
 type serveIfMatchFrom struct {
@@ -71,6 +76,14 @@ type serveGolden struct {
 type goldenOptions struct {
 	normalize func(*serveAnswer)
 	skipFile  func(path string) bool
+	// dataJudgedCases and dataJudgedFiles are the one decided byte difference:
+	// Local writes data (a guard Restore, a data API write) through cheerio, which
+	// re-serializes the whole document, while dataapi splices only the changed
+	// spans. A data-judged answer holds the same extracted data as Local's, and its
+	// etag and content-length stamp this host's own body. A data-judged file holds
+	// the data of the named case's recorded body. Everything else stays exact.
+	dataJudgedCases map[string]bool
+	dataJudgedFiles map[string]string
 }
 
 var serveDroppedHeaders = map[string]bool{
@@ -170,7 +183,11 @@ func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options golde
 			t.Fatalf("case %d is %q in requests.json and %q in golden.json", i, request.Name, want.Name)
 		}
 		headers := resolveGoldenHeaders(t, request, answered, port)
-		status, gotHeaders, body := serveSend(t, address, request.Method, request.Path, headers, serveRequestBody(t, caseDir, request), port)
+		requestPath := request.Path
+		if request.FromCase != nil {
+			requestPath = strings.ReplaceAll(requestPath, "{FROM}", resolveJSONField(t, request.Name, *request.FromCase, answered))
+		}
+		status, gotHeaders, body := serveSend(t, address, request.Method, requestPath, headers, serveRequestBody(t, caseDir, request), port)
 		answered[request.Name] = serveAnswer{Name: request.Name, Status: status, Headers: gotHeaders, Answer: body}
 
 		t.Run(request.Name, func(t *testing.T) {
@@ -181,10 +198,21 @@ func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options golde
 			if status != expected.Status {
 				t.Errorf("status = %d, want %d", status, expected.Status)
 			}
+			wantBody := serveDecodeBody(t, expected.Body)
+			if options.dataJudgedCases[request.Name] {
+				wantHeaders := ownStampHeaders(expected.Headers, body)
+				if !reflect.DeepEqual(gotHeaders, wantHeaders) {
+					t.Errorf("headers = %v, want %v", gotHeaders, wantHeaders)
+				}
+				assertSameData(t, "body", body, wantBody)
+				if !bytes.Equal(body, wantBody) {
+					t.Logf("known difference: %s holds Local's data in dataapi's bytes, not cheerio's", request.Name)
+				}
+				return
+			}
 			if !reflect.DeepEqual(gotHeaders, expected.Headers) {
 				t.Errorf("headers = %v, want %v", gotHeaders, expected.Headers)
 			}
-			wantBody := serveDecodeBody(t, expected.Body)
 			if !bytes.Equal(body, wantBody) {
 				t.Errorf("body = %q, want %q", body, wantBody)
 			}
@@ -197,9 +225,77 @@ func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options golde
 		got = filterServeFiles(got, options.skipFile)
 		want = filterServeFiles(want, options.skipFile)
 	}
+	if len(options.dataJudgedFiles) > 0 {
+		judged := func(path string) bool { _, ok := options.dataJudgedFiles[path]; return ok }
+		for path, caseName := range options.dataJudgedFiles {
+			if !hasServeFile(got, path) || !hasServeFile(want, path) {
+				t.Errorf("%s: data-judged file missing (on this host: %v, in Local's tree: %v)", path, hasServeFile(got, path), hasServeFile(want, path))
+				continue
+			}
+			bytesOnDisk, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			recorded := goldenCaseBody(t, golden, caseName)
+			assertSameData(t, path, bytesOnDisk, recorded)
+		}
+		got = filterServeFiles(got, judged)
+		want = filterServeFiles(want, judged)
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("the root's files changed: got %v, want %v", got, want)
 	}
+}
+
+// ownStampHeaders is Local's recorded headers with the two that stamp the body
+// (etag, content-length) recomputed from this host's own body.
+func ownStampHeaders(recorded map[string]string, body []byte) map[string]string {
+	headers := make(map[string]string, len(recorded))
+	for key, value := range recorded {
+		headers[key] = value
+	}
+	if _, ok := headers["etag"]; ok {
+		headers["etag"] = weakEntityETag(body)
+	}
+	if _, ok := headers["content-length"]; ok {
+		headers["content-length"] = strconv.Itoa(len(body))
+	}
+	return headers
+}
+
+// assertSameData fails unless both documents carry a rules tag and the data it
+// extracts is equal.
+func assertSameData(t *testing.T, label string, got, want []byte) {
+	t.Helper()
+	gotIsland, gotOK := safeExtractIsland(string(got))
+	wantIsland, wantOK := safeExtractIsland(string(want))
+	if !gotOK || !wantOK || gotIsland == nil || wantIsland == nil {
+		t.Errorf("%s: no data to compare (this host extracted: %v, Local's extracted: %v)", label, gotOK && gotIsland != nil, wantOK && wantIsland != nil)
+		return
+	}
+	if !dataguard.IslandsEqual(gotIsland, wantIsland) {
+		t.Errorf("%s: data = %s, want %s", label, dataguard.Stringify(gotIsland), dataguard.Stringify(wantIsland))
+	}
+}
+
+func hasServeFile(files []serveFileEntry, path string) bool {
+	for _, entry := range files {
+		if entry.Path == path {
+			return true
+		}
+	}
+	return false
+}
+
+func goldenCaseBody(t *testing.T, golden serveGolden, name string) []byte {
+	t.Helper()
+	for _, answer := range golden.Cases {
+		if answer.Name == name {
+			return serveDecodeBody(t, answer.Body)
+		}
+	}
+	t.Fatalf("no recorded case %q", name)
+	return nil
 }
 
 // serveRequestBody is the bytes a case sends: `body` as written, or the case
@@ -247,13 +343,14 @@ func resolveGoldenHeaders(t *testing.T, request serveRequest, answered map[strin
 		headers["If-None-Match"] = from.Headers["etag"]
 	}
 	if request.IfMatchFrom != nil {
-		headers["If-Match"] = resolveIfMatch(t, request.Name, *request.IfMatchFrom, answered)
+		headers["If-Match"] = resolveJSONField(t, request.Name, *request.IfMatchFrom, answered)
 	}
 	return headers
 }
 
-// resolveIfMatch reads one dotted field out of an earlier answer's JSON body.
-func resolveIfMatch(t *testing.T, name string, from serveIfMatchFrom, answered map[string]serveAnswer) string {
+// resolveJSONField reads one dotted field out of an earlier answer's JSON body:
+// an object key, or an array index.
+func resolveJSONField(t *testing.T, name string, from serveIfMatchFrom, answered map[string]serveAnswer) string {
 	t.Helper()
 	answer, ok := answered[from.Case]
 	if !ok {
@@ -265,12 +362,19 @@ func resolveIfMatch(t *testing.T, name string, from serveIfMatchFrom, answered m
 	}
 	value := decoded
 	for _, part := range strings.Split(from.JSON, ".") {
-		object, ok := value.(map[string]any)
-		if !ok {
-			t.Fatalf("%s: %q's answer has no %q", name, from.Case, from.JSON)
-		}
-		value, ok = object[part]
-		if !ok {
+		switch container := value.(type) {
+		case map[string]any:
+			value, ok = container[part]
+			if !ok {
+				t.Fatalf("%s: %q's answer has no %q", name, from.Case, from.JSON)
+			}
+		case []any:
+			index, err := strconv.Atoi(part)
+			if err != nil || index < 0 || index >= len(container) {
+				t.Fatalf("%s: %q's answer has no %q", name, from.Case, from.JSON)
+			}
+			value = container[index]
+		default:
 			t.Fatalf("%s: %q's answer has no %q", name, from.Case, from.JSON)
 		}
 	}
