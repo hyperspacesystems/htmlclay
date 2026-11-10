@@ -1,0 +1,742 @@
+{
+  "inputs": [
+    {
+      "input": "",
+      "decodeOnce": "",
+      "validateSegments": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveReadPath": "",
+      "resolveWritePath": ""
+    },
+    {
+      "input": "welcome.html",
+      "decodeOnce": "welcome.html",
+      "validateSegments": [
+        "welcome.html"
+      ],
+      "resolveRequestRead": {
+        "relPath": "welcome.html",
+        "realPath": "welcome.html"
+      },
+      "resolveReadPath": "welcome.html",
+      "resolveWritePath": "welcome.html"
+    },
+    {
+      "input": "sub",
+      "decodeOnce": "sub",
+      "validateSegments": [
+        "sub"
+      ],
+      "resolveRequestRead": {
+        "relPath": "sub",
+        "realPath": "sub"
+      },
+      "resolveReadPath": "sub",
+      "resolveWritePath": "sub"
+    },
+    {
+      "input": "sub/report.txt",
+      "decodeOnce": "sub/report.txt",
+      "validateSegments": [
+        "sub",
+        "report.txt"
+      ],
+      "resolveRequestRead": {
+        "relPath": "sub/report.txt",
+        "realPath": "sub/report.txt"
+      },
+      "resolveReadPath": "sub/report.txt",
+      "resolveWritePath": "sub/report.txt"
+    },
+    {
+      "input": "sub//report.txt",
+      "decodeOnce": "sub//report.txt",
+      "validateSegments": [
+        "sub",
+        "report.txt"
+      ],
+      "resolveRequestRead": {
+        "relPath": "sub//report.txt",
+        "realPath": "sub/report.txt"
+      },
+      "resolveReadPath": "sub/report.txt",
+      "resolveWritePath": "sub/report.txt"
+    },
+    {
+      "input": "sub/report.txt/",
+      "decodeOnce": "sub/report.txt/",
+      "validateSegments": [
+        "sub",
+        "report.txt"
+      ],
+      "resolveRequestRead": {
+        "relPath": "sub/report.txt/",
+        "realPath": "sub/report.txt"
+      },
+      "resolveReadPath": "sub/report.txt",
+      "resolveWritePath": "sub/report.txt"
+    },
+    {
+      "input": "Folder%20With%20Space/index.html",
+      "decodeOnce": "Folder With Space/index.html",
+      "validateSegments": [
+        "Folder%20With%20Space",
+        "index.html"
+      ],
+      "resolveRequestRead": {
+        "relPath": "Folder With Space/index.html",
+        "realPath": "Folder With Space/index.html"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "Folder%20With%20Space/index.html"
+    },
+    {
+      "input": "caf%C3%A9/menu.html",
+      "decodeOnce": "café/menu.html",
+      "validateSegments": [
+        "caf%C3%A9",
+        "menu.html"
+      ],
+      "resolveRequestRead": {
+        "relPath": "café/menu.html",
+        "realPath": "café/menu.html"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "caf%C3%A9/menu.html"
+    },
+    {
+      "input": "café/menu.html",
+      "decodeOnce": "café/menu.html",
+      "validateSegments": [
+        "café",
+        "menu.html"
+      ],
+      "resolveRequestRead": {
+        "relPath": "café/menu.html",
+        "realPath": "café/menu.html"
+      },
+      "resolveReadPath": "café/menu.html",
+      "resolveWritePath": "café/menu.html"
+    },
+    {
+      "input": "bad%zz",
+      "decodeOnce": {
+        "status": 400,
+        "message": "Malformed URL encoding"
+      },
+      "validateSegments": [
+        "bad%zz"
+      ],
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Malformed URL encoding"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "bad%zz"
+    },
+    {
+      "input": "bad%",
+      "decodeOnce": {
+        "status": 400,
+        "message": "Malformed URL encoding"
+      },
+      "validateSegments": [
+        "bad%"
+      ],
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Malformed URL encoding"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "bad%"
+    },
+    {
+      "input": "bad%2",
+      "decodeOnce": {
+        "status": 400,
+        "message": "Malformed URL encoding"
+      },
+      "validateSegments": [
+        "bad%2"
+      ],
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Malformed URL encoding"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "bad%2"
+    },
+    {
+      "input": "sub%2Freport.txt",
+      "decodeOnce": "sub/report.txt",
+      "validateSegments": [
+        "sub%2Freport.txt"
+      ],
+      "resolveRequestRead": {
+        "relPath": "sub/report.txt",
+        "realPath": "sub/report.txt"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "sub%2Freport.txt"
+    },
+    {
+      "input": "%2e%2e/notes.txt",
+      "decodeOnce": "../notes.txt",
+      "validateSegments": [
+        "%2e%2e",
+        "notes.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "%2e%2e/notes.txt"
+    },
+    {
+      "input": "../notes.txt",
+      "decodeOnce": "../notes.txt",
+      "validateSegments": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveReadPath": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveWritePath": {
+        "status": 403,
+        "message": "Access denied"
+      }
+    },
+    {
+      "input": "sub/../../notes.txt",
+      "decodeOnce": "sub/../../notes.txt",
+      "validateSegments": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveReadPath": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveWritePath": {
+        "status": 403,
+        "message": "Access denied"
+      }
+    },
+    {
+      "input": "a%00b",
+      "decodeOnce": "a\u0000b",
+      "validateSegments": [
+        "a%00b"
+      ],
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "a%00b"
+    },
+    {
+      "input": ".hidden",
+      "decodeOnce": ".hidden",
+      "validateSegments": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": ".hidden",
+      "resolveWritePath": ".hidden"
+    },
+    {
+      "input": "sites-versions/welcome.html",
+      "decodeOnce": "sites-versions/welcome.html",
+      "validateSegments": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": "sites-versions/welcome.html",
+      "resolveWritePath": "sites-versions/welcome.html"
+    },
+    {
+      "input": "sites-versions",
+      "decodeOnce": "sites-versions",
+      "validateSegments": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": "sites-versions",
+      "resolveWritePath": "sites-versions"
+    },
+    {
+      "input": "node_modules/pkg/index.js",
+      "decodeOnce": "node_modules/pkg/index.js",
+      "validateSegments": [
+        "node_modules",
+        "pkg",
+        "index.js"
+      ],
+      "resolveRequestRead": {
+        "relPath": "node_modules/pkg/index.js",
+        "realPath": "node_modules/pkg/index.js"
+      },
+      "resolveReadPath": "node_modules/pkg/index.js",
+      "resolveWritePath": "node_modules/pkg/index.js"
+    },
+    {
+      "input": "notes\\with\\backslash.txt",
+      "decodeOnce": "notes\\with\\backslash.txt",
+      "validateSegments": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "notes/with/backslash.txt"
+    },
+    {
+      "input": "/welcome.html",
+      "decodeOnce": "/welcome.html",
+      "validateSegments": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveRequestRead": {
+        "relPath": "welcome.html",
+        "realPath": "welcome.html"
+      },
+      "resolveReadPath": "welcome.html",
+      "resolveWritePath": "welcome.html"
+    },
+    {
+      "input": "%2Fwelcome.html",
+      "decodeOnce": "/welcome.html",
+      "validateSegments": [
+        "%2Fwelcome.html"
+      ],
+      "resolveRequestRead": {
+        "relPath": "welcome.html",
+        "realPath": "welcome.html"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "%2Fwelcome.html"
+    },
+    {
+      "input": "welcome.html?x=1",
+      "decodeOnce": "welcome.html?x=1",
+      "validateSegments": [
+        "welcome.html?x=1"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "welcome.html?x=1"
+    },
+    {
+      "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "decodeOnce": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validateSegments": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "decodeOnce": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validateSegments": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveReadPath": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveWritePath": {
+        "status": 403,
+        "message": "Access denied"
+      }
+    },
+    {
+      "input": "in-link",
+      "decodeOnce": "in-link",
+      "validateSegments": [
+        "in-link"
+      ],
+      "resolveRequestRead": {
+        "relPath": "in-link",
+        "realPath": "target"
+      },
+      "resolveReadPath": "target",
+      "resolveWritePath": "target"
+    },
+    {
+      "input": "in-link/inside.txt",
+      "decodeOnce": "in-link/inside.txt",
+      "validateSegments": [
+        "in-link",
+        "inside.txt"
+      ],
+      "resolveRequestRead": {
+        "relPath": "in-link/inside.txt",
+        "realPath": "target/inside.txt"
+      },
+      "resolveReadPath": "target/inside.txt",
+      "resolveWritePath": "target/inside.txt"
+    },
+    {
+      "input": "in-link/new-file.txt",
+      "decodeOnce": "in-link/new-file.txt",
+      "validateSegments": [
+        "in-link",
+        "new-file.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "target/new-file.txt"
+    },
+    {
+      "input": "out-link",
+      "decodeOnce": "out-link",
+      "validateSegments": [
+        "out-link"
+      ],
+      "resolveRequestRead": {
+        "relPath": "out-link",
+        "realPath": "../sibling"
+      },
+      "resolveReadPath": "../sibling",
+      "resolveWritePath": "../sibling"
+    },
+    {
+      "input": "out-link/outside.txt",
+      "decodeOnce": "out-link/outside.txt",
+      "validateSegments": [
+        "out-link",
+        "outside.txt"
+      ],
+      "resolveRequestRead": {
+        "relPath": "out-link/outside.txt",
+        "realPath": "../sibling/outside.txt"
+      },
+      "resolveReadPath": "../sibling/outside.txt",
+      "resolveWritePath": "../sibling/outside.txt"
+    },
+    {
+      "input": "out-link/new-file.txt",
+      "decodeOnce": "out-link/new-file.txt",
+      "validateSegments": [
+        "out-link",
+        "new-file.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "../sibling/new-file.txt"
+    },
+    {
+      "input": "late-link",
+      "decodeOnce": "late-link",
+      "validateSegments": [
+        "late-link"
+      ],
+      "resolveRequestRead": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveReadPath": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveWritePath": {
+        "status": 403,
+        "message": "Access denied"
+      }
+    },
+    {
+      "input": "late-link/outside.txt",
+      "decodeOnce": "late-link/outside.txt",
+      "validateSegments": [
+        "late-link",
+        "outside.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveReadPath": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveWritePath": {
+        "status": 403,
+        "message": "Access denied"
+      }
+    },
+    {
+      "input": "late-link/new-file.txt",
+      "decodeOnce": "late-link/new-file.txt",
+      "validateSegments": [
+        "late-link",
+        "new-file.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": {
+        "status": 403,
+        "message": "Access denied"
+      }
+    },
+    {
+      "input": "loop-link",
+      "decodeOnce": "loop-link",
+      "validateSegments": [
+        "loop-link"
+      ],
+      "resolveRequestRead": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveReadPath": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveWritePath": {
+        "status": 403,
+        "message": "Access denied"
+      }
+    },
+    {
+      "input": "loop-link/new-file.txt",
+      "decodeOnce": "loop-link/new-file.txt",
+      "validateSegments": [
+        "loop-link",
+        "new-file.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveReadPath": {
+        "status": 403,
+        "message": "Access denied"
+      },
+      "resolveWritePath": {
+        "status": 403,
+        "message": "Access denied"
+      }
+    },
+    {
+      "input": "dangling-link",
+      "decodeOnce": "dangling-link",
+      "validateSegments": [
+        "dangling-link"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "dangling-link"
+    },
+    {
+      "input": "dangling-link/x.txt",
+      "decodeOnce": "dangling-link/x.txt",
+      "validateSegments": [
+        "dangling-link",
+        "x.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "dangling-link/x.txt"
+    },
+    {
+      "input": "dangling-link/new-file.txt",
+      "decodeOnce": "dangling-link/new-file.txt",
+      "validateSegments": [
+        "dangling-link",
+        "new-file.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "dangling-link/new-file.txt"
+    },
+    {
+      "input": "new-file.txt",
+      "decodeOnce": "new-file.txt",
+      "validateSegments": [
+        "new-file.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "new-file.txt"
+    },
+    {
+      "input": "missing-folder/new-file.txt",
+      "decodeOnce": "missing-folder/new-file.txt",
+      "validateSegments": [
+        "missing-folder",
+        "new-file.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "missing-folder/new-file.txt"
+    },
+    {
+      "input": "sub/new-file.txt",
+      "decodeOnce": "sub/new-file.txt",
+      "validateSegments": [
+        "sub",
+        "new-file.txt"
+      ],
+      "resolveRequestRead": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveReadPath": {
+        "status": 404,
+        "message": "File not found"
+      },
+      "resolveWritePath": "sub/new-file.txt"
+    },
+    {
+      "input": "target/../notes.txt",
+      "decodeOnce": "target/../notes.txt",
+      "validateSegments": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveRequestRead": {
+        "status": 400,
+        "message": "Invalid path"
+      },
+      "resolveReadPath": "notes.txt",
+      "resolveWritePath": "notes.txt"
+    }
+  ],
+  "consentedRoots": [
+    "../sibling"
+  ],
+  "log": [
+    "[Server] Registered out-of-tree symlink: <tmp>/root/out-link -> <tmp>/sibling"
+  ]
+}
