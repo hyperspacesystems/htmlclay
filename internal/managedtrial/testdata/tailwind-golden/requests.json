@@ -1,0 +1,65 @@
+[
+  {
+    "name": "tailwind-miss",
+    "method": "GET",
+    "path": "/tailwindcss/tw.css",
+    "headers": {}
+  },
+  {
+    "name": "tailwind-hit",
+    "method": "GET",
+    "path": "/tailwindcss/tw.css",
+    "headers": {}
+  },
+  {
+    "name": "tailwind-stored",
+    "method": "GET",
+    "path": "/tailwindcss/stale.css",
+    "headers": {}
+  },
+  {
+    "name": "tailwind-nested",
+    "method": "GET",
+    "path": "/tailwindcss/sub/page.css",
+    "headers": {}
+  },
+  {
+    "name": "tailwind-missing",
+    "method": "GET",
+    "path": "/tailwindcss/missing.css",
+    "headers": {}
+  },
+  {
+    "name": "tailwind-traversal",
+    "method": "GET",
+    "path": "/tailwindcss/../x.css",
+    "headers": {}
+  },
+  {
+    "name": "save-tw",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/tw.html",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Tailwind</title>\n<link rel=\"stylesheet\" href=\"/tailwindcss/tw.css\">\n</head>\n<body class=\"flex p-4 text-emerald-600\">\n<article class=\"prose\"><p>Readable body copy.</p></article>\n<form class=\"max-w-sm\"><input class=\"form-input\" type=\"text\"></form>\n</body>\n</html>\n"
+  },
+  {
+    "name": "tailwind-after-save",
+    "method": "GET",
+    "path": "/tailwindcss/tw.css",
+    "headers": {},
+    "waitMs": 300
+  },
+  {
+    "name": "save-plain",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/plain.html",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Plain</title>\n</head>\n<body>\n<p>No stylesheet, still.</p>\n</body>\n</html>\n"
+  }
+]

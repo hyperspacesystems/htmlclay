@@ -32,6 +32,9 @@ type rootServer struct {
 	hooks *liveHooks
 	// syncWorker is the SharedWorker script this host serves, read at boot.
 	syncWorker []byte
+	// tailwind is this root's generated stylesheets: the compiles a save starts
+	// and the one a read starts when it misses.
+	tailwind *tailwindHost
 	// control is this root as the control listener and the watcher see it.
 	control *controlRoot
 }
@@ -55,6 +58,8 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	baseDir := registry.BaseReal()
 	liveRoot := newRootLive(runtime.Releases, runtime.Selected)
 	hooks := newLiveHooks(liveRoot)
+	tailwind := newTailwindHost(baseDir, cfg.localSource, registry)
+	hooks.tailwind = tailwind
 	host := newCommitHost(baseDir, root.id, registry, hooks, runtime.Releases)
 	worker, err := readSyncWorker(cfg.localSource)
 	if err != nil {
@@ -70,6 +75,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		commit:      host,
 		live:        liveRoot,
 		hooks:       hooks,
+		tailwind:    tailwind,
 		syncWorker:  worker,
 		control:     newControlRoot(root.id, baseDir, registry, host, cfg.events),
 	}, nil
@@ -143,6 +149,8 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveTemplate(w, r, rawPath)
 	case marked && getOrHead && strings.HasPrefix(rawPath, "/_/clayjs/"):
 		err = s.serveRuntimeAsset(w, r)
+	case getOrHead && tailwindRoutePattern.MatchString(rawPath):
+		err = s.serveTailwind(w, r, rawPath)
 	case r.Method == http.MethodPost && !marked && plainQuery.present && plainDocument:
 		err = s.servePlainAPIWrite(w, r, plainName)
 	case getOrHead && !marked && plainQuery.present && plainDocument:

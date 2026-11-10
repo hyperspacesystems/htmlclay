@@ -217,6 +217,8 @@ type liveHooks struct {
 	*guardHooks
 	root  *rootLive
 	guard *liveGuard
+	// tailwind is this root's Tailwind work: a save's compile and a read's.
+	tailwind *tailwindHost
 }
 
 func newLiveHooks(root *rootLive) *liveHooks {
