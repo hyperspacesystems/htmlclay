@@ -829,6 +829,12 @@ func (a *controlAPI) serveDurable(w http.ResponseWriter, r *http.Request) {
 			sidecarDir = filepath.Dir(target)
 		}
 	}
+	// The durable-fail fault is a disk that cannot sync this document's
+	// directory: the proof fails as long as it is armed, as a real one would.
+	if takeFault(faultDurableFail, filePath) {
+		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: "fsync " + filepath.Dir(filePath) + ": input/output error"})
+		return
+	}
 	if err := syncDurableDir(filepath.Dir(filePath)); err != nil {
 		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
 		return

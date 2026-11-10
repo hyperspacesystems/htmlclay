@@ -438,3 +438,37 @@ func TestFaultTailwindHoldClear(t *testing.T) {
 	recorder.waitFor(t, first)
 	waitForHeldTailwind(t, control, "site", 0)
 }
+
+// TestFaultDurableFailRefusesDurable proves the durable-fail fault also fails
+// POST /v1/durable's directory sync for the matching document, so a caller
+// proving an earlier write durable is refused while the fault is armed and
+// succeeds once it is used up.
+func TestFaultDurableFailRefusesDurable(t *testing.T) {
+	t.Cleanup(clearFaults)
+	root := controlTestRoot(t, "root-0")
+	server := controlTestServer(t, root)
+	doc := []byte("<!doctype html>\n<html><body><h1>Durable</h1></body></html>\n")
+	if err := os.WriteFile(filepath.Join(root.baseDir, "d.html"), doc, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var checksum string
+	if status, answer := controlJSON(t, server, controlSecret, http.MethodGet, "/v1/read?root=root-0&name=d.html", nil); status != http.StatusOK {
+		t.Fatalf("read status = %d, answer = %v", status, answer)
+	} else {
+		checksum, _ = answer["checksum"].(string)
+	}
+	armFault(faultDurableFail, "d.html", 1)
+
+	status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/durable", map[string]any{
+		"root": "root-0", "name": "d.html", "checksum": checksum,
+	})
+	if status != http.StatusInternalServerError {
+		t.Fatalf("durable under the fault: status = %d, answer = %v, want 500", status, answer)
+	}
+	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/durable", map[string]any{
+		"root": "root-0", "name": "d.html", "checksum": checksum,
+	})
+	if status != http.StatusOK || answer["durable"] != true {
+		t.Fatalf("durable after the fault: status = %d, answer = %v, want durable", status, answer)
+	}
+}
