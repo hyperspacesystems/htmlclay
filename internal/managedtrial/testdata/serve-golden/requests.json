@@ -1,37 +1,234 @@
 [
-  { "name": "root", "method": "GET", "path": "/", "headers": {} },
-  { "name": "root-head", "method": "HEAD", "path": "/", "headers": {} },
-  { "name": "index", "method": "GET", "path": "/index.html", "headers": {} },
-  { "name": "a-html", "method": "GET", "path": "/a.html", "headers": {} },
-  { "name": "a-html-document", "method": "GET", "path": "/a.html", "headers": { "Sec-Fetch-Dest": "document" } },
-  { "name": "a-html-source", "method": "GET", "path": "/a.html", "headers": { "Clay-Source": "1" } },
-  { "name": "a-html-conditional", "method": "GET", "path": "/a.html", "headers": {}, "ifNoneMatchFrom": "a-html" },
-  { "name": "a-html-head", "method": "HEAD", "path": "/a.html", "headers": {} },
-  { "name": "b-htmlclay", "method": "GET", "path": "/b.htmlclay", "headers": {} },
-  { "name": "latin1", "method": "GET", "path": "/latin1.html", "headers": {} },
-  { "name": "bom", "method": "GET", "path": "/bom.html", "headers": {} },
-  { "name": "space", "method": "GET", "path": "/a%20b.html", "headers": {} },
-  { "name": "unicode", "method": "GET", "path": "/caf%C3%A9.html", "headers": {} },
-  { "name": "paged", "method": "GET", "path": "/paged.html", "headers": {} },
-  { "name": "folder-slash", "method": "GET", "path": "/folder/", "headers": {} },
-  { "name": "folder", "method": "GET", "path": "/folder", "headers": {} },
-  { "name": "folder-document-route", "method": "GET", "path": "/folder/app.html/dashboard", "headers": {} },
-  { "name": "empty-folder", "method": "GET", "path": "/empty-folder/", "headers": {} },
-  { "name": "missing-html", "method": "GET", "path": "/missing.html", "headers": {} },
-  { "name": "missing-png", "method": "GET", "path": "/missing.png", "headers": {} },
-  { "name": "missing-folder", "method": "GET", "path": "/folder/missing/", "headers": {} },
-  { "name": "malformed-escape", "method": "GET", "path": "/%E0%A4.html", "headers": {} },
-  { "name": "traversal-encoded", "method": "GET", "path": "/..%2Findex.html", "headers": {} },
-  { "name": "page-state-dir", "method": "GET", "path": "/.hyperclay/page-state/", "headers": {} },
-  { "name": "css", "method": "GET", "path": "/style.css", "headers": {} },
-  { "name": "css-conditional", "method": "GET", "path": "/style.css", "headers": {}, "ifNoneMatchFrom": "css" },
-  { "name": "png-range", "method": "GET", "path": "/img.png", "headers": { "Range": "bytes=0-99" } },
-  { "name": "png-range-unsatisfiable", "method": "GET", "path": "/img.png", "headers": { "Range": "bytes=9999-" } },
-  { "name": "svg", "method": "GET", "path": "/x.svg", "headers": {} },
-  { "name": "noext", "method": "GET", "path": "/noext", "headers": {} },
-  { "name": "uploads-page", "method": "GET", "path": "/assets-board/up.html", "headers": {} },
-  { "name": "node-modules", "method": "GET", "path": "/node_modules/pkg/index.js", "headers": {} },
-  { "name": "marked-save", "method": "GET", "path": "/_/save/a.html", "headers": {} },
-  { "name": "marked-unknown", "method": "GET", "path": "/_/nope/a.html", "headers": {} },
-  { "name": "dotdot-raw", "method": "GET", "path": "/folder/app.html/../../index.html", "headers": {} }
+  {
+    "name": "root",
+    "method": "GET",
+    "path": "/",
+    "headers": {}
+  },
+  {
+    "name": "root-head",
+    "method": "HEAD",
+    "path": "/",
+    "headers": {}
+  },
+  {
+    "name": "index",
+    "method": "GET",
+    "path": "/index.html",
+    "headers": {}
+  },
+  {
+    "name": "a-html",
+    "method": "GET",
+    "path": "/a.html",
+    "headers": {}
+  },
+  {
+    "name": "a-html-document",
+    "method": "GET",
+    "path": "/a.html",
+    "headers": {
+      "Sec-Fetch-Dest": "document"
+    }
+  },
+  {
+    "name": "a-html-source",
+    "method": "GET",
+    "path": "/a.html",
+    "headers": {
+      "Clay-Source": "1"
+    }
+  },
+  {
+    "name": "a-html-conditional",
+    "method": "GET",
+    "path": "/a.html",
+    "headers": {},
+    "ifNoneMatchFrom": "a-html"
+  },
+  {
+    "name": "a-html-head",
+    "method": "HEAD",
+    "path": "/a.html",
+    "headers": {}
+  },
+  {
+    "name": "b-htmlclay",
+    "method": "GET",
+    "path": "/b.htmlclay",
+    "headers": {}
+  },
+  {
+    "name": "latin1",
+    "method": "GET",
+    "path": "/latin1.html",
+    "headers": {}
+  },
+  {
+    "name": "bom",
+    "method": "GET",
+    "path": "/bom.html",
+    "headers": {}
+  },
+  {
+    "name": "space",
+    "method": "GET",
+    "path": "/a%20b.html",
+    "headers": {}
+  },
+  {
+    "name": "unicode",
+    "method": "GET",
+    "path": "/caf%C3%A9.html",
+    "headers": {}
+  },
+  {
+    "name": "paged",
+    "method": "GET",
+    "path": "/paged.html",
+    "headers": {}
+  },
+  {
+    "name": "folder-slash",
+    "method": "GET",
+    "path": "/folder/",
+    "headers": {}
+  },
+  {
+    "name": "folder",
+    "method": "GET",
+    "path": "/folder",
+    "headers": {}
+  },
+  {
+    "name": "folder-document-route",
+    "method": "GET",
+    "path": "/folder/app.html/dashboard",
+    "headers": {}
+  },
+  {
+    "name": "empty-folder",
+    "method": "GET",
+    "path": "/empty-folder/",
+    "headers": {}
+  },
+  {
+    "name": "missing-html",
+    "method": "GET",
+    "path": "/missing.html",
+    "headers": {}
+  },
+  {
+    "name": "missing-png",
+    "method": "GET",
+    "path": "/missing.png",
+    "headers": {}
+  },
+  {
+    "name": "missing-folder",
+    "method": "GET",
+    "path": "/folder/missing/",
+    "headers": {}
+  },
+  {
+    "name": "malformed-escape",
+    "method": "GET",
+    "path": "/%E0%A4.html",
+    "headers": {}
+  },
+  {
+    "name": "traversal-encoded",
+    "method": "GET",
+    "path": "/..%2Findex.html",
+    "headers": {}
+  },
+  {
+    "name": "page-state-dir",
+    "method": "GET",
+    "path": "/.hyperclay/page-state/",
+    "headers": {}
+  },
+  {
+    "name": "css",
+    "method": "GET",
+    "path": "/style.css",
+    "headers": {}
+  },
+  {
+    "name": "css-conditional",
+    "method": "GET",
+    "path": "/style.css",
+    "headers": {},
+    "ifNoneMatchFrom": "css"
+  },
+  {
+    "name": "png-range",
+    "method": "GET",
+    "path": "/img.png",
+    "headers": {
+      "Range": "bytes=0-99"
+    }
+  },
+  {
+    "name": "png-range-unsatisfiable",
+    "method": "GET",
+    "path": "/img.png",
+    "headers": {
+      "Range": "bytes=9999-"
+    }
+  },
+  {
+    "name": "svg",
+    "method": "GET",
+    "path": "/x.svg",
+    "headers": {}
+  },
+  {
+    "name": "noext",
+    "method": "GET",
+    "path": "/noext",
+    "headers": {}
+  },
+  {
+    "name": "uploads-page",
+    "method": "GET",
+    "path": "/assets-board/up.html",
+    "headers": {}
+  },
+  {
+    "name": "node-modules",
+    "method": "GET",
+    "path": "/node_modules/pkg/index.js",
+    "headers": {}
+  },
+  {
+    "name": "marked-save",
+    "method": "GET",
+    "path": "/_/save/a.html",
+    "headers": {}
+  },
+  {
+    "name": "marked-unknown",
+    "method": "GET",
+    "path": "/_/nope/a.html",
+    "headers": {}
+  },
+  {
+    "name": "dotdot-raw",
+    "method": "GET",
+    "path": "/folder/app.html/../../index.html",
+    "headers": {}
+  },
+  {
+    "name": "folder-two-deep",
+    "method": "GET",
+    "path": "/folder/sub/",
+    "headers": {}
+  },
+  {
+    "name": "folder-three-deep",
+    "method": "GET",
+    "path": "/folder/sub/deep/",
+    "headers": {}
+  }
 ]

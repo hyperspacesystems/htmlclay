@@ -127,7 +127,11 @@ const listingRootCrumb = `          <a href="/" class="breadcrumb-icon">
 const listingBreadcrumbSeparator = `            <span class="breadcrumb-separator">/</span>
             `
 
-const listingBreadcrumbTail = `          ` + `        `
+// listingBreadcrumbLoopEnd is the indent before the template's `<% }) %>`, written
+// once per crumb because Eta emits it on every iteration of the loop.
+const listingBreadcrumbLoopEnd = `          `
+
+const listingBreadcrumbTail = `        `
 
 const listingSettings = `      <div class="settings-container">
         <button class="settings-btn" onclick="this.parentElement.classList.toggle('open')">
@@ -233,9 +237,10 @@ func renderDirListing(displayPath string, entries []listingEntry) []byte {
 			b.WriteString(listingBreadcrumbSeparator)
 			if i == len(crumbs)-1 {
 				b.WriteString(`              <span class="breadcrumb-current">` + escapeHTML(crumb) + "</span>\n            ")
-				continue
+			} else {
+				b.WriteString(`              <a href="/` + escapeHTML(encodePathSegments(built)) + `" class="breadcrumb-link">` + escapeHTML(crumb) + "</a>\n            ")
 			}
-			b.WriteString(`              <a href="/` + escapeHTML(encodePathSegments(built)) + `" class="breadcrumb-link">` + escapeHTML(crumb) + "</a>\n            ")
+			b.WriteString(listingBreadcrumbLoopEnd)
 		}
 		b.WriteString(listingBreadcrumbTail)
 	}

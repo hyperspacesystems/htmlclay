@@ -222,21 +222,37 @@ func TestListingRender(t *testing.T) {
 	if err := json.Unmarshal(raw, &golden); err != nil {
 		t.Fatal(err)
 	}
-	var want []byte
-	for _, answer := range golden.Cases {
-		if answer.Name == "folder-slash" {
-			want = serveDecodeBody(t, answer.Body)
+	listings := []struct {
+		name    string
+		path    string
+		entries []listingEntry
+	}{
+		{"folder-slash", "folder", []listingEntry{
+			{Name: "app.html", IsDir: false},
+			{Name: "notes.txt", IsDir: false},
+			{Name: "sub", IsDir: true},
+		}},
+		{"folder-two-deep", "folder/sub", []listingEntry{
+			{Name: "deep", IsDir: true},
+		}},
+		{"folder-three-deep", "folder/sub/deep", []listingEntry{
+			{Name: "note.txt", IsDir: false},
+		}},
+	}
+	for _, listing := range listings {
+		var want []byte
+		for _, answer := range golden.Cases {
+			if answer.Name == listing.name {
+				want = serveDecodeBody(t, answer.Body)
+			}
 		}
-	}
-	if want == nil {
-		t.Fatal("golden.json holds no folder-slash answer")
-	}
-	got := renderDirListing("folder", []listingEntry{
-		{Name: "app.html", IsDir: false},
-		{Name: "notes.txt", IsDir: false},
-	})
-	if !bytes.Equal(got, want) {
-		t.Errorf("renderDirListing = %q, want %q", got, want)
+		if want == nil {
+			t.Fatalf("golden.json holds no %s answer", listing.name)
+		}
+		got := renderDirListing(listing.path, listing.entries)
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s: renderDirListing = %q, want %q", listing.name, got, want)
+		}
 	}
 }
 
