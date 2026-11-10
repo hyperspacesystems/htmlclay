@@ -279,7 +279,7 @@ func (g *Guard) clientEvent(event *Event, current dataapi.Value, currentHTML []b
 		log.Printf("dataguard: could not read an event's recoverable data: %v", err)
 		recoverable = nil
 	}
-	rows, dropped := buildPreview(islandField(recoverable, "api"), islandField(current, "api"))
+	rows := buildPreview(islandField(recoverable, "api"), islandField(current, "api"))
 	return &ClientEvent{
 		ID:               event.ID,
 		FirstDetectedAt:  event.FirstDetectedAt,
@@ -287,7 +287,7 @@ func (g *Guard) clientEvent(event *Event, current dataapi.Value, currentHTML []b
 		LossSummary:      event.LossSummary,
 		FieldCount:       len(rows),
 		Preview:          rows,
-		DroppedAdditions: dropped,
+		DroppedAdditions: DroppedItems(islandField(recoverable, "api"), islandField(current, "api")),
 		Restorable:       g.ext.CanRestore(currentHTML, recoverable),
 		CanRevert:        event.HasRecoverCopy,
 		Status:           event.Status,
@@ -305,9 +305,8 @@ func islandField(island dataapi.Value, key string) dataapi.Value {
 	return val
 }
 
-func buildPreview(recoverableData, currentData dataapi.Value) ([]PreviewRow, int) {
+func buildPreview(recoverableData, currentData dataapi.Value) []PreviewRow {
 	rows := []PreviewRow{}
-	dropped := 0
 	rd := previewContainer(recoverableData)
 	cd := previewContainer(currentData)
 
@@ -324,10 +323,7 @@ func buildPreview(recoverableData, currentData dataapi.Value) ([]PreviewRow, int
 		if yoursN != nowN {
 			rows = append(rows, PreviewRow{Key: "items", Now: countLabel(nowN), Yours: countLabel(yoursN)})
 		}
-		if nowN > yoursN {
-			dropped += nowN - yoursN
-		}
-		return rows, dropped
+		return rows
 	}
 
 	for _, key := range previewKeys(rd, cd) {
@@ -338,13 +334,8 @@ func buildPreview(recoverableData, currentData dataapi.Value) ([]PreviewRow, int
 		if yours != now {
 			rows = append(rows, PreviewRow{Key: key, Now: now, Yours: yours})
 		}
-		rdItems, rdOK := rdVal.([]dataapi.Value)
-		cdItems, cdOK := cdVal.([]dataapi.Value)
-		if rdOK && cdOK && len(cdItems) > len(rdItems) {
-			dropped += len(cdItems) - len(rdItems)
-		}
 	}
-	return rows, dropped
+	return rows
 }
 
 // previewContainer treats anything that is not a list or an object as no data,

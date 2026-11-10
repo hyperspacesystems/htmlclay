@@ -174,6 +174,51 @@ func tokenString(item dataapi.Value) string {
 	return jsTrim(jsLower(strings.Join(parts, " ")))
 }
 
+// DroppedItems counts the items a restore removes or overwrites: the items in the
+// current island's lists with no identical item left in the recoverable list at
+// the same place. A restore makes the island equal the recoverable data, so these
+// are exactly the items added or changed since the loss.
+func DroppedItems(recoverable, current dataapi.Value) int {
+	rdList, rdIsList := recoverable.([]dataapi.Value)
+	cdList, cdIsList := current.([]dataapi.Value)
+	if rdIsList || cdIsList {
+		return unmatchedItems(rdList, cdList)
+	}
+	cd, ok := current.(*dataapi.Object)
+	if !ok {
+		return 0
+	}
+	dropped := 0
+	for _, key := range objectKeyList(cd) {
+		cdVal, _ := cd.Get(key)
+		cdItems, ok := cdVal.([]dataapi.Value)
+		if !ok {
+			continue
+		}
+		rdVal, _ := objectLookup(recoverable, key)
+		rdItems, _ := rdVal.([]dataapi.Value)
+		dropped += unmatchedItems(rdItems, cdItems)
+	}
+	return dropped
+}
+
+func unmatchedItems(recoverable, current []dataapi.Value) int {
+	left := make(map[string]int, len(recoverable))
+	for _, item := range recoverable {
+		left[stableDigest(item)]++
+	}
+	dropped := 0
+	for _, item := range current {
+		key := stableDigest(item)
+		if left[key] > 0 {
+			left[key]--
+		} else {
+			dropped++
+		}
+	}
+	return dropped
+}
+
 func ItemSimilarity(a, b dataapi.Value) float64 {
 	ta := tokenString(a)
 	tb := tokenString(b)

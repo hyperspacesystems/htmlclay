@@ -517,6 +517,28 @@ func TestClientEvent(t *testing.T) {
 	}
 }
 
+// TestClientEventDroppedAfterRefill pins the item count beside the pure-loss case:
+// the loss wiped the whole list and the editor's next save added two new items, so
+// restoring removes both of them. The net count (current length minus recoverable
+// length) says 0 here, which is why the notice stayed silent while restore deleted
+// the new items.
+func TestClientEventDroppedAfterRefill(t *testing.T) {
+	whole := boardHTML("Board", fourItems...)
+	refilled := boardHTML("", boardItem{"one", "first new note"}, boardItem{"two", "second new note"})
+
+	h := newHarness(t)
+	event := h.observe(refilled, whole, dataguard.UIGestured)
+	if event == nil {
+		t.Fatal("no event raised")
+	}
+	if event.LossSummary.RemovedItems == 0 {
+		t.Fatalf("loss summary = %+v", event.LossSummary)
+	}
+	if event.DroppedAdditions != 2 {
+		t.Fatalf("droppedAdditions = %d, want 2", event.DroppedAdditions)
+	}
+}
+
 // TestPreview pins the row text: the empty placeholder, the item count, and the
 // 80-code-unit cut. The cut is measured in UTF-16 code units, which is what the
 // panel's String#length counts, so a value with an emoji in it keeps its bytes
