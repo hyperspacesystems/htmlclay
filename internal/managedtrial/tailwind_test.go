@@ -128,6 +128,49 @@ func TestTailwindNewerBytesWin(t *testing.T) {
 	}
 }
 
+// TestTailwindInstallHoldsTheDocumentLock is P11's ordering rule at its narrowest:
+// a compile checks that its document is still stored and writes its stylesheet
+// under the document's lock, so a save that lands between the check and the
+// write cannot be overtaken by the older compile's stylesheet.
+func TestTailwindInstallHoldsTheDocumentLock(t *testing.T) {
+	localSource := requireTailwindLocalSource(t)
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, second := tailwindPage("flex p-4 text-red-500"), tailwindPage("flex p-4 text-emerald-600")
+	writeCommitFile(t, root, "tw.html", []byte(first))
+
+	previous := tailwindCompiler
+	tailwindCompiler = func(localSource, html string) (string, error) { return tailwindCSSFor(html), nil }
+	t.Cleanup(func() { tailwindCompiler = previous })
+
+	handler, err := newRootHandler(rootSpec{id: "root-tailwind-lock", path: root}, config{localSource: localSource})
+	if err != nil {
+		t.Fatal(err)
+	}
+	docPath := filepath.Join(root, "tw.html")
+
+	// The test is the save: it holds the document's lock while the first
+	// compile runs, and replaces the document before letting go.
+	unlock := fileLocks.lock(docPath)
+	if err := handler.tailwind.refresh(first); err != nil {
+		unlock()
+		t.Fatal(err)
+	}
+	time.Sleep(300 * time.Millisecond)
+	if err := os.WriteFile(docPath, []byte(second), 0o644); err != nil {
+		unlock()
+		t.Fatal(err)
+	}
+	unlock()
+	handler.tailwind.wait("tw")
+
+	if _, err := os.Stat(tailwindCSSPath(root, "tw")); !os.IsNotExist(err) {
+		t.Errorf("the first compile wrote a stylesheet for bytes no longer stored (stat err %v): %q", err, readTailwindCSS(t, root, "tw"))
+	}
+}
+
 // TestTailwindReadWaits is P11's no-stale-reads rule: a read that arrives while a
 // save's compile is running waits for it, so it answers the new stylesheet
 // rather than the one already on disk.

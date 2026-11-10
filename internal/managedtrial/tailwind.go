@@ -182,6 +182,16 @@ func (t *tailwindHost) compile(name, content string) {
 		return
 	}
 	file, _ := splitPage(content)
+	// The check and the write run under the document's lock, the lock a save
+	// takes, so no save can land between them and be overtaken by this
+	// stylesheet.
+	sourcePath, err := t.sourceLockPath(name)
+	if err != nil {
+		log.Printf("compileTailwind failed (non-fatal): %v", err)
+		return
+	}
+	unlock := fileLocks.lock(sourcePath)
+	defer unlock()
 	if !t.stillStored(name, file) {
 		return
 	}
@@ -247,6 +257,20 @@ func (t *tailwindHost) sourcePath(relPath string) (string, error) {
 		return "", err
 	}
 	return resolveWritePath(t.registry, relPath)
+}
+
+// sourceLockPath is the path the commit lanes lock for the document a
+// stylesheet is named for: its `.html`, or its `.htmlclay` when only that exists,
+// as readTailwindDocument reads them.
+func (t *tailwindHost) sourceLockPath(name string) (string, error) {
+	htmlPath, err := t.sourcePath(name + ".html")
+	if err != nil {
+		return "", err
+	}
+	if _, statErr := os.Lstat(htmlPath); !os.IsNotExist(statErr) {
+		return htmlPath, nil
+	}
+	return t.sourcePath(name + ".htmlclay")
 }
 
 // readTailwindDocument is the document a stylesheet's name stands for: the
