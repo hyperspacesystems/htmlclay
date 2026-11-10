@@ -70,19 +70,23 @@ type rootWatcher struct {
 	rootID  string
 	baseDir string
 	events  *eventRing
-	known   map[string]watchEntry
-	pending map[string]watchPending
-	halt    chan struct{}
-	done    chan struct{}
+	// guardLive is where an outside edit's data-loss event goes, the way
+	// root-observer hands its own root live to the guard.
+	guardLive guardLive
+	known     map[string]watchEntry
+	pending   map[string]watchPending
+	halt      chan struct{}
+	done      chan struct{}
 }
 
-func newRootWatcher(rootID, baseDir string, events *eventRing) *rootWatcher {
+func newRootWatcher(rootID, baseDir string, events *eventRing, guardLive guardLive) *rootWatcher {
 	return &rootWatcher{
-		rootID:  rootID,
-		baseDir: baseDir,
-		events:  events,
-		known:   make(map[string]watchEntry),
-		pending: make(map[string]watchPending),
+		rootID:    rootID,
+		baseDir:   baseDir,
+		events:    events,
+		guardLive: guardLive,
+		known:     make(map[string]watchEntry),
+		pending:   make(map[string]watchPending),
 	}
 }
 
@@ -206,9 +210,10 @@ func watchEventName(seen, isDir bool) string {
 }
 
 // publish appends the observation's frame and, for a document someone else
-// wrote, runs the data-loss guard's outside-edit pass. The live emission of
-// root-observer's `kind: 'external'` belongs to G9's live hook: without rooms
-// the guard runs with no live sink, the same as the save lane's guard here.
+// wrote, runs the data-loss guard's outside-edit pass, which reaches the tabs
+// through the root's live channel. Root-observer's own external-change notice
+// and its saved-lane broadcast are the full-host stage's: the adoption
+// classifier that decides between them is not ported yet.
 func (w *rootWatcher) publish(event, rel string, entry watchEntry) {
 	w.events.changeFrame(w.rootID, event, rel)
 	if entry.isDir || !isDocumentName(rel) {
@@ -223,5 +228,5 @@ func (w *rootWatcher) publish(event, rel string, entry watchEntry) {
 	if err != nil {
 		return
 	}
-	catchUpOutsideEdit(w.baseDir, rel, bytes, string(bytes), nil)
+	catchUpOutsideEdit(w.baseDir, rel, bytes, string(bytes), w.guardLive)
 }

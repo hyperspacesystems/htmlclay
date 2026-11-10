@@ -320,6 +320,15 @@ func writeLocalSource(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(main, "server.js"), []byte("// server\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The SharedWorker script the stream routes serve, read at boot the way Local
+	// reads it at require time.
+	assetsDir := filepath.Join(main, "assets")
+	if err := os.MkdirAll(assetsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(assetsDir, "sync-worker.js"), []byte("// sync worker\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	runtimeDir := filepath.Join(main, "offline-runtime")
 	if err := os.MkdirAll(filepath.Join(runtimeDir, "1.0.0"), 0o755); err != nil {
 		t.Fatal(err)

@@ -75,10 +75,10 @@ func (s *rootServer) serveDataLossGet(w http.ResponseWriter, r *http.Request) er
 	// Local skips the catch-up for an empty file, because a zero-length Buffer is
 	// falsy there.
 	if len(currentBytes) > 0 {
-		catchUpOutsideEdit(s.baseDir, resolved.Name, currentBytes, currentHTML, nil)
+		catchUpOutsideEdit(s.baseDir, resolved.Name, currentBytes, currentHTML, s.hooks.guard)
 	}
 	return dataLossAnswer(w, r, http.StatusOK, orderedObject{
-		{Key: "event", Value: getGuardEvent(s.baseDir, resolved.Name, &currentHTML, nil)},
+		{Key: "event", Value: getGuardEvent(s.baseDir, resolved.Name, &currentHTML, s.hooks.guard)},
 	})
 }
 
@@ -134,6 +134,7 @@ func (s *rootServer) serveDataLossPost(w http.ResponseWriter, r *http.Request, i
 			_, err := s.publishHostWrite(resolved.Name, resolved.Path, html, false, false, "guard-restore")
 			return err
 		},
+		Live: s.hooks.guard,
 	})
 	if !result.OK {
 		status := result.StatusCode

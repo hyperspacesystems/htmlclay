@@ -26,6 +26,12 @@ type rootServer struct {
 	// commit is the one writer of this root's documents: every route that writes
 	// goes through the same host, so two of them cannot interleave.
 	commit *commitHost
+	// live is this root's projection of the process hub: every tab's sync stream
+	// joins it, and hooks carries every commit's live calls into it.
+	live  *rootLive
+	hooks *liveHooks
+	// syncWorker is the SharedWorker script this host serves, read at boot.
+	syncWorker []byte
 	// control is this root as the control listener and the watcher see it.
 	control *controlRoot
 }
@@ -47,7 +53,13 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	registry := newConsentRegistry(root.path, nil)
 	registry.Ready()
 	baseDir := registry.BaseReal()
-	host := newCommitHost(baseDir, root.id, registry, newGuardHooks(nil), runtime.Releases)
+	liveRoot := newRootLive(runtime.Releases, runtime.Selected)
+	hooks := newLiveHooks(liveRoot)
+	host := newCommitHost(baseDir, root.id, registry, hooks, runtime.Releases)
+	worker, err := readSyncWorker(cfg.localSource)
+	if err != nil {
+		return nil, err
+	}
 	return &rootServer{
 		baseDir:     baseDir,
 		registry:    registry,
@@ -56,6 +68,9 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		selected:    runtime.Selected,
 		releases:    runtime.Releases,
 		commit:      host,
+		live:        liveRoot,
+		hooks:       hooks,
+		syncWorker:  worker,
 		control:     newControlRoot(root.id, baseDir, registry, host, cfg.events),
 	}, nil
 }
@@ -114,6 +129,10 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveMeta(w, r)
 	case marked && getOrHead && urlPath == "/page-state":
 		err = s.servePageState(w, r)
+	case marked && getOrHead && urlPath == preSpecSyncWorkerPath:
+		err = s.serveSyncWorker(w, r)
+	case getOrHead && (urlPath == "/sync" || urlPath == "/live-sync/stream"):
+		err = s.serveLiveStream(w, r)
 	case r.Method == http.MethodPost && urlPath == "/save" && bareAllowed(urlPath, marked):
 		err = s.serveSave(w, r)
 	case getOrHead && isFavicon:

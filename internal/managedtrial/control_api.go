@@ -48,7 +48,7 @@ func newControlRoot(id, baseDir string, registry *consentRegistry, host *commitH
 		registry: registry,
 		commit:   host,
 		events:   events,
-		watcher:  newRootWatcher(id, baseDir, events),
+		watcher:  newRootWatcher(id, baseDir, events, guardLiveOf(host)),
 	}
 }
 
