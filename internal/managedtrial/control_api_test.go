@@ -42,7 +42,7 @@ func controlTestRoot(t *testing.T, id string) *controlRoot {
 
 func controlTestServer(t *testing.T, roots ...*controlRoot) *httptest.Server {
 	t.Helper()
-	server := httptest.NewServer(newControlHandler(controlSecret, roots))
+	server := httptest.NewServer(newControlHandler(controlSecret, roots, nil))
 	t.Cleanup(server.Close)
 	return server
 }

@@ -68,10 +68,10 @@ func (p livePayload) frame(seq int64, lane string) []byte {
 // liveNotice is notify's payload: a toast, with the structured data a chip or a
 // reload hint reads.
 type liveNotice struct {
-	MsgType string
-	Msg     string
-	Action  string
-	Data    any
+	MsgType string `json:"msgType"`
+	Msg     string `json:"msg"`
+	Action  string `json:"action"`
+	Data    any    `json:"data"`
 }
 
 type liveNoticeWire struct {
@@ -101,6 +101,9 @@ func (n liveNotice) frame() []byte {
 type rootLive struct {
 	releases map[string]clayruntime.Release
 	selected string
+	// notices is where a notification goes when a JS service is attached: the
+	// service publishes to the tabs, so the hub here publishes nothing.
+	notices func(name string, payload any)
 }
 
 func newRootLive(releases map[string]clayruntime.Release, selected string) *rootLive {
@@ -173,11 +176,19 @@ func (l *rootLive) unsubscribeLocked(rel string, sink liveSink) {
 }
 
 func (l *rootLive) broadcast(rel string, payload livePayload, lane string) {
+	if l.notices != nil {
+		return
+	}
 	live.broadcast(liveKeyFor(rel), l.projectPayload(payload), lane)
 }
 
 func (l *rootLive) notify(rel string, notice liveNotice, lane string) {
-	live.notify(liveKeyFor(rel), l.projectNotice(notice), lane)
+	projected := l.projectNotice(notice)
+	if l.notices != nil {
+		l.notices(rel, projected)
+		return
+	}
+	live.notify(liveKeyFor(rel), projected, lane)
 }
 
 // resume is the replay store's answer for one subscription of this root: the

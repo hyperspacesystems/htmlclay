@@ -57,6 +57,11 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	registry.Ready()
 	baseDir := registry.BaseReal()
 	liveRoot := newRootLive(runtime.Releases, runtime.Selected)
+	if cfg.service != nil {
+		liveRoot.notices = func(name string, payload any) {
+			cfg.events.appendNotice(root.id, name, payload)
+		}
+	}
 	hooks := newLiveHooks(liveRoot)
 	tailwind := newTailwindHost(baseDir, cfg.localSource, registry)
 	hooks.tailwind = tailwind

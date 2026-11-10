@@ -3,6 +3,7 @@
 package managedtrial
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,25 +14,29 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
 
 const (
-	shutdownTimeout  = 5 * time.Second
-	readHeaderLimit  = 10 * time.Second
-	controlSecretLen = 64
+	shutdownTimeout = 5 * time.Second
+	readHeaderLimit = 10 * time.Second
 )
 
 // liveRoot names the folder no root may touch. Tests replace it.
 var liveRoot = DefaultLiveRoot
 
 type config struct {
-	roots       []string
-	port        int
-	localSource string
-	personName  string
-	controlFD   int
+	roots          []string
+	port           int
+	localSource    string
+	personName     string
+	controlFD      int
+	bootstrapStdin bool
+	// service is the JS service this host consults while it holds a document's
+	// lock, when the bootstrap line attaches one.
+	service *serviceLink
 	// events is the process's one frame stream: every root's commits and
 	// watcher observations land in it, and the control listener reads it.
 	events *eventRing
@@ -52,6 +57,7 @@ type readyLine struct {
 	PID     int         `json:"pid"`
 	Control string      `json:"control"`
 	Roots   []readyRoot `json:"roots"`
+	Epoch   string      `json:"epoch"`
 }
 
 type boundServer struct {
@@ -78,12 +84,28 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if err := checkLocalSource(cfg.localSource); err != nil {
 		return err
 	}
+	cfg.events = newEventRing()
+	if cfg.bootstrapStdin && cfg.controlFD >= 0 {
+		return errors.New("use one of --control-fd and --bootstrap-stdin")
+	}
 	secret := ""
 	if cfg.controlFD >= 0 {
 		secret, err = readControlSecret(cfg.controlFD)
 		if err != nil {
 			return err
 		}
+	}
+	if cfg.bootstrapStdin {
+		reader := bufio.NewReader(stdin)
+		boot, err := readBootstrapLine(reader)
+		if err != nil {
+			return err
+		}
+		secret = boot.Secret
+		if boot.Service != nil {
+			cfg.service = newServiceLink(cfg.events, *boot.Service)
+		}
+		stdin = reader
 	}
 
 	var bound []boundServer
@@ -93,9 +115,8 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 	}
 
-	cfg.events = newEventRing()
 	var sites []*controlRoot
-	ready := readyLine{PID: os.Getpid()}
+	ready := readyLine{PID: os.Getpid(), Epoch: cfg.events.epoch}
 	for i, root := range roots {
 		ln, err := net.Listen("tcp", listenAddress(cfg.port, i))
 		if err != nil {
@@ -129,7 +150,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}
 	bound = append(bound, boundServer{
 		srv: &http.Server{
-			Handler:           newControlHandler(secret, sites),
+			Handler:           newControlHandler(secret, sites, cfg.service),
 			ReadHeaderTimeout: readHeaderLimit,
 		},
 		ln: controlLn,
@@ -210,6 +231,7 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	fs.StringVar(&cfg.localSource, "local-source", "", "Hyperclay Local checkout to read templates and assets from")
 	fs.StringVar(&cfg.personName, "person-name", "", "person name to serve documents as")
 	fs.IntVar(&cfg.controlFD, "control-fd", -1, "inherited file descriptor holding the control secret")
+	fs.BoolVar(&cfg.bootstrapStdin, "bootstrap-stdin", false, "read the control secret and the JS service's address from the first line of stdin")
 	if err := fs.Parse(args); err != nil {
 		return config{}, err
 	}
@@ -288,10 +310,55 @@ func readControlSecret(fd int) (string, error) {
 		return "", errors.New("could not read the control secret from --control-fd")
 	}
 	secret := strings.TrimSpace(string(raw))
-	if len(secret) != controlSecretLen || strings.Trim(secret, "0123456789abcdef") != "" {
+	if !controlSecretPattern.MatchString(secret) {
 		return "", errors.New("the control secret from --control-fd must be exactly 64 lowercase hex characters")
 	}
 	return secret, nil
+}
+
+// controlSecretPattern is the shape of the control secret: exactly 64 lowercase
+// hex characters.
+var controlSecretPattern = regexp.MustCompile("^[0-9a-f]{64}$")
+
+// serviceEpochPattern is the shape of the JS service's epoch: 16 lowercase hex.
+var serviceEpochPattern = regexp.MustCompile("^[0-9a-f]{16}$")
+
+// bootstrapLine is the first line of stdin under --bootstrap-stdin (protocol
+// v1, "Transport and bootstrap"): the control secret, and the JS service's
+// address, secret and epoch when a service is attached.
+type bootstrapLine struct {
+	V       int          `json:"v"`
+	Secret  string       `json:"secret"`
+	Service *servicePeer `json:"service"`
+}
+
+func readBootstrapLine(reader *bufio.Reader) (bootstrapLine, error) {
+	raw, err := reader.ReadString('\n')
+	if err != nil && raw == "" {
+		return bootstrapLine{}, errors.New("--bootstrap-stdin: no bootstrap line on stdin")
+	}
+	var line bootstrapLine
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &line); err != nil {
+		return bootstrapLine{}, fmt.Errorf("--bootstrap-stdin: the bootstrap line is not JSON: %w", err)
+	}
+	if line.V != 1 {
+		return bootstrapLine{}, fmt.Errorf("--bootstrap-stdin: unknown bootstrap version %d", line.V)
+	}
+	if !controlSecretPattern.MatchString(line.Secret) {
+		return bootstrapLine{}, errors.New("--bootstrap-stdin: the control secret must be exactly 64 lowercase hex characters")
+	}
+	if line.Service != nil && !validServicePeer(*line.Service) {
+		return bootstrapLine{}, errors.New("--bootstrap-stdin: the service needs a http://127.0.0.1: url, a 64-hex secret and a 16-hex epoch")
+	}
+	return line, nil
+}
+
+// validServicePeer is the shape every service peer must have: a loopback
+// address, a 64-hex secret and a 16-hex epoch.
+func validServicePeer(peer servicePeer) bool {
+	return strings.HasPrefix(peer.URL, "http://127.0.0.1:") &&
+		controlSecretPattern.MatchString(peer.Secret) &&
+		serviceEpochPattern.MatchString(peer.Epoch)
 }
 
 func listenAddress(port, index int) string {

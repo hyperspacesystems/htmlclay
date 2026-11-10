@@ -122,6 +122,22 @@ func (r *eventRing) changeFrame(root, event, rel string) string {
 	})
 }
 
+// appendNotice is a notification Go would have published to its own live hub,
+// handed to the JS service on the event stream instead, in order with the
+// commit frames (protocol v1, "Go's notices reach the tabs through the event
+// stream").
+func (r *eventRing) appendNotice(root, rel string, payload any) string {
+	return r.append(func(cursor string) orderedObject {
+		return orderedObject{
+			{Key: "type", Value: "notice"},
+			{Key: "root", Value: root},
+			{Key: "rel", Value: rel},
+			{Key: "payload", Value: payload},
+			{Key: "cursor", Value: cursor},
+		}
+	})
+}
+
 // recordCommit keeps an op's outcome and appends the frame that reports it.
 func (r *eventRing) recordCommit(opID, root, kind, rel, outcome, checksum string) string {
 	cursor := r.append(func(cursor string) orderedObject {

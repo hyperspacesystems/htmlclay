@@ -248,3 +248,20 @@ those bytes. A write this host made is therefore one `change` frame and no guard
 pass; a document that loses data is one `change` frame and a guard event on
 disk. The `kind: 'external'` live emission of Local's observer belongs to G9's
 live hook, which the native stage does not attach.
+
+## The full-host stage: the JS service
+
+`--bootstrap-stdin` (instead of `--control-fd`, never both) reads one JSON line
+from stdin before serving: `{"v":1,"secret":"<64 hex>","service":{"url":"http://127.0.0.1:<port>","secret":"<64 hex>","epoch":"<16 hex>"}|null}`.
+The rest of stdin is unchanged: EOF still shuts the host down. READY gains
+`"epoch"`, the cursor epoch. With a service attached, Go's own live hub
+publishes nothing: every notification becomes a `notice` frame,
+`{"type":"notice","root","rel","payload":<Local's notify payload>,"cursor"}`,
+and saves are published by the service. A request carrying `X-Trial-Epoch`
+must come from the attached service (`X-Trial-Peer-Epoch` is Go's epoch,
+`X-Trial-Epoch` the service's), else `409 {"error":"epoch","epoch":"<Go's>"}`;
+requests without it (the supervisor) are unchanged. `POST /v1/peer` replaces
+the service's address after the supervisor restarts it. A page document Go
+wrote without the service confirming it is listed by `GET /v1/unconfirmed`,
+announced once by an `{"type":"unconfirmed","root","rel","cursor"}` frame, and
+lifted by `POST /v1/reconciled {root, name}`.
