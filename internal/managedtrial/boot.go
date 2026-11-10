@@ -99,7 +99,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 		bound = append(bound, boundServer{
 			srv: &http.Server{
-				Handler:           newRootHandler(),
+				Handler:           newRootHandler(ln.Addr().(*net.TCPAddr).Port),
 				ReadHeaderTimeout: readHeaderLimit,
 			},
 			ln: ln,
@@ -280,8 +280,12 @@ func listenAddress(port, index int) string {
 }
 
 // newRootHandler serves one root. Later steps replace it with the real routes.
-func newRootHandler() http.Handler {
+func newRootHandler(rootPort int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, _, ok := gate(w, r, rootPort); !ok {
+			return
+		}
+		poweredBy(w)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = io.WriteString(w, "Not found")
