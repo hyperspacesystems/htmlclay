@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -26,6 +27,10 @@ type rootServer struct {
 	// commit is the one writer of this root's documents: every route that writes
 	// goes through the same host, so two of them cannot interleave.
 	commit *commitHost
+	// service and serviceProxy are the full host's JS service: the room-owning
+	// public routes are forwarded to it (forward.go). Both nil without one.
+	service      *serviceLink
+	serviceProxy *httputil.ReverseProxy
 	// live is this root's projection of the process hub: every tab's sync stream
 	// joins it, and hooks carries every commit's live calls into it.
 	live  *rootLive
@@ -74,7 +79,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &rootServer{
+	server := &rootServer{
 		baseDir:     baseDir,
 		registry:    registry,
 		localSource: cfg.localSource,
@@ -87,13 +92,23 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		tailwind:    tailwind,
 		syncWorker:  worker,
 		control:     newControlRoot(root.id, baseDir, registry, host, cfg.events),
-	}, nil
+	}
+	if cfg.service != nil {
+		server.service = cfg.service
+		server.serviceProxy = newServiceProxy(cfg.service, root.id)
+	}
+	return server, nil
 }
 
 func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	urlPath, marked, ok := gate(w, r, localPort(r))
 	if !ok {
 		return
+	}
+	if s.service != nil {
+		if forward, name := s.forwardsToService(r, urlPath, marked); forward && s.forwardToService(w, r, name) {
+			return
+		}
 	}
 	// Express matches its routes against the still-encoded path, so a `%2F`
 	// inside a segment does not split it here either.

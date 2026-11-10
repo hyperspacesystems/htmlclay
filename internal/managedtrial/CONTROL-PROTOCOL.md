@@ -398,3 +398,38 @@ snapshot's `checksum`, so an edit that landed meanwhile refuses `changed` and is
 observed on its own next poll. An unconfirmed document is skipped (the service
 reconciles it from a fresh read), and a failure is logged: the watcher has no
 caller to answer.
+
+## The forwarded public routes
+
+With a service attached, the public routes that talk to a room are the
+service's. Go stays the only public listener and the only writer: it forwards
+those requests to `<service>/v1/route<the public path>`, the query unchanged.
+The forwarded requests are every live stream (`GET`/`HEAD` `/sync` and
+`/live-sync/stream`), the relay (`POST` `/sync` and `/live-sync/save`, on the
+bare address or under `/_/`), `GET`/`POST` `/_/sync/data`, `POST /_/presence`,
+and the data API (`GET`/`POST` `/_/api/` and `/_/api`, and the plain
+`<name>.html?data=` form). The data API is forwarded only when the document's
+composed form has a live page store, which is Local's `hasPageStore`: a
+`<script>` whose `merge` attribute is `page` or `page.<digits>` and whose `clay`
+attribute names the `live` token. Every other request — and a data API request
+to a document with no page store — keeps its native route, and with no service
+attached nothing changes.
+
+Go drops every client header named `X-Trial-*` and the client's
+`Authorization`, and sets its own:
+
+- `Authorization: Bearer <the service's secret>`;
+- `X-Trial-Epoch`, Go's epoch, and `X-Trial-Peer-Epoch`, the service's;
+- `X-Trial-Root`, the id of the root the request names;
+- `X-Trial-Public-Origin` and `X-Trial-Public-Host`, the public origin and host
+  the client asked for;
+- `X-Trial-Canonical`, the canonical path Go resolved, for a data API request
+  only.
+
+Request bodies and answers stream both ways and the answer is flushed as soon
+as a chunk arrives, so a live stream reaches the tab without waiting for the
+service to finish; the upstream request ends when the client's does. A service
+that cannot be reached answers the recoverable
+`503 {"reason":"service-unavailable","retryable":true}` with `Retry-After: 1`,
+and a data API write to a document the service has not confirmed answers the
+same `503` with reason `unconfirmed`, without reaching the service.
