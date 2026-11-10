@@ -1,0 +1,189 @@
+# Managed trial control API
+
+The protocol Hyperclay Local's adapter (`trial/go-document-host.cjs`) speaks to
+the managed trial host. Everything here is what this repository implements; the
+one client is Local's own Node code, and the Go host is the only writer of a
+served root in the managed trial.
+
+## Transport
+
+- The control listener from G1: the `control` URL of the `READY` line. Its
+  address is loopback and its port is ephemeral.
+- Every request carries `Authorization: Bearer <secret>`; the secret is the 64
+  lowercase hex characters the binary read from `--control-fd`. A request with
+  no header, or a wrong secret, is `401` with `{"error":"unauthorized"}`.
+- Request bodies are JSON (`Content-Type: application/json`). Answers are JSON,
+  except the event stream, which is newline-delimited JSON.
+- Bytes travel as `{ "encoding": "utf8" | "base64", "data": "..." }`. In a
+  request, `utf8` means the caller sent a string and `base64` means it sent
+  binary. In an answer, a value the lane holds as a string is `utf8`, and bytes
+  are `utf8` when they are valid UTF-8 text without NUL and `base64` otherwise.
+  A value a lane did not name is `null`.
+- A request never carries a file path. A request names a root by the id the
+  `READY` line gave it (`root-0`, `root-1`, ...) plus the logical name; Go
+  resolves the canonical path itself (G3), and a name that resolves outside the
+  root is refused.
+
+## `POST /v1/commit`
+
+```json
+{ "opId": "…", "root": "root-0", "name": "index.html", "kind": "browser-save",
+  "expected": { "type": "checksum", "value": "…" },
+  "bytes": { "encoding": "utf8", "data": "<!doctype html>…" },
+  "edit": false, "safety": false, "modifiedAt": 1762000000000,
+  "pageRecord": { "v": 1, "rev": "…", "tag": "…" },
+  "saveId": "…", "userDriven": true }
+```
+
+`kind` is one of G6's `KINDS`: `browser-save`, `data-api`, `restore`,
+`guard-restore`, `sync-download`, `external-rebase`, `create`. `bytes`,
+`expected`, `pageRecord`, `modifiedAt`, `saveId`, `userDriven`, `edit` and
+`safety` are optional, and `userDriven` is a tri-state: absent means the save
+names no provenance (Local's `ui-unknown`).
+
+The request runs G6's `commit` with that kind under the document's lock and
+answers Local's `CommitResult` plus the frame it produced:
+
+```json
+{ "outcome": "committed" | "refused" | "indeterminate",
+  "reason": null | "changed" | "…",
+  "etag": null | "…", "checksum": null | "…",
+  "stored": { "encoding": "utf8", "data": "…" } | null,
+  "content": { "encoding": "base64", "data": "…" } | null,
+  "opId": "…", "cursor": "<epoch>:<seq>" }
+```
+
+`opId` is the caller's, or one Go made up when the caller sent none. `checksum`
+is the lane's own checksum when it computes one (`sync-download`) and `null`
+where Local answers `null`.
+
+Refusals by the API itself, all `400` with `{"error": "…"}`:
+
+- an unknown `kind`: `Unknown document write kind: <kind>`, Local's message;
+- `"hooks"` present in the body at all: `hooks ended in M16`, Local's message
+  (the native stage has no hook carrier and Local refuses `hooks` too);
+- `kind: "checkpoint"`: `checkpoint needs rooms`, because the native stage has
+  no rooms to capture. (`checkpoint` is a separate entry point in Local, not a
+  commit kind.)
+
+A name Go cannot resolve, or a lane that fails before writing, answers `400`;
+a write whose bytes landed but whose directory entry may not survive still
+answers `200` with `outcome: "indeterminate"`, never `committed`.
+
+## `POST /v1/restructure`
+
+```json
+{ "opId": "…", "root": "root-0", "kind": "move",
+  "steps": [ { "from": "a.html", "to": "b.html" } ] }
+```
+
+`kind` is one of G6b's `STRUCTURE_KINDS`: `move`, `trash`, `duplicate`,
+`sync-move`, `sync-trash`. Go resolves both names of every step and runs G6b's
+`restructure`, answering Local's `StructureResult`:
+
+```json
+{ "outcome": "committed" | "partial" | "failed",
+  "completed": 1, "reason": null | "ENOENT" | "…",
+  "opId": "…", "cursor": "<epoch>:<seq>" }
+```
+
+A restructure is not a document commit, so it appends no frame; `cursor` is
+where the stream stands when it answers.
+
+## `POST /v1/page-state`
+
+```json
+{ "opId": "…", "root": "root-0", "op": "write",
+  "name": "a.html", "to": "b.html", "record": { "v": 1, "rev": "…", "tag": "…" } }
+```
+
+`op` is one of Local's host `pageState` operations, run over G4b's store:
+
+- `write` takes `record` and writes the document's sidecar;
+- `move` takes `to` and carries the sidecar to the new name;
+- `moveDir` takes `to` and carries a folder's whole page-state mirror;
+- `drop` removes the sidecar;
+- `dropDir` removes a folder's mirror.
+
+Each returns nothing in Local, so the answer body is `null` with status `200`.
+Any other `op` is `400` with `Unknown page-state operation: <op>`.
+
+## `GET /v1/read?root=root-0&name=a.html`
+
+Local's `read` (`document-host.js:137-146`), which takes no lock:
+
+```json
+{ "exists": true,
+  "checksum": "<Local's calculateChecksum of the file's bytes>",
+  "bytes": { "encoding": "utf8", "data": "…" } }
+```
+
+A file that is not there answers `200` with `{"exists": false, "checksum": null,
+"bytes": null}`; an unreadable one answers `500`.
+
+## `GET /v1/op/<opId>`
+
+```json
+{ "state": "unknown" } |
+{ "state": "running" } |
+{ "state": "committed", "checksum": "…", "cursor": "<epoch>:<seq>" } |
+{ "state": "refused",   "cursor": "<epoch>:<seq>" } |
+{ "state": "indeterminate", "checksum": "…", "cursor": "<epoch>:<seq>" }
+```
+
+`unknown` is any opId this process never saw. An opId reused by a second request
+is overwritten by the second one's outcome. Outcomes are kept for this process
+only: the last 10,000, or 10 minutes, whichever is smaller. Commits and
+restructures and page-state operations are all recorded; an operation that
+failed is recorded as `refused`.
+
+## `GET /v1/events?since=<cursor>`
+
+Newline-delimited JSON frames. A cursor is `<epoch>:<seq>`: the epoch is 16
+random hex characters made once at process start, and `seq` counts frames from
+1. An empty or absent `since` streams from now, replaying nothing.
+
+Frames, in the order they happened:
+
+```json
+{ "type": "change", "root": "root-0", "event": "add" | "addDir" | "change" | "unlink" | "unlinkDir",
+  "rel": "a.html", "cursor": "<epoch>:<seq>" }
+{ "type": "commit", "root": "root-0", "kind": "browser-save", "rel": "a.html",
+  "outcome": "committed" | "refused" | "indeterminate",
+  "checksum": null | "…", "opId": "…", "cursor": "<epoch>:<seq>" }
+{ "type": "gap", "cursor": "<epoch>:<seq>" }
+```
+
+- `change` frames are the watcher's observations of a served root.
+- `commit` frames are every write that reached the commit core, from any route:
+  `/v1/commit` with the caller's opId, and HTTP writes (`/_/save`, a version
+  restore, a guard restore, and every later writer) with an opId Go made up. The
+  frame's `checksum` is the lane's checksum when it computes one, else the etag
+  it stamped.
+- `gap` comes first, before any other frame, when `since` names another epoch
+  (a different process) or a sequence older than the ring still holds. Its
+  `cursor` is where the stream stands when the client reconnects, and the
+  frames that follow start from the oldest one the ring still holds.
+
+The ring keeps the last 10,000 frames. An idle stream writes `{}` every 25
+seconds. The stream ends when the client disconnects or the process stops.
+
+Every `change` and `commit` frame names its `root` (the READY line's id), and its
+`rel` is relative to that root. The ring is one per process, so a client for one
+root ignores frames whose `root` is another's.
+
+## The watcher
+
+Every root is polled every 100 ms (`SYNC_CONFIG.FILE_STABILIZATION`), and a path
+is reported only after it has looked the same for 1000 ms, which is
+`awaitWriteFinish` in Local's `root-observer.js`. The ignored paths are Local's
+`IGNORED`: any leading-dot file or folder anywhere (`.hyperclay`, `.trash`,
+`.DS_Store`), `node_modules`, `sites-versions`, `tailwindcss` and `Thumbs.db`.
+
+A changed document is judged by the data-loss guard's outside-edit pass from
+G7a, with external provenance, exactly as `root-observer.js` calls it: if the
+bytes on disk are not the ones this host last committed there, the guard runs on
+those bytes. A write this host made is therefore one `change` frame and no guard
+pass; a document that loses data is one `change` frame and a guard event on
+disk. The `kind: 'external'` live emission of Local's observer belongs to G9's
+live hook, which the native stage does not attach.

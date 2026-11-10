@@ -26,6 +26,8 @@ type rootServer struct {
 	// commit is the one writer of this root's documents: every route that writes
 	// goes through the same host, so two of them cannot interleave.
 	commit *commitHost
+	// control is this root as the control listener and the watcher see it.
+	control *controlRoot
 }
 
 // htmlRoutePattern is Local's SPA-aware route: the document names an .html or
@@ -45,6 +47,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	registry := newConsentRegistry(root.path, nil)
 	registry.Ready()
 	baseDir := registry.BaseReal()
+	host := newCommitHost(baseDir, root.id, registry, newGuardHooks(nil), runtime.Releases)
 	return &rootServer{
 		baseDir:     baseDir,
 		registry:    registry,
@@ -52,7 +55,8 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		runtimeDir:  runtime.Dir,
 		selected:    runtime.Selected,
 		releases:    runtime.Releases,
-		commit:      newCommitHost(baseDir, root.id, registry, newGuardHooks(nil), runtime.Releases),
+		commit:      host,
+		control:     newControlRoot(root.id, baseDir, registry, host, cfg.events),
 	}, nil
 }
 

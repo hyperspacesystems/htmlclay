@@ -32,6 +32,9 @@ type config struct {
 	localSource string
 	personName  string
 	controlFD   int
+	// events is the process's one frame stream: every root's commits and
+	// watcher observations land in it, and the control listener reads it.
+	events *eventRing
 }
 
 type rootSpec struct {
@@ -90,6 +93,8 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 	}
 
+	cfg.events = newEventRing()
+	var sites []*controlRoot
 	ready := readyLine{PID: os.Getpid()}
 	for i, root := range roots {
 		ln, err := net.Listen("tcp", listenAddress(cfg.port, i))
@@ -102,6 +107,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 			closeBound()
 			return err
 		}
+		sites = append(sites, handler.control)
 		bound = append(bound, boundServer{
 			srv: &http.Server{
 				Handler:           handler,
@@ -123,7 +129,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}
 	bound = append(bound, boundServer{
 		srv: &http.Server{
-			Handler:           newControlHandler(secret, len(roots)),
+			Handler:           newControlHandler(secret, sites),
 			ReadHeaderTimeout: readHeaderLimit,
 		},
 		ln: controlLn,
@@ -139,6 +145,11 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	served := make(chan error, len(bound))
 	for _, b := range bound {
 		go func(b boundServer) { served <- b.srv.Serve(b.ln) }(b)
+	}
+	// Every root reports what changes on disk from here on, so a document
+	// written outside this host reaches its guard and the event stream.
+	for _, site := range sites {
+		site.watcher.start()
 	}
 
 	if _, err := fmt.Fprintf(stdout, "READY %s\n", line); err != nil {
@@ -163,6 +174,9 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 	}
 
+	for _, site := range sites {
+		site.watcher.stop()
+	}
 	if err := shutdownAll(bound); err != nil && runErr == nil {
 		runErr = err
 	}
@@ -286,6 +300,6 @@ func listenAddress(port, index int) string {
 
 // newRootHandler serves one root: Local's static catch-all, its document lane
 // and its folder listings.
-func newRootHandler(root rootSpec, cfg config) (http.Handler, error) {
+func newRootHandler(root rootSpec, cfg config) (*rootServer, error) {
 	return newRootServer(root, cfg)
 }

@@ -70,6 +70,9 @@ type commitRequest struct {
 	ModifiedAt    *int64
 	PageRecord    *PageRecord
 	Hooks         bool
+	// OpID names the write in the event stream and in GET /v1/op. The control
+	// API passes the caller's; a write that arrives over HTTP gets a new one.
+	OpID string
 }
 
 // commitExpectation is Local's `expected`: the precondition a request is judged
@@ -91,6 +94,8 @@ type commitResult struct {
 	File        string
 	HasChecksum bool
 	HasFile     bool
+	// Cursor is the event stream position of the frame that reported this write.
+	Cursor string
 }
 
 // refused is Local's refusal shape.
@@ -146,7 +151,11 @@ func errnoCode(err error) string {
 
 // commitHost is the one writer of a root's documents.
 type commitHost struct {
-	baseDir  string
+	baseDir string
+	rootID  string
+	// events is the stream every write this core makes is reported on, from any
+	// route or the control API. newControlRoot attaches it.
+	events   *eventRing
 	registry *consentRegistry
 	locks    *filePathLocks
 	hooks    commitHooks
@@ -161,6 +170,7 @@ func newCommitHost(baseDir, rootID string, registry *consentRegistry, hooks comm
 	}
 	return &commitHost{
 		baseDir:  baseDir,
+		rootID:   rootID,
 		registry: registry,
 		locks:    fileLocks,
 		hooks:    hooks,
@@ -194,7 +204,9 @@ func (h *commitHost) commit(request *commitRequest) (commitResult, error) {
 	result, err := h.commitLocked(request, policy, filePath)
 	if err != nil {
 		if code := errorCode(err); code != "" {
-			return commitResult{Outcome: "indeterminate", Reason: code}, nil
+			result := commitResult{Outcome: "indeterminate", Reason: code}
+			h.report(request, &result)
+			return result, nil
 		}
 		return commitResult{}, err
 	}
@@ -211,7 +223,9 @@ func (h *commitHost) commitLocked(request *commitRequest, policy commitLane, fil
 		return commitResult{}, err
 	}
 	if changed {
-		return refused("changed"), nil
+		result := refused("changed")
+		h.report(request, &result)
+		return result, nil
 	}
 
 	result, err := h.runLane(request, policy, filePath)
@@ -222,7 +236,22 @@ func (h *commitHost) commitLocked(request *commitRequest, policy commitLane, fil
 	if result.Outcome == "committed" {
 		h.hooks.NoteSeen(h.baseDir, request.Name, result.Stored)
 	}
+	h.report(request, &result)
 	return result, nil
+}
+
+// report appends the commit frame for one write and keeps its opId's outcome,
+// so the event stream and GET /v1/op see every write this host made: a browser
+// save, a version or guard restore, and a control API commit alike.
+func (h *commitHost) report(request *commitRequest, result *commitResult) {
+	if h.events == nil {
+		return
+	}
+	opID := request.OpID
+	if opID == "" {
+		opID = newOpID()
+	}
+	result.Cursor = h.events.recordCommit(opID, h.rootID, request.Kind, request.Name, result.Outcome, frameChecksum(*result))
 }
 
 // runLane is Local's LANES table.
