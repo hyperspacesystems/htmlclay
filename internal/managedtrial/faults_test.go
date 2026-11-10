@@ -418,7 +418,7 @@ func TestFaultTailwindHoldOlderCompileLoses(t *testing.T) {
 // TestFaultTailwindHoldClear is clear's contract over a held compile: clearing
 // every fault releases it.
 func TestFaultTailwindHoldClear(t *testing.T) {
-	_, address, port, control := tailwindHoldFixture(t)
+	root, address, port, control := tailwindHoldFixture(t)
 	recorder := recordTailwindCompiles(t)
 	first := tailwindSitePage("one")
 
@@ -437,6 +437,19 @@ func TestFaultTailwindHoldClear(t *testing.T) {
 	}
 	recorder.waitFor(t, first)
 	waitForHeldTailwind(t, control, "site", 0)
+	// The compiler was called; its install finishes after it returns. Wait for
+	// the stylesheet, so the test never ends with a rename still in flight.
+	cssPath := filepath.Join(root, ".hyperclay", "tailwindcss", "site.css")
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if data, err := os.ReadFile(cssPath); err == nil && string(data) == tailwindCSSFor(first) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("site.css did not hold the released compile within 2s")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 // TestFaultDurableFailRefusesDurable proves the durable-fail fault also fails
