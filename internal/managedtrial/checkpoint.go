@@ -75,9 +75,15 @@ func (a *controlAPI) serveCheckpoint(w http.ResponseWriter, r *http.Request) {
 		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
 		return
 	}
+	// Local's checkpoint hands its save the logical document it rendered
+	// against (document-host.js renderCheckpoint, after logicalHtml), as Go's
+	// own /save does: a page whose state lives in its sidecar is judged whole.
 	var dataLossPrev *string
 	if data, err := os.ReadFile(filePath); err == nil {
 		text := string(data)
+		if logical, logicalErr := logicalBytes(root.baseDir, body.Name, data); logicalErr == nil {
+			text = string(logical)
+		}
 		dataLossPrev = &text
 	}
 	current, err := readSnapshot(root.baseDir, body.Name, filePath)
@@ -142,10 +148,11 @@ func (a *controlAPI) serveCheckpoint(w http.ResponseWriter, r *http.Request) {
 		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: err.Error()})
 		return
 	}
-	if result.Refusal != nil && result.Refusal.Status == http.StatusServiceUnavailable {
-		// The save's own consultation could not go on: answered as the
-		// recoverable 503, so the service's checkpoint throws and its scheduler
-		// retries, as it does for any transient failure.
+	if result.Refusal != nil {
+		// Local's checkpoint throws whatever its save's admission refused
+		// (document-host.js commitSave), so its scheduler retries, or gives the
+		// room up for a moved document. The refusal is answered as itself, with
+		// its code, and the adapter throws it the same way.
 		_ = writeRefusal(w, r, result.Refusal)
 		return
 	}

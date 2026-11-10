@@ -312,3 +312,110 @@ func TestControlCheckpointNoService(t *testing.T) {
 		t.Fatalf("checkpoint answered %d: %v", status, answer)
 	}
 }
+
+// TestControlCheckpointAdmitRefused is a checkpoint whose save the service's
+// admission refuses: Local's checkpoint throws that refusal (commitSave), so
+// Go answers it with its status and code, never as ok, and writes nothing.
+func TestControlCheckpointAdmitRefused(t *testing.T) {
+	consultShortAborts(t)
+	for _, tc := range []struct {
+		status int
+		code   string
+	}{
+		{http.StatusConflict, "moved-or-deleted"},
+		{http.StatusConflict, "unsaved-edits"},
+		{http.StatusInternalServerError, "failed"},
+	} {
+		t.Run(tc.code, func(t *testing.T) {
+			script := newConsultScript(func(path string, body map[string]any, call int) any {
+				switch path {
+				case "/v1/render-checkpoint":
+					return map[string]any{
+						"kind":      "render",
+						"logical":   map[string]any{"encoding": "utf8", "data": consultSavePage + "<!-- rendered -->"},
+						"revision":  nil,
+						"captureId": nil,
+						"artifacts": []any{},
+					}
+				case "/v1/admit":
+					return map[string]any{
+						"decision": "refuse",
+						"status":   tc.status,
+						"code":     tc.code,
+						"body":     map[string]any{"msg": "refused", "msgType": "error", "code": tc.code},
+					}
+				}
+				return nil
+			})
+			_, handler, dir := consultSaveServer(t, consultSavePeer(t, script))
+			consultWriteFile(t, dir, "page.html", []byte(consultSavePage))
+			control := controlTestServer(t, handler.control)
+
+			status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/checkpoint", map[string]any{
+				"opId":         strings.Repeat("d", 32),
+				"root":         "root-consult",
+				"name":         "page.html",
+				"roomIdentity": "7",
+				"generation":   nil,
+			})
+			if status != tc.status || answer["code"] != tc.code {
+				t.Fatalf("checkpoint answered %d %v, want %d with code %s", status, answer, tc.status, tc.code)
+			}
+			if onDisk := consultTestDisk(t, filepath.Join(dir, "page.html")); onDisk != consultSavePage {
+				t.Fatalf("page.html = %q, want the bytes unchanged", onDisk)
+			}
+		})
+	}
+}
+
+// TestControlCheckpointLogicalPrev is the document a checkpoint's save is
+// judged against: the logical page, sidecar state included, as Local's
+// renderCheckpoint passes it, not the stored file part.
+func TestControlCheckpointLogicalPrev(t *testing.T) {
+	consultShortAborts(t)
+	logical := strings.Replace(saveGoldenPage(saveGoldenPageRev), "<article", saveGoldenYJSTag+"\n<article", 1)
+	script := newConsultScript(func(path string, body map[string]any, call int) any {
+		switch path {
+		case "/v1/render-checkpoint":
+			return map[string]any{
+				"kind":      "render",
+				"logical":   map[string]any{"encoding": "utf8", "data": logical},
+				"revision":  nil,
+				"captureId": nil,
+				"artifacts": []any{},
+			}
+		case "/v1/admit":
+			return map[string]any{"decision": "refuse", "status": 409, "code": "unsaved-edits", "body": map[string]any{"code": "unsaved-edits"}}
+		}
+		return nil
+	})
+	_, handler, dir := consultSaveServer(t, consultSavePeer(t, script))
+	stored, err := storePageState(dir, "page.html", logical, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored == logical {
+		t.Fatalf("the fixture kept its page state in the file: %q", stored)
+	}
+	consultWriteFile(t, dir, "page.html", []byte(stored))
+	want, err := logicalBytes(dir, "page.html", []byte(stored))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(want) == stored {
+		t.Fatalf("the logical page equals the stored file: %q", stored)
+	}
+	control := controlTestServer(t, handler.control)
+
+	controlJSON(t, control, controlSecret, http.MethodPost, "/v1/checkpoint", map[string]any{
+		"opId":         strings.Repeat("e", 32),
+		"root":         "root-consult",
+		"name":         "page.html",
+		"roomIdentity": "7",
+		"generation":   nil,
+	})
+	admit := script.only(t, "/v1/admit").Body
+	if prev := consultTestData(t, admit["dataLossPrev"], "admit dataLossPrev"); prev != string(want) {
+		t.Fatalf("admit dataLossPrev = %q, want the logical page %q", prev, want)
+	}
+}
