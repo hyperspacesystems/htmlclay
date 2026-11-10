@@ -18,7 +18,27 @@ export const PROBE = '_conformance-probe.html';
 export const REPORT_DEFAULT = '.conformance/latest.json';
 export const READY_TIMEOUT_MS = 20000;
 export const BUILD_TIMEOUT_MS = 300000;
-export const ENGINES = ['all', 'http', 'page'];
+// `--engine` takes `all`, which is every engine, or a comma list of the engines the package
+// can run on its own. The package parses that list, so the launcher forwards the string
+// untouched and only refuses what the package would refuse.
+export const ENGINES = ['all', 'http', 'page', 'frozen'];
+const ENGINE_LIST = ['http', 'page', 'frozen'];
+
+export function parseEngine(value) {
+  const engines = typeof value === 'string' ? value.split(',') : [];
+  const listed = engines.length > 0
+    && engines.every((engine) => ENGINE_LIST.includes(engine))
+    && new Set(engines).size === engines.length;
+  if (!listed && !(engines.length === 1 && engines[0] === 'all')) {
+    throw new Error(`--engine must be one of ${ENGINES.join(', ')}`);
+  }
+  return engines;
+}
+
+// The frozen rows write their documents at the root of --root and navigate to them, which
+// a host that serves only what it registered cannot answer, so a run that leaves frozen out
+// must not place them either.
+export const runsFrozen = (engine) => engine === 'all' || parseEngine(engine).includes('frozen');
 
 // The standalone-server capability set. `people` is absent on purpose: it needs the
 // app's profile hooks, which a fixture server does not install, so asserting it would
@@ -91,7 +111,7 @@ export function parseArgs(argv) {
       : [flag, undefined];
     if (name === '--engine') {
       const value = inline ?? argv[(i += 1)];
-      if (!ENGINES.includes(value)) throw new Error(`--engine must be one of ${ENGINES.join(', ')}`);
+      parseEngine(value);
       engine = value;
       continue;
     }
@@ -392,7 +412,7 @@ export async function main({
       mkdirSync(docs, { recursive: true });
       copyFileSync(path.join(dir, 'page', 'host-test.html'), path.join(docs, PAGE));
       writeFileSync(path.join(docs, PROBE), PROBE_HTML);
-      const frozen = await placeFrozen(docs, cwd);
+      const frozen = runsFrozen(engine) ? await placeFrozen(docs, cwd) : [];
       const required = [PAGE, PROBE, ...new Set(frozen.map((row) => row.name))];
       const bin = await build({ cwd, scratch, env });
       fixture = await start({ bin, root: docs, env, required });

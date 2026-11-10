@@ -107,6 +107,11 @@ jobs:
       with:
         go-version: '1.26'
         cache-dependency-path: candidate/go.sum
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Test
       run: go test ./... -count=1
       env:
@@ -146,6 +151,11 @@ jobs:
       with:
         go-version: '1.26'
         cache-dependency-path: candidate/go.sum
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Test
       run: go test ./... -count=1
       env:
@@ -185,6 +195,11 @@ jobs:
       with:
         go-version: '1.26'
         cache-dependency-path: candidate/go.sum
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Test
       run: go test ./... -count=1
       env:
@@ -307,6 +322,11 @@ jobs:
       with:
         go-version: '1.26'
         cache-dependency-path: candidate/go.sum
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Fetch Tailwind
       run: go run ./cmd/fetchtailwind -goos linux -goarch amd64
     - name: Test the Tailwind bundle
@@ -478,6 +498,11 @@ jobs:
           --file-version "${{ needs.verify.outputs.version }}" --product-version "${{ needs.verify.outputs.version }}"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       shell: pwsh
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Fetch Tailwind
       run: |
         go run ./cmd/fetchtailwind -goos windows -goarch amd64
@@ -733,6 +758,8 @@ jobs:
         security list-keychain -d user -s "$KEYCHAIN"
         security default-keychain -s "$KEYCHAIN"
         rm -f "$RUNNER_TEMP/cert.p12"
+    - name: Install the locked packages
+      run: npm ci
     - name: Test the Tailwind bundle
       run: |
         go run ./cmd/fetchtailwind -goos darwin -goarch arm64

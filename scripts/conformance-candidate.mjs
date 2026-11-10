@@ -3,11 +3,11 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { HOST, PACKAGE } from './conformance.mjs';
+import { HOST, PACKAGE, parseEngine } from './conformance.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PLATFORM = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const STATUSES = ['pass', 'fail', 'waived'];
+const STATUSES = ['pass', 'fail', 'skip', 'na', 'waived', 'waiver-unused'];
 
 export function parseCandidateArgs(argv) {
   let platform = '';
@@ -20,8 +20,15 @@ export function parseCandidateArgs(argv) {
   }
   if (!platform) throw new Error('--platform is required');
   if (!PLATFORM.test(platform)) throw new Error(`--platform ${JSON.stringify(platform)} is not a label`);
+  for (let i = 0; i < launcher.length; i += 1) {
+    const flag = launcher[i];
+    if (flag === '--engine') parseEngine(launcher[(i += 1)]);
+    else if (flag.startsWith('--engine=')) parseEngine(flag.slice('--engine='.length));
+  }
   return { platform, launcher };
 }
+
+export const evidencePathFor = (platform) => path.join('.conformance', `conformance-${platform}.json`);
 
 export function canonical(value) {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -125,7 +132,10 @@ export function validateReport(reportPath) {
     throw new Error('the conformance report needs nonempty unique row ids');
   }
   for (const check of report.checks) {
-    if (!STATUSES.includes(check?.status)) throw new Error(`the conformance report leaves row ${check?.id} unanswered`);
+    if (!STATUSES.includes(check?.status)) {
+      throw new Error(`the conformance report gives row ${check?.id} the unknown status ${JSON.stringify(check?.status ?? null)}`);
+    }
+    if (check.status === 'na' && check.blocking === true) throw new Error(`the conformance report leaves row ${check.id} unanswered`);
   }
   return report;
 }
@@ -174,7 +184,7 @@ export async function main({
     cwd, env.CONFORMANCE_REPORT || path.join('.conformance', `${parsed.platform}-report.json`),
   );
   const evidencePath = path.resolve(
-    cwd, env.CONFORMANCE_EVIDENCE || path.join('.conformance', `${parsed.platform}.json`),
+    cwd, env.CONFORMANCE_EVIDENCE || evidencePathFor(parsed.platform),
   );
   try {
     mkdirSync(path.dirname(reportPath), { recursive: true });

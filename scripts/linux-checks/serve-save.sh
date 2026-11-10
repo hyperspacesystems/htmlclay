@@ -33,15 +33,17 @@ code="$(curl -s -o /dev/null -w '%{http_code}' "$ORIGIN$URLPATH")"
 [ "$code" = "200" ] || fail "own origin got $code, expected 200"
 pass "Host gate: 403 foreign, 200 own"
 
+# The packaged app serves only documents it has registered, so its frozen rows run in the
+# standalone conformance-linux job instead; this check runs the page and http engines.
 if [ -f "$REPO/platform-candidate.json" ] && [ -f "$REPO/candidate.json" ]; then
   ( cd "$REPO" && node scripts/conformance-candidate.mjs --platform "${CONFORMANCE_PLATFORM:-}" \
-      --url "$ORIGIN" --root "$HOME" --page "${URLPATH#/}" --doc "$URLPATH" --target "$URLPATH" ) \
+      --engine page,http --url "$ORIGIN" --root "$HOME" --page "${URLPATH#/}" --doc "$URLPATH" --target "$URLPATH" ) \
     > "$LAB/conformance.log" 2>&1 \
     || { keep "$LAB/conformance.log"; fail "candidate conformance failed: $(tail -20 "$LAB/conformance.log")"; }
   keep "$LAB/conformance.log"
   pass "conformance evidence recorded from the app's own origin"
 else
-  ( cd "$REPO" && node scripts/conformance.mjs --url "$ORIGIN" --root "$HOME" --page "${URLPATH#/}" --doc "$URLPATH" --target "$URLPATH" ) > "$LAB/conformance.log" 2>&1 \
+  ( cd "$REPO" && node scripts/conformance.mjs --engine page,http --url "$ORIGIN" --root "$HOME" --page "${URLPATH#/}" --doc "$URLPATH" --target "$URLPATH" ) > "$LAB/conformance.log" 2>&1 \
     || { keep "$LAB/conformance.log"; fail "conformance run failed: $(tail -20 "$LAB/conformance.log")"; }
   keep "$LAB/conformance.log"
   pass "conformance page passed from the app's own origin"

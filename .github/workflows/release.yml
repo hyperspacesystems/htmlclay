@@ -81,6 +81,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install the locked packages
+        run: npm ci
       - run: go test ./... -count=1
         env:
           CGO_ENABLED: ${{ runner.os == 'macOS' && '1' || '0' }}
@@ -113,6 +118,11 @@ jobs:
         with:
           go-version: "1.26"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install the locked packages
+        run: npm ci
       - name: Fetch Tailwind
         run: go run ./cmd/fetchtailwind -goos linux -goarch ${{ matrix.goarch }}
 
@@ -190,6 +200,11 @@ jobs:
       # registry value names by ID (internal/platform/register_windows.go). goversioninfo
       # embeds a single -icon and numbers it itself, which is why this is
       # go-winres; the IDs have to be ours to name.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install the locked packages
+        run: npm ci
       - name: Embed icon and version resources
         run: |
           go run github.com/tc-hib/go-winres@v0.3.1 make `
@@ -325,6 +340,8 @@ jobs:
           security default-keychain -s "$KEYCHAIN"
           rm -f "$RUNNER_TEMP/cert.p12"
 
+      - name: Install the locked packages
+        run: npm ci
       - name: Test the Tailwind bundle
         run: |
           go run ./cmd/fetchtailwind -goos darwin -goarch arm64

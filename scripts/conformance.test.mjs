@@ -307,6 +307,69 @@ test('--engine and the attach options are the launcher\'s only arguments', async
   assert.match(unknown.log.lines.join('\n'), /unknown argument --bogus/);
 });
 
+test('--engine page,http reaches the package unchanged', async () => {
+  let seen = null;
+  const outcome = await run({
+    argv: ['--engine', 'page,http'],
+    run: async ({ engine, reportPath }) => {
+      seen = engine;
+      fs.writeFileSync(reportPath, JSON.stringify(report()));
+      return { code: 0 };
+    },
+  });
+  assert.equal(outcome.code, 0);
+  assert.equal(seen, 'page,http');
+});
+
+test('with no --engine the package gets all', async () => {
+  let seen = null;
+  const outcome = await run({
+    run: async ({ engine, reportPath }) => {
+      seen = engine;
+      fs.writeFileSync(reportPath, JSON.stringify(report()));
+      return { code: 0 };
+    },
+  });
+  assert.equal(outcome.code, 0);
+  assert.equal(seen, 'all');
+});
+
+test('--engine refuses a list the package would refuse', async () => {
+  for (const value of ['page,bogus', '', 'page,page']) {
+    const outcome = await run({ argv: ['--engine', value] });
+    assert.equal(outcome.code, 3, `--engine ${JSON.stringify(value)} was accepted`);
+    assert.match(outcome.log.lines.join('\n'), /--engine must be one of all, http, page, frozen/);
+  }
+});
+
+// The frozen rows write their documents at the root of --root, which a host that serves
+// only what it registered cannot answer, so an engine list without frozen places none.
+test('an engine list without frozen places no frozen document', async () => {
+  const dir = scratch();
+  const log = quiet();
+  let placed = null;
+  const code = await main({
+    cwd: REPO,
+    env: { CONFORMANCE_REPORT: path.join(dir, 'conformance.json') },
+    argv: ['--engine', 'page,http'],
+    log,
+    build: async ({ scratch: root }) => {
+      placed = fs.readdirSync(path.join(root, 'docs')).filter((name) => name.startsWith('_frozen-'));
+      return path.join(root, 'offline-fixture-server');
+    },
+    start: async ({ required }) => {
+      assert.ok(!required.some((name) => name.startsWith('_frozen-')), 'the launcher required a frozen document');
+      return { baseURL: 'http://127.0.0.1:1', stop: async () => {} };
+    },
+    run: async ({ reportPath }) => {
+      fs.writeFileSync(reportPath, JSON.stringify(report()));
+      return { code: 0 };
+    },
+  });
+  assert.equal(code, 0);
+  assert.deepEqual(placed, []);
+});
+
 test('attach mode uses the supplied host and skips fixture boot', async () => {
   const dir = scratch();
   const log = quiet();
