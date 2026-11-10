@@ -37,6 +37,8 @@ type serveRequest struct {
 	FromCase *serveIfMatchFrom `json:"fromCase"`
 	Body     *string           `json:"body"`
 	BodyFile string            `json:"bodyFile"`
+	// BodyOverLimit sends a body one byte past Local's 1 MB JSON write limit.
+	BodyOverLimit bool `json:"bodyOverLimit"`
 }
 
 type serveIfMatchFrom struct {
@@ -337,6 +339,9 @@ func serveRequestBody(t *testing.T, caseDir string, request serveRequest) []byte
 	}
 	if request.Body != nil {
 		return []byte(*request.Body)
+	}
+	if request.BodyOverLimit {
+		return []byte(`{"blob":"` + strings.Repeat("x", 1024*1024) + `"}`)
 	}
 	return nil
 }

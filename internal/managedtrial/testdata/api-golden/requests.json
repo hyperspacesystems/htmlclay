@@ -1,0 +1,205 @@
+[
+  {
+    "name": "api-get-list",
+    "method": "GET",
+    "path": "/_/api/list.html"
+  },
+  {
+    "name": "api-get-list-again",
+    "method": "GET",
+    "path": "/_/api/list.html"
+  },
+  {
+    "name": "api-get-single",
+    "method": "GET",
+    "path": "/_/api/single.html"
+  },
+  {
+    "name": "api-get-none",
+    "method": "GET",
+    "path": "/_/api/none.html"
+  },
+  {
+    "name": "api-get-bad",
+    "method": "GET",
+    "path": "/_/api/bad.html"
+  },
+  {
+    "name": "api-get-sub",
+    "method": "GET",
+    "path": "/_/api/sub/c.htmlclay"
+  },
+  {
+    "name": "api-get-missing",
+    "method": "GET",
+    "path": "/_/api/missing.html"
+  },
+  {
+    "name": "api-get-notes-txt",
+    "method": "GET",
+    "path": "/_/api/notes.txt"
+  },
+  {
+    "name": "api-get-sidecar-fresh",
+    "method": "GET",
+    "path": "/_/api/stale.html"
+  },
+  {
+    "name": "api-root",
+    "method": "GET",
+    "path": "/_/api"
+  },
+  {
+    "name": "api-root-slash",
+    "method": "GET",
+    "path": "/_/api/"
+  },
+  {
+    "name": "plain-get-list",
+    "method": "GET",
+    "path": "/list.html?data=%7Btitle%3A%22h1%22%2Citems%3A%22ul%20li%5B%5D%22%7D"
+  },
+  {
+    "name": "plain-get-invalid",
+    "method": "GET",
+    "path": "/list.html?data=%7B%22a%22%3A%22b%22%7D;"
+  },
+  {
+    "name": "plain-get-empty",
+    "method": "GET",
+    "path": "/list.html?data="
+  },
+  {
+    "name": "plain-get-index",
+    "method": "GET",
+    "path": "/?data=%7B%22title%22%3A%22h1%22%7D"
+  },
+  {
+    "name": "list-write-add",
+    "method": "POST",
+    "path": "/list.html?data=%7B%22title%22%3A%22h1%22%2C%22items%22%3A%5B%22ul.items%20li%22%2C%7B%22name%22%3A%22.name%22%2C%22done%22%3A%22input%40checked%22%7D%5D%7D",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyFile": "list-add.json"
+  },
+  {
+    "name": "api-get-list-after",
+    "method": "GET",
+    "path": "/_/api/list.html"
+  },
+  {
+    "name": "api-get-list-sidecar",
+    "method": "GET",
+    "path": "/_/api/list.html"
+  },
+  {
+    "name": "list-after-write",
+    "method": "GET",
+    "path": "/list.html"
+  },
+  {
+    "name": "single-write",
+    "method": "POST",
+    "path": "/_/api/single.html",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyFile": "single-change.json"
+  },
+  {
+    "name": "single-after-write",
+    "method": "GET",
+    "path": "/_/api/single.html"
+  },
+  {
+    "name": "single-after-write-doc",
+    "method": "GET",
+    "path": "/single.html"
+  },
+  {
+    "name": "write-invalid-json",
+    "method": "POST",
+    "path": "/_/api/single.html",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{"
+  },
+  {
+    "name": "write-too-large",
+    "method": "POST",
+    "path": "/list.html?data=%7B%22title%22%3A%22h1%22%2C%22items%22%3A%5B%22ul.items%20li%22%2C%7B%22name%22%3A%22.name%22%2C%22done%22%3A%22input%40checked%22%7D%5D%7D",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyOverLimit": true
+  },
+  {
+    "name": "write-none",
+    "method": "POST",
+    "path": "/_/api/none.html",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{}"
+  },
+  {
+    "name": "write-cross-origin",
+    "method": "POST",
+    "path": "/_/api/single.html",
+    "headers": {
+      "Content-Type": "application/json",
+      "Origin": "http://evil.example"
+    },
+    "body": "{}"
+  },
+  {
+    "name": "write-marked-404",
+    "method": "POST",
+    "path": "/_/save/list.html?data=x"
+  },
+  {
+    "name": "list-write-drop",
+    "method": "POST",
+    "path": "/_/api/list.html",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyFile": "list-drop.json"
+  },
+  {
+    "name": "list-after-drop",
+    "method": "GET",
+    "path": "/list.html"
+  },
+  {
+    "name": "data-loss-event",
+    "method": "GET",
+    "path": "/_/data-loss",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/list.html"
+    },
+    "waitMs": 200
+  },
+  {
+    "name": "close-list",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/list.html",
+      "Content-Type": "text/html"
+    },
+    "bodyFile": "list-home.html"
+  },
+  {
+    "name": "close-single",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/single.html",
+      "Content-Type": "text/html"
+    },
+    "bodyFile": "single-home.html"
+  }
+]

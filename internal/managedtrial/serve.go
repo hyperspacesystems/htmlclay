@@ -77,6 +77,11 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	dataLossTail, hasDataLossTail := routeTail(urlPath, "/data-loss/")
 	// Express matches its routes non-strictly, so `/upload` answers `/upload/` too.
 	systemPath := strings.TrimSuffix(urlPath, "/")
+	apiName := apiDocumentName(urlPath)
+	// The plain-URL data pair is the one lane that is not under `/_/`: Local
+	// answers `<name>.html?data=` and `/` as index.html.
+	plainQuery := readDataQuery(r.RequestURI)
+	plainName, plainDocument := plainDataName(urlPath)
 	var err error
 	switch {
 	case marked && getOrHead && urlPath == "/data-loss":
@@ -91,6 +96,14 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveVersion(w, r, versionTail)
 	case marked && r.Method == http.MethodPost && hasRestoreTail:
 		err = s.serveRestore(w, r, restoreTail)
+	case marked && r.Method == http.MethodPost && apiName != "":
+		err = s.serveAPIWrite(w, r, apiName)
+	case marked && r.Method == http.MethodPost && systemPath == "/api":
+		err = s.serveAPIWrite(w, r, "index.html")
+	case marked && getOrHead && apiName != "":
+		err = s.serveAPIGet(w, r, apiName)
+	case marked && getOrHead && systemPath == "/api":
+		err = s.serveAPIGet(w, r, "index.html")
 	case marked && r.Method == http.MethodPost && systemPath == "/upload":
 		err = s.serveUpload(w, r)
 	case marked && r.Method == http.MethodPost && documentActionSegments[systemPath]:
@@ -109,6 +122,10 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveTemplate(w, r, rawPath)
 	case marked && getOrHead && strings.HasPrefix(rawPath, "/_/clayjs/"):
 		err = s.serveRuntimeAsset(w, r)
+	case r.Method == http.MethodPost && !marked && plainQuery.present && plainDocument:
+		err = s.servePlainAPIWrite(w, r, plainName)
+	case getOrHead && !marked && plainQuery.present && plainDocument:
+		err = s.servePlainDataGet(w, r, plainName)
 	default:
 		err = s.serve(w, r, marked)
 	}

@@ -1,0 +1,747 @@
+{
+  "cases": [
+    {
+      "name": "api-get-list",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/list.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "119",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "8dceaf1645a8c829",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express",
+        "x-served-by": "app-generated"
+      },
+      "body": {
+        "text": "{\"title\":\"List\",\"items\":[{\"name\":\"alpha\",\"done\":\"true\"},{\"name\":\"beta\",\"done\":\"false\"},{\"name\":\"gamma\",\"done\":\"true\"}]}"
+      }
+    },
+    {
+      "name": "api-get-list-again",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/list.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "119",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "8dceaf1645a8c829",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"List\",\"items\":[{\"name\":\"alpha\",\"done\":\"true\"},{\"name\":\"beta\",\"done\":\"false\"},{\"name\":\"gamma\",\"done\":\"true\"}]}"
+      }
+    },
+    {
+      "name": "api-get-single",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/single.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "33",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "df0b8618560e5661",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express",
+        "x-served-by": "app-generated"
+      },
+      "body": {
+        "text": "{\"title\":\"Single\",\"note\":\"Kept.\"}"
+      }
+    },
+    {
+      "name": "api-get-none",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/none.html",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "98",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"62-ma7CEyPQ1DpXNA5xlINZvT+ub8w\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"No api rules tag\",\"message\":\"This page has no rules tag with data-rules-name~=\\\"api\\\".\"}"
+      }
+    },
+    {
+      "name": "api-get-bad",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/bad.html",
+        "headers": {}
+      },
+      "status": 500,
+      "headers": {
+        "content-length": "74",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"4a-RqKsFmKQ3xdZQ6E+N75sxq5wgco\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Internal server error\",\"message\":\"An unexpected error occurred\"}"
+      }
+    },
+    {
+      "name": "api-get-sub",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/sub/c.htmlclay",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "41c9fd4a806248a8",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express",
+        "x-served-by": "app-generated"
+      },
+      "body": {
+        "text": "{\"title\":\"Child\"}"
+      }
+    },
+    {
+      "name": "api-get-missing",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/missing.html",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "81",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"51-gAOa7HVN3ZRRM5wbzmd/vc0Bnjc\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Site content not found\",\"message\":\"The site exists but has no content\"}"
+      }
+    },
+    {
+      "name": "api-get-notes-txt",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/notes.txt",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "api-get-sidecar-fresh",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/stale.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "35",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "e8e5136ddfd22240",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"Sidecar\",\"items\":[\"one\"]}"
+      }
+    },
+    {
+      "name": "api-root",
+      "request": {
+        "method": "GET",
+        "path": "/_/api",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "30ba16feeba43aac",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express",
+        "x-served-by": "app-generated"
+      },
+      "body": {
+        "text": "{\"title\":\"Index\"}"
+      }
+    },
+    {
+      "name": "api-root-slash",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "30ba16feeba43aac",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"Index\"}"
+      }
+    },
+    {
+      "name": "plain-get-list",
+      "request": {
+        "method": "GET",
+        "path": "/list.html?data=%7Btitle%3A%22h1%22%2Citems%3A%22ul%20li%5B%5D%22%7D",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "49",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "8dceaf1645a8c829",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"List\",\"items\":[\"alpha\",\"beta\",\"gamma\"]}"
+      }
+    },
+    {
+      "name": "plain-get-invalid",
+      "request": {
+        "method": "GET",
+        "path": "/list.html?data=%7B%22a%22%3A%22b%22%7D;",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "106",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"6a-Jl0gl4/novUNyJvzwx+v0sZX49k\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Invalid extraction rules\",\"message\":\"Failed to parse extraction rules. Check your JSON syntax.\"}"
+      }
+    },
+    {
+      "name": "plain-get-empty",
+      "request": {
+        "method": "GET",
+        "path": "/list.html?data=",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "148",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"94-18e32r4IkHEF1lhLbTGbQ9Tp10E\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Missing data parameter\",\"message\":\"Please provide extraction rules via ?data= parameter\",\"example\":\"?data={title:\\\"h1\\\",items:\\\".item\\\"}\"}"
+      }
+    },
+    {
+      "name": "plain-get-index",
+      "request": {
+        "method": "GET",
+        "path": "/?data=%7B%22title%22%3A%22h1%22%7D",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "30ba16feeba43aac",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"Index\"}"
+      }
+    },
+    {
+      "name": "list-write-add",
+      "request": {
+        "method": "POST",
+        "path": "/list.html?data=%7B%22title%22%3A%22h1%22%2C%22items%22%3A%5B%22ul.items%20li%22%2C%7B%22name%22%3A%22.name%22%2C%22done%22%3A%22input%40checked%22%7D%5D%7D",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyFile": "list-add.json"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "151",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "e79bc2724acf148b",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"List\",\"items\":[{\"name\":\"alpha\",\"done\":\"true\"},{\"name\":\"beta\",\"done\":\"false\"},{\"name\":\"gamma\",\"done\":\"true\"},{\"name\":\"delta\",\"done\":\"false\"}]}"
+      }
+    },
+    {
+      "name": "api-get-list-after",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/list.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "151",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "e79bc2724acf148b",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"List\",\"items\":[{\"name\":\"alpha\",\"done\":\"true\"},{\"name\":\"beta\",\"done\":\"false\"},{\"name\":\"gamma\",\"done\":\"true\"},{\"name\":\"delta\",\"done\":\"false\"}]}"
+      }
+    },
+    {
+      "name": "api-get-list-sidecar",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/list.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "151",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "e79bc2724acf148b",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"List\",\"items\":[{\"name\":\"alpha\",\"done\":\"true\"},{\"name\":\"beta\",\"done\":\"false\"},{\"name\":\"gamma\",\"done\":\"true\"},{\"name\":\"delta\",\"done\":\"false\"}]}"
+      }
+    },
+    {
+      "name": "list-after-write",
+      "request": {
+        "method": "GET",
+        "path": "/list.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "676",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"2a4-4GbW6PROlVbylI0YPdzHl51cWnM\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!doctype html>\n<html documentetag=\"e79bc2724acf148b\" lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>List</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"items\":[\"ul.items li\",{\"name\":\".name\",\"done\":\"input@checked\"}]}</script>\n  </head>\n  <body>\n    <h1>List</h1>\n    <ul class=\"items\">\n      <li><span class=\"name\">alpha</span><input type=\"checkbox\" checked=\"\"></li>\n      <li><span class=\"name\">beta</span><input type=\"checkbox\"></li>\n      <li><span class=\"name\">gamma</span><input type=\"checkbox\" checked=\"\"></li>\n    <li><span class=\"name\">delta</span><input type=\"checkbox\"></li></ul>\n  </body>\n</html>\n"
+      }
+    },
+    {
+      "name": "single-write",
+      "request": {
+        "method": "POST",
+        "path": "/_/api/single.html",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyFile": "single-change.json"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "57550979f1e7f194",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"Changed\",\"note\":\"Kept.\"}"
+      }
+    },
+    {
+      "name": "single-after-write",
+      "request": {
+        "method": "GET",
+        "path": "/_/api/single.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "57550979f1e7f194",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"Changed\",\"note\":\"Kept.\"}"
+      }
+    },
+    {
+      "name": "single-after-write-doc",
+      "request": {
+        "method": "GET",
+        "path": "/single.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "336",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"150-wwu+OBgUeuRzxDGpUVTythuT5+w\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!doctype html>\n<html documentetag=\"57550979f1e7f194\" lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Single</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"note\":\"p.note\"}</script>\n  </head>\n  <body>\n    <h1>Changed</h1>\n    <p class=\"note\">Kept.</p>\n  </body>\n</html>\n"
+      }
+    },
+    {
+      "name": "write-invalid-json",
+      "request": {
+        "method": "POST",
+        "path": "/_/api/single.html",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "77",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"4d-udV/inZmG0SlXEZyKOec/vQqABU\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Invalid JSON body\",\"message\":\"The request body is not valid JSON.\"}"
+      }
+    },
+    {
+      "name": "write-too-large",
+      "request": {
+        "method": "POST",
+        "path": "/list.html?data=%7B%22title%22%3A%22h1%22%2C%22items%22%3A%5B%22ul.items%20li%22%2C%7B%22name%22%3A%22.name%22%2C%22done%22%3A%22input%40checked%22%7D%5D%7D",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyOverLimit": true
+      },
+      "status": 413,
+      "headers": {
+        "content-length": "75",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"4b-K99rfloKU9L6Mjc1IJolPiC/lVQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"Payload Too Large\",\"message\":\"The JSON body is limited to 1 MB.\"}"
+      }
+    },
+    {
+      "name": "write-none",
+      "request": {
+        "method": "POST",
+        "path": "/_/api/none.html",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{}"
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "98",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"62-ma7CEyPQ1DpXNA5xlINZvT+ub8w\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"error\":\"No api rules tag\",\"message\":\"This page has no rules tag with data-rules-name~=\\\"api\\\".\"}"
+      }
+    },
+    {
+      "name": "write-cross-origin",
+      "request": {
+        "method": "POST",
+        "path": "/_/api/single.html",
+        "headers": {
+          "Content-Type": "application/json",
+          "Origin": "http://evil.example"
+        },
+        "body": "{}"
+      },
+      "status": 403,
+      "headers": {
+        "content-length": "66",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"42-PRZnoGODbU6vamWTU7neO1WPQnk\"",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Cross-origin requests are not allowed.\",\"msgType\":\"error\"}"
+      }
+    },
+    {
+      "name": "write-marked-404",
+      "request": {
+        "method": "POST",
+        "path": "/_/save/list.html?data=x",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "list-write-drop",
+      "request": {
+        "method": "POST",
+        "path": "/_/api/list.html",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyFile": "list-drop.json"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "57",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "a72f0cafe472123e",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"title\":\"List\",\"items\":[{\"name\":\"alpha\",\"done\":\"true\"}]}"
+      }
+    },
+    {
+      "name": "list-after-drop",
+      "request": {
+        "method": "GET",
+        "path": "/list.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "477",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1dd-3bdbB515VGhbQp/Yy+ZG83qLH20\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!doctype html>\n<html documentetag=\"a72f0cafe472123e\" lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>List</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"items\":[\"ul.items li\",{\"name\":\".name\",\"done\":\"input@checked\"}]}</script>\n  </head>\n  <body>\n    <h1>List</h1>\n    <ul class=\"items\">\n      <li><span class=\"name\">alpha</span><input type=\"checkbox\" checked=\"\"></li>\n      \n      \n    </ul>\n  </body>\n</html>\n"
+      }
+    },
+    {
+      "name": "data-loss-event",
+      "request": {
+        "method": "GET",
+        "path": "/_/data-loss",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/list.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "371",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"173-RUFIlw45k9AYfmFeIWQ+See0UKI\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"event\":{\"id\":\"00000000-0000-4000-8000-000000000015\",\"firstDetectedAt\":1793512800000,\"lastWriteAt\":1793512800000,\"lossSummary\":{\"provenance\":\"external\",\"destroyedAtoms\":2,\"removedItems\":2,\"modifiedAtoms\":0,\"paths\":[]},\"fieldCount\":1,\"preview\":[{\"key\":\"items\",\"now\":\"1 item\",\"yours\":\"3 items\"}],\"droppedAdditions\":0,\"restorable\":true,\"canRevert\":true,\"status\":\"pending\"}}"
+      }
+    },
+    {
+      "name": "close-list",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/list.html",
+          "Content-Type": "text/html"
+        },
+        "bodyFile": "list-home.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-6+I72P4M2XEKLdZTfjOE+QxQJ6M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"8dceaf1645a8c829\"}"
+      }
+    },
+    {
+      "name": "close-single",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/single.html",
+          "Content-Type": "text/html"
+        },
+        "bodyFile": "single-home.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-rKTyMRzdow4Klg7sAalwavNj88A\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"df0b8618560e5661\"}"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": ".hyperclay/api-v2/index.html.json",
+      "sha256": "0dc5942bda25b55ff5b0de0c5d12fa75e489f5699a5bf4829d2b3662ef17faf7"
+    },
+    {
+      "path": ".hyperclay/api-v2/list.html.json",
+      "sha256": "685ba1493149160d9a57cd11ead30fa7e65f7257901d66b6f1f06c070f087f38"
+    },
+    {
+      "path": ".hyperclay/api-v2/single.html.json",
+      "sha256": "af74e3127d3bbcf49dcc30b7ead7e0d9a0eea831d709a8f195442ad70649ee51"
+    },
+    {
+      "path": ".hyperclay/api-v2/stale.html.json",
+      "sha256": "7ca923503f1294ecbf70d6fe6f04258289b8c32818d8d072b5cc962108f00406"
+    },
+    {
+      "path": ".hyperclay/api-v2/sub/c.htmlclay.json",
+      "sha256": "da7c57241a92338a9182cc98369da91602bedff6ce452c19e598339b4f059d45"
+    },
+    {
+      "path": ".hyperclay/guard/list.json",
+      "sha256": "8a4528e62d24d62820da6d96ddef07e5be41607f74aff8275b00f95571915dbb"
+    },
+    {
+      "path": ".hyperclay/guard/list.recover.html",
+      "sha256": "e79bc2724acf148b8ac5f3fbc11058dbaa84c87d8810812b87bd9530cf260801"
+    },
+    {
+      "path": ".hyperclay/guard/single.json",
+      "sha256": "96bb4f7dbaa83e61c53e435c0285c724c7ac17e8718fb72f3020feefd0186d5f"
+    },
+    {
+      "path": ".hyperclay/versions/list/2026-11-01-01-00-00-000-0500-001.html",
+      "sha256": "e79bc2724acf148b8ac5f3fbc11058dbaa84c87d8810812b87bd9530cf260801"
+    },
+    {
+      "path": ".hyperclay/versions/list/2026-11-01-01-00-00-000-0500-002.html",
+      "sha256": "a72f0cafe472123e58eddcf5ff7f6dd89799d3c817732d2854eb4ff80c7f704d"
+    },
+    {
+      "path": ".hyperclay/versions/list/2026-11-01-01-00-00-000-0500-003.html",
+      "sha256": "8dceaf1645a8c8295b473115b921daf48f3e232290743441038322e3901e7584"
+    },
+    {
+      "path": ".hyperclay/versions/list/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "8dceaf1645a8c8295b473115b921daf48f3e232290743441038322e3901e7584"
+    },
+    {
+      "path": ".hyperclay/versions/single/2026-11-01-01-00-00-000-0500-001.html",
+      "sha256": "57550979f1e7f19473608ad1bafe9ddb4551356df022c8c553e920cdc40687b9"
+    },
+    {
+      "path": ".hyperclay/versions/single/2026-11-01-01-00-00-000-0500-002.html",
+      "sha256": "df0b8618560e5661e49b28e4eb54edf42537e073036b206d3b20d0d1960d7a73"
+    },
+    {
+      "path": ".hyperclay/versions/single/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "df0b8618560e5661e49b28e4eb54edf42537e073036b206d3b20d0d1960d7a73"
+    },
+    {
+      "path": "bad.html",
+      "sha256": "b1ea5f70e698fb39f33d29aa4d93ce3bd64217074baf05c433185e7016267ef9"
+    },
+    {
+      "path": "index.html",
+      "sha256": "30ba16feeba43aac7bc3cc25993cde7f1ffb153bda03334c2518df672f383868"
+    },
+    {
+      "path": "list.html",
+      "sha256": "8dceaf1645a8c8295b473115b921daf48f3e232290743441038322e3901e7584"
+    },
+    {
+      "path": "none.html",
+      "sha256": "81cd13d615ae4bc7085a57a8926e38c79c87147b521423f7dcc02304dd6fb06d"
+    },
+    {
+      "path": "notes.txt",
+      "sha256": "444e0fffbd825e9610ff5b199485707a0c895339ae80c15cc8a8aee41b106fda"
+    },
+    {
+      "path": "single.html",
+      "sha256": "df0b8618560e5661e49b28e4eb54edf42537e073036b206d3b20d0d1960d7a73"
+    },
+    {
+      "path": "stale.html",
+      "sha256": "e8e5136ddfd22240a6a990c07a19408d60cd68669beb804ca124ef3114aa2185"
+    },
+    {
+      "path": "sub/c.htmlclay",
+      "sha256": "41c9fd4a806248a80a1483898eef2a59775d90cb43c52021c7c129f18f0c87cb"
+    }
+  ],
+  "clock": 1793512800000,
+  "pages": []
+}

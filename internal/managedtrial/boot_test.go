@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -41,6 +42,15 @@ func TestRunServesEveryRootAndStopsOnStdinEOF(t *testing.T) {
 		t.Fatal(err)
 	}
 	secretWriter.Close()
+	// Run owns the descriptor it is given and closes it once the secret is read,
+	// so it gets its own copy. Handing it secretReader's would leave two files on
+	// one descriptor number, and the second close would land on whatever reused
+	// the number by then, such as Run's own listener.
+	controlFD, err := syscall.Dup(int(secretReader.Fd()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	secretReader.Close()
 
 	stdoutReader, stdoutWriter := io.Pipe()
 	stderr := &syncBuffer{}
@@ -53,7 +63,7 @@ func TestRunServesEveryRootAndStopsOnStdinEOF(t *testing.T) {
 		"--root", rootB,
 		"--port", "0",
 		"--local-source", source,
-		"--control-fd", strconv.Itoa(int(secretReader.Fd())),
+		"--control-fd", strconv.Itoa(controlFD),
 	}
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, args, stdinReader, stdoutWriter, stderr) }()

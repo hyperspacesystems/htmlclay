@@ -148,6 +148,7 @@ function request(port, testCase, headers, body) {
           ...(testCase.fromCase ? { fromCase: testCase.fromCase } : {}),
           ...(testCase.body !== undefined ? { body: testCase.body } : {}),
           ...(testCase.bodyFile ? { bodyFile: testCase.bodyFile } : {}),
+          ...(testCase.bodyOverLimit ? { bodyOverLimit: true } : {}),
         },
         status: res.statusCode,
         headers: normalizeHeaders(res.headers, port),
@@ -266,6 +267,9 @@ async function main() {
       let body
       if (testCase.bodyFile) body = fs.readFileSync(String(caseDir) + '/' + testCase.bodyFile)
       else if (testCase.body !== undefined) body = testCase.body
+      // bodyOverLimit builds a body one byte past Local's 1 MB JSON write limit,
+      // so a case can prove the refusal without checking in a megabyte.
+      else if (testCase.bodyOverLimit) body = '{"blob":"' + 'x'.repeat(1024 * 1024) + '"}'
       answers.push(await request(Number(port), { ...testCase, path }, headers, body))
     }
   } catch (error) {
