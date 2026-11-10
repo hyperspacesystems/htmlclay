@@ -51,9 +51,38 @@ func newServiceProxy(link *serviceLink, rootID string) *httputil.ReverseProxy {
 			}
 		},
 		FlushInterval: -1,
+		ModifyResponse: func(res *http.Response) error {
+			sent, _ := res.Request.Context().Value(sentCookiesKey{}).([]string)
+			dropRepeatedCookies(res.Header, sent)
+			return nil
+		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			writeServiceUnavailable(w, r, "service-unavailable")
 		},
+	}
+}
+
+// sentCookiesKey carries the Set-Cookie values Go's gate already put on the
+// public answer. Local's app sets the same session cookies on the forwarded
+// request, and a tab must receive each once, as Local sends it.
+type sentCookiesKey struct{}
+
+// dropRepeatedCookies removes from the service's answer every Set-Cookie value
+// the public answer already carries, keeping any other cookie the app sets.
+func dropRepeatedCookies(header http.Header, sent []string) {
+	values := header.Values("Set-Cookie")
+	if len(sent) == 0 || len(values) == 0 {
+		return
+	}
+	already := make(map[string]bool, len(sent))
+	for _, value := range sent {
+		already[value] = true
+	}
+	header.Del("Set-Cookie")
+	for _, value := range values {
+		if !already[value] {
+			header.Add("Set-Cookie", value)
+		}
 	}
 }
 
@@ -123,6 +152,8 @@ func (s *rootServer) forwardToService(w http.ResponseWriter, r *http.Request, na
 		writeServiceUnavailable(w, r, "service-unavailable")
 		return true
 	}
+	sent := append([]string(nil), w.Header().Values("Set-Cookie")...)
+	r = r.WithContext(context.WithValue(r.Context(), sentCookiesKey{}, sent))
 	s.serviceProxy.ServeHTTP(w, r)
 	return true
 }

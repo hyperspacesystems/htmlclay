@@ -353,6 +353,39 @@ func TestForwardDataAPIOnPageStore(t *testing.T) {
 	}
 }
 
+// TestForwardDoesNotRepeatSessionCookies proves a tab receives each session
+// cookie once when Local's app, answering a forwarded request, sets the same
+// cookies Go's gate already set, and still receives any other cookie the app
+// sets.
+func TestForwardDoesNotRepeatSessionCookies(t *testing.T) {
+	fake := newForwardService(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Set-Cookie", "isAdminOfCurrentResource=true; Path=/; SameSite=Lax")
+		w.Header().Add("Set-Cookie", "isLoggedIn=true; Path=/; SameSite=Lax")
+		w.Header().Add("Set-Cookie", "appOnly=1; Path=/")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{}`))
+	})
+	server, _, _, dir := forwardRoot(t, fake.peer())
+	consultWriteFile(t, dir, "page.html", []byte(forwardPage))
+
+	status, header, _ := forwardSend(t, server, http.MethodGet, "/_/api/page.html", nil, nil)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200", status)
+	}
+	if len(fake.requests()) != 1 {
+		t.Fatalf("the fake service saw %d requests, want 1", len(fake.requests()))
+	}
+	got := strings.Join(header.Values("Set-Cookie"), "\n")
+	want := strings.Join([]string{
+		"isAdminOfCurrentResource=true; Path=/; SameSite=Lax",
+		"isLoggedIn=true; Path=/; SameSite=Lax",
+		"appOnly=1; Path=/",
+	}, "\n")
+	if got != want {
+		t.Fatalf("Set-Cookie =\n%s\nwant\n%s", got, want)
+	}
+}
+
 // TestForwardDataAPIPlainPageStaysNative proves a document with no page store
 // keeps Go's own data API.
 func TestForwardDataAPIPlainPageStaysNative(t *testing.T) {
