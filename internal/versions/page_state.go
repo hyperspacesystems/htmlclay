@@ -9,11 +9,13 @@ import (
 	"io/fs"
 	"os"
 	"regexp"
+
+	"github.com/panphora/htmlclay/internal/pageadmission"
 )
 
 // PageStateName is the sidecar inside a document's history folder. It never
 // parses as a version entry, so List, Read and pruning never see it.
-const PageStateName = "page-state.json"
+const PageStateName = "blockeditor-state.json"
 
 // MaxPageStateTag bounds one stored page tag.
 const MaxPageStateTag = 32 << 20
@@ -180,8 +182,12 @@ func (s *Store) PageStateFor(key, absPath, fileHash string) (PageStateRecord, bo
 }
 
 // SettlePageState runs after the file write: it keeps only the record for the
-// bytes now on disk, and removes the sidecar when no record matches them.
-func (s *Store) SettlePageState(key, absPath, diskHash string) error {
+// bytes now on disk, and removes the sidecar when no record matches them. A
+// write with no recognized block editor article (no pageRev) keeps the sidecar,
+// as Hyperclay does, so a save of an unrelated or bare document cannot delete
+// the block editor's history.
+func (s *Store) SettlePageState(key, absPath string, written []byte) error {
+	diskHash := Hash(written)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -211,6 +217,9 @@ func (s *Store) SettlePageState(key, absPath, diskHash string) error {
 		match = current.Candidate
 	}
 	if match == nil {
+		if pageadmission.PageRev(string(written)) == "" {
+			return nil
+		}
 		if err := ref.root.Remove(PageStateName); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}

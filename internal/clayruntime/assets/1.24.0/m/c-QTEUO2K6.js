@@ -1,0 +1,1 @@
+var a=()=>/mac|iphone|ipad|ipod/i.test(navigator.userAgentData&&navigator.userAgentData.platform||navigator.platform||navigator.userAgent||""),r=()=>/Win/.test(navigator.userAgentData&&navigator.userAgentData.platform||navigator.platform||navigator.userAgent||""),e=()=>a()?"Show in Finder":r()?"Show in Explorer":"Show in folder",n=(t,o)=>a()?t:o;export{e as a,n as b};

@@ -12,9 +12,9 @@ import (
 	"testing"
 )
 
-// TestMetaGolden pins /_/meta and /_/page-state to Local's real answers: the
+// TestMetaGolden pins /_/meta and /_/blockeditor-state to Local's real answers: the
 // host's extension list, the document block for every failure and success the
-// recorder exercised, and the conditional page-state read.
+// recorder exercised, and the conditional blockeditor-state read.
 func TestMetaGolden(t *testing.T) {
 	localSource := os.Getenv("MANAGED_TRIAL_LOCAL_SOURCE")
 	if localSource == "" {
@@ -28,6 +28,7 @@ var ad1RecordedExtensions = map[string]bool{
 	"format":            true,
 	"scoped-stylesheet": true,
 	"presence":          true,
+	"sync-worker-data":  true,
 }
 
 // normalizeMetaAnswer applies AD1 to the recorded answer: remove from the

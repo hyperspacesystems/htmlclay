@@ -1,0 +1,211 @@
+/* Light 2: margin ink, a warm paper page set in Newsreader with deep green ink accents and a dark selection bar, from the Opus bake-off seat. */
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap");
+
+@import url("./content.css");
+
+:where(article[data-blockeditor], .blockeditor-shell) {
+  --chart-1: #2f5d50;
+  --chart-2: #18473b;
+  --chart-3: #57534c;
+  --chart-4: #23211e;
+  --chart-5: #8f8a81;
+  --chart-6: #2a2825;
+  --chart-text: #23211e;
+  --blockeditor-bg: #faf8f4;
+  --blockeditor-ink: #23211e;
+  --blockeditor-ink-strong: #23211e;
+  --blockeditor-ink-soft: #57534c;
+  --blockeditor-ink-faint: #8f8a81;
+  --blockeditor-rule: #e7e3db;
+  --blockeditor-accent: #2f5d50;
+  --blockeditor-link: #18473b;
+  --blockeditor-caret: #2f5d50;
+  --blockeditor-selection: #e3ddcd;
+
+  --blockeditor-font: "Newsreader", "Iowan Old Style", "Charter", Georgia, serif;
+  --blockeditor-font-display: "Newsreader", "Iowan Old Style", "Charter", Georgia, serif;
+  --blockeditor-font-heading: "Newsreader", "Iowan Old Style", "Charter", Georgia, serif;
+  --blockeditor-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --blockeditor-font-size: 18.5px;
+  --blockeditor-line-height: 1.68;
+  --blockeditor-measure: 39rem;
+  --blockeditor-pad-top: 118px;
+  --blockeditor-h1-size: 2.15em;
+  --blockeditor-h1-weight: 500;
+  --blockeditor-h1-tracking: -0.012em;
+  --blockeditor-h1-line: 1.15;
+  --blockeditor-h2-size: 1.12em;
+  --blockeditor-h2-weight: 600;
+  --blockeditor-h3-size: 1em;
+  --blockeditor-h3-weight: 600;
+  --blockeditor-block-gap: 0.85em;
+  --blockeditor-indent: 1.5em;
+
+  --blockeditor-marker: #8f8a81;
+  --blockeditor-check-size: 17px;
+  --blockeditor-check-radius: 4px;
+  --blockeditor-check-border: #8f8a81;
+  --blockeditor-check-fill: #2f5d50;
+  --blockeditor-check-ink: #f4f1ea;
+  --blockeditor-done-ink: #8f8a81;
+  --blockeditor-toggle-ink: #57534c;
+  --blockeditor-callout-bg: #f3f0e9;
+  --blockeditor-callout-line: #e7e3db;
+  --blockeditor-code-bg: #f1eee7;
+  --blockeditor-code-ink: #23211e;
+
+  --blockeditor-chrome-ink-rest: #6c6a67;
+  --blockeditor-chrome-ink-moved: #4e4c49;
+  --blockeditor-chrome-bg-rest: rgba(250, 248, 244, .88);
+  --blockeditor-chrome-bg-moved: rgba(250, 248, 244, .92);
+  --blockeditor-chrome-line-rest: #ebe7df;
+  --blockeditor-chrome-line-moved: #ddd8ce;
+  --blockeditor-chrome-shadow-rest: none;
+  --blockeditor-chrome-shadow-moved: none;
+  --blockeditor-chrome-radius: 7px;
+  --blockeditor-plus-size: 26px;
+  --blockeditor-fade: 400ms;
+
+  --blockeditor-pop-bg: #fdfcf9;
+  --blockeditor-pop-ink: #23211e;
+  --blockeditor-pop-muted: #8f8a81;
+  --blockeditor-pop-line: #e2ddd3;
+  --blockeditor-pop-shadow: 0 1px 2px rgba(40, 34, 24, .05), 0 8px 24px -8px rgba(40, 34, 24, .14);
+  --blockeditor-pop-hover: #f1eee7;
+  --blockeditor-pop-radius: 11px;
+  --blockeditor-bar-bg: #2a2825;
+  --blockeditor-bar-ink: #ece8e0;
+  --blockeditor-scrim: rgba(40, 34, 24, .10);
+
+  -webkit-font-smoothing: antialiased;
+}
+
+article[data-blockeditor] figure[data-type="chart"] { --chart-1: #2f5d50; --chart-2: #18473b; --chart-3: #57534c; --chart-4: #23211e; --chart-5: #8f8a81; --chart-6: #2a2825; --chart-text: #23211e; max-width: 100%; }
+article[data-blockeditor] figure[data-type="chart"] > svg { display: block; width: 100%; height: auto; color: var(--chart-text); font: 12px Newsreader, serif; }
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) h1 { margin: 0 0 .7em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) h2 { line-height: 1.3; margin: 1.9em 0 .45em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) h3 { line-height: 1.35; margin: 1.5em 0 .35em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > .blockeditor-li + .blockeditor-li { margin-top: .15em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > .blockeditor-li[data-kind="check"]::before { border-width: 1.5px; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > .blockeditor-li[data-checked="true"] {
+  text-decoration: line-through;
+  text-decoration-color: #8f8a81;
+  text-decoration-thickness: 1px;
+}
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) hr { border: 0; border-top: 1px solid #e7e3db; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) figcaption { color: #8f8a81; font-size: .85em; }
+
+.blockeditor-shell .blockeditor-dock {
+  gap: 2px;
+  padding: 4px;
+  border-radius: 9px;
+  font: 500 12.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+.blockeditor-shell .blockeditor-dock .blockeditor-tool {
+  height: 26px;
+  min-width: 26px;
+  padding: 0 6px;
+  gap: 4px;
+  border-radius: 6px;
+}
+.blockeditor-shell .blockeditor-dock .blockeditor-tool-sep { width: 1px; height: 14px; margin: 0 4px; }
+
+.blockeditor-shell .blockeditor-plus { border-radius: 7px; }
+
+.blockeditor-shell .blockeditor-bubble {
+  gap: 1px;
+  padding: 4px;
+  background: #2a2825;
+  color: #ece8e0;
+  border: 0;
+  border-radius: 9px;
+  box-shadow: 0 6px 18px -6px rgba(30, 26, 20, .35);
+  font: 500 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+.blockeditor-shell .blockeditor-bubble .blockeditor-tool {
+  height: 28px;
+  min-width: 28px;
+  padding: 0 7px;
+  border-radius: 6px;
+  color: #ece8e0;
+  background: transparent;
+}
+.blockeditor-shell .blockeditor-bubble .blockeditor-tool:hover { background: rgba(236, 232, 224, .14); }
+.blockeditor-shell .blockeditor-bubble .blockeditor-tool-sep { background: rgba(236, 232, 224, .20); height: 16px; margin: 0 4px; }
+
+.blockeditor-shell .blockeditor-menu {
+  width: 268px;
+  padding: 6px;
+  font: 14px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+.blockeditor-shell .blockeditor-menu-title {
+  padding: 7px 8px 9px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #e7e3db;
+  color: #8f8a81;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.blockeditor-shell .blockeditor-menu-item {
+  gap: 11px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 7px;
+}
+.blockeditor-shell .blockeditor-menu-icon {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #e7e3db;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: #57534c;
+  font: 600 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+.blockeditor-shell .blockeditor-menu-label { flex: 1; }
+.blockeditor-shell .blockeditor-menu-hint { color: #8f8a81; font: 11.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.blockeditor-shell .blockeditor-menu-item[aria-selected="true"] .blockeditor-menu-icon {
+  border-color: #e2ddd3;
+  background: #fdfcf9;
+  color: #23211e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blockeditor-shell { --blockeditor-fade: 0ms; }
+}
+
+@media (max-width: 560px) {
+  :where(article[data-blockeditor], .blockeditor-shell) {
+    --blockeditor-font-size: 17.5px;
+    --blockeditor-line-height: 1.62;
+    --blockeditor-pad-top: 76px;
+    --blockeditor-h1-size: 1.85em;
+  }
+  .blockeditor-shell .blockeditor-plus {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #faf8f4;
+  }
+  .blockeditor-shell .blockeditor-bubble {
+    height: 50px;
+    padding: 0 6px;
+    border-radius: 13px;
+    gap: 0;
+    justify-content: space-between;
+  }
+  .blockeditor-shell .blockeditor-bubble .blockeditor-tool { min-width: 38px; height: 38px; padding: 0 6px; }
+  .blockeditor-shell .blockeditor-bubble .blockeditor-tool-sep { display: none; }
+  .blockeditor-shell .blockeditor-menu {
+    width: auto;
+    padding: 6px 12px 22px;
+    border-radius: 16px 16px 0 0;
+    border-width: 1px 0 0;
+    font-size: 16px;
+  }
+  .blockeditor-shell .blockeditor-menu-title { padding: 6px 8px 12px; font-size: 14px; }
+  .blockeditor-shell .blockeditor-menu-item { height: 48px; padding: 0 10px; gap: 14px; border-radius: 10px; }
+  .blockeditor-shell .blockeditor-menu-icon { width: 30px; height: 30px; border-radius: 8px; }
+}

@@ -242,7 +242,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	mux.HandleFunc("POST /_/save/{token}", sameOrigin(s.handleSave))
 	mux.HandleFunc("POST /_/upload/{token}", sameOrigin(s.handleUpload))
 	mux.HandleFunc("GET /_/meta/{token}", s.handleMeta)
-	mux.HandleFunc("GET /_/page-state/{token}", s.handlePageState)
+	mux.HandleFunc("GET /_/blockeditor-state/{token}", s.handlePageState)
 	mux.HandleFunc("GET /_/data-loss/{token}", s.handleDataLossGet)
 	mux.HandleFunc("POST /_/data-loss/{token}", sameOrigin(s.handleDataLossResolve))
 	// Spec §5 names the tokenless address as the one place a client may learn what

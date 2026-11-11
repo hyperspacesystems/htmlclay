@@ -188,7 +188,7 @@ type admitArgs struct {
 }
 
 // admitHeaders are the request headers Local's lanes read, every one present.
-var admitHeaders = []string{"if-match", "page-conversion", "page-write", "page-format", "persistent"}
+var admitHeaders = []string{"if-match", "blockeditor-conversion", "blockeditor-write", "blockeditor-format", "persistent"}
 
 // admit asks the service to prepare one write: Local's normalization, stale
 // rebase, room admission and any artifacts. A proceed answer must carry the
@@ -554,7 +554,7 @@ type refusalError struct{ refusal *serviceRefusal }
 func (e *refusalError) Error() string { return "refused: " + e.refusal.Code }
 
 // lowerHeaders are the request headers Local's save lanes read.
-var lowerHeaders = []string{"If-Match", "Page-Conversion", "Page-Write", "Page-Format"}
+var lowerHeaders = []string{"If-Match", "Blockeditor-Conversion", "Blockeditor-Write", "Blockeditor-Format"}
 
 // laneHeaders is the subset of a request's headers admit carries, by
 // lower-case name, present ones only.

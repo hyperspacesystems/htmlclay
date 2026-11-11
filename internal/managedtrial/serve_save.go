@@ -261,11 +261,11 @@ func (s *rootServer) serveSave(w http.ResponseWriter, r *http.Request) error {
 	if result.Outcome == "refused" {
 		// AD2: Local rebases this save onto the stored page; the trial refuses
 		// it before anything is written, and says which refusal it is.
-		if result.Reason == "stale-page-lineage" {
+		if result.Reason == "stale-blockeditor-lineage" {
 			return saveAnswer(w, r, http.StatusConflict, orderedObject{
 				{Key: "msg", Value: "This page has newer edits on this computer. Reload it, then save again."},
 				{Key: "msgType", Value: "error"},
-				{Key: "code", Value: "stale-page-lineage"},
+				{Key: "code", Value: "stale-blockeditor-lineage"},
 			})
 		}
 		return saveAnswer(w, r, http.StatusConflict, orderedObject{

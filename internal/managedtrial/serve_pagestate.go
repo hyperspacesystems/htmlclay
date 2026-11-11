@@ -12,7 +12,7 @@ import (
 	"github.com/panphora/htmlclay/internal/specwire"
 )
 
-// servePageState is Local's GET /_/page-state: the merge state stored for the
+// servePageState is Local's GET /_/blockeditor-state: the merge state stored for the
 // exact document bytes a client accepted, conditional on the same stamp
 // /_/meta answered.
 func (s *rootServer) servePageState(w http.ResponseWriter, r *http.Request) error {
@@ -39,7 +39,7 @@ func (s *rootServer) servePageState(w http.ResponseWriter, r *http.Request) erro
 	href := documentURLHeader(r)
 	ifMatch := r.Header.Get("If-Match")
 	if href == "" {
-		return refuse(http.StatusNotFound, "no-page-state", "")
+		return refuse(http.StatusNotFound, "no-blockeditor-state", "")
 	}
 	if strings.TrimSpace(ifMatch) == "" {
 		return refuse(http.StatusPreconditionRequired, "precondition-required", "")
@@ -47,7 +47,7 @@ func (s *rootServer) servePageState(w http.ResponseWriter, r *http.Request) erro
 	name := resolveResourceFromHref(href)
 	filePath, err := resolveWriteTarget(s.registry, name)
 	if err != nil {
-		return refuse(http.StatusNotFound, "no-page-state", "")
+		return refuse(http.StatusNotFound, "no-blockeditor-state", "")
 	}
 
 	// Read, compare and select under the file's own lock, the one a save takes,
@@ -58,11 +58,11 @@ func (s *rootServer) servePageState(w http.ResponseWriter, r *http.Request) erro
 
 	info, err := os.Stat(filePath)
 	if err != nil || !info.Mode().IsRegular() {
-		return refuse(http.StatusNotFound, "no-page-state", "")
+		return refuse(http.StatusNotFound, "no-blockeditor-state", "")
 	}
 	raw, err := os.ReadFile(filePath)
 	if err != nil {
-		return refuse(http.StatusNotFound, "no-page-state", "")
+		return refuse(http.StatusNotFound, "no-blockeditor-state", "")
 	}
 	logical, err := logicalBytes(s.baseDir, name, raw)
 	if err != nil {
@@ -79,7 +79,7 @@ func (s *rootServer) servePageState(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 	if record == nil {
-		return refuse(http.StatusNotFound, "no-page-state", etag)
+		return refuse(http.StatusNotFound, "no-blockeditor-state", etag)
 	}
 	w.Header().Set("ETag", etag)
 	sum := sha256.Sum256([]byte(record.Tag))

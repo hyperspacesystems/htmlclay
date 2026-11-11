@@ -10,9 +10,9 @@ import (
 
 // The restore's stamp, ported from ClayJS's src/server/rooms/page-rebase.js:
 // stampPageRev puts a stored page record's revision onto a version's bytes, so a
-// restored version of a page-merge document is a page an open tab can merge onto
+// restored version of a blockeditor-merge document is a page an open tab can merge onto
 // the page it holds, and declares the floor the restore writes at. The article it
-// stamps is the one non-inert article[data-page] storage_pagesplit.go already
+// stamps is the one non-inert article[data-blockeditor] storage_pagesplit.go already
 // locates, with the same template/noscript rule page-rebase.js filters by.
 func stampPageRev(source, rev string, floor int) (string, bool) {
 	if rev == "" {

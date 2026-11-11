@@ -143,9 +143,9 @@
     "headers": {}
   },
   {
-    "name": "page-state-dir",
+    "name": "blockeditor-state-dir",
     "method": "GET",
-    "path": "/.hyperclay/page-state/",
+    "path": "/.hyperclay/blockeditor-state/",
     "headers": {}
   },
   {

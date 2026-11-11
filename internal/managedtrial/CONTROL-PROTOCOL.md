@@ -31,7 +31,7 @@ served root in the managed trial.
   "expected": { "type": "checksum", "value": "…" },
   "bytes": { "encoding": "utf8", "data": "<!doctype html>…" },
   "edit": false, "safety": false, "modifiedAt": 1762000000000,
-  "pageRecord": { "v": 1, "rev": "…", "tag": "…" },
+  "blockeditorRecord": { "v": 1, "rev": "…", "tag": "…" },
   "saveId": "…", "userDriven": true,
   "opHandle": "…", "headers": { "if-match": "…" }, "origin": "…",
   "captureId": "…" }
@@ -39,7 +39,7 @@ served root in the managed trial.
 
 `kind` is one of G6's `KINDS`: `browser-save`, `data-api`, `restore`,
 `guard-restore`, `sync-download`, `external-rebase`, `create`. `bytes`,
-`expected`, `pageRecord`, `modifiedAt`, `saveId`, `userDriven`, `edit` and
+`expected`, `blockeditorRecord`, `modifiedAt`, `saveId`, `userDriven`, `edit` and
 `safety` are optional, and `userDriven` is a tri-state: absent means the save
 names no provenance (Local's `ui-unknown`).
 
@@ -176,8 +176,8 @@ every control write.
 `sync-move`, `sync-trash`) or one of the two workspace kinds: `folder`, whose
 steps carry only `to` and each make one new directory (never its parents), and
 `empty-trash`, which takes no steps and removes everything inside the root's
-`.trash/`. A step may carry `"pageState": "move"` (kinds `move`, `sync-move`) or
-`"pageState": "drop"` (kinds `trash`, `sync-trash`): after the moves, every
+`.trash/`. A step may carry `"blockeditorState": "move"` (kinds `move`, `sync-move`) or
+`"blockeditorState": "drop"` (kinds `trash`, `sync-trash`): after the moves, every
 completed step's page state is moved or dropped (the folder form for a
 directory) inside the same exclusive section, as Local's workspace command does
 after a completed step. A restructure holds the process-wide structure gate, so
@@ -188,7 +188,7 @@ resolves both names of every step and answers Local's `StructureResult`:
 { "outcome": "committed" | "partial" | "failed" | "refused",
   "completed": 1, "reason": null | "ENOENT" | "…",
   "refusal": { "status": 409, "code": "…", "body": {…}, "headers": {…} } | null,
-  "pageState": null | "ENOENT" | "…",
+  "blockeditorState": null | "ENOENT" | "…",
   "opId": "…", "cursor": "<epoch>:<seq>" }
 ```
 
@@ -207,7 +207,7 @@ releases; a service `refuse` is answered as `outcome: "refused"` with its
 `reason` and its `refusal` as it was decided, and nothing moves; a service
 that cannot be reached is the host's own
 `refusal` `{status: 503, code: "service-unavailable"}`. After the moves, and
-before the page-state work, `/v1/structure/settle` carries `holdId`,
+before the blockeditor-state work, `/v1/structure/settle` carries `holdId`,
 `completed` (the steps that finished), `copiedSteps` (the indices of the
 steps that copied rather than renamed, and every completed step of a
 `duplicate`) and `outcome`, so the service moves the completed steps' rooms
@@ -216,23 +216,23 @@ as it happened and retries `abort settle-failed`. The two workspace kinds,
 `folder` and `empty-trash`, are not composed in the service's v1 protocol and
 are not consulted.
 
-## `POST /v1/page-state`
+## `POST /v1/blockeditor-state`
 
 ```json
 { "opId": "…", "root": "root-0", "op": "write",
   "name": "a.html", "to": "b.html", "record": { "v": 1, "rev": "…", "tag": "…" } }
 ```
 
-`op` is one of Local's host `pageState` operations, run over G4b's store:
+`op` is one of Local's host `blockeditorState` operations, run over G4b's store:
 
 - `write` takes `record` and writes the document's sidecar;
 - `move` takes `to` and carries the sidecar to the new name;
-- `moveDir` takes `to` and carries a folder's whole page-state mirror;
+- `moveDir` takes `to` and carries a folder's whole blockeditor-state mirror;
 - `drop` removes the sidecar;
 - `dropDir` removes a folder's mirror.
 
 Each returns nothing in Local, so the answer body is `null` with status `200`.
-Any other `op` is `400` with `Unknown page-state operation: <op>`. A `write`
+Any other `op` is `400` with `Unknown blockeditor-state operation: <op>`. A `write`
 holds the document's lock; `move`, `moveDir`, `drop` and `dropDir` hold the
 structure gate.
 
@@ -279,7 +279,7 @@ not yet renamed into place. After `exists`, `checksum` and `bytes` it carries
 `fileSha256`, `identity` (`dev`, `ino`, `mtimeNs` as decimal strings, `size` as a
 number: Node's bigint `stat`, volume serial and file index on Windows), and, for a
 page document whose bytes are UTF-8, `logical` (the document with its merge state
-put back) and `sidecar` (the stored page-state record as the sidecar holds it
+put back) and `sidecar` (the stored blockeditor-state record as the sidecar holds it
 (`v`, `rev`, `tag`, `generation`, `prev`), or null); each is null when it does not
 apply.
 
@@ -295,7 +295,7 @@ apply.
 ```
 
 Under the document's lock, if the file still holds the bytes `checksum` names, Go
-fsyncs the file, its page-state sidecar and their directories; the JS service
+fsyncs the file, its blockeditor-state sidecar and their directories; the JS service
 uses it to prove a checkpoint durable after an `indeterminate` write. `changed`
 answers when the file holds other bytes or is not there, and changes nothing.
 
@@ -313,7 +313,7 @@ answers when the file holds other bytes or is not there, and changes nothing.
 lowercase hex (400 otherwise) and new to this process: a reused one is refused
 `409 {"error":"op-reused"}` while its outcome is kept. With none, Go makes one.
 Outcomes are kept for this process only: the last 10,000, or 10 minutes,
-whichever is smaller. Commits and restructures and page-state operations are all
+whichever is smaller. Commits and restructures and blockeditor-state operations are all
 recorded; an operation that failed is recorded as `refused`.
 
 A finished commit's record also carries `answer`: the exact reply `/v1/commit`
@@ -472,7 +472,7 @@ The other write lanes consult the service the same way:
   `create` and sender `server-save`; a failed settle answers `indeterminate`.
 
 The watcher's observations reach the service as `/v1/observe`: after its guard
-pass, for every page-document `add`, `change` and `unlink` the watcher reports,
+pass, for every blockeditor-document `add`, `change` and `unlink` the watcher reports,
 Go takes the document's lock, reads the `/v1/read` snapshot and sends `observe`
 with that `current` and the event. Every reported event is sent, the ones its
 own writes cause included: the service judges its own confirmed writes `none`

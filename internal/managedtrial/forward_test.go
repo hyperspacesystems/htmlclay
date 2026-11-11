@@ -22,7 +22,7 @@ const forwardPage = `<!doctype html>
   <head>
     <meta charset="utf-8">
     <title>Live</title>
-    <script merge="page" clay="live"></script>
+    <script merge="blockeditor" clay="live"></script>
   </head>
   <body>
     <h1>Live</h1>

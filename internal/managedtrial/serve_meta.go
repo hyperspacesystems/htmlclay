@@ -27,14 +27,14 @@ const (
 // written out rather than computed so later steps implement what is announced
 // here, and the golden test pins the result.
 var trialMetaExtensions = []string{
+	"blockeditor",
+	"blockeditor-awareness-v1",
+	"blockeditor-format-v1",
+	"blockeditor-recovery-v1",
 	"conditional",
 	"data-guard-v1",
 	"data-read",
 	"data-write",
-	"page",
-	"page-awareness-v1",
-	"page-format-v1",
-	"page-recovery-v1",
 	"people",
 	"receipts",
 	"record-awareness-v1",
@@ -50,6 +50,10 @@ var trialMetaExtensions = []string{
 // the service answers the rooms, the live streams and presence, and normalizes
 // every page document save.
 var managedMetaExtensions = []string{
+	"blockeditor",
+	"blockeditor-awareness-v1",
+	"blockeditor-format-v1",
+	"blockeditor-recovery-v1",
 	"conditional",
 	"data-guard-v1",
 	"data-read",
@@ -57,10 +61,6 @@ var managedMetaExtensions = []string{
 	"format",
 	"live-data",
 	"live-provenance",
-	"page",
-	"page-awareness-v1",
-	"page-format-v1",
-	"page-recovery-v1",
 	"people",
 	"presence",
 	"receipts",
@@ -165,7 +165,7 @@ func normalizeURLPath(value string) string {
 }
 
 // resolveWriteTarget is Local's name check plus canonical write resolution. A
-// name that is not a page file is refused, so /_/meta, /_/page-state and
+// name that is not a page file is refused, so /_/meta, /_/blockeditor-state and
 // /_/save answer for pages only, with the one message Local gives them.
 func resolveWriteTarget(registry *consentRegistry, name string) (string, error) {
 	if !documentTargetPattern.MatchString(name) {
@@ -243,7 +243,7 @@ func (s *rootServer) metaDocument(href string) *orderedObject {
 			{Key: "access", Value: uploadAccess},
 		}},
 		{Key: "etag", Value: specwire.Etag(logical)},
-		{Key: "pageState", Value: orderedObject{{Key: "href", Value: "/_/page-state"}}},
+		{Key: "blockeditorState", Value: orderedObject{{Key: "href", Value: "/_/blockeditor-state"}}},
 	}
 	if pageExtension.MatchString(name) {
 		document = append(document, kv{Key: "dataGuard", Value: orderedObject{{Key: "href", Value: "/_/data-loss"}}})

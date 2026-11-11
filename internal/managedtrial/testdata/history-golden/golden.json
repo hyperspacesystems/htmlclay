@@ -553,12 +553,12 @@
       "headers": {
         "content-length": "61",
         "content-type": "application/json; charset=utf-8",
-        "etag": "W/\"3d-EhrpNxQX6Haz9hKDegvd/QQ7siA\"",
+        "etag": "W/\"3d-Y5pM8cxgpkKCkDjqcZN30DhGwmI\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"4fcb5d1bc2691d2e\"}"
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"cecc74a574274486\"}"
       }
     },
     {
@@ -576,12 +576,12 @@
       "headers": {
         "content-length": "61",
         "content-type": "application/json; charset=utf-8",
-        "etag": "W/\"3d-c32LLTSPPSW1kzXYfuxaKULsZwM\"",
+        "etag": "W/\"3d-6NewA3xcaUUz8N1mVP7c+ymhKQo\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"c839ba08677e5da0\"}"
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"f0fef37e8b584e5d\"}"
       }
     },
     {
@@ -596,12 +596,12 @@
         "cache-control": "no-store",
         "content-length": "244",
         "content-type": "application/json; charset=utf-8",
-        "etag": "W/\"f4-Eu7eeyCb1EcjcCNOYKcaw7ggUPM\"",
+        "etag": "W/\"f4-/8vBoXb1beio7q3attnn3OU85A8\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "{\"ok\":true,\"name\":\"paged.html\",\"versions\":[{\"name\":\"2026-11-01-01-00-00-000-0500-001.html\",\"time\":\"2026-11-01T06:00:00.000Z\",\"seq\":1,\"size\":265},{\"name\":\"2026-11-01-01-00-00-000-0500.html\",\"time\":\"2026-11-01T06:00:00.000Z\",\"seq\":0,\"size\":259}]}"
+        "text": "{\"ok\":true,\"name\":\"paged.html\",\"versions\":[{\"name\":\"2026-11-01-01-00-00-000-0500-001.html\",\"time\":\"2026-11-01T06:00:00.000Z\",\"seq\":1,\"size\":279},{\"name\":\"2026-11-01-01-00-00-000-0500.html\",\"time\":\"2026-11-01T06:00:00.000Z\",\"seq\":0,\"size\":273}]}"
       }
     },
     {
@@ -637,15 +637,15 @@
       },
       "status": 200,
       "headers": {
-        "content-length": "547",
+        "content-length": "568",
         "content-type": "text/html; charset=utf-8",
-        "etag": "W/\"223-ICm1a9CiO0fgoqEnc5GmWyLmqJA\"",
+        "etag": "W/\"238-XBwELd1p0BBucaAPnoWRSRy1AOg\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "vary": "Clay-Source",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "<!doctype html>\n<html documentetag=\"7c10a46d502b0248\" lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Paged</title>\n</head>\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"><h1 data-id=\"title\">Paged</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n"
+        "text": "<!doctype html>\n<html documentetag=\"dea0ad96df786873\" lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Paged</title>\n</head>\n<body>\n<script type=\"application/json\" merge=\"blockeditor\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"><h1 data-id=\"title\">Paged</h1>\n<p data-id=\"p1\">Body</p></article>\n</body>\n</html>\n"
       }
     },
     {
@@ -701,15 +701,15 @@
       },
       "status": 200,
       "headers": {
-        "content-length": "217",
+        "content-length": "224",
         "content-type": "text/html; charset=utf-8",
-        "etag": "W/\"d9-6S5QGFKWKUtDqxy08Ti5gbKL+d4\"",
+        "etag": "W/\"e0-9Y178n4yag9LjBZJ+NB6wGVCsP4\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "vary": "Clay-Source",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "<!doctype html>\n<html documentetag=\"b035ae884fb5c861\" lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Floored</title>\n<meta name=\"clay-page-format\" content=\"2\"></head>\n<body>\n<h1>Before the floor</h1>\n</body>\n</html>\n"
+        "text": "<!doctype html>\n<html documentetag=\"f29da29e7c4b12ab\" lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Floored</title>\n<meta name=\"clay-blockeditor-format\" content=\"2\"></head>\n<body>\n<h1>Before the floor</h1>\n</body>\n</html>\n"
       }
     }
   ],
@@ -717,6 +717,10 @@
     {
       "path": ".hyperclay/api-v2/notes.html.json",
       "sha256": "c12eccdd76ca6f437223b9efaf70bb71ae80de4edbc099f77f532707d0fe8cb7"
+    },
+    {
+      "path": ".hyperclay/blockeditor-state/paged.html.json",
+      "sha256": "4155d844cb94007193d0218ff162910a590325bb4cdecdd090d156461252afa9"
     },
     {
       "path": ".hyperclay/guard/notes.json",
@@ -731,16 +735,12 @@
       "sha256": "ca3ad0eabff6d10860221ba714bac5966ebcfbe7f7904553c8d89dc9ec7feb23"
     },
     {
-      "path": ".hyperclay/page-state/paged.html.json",
-      "sha256": "76473e9d844d128fc23b6dd77875e33456c13799d813501d826301b5f32a9974"
-    },
-    {
       "path": ".hyperclay/versions/floored/2026-11-01-01-00-00-000-0500-001.html",
-      "sha256": "d76cd59ef3a590e1ddb3fa382ac8bbd2faffffe997cdfddf692d8bee9a51b794"
+      "sha256": "bf141904ce9447bb92fd448b3c116931b27103859c6fc04af21375ae37797ad0"
     },
     {
       "path": ".hyperclay/versions/floored/2026-11-01-01-00-00-000-0500-002.html",
-      "sha256": "b035ae884fb5c861e1c99e5f662c853c1e4ab1e1e8b2debd34fa449ed5c13b27"
+      "sha256": "f29da29e7c4b12ab21c0891c564fb69d5251b550719b3d7ee23c43f3d6bfdb4a"
     },
     {
       "path": ".hyperclay/versions/floored/2026-11-01-01-00-00-000-0500.html",
@@ -788,23 +788,23 @@
     },
     {
       "path": ".hyperclay/versions/paged/2026-11-01-01-00-00-000-0500-001.html",
-      "sha256": "0fff8855cb32ae2437a3414488e584cb4fd9345fd52e2c6c483176be6b1eeff8"
+      "sha256": "31fd8ae2d499becfec1ae9d732fcc8b4a786bee855a61eb00855c4faa7b417cb"
     },
     {
       "path": ".hyperclay/versions/paged/2026-11-01-01-00-00-000-0500-002.html",
-      "sha256": "c839ba08677e5da0de651595f92141bd1f3d1222f777f37d903a4a3f3acc73d8"
+      "sha256": "f0fef37e8b584e5d24d7b88264c9720a10ff35823c20f18643a152c225ff54a3"
     },
     {
       "path": ".hyperclay/versions/paged/2026-11-01-01-00-00-000-0500-003.html",
-      "sha256": "b2e3361fa7620512a36dad002615708447f0b817f31944e21e6d3a085c595880"
+      "sha256": "dbc3360c1fd6c8e524bfd8b4c9241a23b736f07b193f4ae0692d751b17df87fc"
     },
     {
       "path": ".hyperclay/versions/paged/2026-11-01-01-00-00-000-0500.html",
-      "sha256": "57133ba6118500f41d1ed750dfb366ca7587171562fbcc9c5dd11d7e14b860ff"
+      "sha256": "fd923c7fe174271e99d51f117480563d08130abb6af0afa9be7ef6dc3ecd2e41"
     },
     {
       "path": "floored.html",
-      "sha256": "b035ae884fb5c861e1c99e5f662c853c1e4ab1e1e8b2debd34fa449ed5c13b27"
+      "sha256": "f29da29e7c4b12ab21c0891c564fb69d5251b550719b3d7ee23c43f3d6bfdb4a"
     },
     {
       "path": "notes.html",
@@ -812,7 +812,7 @@
     },
     {
       "path": "paged.html",
-      "sha256": "b2e3361fa7620512a36dad002615708447f0b817f31944e21e6d3a085c595880"
+      "sha256": "dbc3360c1fd6c8e524bfd8b4c9241a23b736f07b193f4ae0692d751b17df87fc"
     },
     {
       "path": "plain.html",

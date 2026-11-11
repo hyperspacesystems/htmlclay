@@ -6,10 +6,10 @@
 // and records, per scenario, the results, the hook calls and the exact file
 // tree.
 //
-//   node gen.cjs <hyperclay-local checkout> <out.json>
+//   TZ=America/New_York node gen.cjs <hyperclay-local checkout> <out.json>
 //
 // The clock is frozen (version names carry the time) and crypto.randomBytes is
-// made deterministic (page-state generations and backup temp names), so the
+// made deterministic (blockeditor-state generations and backup temp names), so the
 // answer is reproducible byte for byte.
 
 const fs = require('fs')
@@ -21,6 +21,10 @@ const checkout = process.argv[2]
 const outPath = process.argv[3]
 if (!checkout || !outPath) {
   process.stderr.write('usage: node gen.cjs <hyperclay-local checkout> <out.json>\n')
+  process.exit(1)
+}
+if (process.env.TZ !== 'America/New_York') {
+  process.stderr.write('run with TZ=America/New_York (commit_golden_test.go runs in that zone)\n')
   process.exit(1)
 }
 
@@ -145,9 +149,9 @@ const boundaryOnlyAuthority = {
   recoverUnsavedEdits: async () => {},
   confirmKnownWrite: async () => {}
 }
-const YJS_TAG = "<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
+const YJS_TAG = "<script type=\"application/json\" merge=\"blockeditor\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>"
 const PAGE_REV = '093360993130d818'
-const ARTICLE = '<article class="page" clay="freeze" data-page="1" data-rev="' + PAGE_REV + '"><h1 data-id="title">Title</h1>\n<p data-id="p1">Body</p></article>'
+const ARTICLE = '<article class="blockeditor" clay="freeze" data-blockeditor="1" data-rev="' + PAGE_REV + '"><h1 data-id="title">Title</h1>\n<p data-id="p1">Body</p></article>'
 
 const page = (lines) => ['<!doctype html>', '<html lang="en">', '<head>', '<meta charset="utf-8">', '<title>Doc</title>', '</head>', '<body>', ...lines, '</body>', '</html>', ''].join('\n')
 
@@ -193,14 +197,14 @@ const scenarios = [
     ]
   },
   {
-    name: 'page-inline-tag',
+    name: 'blockeditor-inline-tag',
     seed: [['p.html', PAGE_UNTAGGED]],
     requests: [
       { kind: 'browser-save', name: 'p.html', text: PAGE_TAGGED, userDriven: true, dataLossPrev: null }
     ]
   },
   {
-    name: 'page-state-restored',
+    name: 'blockeditor-state-restored',
     seed: [['p.html', PAGE_UNTAGGED]],
     requests: [
       { kind: 'browser-save', name: 'p.html', text: PAGE_TAGGED, userDriven: true },
@@ -258,7 +262,7 @@ const scenarios = [
         kind: 'sync-download',
         name: 'r.html',
         text: PAGE_UNTAGGED,
-        pageRecord: { v: 1, rev: PAGE_REV, tag: YJS_TAG }
+        blockeditorRecord: { v: 1, rev: PAGE_REV, tag: YJS_TAG }
       }
     ]
   },
@@ -379,7 +383,7 @@ async function runScenario(scenario) {
 
   for (const [rel, content] of scenario.seed) writeFile(root, rel, content)
   if (scenario.storedRecord) {
-    writeFile(root, '.hyperclay/page-state/' + 'stale.html' + '.json', JSON.stringify(scenario.storedRecord))
+    writeFile(root, '.hyperclay/blockeditor-state/' + 'stale.html' + '.json', JSON.stringify(scenario.storedRecord))
   }
   if (scenario.versionAtRevA) {
     writeFile(root, '.hyperclay/versions/stale/2026-09-01-00-00-00-000+0000.html', scenario.versionAtRevA)
@@ -433,7 +437,7 @@ async function runScenario(scenario) {
     if (request.safety !== undefined) payload.safety = request.safety
     if (request.expected !== undefined) payload.expected = request.expected
     if (request.modifiedAt !== undefined) payload.modifiedAt = request.modifiedAt
-    if (request.pageRecord !== undefined) payload.pageRecord = request.pageRecord
+    if (request.blockeditorRecord !== undefined) payload.blockeditorRecord = request.blockeditorRecord
     const result = payload.kind === 'external-rebase'
       ? await withDocumentWrite(
         async () => ({ canonicalPath: payload.filePath }),
@@ -466,7 +470,7 @@ async function runScenario(scenario) {
       }
       if (request.expected !== undefined) out.expected = request.expected
       if (request.modifiedAt !== undefined) out.modifiedAt = request.modifiedAt
-      if (request.pageRecord !== undefined) out.pageRecord = request.pageRecord
+      if (request.blockeditorRecord !== undefined) out.blockeditorRecord = request.blockeditorRecord
       if (request.edit !== undefined) out.edit = request.edit
       if (request.safety !== undefined) out.safety = request.safety
       if (request.structure !== undefined) out.structure = request.structure

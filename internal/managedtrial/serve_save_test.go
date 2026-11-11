@@ -43,14 +43,14 @@ func TestSaveGolden(t *testing.T) {
 // The page fixtures are the commit golden's, so the sidecar and the inline tag
 // are the same bytes Local's own scenarios use.
 const (
-	saveGoldenYJSTag  = `<script type="application/json" merge="page" clay="live">{"v":1,"g":0,"y":{"seed":"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA="}}</script>`
+	saveGoldenYJSTag  = `<script type="application/json" merge="blockeditor" clay="live">{"v":1,"g":0,"y":{"seed":"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA="}}</script>`
 	saveGoldenPageRev = "093360993130d818"
 )
 
-// saveGoldenArticle is the page every AD2 fixture is built from: a page-tagged
+// saveGoldenArticle is the page every AD2 fixture is built from: a blockeditor-tagged
 // article whose revision is the one the save carries.
 func saveGoldenArticle(rev string) string {
-	return `<article class="page" clay="freeze" data-page="1" data-rev="` + rev + `"><h1 data-id="title">Title</h1>
+	return `<article class="blockeditor" clay="freeze" data-blockeditor="1" data-rev="` + rev + `"><h1 data-id="title">Title</h1>
 <p data-id="p1">Body</p></article>`
 }
 
@@ -85,7 +85,7 @@ func TestSaveAD2StaleLineage(t *testing.T) {
 	}
 	stale := saveGoldenPage("bbbbbbbbbbbbbbbb")
 	writeCommitFile(t, root, "stale.html", []byte(stale))
-	writeCommitFile(t, root, filepath.Join(".hyperclay", "page-state", "stale.html.json"),
+	writeCommitFile(t, root, filepath.Join(".hyperclay", "blockeditor-state", "stale.html.json"),
 		[]byte(fmt.Sprintf(`{"v":1,"rev":"bbbbbbbbbbbbbbbb","tag":%s}`, mustJSON(saveGoldenYJSTag))))
 	writeCommitFile(t, root, filepath.Join(".hyperclay", "versions", "stale", "2026-09-01-00-00-00-000+0000.html"),
 		[]byte(saveGoldenPage("aaaaaaaaaaaaaaaa")))
@@ -123,7 +123,7 @@ func TestSaveAD2StaleLineage(t *testing.T) {
 	}{
 		Msg:     "This page has newer edits on this computer. Reload it, then save again.",
 		MsgType: "error",
-		Code:    "stale-page-lineage",
+		Code:    "stale-blockeditor-lineage",
 	}
 	if decoded != want {
 		t.Errorf("answer = %+v, want %+v", decoded, want)

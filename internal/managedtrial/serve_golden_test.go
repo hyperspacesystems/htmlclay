@@ -68,7 +68,7 @@ type serveGolden struct {
 	Cases []serveAnswer    `json:"cases"`
 	Files []serveFileEntry `json:"files"`
 	// Clock and Pages are recorded for a case directory that pins them: a write
-	// names versions after the instant it happened, and a page-state generation
+	// names versions after the instant it happened, and a blockeditor-state generation
 	// is random bytes, so both are replayed for the tree to match.
 	Clock int64    `json:"clock"`
 	Pages []string `json:"pages"`
@@ -156,7 +156,7 @@ func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options golde
 			versionClock = previousClock
 			pageStateNewGeneration = previousGeneration
 			if clock.exhausted {
-				t.Error("the host asked for more page-state generations than Local did")
+				t.Error("the host asked for more blockeditor-state generations than Local did")
 			}
 		})
 	}

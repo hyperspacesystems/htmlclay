@@ -35,7 +35,7 @@
           "bytes": 1,
           "type": "text/javascript; charset=utf-8"
         },
-        "src/page/themes/light-1.css": {
+        "src/blockeditor/themes/light-1.css": {
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "bytes": 1,
           "type": "text/css; charset=utf-8"
@@ -88,7 +88,7 @@
           "bytes": 1,
           "type": "text/javascript; charset=utf-8"
         },
-        "src/page/themes/light-1.css": {
+        "src/blockeditor/themes/light-1.css": {
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "bytes": 1,
           "type": "text/css; charset=utf-8"

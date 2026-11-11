@@ -23,7 +23,7 @@ type PageRecord struct {
 }
 
 // pageLocations is what one pass over a document finds: the non-inert
-// article[data-page] count and the span of the first, plus the live page tag
+// article[data-blockeditor] count and the span of the first, plus the live page tag
 // count and the span of the first.
 type pageLocations struct {
 	articles     int
@@ -65,7 +65,7 @@ func locatePageSplit(source string) pageLocations {
 				}
 			case "article":
 				if len(inertTags) == 0 {
-					if _, ok := attrs["data-page"]; ok {
+					if _, ok := attrs["data-blockeditor"]; ok {
 						found.articles++
 						if found.articles == 1 {
 							found.articleStart = at
@@ -118,10 +118,10 @@ func locatePageSplit(source string) pageLocations {
 	}
 }
 
-// pageLiveTag reports ClayJS's locate selector, script[merge="page"] carrying
+// pageLiveTag reports ClayJS's locate selector, script[merge="blockeditor"] carrying
 // the clay token live outside template and noscript.
 func pageLiveTag(attrs map[string]string) bool {
-	return attrs["merge"] == "page" && pageHasToken(attrs["clay"], "live")
+	return attrs["merge"] == "blockeditor" && pageHasToken(attrs["clay"], "live")
 }
 
 func pageHasToken(source, token string) bool {
@@ -199,7 +199,7 @@ func pageNewlineOf(source string, from int) string {
 }
 
 // pageRev is ClayJS's pageRev: the revision of the one non-inert
-// article[data-page] in a document, or nothing when it has no such single
+// article[data-blockeditor] in a document, or nothing when it has no such single
 // article or the article carries no data-rev.
 func pageRev(source string) string {
 	found := locatePageSplit(source)

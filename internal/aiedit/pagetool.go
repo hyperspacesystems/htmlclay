@@ -13,7 +13,7 @@ import (
 	"github.com/panphora/htmlclay/internal/helper"
 )
 
-// The built-in page-tool helper: one `page-tool/1` request in, one tool
+// The built-in blockeditor-tool helper: one `blockeditor-tool/1` request in, one tool
 // artifact out, run through the same agents AI editing uses.
 //
 // The request and reply rules are the hosted runner's, ported from
@@ -23,8 +23,8 @@ import (
 // `javascript` string within the limits is accepted. The page's own runtime
 // check covers the syntax before the tool mounts.
 const (
-	PageToolHelperName = "page-tool"
-	ToolProtocol       = "page-tool/1"
+	PageToolHelperName = "blockeditor-tool"
+	ToolProtocol       = "blockeditor-tool/1"
 )
 
 const (
@@ -42,7 +42,7 @@ var (
 	toolFence     = regexp.MustCompile("(?s)^" + "```" + `[a-zA-Z0-9_-]*\n(.*?)\n?` + "```" + "$")
 )
 
-// ToolRequest is one validated `page-tool/1` request. Current is nil unless the
+// ToolRequest is one validated `blockeditor-tool/1` request. Current is nil unless the
 // request revises a tool that already exists.
 type ToolRequest struct {
 	RequestID string
@@ -59,7 +59,7 @@ type ToolReply struct {
 	Model    string
 }
 
-// ToolOptions is what a page-tool run needs. SystemPrompt is the tool-generation
+// ToolOptions is what a blockeditor-tool run needs. SystemPrompt is the tool-generation
 // system.md and context.md, read from the embedded runtime by the host.
 type ToolOptions struct {
 	BaseDir      string // folder a user-configured engine runs in (the document's)
@@ -286,11 +286,11 @@ func toolUserTurn(p ToolRequest) string {
 	return string(encoded)
 }
 
-// toolMDSEnv switches off CLAUDE.md discovery for the page-tool's Claude child,
+// toolMDSEnv switches off CLAUDE.md discovery for the blockeditor-tool's Claude child,
 // so the house rules the host sends are the only instructions it follows.
 const toolMDSEnv = "CLAUDE_CODE_DISABLE_CLAUDE_MDS=1"
 
-// toolEnv is a copy of env with the page-tool's own variable set. ai-edit's env
+// toolEnv is a copy of env with the blockeditor-tool's own variable set. ai-edit's env
 // is never touched: both helpers share the caller's slice.
 func toolEnv(env []string) []string {
 	copied := make([]string, 0, len(env)+1)
@@ -304,7 +304,7 @@ func toolEnv(env []string) []string {
 	return append(copied, toolMDSEnv)
 }
 
-// toolClaudeArgs is the page-tool's Claude Code invocation: no tools, one turn,
+// toolClaudeArgs is the blockeditor-tool's Claude Code invocation: no tools, one turn,
 // and the host's system prompt standing in for the default one.
 func toolClaudeArgs(model, systemPromptPath string) []string {
 	return []string{
@@ -322,7 +322,7 @@ func toolClaudeArgs(model, systemPromptPath string) []string {
 }
 
 func runToolClaude(ctx context.Context, e engine, bin, systemPrompt, userPrompt string, env []string) (Result, error) {
-	scratch, err := os.MkdirTemp("", "page-tool-claude-")
+	scratch, err := os.MkdirTemp("", "blockeditor-tool-claude-")
 	if err != nil {
 		return Result{}, engineFailure(err)
 	}
@@ -352,7 +352,7 @@ func mockToolRun(ctx context.Context, p ToolRequest, label string) (Result, erro
 	return Result{HTML: mockToolReply, Model: "mock(" + label + ")", StopReason: "end_turn"}, nil
 }
 
-// RunTool answers one page-tool request with the configured agent. A cancelled
+// RunTool answers one blockeditor-tool request with the configured agent. A cancelled
 // ctx kills the agent and returns ctx.Err().
 func RunTool(ctx context.Context, p ToolRequest, o ToolOptions) (ToolReply, error) {
 	engines := resolveEngines(o.Engines)

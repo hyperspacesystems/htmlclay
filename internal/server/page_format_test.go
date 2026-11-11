@@ -235,10 +235,10 @@ func TestPageFormatMetaAdvertisesOnlyWithAFloorRuntime(t *testing.T) {
 		}
 		announced := false
 		for _, name := range metaExtensions(t, w) {
-			announced = announced || name == "page-format-v1"
+			announced = announced || name == "blockeditor-format-v1"
 		}
 		if announced != floor {
-			t.Fatalf("%s: page-format-v1 announced = %v, want %v", route, announced, floor)
+			t.Fatalf("%s: blockeditor-format-v1 announced = %v, want %v", route, announced, floor)
 		}
 	}
 }

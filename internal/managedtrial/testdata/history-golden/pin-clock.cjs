@@ -2,7 +2,7 @@
 
 // Preloaded into the fixture process (NODE_OPTIONS=--require), so the answers a
 // write produces are the same on every recording. A version's name carries the
-// time it was written and a page-state generation is 16 random bytes, and
+// time it was written and a blockeditor-state generation is 16 random bytes, and
 // neither is reproducible while the clock and the generator are real.
 
 const REAL_DATE = Date

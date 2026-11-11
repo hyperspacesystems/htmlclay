@@ -6,7 +6,7 @@ import (
 )
 
 func pageTagYJS(seed string) string {
-	return `<script type="application/json" merge="page" clay="live">{"v":1,"y":{"seed":"` + seed + `"}}</script>`
+	return `<script type="application/json" merge="blockeditor" clay="live">{"v":1,"y":{"seed":"` + seed + `"}}</script>`
 }
 
 func TestPageTagRoundTrips(t *testing.T) {
@@ -18,22 +18,22 @@ func TestPageTagRoundTrips(t *testing.T) {
 		{
 			name: "inline",
 			with: `<!DOCTYPE html><html><body><p>outside</p>` + tag +
-				`<article data-page data-rev="1"><p>text</p></article></body></html>`,
+				`<article data-blockeditor data-rev="1"><p>text</p></article></body></html>`,
 		},
 		{
 			name: "own line",
 			with: "<!DOCTYPE html>\n<html>\n<body>\n  <p>outside</p>\n  " + tag +
-				"\n  <article data-page data-rev=\"1\"><p>text</p></article>\n</body>\n</html>",
+				"\n  <article data-blockeditor data-rev=\"1\"><p>text</p></article>\n</body>\n</html>",
 		},
 		{
 			name: "crlf",
 			with: "<!DOCTYPE html>\r\n<html>\r\n<body>\r\n  <p>outside</p>\r\n  " + tag +
-				"\r\n  <article data-page data-rev=\"1\"><p>text</p></article>\r\n</body>\r\n</html>",
+				"\r\n  <article data-blockeditor data-rev=\"1\"><p>text</p></article>\r\n</body>\r\n</html>",
 		},
 		{
 			name: "inside main",
 			with: "<!DOCTYPE html>\n<html>\n<body>\n<main>\n  " + tag +
-				"\n  <article data-page data-rev=\"1\"><p>text</p></article>\n</main>\n</body>\n</html>",
+				"\n  <article data-blockeditor data-rev=\"1\"><p>text</p></article>\n</main>\n</body>\n</html>",
 		},
 	}
 	for _, tc := range cases {
@@ -57,11 +57,11 @@ func TestPageTagRefusesNonPageDocuments(t *testing.T) {
 	tag := pageTagYJS("state-1")
 	sources := map[string]string{
 		"no article": "<!DOCTYPE html>\n<html>\n<body>\n  <p>text</p>\n</body>\n</html>",
-		"two articles": "<!DOCTYPE html>\n<html>\n<body>\n  <article data-page><p>a</p></article>\n" +
-			"  <article data-page><p>b</p></article>\n</body>\n</html>",
-		"only in template": "<!DOCTYPE html>\n<html>\n<body>\n  <template><article data-page><p>a</p></article></template>\n" +
+		"two articles": "<!DOCTYPE html>\n<html>\n<body>\n  <article data-blockeditor><p>a</p></article>\n" +
+			"  <article data-blockeditor><p>b</p></article>\n</body>\n</html>",
+		"only in template": "<!DOCTYPE html>\n<html>\n<body>\n  <template><article data-blockeditor><p>a</p></article></template>\n" +
 			"</body>\n</html>",
-		"already tagged": pageTagYJS("state-1") + "\n<article data-page><p>a</p></article>",
+		"already tagged": pageTagYJS("state-1") + "\n<article data-blockeditor><p>a</p></article>",
 	}
 	for name, source := range sources {
 		t.Run(name, func(t *testing.T) {
@@ -74,8 +74,8 @@ func TestPageTagRefusesNonPageDocuments(t *testing.T) {
 
 func TestPageTagReadsOnlyAYjsTag(t *testing.T) {
 	hybrid := "<!DOCTYPE html>\n<html>\n<body>\n  " +
-		`<script type="application/json" merge="page" clay="live">{"blocks":{}}</script>` +
-		"\n  <article data-page><p>a</p></article>\n</body>\n</html>"
+		`<script type="application/json" merge="blockeditor" clay="live">{"blocks":{}}</script>` +
+		"\n  <article data-blockeditor><p>a</p></article>\n</body>\n</html>"
 	if tag, ok := PageTag(hybrid); ok {
 		t.Fatalf("PageTag read a hybrid store: %q", tag)
 	}

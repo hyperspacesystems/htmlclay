@@ -40,7 +40,7 @@ func kanbanDocument() string {
 <head>
 <script src="https://clayjs.com/v1/clay.js?plugins=sortable,people,upload,sync,visitor-drafts,unsent,menu&exclude=richclay"></script>
 <script src="https://clayjs.com/v1/sap.js"></script>
-<link rel="stylesheet" href="https://clayjs.com/v1/src/page/themes/light-1.css">
+<link rel="stylesheet" href="https://clayjs.com/v1/src/blockeditor/themes/light-1.css">
 </head>
 <body><p>board</p></body>
 </html>`
@@ -211,7 +211,7 @@ func TestRuntimeProjectionRewritesServedDocument(t *testing.T) {
 	for _, want := range []string{
 		"/_/clayjs/" + selected + "/clay.js?plugins=sortable,people,upload,sync,visitor-drafts,unsent,menu&exclude=richclay",
 		"/_/clayjs/" + selected + "/sap.js",
-		"/_/clayjs/" + selected + "/src/page/themes/light-1.css",
+		"/_/clayjs/" + selected + "/src/blockeditor/themes/light-1.css",
 		`id="clay-runtime-map"`,
 	} {
 		if !strings.Contains(served, want) {
@@ -253,7 +253,7 @@ func TestRuntimeProjectionLeavesSourceReadsPublic(t *testing.T) {
 	served := w.Body.String()
 	if !strings.Contains(served, `src="https://clayjs.com/v1/clay.js?plugins=`) ||
 		!strings.Contains(served, `src="https://clayjs.com/v1/sap.js"`) ||
-		!strings.Contains(served, `href="https://clayjs.com/v1/src/page/themes/light-1.css"`) {
+		!strings.Contains(served, `href="https://clayjs.com/v1/src/blockeditor/themes/light-1.css"`) {
 		t.Errorf("a source read lost its public runtime URLs:\n%s", served)
 	}
 	if strings.Contains(served, "/_/clayjs/") || strings.Contains(served, "clay-runtime-map") {

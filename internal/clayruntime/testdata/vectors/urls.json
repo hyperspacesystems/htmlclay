@@ -3,16 +3,16 @@
     {
       "name": "rolling-clay-js-query",
       "fn": "resolve",
-      "input": "https://clayjs.com/v1/clay.js?plugins=page,menu",
+      "input": "https://clayjs.com/v1/clay.js?plugins=blockeditor,menu",
       "expect": {
         "kind": "rolling",
         "version": "1.15.2",
         "path": "clay.js",
-        "search": "?plugins=page,menu",
+        "search": "?plugins=blockeditor,menu",
         "hash": "",
         "available": true,
-        "canonicalURL": "https://clayjs.com/v1/clay.js?plugins=page,menu",
-        "localURL": "/_/clayjs/1.15.2/clay.js?plugins=page,menu"
+        "canonicalURL": "https://clayjs.com/v1/clay.js?plugins=blockeditor,menu",
+        "localURL": "/_/clayjs/1.15.2/clay.js?plugins=blockeditor,menu"
       }
     },
     {
@@ -249,18 +249,18 @@
     {
       "name": "restore-rolling-entry",
       "fn": "canonicalize",
-      "input": "/_/clayjs/1.15.2/clay.js?plugins=page,menu",
+      "input": "/_/clayjs/1.15.2/clay.js?plugins=blockeditor,menu",
       "descriptor": {
         "schema": 1,
         "version": "1.15.2",
         "entries": [
           {
-            "original": "https://clayjs.com/v1/clay.js?plugins=page,menu",
-            "local": "/_/clayjs/1.15.2/clay.js?plugins=page,menu"
+            "original": "https://clayjs.com/v1/clay.js?plugins=blockeditor,menu",
+            "local": "/_/clayjs/1.15.2/clay.js?plugins=blockeditor,menu"
           }
         ]
       },
-      "expect": "https://clayjs.com/v1/clay.js?plugins=page,menu"
+      "expect": "https://clayjs.com/v1/clay.js?plugins=blockeditor,menu"
     },
     {
       "name": "restore-exact-entry",
@@ -303,18 +303,18 @@
     {
       "name": "changed-query-keeps-entry-prefix",
       "fn": "canonicalize",
-      "input": "/_/clayjs/1.15.2/clay.js?plugins=page,menu",
+      "input": "/_/clayjs/1.15.2/clay.js?plugins=blockeditor,menu",
       "descriptor": {
         "schema": 1,
         "version": "1.15.2",
         "entries": [
           {
-            "original": "https://clayjs.com/v1/clay.js?plugins=page",
-            "local": "/_/clayjs/1.15.2/clay.js?plugins=page"
+            "original": "https://clayjs.com/v1/clay.js?plugins=blockeditor",
+            "local": "/_/clayjs/1.15.2/clay.js?plugins=blockeditor"
           }
         ]
       },
-      "expect": "https://clayjs.com/v1/clay.js?plugins=page,menu"
+      "expect": "https://clayjs.com/v1/clay.js?plugins=blockeditor,menu"
     },
     {
       "name": "spoofed-entry-path",

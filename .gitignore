@@ -20,3 +20,4 @@ resource_windows_*.syso
 /.conformance/
 
 __pycache__/
+test-box-out/

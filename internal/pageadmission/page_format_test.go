@@ -16,13 +16,13 @@ func TestPageFormatFloorReadsTheMarker(t *testing.T) {
 		want int
 	}{
 		{"absent", formatDocHead, 0},
-		{"double quoted", `<html><head><meta name="clay-page-format" content="1"></head></html>`, 1},
-		{"single quoted", `<html><head><meta name='clay-page-format' content='1'></head></html>`, 1},
-		{"unquoted", `<html><head><meta name=clay-page-format content=1></head></html>`, 1},
-		{"uppercase name", `<html><head><meta NAME="clay-page-format" CONTENT="2"></head></html>`, 2},
-		{"attributes in either order", `<html><head><meta content="3" name="clay-page-format"></head></html>`, 3},
-		{"unreadable content", `<html><head><meta name="clay-page-format" content="x"></head></html>`, 0},
-		{"negative content", `<html><head><meta name="clay-page-format" content="-1"></head></html>`, 0},
+		{"double quoted", `<html><head><meta name="clay-blockeditor-format" content="1"></head></html>`, 1},
+		{"single quoted", `<html><head><meta name='clay-blockeditor-format' content='1'></head></html>`, 1},
+		{"unquoted", `<html><head><meta name=clay-blockeditor-format content=1></head></html>`, 1},
+		{"uppercase name", `<html><head><meta NAME="clay-blockeditor-format" CONTENT="2"></head></html>`, 2},
+		{"attributes in either order", `<html><head><meta content="3" name="clay-blockeditor-format"></head></html>`, 3},
+		{"unreadable content", `<html><head><meta name="clay-blockeditor-format" content="x"></head></html>`, 0},
+		{"negative content", `<html><head><meta name="clay-blockeditor-format" content="-1"></head></html>`, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -35,7 +35,7 @@ func TestPageFormatFloorReadsTheMarker(t *testing.T) {
 
 func TestPageFormatWithFloorIsIdempotent(t *testing.T) {
 	marked := WithPageFormatFloor(formatDocHead, 1)
-	if want := `<html><head><meta name="clay-page-format" content="1"></head>`; !strings.Contains(marked, want) {
+	if want := `<html><head><meta name="clay-blockeditor-format" content="1"></head>`; !strings.Contains(marked, want) {
 		t.Fatalf("marker was not placed before </head>: %q", marked)
 	}
 	if again := WithPageFormatFloor(marked, 1); again != marked {
@@ -46,7 +46,7 @@ func TestPageFormatWithFloorIsIdempotent(t *testing.T) {
 	}
 
 	noHead := WithPageFormatFloor(formatDocNoHead, 1)
-	if want := `<meta name="clay-page-format" content="1"><body>`; !strings.Contains(noHead, want) {
+	if want := `<meta name="clay-blockeditor-format" content="1"><body>`; !strings.Contains(noHead, want) {
 		t.Fatalf("marker was not placed before <body>: %q", noHead)
 	}
 

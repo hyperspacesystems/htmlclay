@@ -737,7 +737,7 @@ func encodedHelperEnvelopeSize(env wireEnvelope) int {
 }
 
 // helperDiscovery is the document's declared helpers, then the built-in helpers
-// this server offers: ai-edit, and page-tool when its prompt files are vendored.
+// this server offers: ai-edit, and blockeditor-tool when its prompt files are vendored.
 func (s *Server) helperDiscovery(file string) (string, []helperMeta) {
 	mode, meta := s.declaredHelperDiscovery(file)
 	if entry, ok := s.aiEditMeta(file); ok {

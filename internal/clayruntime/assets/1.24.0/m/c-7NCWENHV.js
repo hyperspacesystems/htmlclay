@@ -1,0 +1,1 @@
+import{b as i,d as n}from"./c-RETTCOWO.js";var{Plugin:a,PluginKey:g}=i,{DecorationSet:c}=n,e=new g("blockeditor-highlight");function s(){return new a({key:e,state:{init:()=>c.empty,apply(t,p){let o=t.getMeta(e);return o?c.create(t.doc,o):p.map(t.mapping,t.doc)}},props:{decorations:t=>e.getState(t)}})}export{e as a,s as b};

@@ -11,7 +11,7 @@ import (
 )
 
 // pageMergePattern is the merge value Local's hasPageStore accepts.
-var pageMergePattern = regexp.MustCompile(`^page(?:\.[0-9]+)?$`)
+var pageMergePattern = regexp.MustCompile(`^blockeditor(?:\.[0-9]+)?$`)
 
 // hasPageStore is Local's hasPageStore (utils/page-api.js): the composed
 // document has a <script> whose clay attribute holds the token `live` and whose

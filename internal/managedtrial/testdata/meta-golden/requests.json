@@ -13,13 +13,13 @@
   { "name": "meta-paged", "method": "GET", "path": "/_/meta", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/paged.html" } },
   { "name": "meta-oldpaged", "method": "GET", "path": "/_/meta", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/oldpaged.html" } },
   { "name": "meta-unmarked", "method": "GET", "path": "/meta", "headers": {} },
-  { "name": "page-state-no-document-url", "method": "GET", "path": "/_/page-state", "headers": {} },
-  { "name": "page-state-no-if-match", "method": "GET", "path": "/_/page-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/paged.html" } },
-  { "name": "page-state-nope", "method": "GET", "path": "/_/page-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/a.html", "If-Match": "\"nope\"" } },
-  { "name": "page-state-star", "method": "GET", "path": "/_/page-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/a.html", "If-Match": "*" } },
-  { "name": "page-state-list", "method": "GET", "path": "/_/page-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/a.html", "If-Match": "\"a\", \"b\"" } },
-  { "name": "page-state-paged", "method": "GET", "path": "/_/page-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/paged.html" }, "ifMatchFrom": { "case": "meta-paged", "json": "document.etag" } },
-  { "name": "page-state-a", "method": "GET", "path": "/_/page-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/a.html" }, "ifMatchFrom": { "case": "meta-a", "json": "document.etag" } },
-  { "name": "page-state-oldpaged", "method": "GET", "path": "/_/page-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/oldpaged.html" }, "ifMatchFrom": { "case": "meta-oldpaged", "json": "document.etag" } },
-  { "name": "page-state-missing", "method": "GET", "path": "/_/page-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/missing.html", "If-Match": "\"x\"" } }
+  { "name": "blockeditor-state-no-document-url", "method": "GET", "path": "/_/blockeditor-state", "headers": {} },
+  { "name": "blockeditor-state-no-if-match", "method": "GET", "path": "/_/blockeditor-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/paged.html" } },
+  { "name": "blockeditor-state-nope", "method": "GET", "path": "/_/blockeditor-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/a.html", "If-Match": "\"nope\"" } },
+  { "name": "blockeditor-state-star", "method": "GET", "path": "/_/blockeditor-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/a.html", "If-Match": "*" } },
+  { "name": "blockeditor-state-list", "method": "GET", "path": "/_/blockeditor-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/a.html", "If-Match": "\"a\", \"b\"" } },
+  { "name": "blockeditor-state-paged", "method": "GET", "path": "/_/blockeditor-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/paged.html" }, "ifMatchFrom": { "case": "meta-paged", "json": "document.etag" } },
+  { "name": "blockeditor-state-a", "method": "GET", "path": "/_/blockeditor-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/a.html" }, "ifMatchFrom": { "case": "meta-a", "json": "document.etag" } },
+  { "name": "blockeditor-state-oldpaged", "method": "GET", "path": "/_/blockeditor-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/oldpaged.html" }, "ifMatchFrom": { "case": "meta-oldpaged", "json": "document.etag" } },
+  { "name": "blockeditor-state-missing", "method": "GET", "path": "/_/blockeditor-state", "headers": { "Document-URL": "http://127.0.0.1:{PORT}/missing.html", "If-Match": "\"x\"" } }
 ]

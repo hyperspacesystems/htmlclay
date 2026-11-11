@@ -349,7 +349,7 @@ func (s *rootServer) restoreVersion(r *http.Request, rel, versionName, filePath 
 	html := stripSaveToken(string(data))
 	// Without rooms: Local stamps the stored page record's revision onto these
 	// bytes so open tabs merge the restore onto the page they hold, and keeps the
-	// page-format floor the live document had established.
+	// blockeditor-format floor the live document had established.
 	state, err := readPageState(s.baseDir, rel, PageStateReadOptions{})
 	if err != nil {
 		return nil, "", err

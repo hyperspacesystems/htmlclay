@@ -171,7 +171,7 @@ func TestStructureGateWaitsForADescendantWrite(t *testing.T) {
 	}
 }
 
-// TestRestructureCarriesPageState proves a step's page-state move or drop runs
+// TestRestructureCarriesPageState proves a step's blockeditor-state move or drop runs
 // for every completed step, the folder form for a directory, and never for a
 // step that did not complete.
 func TestRestructureCarriesPageState(t *testing.T) {

@@ -108,7 +108,7 @@ func TestOfflineModeEditSetIsServed(t *testing.T) {
 
 	files := clayruntime.Releases[clayruntime.Selected].Files
 	queries := []string{
-		"plugins=page",
+		"plugins=blockeditor",
 		"plugins=sortable,people,upload,sync,ai-edit",
 		"plugins=sync,indicator,ai-edit&exclude=richclay",
 	}
@@ -122,7 +122,7 @@ func TestOfflineModeEditSetIsServed(t *testing.T) {
 		}
 		t.Logf("%s: %d files", query, len(set.Files))
 
-		if query == "plugins=page" {
+		if query == "plugins=blockeditor" {
 			served := make(map[string]bool, len(set.Files))
 			for _, name := range set.Files {
 				served[name] = true

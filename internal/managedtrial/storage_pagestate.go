@@ -24,7 +24,7 @@ import (
 // that never landed still leaves the file on disk with its own state.
 
 // pageStateDirName is Local's artifact-paths.js PAGE_STATE_DIR.
-const pageStateDirName = ".hyperclay/page-state"
+const pageStateDirName = ".hyperclay/blockeditor-state"
 
 // pageExtension is Local's PAGE_EXTENSION: the document extensions whose
 // sidecar names may also carry the older extension-less form.
@@ -100,8 +100,8 @@ func pageStateJSON(state *PageState) ([]byte, error) {
 	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
-// pageStateContainedPath resolves a joined page-state path and refuses one that
-// escapes the page-state directory.
+// pageStateContainedPath resolves a joined blockeditor-state path and refuses one that
+// escapes the blockeditor-state directory.
 func pageStateContainedPath(baseDir, target string) (string, error) {
 	root := upathResolve(upathJoin(baseDir, pageStateDirName))
 	abs := upathResolve(target)
@@ -477,7 +477,7 @@ func movePageStateDir(baseDir, fromName, toName string) error {
 	return nil
 }
 
-// dropPageStateDir removes a folder's whole page-state mirror.
+// dropPageStateDir removes a folder's whole blockeditor-state mirror.
 func dropPageStateDir(baseDir, name string) error {
 	target, err := pageStateDirPath(baseDir, name)
 	if err != nil {

@@ -82,6 +82,19 @@ func writeFormatRefusal(w http.ResponseWriter, refusal *pageadmission.FormatRefu
 	})
 }
 
+// writeOldFormatRefusal answers a save in the block editor's format from before
+// ClayJS 1.24.0, sent by a tab still on the old runtime. Same 409 shape as a format
+// refusal. It asks for no reload: the message tells the person to copy their text first.
+func writeOldFormatRefusal(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusConflict)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok": false, "error": pageadmission.OldFormatMessage, "msg": pageadmission.OldFormatMessage,
+		"code": pageadmission.OldFormatCode, "reason": pageadmission.OldFormatCode,
+	})
+}
+
 // hostExtensions names the capabilities this host implements, in the spec §9
 // registry's spelling. Host scope: identical for every document served, which is
 // why both /_/meta routes read it from here instead of each carrying its own
@@ -108,17 +121,17 @@ func writeFormatRefusal(w http.ResponseWriter, refusal *pageadmission.FormatRefu
 // stamp mismatch.
 // sync-worker distinguishes the repaired shared transport from earlier sync hosts.
 //
-// `page-awareness-v1` and `record-awareness-v1` are announced because this host has no
+// `blockeditor-awareness-v1` and `record-awareness-v1` are announced because this host has no
 // presence relay and does not need one: every tab of a document here runs in one
 // browser on one machine, so awareness travels over a BroadcastChannel the client opens
 // itself. `awareness` in the document block names that transport and the scope, and no
 // HTTP presence route is advertised beside them because none is served. `presence` is
 // deliberately absent: it names a host relay, and ClayJS (every published version)
-// turns its shared sync worker off on a host that announces it. `page-recovery-v1`
-// promises that `document.pageState.href` returns the page state stored with the exact
+// turns its shared sync worker off on a host that announces it. `blockeditor-recovery-v1`
+// promises that `document.blockeditorState.href` returns the page state stored with the exact
 // file bytes and backup identity, so a client may retire journaled page work against it
 // (Document 12 Step 8).
-var hostExtensions = []string{"conditional", "data-guard-v1", "data-read", "data-write", "page", "page-awareness-v1", "page-recovery-v1", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
+var hostExtensions = []string{"blockeditor", "blockeditor-awareness-v1", "blockeditor-recovery-v1", "conditional", "data-guard-v1", "data-read", "data-write", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
 
 // maxSaveIDLen caps the §6 receipt id this host will remember. The spec asks for
 // at least 128 bits of randomness, which is 32 hex characters or 22 in base64url;
@@ -253,7 +266,7 @@ type documentMeta struct {
 	Awareness awarenessMeta `json:"awareness"`
 	// The page editor's stored Yjs state for these exact bytes, read conditionally
 	// on the etag above. Named here so a client never guesses the route.
-	PageState *pageStateMeta `json:"pageState,omitempty"`
+	PageState *pageStateMeta `json:"blockeditorState,omitempty"`
 	// The pending data-loss event for this document, named by an address the
 	// client reads rather than constructs. Present only for a document the guard
 	// can key.
@@ -324,7 +337,7 @@ func (s *Server) extensions() []string {
 		out = append(out, "people")
 	}
 	if floorRuntime {
-		out = append(out, "page-format-v1")
+		out = append(out, "blockeditor-format-v1")
 	}
 	sort.Strings(out)
 	return out
@@ -1106,6 +1119,15 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A tab still running the block editor from before ClayJS 1.24.0 is refused
+	// first, before If-Match and every other write check, so its client shows
+	// "copy your text, then reload" rather than a conflict it cannot resolve.
+	if pageadmission.OldBlockeditorFormat(string(body)) {
+		s.logger.Printf("Refusing a save of %s: it carries the block editor format from before ClayJS 1.24.0", f.RelPath)
+		writeOldFormatRefusal(w)
+		return
+	}
+
 	f.Lock()
 	current, readErr := s.readRegisteredFile(f.AbsPath)
 	// A registered path that now resolves into protected state (a swapped-in symlink
@@ -1166,7 +1188,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	conversionHeader, hasConversionHeader := listHeader(r, "Page-Conversion")
+	conversionHeader, hasConversionHeader := listHeader(r, "Blockeditor-Conversion")
 	if hasConversionHeader && conversionHeader == "" {
 		f.Unlock()
 		writePageAdmissionError(w, &pageadmission.Refusal{Reason: "invalid-header"})
@@ -1194,13 +1216,13 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body = []byte(formatted)
-	if decision == pageadmission.Ordinary && strings.TrimSpace(r.Header.Get("Page-Write")) == "v1" &&
+	if decision == pageadmission.Ordinary && strings.TrimSpace(r.Header.Get("Blockeditor-Write")) == "v1" &&
 		pageadmission.NothingToWrite(string(current), string(body)) {
 		if tag, ok := pageadmission.PageTag(string(body)); ok {
 			key, _ := s.ensureHistoryKeyLocked(f, current)
 			diskHash := versions.Hash(current)
 			if err := s.versions.PreparePageState(key, f.AbsPath, diskHash,
-				versions.NewPageStateRecord(diskHash, s.pageGeneration(key, f.AbsPath, diskHash, decision), tag)); err != nil {
+				versions.NewPageStateRecord(diskHash, s.blockeditorGeneration(key, f.AbsPath, diskHash, decision), tag)); err != nil {
 				f.Unlock()
 				s.refusePageState(w, f, err)
 				return
@@ -1264,7 +1286,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		if readErr == nil {
 			diskHash = versions.Hash(current)
 		}
-		record := versions.NewPageStateRecord(versions.Hash(body), s.pageGeneration(key, f.AbsPath, diskHash, decision), tag)
+		record := versions.NewPageStateRecord(versions.Hash(body), s.blockeditorGeneration(key, f.AbsPath, diskHash, decision), tag)
 		if pErr := s.versions.PreparePageState(key, f.AbsPath, diskHash, record); pErr != nil {
 			f.Unlock()
 			s.refusePageState(w, f, pErr)
@@ -1294,7 +1316,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 
 	err = atomicWriteFile(f.AbsPath, body)
 	if err == nil {
-		if sErr := s.versions.SettlePageState(key, f.AbsPath, versions.Hash(body)); sErr != nil {
+		if sErr := s.versions.SettlePageState(key, f.AbsPath, body); sErr != nil {
 			s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
 		}
 		f.RecordServerWrite(versions.Hash(body))
@@ -1596,7 +1618,7 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 			DocumentID:       htmlclayID,
 			LegacyDocumentID: htmlclayID,
 			Awareness:        awarenessMeta{Transport: "broadcast", Scope: awarenessScope(htmlclayID, f.RelPath), Label: "This computer"},
-			PageState:        &pageStateMeta{Href: "/_/page-state/" + r.PathValue("token")},
+			PageState:        &pageStateMeta{Href: "/_/blockeditor-state/" + r.PathValue("token")},
 			Actions:          s.documentActions(r.PathValue("token")),
 		},
 	}
@@ -1648,7 +1670,7 @@ func (s *Server) handlePageState(w http.ResponseWriter, r *http.Request) {
 	}
 	f.Unlock()
 	if err != nil || !found {
-		writePageStateError(w, http.StatusNotFound, "no-page-state", etag)
+		writePageStateError(w, http.StatusNotFound, "no-blockeditor-state", etag)
 		return
 	}
 	documentID, _ := versions.IDFromKey(key)
@@ -1751,7 +1773,7 @@ func writeSaveError(w http.ResponseWriter, status int, message, code, reason str
 func pageAdmissionFields(err error) (int, string, string) {
 	var format *pageadmission.FormatError
 	if errors.As(err, &format) {
-		return http.StatusConflict, "page-format", ""
+		return http.StatusConflict, "blockeditor-format", ""
 	}
 	var refused *pageadmission.Refusal
 	if !errors.As(err, &refused) {
@@ -1759,19 +1781,19 @@ func pageAdmissionFields(err error) (int, string, string) {
 	}
 	switch refused.Reason {
 	case "invalid-header":
-		return http.StatusBadRequest, "page-conversion-refused", refused.Reason
+		return http.StatusBadRequest, "blockeditor-conversion-refused", refused.Reason
 	case "invalid-capture":
-		return http.StatusUnprocessableEntity, "page-conversion-refused", refused.Reason
+		return http.StatusUnprocessableEntity, "blockeditor-conversion-refused", refused.Reason
 	case "invalid-source", "ambiguous-source":
-		return http.StatusConflict, "page-conversion-refused", refused.Reason
+		return http.StatusConflict, "blockeditor-conversion-refused", refused.Reason
 	case "implicit-conversion":
-		return http.StatusConflict, "page-conversion-required", refused.Reason
+		return http.StatusConflict, "blockeditor-conversion-required", refused.Reason
 	case "source-changed":
-		return http.StatusConflict, "page-conversion-stale", refused.Reason
+		return http.StatusConflict, "blockeditor-conversion-stale", refused.Reason
 	case "file-changed":
-		return http.StatusPreconditionRequired, "page-conversion-stale", refused.Reason
+		return http.StatusPreconditionRequired, "blockeditor-conversion-stale", refused.Reason
 	case "nothing-to-write":
-		return http.StatusConflict, "page-nothing-to-write", refused.Reason
+		return http.StatusConflict, "blockeditor-nothing-to-write", refused.Reason
 	default:
 		return http.StatusInternalServerError, "", ""
 	}
@@ -1871,10 +1893,10 @@ func conflictRefusal(w http.ResponseWriter, name, etag, changedBy, saveID string
 	json.NewEncoder(w).Encode(body)
 }
 
-// pageGeneration keeps the page lineage of the state stored for the bytes on
+// blockeditorGeneration keeps the page lineage of the state stored for the bytes on
 // disk, and starts a new one for a first capture, a conversion, or bytes the
 // sidecar holds no state for (an external replacement).
-func (s *Server) pageGeneration(key, absPath, diskHash string, decision pageadmission.Decision) string {
+func (s *Server) blockeditorGeneration(key, absPath, diskHash string, decision pageadmission.Decision) string {
 	if decision == pageadmission.Ordinary && diskHash != "" {
 		if record, ok, err := s.versions.PageStateFor(key, absPath, diskHash); err == nil && ok {
 			return record.Generation
@@ -1894,7 +1916,7 @@ func (s *Server) refusePageState(w http.ResponseWriter, f *session.File, err err
 		s.logger.Printf("Refusing a save of %s: its page state is not valid", f.RelPath)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid page state", "code": "invalid-page-state"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid page state", "code": "invalid-blockeditor-state"})
 		return
 	}
 	s.logger.Printf("Refusing a save of %s: cannot store its page state: %v", f.RelPath, err)

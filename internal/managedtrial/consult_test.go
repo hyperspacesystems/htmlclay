@@ -261,7 +261,7 @@ func TestConsultAdmitProceed(t *testing.T) {
 	if headers["if-match"] != `"e"` {
 		t.Fatalf("headers.if-match = %v, want %q", headers["if-match"], `"e"`)
 	}
-	for _, name := range []string{"page-conversion", "page-write", "page-format", "persistent"} {
+	for _, name := range []string{"blockeditor-conversion", "blockeditor-write", "blockeditor-format", "persistent"} {
 		if headers[name] != nil {
 			t.Fatalf("headers.%s = %v, want null", name, headers[name])
 		}
@@ -541,7 +541,7 @@ func TestRebaseVersions(t *testing.T) {
 	stored := saveGoldenPage("bbbbbbbbbbbbbbbb")
 	version := saveGoldenPage("aaaaaaaaaaaaaaaa")
 	consultWriteFile(t, root, "stale.html", []byte(stored))
-	consultWriteFile(t, root, filepath.Join(".hyperclay", "page-state", "stale.html.json"),
+	consultWriteFile(t, root, filepath.Join(".hyperclay", "blockeditor-state", "stale.html.json"),
 		[]byte(`{"v":1,"rev":"bbbbbbbbbbbbbbbb","tag":`+mustJSON(saveGoldenYJSTag)+`}`))
 	consultWriteFile(t, root, filepath.Join(".hyperclay", "versions", "stale", "2026-09-01-00-00-00-000+0000.html"), []byte(version))
 
@@ -615,7 +615,7 @@ func TestPublishRecoveredCopy(t *testing.T) {
 }
 
 // TestControlReadSidecarIsStoredRecord is the read's sidecar as Local's
-// page-state readers use it: the whole stored record, its lineage included.
+// blockeditor-state readers use it: the whole stored record, its lineage included.
 func TestControlReadSidecarIsStoredRecord(t *testing.T) {
 	root := controlTestRoot(t, "root-0")
 	server := controlTestServer(t, root)
@@ -623,7 +623,7 @@ func TestControlReadSidecarIsStoredRecord(t *testing.T) {
 	rev := "093360993130d818"
 	previousRev := "1111111111111111"
 	consultWriteFile(t, root.baseDir, "page.html", []byte(saveGoldenPage(rev)))
-	consultWriteFile(t, root.baseDir, filepath.Join(".hyperclay", "page-state", "page.html.json"),
+	consultWriteFile(t, root.baseDir, filepath.Join(".hyperclay", "blockeditor-state", "page.html.json"),
 		[]byte(`{"v":1,"rev":"`+rev+`","tag":`+mustJSON(saveGoldenYJSTag)+`,"generation":"`+strings.Repeat("a", 32)+`","prev":{"rev":"`+previousRev+`","tag":`+mustJSON(saveGoldenYJSTag)+`,"generation":"`+strings.Repeat("b", 32)+`"}}`))
 
 	status, answer := controlJSON(t, server, controlSecret, http.MethodGet, "/v1/read?root=root-0&name=page.html", nil)

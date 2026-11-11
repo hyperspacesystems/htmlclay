@@ -5,192 +5,192 @@
   "cases": [
     {
       "name": "one page article at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "one page article at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "one page article at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article already carrying data-rev at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article already carrying data-rev at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article already carrying data-rev at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"093360993130d818\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "two articles at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"aaa\"></article>\n<article data-page=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"aaa\"></article>\n<article data-blockeditor=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"aaa\"></article>\n<article data-page=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"aaa\"></article>\n<article data-blockeditor=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "two articles at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"aaa\"></article>\n<article data-page=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"aaa\"></article>\n<article data-blockeditor=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=\"1\" data-rev=\"aaa\"></article>\n<article data-page=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=\"1\" data-rev=\"aaa\"></article>\n<article data-blockeditor=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "two articles at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"aaa\"></article>\n<article data-page=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"aaa\"></article>\n<article data-blockeditor=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=\"1\" data-rev=\"aaa\"></article>\n<article data-page=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=\"1\" data-rev=\"aaa\"></article>\n<article data-blockeditor=\"2\" data-rev=\"bbb\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a template at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a template at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<template><article data-page=\"1\"></article></template>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<template><article data-blockeditor=\"1\"></article></template>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a template at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<template><article data-page=\"1\"></article></template>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<template><article data-blockeditor=\"1\"></article></template>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a noscript at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a noscript at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<noscript><article data-page=\"1\"></article></noscript>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a noscript at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<noscript><article data-page=\"1\"></article></noscript>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a template beside a real one at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a template beside a real one at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a template beside a real one at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<template><article data-page=\"1\"></article></template>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<template><article data-blockeditor=\"1\"></article></template>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a noscript beside a real one at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a noscript beside a real one at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article inside a noscript beside a real one at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<noscript><article data-page=\"1\"></article></noscript>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<noscript><article data-blockeditor=\"1\"></article></noscript>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "no article at floor 0",
@@ -199,7 +199,7 @@
       "floor": 0,
       "stamp": null,
       "floorOnly": "<!doctype html>\n<html>\n<body>\n<p>nothing</p>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "no article at floor 1",
@@ -207,8 +207,8 @@
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<p>nothing</p>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<p>nothing</p>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "no article at floor 2",
@@ -216,8 +216,8 @@
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<p>nothing</p>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<p>nothing</p>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "empty document at floor 0",
@@ -226,7 +226,7 @@
       "floor": 0,
       "stamp": null,
       "floorOnly": "",
-      "pageFormatFloor": 0
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "empty document at floor 1",
@@ -234,8 +234,8 @@
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
       "stamp": null,
-      "floorOnly": "<meta name=\"clay-page-format\" content=\"1\">",
-      "pageFormatFloor": 0
+      "floorOnly": "<meta name=\"clay-blockeditor-format\" content=\"1\">",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "empty document at floor 2",
@@ -243,341 +243,341 @@
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
       "stamp": null,
-      "floorOnly": "<meta name=\"clay-page-format\" content=\"2\">",
-      "pageFormatFloor": 0
+      "floorOnly": "<meta name=\"clay-blockeditor-format\" content=\"2\">",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "single quoted attributes at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page='1' data-rev='old'></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor='1' data-rev='old'></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-page='1' data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-page='1' data-rev='old'></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor='1' data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor='1' data-rev='old'></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "single quoted attributes at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page='1' data-rev='old'></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor='1' data-rev='old'></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page='1' data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page='1' data-rev='old'></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor='1' data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor='1' data-rev='old'></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "single quoted attributes at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page='1' data-rev='old'></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor='1' data-rev='old'></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page='1' data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page='1' data-rev='old'></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor='1' data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor='1' data-rev='old'></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "unquoted attributes at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=1 data-rev=old></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=1 data-rev=old></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-page=1 data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-page=1 data-rev=old></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=1 data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=1 data-rev=old></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "unquoted attributes at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=1 data-rev=old></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=1 data-rev=old></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=1 data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=1 data-rev=old></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=1 data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=1 data-rev=old></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "unquoted attributes at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=1 data-rev=old></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=1 data-rev=old></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=1 data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=1 data-rev=old></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=1 data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=1 data-rev=old></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "odd attribute case at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-PAGE=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-PAGE=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></ARTICLE>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-PAGE=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></ARTICLE>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "odd attribute case at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-PAGE=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<ARTICLE DATA-PAGE=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></ARTICLE>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<ARTICLE DATA-PAGE=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></ARTICLE>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "odd attribute case at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-PAGE=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<ARTICLE DATA-PAGE=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></ARTICLE>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<ARTICLE DATA-PAGE=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></ARTICLE>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<ARTICLE DATA-BLOCKEDITOR=\"1\" DATA-REV=\"old\"></ARTICLE>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "spaces around the attribute values at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" ></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" ></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "spaces around the attribute values at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" ></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" ></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "spaces around the attribute values at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" ></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" ></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=\"1\" data-rev = \"old\" ></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
-      "name": "data-rev before data-page at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"old\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "name": "data-rev before data-blockeditor at floor 0",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"old\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"5f2b9c0d1e3a4b6c\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"old\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"5f2b9c0d1e3a4b6c\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"old\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
-      "name": "data-rev before data-page at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"old\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "name": "data-rev before data-blockeditor at floor 1",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"old\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-rev=\"5f2b9c0d1e3a4b6c\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-rev=\"old\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-rev=\"5f2b9c0d1e3a4b6c\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-rev=\"old\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
-      "name": "data-rev before data-page at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"old\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "name": "data-rev before data-blockeditor at floor 2",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-rev=\"old\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-rev=\"5f2b9c0d1e3a4b6c\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-rev=\"old\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-rev=\"5f2b9c0d1e3a4b6c\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-rev=\"old\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "data-rev with no value at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page data-rev>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor data-rev>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-page data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-page data-rev>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor data-rev>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "data-rev with no value at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page data-rev>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor data-rev>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page data-rev>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor data-rev>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "data-rev with no value at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page data-rev>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor data-rev>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page data-rev>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor data-rev>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "duplicate data-rev at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" data-rev=\"older\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "duplicate data-rev at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" data-rev=\"older\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "duplicate data-rev at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" data-rev=\"older\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=\"1\" data-rev=\"old\" data-rev=\"older\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "self closing article at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\"/>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\"/>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\"/ data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\"/>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\"/ data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\"/>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "self closing article at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\"/>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\"/>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=\"1\"/ data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<article data-page=\"1\"/>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=\"1\"/ data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<article data-blockeditor=\"1\"/>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "self closing article at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<article data-page=\"1\"/>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article data-blockeditor=\"1\"/>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=\"1\"/ data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<article data-page=\"1\"/>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=\"1\"/ data-rev=\"5f2b9c0d1e3a4b6c\">\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<article data-blockeditor=\"1\"/>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article sharing a line with other markup at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\"></article></div>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article></div>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article></div>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\"></article></div>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article></div>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article></div>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article sharing a line with other markup at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\"></article></div>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article></div>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article></div>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\"></article></div>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article></div>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article></div>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "article sharing a line with other markup at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\"></article></div>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article></div>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article></div>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<div><article class=\"page\" clay=\"freeze\" data-page=\"1\"></article></div>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article></div>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<div><article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article></div>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "document already at a floor at floor 0",
-      "html": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 1
+      "stamp": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 1
     },
     {
       "name": "document already at a floor at floor 1",
-      "html": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 1
+      "stamp": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 1
     },
     {
       "name": "document already at a floor at floor 2",
-      "html": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"2\">\n</head>\n<body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"2\">\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 1
+      "stamp": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"2\">\n</head>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"2\">\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 1
     },
     {
       "name": "document at floor two in odd case at floor 0",
-      "html": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-page-format\" CONTENT='2'>\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-blockeditor-format\" CONTENT='2'>\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-page-format\" CONTENT='2'>\n</head>\n<body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-page-format\" CONTENT='2'>\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 2
+      "stamp": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-blockeditor-format\" CONTENT='2'>\n</head>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-blockeditor-format\" CONTENT='2'>\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 2
     },
     {
       "name": "document at floor two in odd case at floor 1",
-      "html": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-page-format\" CONTENT='2'>\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-blockeditor-format\" CONTENT='2'>\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-page-format\" content=\"1\">\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 2
+      "stamp": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<head>\n<meta name=\"clay-blockeditor-format\" content=\"1\">\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 2
     },
     {
       "name": "document at floor two in odd case at floor 2",
-      "html": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-page-format\" CONTENT='2'>\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-blockeditor-format\" CONTENT='2'>\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-page-format\" CONTENT='2'>\n</head>\n<body>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-page-format\" CONTENT='2'>\n</head>\n<body>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 2
+      "stamp": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-blockeditor-format\" CONTENT='2'>\n</head>\n<body>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<head>\n<META NAME=\"clay-blockeditor-format\" CONTENT='2'>\n</head>\n<body>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 2
     },
     {
       "name": "non-ascii before the article at floor 0",
-      "html": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 0,
-      "stamp": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "non-ascii before the article at floor 1",
-      "html": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 1,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"1\"><body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"1\"><body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "non-ascii before the article at floor 2",
-      "html": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "5f2b9c0d1e3a4b6c",
       "floor": 2,
-      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
-      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-page-format\" content=\"2\"><body>\n<p>héllo 😀 — naïve</p>\n<article data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "stamp": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\" data-rev=\"5f2b9c0d1e3a4b6c\"></article>\n</body>\n</html>\n",
+      "floorOnly": "<!doctype html>\n<html>\n<meta name=\"clay-blockeditor-format\" content=\"2\"><body>\n<p>héllo 😀 — naïve</p>\n<article data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     },
     {
       "name": "empty rev",
-      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
+      "html": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
       "rev": "",
       "floor": 0,
       "stamp": null,
-      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\"></article>\n</body>\n</html>\n",
-      "pageFormatFloor": 0
+      "floorOnly": "<!doctype html>\n<html>\n<body>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\"></article>\n</body>\n</html>\n",
+      "blockeditorFormatFloor": 0
     }
   ]
 }

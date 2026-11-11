@@ -19,7 +19,7 @@ func getPageState(t *testing.T, srv *Server, token, ifMatch string) *httptest.Re
 	if ifMatch != "" {
 		headers["If-Match"] = ifMatch
 	}
-	return serve(t, srv, "/_/page-state/"+token, headers)
+	return serve(t, srv, "/_/blockeditor-state/"+token, headers)
 }
 
 func diskEtag(t *testing.T, path string) (string, []byte) {
@@ -146,7 +146,7 @@ func TestPageStateResourceHasNothingForUntrackedBytes(t *testing.T) {
 	etag, _ := diskEtag(t, f.AbsPath)
 
 	w := getPageState(t, fx.srv, f.Token, etag)
-	if w.Code != http.StatusNotFound || decode(t, w)["code"] != "no-page-state" {
+	if w.Code != http.StatusNotFound || decode(t, w)["code"] != "no-blockeditor-state" {
 		t.Fatalf("never-saved page = %d %s", w.Code, w.Body.String())
 	}
 	if got := w.Header().Get("ETag"); got != etag {
@@ -202,10 +202,10 @@ func TestPageStateExternalReplacementNeverExposesStaleState(t *testing.T) {
 	if string(disk) != replacement {
 		t.Fatalf("disk does not hold the replacement: %q", disk)
 	}
-	if served := fx.serve(t, "external.htmlclay", nil).Body.String(); strings.Contains(served, `merge="page"`) {
+	if served := fx.serve(t, "external.htmlclay", nil).Body.String(); strings.Contains(served, `merge="blockeditor"`) {
 		t.Fatalf("serving after an external replacement carried a page tag:\n%s", served)
 	}
-	if w := getPageState(t, fx.srv, f.Token, newEtag); w.Code != http.StatusNotFound || decode(t, w)["code"] != "no-page-state" {
+	if w := getPageState(t, fx.srv, f.Token, newEtag); w.Code != http.StatusNotFound || decode(t, w)["code"] != "no-blockeditor-state" {
 		t.Fatalf("state for the replaced bytes = %d %s", w.Code, w.Body.String())
 	}
 	if w := getPageState(t, fx.srv, f.Token, oldEtag); w.Code != http.StatusPreconditionFailed {
@@ -256,11 +256,11 @@ func TestPageStateRestoreNeverExposesStaleState(t *testing.T) {
 	}
 
 	served := fx.serve(t, "restored.htmlclay", nil).Body.String()
-	if strings.Contains(served, first) || strings.Contains(served, second) || strings.Contains(served, `merge="page"`) {
+	if strings.Contains(served, first) || strings.Contains(served, second) || strings.Contains(served, `merge="blockeditor"`) {
 		t.Fatalf("serving after a restore carried a page tag:\n%s", served)
 	}
 	etag, _ := diskEtag(t, f.AbsPath)
-	if w := getPageState(t, fx.srv, f.Token, etag); w.Code != http.StatusNotFound || decode(t, w)["code"] != "no-page-state" {
+	if w := getPageState(t, fx.srv, f.Token, etag); w.Code != http.StatusNotFound || decode(t, w)["code"] != "no-blockeditor-state" {
 		t.Fatalf("state after a restore = %d %s", w.Code, w.Body.String())
 	}
 }
@@ -272,7 +272,7 @@ func pageStateDataDocument(tag, text string) string {
 	if tag != "" {
 		doc += "  " + tag + "\n"
 	}
-	return doc + `  <article data-page data-rev="1"><p>` + text + `</p></article>` + "\n</body>\n</html>"
+	return doc + `  <article data-blockeditor data-rev="1"><p>` + text + `</p></article>` + "\n</body>\n</html>"
 }
 
 func TestPageStateDataWriteDropsState(t *testing.T) {
@@ -294,7 +294,7 @@ func TestPageStateDataWriteDropsState(t *testing.T) {
 	if !strings.Contains(string(onDisk), "<h1>New</h1>") {
 		t.Fatalf("the data write did not change the document: %s", onDisk)
 	}
-	if served := fx.serve(t, "data-state.htmlclay", nil).Body.String(); strings.Contains(served, `merge="page"`) {
+	if served := fx.serve(t, "data-state.htmlclay", nil).Body.String(); strings.Contains(served, `merge="blockeditor"`) {
 		t.Fatalf("serving after a data API write carried a page tag:\n%s", served)
 	}
 }
@@ -307,7 +307,7 @@ func TestPageStateDownloadsCarryNoTag(t *testing.T) {
 	if w := fx.save(t, f, pageStateDocument(pageStateYJS("state-1"), "two")); w.Code != 200 {
 		t.Fatalf("save: %d %s", w.Code, w.Body.String())
 	}
-	if served := fx.serve(t, "downloaded.htmlclay", nil).Body.String(); !strings.Contains(served, `merge="page"`) {
+	if served := fx.serve(t, "downloaded.htmlclay", nil).Body.String(); !strings.Contains(served, `merge="blockeditor"`) {
 		t.Fatal("the normal serve lost the page tag, so the export check proves nothing")
 	}
 
@@ -320,7 +320,7 @@ func TestPageStateDownloadsCarryNoTag(t *testing.T) {
 		t.Fatalf("the export is empty: %s", out)
 	}
 	for name, content := range entries {
-		if strings.Contains(content, `merge="page"`) {
+		if strings.Contains(content, `merge="blockeditor"`) {
 			t.Fatalf("the export entry %q carries the page tag:\n%s", name, content)
 		}
 	}
@@ -333,12 +333,12 @@ func TestPageStateMetaNamesTheResourceAndAnnouncesTheCapability(t *testing.T) {
 	fx.serve(t, "named.htmlclay", nil)
 
 	document := pageStateMetaDocument(t, fx.srv, f.Token)
-	pageState, ok := document["pageState"].(map[string]any)
+	blockeditorState, ok := document["blockeditorState"].(map[string]any)
 	if !ok {
 		t.Fatalf("the document block names no page state: %v", document)
 	}
-	if want := "/_/page-state/" + f.Token; pageState["href"] != want {
-		t.Fatalf("pageState.href = %v, want %q", pageState["href"], want)
+	if want := "/_/blockeditor-state/" + f.Token; blockeditorState["href"] != want {
+		t.Fatalf("blockeditorState.href = %v, want %q", blockeditorState["href"], want)
 	}
 
 	answers := []*httptest.ResponseRecorder{
@@ -349,12 +349,12 @@ func TestPageStateMetaNamesTheResourceAndAnnouncesTheCapability(t *testing.T) {
 		announced := false
 		extensions, _ := decode(t, w)["extensions"].([]any)
 		for _, extension := range extensions {
-			if extension == "page-recovery-v1" {
+			if extension == "blockeditor-recovery-v1" {
 				announced = true
 			}
 		}
 		if !announced {
-			t.Fatalf("a meta answer does not announce page-recovery-v1: %s", w.Body.String())
+			t.Fatalf("a meta answer does not announce blockeditor-recovery-v1: %s", w.Body.String())
 		}
 	}
 

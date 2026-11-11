@@ -159,7 +159,7 @@ func TestSnapshotTake(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if status, answer := relayPost(t, server, "/_/sync", "floor.html", string(body), map[string]string{"X-Clay-Page-Format": "1"}); status != http.StatusOK {
+		if status, answer := relayPost(t, server, "/_/sync", "floor.html", string(body), map[string]string{"X-Clay-Blockeditor-Format": "1"}); status != http.StatusOK {
 			t.Fatalf("relay answered %d: %s", status, answer)
 		}
 
@@ -198,7 +198,7 @@ func TestSnapshotTake(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if status, answer := relayPost(t, server, "/_/sync", "floor.html", string(body), map[string]string{"X-Clay-Page-Format": "1"}); status != http.StatusOK {
+		if status, answer := relayPost(t, server, "/_/sync", "floor.html", string(body), map[string]string{"X-Clay-Blockeditor-Format": "1"}); status != http.StatusOK {
 			t.Fatalf("relay answered %d: %s", status, answer)
 		}
 		snapshotNow = func() int64 { return now }

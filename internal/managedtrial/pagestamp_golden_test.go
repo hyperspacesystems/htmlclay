@@ -11,7 +11,7 @@ import (
 	"github.com/panphora/htmlclay/internal/pageadmission"
 )
 
-// The golden answers come from ClayJS's own stampPageRev, pageFormatFloor and
+// The golden answers come from ClayJS's own stampPageRev, blockeditorFormatFloor and
 // withPageFormatFloor, recorded by testdata/pagestamp-golden/gen.cjs. Every case
 // is replayed through the same three functions in Go and compared exactly.
 
@@ -27,7 +27,7 @@ type pageStampGoldenCase struct {
 	Floor           int             `json:"floor"`
 	Stamp           json.RawMessage `json:"stamp"`
 	FloorOnly       json.RawMessage `json:"floorOnly"`
-	PageFormatFloor int             `json:"pageFormatFloor"`
+	PageFormatFloor int             `json:"blockeditorFormatFloor"`
 }
 
 func TestPageStampGolden(t *testing.T) {
@@ -61,7 +61,7 @@ func TestPageStampGolden(t *testing.T) {
 				t.Errorf("withPageFormatFloor = %q, want %q", pageadmission.WithPageFormatFloor(source, want.Floor), expected)
 			}
 			if got := pageadmission.PageFormatFloor(source); got != want.PageFormatFloor {
-				t.Errorf("pageFormatFloor = %d, want %d", got, want.PageFormatFloor)
+				t.Errorf("blockeditorFormatFloor = %d, want %d", got, want.PageFormatFloor)
 			}
 		})
 	}

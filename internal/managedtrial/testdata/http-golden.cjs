@@ -169,7 +169,7 @@ async function main() {
   pin(root)
 
   // A case that pins the clock loads pin-clock.js into the fixture, so every
-  // version name and page-state generation it writes is reproducible.
+  // version name and blockeditor-state generation it writes is reproducible.
   const pinClock = path.resolve(caseDir, 'pin-clock.cjs')
   const generationLog = path.join(temp, 'generations.log')
   const pinClockEnv = fs.existsSync(pinClock)
@@ -283,7 +283,7 @@ async function main() {
   await wait(200)
   const files = fileList(root)
 
-  // The clock and the page-state generations the recording consumed, so the Go
+  // The clock and the blockeditor-state generations the recording consumed, so the Go
   // side can produce the same version names and the same sidecar bytes. Read
   // before the temp tree is removed.
   let pinned = {}

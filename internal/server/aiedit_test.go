@@ -75,6 +75,7 @@ func aiEditDiscoveryMeta(t *testing.T, srv *Server, file string) []helperMeta {
 }
 
 func TestAIEditDiscovery(t *testing.T) {
+	withoutPageToolPrompts(t)
 	srv, f := setupLiveSyncTest(t)
 	t.Cleanup(func() { srv.wire.shutdown() })
 	t.Cleanup(srv.CancelAIEdits)

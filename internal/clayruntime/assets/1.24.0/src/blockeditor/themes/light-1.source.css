@@ -1,0 +1,270 @@
+/* Light 1: warm paper, Inter body under a Newsreader serif title, hairline chrome that darkens one small step on movement, from the parent bake-off seat. */
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500&family=Inter:wght@400;500;600&display=swap");
+
+@import url("./content.css");
+
+:where(article[data-blockeditor], .blockeditor-shell) {
+  --chart-1: #2F5E9E;
+  --chart-2: #164583;
+  --chart-3: #5B5953;
+  --chart-4: #23221F;
+  --chart-5: #A1A09B;
+  --chart-6: #6B6862;
+  --chart-text: #23221F;
+  --blockeditor-bg: #F7F6F2;
+  --blockeditor-ink: #23221F;
+  --blockeditor-ink-strong: #23221F;
+  --blockeditor-ink-soft: #5B5953;
+  --blockeditor-ink-faint: #A1A09B;
+  --blockeditor-rule: rgba(35, 34, 31, 0.08);
+  --blockeditor-accent: #2F5E9E;
+  --blockeditor-link: #164583;
+  --blockeditor-caret: #2F5E9E;
+  --blockeditor-selection: rgba(88, 120, 170, 0.20);
+
+  --blockeditor-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --blockeditor-font-display: Newsreader, "Iowan Old Style", Georgia, serif;
+  --blockeditor-font-heading: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --blockeditor-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --blockeditor-font-size: 17px;
+  --blockeditor-line-height: 1.65;
+  --blockeditor-measure: 632px;
+  --blockeditor-pad-top: 120px;
+  --blockeditor-h1-size: 40px;
+  --blockeditor-h1-weight: 500;
+  --blockeditor-h1-tracking: -0.01em;
+  --blockeditor-h1-line: 1.15;
+  --blockeditor-h2-size: 19px;
+  --blockeditor-h2-weight: 600;
+  --blockeditor-h3-size: 17px;
+  --blockeditor-h3-weight: 600;
+  --blockeditor-block-gap: 0.8em;
+  --blockeditor-indent: 26px;
+
+  --blockeditor-marker: #5B5953;
+  --blockeditor-check-size: 15px;
+  --blockeditor-check-radius: 4px;
+  --blockeditor-check-border: rgba(35, 34, 31, 0.30);
+  --blockeditor-check-fill: #5B5953;
+  --blockeditor-check-ink: #F7F6F2;
+  --blockeditor-done-ink: #5B5953;
+  --blockeditor-toggle-ink: #5B5953;
+  --blockeditor-callout-bg: rgba(35, 34, 31, 0.035);
+  --blockeditor-callout-line: transparent;
+  --blockeditor-code-bg: rgba(35, 34, 31, 0.045);
+  --blockeditor-code-ink: #23221F;
+
+  --blockeditor-chrome-ink-rest: rgba(35, 34, 31, 0.66);
+  --blockeditor-chrome-ink-moved: rgba(35, 34, 31, 0.80);
+  --blockeditor-chrome-bg-rest: rgba(35, 34, 31, 0.035);
+  --blockeditor-chrome-bg-moved: rgba(35, 34, 31, 0.06);
+  --blockeditor-chrome-line-rest: rgba(35, 34, 31, 0.22);
+  --blockeditor-chrome-line-moved: rgba(35, 34, 31, 0.36);
+  --blockeditor-chrome-shadow-rest: none;
+  --blockeditor-chrome-shadow-moved: none;
+  --blockeditor-chrome-radius: 7px;
+  --blockeditor-plus-size: 24px;
+  --blockeditor-fade: 250ms;
+
+  --blockeditor-pop-bg: #FBFAF7;
+  --blockeditor-pop-ink: #23221F;
+  --blockeditor-pop-muted: #5B5953;
+  --blockeditor-pop-line: rgba(35, 34, 31, 0.08);
+  --blockeditor-pop-shadow: 0 1px 2px rgba(35, 34, 31, 0.05), 0 8px 24px rgba(35, 34, 31, 0.07);
+  --blockeditor-pop-hover: rgba(35, 34, 31, 0.06);
+  --blockeditor-pop-radius: 12px;
+  --blockeditor-bar-bg: #F7F6F2;
+  --blockeditor-bar-ink: #5B5953;
+  --blockeditor-scrim: rgba(35, 34, 31, 0.10);
+
+  -webkit-font-smoothing: antialiased;
+}
+
+article[data-blockeditor] figure[data-type="chart"] { --chart-1: #2F5E9E; --chart-2: #164583; --chart-3: #5B5953; --chart-4: #23221F; --chart-5: #A1A09B; --chart-6: #6B6862; --chart-text: #23221F; max-width: 100%; }
+article[data-blockeditor] figure[data-type="chart"] > svg { display: block; width: 100%; height: auto; color: var(--chart-text); font: 12px Inter, sans-serif; }
+
+:is(article[data-blockeditor], .blockeditor-shell) .blockeditor-li {
+  --blockeditor-block-gap: 0.35em;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > h1:first-child {
+  margin-bottom: 0.7em;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > h2 {
+  margin-top: 1.6em;
+  line-height: 1.4;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell) .blockeditor-li[data-kind="bullet"][data-indent="1"]::before,
+:is(article[data-blockeditor], .blockeditor-shell) .blockeditor-li[data-kind="bullet"][data-indent="3"]::before,
+:is(article[data-blockeditor], .blockeditor-shell) .blockeditor-li[data-kind="bullet"][data-indent="5"]::before,
+:is(article[data-blockeditor], .blockeditor-shell) .blockeditor-li[data-kind="bullet"][data-indent="7"]::before {
+  background: none;
+  border: 1.5px solid currentColor;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell) .blockeditor-li[data-kind="ordered"]::before {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell) .blockeditor-li[data-kind="check"]::before {
+  border-width: 1.5px;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell) .blockeditor-li[data-kind="check"][data-checked="true"] {
+  text-decoration-color: rgba(35, 34, 31, 0.30);
+}
+
+.blockeditor-shell .blockeditor-toggle-button::before {
+  content: "";
+  display: block;
+  width: 22px;
+  height: 22px;
+  background: currentColor;
+  clip-path: polygon(37.5% 28%, 65.6% 50%, 37.5% 72%);
+}
+
+.blockeditor-shell .blockeditor-dock {
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.blockeditor-shell .blockeditor-dock .blockeditor-tool,
+.blockeditor-shell .blockeditor-bubble .blockeditor-tool {
+  width: 30px;
+  height: 28px;
+  border-radius: 6px;
+  font: 600 13px/1 Inter, system-ui, sans-serif;
+}
+
+.blockeditor-shell .blockeditor-dock .blockeditor-tool svg,
+.blockeditor-shell .blockeditor-bubble .blockeditor-tool svg {
+  width: 15px;
+  height: 15px;
+}
+
+.blockeditor-shell .blockeditor-dock .blockeditor-tool-turn,
+.blockeditor-shell .blockeditor-bubble .blockeditor-tool-turn {
+  width: auto;
+  gap: 4px;
+  padding: 0 8px;
+  font-weight: 500;
+}
+
+.blockeditor-shell .blockeditor-tool-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.blockeditor-shell .blockeditor-plus svg {
+  width: 12px;
+  height: 12px;
+}
+
+.blockeditor-shell .blockeditor-bubble {
+  gap: 1px;
+  padding: 3px;
+  border-radius: 9px;
+  color: #5B5953;
+}
+
+.blockeditor-shell .blockeditor-menu {
+  width: 264px;
+  padding: 6px;
+  font-size: 14px;
+}
+
+.blockeditor-shell .blockeditor-menu-title {
+  padding: 6px 10px 8px;
+  font-size: 13px;
+  color: #5B5953;
+  opacity: 0.7;
+}
+
+.blockeditor-shell .blockeditor-menu-item {
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 7px;
+}
+
+.blockeditor-shell .blockeditor-menu-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(35, 34, 31, 0.08);
+  color: #5B5953;
+  font: 500 12px/1 Inter, system-ui, sans-serif;
+}
+
+.blockeditor-shell .blockeditor-menu-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.blockeditor-shell .blockeditor-menu-hint {
+  margin-left: auto;
+  color: #5B5953;
+  opacity: 0.6;
+  font: 400 12px/1 ui-monospace, Menlo, monospace;
+}
+
+@media (max-width: 560px) {
+  :where(article[data-blockeditor], .blockeditor-shell) {
+    --blockeditor-font-size: 16px;
+    --blockeditor-pad-top: 64px;
+    --blockeditor-h1-size: 30px;
+    --blockeditor-indent: 20px;
+  }
+
+  :is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > h1:first-child {
+    margin-bottom: 0.67em;
+  }
+
+  .blockeditor-shell .blockeditor-bubble {
+    border-radius: 0;
+    border-width: 1px 0 0;
+    border-color: rgba(35, 34, 31, 0.08);
+    box-shadow: none;
+  }
+
+  .blockeditor-shell .blockeditor-bubble .blockeditor-tool {
+    width: 44px;
+    height: 44px;
+  }
+
+  .blockeditor-shell .blockeditor-plus {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .blockeditor-shell .blockeditor-menu {
+    width: auto;
+    padding: 6px 8px calc(14px + env(safe-area-inset-bottom));
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+    font-size: 16px;
+  }
+
+  .blockeditor-shell .blockeditor-menu-item {
+    min-height: 48px;
+  }
+
+  .blockeditor-shell .blockeditor-menu-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .blockeditor-shell .blockeditor-menu-hint {
+    display: none;
+  }
+}

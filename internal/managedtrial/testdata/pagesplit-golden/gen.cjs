@@ -42,9 +42,9 @@ const read = (name) => fs.readFileSync(path.join(templateDir, name), 'utf8')
 
 const ypage = read('ypage-template.html')
 const untagged = read('untagged-page-template.html')
-const tag = /<script type="application\/json" merge="page" clay="live">[\s\S]*?<\/script>/.exec(ypage)[0]
+const tag = /<script type="application\/json" merge="blockeditor" clay="live">[\s\S]*?<\/script>/.exec(ypage)[0]
 const rev = '093360993130d818'
-const article = '<article class="page" clay="freeze" data-page="1" data-rev="' + rev + '"></article>'
+const article = '<article class="blockeditor" clay="freeze" data-blockeditor="1" data-rev="' + rev + '"></article>'
 
 const page = (lines, newline = '\n') =>
   ['<!doctype html>', '<html>', '<body>', ...lines, '</body>', '</html>', ''].join(newline)
@@ -60,27 +60,27 @@ const cases = [
   { name: 'tag after the article', input: page([article, tag]) },
   {
     name: 'tag inside the article',
-    input: page(['<article class="page" data-page="1" data-rev="' + rev + '">before' + tag + 'after</article>'])
+    input: page(['<article class="blockeditor" data-blockeditor="1" data-rev="' + rev + '">before' + tag + 'after</article>'])
   },
   {
     name: 'two articles',
     input: page([
-      '<article data-page="1" data-rev="aaa"></article>',
-      '<article data-page="2" data-rev="bbb"></article>',
+      '<article data-blockeditor="1" data-rev="aaa"></article>',
+      '<article data-blockeditor="2" data-rev="bbb"></article>',
       tag
     ])
   },
   {
     name: 'article inside template beside a real one',
-    input: page(['<template><article data-page="1"></article></template>', tag, article])
+    input: page(['<template><article data-blockeditor="1"></article></template>', tag, article])
   },
   {
     name: 'article inside noscript beside a real one',
-    input: page(['<noscript><article data-page="1"></article></noscript>', tag, article])
+    input: page(['<noscript><article data-blockeditor="1"></article></noscript>', tag, article])
   },
   {
     name: 'article with no data-rev beside a tag',
-    input: page([tag, '<article class="page" clay="freeze" data-page="1"></article>'])
+    input: page([tag, '<article class="blockeditor" clay="freeze" data-blockeditor="1"></article>'])
   },
   { name: 'two page tags', input: page([tag, tag, article]) },
   {
@@ -93,7 +93,7 @@ const cases = [
   },
   {
     name: 'merge page tag that is not yjs',
-    input: page(['<script type="application/json" merge="page" clay="live">{"blocks":{}}</script>', article])
+    input: page(['<script type="application/json" merge="blockeditor" clay="live">{"blocks":{}}</script>', article])
   },
   {
     name: 'non-ascii text before the tag',
@@ -111,7 +111,7 @@ const composeOnly = [
   },
   {
     name: 'compose onto an article whose data-rev differs',
-    file: page(['<article class="page" clay="freeze" data-page="1" data-rev="ffffffffffffffff"></article>'])
+    file: page(['<article class="blockeditor" clay="freeze" data-blockeditor="1" data-rev="ffffffffffffffff"></article>'])
   },
   { name: 'compose onto a tab indented article line', file: page(['\t' + article]) },
   { name: 'compose onto a space indented article line', file: page(['    ' + article]) },

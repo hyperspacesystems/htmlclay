@@ -102,7 +102,7 @@ func run(root string, stdout io.Writer, stdin io.Reader) error {
 	}
 	defer ln.Close()
 
-	// The version store, page-state sidecars included, lives under the served folder,
+	// The version store, blockeditor-state sidecars included, lives under the served folder,
 	// so a restart on the same folder reopens the history a real install would keep.
 	srv := server.New(ln, mgr, logger, versions.New(filepath.Join(resolved, stateDir, "versions")))
 	baseURL := "http://" + srv.Host()

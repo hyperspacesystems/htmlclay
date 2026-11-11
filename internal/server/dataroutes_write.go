@@ -348,7 +348,7 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 	if admissionErr != nil {
 		_, code, reason := pageAdmissionFields(admissionErr)
 		if code == "" {
-			code = "page-format"
+			code = "blockeditor-format"
 		}
 		if reason == "" {
 			reason = code
@@ -373,7 +373,7 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 		s.logger.Printf("Error writing %s: %v", f.AbsPath, err)
 		return nil, "", err
 	}
-	if sErr := s.versions.SettlePageState(key, f.AbsPath, versions.Hash(written)); sErr != nil {
+	if sErr := s.versions.SettlePageState(key, f.AbsPath, written); sErr != nil {
 		s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
 	}
 	f.RecordServerWrite(versions.Hash(written))

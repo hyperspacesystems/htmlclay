@@ -1,0 +1,1 @@
+var r=921600;function n(e){return[...String(e??"").matchAll(/(?<![\w\u00C0-\u024F.@\/:-])@([\w.-]*[/.][\w./-]*)/g)].map(t=>t[1].replace(/\.+$/,"")).filter(t=>t!=="page").filter(t=>/[/.]/.test(t))}function u(e){return/(?<![\w\u00C0-\u024F.@\/:-])@page(?![\w\/-]|\.\w)/.test(String(e??""))}export{r as a,n as b,u as c};

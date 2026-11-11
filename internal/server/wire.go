@@ -1038,7 +1038,7 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	if isBrowser {
 		env.From = "page"
 	}
-	// The built-in helpers ai-edit and page-tool are answered here, before any
+	// The built-in helpers ai-edit and blockeditor-tool are answered here, before any
 	// handler sees the request: they need no declaration and never take the
 	// file's handler slot, and they share one per-document run slot. They always
 	// require the document's token, bound helpers or not.

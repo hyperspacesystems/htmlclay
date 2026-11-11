@@ -1,0 +1,7 @@
+tier: 1
+face: tag
+token: api
+expect: ok
+skip: htmlclay=all-matches form not ported yet (multi-page sites release 1, step G1)
+note: The [*] marker is not a quote-level token: a strict JSON quoted rule value lands on the
+note: same parse tree as the relaxed unquoted spelling in all-matches-read.

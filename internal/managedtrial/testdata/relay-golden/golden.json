@@ -427,14 +427,14 @@
       },
       "status": 409,
       "headers": {
-        "content-length": "122",
+        "content-length": "129",
         "content-type": "application/json; charset=utf-8",
-        "etag": "W/\"7a-FnOGyB13zz9YeJ8jG62SbKNxEn8\"",
+        "etag": "W/\"81-kp1bLjg1UOfBBOOL2SVxCbzYOok\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "{\"code\":\"page-format-upgrade-required\",\"msg\":\"This document uses a newer page format; update the editor to keep writing.\"}"
+        "text": "{\"code\":\"blockeditor-format-upgrade-required\",\"msg\":\"This document uses a newer page format; update the editor to keep writing.\"}"
       }
     },
     {
@@ -445,7 +445,7 @@
         "headers": {
           "Content-Type": "application/json",
           "Document-URL": "http://127.0.0.1:{PORT}/floor.html",
-          "X-Clay-Page-Format": "1"
+          "X-Clay-Blockeditor-Format": "1"
         },
         "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
       },
@@ -465,7 +465,7 @@
   "files": [
     {
       "path": "floor.html",
-      "sha256": "d7f2edd2e1a1fd4013092020c13a384ab18e34071b944ffb1391d8920b1aa5f1"
+      "sha256": "2dfad42cf777d82a982ddae6c963317344b2e9ad61f86480656c705cff83c798"
     },
     {
       "path": "notes.html",

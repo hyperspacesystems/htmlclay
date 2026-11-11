@@ -94,7 +94,7 @@ func (a *controlAPI) route(r *http.Request) http.HandlerFunc {
 		return a.serveArtifact
 	case r.URL.Path == "/v1/restructure" && r.Method == http.MethodPost:
 		return a.serveRestructure
-	case r.URL.Path == "/v1/page-state" && r.Method == http.MethodPost:
+	case r.URL.Path == "/v1/blockeditor-state" && r.Method == http.MethodPost:
 		return a.servePageState
 	case r.URL.Path == "/v1/snapshot/take" && r.Method == http.MethodPost:
 		return a.serveSnapshotTake
@@ -221,7 +221,7 @@ type controlCommitBody struct {
 	Edit       bool              `json:"edit"`
 	Safety     bool              `json:"safety"`
 	ModifiedAt *int64            `json:"modifiedAt"`
-	PageRecord *PageRecord       `json:"pageRecord"`
+	PageRecord *PageRecord       `json:"blockeditorRecord"`
 	SaveID     string            `json:"saveId"`
 	UserDriven *bool             `json:"userDriven"`
 	Hooks      *json.RawMessage  `json:"hooks"`
@@ -370,15 +370,15 @@ type controlStructureBody struct {
 }
 
 // controlStructureStep is one logical move: where a name is and where it goes,
-// plus the page-state work the step carries.
+// plus the blockeditor-state work the step carries.
 type controlStructureStep struct {
 	From      string `json:"from"`
 	To        string `json:"to"`
-	PageState string `json:"pageState"`
+	PageState string `json:"blockeditorState"`
 }
 
 // validateStructureSteps is the shape check every restructure makes before any
-// op is begun: the workspace kinds carry their own step shapes, and a page-state
+// op is begun: the workspace kinds carry their own step shapes, and a blockeditor-state
 // move or drop is only what its kind can carry.
 func validateStructureSteps(kind string, steps []controlStructureStep) string {
 	switch kind {
@@ -406,20 +406,20 @@ func validateStructureSteps(kind string, steps []controlStructureStep) string {
 		case "":
 		case "move":
 			if kind != "move" && kind != "sync-move" {
-				return "pageState move needs kind move or sync-move"
+				return "blockeditorState move needs kind move or sync-move"
 			}
 		case "drop":
 			if kind != "trash" && kind != "sync-trash" {
-				return "pageState drop needs kind trash or sync-trash"
+				return "blockeditorState drop needs kind trash or sync-trash"
 			}
 		default:
-			return "Unknown pageState: " + step.PageState
+			return "Unknown blockeditorState: " + step.PageState
 		}
 	}
 	return ""
 }
 
-// structurePageStateValue is the answer's pageState: nothing when the page state
+// structurePageStateValue is the answer's blockeditorState: nothing when the page state
 // was carried, else the failure's code as `reason` reports it.
 func structurePageStateValue(err error) any {
 	if err == nil {
@@ -499,13 +499,13 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 		{Key: "completed", Value: result.Completed},
 		{Key: "reason", Value: nullableString(result.Reason)},
 		{Key: "refusal", Value: refusalValue(result.Refusal)},
-		{Key: "pageState", Value: structurePageStateValue(result.PageStateErr)},
+		{Key: "blockeditorState", Value: structurePageStateValue(result.PageStateErr)},
 		{Key: "opId", Value: opID},
 		{Key: "cursor", Value: cursor},
 	})
 }
 
-// controlPageStateBody is one POST /v1/page-state.
+// controlPageStateBody is one POST /v1/blockeditor-state.
 type controlPageStateBody struct {
 	OpID   string      `json:"opId"`
 	Root   string      `json:"root"`
@@ -515,7 +515,7 @@ type controlPageStateBody struct {
 	Record *PageRecord `json:"record"`
 }
 
-// servePageState is POST /v1/page-state: Local's host pageState over G4b's
+// servePageState is POST /v1/blockeditor-state: Local's host blockeditorState over G4b's
 // store, answering what each operation returns (nothing, for all five).
 func (a *controlAPI) servePageState(w http.ResponseWriter, r *http.Request) {
 	var body controlPageStateBody
@@ -538,7 +538,7 @@ func (a *controlAPI) servePageState(w http.ResponseWriter, r *http.Request) {
 	case "move", "moveDir", "drop", "dropDir":
 		unlock = fileLocks.lockStructure()
 	default:
-		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "Unknown page-state operation: " + body.Op})
+		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "Unknown blockeditor-state operation: " + body.Op})
 		return
 	}
 	defer unlock()
@@ -551,7 +551,7 @@ func (a *controlAPI) servePageState(w http.ResponseWriter, r *http.Request) {
 	switch body.Op {
 	case "write":
 		if body.Record == nil {
-			err = errors.New("page-state write needs a record")
+			err = errors.New("blockeditor-state write needs a record")
 		} else {
 			err = writePageState(root.baseDir, body.Name, body.Record, false)
 		}
@@ -634,8 +634,8 @@ func (a *controlAPI) serveRead(w http.ResponseWriter, r *http.Request) {
 // readSnapshot is one document as GET /v1/read and every consultation send it,
 // read by a caller that holds the document's lock: the native exists,
 // checksum and bytes, then fileSha256, identity, and for a UTF-8 page document
-// its logical form and its stored page-state record exactly as the sidecar
-// holds it (rev, tag, generation, prev), because Local's page-state readers
+// its logical form and its stored blockeditor-state record exactly as the sidecar
+// holds it (rev, tag, generation, prev), because Local's blockeditor-state readers
 // resolve revisions and lineage from the whole record.
 func readSnapshot(baseDir, name, filePath string) (orderedObject, error) {
 	state, err := readFile(filePath)

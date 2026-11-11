@@ -14,8 +14,8 @@ import (
 	"github.com/panphora/htmlclay/internal/session"
 )
 
-// The built-in page-tool helper. ClayJS sends a named request with helper
-// "page-tool"; this server answers it itself, from internal/aiedit, exactly as
+// The built-in blockeditor-tool helper. ClayJS sends a named request with helper
+// "blockeditor-tool"; this server answers it itself, from internal/aiedit, exactly as
 // it answers ai-edit: no declaration, no approval, only the AI Editing switch,
 // and the same one-request-per-document slot so a tool and an edit can never
 // race on one document.
@@ -48,7 +48,7 @@ func readPageToolPrompts() (string, bool) {
 	return string(head) + "\n\n" + string(tail) + "\n", true
 }
 
-// pageToolOffered reports whether this server can answer page-tool at all: the
+// pageToolOffered reports whether this server can answer blockeditor-tool at all: the
 // AI Editing hook, and the prompt files it needs.
 func (s *Server) pageToolOffered() bool {
 	if !s.aiEditOffered() {
@@ -59,7 +59,7 @@ func (s *Server) pageToolOffered() bool {
 }
 
 // pageToolMeta is the discovery entry for a document, when this server offers
-// the page-tool helper for it.
+// the blockeditor-tool helper for it.
 func (s *Server) pageToolMeta(file string) (helperMeta, bool) {
 	if !s.pageToolOffered() || !aiedit.IsDocument(file) {
 		return helperMeta{}, false
@@ -91,7 +91,7 @@ func (s *Server) startPageTool(f *session.File, request wireEnvelope) {
 		return
 	}
 	if request.Type == "wire/describe" {
-		s.refuseAIEdit(request, "host", "invalid_type", "page-tool does not support wire/describe")
+		s.refuseAIEdit(request, "host", "invalid_type", "blockeditor-tool does not support wire/describe")
 		return
 	}
 	toolRequest, requestErr := aiedit.ValidateToolRequest(request.Payload)

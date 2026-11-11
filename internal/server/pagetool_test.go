@@ -13,12 +13,21 @@ import (
 
 const pageToolID = "3f1b9c62-0000-4000-8000-1234567890ab"
 
-// withPageToolPrompts puts the tool-generation prompt files in front of the
-// server, because the vendored runtime does not carry them yet.
+// withPageToolPrompts puts known tool-generation prompts in front of the server,
+// so a test does not depend on the bundled runtime's prompt text.
 func withPageToolPrompts(t *testing.T) {
 	t.Helper()
 	original := pageToolPrompts
 	pageToolPrompts = func() (string, bool) { return "HOUSE RULES\n", true }
+	t.Cleanup(func() { pageToolPrompts = original })
+}
+
+// withoutPageToolPrompts hides the bundled runtime's tool-generation prompts, for a
+// test about a server whose runtime carries none.
+func withoutPageToolPrompts(t *testing.T) {
+	t.Helper()
+	original := pageToolPrompts
+	pageToolPrompts = func() (string, bool) { return "", false }
 	t.Cleanup(func() { pageToolPrompts = original })
 }
 
@@ -28,7 +37,7 @@ func pageToolBody(t *testing.T, id, prompt string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return `{"type":"wire/request","id":"` + id + `","helper":"page-tool","document":"none","payload":{"protocol":"page-tool/1","requestId":"` + id + `","prompt":` + string(encoded) + `,"context":{"title":"Research","outline":[],"tables":[]},"target":null,"current":null}}`
+	return `{"type":"wire/request","id":"` + id + `","helper":"blockeditor-tool","document":"none","payload":{"protocol":"blockeditor-tool/1","requestId":"` + id + `","prompt":` + string(encoded) + `,"context":{"title":"Research","outline":[],"tables":[]},"target":null,"current":null}}`
 }
 
 func pageToolServer(t *testing.T) (*Server, *session.File) {
@@ -50,8 +59,8 @@ func TestPageToolListing(t *testing.T) {
 
 	// A server with no AI editing hook offers neither builtin.
 	for _, entry := range aiEditDiscoveryMeta(t, srv, f.AbsPath) {
-		if entry.Name == "page-tool" {
-			t.Fatal("a server with no AI editing hooks offered page-tool")
+		if entry.Name == "blockeditor-tool" {
+			t.Fatal("a server with no AI editing hooks offered blockeditor-tool")
 		}
 	}
 
@@ -59,23 +68,26 @@ func TestPageToolListing(t *testing.T) {
 	on.Store(true)
 	srv.SetHooks(aiEditSwitch(&on))
 
-	// The vendored runtime carries no tool prompt files, so the helper is
-	// absent rather than listed unavailable.
-	if _, ok := pageToolPrompts(); ok {
-		t.Fatal("the vendored runtime already lists tool-generation files; this test would prove nothing")
+	// The bundled runtime carries the tool prompt files, so the helper is offered.
+	if _, ok := readPageToolPrompts(); !ok {
+		t.Fatal("the bundled runtime carries no tool-generation prompts")
 	}
+
+	// A runtime without the prompt files leaves the helper absent rather than
+	// listed unavailable.
+	withoutPageToolPrompts(t)
 	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 1 || meta[0].Name != "ai-edit" {
 		t.Fatalf("discovery without prompt files = %+v", meta)
 	}
 
 	withPageToolPrompts(t)
-	want := []helperMeta{{Name: "ai-edit", State: "ready"}, {Name: "page-tool", State: "ready"}}
+	want := []helperMeta{{Name: "ai-edit", State: "ready"}, {Name: "blockeditor-tool", State: "ready"}}
 	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 2 || meta[0] != want[0] || meta[1] != want[1] {
 		t.Fatalf("enabled discovery = %+v, want %+v", meta, want)
 	}
 
 	on.Store(false)
-	want = []helperMeta{{Name: "ai-edit", State: "unavailable"}, {Name: "page-tool", State: "unavailable"}}
+	want = []helperMeta{{Name: "ai-edit", State: "unavailable"}, {Name: "blockeditor-tool", State: "unavailable"}}
 	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 2 || meta[0] != want[0] || meta[1] != want[1] {
 		t.Fatalf("disabled discovery = %+v, want %+v", meta, want)
 	}
@@ -86,10 +98,10 @@ func TestPageToolListing(t *testing.T) {
 	if srv.helperOffline == nil {
 		srv.helperOffline = make(map[string][]string)
 	}
-	srv.helperOffline[f.AbsPath] = []string{"search", "page-tool"}
+	srv.helperOffline[f.AbsPath] = []string{"search", "blockeditor-tool"}
 	srv.helperMu.Unlock()
 	meta := aiEditDiscoveryMeta(t, srv, f.AbsPath)
-	if len(meta) != 3 || meta[0].Name != "search" || meta[1].Name != "ai-edit" || meta[2].Name != "page-tool" {
+	if len(meta) != 3 || meta[0].Name != "search" || meta[1].Name != "ai-edit" || meta[2].Name != "blockeditor-tool" {
 		t.Fatalf("declared-plus-built-in discovery = %+v", meta)
 	}
 }
@@ -195,7 +207,7 @@ func TestPageToolRefusesAMalformedRequest(t *testing.T) {
 	srv, f := pageToolServer(t)
 	sub := helperObserver(t, srv, f.AbsPath)
 
-	body := `{"type":"wire/request","id":"m1","helper":"page-tool","document":"none","payload":{"protocol":"page-tool/9","requestId":"m1","prompt":"x"}}`
+	body := `{"type":"wire/request","id":"m1","helper":"blockeditor-tool","document":"none","payload":{"protocol":"blockeditor-tool/9","requestId":"m1","prompt":"x"}}`
 	aiEditDelivered(t, aiEditSend(t, srv, f.Token, body))
 	env := aiEditEnvelopeType(t, sub, "m1", 8)
 	if env.Type != "wire/error" || helperErrorCode(t, env) != "invalid_request" {
@@ -231,8 +243,8 @@ func TestTwoClientsConvergeOnAPageToolStore(t *testing.T) {
 	}
 	document := func(tools string) string {
 		return `<html><head>` + pageYJS +
-			`<script type="application/json" merge="page.tools" clay="live">` + store(tools) + `</script>` +
-			`</head><body><article class="page" data-page="1"><h1 data-id="title"></h1></article></body></html>`
+			`<script type="application/json" merge="blockeditor.tools" clay="live">` + store(tools) + `</script>` +
+			`</head><body><article class="blockeditor" data-blockeditor="1"><h1 data-id="title"></h1></article></body></html>`
 	}
 
 	tabA := newSubscriber(f.AbsPath, laneLive)
@@ -245,7 +257,7 @@ func TestTwoClientsConvergeOnAPageToolStore(t *testing.T) {
 	}
 	for name, tab := range map[string]*subscriber{"a": tabA, "b": tabB} {
 		html, _ := waitFrame(t, tab, 2*time.Second)["html"].(string)
-		if !strings.Contains(html, `merge="page.tools"`) || !strings.Contains(html, `"t1"`) {
+		if !strings.Contains(html, `merge="blockeditor.tools"`) || !strings.Contains(html, `"t1"`) {
 			t.Fatalf("tab %s read %q", name, html)
 		}
 	}

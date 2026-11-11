@@ -164,7 +164,7 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveUploadFile(w, r)
 	case marked && getOrHead && urlPath == "/meta":
 		err = s.serveMeta(w, r)
-	case marked && getOrHead && urlPath == "/page-state":
+	case marked && getOrHead && urlPath == "/blockeditor-state":
 		err = s.servePageState(w, r)
 	case marked && getOrHead && urlPath == preSpecSyncWorkerPath:
 		err = serveWorkerScript(w, s.syncWorker)

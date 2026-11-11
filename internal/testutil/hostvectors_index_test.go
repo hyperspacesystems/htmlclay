@@ -11,22 +11,22 @@ import (
 // goFamilies names, for every vector family the package ships, either the Go
 // test that runs it or "pending" when only the JS reference answers it.
 var goFamilies = map[string]string{
-	"copy-content.json":       "internal/dataapi TestStripCopyContentFixture",
-	"data-api.json":           "internal/dataapi TestConformanceExtraction",
-	"data-loss.json":          "internal/dataguard TestVectors",
-	"operations.json":         "metadata",
-	"page-admission.json":     "internal/pageadmission TestPageAdmissionVectors",
-	"page-lineage.json":       "internal/pageadmission TestPageLineageVectors",
-	"pending-checkpoint.json": "pending",
-	"pending-page-api.json":   "pending",
-	"pending-rooms.json":      "pending",
-	"root-attrs.json":         "internal/htmlutil TestHostVectors",
-	"runtime-html.json":       "internal/clayruntime TestHTMLVectorsMatchClayJS",
-	"runtime-parse.json":      "internal/clayruntime TestRuntimeParseVectors",
-	"runtime-releases.json":   "internal/clayruntime TestURLVectorsMatchClayJS",
-	"runtime-urls.json":       "internal/clayruntime TestURLVectorsMatchClayJS",
-	"selector-parity.json":    "internal/dataapi TestSelectorParity",
-	"spec-wire.json":          "internal/specwire TestHostVectors",
+	"copy-content.json":            "internal/dataapi TestStripCopyContentFixture",
+	"data-api.json":                "internal/dataapi TestConformanceExtraction",
+	"data-loss.json":               "internal/dataguard TestVectors",
+	"operations.json":              "metadata",
+	"blockeditor-admission.json":   "internal/pageadmission TestPageAdmissionVectors",
+	"blockeditor-lineage.json":     "internal/pageadmission TestPageLineageVectors",
+	"pending-checkpoint.json":      "pending",
+	"pending-blockeditor-api.json": "pending",
+	"pending-rooms.json":           "pending",
+	"root-attrs.json":              "internal/htmlutil TestHostVectors",
+	"runtime-html.json":            "internal/clayruntime TestHTMLVectorsMatchClayJS",
+	"runtime-parse.json":           "internal/clayruntime TestRuntimeParseVectors",
+	"runtime-releases.json":        "internal/clayruntime TestURLVectorsMatchClayJS",
+	"runtime-urls.json":            "internal/clayruntime TestURLVectorsMatchClayJS",
+	"selector-parity.json":         "internal/dataapi TestSelectorParity",
+	"spec-wire.json":               "internal/specwire TestHostVectors",
 }
 
 type hostVectorIndex struct {

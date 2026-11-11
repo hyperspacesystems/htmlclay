@@ -12,15 +12,15 @@ func TestHasPageStore(t *testing.T) {
 		document string
 		want     bool
 	}{
-		{"page", `<script merge="page" clay="live"></script>`, true},
-		{"numbered page", `<script merge="page.2" clay="x live"></script>`, true},
-		{"upper-case names", `<script MERGE="page" CLAY="live"></script>`, true},
-		{"lively is not live", `<script merge="page" clay="lively"></script>`, false},
-		{"pages is not page", `<script merge="pages" clay="live"></script>`, false},
-		{"no clay", `<script merge="page"></script>`, false},
-		{"not a script", `<div merge="page" clay="live"></div>`, false},
-		{"first merge wins", `<script merge="page" clay="live" merge="x"></script>`, true},
-		{"first merge is not page", `<script merge="x" clay="live" merge="page"></script>`, false},
+		{"page", `<script merge="blockeditor" clay="live"></script>`, true},
+		{"numbered page", `<script merge="blockeditor.2" clay="x live"></script>`, true},
+		{"upper-case names", `<script MERGE="blockeditor" CLAY="live"></script>`, true},
+		{"lively is not live", `<script merge="blockeditor" clay="lively"></script>`, false},
+		{"blockeditors is not blockeditor", `<script merge="blockeditors" clay="live"></script>`, false},
+		{"no clay", `<script merge="blockeditor"></script>`, false},
+		{"not a script", `<div merge="blockeditor" clay="live"></div>`, false},
+		{"first merge wins", `<script merge="blockeditor" clay="live" merge="x"></script>`, true},
+		{"first merge is not page", `<script merge="x" clay="live" merge="blockeditor"></script>`, false},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {

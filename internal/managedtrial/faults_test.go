@@ -152,8 +152,8 @@ func TestFaultMatchesLogicalPath(t *testing.T) {
 	dir := t.TempDir()
 
 	armFault(faultKillBeforeRename, "doc.html", 1)
-	if takeFault(faultKillBeforeRename, filepath.Join(dir, ".hyperclay", "page-state", "doc.html.json")) {
-		t.Error("a fault for doc.html fired for its page-state sidecar")
+	if takeFault(faultKillBeforeRename, filepath.Join(dir, ".hyperclay", "blockeditor-state", "doc.html.json")) {
+		t.Error("a fault for doc.html fired for its blockeditor-state sidecar")
 	}
 	if takeFault(faultKillBeforeRename, filepath.Join(dir, "xdoc.html")) {
 		t.Error("a fault for doc.html fired for xdoc.html")

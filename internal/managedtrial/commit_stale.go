@@ -13,12 +13,12 @@ import (
 // does not rebase, so it refuses that save instead, before anything is written.
 // The predicate is exactly the case Local would rebase: the incoming content
 // carries no inline page state, it carries a page revision, the stored file has
-// its own exact page-state record at a different revision, and one of the 50
+// its own exact blockeditor-state record at a different revision, and one of the 50
 // newest versions of this document is at the incoming revision.
 
 const staleVersionWindow = 50
 
-// stalePageLineage reports whether a save of content would be a stale-page save.
+// stalePageLineage reports whether a save of content would be a stale-blockeditor save.
 // It only reads: nothing is written and nothing is cached.
 func stalePageLineage(baseDir, name, content string) (bool, error) {
 	if _, state := splitPage(content); state != nil {

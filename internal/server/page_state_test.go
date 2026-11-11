@@ -18,7 +18,7 @@ import (
 )
 
 func pageStateYJS(seed string) string {
-	return `<script type="application/json" merge="page" clay="live">{"v":1,"y":{"seed":"` + seed + `"}}</script>`
+	return `<script type="application/json" merge="blockeditor" clay="live">{"v":1,"y":{"seed":"` + seed + `"}}</script>`
 }
 
 // pageStateCompactedV1 is the page value clayjs's compactor leaves behind: one
@@ -28,7 +28,7 @@ func pageStateCompactedV1() string {
 	const checkpoint = "AAECiGNiZGBgYGBkYGBgYGBgYGBgYGJgYGBgYGB/Gis="
 	const loose = "AAEDiGNiYGBgY2BgYGBgYGBjYGA7LwwB"
 	const looseAgain = "AAEEiGNiYGBiYGBgZGBgYGBgYGCNL6MM"
-	return `<script type="application/json" merge="page" clay="live">{"v":1,"y":{` +
+	return `<script type="application/json" merge="blockeditor" clay="live">{"v":1,"y":{` +
 		`"c3f6a91b-1z":"` + checkpoint + `",` +
 		`"uk3x9q2-8f2a1c0-1b":"` + loose + `",` +
 		`"uk3x9q2-8f2a1c0-1c":"` + looseAgain + `"}}</script>`
@@ -39,7 +39,7 @@ func pageStateDocument(tag, text string) string {
 	if tag != "" {
 		doc += "  " + tag + "\n"
 	}
-	return doc + `  <article data-page data-rev="1"><p>` + text + `</p></article>` + "\n</body>\n</html>"
+	return doc + `  <article data-blockeditor data-rev="1"><p>` + text + `</p></article>` + "\n</body>\n</html>"
 }
 
 // pageStateFixture is one home directory and one version store, with a server
@@ -155,7 +155,7 @@ func servedPageTag(t *testing.T, served, article string) string {
 	if at < 0 {
 		t.Fatalf("the served document lost its article: %s", served)
 	}
-	if !strings.Contains(served, `merge="page"`) {
+	if !strings.Contains(served, `merge="blockeditor"`) {
 		return ""
 	}
 	tag := pageadmissionPageTag(t, served)
@@ -173,7 +173,7 @@ func servedPageTag(t *testing.T, served, article string) string {
 
 func pageadmissionPageTag(t *testing.T, served string) string {
 	t.Helper()
-	start := strings.Index(served, `<script type="application/json" merge="page"`)
+	start := strings.Index(served, `<script type="application/json" merge="blockeditor"`)
 	if start < 0 {
 		return ""
 	}
@@ -200,7 +200,7 @@ func TestPageStateSurvivesSaveAndReopen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(disk), `merge="page"`) {
+	if strings.Contains(string(disk), `merge="blockeditor"`) {
 		t.Fatalf("the file on disk carries the page tag: %s", disk)
 	}
 
@@ -211,7 +211,7 @@ func TestPageStateSurvivesSaveAndReopen(t *testing.T) {
 		t.Fatalf("serve after reopen: %d %s", w.Code, w.Body.String())
 	}
 	served := w.Body.String()
-	if got := servedPageTag(t, served, `<article data-page`); got != tag {
+	if got := servedPageTag(t, served, `<article data-blockeditor`); got != tag {
 		t.Fatalf("served page tag = %q, want %q", got, tag)
 	}
 	if got, want := decodedDocumentETag(t, w.Body.Bytes()), specwire.Etag(disk); got != want {
@@ -299,7 +299,7 @@ func TestPageStateSameBytesAdvancesState(t *testing.T) {
 		t.Fatal("the nothing-to-write save wrote the file")
 	}
 	served := fx.serve(t, "same.htmlclay", nil).Body.String()
-	if got := servedPageTag(t, served, `<article data-page`); got != tag2 {
+	if got := servedPageTag(t, served, `<article data-blockeditor`); got != tag2 {
 		t.Fatalf("served page tag = %q, want the one the nothing-to-write save carried", got)
 	}
 }
@@ -344,7 +344,7 @@ func TestPageStateFailedFileWriteKeepsOldState(t *testing.T) {
 		t.Fatal("a failed write changed the file")
 	}
 	served := fx.serve(t, "failed.htmlclay", nil).Body.String()
-	if got := servedPageTag(t, served, `<article data-page`); got != tag1 {
+	if got := servedPageTag(t, served, `<article data-blockeditor`); got != tag1 {
 		t.Fatalf("served page tag after a failed write = %q, want %q", got, tag1)
 	}
 
@@ -353,7 +353,7 @@ func TestPageStateFailedFileWriteKeepsOldState(t *testing.T) {
 		t.Fatalf("save after the failure: %d %s", w.Code, w.Body.String())
 	}
 	served = fx.serve(t, "failed.htmlclay", nil).Body.String()
-	if got := servedPageTag(t, served, `<article data-page`); got != tag3 {
+	if got := servedPageTag(t, served, `<article data-blockeditor`); got != tag3 {
 		t.Fatalf("served page tag after recovery = %q, want %q", got, tag3)
 	}
 }
@@ -415,19 +415,19 @@ func TestPageStateRawSourceCarriesNoTag(t *testing.T) {
 	if w := fx.save(t, f, pageStateDocument(pageStateYJS("state-1"), "two")); w.Code != 200 {
 		t.Fatalf("save: %d %s", w.Code, w.Body.String())
 	}
-	if served := fx.serve(t, "raw.htmlclay", nil).Body.String(); !strings.Contains(served, `merge="page"`) {
+	if served := fx.serve(t, "raw.htmlclay", nil).Body.String(); !strings.Contains(served, `merge="blockeditor"`) {
 		t.Fatal("the normal serve lost the page tag, so the source check proves nothing")
 	}
 
 	source := fx.serve(t, "raw.htmlclay", map[string]string{"Clay-Source": "1"}).Body.String()
-	if strings.Contains(source, `merge="page"`) {
+	if strings.Contains(source, `merge="blockeditor"`) {
 		t.Fatalf("a source read carried the page tag:\n%s", source)
 	}
 	read := getThroughMux(t, fx.srv, "/_/read/"+f.Token)
 	if read.Code != 200 {
 		t.Fatalf("read route: %d %s", read.Code, read.Body.String())
 	}
-	if strings.Contains(read.Body.String(), `merge="page"`) {
+	if strings.Contains(read.Body.String(), `merge="blockeditor"`) {
 		t.Fatalf("the read route carried the page tag:\n%s", read.Body.String())
 	}
 }
@@ -453,10 +453,10 @@ func TestPageStateForgedBodyIDStaysWithTheTrackedDocument(t *testing.T) {
 	if w := fx.save(t, a, string(body)); w.Code != 200 {
 		t.Fatalf("save: %d %s", w.Code, w.Body.String())
 	}
-	if served := fx.serve(t, "a.htmlclay", nil).Body.String(); !strings.Contains(served, `merge="page"`) {
+	if served := fx.serve(t, "a.htmlclay", nil).Body.String(); !strings.Contains(served, `merge="blockeditor"`) {
 		t.Fatalf("the saved document did not get its page tag back:\n%s", served)
 	}
-	if served := fx.serve(t, "b.htmlclay", nil).Body.String(); strings.Contains(served, `merge="page"`) {
+	if served := fx.serve(t, "b.htmlclay", nil).Body.String(); strings.Contains(served, `merge="blockeditor"`) {
 		t.Fatalf("a body's forged id moved the page state onto another document:\n%s", served)
 	}
 }
@@ -482,7 +482,7 @@ func TestPageStateCopyStartsFreshAndMoveKeeps(t *testing.T) {
 	}
 	fx.open(t, "copied.htmlclay")
 	served := fx.serve(t, "copied.htmlclay", nil).Body.String()
-	if strings.Contains(served, `merge="page"`) {
+	if strings.Contains(served, `merge="blockeditor"`) {
 		t.Fatalf("a copy inherited the page state of the file it was copied from:\n%s", served)
 	}
 
@@ -491,7 +491,7 @@ func TestPageStateCopyStartsFreshAndMoveKeeps(t *testing.T) {
 	}
 	fx.open(t, "moved.htmlclay")
 	served = fx.serve(t, "moved.htmlclay", nil).Body.String()
-	if got := servedPageTag(t, served, `<article data-page`); got != tag {
+	if got := servedPageTag(t, served, `<article data-blockeditor`); got != tag {
 		t.Fatalf("a moved document lost its page state: %q", served)
 	}
 }
@@ -518,7 +518,7 @@ func TestD13NoPageRoomCapability(t *testing.T) {
 			if lower == "live-data" {
 				t.Errorf("%s: capabilities announce %q, which sends clayjs to the room protocol", route, name)
 			}
-			for _, room := range []string{"page-room", "rooms", "compaction"} {
+			for _, room := range []string{"blockeditor-room", "rooms", "compaction"} {
 				if strings.Contains(lower, room) {
 					t.Errorf("%s: capabilities announce %q, which names a page room", route, name)
 				}
@@ -546,7 +546,7 @@ func TestPageStateCompactedV1TagRoundTrip(t *testing.T) {
 	fx.start(t)
 	fx.open(t, "compacted.htmlclay")
 	served := fx.serve(t, "compacted.htmlclay", nil).Body.String()
-	if got := servedPageTag(t, served, `<article data-page`); got != tag {
+	if got := servedPageTag(t, served, `<article data-blockeditor`); got != tag {
 		t.Fatalf("served page tag = %q, want %q", got, tag)
 	}
 }

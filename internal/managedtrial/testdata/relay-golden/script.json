@@ -222,7 +222,7 @@
     "headers": {
       "Content-Type": "application/json",
       "Document-URL": "http://127.0.0.1:{PORT}/floor.html",
-      "X-Clay-Page-Format": "1"
+      "X-Clay-Blockeditor-Format": "1"
     },
     "body": "{\"snapshot\": \"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <p class=\\\"notes\\\">Relayed by tab A.</p>\\n  </body>\\n</html>\\n\", \"sender\": \"tab-A\"}"
   },

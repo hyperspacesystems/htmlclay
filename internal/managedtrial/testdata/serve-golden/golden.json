@@ -69,13 +69,13 @@
       "headers": {
         "content-length": "429",
         "content-type": "text/html; charset=utf-8",
-        "etag": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\"",
+        "etag": "W/\"1ad-MboaedXZOgdJ3srVxUOSBuucovE\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "vary": "Clay-Source",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "<!DOCTYPE html>\n<html documentetag=\"65a6e4ce7d3e7828\" lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>A</title>\n  <script type=\"application/json\" id=\"clay-runtime-map\" clay=\"no-save no-watch no-snapshot\">{\"schema\":1,\"version\":\"1.23.0\",\"entries\":[{\"original\":\"https://clayjs.com/v1/clay.js\",\"local\":\"/_/clayjs/1.23.0/clay.js\"}]}</script><script src=\"/_/clayjs/1.23.0/clay.js\"></script>\n</head>\n<body><h1>A</h1></body>\n</html>\n"
+        "text": "<!DOCTYPE html>\n<html documentetag=\"65a6e4ce7d3e7828\" lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>A</title>\n  <script type=\"application/json\" id=\"clay-runtime-map\" clay=\"no-save no-watch no-snapshot\">{\"schema\":1,\"version\":\"1.24.0\",\"entries\":[{\"original\":\"https://clayjs.com/v1/clay.js\",\"local\":\"/_/clayjs/1.24.0/clay.js\"}]}</script><script src=\"/_/clayjs/1.24.0/clay.js\"></script>\n</head>\n<body><h1>A</h1></body>\n</html>\n"
       }
     },
     {
@@ -91,13 +91,13 @@
       "headers": {
         "content-length": "429",
         "content-type": "text/html; charset=utf-8",
-        "etag": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\"",
+        "etag": "W/\"1ad-MboaedXZOgdJ3srVxUOSBuucovE\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "vary": "Clay-Source",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "<!DOCTYPE html>\n<html documentetag=\"65a6e4ce7d3e7828\" lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>A</title>\n  <script type=\"application/json\" id=\"clay-runtime-map\" clay=\"no-save no-watch no-snapshot\">{\"schema\":1,\"version\":\"1.23.0\",\"entries\":[{\"original\":\"https://clayjs.com/v1/clay.js\",\"local\":\"/_/clayjs/1.23.0/clay.js\"}]}</script><script src=\"/_/clayjs/1.23.0/clay.js\"></script>\n</head>\n<body><h1>A</h1></body>\n</html>\n"
+        "text": "<!DOCTYPE html>\n<html documentetag=\"65a6e4ce7d3e7828\" lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>A</title>\n  <script type=\"application/json\" id=\"clay-runtime-map\" clay=\"no-save no-watch no-snapshot\">{\"schema\":1,\"version\":\"1.24.0\",\"entries\":[{\"original\":\"https://clayjs.com/v1/clay.js\",\"local\":\"/_/clayjs/1.24.0/clay.js\"}]}</script><script src=\"/_/clayjs/1.24.0/clay.js\"></script>\n</head>\n<body><h1>A</h1></body>\n</html>\n"
       }
     },
     {
@@ -128,13 +128,13 @@
         "method": "GET",
         "path": "/a.html",
         "headers": {
-          "If-None-Match": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\""
+          "If-None-Match": "W/\"1ad-MboaedXZOgdJ3srVxUOSBuucovE\""
         },
         "ifNoneMatchFrom": "a-html"
       },
       "status": 304,
       "headers": {
-        "etag": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\"",
+        "etag": "W/\"1ad-MboaedXZOgdJ3srVxUOSBuucovE\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "vary": "Clay-Source",
         "x-powered-by": "Express"
@@ -154,7 +154,7 @@
       "headers": {
         "content-length": "429",
         "content-type": "text/html; charset=utf-8",
-        "etag": "W/\"1ad-O3Grlvb2lnBYBHf3o6sZg7uNs7o\"",
+        "etag": "W/\"1ad-MboaedXZOgdJ3srVxUOSBuucovE\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "vary": "Clay-Source",
         "x-powered-by": "Express"
@@ -272,15 +272,15 @@
       },
       "status": 200,
       "headers": {
-        "content-length": "423",
+        "content-length": "444",
         "content-type": "text/html; charset=utf-8",
-        "etag": "W/\"1a7-5p/hjIVDk3Dc58wOap6XP4bjhQo\"",
+        "etag": "W/\"1bc-MzcpyJpmwKyCfKkC2cFIndq9GdM\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "vary": "Clay-Source",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "<!doctype html>\n<html documentetag=\"313361cb66b8d948\">\n<body>\n<script type=\"application/json\" merge=\"page\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"page\" clay=\"freeze\" data-page=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
+        "text": "<!doctype html>\n<html documentetag=\"24e58408d63d46aa\">\n<body>\n<script type=\"application/json\" merge=\"blockeditor\" clay=\"live\">{\"v\":1,\"g\":0,\"y\":{\"seed\":\"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA=\"}}</script>\n<article class=\"blockeditor\" clay=\"freeze\" data-blockeditor=\"1\" data-rev=\"1111111111111111\"></article>\n</body>\n</html>\n"
       }
     },
     {
@@ -456,10 +456,10 @@
       }
     },
     {
-      "name": "page-state-dir",
+      "name": "blockeditor-state-dir",
       "request": {
         "method": "GET",
-        "path": "/.hyperclay/page-state/",
+        "path": "/.hyperclay/blockeditor-state/",
         "headers": {}
       },
       "status": 404,
@@ -765,8 +765,8 @@
   ],
   "files": [
     {
-      "path": ".hyperclay/page-state/paged.html.json",
-      "sha256": "0209d1f54eed6f7741bfd26f03f058f677873b901bd87ce493dcf7569928075c"
+      "path": ".hyperclay/blockeditor-state/paged.html.json",
+      "sha256": "6d42cae1f56ecf7682ff6d333f89886afc3bc521724d8294e86b3dab4a12efd2"
     },
     {
       "path": "a b.html",
@@ -830,7 +830,7 @@
     },
     {
       "path": "paged.html",
-      "sha256": "bb685e66555bab6407cc62ab24effe2b910e32e99d34477a23384689d71ba507"
+      "sha256": "570b66b3db9e254602c3a164273d59d5b7b3ce32ece8017cdc1b194af2ff6188"
     },
     {
       "path": "style.css",

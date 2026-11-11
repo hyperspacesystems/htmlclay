@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	pageTag1 = `<script merge="page" clay="live" type="application/json">{"v":1}</script>`
-	pageTag2 = `<script merge="page" clay="live" type="application/json">{"v":2}</script>`
+	pageTag1 = `<script merge="blockeditor" clay="live" type="application/json">{"v":1}</script>`
+	pageTag2 = `<script merge="blockeditor" clay="live" type="application/json">{"v":2}</script>`
 )
 
 func pageGenerationForTest(t *testing.T) string {
@@ -54,13 +54,19 @@ func pruneHistoryRootForTest(t *testing.T, s *Store, key, absPath string) {
 	pruneDir(ref.root)
 }
 
+// diskBytes is a document with one recognized block editor article, so a
+// settle that finds no matching record for it removes the sidecar.
+func diskBytes(label string) []byte {
+	return []byte(`<!doctype html><html><body><article class="blockeditor" data-blockeditor="1" data-rev="` + label + `"></article></body></html>`)
+}
+
 // settlePageStateForTest stores record as the settled state for hash.
-func settlePageStateForTest(t *testing.T, s *Store, key, absPath, hash string, record PageStateRecord) {
+func settlePageStateForTest(t *testing.T, s *Store, key, absPath string, written []byte, record PageStateRecord) {
 	t.Helper()
-	if err := s.PreparePageState(key, absPath, hash, record); err != nil {
+	if err := s.PreparePageState(key, absPath, Hash(written), record); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SettlePageState(key, absPath, hash); err != nil {
+	if err := s.SettlePageState(key, absPath, written); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -70,8 +76,8 @@ func TestPageStatePrepareThenSettle(t *testing.T) {
 	absPath := filepath.Join(t.TempDir(), "doc.html")
 	key := Key(absPath, nil)
 	gen := pageGenerationForTest(t)
-	hashA := Hash([]byte("bytes on disk A"))
-	hashB := Hash([]byte("bytes on disk B"))
+	hashA := Hash(diskBytes("A"))
+	hashB := Hash(diskBytes("B"))
 
 	if err := s.PreparePageState(key, absPath, hashA, NewPageStateRecord(hashB, gen, pageTag1)); err != nil {
 		t.Fatal(err)
@@ -87,7 +93,7 @@ func TestPageStatePrepareThenSettle(t *testing.T) {
 		t.Fatalf("record for bytes that were never written: ok=%v err=%v", ok, err)
 	}
 
-	if err := s.SettlePageState(key, absPath, hashB); err != nil {
+	if err := s.SettlePageState(key, absPath, diskBytes("B")); err != nil {
 		t.Fatal(err)
 	}
 	dir := lookupHistoryDirForTest(t, s, key, absPath)
@@ -111,12 +117,12 @@ func TestPageStateKeepsTheDiskRecordWhenTheWriteNeverLands(t *testing.T) {
 	absPath := filepath.Join(t.TempDir(), "doc.html")
 	key := Key(absPath, nil)
 	gen := pageGenerationForTest(t)
-	hashA := Hash([]byte("bytes on disk A"))
-	hashB := Hash([]byte("bytes on disk B"))
-	hashC := Hash([]byte("bytes on disk C"))
+	hashA := Hash(diskBytes("A"))
+	hashB := Hash(diskBytes("B"))
+	hashC := Hash(diskBytes("C"))
 	recordA := NewPageStateRecord(hashA, gen, pageTag1)
 
-	settlePageStateForTest(t, s, key, absPath, hashA, recordA)
+	settlePageStateForTest(t, s, key, absPath, diskBytes("A"), recordA)
 
 	if err := s.PreparePageState(key, absPath, hashA, NewPageStateRecord(hashB, gen, pageTag2)); err != nil {
 		t.Fatal(err)
@@ -149,11 +155,11 @@ func TestPageStateInterruptedAtEachBoundary(t *testing.T) {
 	absPath := filepath.Join(t.TempDir(), "doc.html")
 	key := Key(absPath, nil)
 	gen := pageGenerationForTest(t)
-	hashA := Hash([]byte("bytes on disk A"))
-	hashB := Hash([]byte("bytes on disk B"))
-	hashC := Hash([]byte("bytes on disk C"))
+	hashA := Hash(diskBytes("A"))
+	hashB := Hash(diskBytes("B"))
+	hashC := Hash(diskBytes("C"))
 
-	settlePageStateForTest(t, s, key, absPath, hashA, NewPageStateRecord(hashA, gen, pageTag1))
+	settlePageStateForTest(t, s, key, absPath, diskBytes("A"), NewPageStateRecord(hashA, gen, pageTag1))
 	if err := s.PreparePageState(key, absPath, hashA, NewPageStateRecord(hashB, gen, pageTag2)); err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +172,7 @@ func TestPageStateInterruptedAtEachBoundary(t *testing.T) {
 		t.Fatalf("prepared candidate lost across a restart: ok=%v record=%+v err=%v", ok, got, err)
 	}
 
-	if err := restarted.SettlePageState(key, absPath, hashB); err != nil {
+	if err := restarted.SettlePageState(key, absPath, diskBytes("B")); err != nil {
 		t.Fatal(err)
 	}
 	if got, ok, err := restarted.PageStateFor(key, absPath, hashB); err != nil || !ok || got.Tag != pageTag2 {
@@ -180,7 +186,7 @@ func TestPageStateInterruptedAtEachBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	third := New(baseDir)
-	if err := third.SettlePageState(key, absPath, hashB); err != nil {
+	if err := third.SettlePageState(key, absPath, diskBytes("B")); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok, err := third.PageStateFor(key, absPath, hashC); err != nil || ok {
@@ -196,9 +202,9 @@ func TestPageStateSameBytesAdvancesState(t *testing.T) {
 	absPath := filepath.Join(t.TempDir(), "doc.html")
 	key := Key(absPath, nil)
 	gen := pageGenerationForTest(t)
-	hashA := Hash([]byte("bytes on disk A"))
+	hashA := Hash(diskBytes("A"))
 
-	settlePageStateForTest(t, s, key, absPath, hashA, NewPageStateRecord(hashA, gen, pageTag1))
+	settlePageStateForTest(t, s, key, absPath, diskBytes("A"), NewPageStateRecord(hashA, gen, pageTag1))
 	if err := s.PreparePageState(key, absPath, hashA, NewPageStateRecord(hashA, gen, pageTag2)); err != nil {
 		t.Fatal(err)
 	}
@@ -224,10 +230,10 @@ func TestPageStateRejectsInvalidRecords(t *testing.T) {
 	absPath := filepath.Join(t.TempDir(), "doc.html")
 	key := Key(absPath, nil)
 	gen := pageGenerationForTest(t)
-	hashA := Hash([]byte("bytes on disk A"))
+	hashA := Hash(diskBytes("A"))
 	recordA := NewPageStateRecord(hashA, gen, pageTag1)
 
-	settlePageStateForTest(t, s, key, absPath, hashA, recordA)
+	settlePageStateForTest(t, s, key, absPath, diskBytes("A"), recordA)
 	dir := lookupHistoryDirForTest(t, s, key, absPath)
 	before, err := os.ReadFile(filepath.Join(dir, PageStateName))
 	if err != nil {
@@ -276,10 +282,10 @@ func TestPageStateCorruptSidecarReadsAsNone(t *testing.T) {
 	absPath := filepath.Join(t.TempDir(), "doc.html")
 	key := Key(absPath, nil)
 	gen := pageGenerationForTest(t)
-	hashA := Hash([]byte("bytes on disk A"))
-	hashB := Hash([]byte("bytes on disk B"))
+	hashA := Hash(diskBytes("A"))
+	hashB := Hash(diskBytes("B"))
 
-	settlePageStateForTest(t, s, key, absPath, hashA, NewPageStateRecord(hashA, gen, pageTag1))
+	settlePageStateForTest(t, s, key, absPath, diskBytes("A"), NewPageStateRecord(hashA, gen, pageTag1))
 	dir := lookupHistoryDirForTest(t, s, key, absPath)
 	if err := os.WriteFile(filepath.Join(dir, PageStateName), []byte("}{ not json at all"), 0600); err != nil {
 		t.Fatal(err)
@@ -299,7 +305,7 @@ func TestPageStateCorruptSidecarReadsAsNone(t *testing.T) {
 	if ps.Candidate == nil || ps.Candidate.FileHash != hashB || ps.Candidate.Tag != pageTag2 {
 		t.Fatalf("prepare lost the candidate: %+v", ps.Candidate)
 	}
-	if err := s.SettlePageState(key, absPath, hashB); err != nil {
+	if err := s.SettlePageState(key, absPath, diskBytes("B")); err != nil {
 		t.Fatal(err)
 	}
 	if got, ok, err := s.PageStateFor(key, absPath, hashB); err != nil || !ok || got.Tag != pageTag2 {
@@ -311,7 +317,7 @@ func TestPageStateIsNotAVersion(t *testing.T) {
 	s := New(t.TempDir())
 	absPath := filepath.Join(t.TempDir(), "doc.html")
 	key := Key(absPath, nil)
-	hashA := Hash([]byte("bytes on disk A"))
+	hashA := Hash(diskBytes("A"))
 	gen := pageGenerationForTest(t)
 
 	created, err := s.Backup(key, absPath, []byte("version one"))
@@ -354,10 +360,10 @@ func TestPageStateStaysInsideTheHistory(t *testing.T) {
 	absPath := filepath.Join(t.TempDir(), "doc.html")
 	key := Key(absPath, nil)
 	gen := pageGenerationForTest(t)
-	hashA := Hash([]byte("bytes on disk A"))
-	hashOutside := Hash([]byte("bytes of an outside file"))
+	hashA := Hash(diskBytes("A"))
+	hashOutside := Hash(diskBytes("Outside"))
 
-	settlePageStateForTest(t, s, key, absPath, hashA, NewPageStateRecord(hashA, gen, pageTag1))
+	settlePageStateForTest(t, s, key, absPath, diskBytes("A"), NewPageStateRecord(hashA, gen, pageTag1))
 	dir := lookupHistoryDirForTest(t, s, key, absPath)
 
 	outsideDir := t.TempDir()
@@ -409,11 +415,11 @@ func TestPageStateKeysAreSeparate(t *testing.T) {
 	pathTwo := filepath.Join(t.TempDir(), "two.html")
 	keyOne := Key(pathOne, nil)
 	keyTwo := Key(pathTwo, nil)
-	hashOne := Hash([]byte("bytes of document one"))
-	hashTwo := Hash([]byte("bytes of document two"))
+	hashOne := Hash(diskBytes("One"))
+	hashTwo := Hash(diskBytes("Two"))
 
-	settlePageStateForTest(t, s, keyOne, pathOne, hashOne, NewPageStateRecord(hashOne, gen, pageTag1))
-	settlePageStateForTest(t, s, keyTwo, pathTwo, hashTwo, NewPageStateRecord(hashTwo, gen, pageTag2))
+	settlePageStateForTest(t, s, keyOne, pathOne, diskBytes("One"), NewPageStateRecord(hashOne, gen, pageTag1))
+	settlePageStateForTest(t, s, keyTwo, pathTwo, diskBytes("Two"), NewPageStateRecord(hashTwo, gen, pageTag2))
 
 	got, ok, err := s.PageStateFor(keyOne, pathOne, hashOne)
 	if err != nil || !ok || got.Tag != pageTag1 {
@@ -439,5 +445,43 @@ func TestPageStateKeysAreSeparate(t *testing.T) {
 	}
 	if ps := readPageStateJSON(t, dirTwo); ps.Matching == nil || ps.Matching.Tag != pageTag2 {
 		t.Fatalf("key two sidecar = %+v", ps.Matching)
+	}
+}
+
+// TestPageStateSurvivesAnUnrecognizedWrite is rule F-A: a write with no
+// recognized block editor article (a bare pagination article, a document with
+// no article) keeps the sidecar, while a write with a different recognized
+// article still removes it.
+func TestPageStateSurvivesAnUnrecognizedWrite(t *testing.T) {
+	s := New(t.TempDir())
+	absPath := filepath.Join(t.TempDir(), "doc.html")
+	key := Key(absPath, nil)
+	gen := pageGenerationForTest(t)
+	hashA := Hash(diskBytes("A"))
+	settlePageStateForTest(t, s, key, absPath, diskBytes("A"), NewPageStateRecord(hashA, gen, pageTag1))
+	sidecar := filepath.Join(lookupHistoryDirForTest(t, s, key, absPath), PageStateName)
+
+	for _, written := range []string{
+		`<!doctype html><html><body><article data-page="2">Chapter two</article></body></html>`,
+		`<!doctype html><html><body><p>no article</p></body></html>`,
+		`<!doctype html><html><body><article data-blockeditor="1"></article></body></html>`,
+		`<!doctype html><html><body><template><article data-blockeditor="1" data-rev="x"></article></template></body></html>`,
+	} {
+		if err := s.SettlePageState(key, absPath, []byte(written)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(sidecar); err != nil {
+			t.Fatalf("an unrecognized write removed the sidecar: %v\n%s", err, written)
+		}
+		if got, ok, err := s.PageStateFor(key, absPath, hashA); err != nil || !ok || got.Tag != pageTag1 {
+			t.Fatalf("record lost after an unrecognized write: ok=%v record=%+v err=%v\n%s", ok, got, err, written)
+		}
+	}
+
+	if err := s.SettlePageState(key, absPath, diskBytes("B")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(sidecar); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a recognized write with no matching record kept the sidecar: %v", err)
 	}
 }

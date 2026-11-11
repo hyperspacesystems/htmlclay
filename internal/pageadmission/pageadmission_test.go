@@ -56,9 +56,9 @@ func TestHostedPageInspectionVectors(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixtureBaselines := map[string]string{
-		"single paragraph":                     "86de735acd3fac0b168b165cc6b11ef496df121aec0b51023f4fb55c81044fb5",
-		"ordered shards":                       "fc4d341a91588937112b795ff0721d0f465536fe0fbb73e7b9dcb0ba1cec1343",
-		"integer keys, unicode and tombstones": "3d2725482f91edcc379aaa88e92b75e4dd01225e75b559094ef963a340808986",
+		"single paragraph":                     "31c0ff759ab43beb1b5cc06df456d3ac2d422c2200acb52b16e3e5bffae5f0ec",
+		"ordered shards":                       "dd9125330c06b801f480b09bf754b8f12f64581e36f19ff29bcc1b2a2cc03e22",
+		"integer keys, unicode and tombstones": "231c723616449a68e9ac372654f81196763415e518dcd2225f6edaa6594cd7ca",
 	}
 	for _, input := range inputs {
 		t.Run("retains raw inputs and DOM order for "+input.Name, func(t *testing.T) {
@@ -90,18 +90,18 @@ func TestHostedPageInspectionVectors(t *testing.T) {
 	cases := []struct {
 		name, source, kind, why string
 	}{
-		{"finds an uppercase merge attribute through the prefilter", page(`<script type="application/json" MERGE="page" clay="live">` + hybrid + `</script>`), "hybrid", ""},
-		{"uses the live parser for encoded attributes, MIME types and relaxed JSON", page(`<script type="application/ld&#43;json; charset=utf-8" merge="pa&#103;e" clay="li&#118;e">{blocks: {p: {t: 'paragraph', pos: 'A', c: 'AAAA',}}, /* ok */}</script>`), "hybrid", ""},
-		{"ignores non-live, external, inert, non-JSON and unrelated tags", page(`<template>`+tag("page", hybrid)+`</template>`, `<noscript>`+tag("page", hybrid)+`</noscript>`, `<script src="data.json" type="application/json" merge="page" clay="live">{}</script>`, `<script merge="page" type="application/json">{}</script>`, `<script merge="page" clay="live" type="text/plain">{}</script>`, tag("page.extra", hybrid), tag("page.-1", hybrid), tag("counter", `{}`)), "none", ""},
-		{"detects duplicate names that ordinary live parsing deliberately skips", page(tag("page", hybrid), tag("page", yjs)), "invalid", "duplicate-tag"},
-		{"does not silently drop a malformed page tag", page(tag("page", hybrid), tag("page.1", `{broken`)), "invalid", "invalid-json"},
-		{"does not silently drop an ephemeral page tag", page(`<script type="application/json" merge="page" clay="live ephemeral">` + hybrid + `</script>`), "invalid", "ephemeral-tag"},
-		{"describes unrelated store values without claiming page content", page(tag("page", `{"title":"generic"}`)), "other", ""},
-		{"accepts one page envelope and preserves its opaque bytes", page(tag("page", yjs), tag("counter", `{}`)), "yjs", ""},
-		{"reports a renamed Yjs capture", page(tag("page.1", yjs)), "invalid", "invalid-yjs"},
-		{"reports mixed shards", page(tag("page", yjs), tag("page.1", hybrid)), "invalid", "invalid-yjs"},
-		{"reports extra Yjs fields", page(tag("page", `{"v":1,"y":{},"blocks":{}}`)), "invalid", "invalid-yjs"},
-		{"reports missing Yjs part", page(tag("page", `{"v":1,"y":{"seed.0.2":"part"}}`)), "invalid", "invalid-yjs"},
+		{"finds an uppercase merge attribute through the prefilter", page(`<script type="application/json" MERGE="blockeditor" clay="live">` + hybrid + `</script>`), "hybrid", ""},
+		{"uses the live parser for encoded attributes, MIME types and relaxed JSON", page(`<script type="application/ld&#43;json; charset=utf-8" merge="blo&#99;keditor" clay="li&#118;e">{blocks: {p: {t: 'paragraph', pos: 'A', c: 'AAAA',}}, /* ok */}</script>`), "hybrid", ""},
+		{"ignores non-live, external, inert, non-JSON and unrelated tags", page(`<template>`+tag("blockeditor", hybrid)+`</template>`, `<noscript>`+tag("blockeditor", hybrid)+`</noscript>`, `<script src="data.json" type="application/json" merge="blockeditor" clay="live">{}</script>`, `<script merge="blockeditor" type="application/json">{}</script>`, `<script merge="blockeditor" clay="live" type="text/plain">{}</script>`, tag("blockeditor.extra", hybrid), tag("blockeditor.-1", hybrid), tag("counter", `{}`)), "none", ""},
+		{"detects duplicate names that ordinary live parsing deliberately skips", page(tag("blockeditor", hybrid), tag("blockeditor", yjs)), "invalid", "duplicate-tag"},
+		{"does not silently drop a malformed page tag", page(tag("blockeditor", hybrid), tag("blockeditor.1", `{broken`)), "invalid", "invalid-json"},
+		{"does not silently drop an ephemeral page tag", page(`<script type="application/json" merge="blockeditor" clay="live ephemeral">` + hybrid + `</script>`), "invalid", "ephemeral-tag"},
+		{"describes unrelated store values without claiming page content", page(tag("blockeditor", `{"title":"generic"}`)), "other", ""},
+		{"accepts one page envelope and preserves its opaque bytes", page(tag("blockeditor", yjs), tag("counter", `{}`)), "yjs", ""},
+		{"reports a renamed Yjs capture", page(tag("blockeditor.1", yjs)), "invalid", "invalid-yjs"},
+		{"reports mixed shards", page(tag("blockeditor", yjs), tag("blockeditor.1", hybrid)), "invalid", "invalid-yjs"},
+		{"reports extra Yjs fields", page(tag("blockeditor", `{"v":1,"y":{},"blocks":{}}`)), "invalid", "invalid-yjs"},
+		{"reports missing Yjs part", page(tag("blockeditor", `{"v":1,"y":{"seed.0.2":"part"}}`)), "invalid", "invalid-yjs"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -113,7 +113,7 @@ func TestHostedPageInspectionVectors(t *testing.T) {
 	}
 	for _, value := range []string{`{}`, `[]`, `17`, `{"title":"generic"}`, `{"blocks":[],"extra":true}`} {
 		t.Run("describes unrelated store values without claiming page content "+value, func(t *testing.T) {
-			if got := Inspect(page(tag("page", value))); got.Kind != "other" {
+			if got := Inspect(page(tag("blockeditor", value))); got.Kind != "other" {
 				t.Fatalf("inspection = %+v", got)
 			}
 		})
@@ -123,12 +123,12 @@ func TestHostedPageInspectionVectors(t *testing.T) {
 		`{"v":1}`,
 	} {
 		t.Run("reports an ambiguous or malformed Yjs capture "+value, func(t *testing.T) {
-			if got := Inspect(page(tag("page", value))); got.Kind != "invalid" || got.Reason != "invalid-yjs" {
+			if got := Inspect(page(tag("blockeditor", value))); got.Kind != "invalid" || got.Reason != "invalid-yjs" {
 				t.Fatalf("inspection = %+v", got)
 			}
 		})
 	}
-	if got := Inspect(page(tag("page", yjs), tag("page.1", yjs))); got.Kind != "invalid" || got.Reason != "invalid-yjs" {
+	if got := Inspect(page(tag("blockeditor", yjs), tag("blockeditor.1", yjs))); got.Kind != "invalid" || got.Reason != "invalid-yjs" {
 		t.Fatalf("reports two Yjs page tags: %+v", got)
 	}
 }
@@ -168,31 +168,31 @@ func TestHostedYPageStructureVectors(t *testing.T) {
 
 func TestHostedBaselineVectors(t *testing.T) {
 	value := parsed(t, `{"blocks":{"p":{"t":"paragraph","pos":"A","c":"AAAA"}}}`)
-	base, err := Baseline([]Tag{{"page", value}})
-	if err != nil || base != "86de735acd3fac0b168b165cc6b11ef496df121aec0b51023f4fb55c81044fb5" {
+	base, err := Baseline([]Tag{{"blockeditor", value}})
+	if err != nil || base != "31c0ff759ab43beb1b5cc06df456d3ac2d422c2200acb52b16e3e5bffae5f0ec" {
 		t.Fatalf("matches the independently executed ClayJS baseline vector: %q, %v", base, err)
 	}
 	integer := parsed(t, `{"blocks":{"2":{},"10":{}}}`)
-	base, err = Baseline([]Tag{{"page", integer}})
-	want := sha256.Sum256([]byte(`[["page",{"blocks":{"10":{},"2":{}}}]]`))
+	base, err = Baseline([]Tag{{"blockeditor", integer}})
+	want := sha256.Sum256([]byte(`[["blockeditor",{"blocks":{"10":{},"2":{}}}]]`))
 	if err != nil || base != hex.EncodeToString(want[:]) {
 		t.Fatalf("sorts integer-shaped object keys lexicographically: %q, %v", base, err)
 	}
 	escapes := parsed(t, `{"blocks":{"x":-0,"u":"\u2028","n":1e-6,"huge":1e21}}`)
-	base, err = Baseline([]Tag{{"page", escapes}})
-	if err != nil || base != "f4b78a9ff0396234b4dc75fbbf45bb1a6a2dcab807f55be83274711e8d6d84ca" {
+	base, err = Baseline([]Tag{{"blockeditor", escapes}})
+	if err != nil || base != "1d4c0e5210d6c19f1c585d6961fb4a93f364c7ebe895d8f65133588751c7cb02" {
 		t.Fatalf("matches hosted scalar JSON formatting: %q, %v", base, err)
 	}
-	left, _ := Baseline([]Tag{{"page", parsed(t, `{"blocks":{"a":1,"b":2}}`)}})
-	right, _ := Baseline([]Tag{{"page", parsed(t, `{"blocks":{"b":2,"a":1}}`)}})
+	left, _ := Baseline([]Tag{{"blockeditor", parsed(t, `{"blocks":{"a":1,"b":2}}`)}})
+	right, _ := Baseline([]Tag{{"blockeditor", parsed(t, `{"blocks":{"b":2,"a":1}}`)}})
 	if left != right {
 		t.Fatal("ignores object key order")
 	}
-	changed, _ := Baseline([]Tag{{"page", parsed(t, `{"blocks":{"a":1,"b":3}}`)}})
+	changed, _ := Baseline([]Tag{{"blockeditor", parsed(t, `{"blocks":{"a":1,"b":3}}`)}})
 	if left == changed {
 		t.Fatal("retains raw blocks")
 	}
-	for _, tags := range [][]Tag{nil, {{"counter", value}}, {{"page", value}, {"page", value}}, {{"page", parsed(t, yjs)}}, {{"page", parsed(t, `{"blocks":[]}`)}}, {{"page", parsed(t, `{"blocks":{},"extra":true}`)}}, {{"page", parsed(t, `{"blocks":{},"deleted":[]}`)}}} {
+	for _, tags := range [][]Tag{nil, {{"counter", value}}, {{"blockeditor", value}, {"blockeditor", value}}, {{"blockeditor", parsed(t, yjs)}}, {{"blockeditor", parsed(t, `{"blocks":[]}`)}}, {{"blockeditor", parsed(t, `{"blocks":{},"extra":true}`)}}, {{"blockeditor", parsed(t, `{"blocks":{},"deleted":[]}`)}}} {
 		if _, err := Baseline(tags); err == nil {
 			t.Errorf("refuses a missing, ambiguous or unsupported source: %+v", tags)
 		}
@@ -200,12 +200,12 @@ func TestHostedBaselineVectors(t *testing.T) {
 }
 
 func TestHostedBaselineRetainsTagNamesOrderAndTombstones(t *testing.T) {
-	first := Tag{"page", parsed(t, `{"blocks":{"a":1}}`)}
-	second := Tag{"page.2", parsed(t, `{"blocks":{"b":2}}`)}
+	first := Tag{"blockeditor", parsed(t, `{"blocks":{"a":1}}`)}
+	second := Tag{"blockeditor.2", parsed(t, `{"blocks":{"b":2}}`)}
 	ordered, _ := Baseline([]Tag{first, second})
 	reversed, _ := Baseline([]Tag{second, first})
-	renamed, _ := Baseline([]Tag{{"page.1", first.Value}, second})
-	deleted, _ := Baseline([]Tag{{"page", parsed(t, `{"blocks":{"a":1},"deleted":{"old":true}}`)}, second})
+	renamed, _ := Baseline([]Tag{{"blockeditor.1", first.Value}, second})
+	deleted, _ := Baseline([]Tag{{"blockeditor", parsed(t, `{"blocks":{"a":1},"deleted":{"old":true}}`)}, second})
 	if ordered == reversed || ordered == renamed || ordered == deleted {
 		t.Fatal("ignores object key order but retains tag order, names, raw blocks and tombstones")
 	}
@@ -213,15 +213,15 @@ func TestHostedBaselineRetainsTagNamesOrderAndTombstones(t *testing.T) {
 
 func TestHostedOrdinaryWriteMatrix(t *testing.T) {
 	empty := page(`<article>without a page</article>`)
-	hybridSource := page(tag("page", hybrid))
-	other := page(tag("page", `{"title":"mine"}`))
-	y := page(tag("page", yjs))
+	hybridSource := page(tag("blockeditor", hybrid))
+	other := page(tag("blockeditor", `{"title":"mine"}`))
+	y := page(tag("blockeditor", yjs))
 	targets := []string{
-		page(tag("page", `{"v":7,"n":1}`)), page(tag("page", `{"y":4}`)),
-		page(tag("page", `{"v":1,"y":[]}`)), other, hybridSource, empty,
-		page(tag("page", `{broken`)), page(`<template>` + y + `</template>`),
+		page(tag("blockeditor", `{"v":7,"n":1}`)), page(tag("blockeditor", `{"y":4}`)),
+		page(tag("blockeditor", `{"v":1,"y":[]}`)), other, hybridSource, empty,
+		page(tag("blockeditor", `{broken`)), page(`<template>` + y + `</template>`),
 		page(`<noscript>` + y + `</noscript>`),
-		page(`<script src="page.json" type="application/json" merge="page" clay="live">` + yjs + `</script>`),
+		page(`<script src="page.json" type="application/json" merge="blockeditor" clay="live">` + yjs + `</script>`),
 		page(tag("not-page", yjs)),
 	}
 	for _, source := range []string{empty, hybridSource, other} {
@@ -235,21 +235,21 @@ func TestHostedOrdinaryWriteMatrix(t *testing.T) {
 }
 
 func TestHostedConvertedFormatMatrix(t *testing.T) {
-	current := page(tag("page", yjs))
+	current := page(tag("blockeditor", yjs))
 	broken := []struct{ name, target string }{
-		{"hybrid value", page(tag("page", hybrid))},
-		{"mixed value", page(tag("page", `{"v":1,"y":{},"blocks":{}}`))},
-		{"deleted envelope", page(tag("page", `{"y":{}}`))},
-		{"new version", page(tag("page", `{"v":2,"y":{}}`))},
-		{"non-string update", page(tag("page", `{"v":1,"y":{"seed":{}}}`))},
-		{"incomplete multipart group", page(tag("page", `{"v":1,"y":{"u.0.2":"first"}}`))},
-		{"conflicting multipart count", page(tag("page", `{"v":1,"y":{"u.0.2":"first","u.1.3":"second"}}`))},
-		{"whole and multipart alias", page(tag("page", `{"v":1,"y":{"u":"whole","u.0.1":"part"}}`))},
-		{"duplicate page", page(tag("page", yjs), tag("page", yjs))},
-		{"page shard", page(tag("page", yjs), tag("page.1", hybrid))},
-		{"renamed page", page(tag("page.1", yjs))},
-		{"ephemeral page", page(`<script type="application/json" merge="page" clay="live ephemeral">` + yjs + `</script>`)},
-		{"malformed JSON", page(tag("page", `{broken`))},
+		{"hybrid value", page(tag("blockeditor", hybrid))},
+		{"mixed value", page(tag("blockeditor", `{"v":1,"y":{},"blocks":{}}`))},
+		{"deleted envelope", page(tag("blockeditor", `{"y":{}}`))},
+		{"new version", page(tag("blockeditor", `{"v":2,"y":{}}`))},
+		{"non-string update", page(tag("blockeditor", `{"v":1,"y":{"seed":{}}}`))},
+		{"incomplete multipart group", page(tag("blockeditor", `{"v":1,"y":{"u.0.2":"first"}}`))},
+		{"conflicting multipart count", page(tag("blockeditor", `{"v":1,"y":{"u.0.2":"first","u.1.3":"second"}}`))},
+		{"whole and multipart alias", page(tag("blockeditor", `{"v":1,"y":{"u":"whole","u.0.1":"part"}}`))},
+		{"duplicate page", page(tag("blockeditor", yjs), tag("blockeditor", yjs))},
+		{"page shard", page(tag("blockeditor", yjs), tag("blockeditor.1", hybrid))},
+		{"renamed page", page(tag("blockeditor.1", yjs))},
+		{"ephemeral page", page(`<script type="application/json" merge="blockeditor" clay="live ephemeral">` + yjs + `</script>`)},
+		{"malformed JSON", page(tag("blockeditor", `{broken`))},
 	}
 	for _, test := range broken {
 		t.Run(test.name+" refuses as a page format conflict", func(t *testing.T) {
@@ -261,19 +261,19 @@ func TestHostedConvertedFormatMatrix(t *testing.T) {
 	}
 	for _, target := range []string{
 		page(`<article>after</article>`),
-		page(`<template>` + tag("page", yjs) + `</template>`),
-		page(`<script type="application/json" merge="page" clay="live" src="page.json">` + yjs + `</script>`),
-		page(`<script type="application/json" merge="page">` + yjs + `</script>`),
+		page(`<template>` + tag("blockeditor", yjs) + `</template>`),
+		page(`<script type="application/json" merge="blockeditor" clay="live" src="page.json">` + yjs + `</script>`),
+		page(`<script type="application/json" merge="blockeditor">` + yjs + `</script>`),
 	} {
 		if got, err := CheckWrite(current, target, ""); err != nil || got != Ordinary {
 			t.Errorf("a converted file accepts an outside edit without an eligible page tag: %s, %v", got, err)
 		}
 	}
 	for _, target := range []string{
-		page(tag("page", `{"v":1,"y":{"m.0.2":"first","m.1.2":"second"}}`)),
-		page(tag("page", `{"v":1,"g":"opaque","y":{"compacted":"different update"}}`)),
-		page(tag("page", `{"v":1,"y":{}}`)),
-		page(tag("page", `{"v":1,"y":{"large":"`+strings.Repeat("x", 1024*1024+1)+`"}}`)),
+		page(tag("blockeditor", `{"v":1,"y":{"m.0.2":"first","m.1.2":"second"}}`)),
+		page(tag("blockeditor", `{"v":1,"g":"opaque","y":{"compacted":"different update"}}`)),
+		page(tag("blockeditor", `{"v":1,"y":{}}`)),
+		page(tag("blockeditor", `{"v":1,"y":{"large":"`+strings.Repeat("x", 1024*1024+1)+`"}}`)),
 	} {
 		if got, err := CheckWrite(current, target, ""); err != nil || got != Ordinary {
 			t.Fatalf("complete multipart captures, compaction and optional generation fields remain legal: %s, %v", got, err)
@@ -282,15 +282,15 @@ func TestHostedConvertedFormatMatrix(t *testing.T) {
 }
 
 func TestHostedConversionFilePreconditions(t *testing.T) {
-	old := page(tag("page", hybrid))
-	newPage := page(tag("page", yjs))
+	old := page(tag("blockeditor", hybrid))
+	newPage := page(tag("blockeditor", yjs))
 	base, _ := Baseline(Inspect(old).Tags)
 	header := "v1; source=file; base=" + base
-	for _, source := range []string{page(), newPage, page(tag("page", `{"counter":1}`)), page(tag("page", hybrid), tag("page", hybrid))} {
+	for _, source := range []string{page(), newPage, page(tag("blockeditor", `{"counter":1}`)), page(tag("blockeditor", hybrid), tag("blockeditor", hybrid))} {
 		_, err := CheckWrite(source, newPage, header)
 		reason(t, err, "invalid-source")
 	}
-	for _, target := range []string{page(), old, page(tag("page", `{"v":1,"y":{},"blocks":{}}`)), page(tag("page", `{"v":1,"y":{"seed.0.2":"first"}}`)), page(tag("page", yjs), tag("page.1", hybrid))} {
+	for _, target := range []string{page(), old, page(tag("blockeditor", `{"v":1,"y":{},"blocks":{}}`)), page(tag("blockeditor", `{"v":1,"y":{"seed.0.2":"first"}}`)), page(tag("blockeditor", yjs), tag("blockeditor.1", hybrid))} {
 		_, err := CheckWrite(old, target, header)
 		reason(t, err, "invalid-capture")
 	}
@@ -298,14 +298,14 @@ func TestHostedConversionFilePreconditions(t *testing.T) {
 
 func TestHostedWriteAdmissionVectors(t *testing.T) {
 	empty := page(`<article>without a page</article>`)
-	old := page(tag("page", hybrid))
-	converted := page(tag("page", yjs))
+	old := page(tag("blockeditor", hybrid))
+	converted := page(tag("blockeditor", yjs))
 	base, err := Baseline(Inspect(old).Tags)
 	if err != nil {
 		t.Fatal(err)
 	}
 	header := "v1; source=file; base=" + base
-	for _, source := range []string{old, page(tag("page", `{"blocks":{"p":{"c":"saved"}},"deleted":{"old":true}}`))} {
+	for _, source := range []string{old, page(tag("blockeditor", `{"blocks":{"p":{"c":"saved"}},"deleted":{"old":true}}`))} {
 		_, err := CheckWrite(source, converted, "")
 		reason(t, err, "implicit-conversion")
 		actual, _ := Baseline(Inspect(source).Tags)
@@ -317,11 +317,11 @@ func TestHostedWriteAdmissionVectors(t *testing.T) {
 		t.Fatalf("initial capture = %s, %v", got, err)
 	}
 	for _, test := range []struct{ name, source string }{
-		{"custom object", page(tag("page", `{"title":"mine"}`))},
-		{"generic version", page(tag("page", `{"v":7,"n":1}`))},
-		{"empty object", page(tag("page", `{}`))},
+		{"custom object", page(tag("blockeditor", `{"title":"mine"}`))},
+		{"generic version", page(tag("blockeditor", `{"v":7,"n":1}`))},
+		{"empty object", page(tag("blockeditor", `{}`))},
 		{"duplicate source", old + old},
-		{"invalid source", page(tag("page", `{broken`))},
+		{"invalid source", page(tag("blockeditor", `{broken`))},
 	} {
 		t.Run(test.name+" cannot silently become a Yjs page", func(t *testing.T) {
 			_, err := CheckWrite(test.source, converted, "")
@@ -329,40 +329,40 @@ func TestHostedWriteAdmissionVectors(t *testing.T) {
 		})
 	}
 	for _, test := range []struct{ name, target string }{
-		{"mixed fields", page(tag("page", `{"v":1,"y":{},"blocks":{}}`))},
-		{"non-string update", page(tag("page", `{"v":1,"y":{"seed":1}}`))},
-		{"partial multipart", page(tag("page", `{"v":1,"y":{"seed.0.2":"one"}}`))},
-		{"renamed page", page(tag("page.1", yjs))},
-		{"mixed shards", page(tag("page", yjs), tag("page.1", hybrid))},
-		{"duplicate page", page(tag("page", yjs), tag("page", yjs))},
-		{"broken first sibling", page(tag("page", `{broken`), tag("page.1", yjs))},
-		{"broken last sibling", page(tag("page", yjs), tag("page.1", `{broken`))},
-		{"duplicate before claim", page(tag("page", hybrid), tag("page", hybrid), tag("page.1", yjs))},
-		{"ephemeral page", page(`<script type="application/json" merge="page" clay="live ephemeral">` + yjs + `</script>`)},
+		{"mixed fields", page(tag("blockeditor", `{"v":1,"y":{},"blocks":{}}`))},
+		{"non-string update", page(tag("blockeditor", `{"v":1,"y":{"seed":1}}`))},
+		{"partial multipart", page(tag("blockeditor", `{"v":1,"y":{"seed.0.2":"one"}}`))},
+		{"renamed page", page(tag("blockeditor.1", yjs))},
+		{"mixed shards", page(tag("blockeditor", yjs), tag("blockeditor.1", hybrid))},
+		{"duplicate page", page(tag("blockeditor", yjs), tag("blockeditor", yjs))},
+		{"broken first sibling", page(tag("blockeditor", `{broken`), tag("blockeditor.1", yjs))},
+		{"broken last sibling", page(tag("blockeditor", yjs), tag("blockeditor.1", `{broken`))},
+		{"duplicate before claim", page(tag("blockeditor", hybrid), tag("blockeditor", hybrid), tag("blockeditor.1", yjs))},
+		{"ephemeral page", page(`<script type="application/json" merge="blockeditor" clay="live ephemeral">` + yjs + `</script>`)},
 	} {
 		t.Run(test.name+" refuses even when inspection stopped before the Yjs tag", func(t *testing.T) {
-			for _, source := range []string{empty, old, page(tag("page", `{"title":"mine"}`))} {
+			for _, source := range []string{empty, old, page(tag("blockeditor", `{"title":"mine"}`))} {
 				_, err := CheckWrite(source, test.target, "")
 				reason(t, err, "invalid-capture")
 			}
 		})
 	}
-	for _, target := range []string{empty, page(tag("page", hybrid)), page(tag("page", `{"title":"mine"}`)), page(tag("page", `{broken`)), page(`<template>` + tag("page", yjs) + `</template>`), page(`<noscript>` + tag("page", yjs) + `</noscript>`)} {
+	for _, target := range []string{empty, page(tag("blockeditor", hybrid)), page(tag("blockeditor", `{"title":"mine"}`)), page(tag("blockeditor", `{broken`)), page(`<template>` + tag("blockeditor", yjs) + `</template>`), page(`<noscript>` + tag("blockeditor", yjs) + `</noscript>`)} {
 		if got, err := CheckWrite(empty, target, ""); err != nil || got != Ordinary {
 			t.Errorf("generic values and parser-inert tags retain ordinary behavior: %s, %v", got, err)
 		}
 	}
-	claimed := page(tag("page", `{"v":1,"y":{"scroll":{"top":0}}}`))
+	claimed := page(tag("blockeditor", `{"v":1,"y":{"scroll":{"top":0}}}`))
 	if got, err := CheckWrite(claimed, `<p>Changed</p>`+claimed, ""); err != nil || got != Ordinary {
 		t.Fatalf("an existing reserved-shape claim permits an unrelated markup edit: %s, %v", got, err)
 	}
 	_, err = CheckWrite(empty, claimed, "")
 	reason(t, err, "invalid-capture")
-	encoded := page(`<script type="application/vnd.page+json" merge="p&#97;ge" clay="live">{"v":1,"y":{"seed":"opaque",},}</script>`)
+	encoded := page(`<script type="application/vnd.page+json" merge="blo&#99;keditor" clay="live">{"v":1,"y":{"seed":"opaque",},}</script>`)
 	if got, err := CheckWrite(empty, encoded, ""); err != nil || got != Initial {
 		t.Fatalf("encoded names and relaxed JSON use the real live-tag parser: %s, %v", got, err)
 	}
-	for _, target := range []string{old, page(tag("page", `{"v":1,"y":{},"blocks":{}}`)), page(tag("page", yjs), tag("page.1", hybrid))} {
+	for _, target := range []string{old, page(tag("blockeditor", `{"v":1,"y":{},"blocks":{}}`)), page(tag("blockeditor", yjs), tag("blockeditor.1", hybrid))} {
 		_, err := CheckWrite(converted, target, "")
 		if _, ok := err.(*FormatError); !ok {
 			t.Errorf("already converted files retain one complete Yjs page value: %v", err)
@@ -400,9 +400,9 @@ func TestHostedConversionMetadataVectors(t *testing.T) {
 }
 
 func TestHostedWriteAdmissionWithoutStoredPageTag(t *testing.T) {
-	article := `<article class="page" data-page="1"><h1 data-id="title"></h1></article>`
+	article := `<article class="blockeditor" data-blockeditor="1"><h1 data-id="title"></h1></article>`
 	tagless := page(article)
-	converted := page(tag("page", yjs))
+	converted := page(tag("blockeditor", yjs))
 	base := strings.Repeat("0", 64)
 	for _, test := range []struct {
 		name, current, next, header string
@@ -411,7 +411,7 @@ func TestHostedWriteAdmissionWithoutStoredPageTag(t *testing.T) {
 	}{
 		{name: "a stored page tag accepts a save that keeps it", current: converted, next: converted, want: Ordinary},
 		{name: "a stored page tag admits a save without one as an outside edit", current: converted, next: tagless, want: Ordinary},
-		{name: "a stored page tag still refuses a hybrid capture", current: converted, next: page(article, tag("page", hybrid)), format: true},
+		{name: "a stored page tag still refuses a hybrid capture", current: converted, next: page(article, tag("blockeditor", hybrid)), format: true},
 		{name: "a stored tagless page document continues without a new capture", current: tagless, next: converted, want: Ordinary},
 		{name: "a stored tagless non-page document still needs an initial capture", current: page(), next: converted, want: Initial},
 		{name: "a conversion header still requires a hybrid source", current: tagless, next: converted, header: "v1; source=file; base=" + base, want: ""},
@@ -438,7 +438,7 @@ func TestHostedWriteAdmissionWithoutStoredPageTag(t *testing.T) {
 func TestStripPageTagVectors(t *testing.T) {
 	head := "<!doctype html>\n<html>\n<head>\n" + tag("page.tools", "{}") + "\n</head>\n<body>\n"
 	tail := "\n</body>\n</html>\n"
-	article := `<article class="page" data-page="1"><h1 data-id="title"></h1></article>`
+	article := `<article class="blockeditor" data-blockeditor="1"><h1 data-id="title"></h1></article>`
 	source := func(lines ...string) string { return head + strings.Join(lines, "\n") + tail }
 	fixture, err := os.ReadFile("testdata/ypage-template.html")
 	if err != nil {
@@ -446,20 +446,20 @@ func TestStripPageTagVectors(t *testing.T) {
 	}
 	var kept []string
 	for _, line := range strings.SplitAfter(string(fixture), "\n") {
-		if !strings.HasPrefix(line, `<script type="application/json" merge="page" `) {
+		if !strings.HasPrefix(line, `<script type="application/json" merge="blockeditor" `) {
 			kept = append(kept, line)
 		}
 	}
 	for _, test := range []struct{ name, source, want string }{
-		{"removes a page tag alone on its line", source(tag("page", yjs), article), source(article)},
-		{"removes only the element when the line holds other markup", source(`<p>before</p>`+tag("page", yjs)+`<p>after</p>`, article), source(`<p>before</p><p>after</p>`, article)},
+		{"removes a page tag alone on its line", source(tag("blockeditor", yjs), article), source(article)},
+		{"removes only the element when the line holds other markup", source(`<p>before</p>`+tag("blockeditor", yjs)+`<p>after</p>`, article), source(`<p>before</p><p>after</p>`, article)},
 		{"leaves a document with no page tag untouched", source(article), source(article)},
-		{"leaves a hybrid page tag untouched", source(tag("page", hybrid), article), source(tag("page", hybrid), article)},
-		{"leaves a renamed hybrid page tag untouched", source(tag("page.1", hybrid), article), source(tag("page.1", hybrid), article)},
-		{"leaves a page tag inside a template untouched", source(`<template>`+tag("page", yjs)+`</template>`, article), source(`<template>`+tag("page", yjs)+`</template>`, article)},
-		{"leaves a page tag with two articles untouched", source(tag("page", yjs), article, article), source(tag("page", yjs), article, article)},
-		{"leaves a page tag inside the article untouched", source(`<article data-page="1">` + tag("page", yjs) + `</article>`), source(`<article data-page="1">` + tag("page", yjs) + `</article>`)},
-		{"removes a page tag whose value contains a closing script sequence", source(tag("page", `{"v":1,"y":{"seed":"a</script"}}`), article), source(article)},
+		{"leaves a hybrid page tag untouched", source(tag("blockeditor", hybrid), article), source(tag("blockeditor", hybrid), article)},
+		{"leaves a renamed hybrid page tag untouched", source(tag("blockeditor.1", hybrid), article), source(tag("blockeditor.1", hybrid), article)},
+		{"leaves a page tag inside a template untouched", source(`<template>`+tag("blockeditor", yjs)+`</template>`, article), source(`<template>`+tag("blockeditor", yjs)+`</template>`, article)},
+		{"leaves a page tag with two articles untouched", source(tag("blockeditor", yjs), article, article), source(tag("blockeditor", yjs), article, article)},
+		{"leaves a page tag inside the article untouched", source(`<article data-blockeditor="1">` + tag("blockeditor", yjs) + `</article>`), source(`<article data-blockeditor="1">` + tag("blockeditor", yjs) + `</article>`)},
+		{"removes a page tag whose value contains a closing script sequence", source(tag("blockeditor", `{"v":1,"y":{"seed":"a</script"}}`), article), source(article)},
 		{"removes the page tag from the editor template fixture", string(fixture), strings.Join(kept, "")},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -482,7 +482,7 @@ func untaggedTemplate(t *testing.T) (string, string) {
 	}
 	tagLine := ""
 	for _, line := range strings.SplitAfter(string(editor), "\n") {
-		if strings.HasPrefix(line, `<script type="application/json" merge="page" `) {
+		if strings.HasPrefix(line, `<script type="application/json" merge="blockeditor" `) {
 			tagLine = line
 		}
 	}
@@ -508,10 +508,10 @@ func TestUntaggedTemplateInspectsAsNone(t *testing.T) {
 }
 
 func TestHostedWriteAdmissionIgnoresStrayNoscriptInsideTemplate(t *testing.T) {
-	article := `<article class="page" data-page="1"><h1 data-id="title"></h1></article>`
-	ghost := `<article data-page="ghost"></article>`
+	article := `<article class="blockeditor" data-blockeditor="1"><h1 data-id="title"></h1></article>`
+	ghost := `<article data-blockeditor="ghost"></article>`
 	current := page(`<template></noscript>`+ghost+`</template>`, article)
-	next := page(tag("page", yjs), article)
+	next := page(tag("blockeditor", yjs), article)
 	if _, _, articles := locatePage(current); articles != 1 {
 		t.Fatalf("counted %d articles in the stored document, want 1", articles)
 	}

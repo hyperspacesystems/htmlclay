@@ -219,7 +219,7 @@ func runPageStateStep(t *testing.T, root, base string, step pageStateStep) any {
 		}
 		return result
 	}
-	t.Fatalf("unknown page-state step kind %q", step.Kind)
+	t.Fatalf("unknown blockeditor-state step kind %q", step.Kind)
 	return nil
 }
 

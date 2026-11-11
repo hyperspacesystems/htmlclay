@@ -20,13 +20,47 @@ import (
 // PageFormatMeta and PageFormatHeader are the document format floor's marker and the
 // capability header every page write declares (ClayJS src/core/page-format.js).
 const (
-	PageFormatMeta    = "clay-page-format"
-	PageFormatHeader  = "X-Clay-Page-Format"
-	PageFormatUpgrade = "page-format-upgrade-required"
+	PageFormatMeta    = "clay-blockeditor-format"
+	PageFormatHeader  = "X-Clay-Blockeditor-Format"
+	PageFormatUpgrade = "blockeditor-format-upgrade-required"
 )
 
+// OldFormatCode and OldFormatMessage answer a write in the block editor's format
+// from before ClayJS 1.24.0 (ClayJS oldFormatRefusal). The message tells the person
+// to copy their text before reloading, because a reload loses the unsaved change.
+const (
+	OldFormatCode    = "blockeditor-old-format"
+	OldFormatMessage = "This document now uses the new Block editor format, so this change was not saved. Copy any text you need from this tab, then reload."
+)
+
+var oldTagName = regexp.MustCompile(`^page(\.[0-9]+)?$`)
+
+// OldBlockeditorFormat mirrors ClayJS's oldBlockeditorFormat: a live tag named
+// `page` or `page.N` whose value is a Yjs envelope (`v` or `y` present). An
+// author's own live store named page holding ordinary JSON, and a bare
+// article[data-page], are not the old format.
+func OldBlockeditorFormat(source string) bool {
+	if !hasMerge(source) {
+		return false
+	}
+	for _, tag := range liveTags(source, oldTagName) {
+		value, err := parsePageJSON(tag.text)
+		if err != nil {
+			continue
+		}
+		if o, ok := record(value); ok {
+			_, hasY := o.Get("y")
+			_, hasV := o.Get("v")
+			if hasY || hasV {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 var (
-	pageFormatTag     = regexp.MustCompile(`(?i)<meta\b[^>]*\bname\s*=\s*["']?clay-page-format["']?[^>]*>`)
+	pageFormatTag     = regexp.MustCompile(`(?i)<meta\b[^>]*\bname\s*=\s*["']?clay-blockeditor-format["']?[^>]*>`)
 	pageFormatContent = regexp.MustCompile(`(?i)\bcontent\s*=\s*["']?(\d+)`)
 	headTail          = regexp.MustCompile(`(?i)</head\s*>`)
 	bodyStart         = regexp.MustCompile(`(?i)<body\b`)
@@ -113,7 +147,7 @@ func CheckPageFormat(current, next string, capability int) (string, error) {
 }
 
 var (
-	pageName = regexp.MustCompile(`^page(\.[0-9]+)?$`)
+	pageName = regexp.MustCompile(`^blockeditor(\.[0-9]+)?$`)
 	liveName = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,64}$`)
 	partName = regexp.MustCompile(`^(.+)\.(\d+)\.(\d+)$`)
 	baseName = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -166,7 +200,9 @@ func attribute(n *html.Node, name string) (string, bool) {
 	return "", false
 }
 
-func eligibleTags(source string) []rawTag {
+func eligibleTags(source string) []rawTag { return liveTags(source, pageName) }
+
+func liveTags(source string, names *regexp.Regexp) []rawTag {
 	root, err := html.Parse(strings.NewReader(source))
 	if err != nil {
 		return nil
@@ -182,7 +218,7 @@ func eligibleTags(source string) []rawTag {
 					clay, _ := attribute(node, "clay")
 					kind, _ := attribute(node, "type")
 					kind = strings.ToLower(strings.TrimSpace(strings.SplitN(kind, ";", 2)[0]))
-					if hasMerge && liveName.MatchString(name) && pageName.MatchString(name) &&
+					if hasMerge && liveName.MatchString(name) && names.MatchString(name) &&
 						containsToken(clay, "live") && (kind == "application/json" || strings.HasSuffix(kind, "+json")) {
 						var body strings.Builder
 						for child := node.FirstChild; child != nil; child = child.NextSibling {
@@ -351,7 +387,7 @@ func Inspect(source string) Result {
 		}
 	}
 	if claimed {
-		if len(tags) != 1 || tags[0].Name != "page" || !yPageValue(tags[0].Value, true) {
+		if len(tags) != 1 || tags[0].Name != "blockeditor" || !yPageValue(tags[0].Value, true) {
 			return Result{Kind: "invalid", Reason: "invalid-yjs", Tags: tags}
 		}
 		return Result{Kind: "yjs", Tags: tags}
@@ -419,7 +455,7 @@ func PageTag(source string) (string, bool) {
 	return source[start:end], true
 }
 
-// InsertPageTag puts a stored page tag back before the one article[data-page] of
+// InsertPageTag puts a stored page tag back before the one article[data-blockeditor] of
 // a page document that carries no page tag, the way ClayJS's composePage does.
 // It returns source unchanged unless the result holds exactly that tag and
 // stripping it gives back source.
@@ -449,7 +485,7 @@ func InsertPageTag(source, tag string) string {
 }
 
 // locateArticle finds the byte offset of the start tag of the one
-// article[data-page] outside template and noscript, and counts them.
+// article[data-blockeditor] outside template and noscript, and counts them.
 func locateArticle(source string) (start, articles int) {
 	start = -1
 	z := html.NewTokenizer(strings.NewReader(source))
@@ -473,7 +509,7 @@ func locateArticle(source string) (start, articles int) {
 				inertTags = append(inertTags, name)
 			case "article":
 				if len(inertTags) == 0 {
-					if _, ok := attrs["data-page"]; ok {
+					if _, ok := attrs["data-blockeditor"]; ok {
 						articles++
 						matched++
 						start = at
@@ -496,10 +532,50 @@ func locateArticle(source string) (start, articles int) {
 }
 
 // pageDocument reports whether source is a page document: exactly one
-// article[data-page] outside template and noscript.
+// article[data-blockeditor] outside template and noscript.
 func pageDocument(source string) bool {
 	_, _, articles := locatePage(source)
 	return articles == 1
+}
+
+// PageRev is ClayJS's pageRev: the data-rev of the one article[data-blockeditor]
+// outside template and noscript, or "" when the document has no such single
+// article or the article carries no data-rev.
+func PageRev(source string) string {
+	z := html.NewTokenizer(strings.NewReader(source))
+	var inertTags []string
+	articles, rev := 0, ""
+	for {
+		token := z.Next()
+		switch token {
+		case html.ErrorToken:
+			if articles != 1 {
+				return ""
+			}
+			return rev
+		case html.StartTagToken, html.SelfClosingTagToken:
+			name, attrs := tokenAttributes(z)
+			switch {
+			case (name == "template" || name == "noscript") && token == html.StartTagToken:
+				inertTags = append(inertTags, name)
+			case name == "article" && len(inertTags) == 0:
+				if _, ok := attrs["data-blockeditor"]; ok {
+					articles++
+					if articles == 1 {
+						rev = attrs["data-rev"]
+					}
+				}
+			}
+		case html.EndTagToken:
+			name, _ := z.TagName()
+			for i := len(inertTags) - 1; i >= 0; i-- {
+				if inertTags[i] == string(name) {
+					inertTags = inertTags[:i]
+					break
+				}
+			}
+		}
+	}
 }
 
 func tokenAttributes(z *html.Tokenizer) (string, map[string]string) {
@@ -517,7 +593,7 @@ func tokenAttributes(z *html.Tokenizer) (string, map[string]string) {
 
 func pageScript(attrs map[string]string) bool {
 	merge, ok := attrs["merge"]
-	if !ok || merge != "page" {
+	if !ok || merge != "blockeditor" {
 		return false
 	}
 	if _, external := attrs["src"]; external {
@@ -528,7 +604,7 @@ func pageScript(attrs map[string]string) bool {
 }
 
 // locatePage finds the byte span of the one Yjs page tag and counts the
-// article[data-page] elements outside template and noscript.
+// article[data-blockeditor] elements outside template and noscript.
 func locatePage(source string) (start, end, articles int) {
 	start = -1
 	z := html.NewTokenizer(strings.NewReader(source))
@@ -556,7 +632,7 @@ func locatePage(source string) (start, end, articles int) {
 			case "article":
 				if token == html.StartTagToken {
 					if len(inertTags) == 0 {
-						if _, ok := attrs["data-page"]; ok {
+						if _, ok := attrs["data-blockeditor"]; ok {
 							articles++
 						}
 					}

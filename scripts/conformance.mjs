@@ -42,11 +42,11 @@ export const runsFrozen = (engine) => engine === 'all' || parseEngine(engine).in
 
 // The standalone-server capability set. `people` is absent on purpose: it needs the
 // app's profile hooks, which a fixture server does not install, so asserting it would
-// demand a capability this host only has inside the app. `page-format-v1` is announced
+// demand a capability this host only has inside the app. `blockeditor-format-v1` is announced
 // because the vendored runtime carries page-format.js.
 export const REQUIRED_EXTENSIONS = [
-  'conditional', 'data-guard-v1', 'data-read', 'data-write', 'page', 'page-awareness-v1', 'page-format-v1',
-  'page-recovery-v1', 'receipts', 'record-awareness-v1', 'sync', 'sync-worker', 'upload', 'wire',
+  'blockeditor', 'blockeditor-awareness-v1', 'blockeditor-format-v1', 'blockeditor-recovery-v1', 'conditional', 'data-guard-v1',
+  'data-read', 'data-write', 'receipts', 'record-awareness-v1', 'sync', 'sync-worker', 'upload', 'wire',
 ];
 
 const PROBE_TITLE = 'Conformance probe · HTML Clay';

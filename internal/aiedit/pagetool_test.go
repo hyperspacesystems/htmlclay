@@ -87,7 +87,7 @@ func toolRequestJSON(t *testing.T, id, prompt, extra string) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := `{"protocol":"page-tool/1","requestId":"` + id + `","prompt":` + string(encodedPrompt) +
+	request := `{"protocol":"blockeditor-tool/1","requestId":"` + id + `","prompt":` + string(encodedPrompt) +
 		`,"context":{"title":"Research","outline":[],"tables":[]},"target":null,"current":null` + extra + `}`
 	return []byte(request)
 }
@@ -123,7 +123,7 @@ func TestPageToolClaudeGetsItsOwnArgvAndEnv(t *testing.T) {
 
 	argv := argvOf(t, argvFile)
 	if hasArg(argv, "--append-system-prompt") {
-		t.Fatalf("argv = %q, want the page-tool's own system prompt flag", argv)
+		t.Fatalf("argv = %q, want the blockeditor-tool's own system prompt flag", argv)
 	}
 	if got := argAfter(t, argv, "--max-turns"); got != "1" {
 		t.Fatalf("--max-turns = %q", got)
@@ -136,7 +136,7 @@ func TestPageToolClaudeGetsItsOwnArgvAndEnv(t *testing.T) {
 		t.Fatalf("system prompt file = %q", got)
 	}
 	if !strings.Contains(readText(t, envFile), "CLAUDE_CODE_DISABLE_CLAUDE_MDS=1\n") {
-		t.Fatal("the page-tool's Claude child did not get CLAUDE_CODE_DISABLE_CLAUDE_MDS=1")
+		t.Fatal("the blockeditor-tool's Claude child did not get CLAUDE_CODE_DISABLE_CLAUDE_MDS=1")
 	}
 
 	var turn struct {
@@ -177,7 +177,7 @@ func TestAIEditKeepsItsEnvAndArgv(t *testing.T) {
 		t.Fatalf("ai-edit argv = %q", argv)
 	}
 	if strings.Contains(readText(t, envFile), "CLAUDE_CODE_DISABLE_CLAUDE_MDS") {
-		t.Fatal("ai-edit's child got the page-tool's environment variable")
+		t.Fatal("ai-edit's child got the blockeditor-tool's environment variable")
 	}
 }
 
@@ -354,11 +354,11 @@ func TestPageToolRequestValidation(t *testing.T) {
 	}{
 		{"not an object", `[]`, "invalid_request"},
 		{"no protocol", `{"requestId":"` + toolRequestIDFixture + `","prompt":"x"}`, "invalid_request"},
-		{"wrong protocol", `{"protocol":"page-tool/2","requestId":"` + toolRequestIDFixture + `","prompt":"x"}`, "invalid_request"},
-		{"bad id", `{"protocol":"page-tool/1","requestId":"nope","prompt":"x"}`, "invalid_request"},
-		{"blank prompt", `{"protocol":"page-tool/1","requestId":"` + toolRequestIDFixture + `","prompt":"   "}`, "invalid_request"},
+		{"wrong protocol", `{"protocol":"blockeditor-tool/2","requestId":"` + toolRequestIDFixture + `","prompt":"x"}`, "invalid_request"},
+		{"bad id", `{"protocol":"blockeditor-tool/1","requestId":"nope","prompt":"x"}`, "invalid_request"},
+		{"blank prompt", `{"protocol":"blockeditor-tool/1","requestId":"` + toolRequestIDFixture + `","prompt":"   "}`, "invalid_request"},
 		{"long prompt", string(toolRequestJSON(t, toolRequestIDFixture, strings.Repeat("x", 9000), "")), "invalid_request"},
-		{"list context", `{"protocol":"page-tool/1","requestId":"` + toolRequestIDFixture + `","prompt":"x","context":[]}`, "invalid_request"},
+		{"list context", `{"protocol":"blockeditor-tool/1","requestId":"` + toolRequestIDFixture + `","prompt":"x","context":[]}`, "invalid_request"},
 		{"large context", string(toolRequestJSON(t, toolRequestIDFixture, "x", `,"context":{"title":"`+strings.Repeat("x", 17000)+`"}`)), "invalid_context"},
 		{"oversized payload", string(toolRequestJSON(t, toolRequestIDFixture, "x", `,"pad":"`+strings.Repeat("x", 66000)+`"`)), "invalid_request"},
 		{"revision without the tool", string(toolRequestJSON(t, toolRequestIDFixture, "x", `,"target":{"toolId":"t1","rev":1}`)), "invalid_request"},

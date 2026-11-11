@@ -13,8 +13,8 @@ import (
 	"github.com/panphora/htmlclay/internal/testutil"
 )
 
-// admissionVector is one case from the package's page-admission.json. The cases were produced by
-// running ClayJS's page-admission functions, so every answer here is the reference's, including the
+// admissionVector is one case from the package's blockeditor-admission.json. The cases were produced by
+// running ClayJS's blockeditor-admission functions, so every answer here is the reference's, including the
 // refusals, which the envelope spells as {"$throw": message, "$name": error name}.
 type admissionVector struct {
 	Fn          string            `json:"fn"`
@@ -25,7 +25,7 @@ type admissionVector struct {
 	GoExpectWhy string            `json:"goExpectWhy"`
 }
 
-// TestPageAdmissionVectors runs every page-admission case through the Go function
+// TestPageAdmissionVectors runs every blockeditor-admission case through the Go function
 // vectors/operations.json names for its fn.
 func TestPageAdmissionVectors(t *testing.T) {
 	var file struct {
@@ -33,12 +33,12 @@ func TestPageAdmissionVectors(t *testing.T) {
 		Family string            `json:"family"`
 		Cases  []admissionVector `json:"cases"`
 	}
-	testutil.LoadVectors(t, "page-admission.json", &file)
-	if file.Family != "page-admission" {
-		t.Fatalf("page-admission.json names family %q", file.Family)
+	testutil.LoadVectors(t, "blockeditor-admission.json", &file)
+	if file.Family != "blockeditor-admission" {
+		t.Fatalf("blockeditor-admission.json names family %q", file.Family)
 	}
 	if len(file.Cases) == 0 {
-		t.Fatal("page-admission.json has no cases")
+		t.Fatal("blockeditor-admission.json has no cases")
 	}
 
 	counts := map[string]int{}
@@ -58,10 +58,10 @@ func TestPageAdmissionVectors(t *testing.T) {
 	}
 	total := 0
 	for fn, n := range counts {
-		t.Logf("page-admission %s: %d cases", fn, n)
+		t.Logf("blockeditor-admission %s: %d cases", fn, n)
 		total += n
 	}
-	t.Logf("page-admission: %d cases", total)
+	t.Logf("blockeditor-admission: %d cases", total)
 }
 
 func runAdmissionVector(t *testing.T, c admissionVector, expect json.RawMessage) {
@@ -98,7 +98,7 @@ func runAdmissionVector(t *testing.T, c admissionVector, expect json.RawMessage)
 		checkAnswered(t, expect, answer)
 		sameJSON(t, expect, answer)
 
-	case "pageFormatFloor":
+	case "blockeditorFormatFloor":
 		answer := PageFormatFloor(textArg(t, c, 0))
 		checkAnswered(t, expect, answer)
 		sameJSON(t, expect, answer)
@@ -160,7 +160,7 @@ func runAdmissionVector(t *testing.T, c admissionVector, expect json.RawMessage)
 	case "splitPage":
 		source, ok := optionalTextArg(t, c, 0)
 		if !ok {
-			t.Skip("the vector passes null; pageadmission's page-tag readers take a string")
+			t.Skip("the vector passes null; pageadmission's blockeditor-tag readers take a string")
 		}
 		var want struct {
 			File  *string `json:"file"`
@@ -210,7 +210,7 @@ func runAdmissionVector(t *testing.T, c admissionVector, expect json.RawMessage)
 		}
 
 	default:
-		t.Fatalf("page-admission.json has no Go mapping for fn %q", c.Fn)
+		t.Fatalf("blockeditor-admission.json has no Go mapping for fn %q", c.Fn)
 	}
 }
 

@@ -22,13 +22,13 @@ const consultLaneFile = `<!doctype html>
 <title>Lane</title>
 </head>
 <body>
-<article class="page" clay="freeze" data-page="1" data-rev="093360993130d818"><h1 data-id="title"></h1></article>
+<article class="blockeditor" clay="freeze" data-blockeditor="1" data-rev="093360993130d818"><h1 data-id="title"></h1></article>
 </body>
 </html>
 `
 
 // consultLaneTag is the page state of consultLaneLogical.
-const consultLaneTag = `<script type="application/json" merge="page" clay="live">{"v":1,"g":0,"y":{"seed":"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA="}}</script>`
+const consultLaneTag = `<script type="application/json" merge="blockeditor" clay="live">{"v":1,"g":0,"y":{"seed":"AAACQQMEAQAIQgALJwAoAQUAJwAoAIUkHGF0dHJzdGl0bGVsZXZlbHRmbG93YXR0cnNwMXRFAQEEBQIBBwEAAAEBAQACQQACQQEBBwB9AXcHaGVhZGluZ3YBAWJ3BXRpdGxldwlwYXJhZ3JhcGh2AQFidwJwMQA="}}</script>`
 
 // consultLaneLogical is the document the service answers a replace with: the
 // file part plus the page state the split takes off.

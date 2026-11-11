@@ -16,7 +16,7 @@ import (
 
 // The managed trial host's commit core, ported from Local's
 // src/main/document-host.js. One Go function per Local write lane, so the
-// bytes, versions, page-state sidecars and API sidecars left on disk are what
+// bytes, versions, blockeditor-state sidecars and API sidecars left on disk are what
 // Hyperclay Local leaves, and no save is ever half-applied or falsely reported.
 //
 // The native stage runs with no local authority, so every branch that needs a

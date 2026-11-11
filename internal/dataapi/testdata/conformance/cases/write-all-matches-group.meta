@@ -1,0 +1,6 @@
+tier: 1
+face: write
+expect: ok
+skip: htmlclay=all-matches form not ported yet (multi-page sites release 1, step G1)
+note: The marker does not cover the whole group: it covers only the last selector in it, so
+note: title is written once and both .site-name matches are written.

@@ -30,7 +30,7 @@ const kanbanFixture = `<!DOCTYPE html>
 <head>
 <script src="https://clayjs.com/v1/clay.js?plugins=sortable,people,upload,sync,visitor-drafts,unsent,menu&exclude=richclay"></script>
 <script src="https://clayjs.com/v1/sap.js"></script>
-<link rel="stylesheet" href="https://clayjs.com/v1/src/page/themes/light-1.css">
+<link rel="stylesheet" href="https://clayjs.com/v1/src/blockeditor/themes/light-1.css">
 </head>
 <body><p>board</p></body>
 </html>
@@ -224,7 +224,7 @@ func TestOfflineFixtureServerServesTheContract(t *testing.T) {
 		for _, want := range []string{
 			f.runtime + "clay.js?plugins=sortable,people,upload,sync,visitor-drafts,unsent,menu&exclude=richclay",
 			f.runtime + "sap.js",
-			f.runtime + "src/page/themes/light-1.css",
+			f.runtime + "src/blockeditor/themes/light-1.css",
 			`id="clay-runtime-map"`,
 		} {
 			if !strings.Contains(string(served), want) {
@@ -302,7 +302,7 @@ func TestOfflineFixtureServerServesTheContract(t *testing.T) {
 		for _, want := range []string{
 			`src="https://clayjs.com/v1/clay.js?plugins=sortable,people,upload,sync,visitor-drafts,unsent,menu&exclude=richclay"`,
 			`src="https://clayjs.com/v1/sap.js"`,
-			`href="https://clayjs.com/v1/src/page/themes/light-1.css"`,
+			`href="https://clayjs.com/v1/src/blockeditor/themes/light-1.css"`,
 			"board edited",
 		} {
 			if !strings.Contains(string(disk), want) {

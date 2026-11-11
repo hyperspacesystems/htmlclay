@@ -1,0 +1,6 @@
+tier: 1
+face: write
+expect: error
+skip: htmlclay=all-matches form not ported yet (multi-page sites release 1, step G1)
+note: Zero matches is still zero matches: the marker says "all of them", not "at least one",
+note: and the rejection reports the selector without the marker.

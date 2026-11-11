@@ -128,7 +128,7 @@ func TestControlRequiresSecret(t *testing.T) {
 
 // TestControlCommitRoundTrip is the protocol Local's adapter is written
 // against: a create, an exact binary download, a conditional save, a
-// restructure, a page-state move, a read, the op states and the three requests
+// restructure, a blockeditor-state move, a read, the op states and the three requests
 // the API refuses.
 func TestControlCommitRoundTrip(t *testing.T) {
 	root := controlTestRoot(t, "root-0")
@@ -240,34 +240,34 @@ func TestControlCommitRoundTrip(t *testing.T) {
 		t.Fatalf("read c.html after the move: status = %d, answer = %v", status, answer)
 	}
 
-	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/page-state", map[string]any{
+	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/blockeditor-state", map[string]any{
 		"opId": "6666666666666666", "root": "root-0", "op": "write", "name": "c.html",
 		"record": map[string]any{"v": 1, "rev": "abc", "tag": "tag"},
 	})
 	if status != http.StatusOK {
-		t.Fatalf("page-state write: status = %d, answer = %v", status, answer)
+		t.Fatalf("blockeditor-state write: status = %d, answer = %v", status, answer)
 	}
 	from, err := pageStatePath(root.baseDir, "c.html")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(from); err != nil {
-		t.Fatalf("page-state write left no sidecar: %v", err)
+		t.Fatalf("blockeditor-state write left no sidecar: %v", err)
 	}
-	if status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/page-state", map[string]any{
+	if status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/blockeditor-state", map[string]any{
 		"opId": "7777777777777777", "root": "root-0", "op": "move", "name": "c.html", "to": "d.html",
 	}); status != http.StatusOK {
-		t.Fatalf("page-state move: status = %d, answer = %v", status, answer)
+		t.Fatalf("blockeditor-state move: status = %d, answer = %v", status, answer)
 	}
 	to, err := pageStatePath(root.baseDir, "d.html")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(to); err != nil {
-		t.Fatalf("page-state move left no sidecar at the destination: %v", err)
+		t.Fatalf("blockeditor-state move left no sidecar at the destination: %v", err)
 	}
 	if _, err := os.Stat(from); !os.IsNotExist(err) {
-		t.Fatalf("page-state move left the source sidecar behind: %v", err)
+		t.Fatalf("blockeditor-state move left the source sidecar behind: %v", err)
 	}
 
 	status, answer = controlJSON(t, server, controlSecret, http.MethodGet, "/v1/op/1111111111111111", nil)
@@ -309,10 +309,10 @@ func TestControlRestructureWorkspaceKinds(t *testing.T) {
 
 	status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/restructure", map[string]any{
 		"root": "root-0", "kind": "move",
-		"steps": []map[string]any{{"from": "a.html", "to": "b.html", "pageState": "drop"}},
+		"steps": []map[string]any{{"from": "a.html", "to": "b.html", "blockeditorState": "drop"}},
 	})
 	if status != http.StatusBadRequest || answer["error"] == nil {
-		t.Fatalf("move with a page-state drop: status = %d, answer = %v, want 400", status, answer)
+		t.Fatalf("move with a blockeditor-state drop: status = %d, answer = %v, want 400", status, answer)
 	}
 
 	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/restructure", map[string]any{
@@ -327,7 +327,7 @@ func TestControlRestructureWorkspaceKinds(t *testing.T) {
 		"root": "root-0", "kind": "folder",
 		"steps": []map[string]any{{"to": "made"}},
 	})
-	if status != http.StatusOK || answer["outcome"] != "committed" || answer["pageState"] != nil {
+	if status != http.StatusOK || answer["outcome"] != "committed" || answer["blockeditorState"] != nil {
 		t.Fatalf("folder: status = %d, answer = %v, want committed with no page state", status, answer)
 	}
 	if info, err := os.Stat(filepath.Join(root.baseDir, "made")); err != nil || !info.IsDir() {
@@ -498,18 +498,18 @@ func TestControlOpReuseRefused(t *testing.T) {
 	}
 
 	const stateOpID = "0011223344556677"
-	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/page-state", map[string]any{
+	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/blockeditor-state", map[string]any{
 		"opId": stateOpID, "root": "root-0", "op": "write", "name": "s.html",
 		"record": map[string]any{"v": 1, "rev": "abc", "tag": "tag"},
 	})
 	if status != http.StatusOK {
-		t.Fatalf("page-state write with %s: status = %d, answer = %v", stateOpID, status, answer)
+		t.Fatalf("blockeditor-state write with %s: status = %d, answer = %v", stateOpID, status, answer)
 	}
-	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/page-state", map[string]any{
+	status, answer = controlJSON(t, server, controlSecret, http.MethodPost, "/v1/blockeditor-state", map[string]any{
 		"opId": stateOpID, "root": "root-0", "op": "move", "name": "s.html", "to": "u.html",
 	})
 	if status != http.StatusConflict || answer["error"] != "op-reused" {
-		t.Fatalf("reused page-state opId: status = %d, answer = %v, want 409 op-reused", status, answer)
+		t.Fatalf("reused blockeditor-state opId: status = %d, answer = %v, want 409 op-reused", status, answer)
 	}
 }
 
@@ -522,7 +522,7 @@ func TestControlReadCoherent(t *testing.T) {
 
 	rev := "093360993130d818"
 	stored := saveGoldenPage(rev)
-	if strings.Contains(stored, `merge="page"`) {
+	if strings.Contains(stored, `merge="blockeditor"`) {
 		t.Fatalf("the fixture already carries the merge state: %q", stored)
 	}
 	if err := os.WriteFile(filepath.Join(root.baseDir, "page.html"), []byte(stored), 0o644); err != nil {

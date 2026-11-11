@@ -197,7 +197,7 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if key != "" {
-		if sErr := s.versions.SettlePageState(key, f.AbsPath, versions.Hash(data)); sErr != nil {
+		if sErr := s.versions.SettlePageState(key, f.AbsPath, data); sErr != nil {
 			s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
 		}
 	}

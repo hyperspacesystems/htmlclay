@@ -58,7 +58,7 @@ type commitGoldenRequest struct {
 	DataLossPrev *string                `json:"dataLossPrev"`
 	Expected     *commitExpectation     `json:"expected"`
 	ModifiedAt   *int64                 `json:"modifiedAt"`
-	PageRecord   *PageRecord            `json:"pageRecord"`
+	PageRecord   *PageRecord            `json:"blockeditorRecord"`
 	Edit         *bool                  `json:"edit"`
 	Safety       *bool                  `json:"safety"`
 	Structure    *commitGoldenStructure `json:"structure"`
@@ -122,7 +122,7 @@ func commitGoldenRoot(t *testing.T, scenario commitGoldenScenario) string {
 		if err != nil {
 			t.Fatal(err)
 		}
-		writeCommitFile(t, root, filepath.Join(".hyperclay", "page-state", "stale.html.json"), record)
+		writeCommitFile(t, root, filepath.Join(".hyperclay", "blockeditor-state", "stale.html.json"), record)
 	}
 	if scenario.VersionAtRevA != "" {
 		writeCommitFile(t, root, filepath.Join(".hyperclay", "versions", "stale", "2026-09-01-00-00-00-000+0000.html"), []byte(scenario.VersionAtRevA))
@@ -141,7 +141,7 @@ func writeCommitFile(t *testing.T, root, rel string, content []byte) {
 	}
 }
 
-// commitClock drives the version store's clock and the page-state generation
+// commitClock drives the version store's clock and the blockeditor-state generation
 // sequence from the golden, so a scenario's version names and generations are
 // the ones Local wrote.
 type commitClock struct {
@@ -165,12 +165,21 @@ func (c *commitClock) nextGeneration() string {
 
 func freezeCommitClock(t *testing.T, scenario commitGoldenScenario) *commitClock {
 	t.Helper()
+	// Version names carry the local zone offset, and gen.cjs records in
+	// America/New_York, so the test runs in that zone whatever the machine's is.
+	zone, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("LoadLocation: %v", err)
+	}
 	clock := &commitClock{pages: scenario.Pages}
+	previousLocal := time.Local
 	previousClock := versionClock
 	previousGeneration := pageStateNewGeneration
+	time.Local = zone
 	versionClock = func() int64 { return clock.now }
 	pageStateNewGeneration = clock.nextGeneration
 	t.Cleanup(func() {
+		time.Local = previousLocal
 		versionClock = previousClock
 		pageStateNewGeneration = previousGeneration
 	})
@@ -252,7 +261,7 @@ func runCommitGoldenScenario(t *testing.T, scenario commitGoldenScenario) {
 		}
 	}
 	if clock.exhausted {
-		t.Error("the host asked for more page-state generations than Local did")
+		t.Error("the host asked for more blockeditor-state generations than Local did")
 	}
 
 	gotHooks := marshalCommitJSON(t, hooks.recorded())
@@ -318,8 +327,8 @@ func TestCommitAD2StaleLineage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s failed: %v", request.Name, err)
 		}
-		if result.Outcome != "refused" || result.Reason != "stale-page-lineage" {
-			t.Fatalf("got %s/%s, want refused/stale-page-lineage", result.Outcome, result.Reason)
+		if result.Outcome != "refused" || result.Reason != "stale-blockeditor-lineage" {
+			t.Fatalf("got %s/%s, want refused/stale-blockeditor-lineage", result.Outcome, result.Reason)
 		}
 		if len(hooks.calls) != 0 {
 			t.Fatalf("a refused save called %d hooks, want none", len(hooks.calls))

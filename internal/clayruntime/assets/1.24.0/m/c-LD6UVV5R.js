@@ -1,0 +1,1 @@
+var t=[];function r(o){t.push(o)}function d(o,l,c=null,n=null){for(let p of t)try{let e={captureId:l??null,...c?{artifact:c}:{},...n?{siteData:n}:{}};p(o,e)}catch(e){console.error("clayjs: onSaveAccepted hook failed:",e)}}export{r as a,d as b};

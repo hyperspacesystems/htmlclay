@@ -17,7 +17,7 @@ import (
 // a room, a target or a token is the full-host stage's to add.
 
 // commitExact is Local's commitExact: the bytes a sync download brought, stored
-// as they are, with the versions and page-state record that came with them.
+// as they are, with the versions and blockeditor-state record that came with them.
 func (h *commitHost) commitExact(request *commitRequest, filePath string) (commitResult, error) {
 	isDocument := request.Text && isDocumentName(request.Name)
 	var consult *consultation
@@ -194,7 +194,7 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 			return commitResult{}, err
 		}
 		if stale {
-			return refused("stale-page-lineage"), nil
+			return refused("stale-blockeditor-lineage"), nil
 		}
 
 		var logical string

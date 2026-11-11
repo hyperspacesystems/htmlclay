@@ -1,6 +1,6 @@
 'use strict'
 
-// Golden answers for the Go port of Local's page-state store,
+// Golden answers for the Go port of Local's blockeditor-state store,
 // src/main/page-state-store.js: the sidecar that keeps a page editor's merge
 // state out of the person's file.
 //
@@ -57,7 +57,7 @@ const read = (name) => fs.readFileSync(path.join(templateDir, name), 'utf8')
 
 const ypage = read('ypage-template.html')
 const untagged = read('untagged-page-template.html')
-const pageTag = /<script type="application\/json" merge="page" clay="live">[\s\S]*?<\/script>/.exec(ypage)[0]
+const pageTag = /<script type="application\/json" merge="blockeditor" clay="live">[\s\S]*?<\/script>/.exec(ypage)[0]
 
 const revA = '1111111111111111'
 const revB = '2222222222222222'
@@ -65,7 +65,7 @@ const revC = '3333333333333333'
 const revD = '4444444444444444'
 const revE = '5555555555555555'
 
-const article = (rev) => '<article class="page" clay="freeze" data-page="1" data-rev="' + rev + '"></article>'
+const article = (rev) => '<article class="blockeditor" clay="freeze" data-blockeditor="1" data-rev="' + rev + '"></article>'
 const page = (lines) => ['<!doctype html>', '<html>', '<body>', ...lines, '</body>', '</html>', ''].join('\n')
 const tagged = (rev) => page(['  ' + pageTag, article(rev)])
 const bare = (rev) => page([article(rev)])
@@ -215,15 +215,15 @@ scenario('logicalDocument composes the tag back', [
 
 scenario('legacy sidecar adopted on read', [
   { kind: 'writeFile', path: 'notes.html', text: bare(revA) },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.json', text: JSON.stringify({ ...stateA, generation: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }) },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.json', text: JSON.stringify({ ...stateA, generation: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }) },
   { kind: 'readPageState', name: 'notes.html', rev: revA },
   { kind: 'readPageRecord', name: 'notes.html', rev: revA }
 ])
 
 scenario('legacy sidecar beside the new one', [
   { kind: 'writeFile', path: 'notes.html', text: bare(revB) },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.json', text: JSON.stringify(stateA) },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.html.json', text: JSON.stringify(stateB) },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.json', text: JSON.stringify(stateA) },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.html.json', text: JSON.stringify(stateB) },
   { kind: 'readPageState', name: 'notes.html', rev: revB },
   { kind: 'readPageState', name: 'notes.html', rev: revA }
 ])
@@ -231,34 +231,34 @@ scenario('legacy sidecar beside the new one', [
 scenario('legacy sidecar beside the other extension', [
   { kind: 'writeFile', path: 'notes.html', text: bare(revA) },
   { kind: 'writeFile', path: 'notes.htmlclay', text: bare(revA) },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.json', text: JSON.stringify(stateA) },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.json', text: JSON.stringify(stateA) },
   { kind: 'readPageState', name: 'notes.html' }
 ])
 
 scenario('legacy sidecar for htmlclay when no html document', [
   { kind: 'writeFile', path: 'notes.htmlclay', text: bare(revA) },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.json', text: JSON.stringify(stateA) },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.json', text: JSON.stringify(stateA) },
   { kind: 'readPageState', name: 'notes.htmlclay', rev: revA }
 ])
 
 scenario('corrupt sidecar', [
   { kind: 'writeFile', path: 'notes.html', text: bare(revA) },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.html.json', text: 'not json' },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.html.json', text: 'not json' },
   { kind: 'readPageState', name: 'notes.html' },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.html.json', text: '{"v":2,"rev":"' + revA + '","tag":"T"}' },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.html.json', text: '{"v":2,"rev":"' + revA + '","tag":"T"}' },
   { kind: 'readPageState', name: 'notes.html' },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.html.json', text: '{"v":1,"rev":"' + revA + '","tag":"T","generation":"nope"}' },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.html.json', text: '{"v":1,"rev":"' + revA + '","tag":"T","generation":"nope"}' },
   { kind: 'readPageState', name: 'notes.html' },
   { kind: 'readPageRecord', name: 'notes.html', rev: revA },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.html.json', text: '{"v":1,"rev":"' + revA + '","tag":"T","prev":{"rev":"' + revB + '"}}' },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.html.json', text: '{"v":1,"rev":"' + revA + '","tag":"T","prev":{"rev":"' + revB + '"}}' },
   { kind: 'readPageState', name: 'notes.html', rev: revB },
-  { kind: 'writeFile', path: '.hyperclay/page-state/notes.html.json', text: '{"v":1,"rev":"' + revA + '","tag":"T","prev":{"rev":"' + revB + '","tag":"P","generation":"00000000000000000000000000000009"}}' },
+  { kind: 'writeFile', path: '.hyperclay/blockeditor-state/notes.html.json', text: '{"v":1,"rev":"' + revA + '","tag":"T","prev":{"rev":"' + revB + '","tag":"P","generation":"00000000000000000000000000000009"}}' },
   { kind: 'readPageState', name: 'notes.html', rev: revB },
   { kind: 'storePageState', name: 'notes.html', html: tagged(revC) }
 ])
 
 scenario('writePageState writes Local exact bytes', [
-  { kind: 'writePageState', name: 'notes.html', state: { v: 1, rev: revA, tag: '<script merge="page" clay="live">&amp;\u00e9</script>' } },
+  { kind: 'writePageState', name: 'notes.html', state: { v: 1, rev: revA, tag: '<script merge="blockeditor" clay="live">&amp;\u00e9</script>' } },
   { kind: 'readPageRecord', name: 'notes.html', rev: revA },
   { kind: 'writePageState', name: 'notes.html', state: { v: 1, rev: revB, tag: 'second' } },
   { kind: 'readPageRecord', name: 'notes.html', rev: revA },
@@ -337,14 +337,14 @@ scenario('logical document without a base', [
 
 const revCases = [
   { name: 'one article', input: bare(revA) },
-  { name: 'one article with no data-rev', input: page(['<article data-page="1"></article>']) },
+  { name: 'one article with no data-rev', input: page(['<article data-blockeditor="1"></article>']) },
   { name: 'two articles', input: page([article(revA), article(revB)]) },
   { name: 'no article', input: page(['<p>nothing</p>']) },
   {
     name: 'article inside template beside a real one',
-    input: page(['<template><article data-page="1" data-rev="' + revB + '"></article></template>', article(revA)])
+    input: page(['<template><article data-blockeditor="1" data-rev="' + revB + '"></article></template>', article(revA)])
   },
-  { name: 'article inside noscript beside a real one', input: page(['<noscript><article data-page="1"></article></noscript>', article(revA)]) },
+  { name: 'article inside noscript beside a real one', input: page(['<noscript><article data-blockeditor="1"></article></noscript>', article(revA)]) },
   { name: 'ypage template', input: ypage },
   { name: 'untagged template', input: untagged }
 ]

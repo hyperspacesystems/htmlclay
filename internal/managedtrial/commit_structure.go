@@ -39,7 +39,7 @@ var structureKinds = map[string]structurePolicy{
 
 // structureEntry is one resolved step: the canonical path a name is at now, the
 // canonical path it is going to, the root-relative names the step gave, and the
-// page-state work Local's workspace command does after the step.
+// blockeditor-state work Local's workspace command does after the step.
 type structureEntry struct {
 	FromPath  string
 	ToPath    string

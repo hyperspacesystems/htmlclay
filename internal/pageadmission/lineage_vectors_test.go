@@ -20,7 +20,7 @@ type lineageWrite struct {
 	Current   string  `json:"current"`
 	Body      string  `json:"body"`
 	IfMatchOf *string `json:"ifMatchOf"`
-	PageWrite *string `json:"pageWrite"`
+	PageWrite *string `json:"blockeditorWrite"`
 	Expect    struct {
 		JS       string `json:"js"`
 		HTMLClay string `json:"htmlclay"`
@@ -66,7 +66,7 @@ func (w lineageWrite) goResult(t *testing.T, seedStamp string) string {
 }
 
 func TestPageLineageVectors(t *testing.T) {
-	raw, err := os.ReadFile(testutil.VectorPath(t, "page-lineage.json"))
+	raw, err := os.ReadFile(testutil.VectorPath(t, "blockeditor-lineage.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,11 +98,11 @@ func TestPageLineageVectors(t *testing.T) {
 			}
 		})
 	}
-	t.Logf("%d page-lineage vectors", len(vectors.Writes))
+	t.Logf("%d blockeditor-lineage vectors", len(vectors.Writes))
 }
 
 func TestNothingToWrite(t *testing.T) {
-	raw, err := os.ReadFile(testutil.VectorPath(t, "page-lineage.json"))
+	raw, err := os.ReadFile(testutil.VectorPath(t, "blockeditor-lineage.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

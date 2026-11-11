@@ -14,7 +14,7 @@
   { "name": "clayjs-js", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/clay.js", "headers": {} },
   { "name": "clayjs-js-conditional", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/clay.js", "headers": {}, "ifNoneMatchFrom": "clayjs-js" },
   { "name": "clayjs-js-head", "method": "HEAD", "path": "/_/clayjs/{CLAYJS_VERSION}/clay.js", "headers": {} },
-  { "name": "clayjs-css", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/page/themes/light-1.css", "headers": {} },
+  { "name": "clayjs-css", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/blockeditor/themes/light-1.css", "headers": {} },
   { "name": "clayjs-missing", "method": "GET", "path": "/_/clayjs/{CLAYJS_VERSION}/missing.js", "headers": {} },
   { "name": "clayjs-wrong-version", "method": "GET", "path": "/_/clayjs/0.0.0/clay.js", "headers": {} },
   { "name": "clayjs-bare", "method": "GET", "path": "/clayjs/{CLAYJS_VERSION}/clay.js", "headers": {} }

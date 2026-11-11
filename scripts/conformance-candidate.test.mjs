@@ -275,8 +275,8 @@ test('validateReport accepts every row status the package emits', () => {
 const GATE_ROWS = [
   ['capability.conditional', 'pass', false], ['capability.data-guard-v1', 'pass', false],
   ['capability.data-read', 'pass', false], ['capability.data-write', 'pass', false],
-  ['capability.page', 'pass', false], ['capability.page-awareness-v1', 'pass', false],
-  ['capability.page-format-v1', 'pass', false], ['capability.page-recovery-v1', 'pass', false],
+  ['capability.page', 'pass', false], ['capability.blockeditor-awareness-v1', 'pass', false],
+  ['capability.blockeditor-format-v1', 'pass', false], ['capability.blockeditor-recovery-v1', 'pass', false],
   ['capability.receipts', 'pass', false], ['capability.record-awareness-v1', 'pass', false],
   ['capability.sync', 'pass', false], ['capability.sync-worker', 'pass', false],
   ['capability.upload', 'pass', false], ['capability.wire', 'pass', false],

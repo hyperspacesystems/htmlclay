@@ -296,14 +296,14 @@
       "status": 200,
       "headers": {
         "cache-control": "private, no-store",
-        "content-length": "559",
+        "content-length": "620",
         "content-type": "application/json; charset=utf-8",
-        "etag": "W/\"22f-IgX/iAJ1eEpOqhm01DvESsyYWwc\"",
+        "etag": "W/\"26c-Fhc0WteSB31j/g1ecVbjCvIM90M\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "{\"spec\":1,\"extensions\":[\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"page\",\"page-awareness-v1\",\"page-format-v1\",\"page-recovery-v1\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"19f8af9acc51eec0\",\"pageState\":{\"href\":\"/_/page-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"saveId\":\"save-42\",\"people\":{\"me\":null}}}"
+        "text": "{\"spec\":1,\"extensions\":[\"blockeditor\",\"blockeditor-awareness-v1\",\"blockeditor-format-v1\",\"blockeditor-recovery-v1\",\"conditional\",\"data-guard-v1\",\"data-read\",\"data-write\",\"format\",\"live-data\",\"live-provenance\",\"people\",\"presence\",\"receipts\",\"record-awareness-v1\",\"scoped-stylesheet\",\"sync\",\"sync-worker\",\"sync-worker-data\",\"upload\",\"wire\"],\"document\":{\"writable\":true,\"maxBytes\":20971520,\"versions\":true,\"upload\":{\"allowed\":true,\"maxBytes\":26214400,\"access\":\"local\"},\"etag\":\"19f8af9acc51eec0\",\"blockeditorState\":{\"href\":\"/_/blockeditor-state\"},\"dataGuard\":{\"href\":\"/_/data-loss\"},\"saveId\":\"save-42\",\"people\":{\"me\":null}}}"
       }
     },
     {
@@ -321,12 +321,12 @@
       "headers": {
         "content-length": "61",
         "content-type": "application/json; charset=utf-8",
-        "etag": "W/\"3d-sA23z/gilBd0bojnRVvt+0ZQK0g\"",
+        "etag": "W/\"3d-fFGsZZe0Jz0U5HyXGJrCHW6Y1A8\"",
         "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
         "x-powered-by": "Express"
       },
       "body": {
-        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"3d37cecb1b859104\"}"
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"56f91b1a99276d4e\"}"
       }
     },
     {
@@ -399,6 +399,10 @@
   ],
   "files": [
     {
+      "path": ".hyperclay/blockeditor-state/paged.html.json",
+      "sha256": "d2484c95782936ff95e982ae9b8ff76b00a5e5294156bfcedb87dbf17107ca81"
+    },
+    {
       "path": ".hyperclay/guard/a.json",
       "sha256": "ca3ad0eabff6d10860221ba714bac5966ebcfbe7f7904553c8d89dc9ec7feb23"
     },
@@ -417,10 +421,6 @@
     {
       "path": ".hyperclay/guard/paged.json",
       "sha256": "ca3ad0eabff6d10860221ba714bac5966ebcfbe7f7904553c8d89dc9ec7feb23"
-    },
-    {
-      "path": ".hyperclay/page-state/paged.html.json",
-      "sha256": "c8eb8b75cb902873f50eb2e5b61c0ae60c79994576ab91243a6a53bd7a07affc"
     },
     {
       "path": ".hyperclay/versions/a/2026-11-01-01-00-00-000-0500-001.html",
@@ -452,11 +452,11 @@
     },
     {
       "path": ".hyperclay/versions/paged/2026-11-01-01-00-00-000-0500-001.html",
-      "sha256": "81eabce73f2af99453d15e4a13d9e3b718bf88c814acf819ecefef16ce623df4"
+      "sha256": "67ae3bf6c2f6c7330b435356d56bccb460146fbb1e78295b725680d58bd86cdb"
     },
     {
       "path": ".hyperclay/versions/paged/2026-11-01-01-00-00-000-0500.html",
-      "sha256": "840df49a4f93c7cc3f47438342d92763ed6197850d872f339189266c1dd9007c"
+      "sha256": "c884e694e242ab246bc93d58518afb6c123206af2de02d77f769f4b9d40f846b"
     },
     {
       "path": "a.html",
@@ -480,7 +480,7 @@
     },
     {
       "path": "paged.html",
-      "sha256": "81eabce73f2af99453d15e4a13d9e3b718bf88c814acf819ecefef16ce623df4"
+      "sha256": "67ae3bf6c2f6c7330b435356d56bccb460146fbb1e78295b725680d58bd86cdb"
     }
   ],
   "clock": 1793512800000,
