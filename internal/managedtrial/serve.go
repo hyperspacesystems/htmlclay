@@ -35,8 +35,10 @@ type rootServer struct {
 	// joins it, and hooks carries every commit's live calls into it.
 	live  *rootLive
 	hooks *liveHooks
-	// syncWorker is the SharedWorker script this host serves, read at boot.
-	syncWorker []byte
+	// syncWorker and syncDataWorker are the SharedWorker scripts this host
+	// serves, read at boot.
+	syncWorker     []byte
+	syncDataWorker []byte
 	// tailwind is this root's generated stylesheets: the compiles a save starts
 	// and the one a read starts when it misses.
 	tailwind *tailwindHost
@@ -75,23 +77,28 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	if cfg.service != nil {
 		cfg.service.setRoot(root.id, baseDir)
 	}
-	worker, err := readSyncWorker(cfg.localSource)
+	worker, err := readWorkerScript(cfg.localSource, "sync-worker.js")
+	if err != nil {
+		return nil, err
+	}
+	dataWorker, err := readWorkerScript(cfg.localSource, "sync-data-worker.js")
 	if err != nil {
 		return nil, err
 	}
 	server := &rootServer{
-		baseDir:     baseDir,
-		registry:    registry,
-		localSource: cfg.localSource,
-		runtimeDir:  runtime.Dir,
-		selected:    runtime.Selected,
-		releases:    runtime.Releases,
-		commit:      host,
-		live:        liveRoot,
-		hooks:       hooks,
-		tailwind:    tailwind,
-		syncWorker:  worker,
-		control:     newControlRoot(root.id, baseDir, registry, host, cfg.events),
+		baseDir:        baseDir,
+		registry:       registry,
+		localSource:    cfg.localSource,
+		runtimeDir:     runtime.Dir,
+		selected:       runtime.Selected,
+		releases:       runtime.Releases,
+		commit:         host,
+		live:           liveRoot,
+		hooks:          hooks,
+		tailwind:       tailwind,
+		syncWorker:     worker,
+		syncDataWorker: dataWorker,
+		control:        newControlRoot(root.id, baseDir, registry, host, cfg.events),
 	}
 	if cfg.service != nil {
 		server.service = cfg.service
@@ -160,7 +167,9 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case marked && getOrHead && urlPath == "/page-state":
 		err = s.servePageState(w, r)
 	case marked && getOrHead && urlPath == preSpecSyncWorkerPath:
-		err = s.serveSyncWorker(w, r)
+		err = serveWorkerScript(w, s.syncWorker)
+	case marked && getOrHead && urlPath == syncDataWorkerPath:
+		err = serveWorkerScript(w, s.syncDataWorker)
 	case getOrHead && (urlPath == "/sync" || urlPath == "/live-sync/stream"):
 		err = s.serveLiveStream(w, r)
 	case r.Method == http.MethodPost && relayAddress(urlPath) && bareAllowed(urlPath, marked):

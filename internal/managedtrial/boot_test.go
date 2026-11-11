@@ -401,8 +401,10 @@ func writeLocalSource(t *testing.T) string {
 	if err := os.MkdirAll(assetsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(assetsDir, "sync-worker.js"), []byte("// sync worker\n"), 0o644); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"sync-worker.js", "sync-data-worker.js"} {
+		if err := os.WriteFile(filepath.Join(assetsDir, name), []byte("// "+name+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	runtimeDir := filepath.Join(main, "offline-runtime")
 	if err := os.MkdirAll(filepath.Join(runtimeDir, "1.0.0"), 0o755); err != nil {

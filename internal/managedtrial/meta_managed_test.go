@@ -3,10 +3,12 @@
 package managedtrial
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -15,7 +17,7 @@ import (
 // localMetaExtensions is Local's own /_/meta list, written out here as Local
 // sorts it so the full-host announcement is pinned to a copy rather than to the
 // variable it comes from.
-const localMetaExtensions = "conditional,data-guard-v1,data-read,data-write,format,live-data,live-provenance,page,page-awareness-v1,page-format-v1,page-recovery-v1,people,presence,receipts,record-awareness-v1,scoped-stylesheet,sync,sync-worker,upload,wire"
+const localMetaExtensions = "conditional,data-guard-v1,data-read,data-write,format,live-data,live-provenance,page,page-awareness-v1,page-format-v1,page-recovery-v1,people,presence,receipts,record-awareness-v1,scoped-stylesheet,sync,sync-worker,sync-worker-data,upload,wire"
 
 // metaExtensions reads the extensions array out of one /_/meta answer.
 func metaExtensions(t *testing.T, server *httptest.Server) []string {
@@ -65,6 +67,34 @@ func TestMetaWithoutServiceAnnouncesTrialExtensions(t *testing.T) {
 	got := metaExtensions(t, server)
 	if !slices.Equal(got, trialMetaExtensions) {
 		t.Fatalf("extensions = %v, want %v", got, trialMetaExtensions)
+	}
+}
+
+// TestDataWorkerServedBehindMarker proves the data worker a `sync-worker-data`
+// announcement promises is served at /_/sync/data-worker.js, as Local serves it,
+// and that the bare address is left to a user folder called `sync`.
+func TestDataWorkerServedBehindMarker(t *testing.T) {
+	fake := newForwardService(t, nil)
+	server, _, _, _ := forwardRoot(t, fake.peer())
+	want, err := os.ReadFile(filepath.Join(os.Getenv("MANAGED_TRIAL_LOCAL_SOURCE"), "src", "main", "assets", "sync-data-worker.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	status, header, answer := forwardSend(t, server, http.MethodGet, "/_/sync/data-worker.js", nil, nil)
+	if status != http.StatusOK || !bytes.Equal(answer, want) {
+		t.Fatalf("marked: status = %d, %d bytes, want 200 and the checkout's data worker (%d bytes)", status, len(answer), len(want))
+	}
+	if got := header.Get("Content-Type"); got != "text/javascript; charset=utf-8" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	if header.Get("Cache-Control") != "no-cache" || header.Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("Cache-Control = %q, X-Content-Type-Options = %q", header.Get("Cache-Control"), header.Get("X-Content-Type-Options"))
+	}
+
+	status, _, answer = forwardSend(t, server, http.MethodGet, "/sync/data-worker.js", nil, nil)
+	if status == http.StatusOK && bytes.Equal(answer, want) {
+		t.Fatalf("bare: the data worker answered without the marker")
 	}
 }
 

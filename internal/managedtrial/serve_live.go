@@ -38,6 +38,9 @@ const (
 	// and it is gated on the marker: a user folder that happens to be called `sync`
 	// keeps serving its own worker.js through the static catch-all.
 	preSpecSyncWorkerPath = "/sync/worker.js"
+	// syncDataWorkerPath is Local's data worker, marker-gated the same way: one
+	// stream per origin for every editing tab's room events and roster.
+	syncDataWorkerPath = "/sync/data-worker.js"
 )
 
 // The two keepalives are Local's, and they differ per route: the list form pings
@@ -394,26 +397,27 @@ func (s *rootServer) holdStream(r *http.Request, writer *liveWriter, every time.
 	}
 }
 
-// serveSyncWorker is the SharedWorker script of spec §10. A worker script must
-// be same-origin with the page that starts it, so the client library cannot
-// bring its own: every host that announces `sync-worker` serves this file, read
+// serveWorkerScript answers one of spec §10's SharedWorker scripts. A worker
+// script must be same-origin with the page that starts it, so the client library
+// cannot bring its own: a host that announces `sync-worker` serves the stream
+// worker, and one that announces `sync-worker-data` the data worker, each read
 // from the checkout the binary already serves its runtime from.
-func (s *rootServer) serveSyncWorker(w http.ResponseWriter, r *http.Request) error {
+func serveWorkerScript(w http.ResponseWriter, script []byte) error {
 	header := w.Header()
 	header.Set("Content-Type", "text/javascript; charset=utf-8")
 	header.Set("X-Content-Type-Options", "nosniff")
 	header.Set("Cache-Control", "no-cache")
-	header.Set("Content-Length", strconv.Itoa(len(s.syncWorker)))
+	header.Set("Content-Length", strconv.Itoa(len(script)))
 	poweredBy(w)
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(s.syncWorker)
+	_, _ = w.Write(script)
 	return nil
 }
 
-// readSyncWorker is SYNC_WORKER_JS: the checkout's copy of the worker script,
-// read once, at boot.
-func readSyncWorker(localSource string) ([]byte, error) {
-	return os.ReadFile(filepath.Join(localSource, "src", "main", "assets", "sync-worker.js"))
+// readWorkerScript is SYNC_WORKER_JS or SYNC_DATA_WORKER_JS: the checkout's copy
+// of a worker script, read once, at boot.
+func readWorkerScript(localSource, name string) ([]byte, error) {
+	return os.ReadFile(filepath.Join(localSource, "src", "main", "assets", name))
 }
 
 // The write budget of one physical SSE response, shared by every sink that

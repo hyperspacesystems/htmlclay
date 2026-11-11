@@ -242,6 +242,7 @@ func TestGatesBareAllowed(t *testing.T) {
 		{"/sync/data", false},
 		{"/presence", false},
 		{"/sync/worker.js", false},
+		{"/sync/data-worker.js", false},
 		{"/meta", false},
 		{"/uploads/", false},
 		{"/uploads/a.png", false},

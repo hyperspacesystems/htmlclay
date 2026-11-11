@@ -21,7 +21,9 @@ const (
 
 // trialMetaExtensions is Local's recorded extension list minus AD1, the
 // difference the trial is allowed to announce: no `format`, no
-// `scoped-stylesheet`, no `presence`, and no name starting with `live-`. It is
+// `scoped-stylesheet`, no `presence`, no name starting with `live-`, and no
+// `sync-worker-data`, whose worker carries room events this stage has no rooms
+// for. It is
 // written out rather than computed so later steps implement what is announced
 // here, and the golden test pins the result.
 var trialMetaExtensions = []string{
@@ -66,6 +68,7 @@ var managedMetaExtensions = []string{
 	"scoped-stylesheet",
 	"sync",
 	"sync-worker",
+	"sync-worker-data",
 	"upload",
 	"wire",
 }

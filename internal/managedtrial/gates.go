@@ -200,7 +200,7 @@ func bareAllowed(path string, marked bool) bool {
 		return true
 	}
 	switch path {
-	case "/sync/data", "/presence", "/sync/worker.js", "/meta":
+	case "/sync/data", "/presence", "/sync/worker.js", "/sync/data-worker.js", "/meta":
 		return false
 	}
 	if path == "/api" || strings.HasPrefix(path, "/api/") {
