@@ -173,7 +173,9 @@ func (t *tailwindHost) wait(name string) {
 // coming or has already written its own. A failure leaves the old stylesheet, as
 // in Local.
 func (t *tailwindHost) compile(name, content string) {
-	holdTailwind(name)
+	if holdTailwind(name) {
+		defer finishHeldTailwind(name)
+	}
 	tailwindSlots <- struct{}{}
 	defer func() { <-tailwindSlots }()
 

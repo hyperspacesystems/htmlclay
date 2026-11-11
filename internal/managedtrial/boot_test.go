@@ -248,6 +248,71 @@ func TestRefuseLiveRoot(t *testing.T) {
 	}
 }
 
+// TestRefuseLiveRootOtherCase is the guard on a case-insensitive volume: another
+// spelling of the live folder, of a folder inside it, or of its parent is the same
+// folder, and is refused.
+func TestRefuseLiveRootOtherCase(t *testing.T) {
+	base := t.TempDir()
+	live := filepath.Join(base, "Live", "LOCAL_APPS")
+	if err := os.MkdirAll(filepath.Join(live, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(base, "live", "local_apps")); err != nil {
+		t.Skip("this volume is case-sensitive")
+	}
+	for _, root := range []string{
+		filepath.Join(base, "live", "local_apps"),
+		filepath.Join(base, "live", "local_apps", "APP"),
+		filepath.Join(base, "live", "local_apps", "new-folder"),
+	} {
+		if err := RefuseLiveRoot(root, live); err == nil || !strings.Contains(err.Error(), "inside") {
+			t.Fatalf("%q: err = %v, want refused as inside LOCAL_APPS", root, err)
+		}
+	}
+	if err := RefuseLiveRoot(filepath.Join(base, "LIVE"), live); err == nil || !strings.Contains(err.Error(), "contains") {
+		t.Fatalf("other-case parent: err = %v, want refused as containing LOCAL_APPS", err)
+	}
+	if err := RefuseLiveRoot(filepath.Join(base, "other"), live); err != nil {
+		t.Fatalf("a sibling folder was refused: %v", err)
+	}
+}
+
+// TestConsentRefusesSymlinkIntoLiveRoot: a link inside a served root that points
+// into the live folder is never consented, so no write resolves through it, while
+// a link to any other folder still is.
+func TestConsentRefusesSymlinkIntoLiveRoot(t *testing.T) {
+	live := filepath.Join(t.TempDir(), "LOCAL_APPS")
+	other := t.TempDir()
+	if err := os.MkdirAll(live, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	saved := liveRoot
+	liveRoot = func() (string, error) { return realPath(live) }
+	t.Cleanup(func() { liveRoot = saved })
+
+	root := t.TempDir()
+	if err := os.Symlink(live, filepath.Join(root, "link")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := os.Symlink(other, filepath.Join(root, "other")); err != nil {
+		t.Fatal(err)
+	}
+	registry := newConsentRegistry(root, nil)
+	registry.Ready()
+	liveReal, _ := realPath(live)
+	otherReal, _ := realPath(other)
+	consented := registry.ConsentedRoots()
+	if containsString(consented, upathResolve(liveReal)) {
+		t.Fatalf("the live folder was consented: %v", consented)
+	}
+	if !containsString(consented, upathResolve(otherReal)) {
+		t.Fatalf("the other folder was not consented: %v", consented)
+	}
+	if path, err := resolveWritePath(registry, "link/new.html"); err == nil {
+		t.Fatalf("a write through the link resolved to %q", path)
+	}
+}
+
 func TestRunRefusesBadArguments(t *testing.T) {
 	root := t.TempDir()
 	source := writeLocalSource(t)

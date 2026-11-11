@@ -341,6 +341,7 @@ func guardGoldenTree(t *testing.T, root string) []guardGoldenFilePair {
 				t.Fatal(err)
 			}
 			text := strings.ReplaceAll(string(content), root, "<root>")
+			text = strings.ReplaceAll(text, filepath.ToSlash(root), "<root>")
 			files = append(files, guardGoldenFilePair{Path: rel, B64: base64.StdEncoding.EncodeToString([]byte(text))})
 		}
 	}

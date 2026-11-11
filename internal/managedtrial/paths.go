@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"unicode/utf8"
@@ -78,18 +79,17 @@ func upathJoin(elements ...string) string {
 	return toUnix(joined)
 }
 
-// upathResolve is upath.resolve for the absolute paths this file deals in.
+// upathResolve is upath.resolve: the absolute path with forward slashes. On
+// Windows it keeps the drive letter, as Node's path.win32.resolve does.
 func upathResolve(p string) string {
-	p = toUnix(p)
 	if p == "" {
 		p = "."
 	}
-	if !strings.HasPrefix(p, "/") {
-		if cwd, err := os.Getwd(); err == nil {
-			p = toUnix(cwd) + "/" + p
-		}
+	native := filepath.FromSlash(p)
+	if abs, err := filepath.Abs(native); err == nil {
+		return toUnix(abs)
 	}
-	return toUnix(filepath.Clean(p))
+	return toUnix(filepath.Clean(native))
 }
 
 func upathDir(p string) string {
@@ -100,8 +100,9 @@ func upathBase(p string) string {
 	return toUnix(filepath.Base(toUnix(p)))
 }
 
+// upathIsAbsolute is upath.isAbsolute: a drive path or a rooted path.
 func upathIsAbsolute(p string) bool {
-	return strings.HasPrefix(toUnix(p), "/")
+	return filepath.IsAbs(filepath.FromSlash(p)) || strings.HasPrefix(toUnix(p), "/")
 }
 
 // isContained answers whether target is baseReal itself or sits inside it.
@@ -360,6 +361,10 @@ func (r *consentRegistry) walk(dir string, depth int, count *int, found *[]strin
 				continue
 			}
 			target = upathResolve(target)
+			if reachesLiveRoot(target) {
+				r.log("[Server] Refused symlink into LOCAL_APPS: " + full + " -> " + target)
+				continue
+			}
 			if !isContained(r.baseReal, target) && !containsString(*found, target) {
 				*found = append(*found, target)
 				r.log("[Server] Registered out-of-tree symlink: " + full + " -> " + target)
@@ -385,6 +390,16 @@ func isNotDirError(err error) bool {
 	return errors.Is(err, syscall.ENOTDIR)
 }
 
+// isMissingPathError is a failure Node reports as ENOENT or ENOTDIR. On
+// Windows, libuv also names ERROR_INVALID_NAME (a `?` or `*` in a name) ENOENT.
+func isMissingPathError(err error) bool {
+	if errors.Is(err, os.ErrNotExist) || isNotDirError(err) {
+		return true
+	}
+	var errno syscall.Errno
+	return runtime.GOOS == "windows" && errors.As(err, &errno) && errno == 123
+}
+
 // resolveReadPath is the canonical read resolution.
 func resolveReadPath(registry *consentRegistry, relPath string) (string, error) {
 	registry.Ready()
@@ -396,7 +411,7 @@ func resolveReadPath(registry *consentRegistry, relPath string) (string, error) 
 
 	real, err := filepath.EvalSymlinks(joined)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) || isNotDirError(err) {
+		if isMissingPathError(err) {
 			return "", fileNotFoundError()
 		}
 		return "", accessDeniedError()
@@ -423,7 +438,7 @@ func resolveWritePath(registry *consentRegistry, relPath string) (string, error)
 
 	real, err := filepath.EvalSymlinks(joined)
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) && !isNotDirError(err) {
+		if !isMissingPathError(err) {
 			return "", accessDeniedError()
 		}
 		parentReal, parentErr := realpathNearestParent(upathDir(joined))

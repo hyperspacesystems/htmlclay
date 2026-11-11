@@ -126,11 +126,11 @@ func TestConsultStructureMove(t *testing.T) {
 	if from["name"] != "a.html" || from["isDir"] != false || from["isSymlink"] != false {
 		t.Fatalf("step from = %v, want a.html as a plain file", from)
 	}
-	if from["canonicalPath"] != filepath.Join(dir, "a.html") {
-		t.Fatalf("step from canonical path = %v, want %q", from["canonicalPath"], filepath.Join(dir, "a.html"))
+	if from["canonicalPath"] != upathJoin(dir, "a.html") {
+		t.Fatalf("step from canonical path = %v, want %q", from["canonicalPath"], upathJoin(dir, "a.html"))
 	}
 	to := consultTestObject(t, step["to"], "to")
-	if to["name"] != "b.html" || to["canonicalPath"] != filepath.Join(dir, "b.html") {
+	if to["name"] != "b.html" || to["canonicalPath"] != upathJoin(dir, "b.html") {
 		t.Fatalf("step to = %v, want b.html", to)
 	}
 

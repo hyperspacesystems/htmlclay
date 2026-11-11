@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -672,6 +673,10 @@ func TestControlDurable(t *testing.T) {
 		t.Fatalf("durable on a missing file: status = %d, answer = %v, want changed with a null checksum", status, answer)
 	}
 
+	// Windows has no directory sync for an I/O error to fail.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	original := atomicDirSync
 	atomicDirSync = func(string) error { return errors.New("boom") }
 	t.Cleanup(func() { atomicDirSync = original })

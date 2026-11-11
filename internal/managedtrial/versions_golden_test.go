@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	_ "time/tzdata"
 )
 
 type versionGolden struct {
@@ -361,7 +362,7 @@ func normalizeVersionPointer(base string, published *PublishedVersion) any {
 }
 
 func normalizeVersionText(value, base string) string {
-	return strings.ReplaceAll(value, base, "<root>")
+	return strings.ReplaceAll(strings.ReplaceAll(value, base, "<root>"), filepath.ToSlash(base), "<root>")
 }
 
 func normalizeVersionCalls(calls []versionCall, base string) []versionCall {

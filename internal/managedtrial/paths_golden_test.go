@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -53,6 +54,15 @@ func TestPathsGolden(t *testing.T) {
 	fixture := buildPathFixture(t)
 
 	for _, want := range golden.Inputs {
+		if runtime.GOOS == "windows" && want.Input == strings.Repeat("x", 256) {
+			// Windows reports a 256-character name as ERROR_INVALID_NAME, which
+			// libuv names ENOENT, so Local's resolver answers it as missing and
+			// accepts it for writing (probed with Local's resolver on Windows 11,
+			// 2026-11-10); macOS reports ENAMETOOLONG. The request routes refuse
+			// it with 400 on both, through validateSegments.
+			want.ResolveReadPath = map[string]any{"status": float64(404), "message": "File not found"}
+			want.ResolveWritePath = want.Input
+		}
 		t.Run(subtestName(want.Input), func(t *testing.T) {
 			got := normalizeOutcome(t, collectPathOutcome(fixture, want.Input))
 			cases := []struct {
@@ -159,7 +169,7 @@ func TestPathsConsentWalkDepth(t *testing.T) {
 	registry.Ready()
 
 	roots := registry.ConsentedRoots()
-	want := []string{mustRealPath(t, outside)}
+	want := []string{upathResolve(mustRealPath(t, outside))}
 	if !reflect.DeepEqual(roots, want) {
 		t.Errorf("consentedRoots = %v, want %v", roots, want)
 	}
@@ -377,7 +387,9 @@ func (f *pathFixture) rel(target string) string {
 
 func (f *pathFixture) sanitize(line string) string {
 	line = strings.ReplaceAll(line, f.tmpReal, "<tmp>")
-	return strings.ReplaceAll(line, f.tmp, "<tmp>")
+	line = strings.ReplaceAll(line, f.tmp, "<tmp>")
+	line = strings.ReplaceAll(line, filepath.ToSlash(f.tmpReal), "<tmp>")
+	return strings.ReplaceAll(line, filepath.ToSlash(f.tmp), "<tmp>")
 }
 
 func mustJSON(value any) string {

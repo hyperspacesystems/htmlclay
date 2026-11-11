@@ -345,7 +345,7 @@ func publishVersion(dir, ext string, content []byte, tempPath string) (Published
 		if suffix != 0 {
 			filename = fmt.Sprintf("%s-%03d%s", stamp, suffix, ext)
 		}
-		full := filepath.Join(dir, filename)
+		full := filepath.ToSlash(filepath.Join(dir, filename))
 
 		err := os.Link(tempPath, full)
 		if err == nil {
@@ -480,8 +480,8 @@ func CreateBackup(baseDir, siteName string, content []byte, obs *VersionObserver
 }
 
 func createBackup(baseDir, siteName string, content []byte, obs *VersionObserver) (PublishedVersion, error) {
-	versionsDir := filepath.Join(baseDir, versionsDirName)
-	siteVersionsDir := filepath.Join(versionsDir, siteName)
+	versionsDir := filepath.ToSlash(filepath.Join(baseDir, versionsDirName))
+	siteVersionsDir := filepath.ToSlash(filepath.Join(versionsDir, siteName))
 
 	if err := os.MkdirAll(versionsDir, 0o755); err != nil {
 		return PublishedVersion{}, err
@@ -539,7 +539,7 @@ func CreateBinaryBackup(baseDir, uploadPath string, content []byte, obs *Version
 }
 
 func createBinaryBackup(baseDir, uploadPath string, content []byte, obs *VersionObserver) (PublishedVersion, error) {
-	versionsDir := filepath.Join(baseDir, versionsDirName)
+	versionsDir := filepath.ToSlash(filepath.Join(baseDir, versionsDirName))
 
 	pathParts := strings.Split(uploadPath, "/")
 	filename := pathParts[len(pathParts)-1]
@@ -549,9 +549,9 @@ func createBinaryBackup(baseDir, uploadPath string, content []byte, obs *Version
 
 	backupSubdir := base
 	if len(pathParts) > 0 {
-		backupSubdir = filepath.Join(append(pathParts, base)...)
+		backupSubdir = filepath.ToSlash(filepath.Join(append(pathParts, base)...))
 	}
-	uploadVersionsDir := filepath.Join(versionsDir, backupSubdir)
+	uploadVersionsDir := filepath.ToSlash(filepath.Join(versionsDir, backupSubdir))
 
 	if err := os.MkdirAll(uploadVersionsDir, 0o755); err != nil {
 		return PublishedVersion{}, err
@@ -606,7 +606,7 @@ func PruneSiteVersions(baseDir, siteVersionsDir string, now time.Time, obs *Vers
 		return empty
 	}
 	if candidate == recoveredRoot || strings.HasPrefix(candidate, recoveredRoot+string(filepath.Separator)) {
-		observerConsole(obs, "warn", "[BACKUP] Refusing to prune recovered copies: "+siteVersionsDir)
+		observerConsole(obs, "warn", "[BACKUP] Refusing to prune recovered copies: "+filepath.ToSlash(siteVersionsDir))
 		return empty
 	}
 
@@ -677,7 +677,7 @@ func PruneSiteVersions(baseDir, siteVersionsDir string, now time.Time, obs *Vers
 }
 
 func pruneRefused(obs *VersionObserver, dir string, err error) PruneResult {
-	observerConsole(obs, "warn", fmt.Sprintf("[BACKUP] Refusing to prune %s (non-fatal): %s", dir, err.Error()))
+	observerConsole(obs, "warn", fmt.Sprintf("[BACKUP] Refusing to prune %s (non-fatal): %s", filepath.ToSlash(dir), err.Error()))
 	return PruneResult{Deleted: []string{}}
 }
 
@@ -730,7 +730,7 @@ func PruneAllVersions(baseDir string, now time.Time, obs *VersionObserver) Prune
 }
 
 func pruneAllRefused(obs *VersionObserver, baseDir string, err error) PruneAllResult {
-	observerConsole(obs, "warn", fmt.Sprintf("[BACKUP] Refusing to prune %s under %s (non-fatal): %s", versionsDirName, baseDir, err.Error()))
+	observerConsole(obs, "warn", fmt.Sprintf("[BACKUP] Refusing to prune %s under %s (non-fatal): %s", versionsDirName, filepath.ToSlash(baseDir), err.Error()))
 	return PruneAllResult{}
 }
 

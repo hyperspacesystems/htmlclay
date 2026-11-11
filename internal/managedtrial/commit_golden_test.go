@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -334,6 +335,9 @@ func TestCommitAD2StaleLineage(t *testing.T) {
 // save whose bytes landed but whose directory entry may not survive is never
 // reported as committed.
 func TestCommitIndeterminate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no directory sync for an I/O error to fail")
+	}
 	previous := atomicDirSync
 	atomicDirSync = func(dir string) error { return syscall.EIO }
 	t.Cleanup(func() { atomicDirSync = previous })
@@ -400,7 +404,11 @@ func TestCommitExpectedUnderLock(t *testing.T) {
 		result, _ := host.commit(&commitRequest{Kind: "browser-save", Name: "a.html", Bytes: second, Text: true})
 		firstDone <- result
 	}()
-	<-locked
+	select {
+	case <-locked:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the first save never reached the document's lock")
+	}
 
 	secondDone := make(chan commitResult, 1)
 	go func() {
@@ -416,11 +424,21 @@ func TestCommitExpectedUnderLock(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	close(release)
 
-	if result := <-firstDone; result.Outcome != "committed" {
-		t.Fatalf("the first save got %q, want committed", result.Outcome)
+	select {
+	case result := <-firstDone:
+		if result.Outcome != "committed" {
+			t.Fatalf("the first save got %q, want committed", result.Outcome)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the first save never finished")
 	}
-	if result := <-secondDone; result.Outcome != "refused" || result.Reason != "changed" {
-		t.Fatalf("the second save got %s/%s, want refused/changed", result.Outcome, result.Reason)
+	select {
+	case result := <-secondDone:
+		if result.Outcome != "refused" || result.Reason != "changed" {
+			t.Fatalf("the second save got %s/%s, want refused/changed", result.Outcome, result.Reason)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the second save never finished")
 	}
 }
 
@@ -539,11 +557,16 @@ func normalizeCommitValue(value any, root string) any {
 	case nil:
 		return nil
 	case string:
-		if root != "" && typed == root {
-			return map[string]any{"path": "."}
-		}
-		if root != "" && strings.HasPrefix(typed, root+"/") {
-			return map[string]any{"path": strings.TrimPrefix(typed, root+"/")}
+		for _, prefix := range []string{root, filepath.ToSlash(root)} {
+			if prefix == "" {
+				continue
+			}
+			if typed == prefix {
+				return map[string]any{"path": "."}
+			}
+			if strings.HasPrefix(typed, prefix+"/") {
+				return map[string]any{"path": strings.TrimPrefix(typed, prefix+"/")}
+			}
 		}
 		if len(typed) > 40 {
 			return map[string]any{"sha256": commitSha256([]byte(typed)), "length": len(typed)}

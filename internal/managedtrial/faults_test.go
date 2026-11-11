@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -71,6 +72,9 @@ func expectKill(t *testing.T, write func() error) {
 // after the rename reports the write indeterminate, the bytes landed, the fault
 // is spent, and the next durable write succeeds.
 func TestFaultDurableFail(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no directory sync for durable-fail to fail")
+	}
 	replaceKillSelf(t)
 	dir := t.TempDir()
 	docPath := filepath.Join(dir, "doc.html")
@@ -258,6 +262,29 @@ func TestFaultRoute(t *testing.T) {
 		t.Fatalf("count 0: status = %d, answer = %v, want 400", status, answer)
 	}
 	if status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "drop-reply", "rel": "a.html", "count": 2,
+	}); status != http.StatusOK {
+		t.Fatalf("arm drop-reply: status = %d, answer = %v", status, answer)
+	}
+	if status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "remaining", "rel": "a.html",
+	}); status != http.StatusOK || answer["remaining"] != float64(2) {
+		t.Fatalf("remaining: status = %d, answer = %v, want remaining 2", status, answer)
+	}
+	if !takeFault(faultDropReply, "/x/a.html") {
+		t.Fatal("takeFault(faultDropReply, /x/a.html) = false, want the armed fault taken")
+	}
+	if status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "remaining", "rel": "a.html",
+	}); status != http.StatusOK || answer["remaining"] != float64(1) {
+		t.Fatalf("remaining after one use: status = %d, answer = %v, want remaining 1", status, answer)
+	}
+	if status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+		"point": "remaining", "rel": "b.html",
+	}); status != http.StatusOK || answer["remaining"] != float64(0) {
+		t.Fatalf("remaining for another rel: status = %d, answer = %v, want remaining 0", status, answer)
+	}
+	if status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
 		"point": "clear",
 	}); status != http.StatusOK || answer["armed"] != float64(0) {
 		t.Fatalf("clear: status = %d, answer = %v, want armed 0", status, answer)
@@ -353,6 +380,26 @@ func waitForHeldTailwind(t *testing.T, control *httptest.Server, name string, wa
 	}
 }
 
+func waitForFinishedTailwind(t *testing.T, control *httptest.Server, name string, want float64) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/fault", map[string]any{
+			"point": "finished", "rel": name,
+		})
+		if status != http.StatusOK {
+			t.Fatalf("finished %s: status = %d, answer = %v", name, status, answer)
+		}
+		if answer["finished"] == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("finished %s = %v, want %v within 2s", name, answer["finished"], want)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
 func tailwindSitePage(classes string) string {
 	return strings.Replace(tailwindPage(classes), "/tailwindcss/tw.css", "/tailwindcss/site.css", 1)
 }
@@ -408,7 +455,7 @@ func TestFaultTailwindHoldOlderCompileLoses(t *testing.T) {
 		t.Fatalf("release site: status = %d, answer = %v, want released 1", status, answer)
 	}
 	recorder.waitFor(t, first)
-	time.Sleep(200 * time.Millisecond)
+	waitForFinishedTailwind(t, control, "site", 1)
 
 	if got := readTailwindCSS(t, root, "site"); got != tailwindCSSFor(second) {
 		t.Errorf("stylesheet = %q, want the newer save's %q", got, tailwindCSSFor(second))

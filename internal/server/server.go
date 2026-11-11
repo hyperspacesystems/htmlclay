@@ -278,7 +278,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	// is a rename for a caller that was already correct.
 	mux.HandleFunc("GET /_/sync", sameOrigin(s.handleLiveSyncStream))
 	mux.HandleFunc("POST /_/sync", sameOrigin(s.handleLiveSyncSave))
-	// Spec §10's third piece of `sync`: the worker script every tab on the origin
+	// Spec §10's `sync-worker`: the worker script every tab on the origin
 	// shares one stream through. See sync_worker.go for why it sits outside the
 	// gate.
 	mux.HandleFunc("GET /_/sync/worker.js", s.handleSyncWorker)

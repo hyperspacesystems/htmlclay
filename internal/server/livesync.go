@@ -1202,25 +1202,24 @@ func (s *Server) resolvePageURL(r *http.Request, raw string) (*session.File, boo
 }
 
 func (s *Server) handleLiveSyncStream(w http.ResponseWriter, r *http.Request) {
-	// Spec §10 lists subscriptions as `s` parameters, any number on one stream.
-	// The one-document spelling below is the pre-revision form, kept as an alias
-	// because a saved document is a frozen client: vendored runtimes and the
-	// Collection dashboard's inline script name it, and no library update reaches
-	// them.
+	// Spec §10's list spelling, which `sync-worker` promises, names subscriptions as
+	// `s` parameters, any number on one stream. Without `s` this is the one-document
+	// stream every `sync` host serves, which ClayJS opens when it does not share a
+	// worker, and which vendored runtimes and the Collection dashboard's inline
+	// script name too.
 	if entries := r.URL.Query()["s"]; len(entries) > 0 {
 		s.handleSharedSyncStream(w, r, entries)
 		return
 	}
 
-	// document-url was the spelling of the pre-revision text and page-url the
-	// pre-spec one. Both are still read, because a host being lenient about how it
-	// is addressed costs nothing and a stream that silently 404s is hard to
-	// diagnose.
+	// document-url is the spec's spelling and page-url the pre-spec one. Both are
+	// read, because a host being lenient about how it is addressed costs nothing and
+	// a stream that silently 404s is hard to diagnose.
 	href := r.URL.Query().Get("document-url")
 	if href == "" {
 		href = r.URL.Query().Get("page-url")
 	}
-	// Spec §10: a request with no subscriptions is a bad request, not a document
+	// Spec §10: a stream that names no document is a bad request, not a document
 	// that is not there.
 	if href == "" {
 		http.Error(w, "Bad Request", http.StatusBadRequest)

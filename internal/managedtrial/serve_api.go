@@ -404,7 +404,7 @@ func (s *rootServer) serveSiteAPI(name, sourcePath string) (apiResult, error) {
 	}
 	etag := specwire.Etag(logical)
 
-	if text, ok := readFreshSidecar(s.baseDir, name, info.ModTime().UnixMilli()); ok {
+	if text, ok := readFreshSidecar(s.baseDir, name, nodeMtimeMs(info.ModTime())); ok {
 		return apiResult{
 			Status:  http.StatusOK,
 			Headers: []kv{{Key: "ETag", Value: etag}},

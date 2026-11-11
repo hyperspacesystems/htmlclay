@@ -228,7 +228,7 @@ func (h *commitHost) emptyTrash() structureResult {
 		return structureAnswer(0, err)
 	}
 	if !info.IsDir() {
-		return structureAnswer(0, &os.PathError{Op: "lstat", Path: trash, Err: syscall.ENOTDIR})
+		return structureAnswer(0, &os.PathError{Op: "lstat", Path: trash, Err: errTrashNotFolder})
 	}
 	names, err := os.ReadDir(trash)
 	if err != nil {
@@ -243,6 +243,10 @@ func (h *commitHost) emptyTrash() structureResult {
 	}
 	return structureAnswer(completed, nil)
 }
+
+// errTrashNotFolder is the refusal for a `.trash` that is not a folder. It is
+// ENOTDIR on every platform: on Windows syscall.ENOTDIR is a not-found error.
+var errTrashNotFolder = errors.New("not a directory")
 
 // structureAnswer is Local's outcome/completed/reason triple: a failure after
 // one step is partial, a failure before any is failed.
@@ -262,6 +266,14 @@ func structureAnswer(completed int, failure error) structureResult {
 // structureErrorCode is the `error.code` Local reports as the reason, or its
 // `failed` when the failure carries none.
 func structureErrorCode(err error) string {
+	if errors.Is(err, errTrashNotFolder) {
+		return "ENOTDIR"
+	}
+	// Not-found first: on Windows syscall.ENOTDIR is ERROR_PATH_NOT_FOUND, which
+	// libuv names ENOENT. On Unix only ENOENT is ErrNotExist.
+	if errors.Is(err, fs.ErrNotExist) {
+		return "ENOENT"
+	}
 	for _, code := range []struct {
 		errno syscall.Errno
 		name  string
@@ -279,6 +291,13 @@ func structureErrorCode(err error) string {
 		if errors.Is(err, code.errno) {
 			return code.name
 		}
+	}
+	// Windows errors carry no Unix errno; libuv names them by meaning.
+	switch {
+	case errors.Is(err, fs.ErrExist):
+		return "EEXIST"
+	case errors.Is(err, fs.ErrPermission):
+		return "EPERM"
 	}
 	return "failed"
 }

@@ -384,6 +384,7 @@ func (s *rootServer) serveUploadFile(w http.ResponseWriter, r *http.Request) err
 	// ever a file inside the real `uploads/`: a link there may point anywhere the
 	// folder's owner consented to, which is not somewhere this route serves from.
 	uploadsReal, linkErr := filepath.EvalSymlinks(filepath.Join(s.baseDir, uploadsFolder))
+	uploadsReal = filepath.ToSlash(uploadsReal)
 	if linkErr != nil || !isContained(uploadsReal, realPath) {
 		return fileNotFoundError()
 	}

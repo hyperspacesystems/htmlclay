@@ -285,7 +285,7 @@ const GATE_ROWS = [
   ['core.document-block', 'pass', false], ['core.non-html-refused', 'pass', false],
   ['core.refusal-reason', 'pass', false], ['core.traversal', 'na', false],
   ['core.cross-origin', 'na', false], ['core.unknown-host-path', 'pass', false],
-  ['format.opt-in', 'skip', false], ['sync.one-stream', 'pass', false],
+  ['format.opt-in', 'skip', false], ['sync.relay', 'pass', false], ['sync-worker.one-stream', 'pass', false],
   ['conditional.stale-if-match', 'pass', false], ['receipts.save-id', 'pass', false],
   ['upload.announced', 'pass', false], ['upload.url-resolves', 'pass', false],
   ['upload.no-listing', 'pass', false], ['upload.same-name', 'pass', false],

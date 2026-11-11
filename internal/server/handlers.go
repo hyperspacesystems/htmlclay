@@ -93,11 +93,10 @@ func writeFormatRefusal(w http.ResponseWriter, refusal *pageadmission.FormatRefu
 // pushes the new document out; the document lane exists for the case §10 names, a
 // client wanting viewers updated with no save behind it.
 //
-// Since the 2026-09-02 revision of §10, `sync` promises three things: the relay,
-// the stream in its list spelling (any number of subscriptions on one
-// connection), and the worker script at /_/sync/worker.js through which every tab
-// shares that one stream. The one-document spelling is served too, as an alias
-// outside the spec.
+// §10's `sync` promises the relay and the one-document stream. `sync-worker`,
+// announced below, adds the stream's list spelling (any number of subscriptions on
+// one connection) and the worker script at /_/sync/worker.js through which every
+// tab shares that one stream.
 //
 // `format` is NOT announced, and must not be while this host stores every save's
 // bytes exactly as sent. §4 says a host that does not declare it ignores

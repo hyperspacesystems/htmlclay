@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -106,7 +107,7 @@ type storageSidecarStep struct {
 	DataText      *string `json:"dataText"`
 	Path          string  `json:"path"`
 	MtimeMs       int64   `json:"mtimeMs"`
-	SourceMtimeMs int64   `json:"sourceMtimeMs"`
+	SourceMtimeMs float64 `json:"sourceMtimeMs"`
 }
 
 type storagePathRow struct {
@@ -155,7 +156,7 @@ func TestStorageAtomicGolden(t *testing.T) {
 				}
 			}
 
-			compareStorageJSON(t, "temp", observed, mustStorageJSON(want.Temp))
+			compareStorageTemp(t, observed, want.Temp)
 			entries := recordStorageEntries(t, base)
 			tempLeft := false
 			for _, entry := range entries {
@@ -166,7 +167,7 @@ func TestStorageAtomicGolden(t *testing.T) {
 			if tempLeft != want.TempLeft {
 				t.Errorf("tempLeft = %v, want %v", tempLeft, want.TempLeft)
 			}
-			compareStorageJSON(t, "entries", entries, mustStorageJSON(want.Entries))
+			compareStorageEntries(t, "entries", entries, want.Entries)
 			compareStorageJSON(t, "console", recorder.lines, mustStorageJSON(want.Console))
 		})
 	}
@@ -193,7 +194,7 @@ func TestStorageSidecarGolden(t *testing.T) {
 			}
 
 			compareStorageJSON(t, "console", recorder.lines, mustStorageJSON(want.Console))
-			compareStorageJSON(t, "entries", recordStorageEntries(t, scenario), mustStorageJSON(want.Entries))
+			compareStorageEntries(t, "entries", recordStorageEntries(t, scenario), want.Entries)
 		})
 	}
 }
@@ -288,6 +289,14 @@ func errnoNames(codes []syscall.Errno) []string {
 }
 
 func errnoName(errno syscall.Errno) string {
+	if runtime.GOOS == "windows" {
+		switch errno {
+		case 3: // ERROR_PATH_NOT_FOUND, which libuv names ENOENT
+			return "ENOENT"
+		case 5: // ERROR_ACCESS_DENIED, which libuv names EPERM
+			return "EPERM"
+		}
+	}
 	switch errno {
 	case syscall.EPERM:
 		return "EPERM"
@@ -333,12 +342,17 @@ func storageResult(err error) *string {
 // storageSameRefusal reports whether two recorded error codes describe the same
 // refusal. Renaming a file onto an existing directory is refused with EISDIR by
 // Node's libuv and with EEXIST by Go on macOS: the write fails, the target keeps
-// its contents and no temp is left either way, so only the errno differs.
+// its contents and no temp is left either way, so only the errno differs. On
+// Windows both Node and Go are refused with ERROR_ACCESS_DENIED, which libuv
+// names EPERM.
 func storageSameRefusal(got, want *string) bool {
 	if got == nil || want == nil {
 		return false
 	}
 	renameOntoDirectory := map[string]bool{"EISDIR": true, "EEXIST": true}
+	if runtime.GOOS == "windows" {
+		renameOntoDirectory["EPERM"] = true
+	}
 	return renameOntoDirectory[*got] && renameOntoDirectory[*want]
 }
 
@@ -579,6 +593,45 @@ func mustStorageJSON(value any) json.RawMessage {
 		panic(err)
 	}
 	return raw
+}
+
+// compareStorageEntries compares the files a scenario left behind. Windows has
+// no Unix permission bits, so the mode is the one field left out there.
+func compareStorageEntries(t *testing.T, field string, got, want []storageEntry) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		got = storageEntriesWithoutMode(got)
+		want = storageEntriesWithoutMode(want)
+	}
+	compareStorageJSON(t, field, got, mustStorageJSON(want))
+}
+
+func storageEntriesWithoutMode(entries []storageEntry) []storageEntry {
+	trimmed := make([]storageEntry, len(entries))
+	copy(trimmed, entries)
+	for i := range trimmed {
+		trimmed[i].Mode = 0
+	}
+	return trimmed
+}
+
+// compareStorageTemp compares the observed temp file the same way.
+func compareStorageTemp(t *testing.T, got, want *storageTemp) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		got = storageTempWithoutMode(got)
+		want = storageTempWithoutMode(want)
+	}
+	compareStorageJSON(t, "temp", got, mustStorageJSON(want))
+}
+
+func storageTempWithoutMode(temp *storageTemp) *storageTemp {
+	if temp == nil {
+		return nil
+	}
+	trimmed := *temp
+	trimmed.Mode = 0
+	return &trimmed
 }
 
 func compareStorageJSON(t *testing.T, field string, got any, want json.RawMessage) {

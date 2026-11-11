@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -341,7 +340,7 @@ func TestForwardDataAPIOnPageStore(t *testing.T) {
 	if seen[0].Method != http.MethodPost || seen[0].Path != "/v1/route/_/api/page.html" {
 		t.Fatalf("write = %s %s, want POST /v1/route/_/api/page.html", seen[0].Method, seen[0].Path)
 	}
-	canonical := filepath.Join(dir, "page.html")
+	canonical := upathJoin(dir, "page.html")
 	if got := seen[0].Header.Get("X-Trial-Canonical"); got != canonical {
 		t.Fatalf("X-Trial-Canonical = %q, want %q", got, canonical)
 	}
@@ -428,7 +427,7 @@ func TestForwardUnconfirmedWriteIsRefused(t *testing.T) {
 	fake := newForwardService(t, nil)
 	server, _, link, dir := forwardRoot(t, fake.peer())
 	consultWriteFile(t, dir, "page.html", []byte(forwardPage))
-	link.markUnconfirmed(filepath.Join(dir, "page.html"), "root-consult", "page.html")
+	link.markUnconfirmed(upathJoin(dir, "page.html"), "root-consult", "page.html")
 
 	status, header, answer := forwardSend(t, server, http.MethodPost, "/_/api/page.html", strings.NewReader(`{"title":"x"}`), map[string]string{
 		"Content-Type": "application/json",

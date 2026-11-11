@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/panphora/htmlclay/internal/dataapi"
 )
@@ -113,8 +114,16 @@ func guardedUnlink(canonicalBase, target string) error {
 
 // sidecarRead is one file's mtime and text, taken off a single open handle.
 type sidecarRead struct {
-	mtimeMs int64
+	mtimeMs float64
 	text    string
+}
+
+// nodeMtimeMs is a modification time the way Node's fs.Stats.mtimeMs reports it:
+// milliseconds with the sub-millisecond part kept. Local compares a sidecar with
+// its document at that precision, so a document written later in the same
+// millisecond is newer than its sidecar here too.
+func nodeMtimeMs(t time.Time) float64 {
+	return float64(t.Unix())*1e3 + float64(t.Nanosecond())/1e6
 }
 
 // guardedOpenRead re-verifies the directory chain immediately before the read,
@@ -150,7 +159,7 @@ func guardedOpenRead(canonicalBase, target string) (sidecarRead, error) {
 	if err != nil {
 		return sidecarRead{}, err
 	}
-	return sidecarRead{mtimeMs: info.ModTime().UnixMilli(), text: string(data)}, nil
+	return sidecarRead{mtimeMs: nodeMtimeMs(info.ModTime()), text: string(data)}, nil
 }
 
 // writeAPISidecarData writes the bare JSON, or deletes the file when data is nil
@@ -235,7 +244,7 @@ func deleteAPISidecar(baseDir, name string) {
 // mtime check closes the hand-edit / external-delete staleness gap the platform
 // never has, because there files only change through lifecycle paths that
 // rewrite the sidecar.
-func readFreshSidecar(baseDir, name string, sourceMtimeMs int64) (string, bool) {
+func readFreshSidecar(baseDir, name string, sourceMtimeMs float64) (string, bool) {
 	cbase := sidecarCanonicalBase(baseDir)
 	target, err := resolveSidecarCanonical(baseDir, name)
 	if err != nil {

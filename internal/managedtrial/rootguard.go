@@ -26,10 +26,10 @@ func RefuseLiveRoot(root, liveRoot string) error {
 	if err != nil {
 		return err
 	}
-	if within(resolved, live) {
+	if sameOrBelow(resolved, live) {
 		return errors.New("--root " + root + " is inside " + live + " (LOCAL_APPS), which syncs to hyperclay.com; refusing to serve it")
 	}
-	if within(live, resolved) {
+	if sameOrBelow(live, resolved) {
 		return errors.New("--root " + root + " contains " + live + " (LOCAL_APPS), which syncs to hyperclay.com; refusing to serve it")
 	}
 	return nil
@@ -45,6 +45,39 @@ func within(path, dir string) bool {
 		prefix += string(filepath.Separator)
 	}
 	return strings.HasPrefix(path, prefix)
+}
+
+// sameOrBelow reports whether path is dir or lies below it. Past the string
+// comparison it compares file identity for each existing ancestor of path, so a
+// spelling the volume treats as the same folder, such as another letter case on
+// a case-insensitive Mac volume, is caught too.
+func sameOrBelow(path, dir string) bool {
+	if within(path, dir) {
+		return true
+	}
+	dirInfo, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+	for current := path; ; current = filepath.Dir(current) {
+		if info, err := os.Stat(current); err == nil && os.SameFile(info, dirInfo) {
+			return true
+		}
+		if filepath.Dir(current) == current {
+			return false
+		}
+	}
+}
+
+// reachesLiveRoot reports whether a symlink target is, lies inside, or contains
+// the live folder. When the live folder cannot be named it answers true, so the
+// link is refused.
+func reachesLiveRoot(target string) bool {
+	live, err := liveRoot()
+	if err != nil {
+		return true
+	}
+	return RefuseLiveRoot(target, live) != nil
 }
 
 // DefaultLiveRoot is the live Hyperclay Local apps folder for this user.

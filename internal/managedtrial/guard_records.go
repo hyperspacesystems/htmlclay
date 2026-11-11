@@ -188,9 +188,9 @@ func resolveGuardPath(baseDir, name string) (string, error) {
 }
 
 func recoverHTMLPath(baseDir, name string) (string, error) {
-	abs := filepath.Clean(filepath.Join(baseDir, guardDirName, documentBase(name)+guardRecoverSuffix))
-	root := filepath.Clean(baseDir)
-	if !strings.HasPrefix(abs, root+string(filepath.Separator)) {
+	abs := filepath.ToSlash(filepath.Clean(filepath.Join(baseDir, guardDirName, documentBase(name)+guardRecoverSuffix)))
+	root := filepath.ToSlash(filepath.Clean(baseDir))
+	if !strings.HasPrefix(abs, root+"/") {
 		return "", errors.New("Recover path escapes base directory")
 	}
 	return abs, nil

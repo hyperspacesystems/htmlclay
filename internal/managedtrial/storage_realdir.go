@@ -89,7 +89,7 @@ func assertRealDirChain(canonicalBase, dir string) error {
 			return err
 		}
 		if !info.IsDir() {
-			return errors.New("Refusing filesystem op: '" + prefix + "' is a symlink or not a directory")
+			return errors.New("Refusing filesystem op: '" + filepath.ToSlash(prefix) + "' is a symlink or not a directory")
 		}
 	}
 	return nil

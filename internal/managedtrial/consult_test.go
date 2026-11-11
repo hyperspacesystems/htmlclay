@@ -587,7 +587,7 @@ func TestPublishRecoveredCopy(t *testing.T) {
 	if !strings.HasSuffix(published.Filename, ".html") || !IsVersionName(published.Filename) {
 		t.Fatalf("published name = %q, want a version name", published.Filename)
 	}
-	want := filepath.Join(root, ".hyperclay", "recovered", "sub", "x", published.Filename)
+	want := upathJoin(root, ".hyperclay", "recovered", "sub", "x", published.Filename)
 	if published.Full != want {
 		t.Fatalf("published.Full = %q, want %q", published.Full, want)
 	}

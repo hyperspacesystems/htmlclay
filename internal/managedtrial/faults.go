@@ -61,6 +61,9 @@ func clearFaults() {
 	faults.armed = nil
 	faults.Unlock()
 	releaseTailwind("")
+	finishedTailwind.Lock()
+	finishedTailwind.count = nil
+	finishedTailwind.Unlock()
 }
 
 // tailwindHolds are compiles a tailwind-hold fault stopped, by stylesheet name,
@@ -70,10 +73,11 @@ var tailwindHolds struct {
 	waiting map[string][]chan struct{}
 }
 
-// holdTailwind blocks a compile of name while a harness holds it.
-func holdTailwind(name string) {
+// holdTailwind blocks a compile of name while a harness holds it, and reports
+// whether it did.
+func holdTailwind(name string) bool {
 	if !takeFault(faultTailwindHold, name) {
-		return
+		return false
 	}
 	released := make(chan struct{})
 	tailwindHolds.Lock()
@@ -83,6 +87,7 @@ func holdTailwind(name string) {
 	tailwindHolds.waiting[name] = append(tailwindHolds.waiting[name], released)
 	tailwindHolds.Unlock()
 	<-released
+	return true
 }
 
 // releaseTailwind lets every held compile of name go on, and answers how many
@@ -109,6 +114,44 @@ func heldTailwind(name string) int {
 	tailwindHolds.Lock()
 	defer tailwindHolds.Unlock()
 	return len(tailwindHolds.waiting[name])
+}
+
+// remainingFaults answers how many uses are left on faults armed for rel, so a
+// harness can prove the fault it armed was taken.
+func remainingFaults(rel string) int {
+	faults.Lock()
+	defer faults.Unlock()
+	slashed := filepath.ToSlash(rel)
+	count := 0
+	for _, fault := range faults.armed {
+		if fault.rel == slashed {
+			count += fault.remaining
+		}
+	}
+	return count
+}
+
+// finishedTailwind counts, by stylesheet name, compiles a tailwind-hold stopped
+// that have since run to their end, whether they installed or not.
+var finishedTailwind struct {
+	sync.Mutex
+	count map[string]int
+}
+
+func finishHeldTailwind(name string) {
+	finishedTailwind.Lock()
+	defer finishedTailwind.Unlock()
+	if finishedTailwind.count == nil {
+		finishedTailwind.count = map[string]int{}
+	}
+	finishedTailwind.count[name]++
+}
+
+// heldTailwindFinished answers how many held compiles of name have finished.
+func heldTailwindFinished(name string) int {
+	finishedTailwind.Lock()
+	defer finishedTailwind.Unlock()
+	return finishedTailwind.count[name]
 }
 
 // takeFault reports whether a fault armed for point names target, a file path

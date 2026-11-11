@@ -317,7 +317,7 @@ func TestConsultedSaveSettleFails(t *testing.T) {
 		t.Fatalf("page.html = %q, want the barred save to write nothing", onDisk)
 	}
 
-	handler.commit.service.unconfirmed.lift(filepath.Join(dir, "page.html"))
+	handler.commit.service.unconfirmed.lift(upathJoin(dir, "page.html"))
 	status, _, answer = consultSavePost(t, server, "page.html", consultSavePage, nil)
 	if status != http.StatusOK {
 		t.Fatalf("the save after reconciling answered %d: %s", status, answer)

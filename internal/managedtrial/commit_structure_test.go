@@ -43,7 +43,11 @@ func TestRestructureLocksEveryPath(t *testing.T) {
 		})
 		saved <- result
 	}()
-	<-locked
+	select {
+	case <-locked:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the save never reached the document's lock")
+	}
 
 	moved := make(chan structureResult, 1)
 	go func() {
@@ -61,10 +65,20 @@ func TestRestructureLocksEveryPath(t *testing.T) {
 	}
 
 	close(release)
-	if result := <-saved; result.Outcome != "committed" {
-		t.Fatalf("the save got %q, want committed", result.Outcome)
+	select {
+	case result := <-saved:
+		if result.Outcome != "committed" {
+			t.Fatalf("the save got %q, want committed", result.Outcome)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the save never finished")
 	}
-	result := <-moved
+	var result structureResult
+	select {
+	case result = <-moved:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the move never finished")
+	}
 	if result.Outcome != "committed" || result.Completed != 1 {
 		t.Fatalf("the move got %+v, want committed after the save", result)
 	}
@@ -107,7 +121,11 @@ func TestStructureGateWaitsForADescendantWrite(t *testing.T) {
 		})
 		savedDone <- result
 	}()
-	<-locked
+	select {
+	case <-locked:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the save never reached the document's lock")
+	}
 
 	moved := make(chan structureResult, 1)
 	go func() {
@@ -126,10 +144,20 @@ func TestStructureGateWaitsForADescendantWrite(t *testing.T) {
 	}
 
 	close(release)
-	if result := <-savedDone; result.Outcome != "committed" {
-		t.Fatalf("the save got %q, want committed", result.Outcome)
+	select {
+	case result := <-savedDone:
+		if result.Outcome != "committed" {
+			t.Fatalf("the save got %q, want committed", result.Outcome)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the save never finished")
 	}
-	result := <-moved
+	var result structureResult
+	select {
+	case result = <-moved:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the move never finished")
+	}
 	if result.Outcome != "committed" || result.Completed != 1 {
 		t.Fatalf("the move got %+v, want committed after the save", result)
 	}

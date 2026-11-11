@@ -149,7 +149,7 @@ func TestTailwindInstallHoldsTheDocumentLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	docPath := filepath.Join(root, "tw.html")
+	docPath := upathJoin(root, "tw.html")
 
 	// The test is the save: it holds the document's lock while the first
 	// compile runs, and replaces the document before letting go.

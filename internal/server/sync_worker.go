@@ -7,7 +7,7 @@ import (
 
 // The shared live-sync worker of spec §10. A SharedWorker script must be served
 // from the page's own origin, which is this host, so the client library cannot
-// bring its own: every host that announces `sync` serves this file.
+// bring its own: every host that announces `sync-worker` serves this file.
 //
 // The bytes are a constant and touch nothing on disk. They are served outside
 // sameOrigin because a worker script is fetched as a same-origin subresource by

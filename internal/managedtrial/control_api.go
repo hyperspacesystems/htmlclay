@@ -704,7 +704,11 @@ type controlDurableBody struct {
 
 // syncFile makes one file's bytes durable.
 func syncFile(filePath string) error {
-	handle, err := os.Open(filePath)
+	flag := os.O_RDONLY
+	if runtime.GOOS == "windows" {
+		flag = os.O_RDWR
+	}
+	handle, err := os.OpenFile(filePath, flag, 0)
 	if err != nil {
 		return err
 	}
@@ -753,6 +757,14 @@ func (a *controlAPI) serveFault(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Point == "held" {
 		writeControlJSON(w, http.StatusOK, orderedObject{{Key: "held", Value: heldTailwind(body.Rel)}})
+		return
+	}
+	if body.Point == "remaining" {
+		writeControlJSON(w, http.StatusOK, orderedObject{{Key: "remaining", Value: remainingFaults(body.Rel)}})
+		return
+	}
+	if body.Point == "finished" {
+		writeControlJSON(w, http.StatusOK, orderedObject{{Key: "finished", Value: heldTailwindFinished(body.Rel)}})
 		return
 	}
 	if !faultPoints[body.Point] {

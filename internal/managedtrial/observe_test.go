@@ -60,7 +60,7 @@ func TestObserveOutsideNone(t *testing.T) {
 	for key, want := range map[string]any{
 		"event": "change", "name": "page.html", "root": "root-consult",
 		"lane": "observe", "origin": "external",
-		"canonicalPath": filepath.Join(dir, "page.html"),
+		"canonicalPath": upathJoin(dir, "page.html"),
 	} {
 		if observe[key] != want {
 			t.Fatalf("observe %s = %v, want %v", key, observe[key], want)
