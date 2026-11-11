@@ -9,7 +9,7 @@
 "use strict";
 
 const timing = Object.assign(
-  { debounce: 50, portTTL: 60000, sweep: 30000, backoffMin: 1000, backoffMax: 30000 },
+  { debounce: 50, portTTL: 60000, hiddenPortTTL: 300000, sweep: 30000, backoffMin: 1000, backoffMax: 30000 },
   self.claySyncTiming
 );
 
@@ -150,7 +150,7 @@ function drop(port) {
 }
 
 function deliverLatest(port, meta) {
-  if (meta.key === null || !meta.visible) return;
+  if (meta.key === null) return;
   const sub = subs.get(meta.key);
   if (!sub || sub.latest === null || sub.latest.id === meta.seen) return;
   const frames = [...sub.content.values(), sub.latest].sort((a, b) => a.id - b.id);
@@ -254,19 +254,25 @@ function onFrame(sub, e) {
       sub.content.set("peer", sub.latest);
     }
   } catch (_) {}
+  // Hidden pages get every frame at once. A hidden edit tab that waited to be
+  // shown kept the stamp of the version before a peer's save, and its next save
+  // was refused as a conflict.
   for (const port of sub.ports) {
     const meta = ports.get(port);
-    if (!meta || !meta.visible) continue;
+    if (!meta) continue;
     meta.seen = sub.latest.id;
     send(port, { type: "frame", data: e.data });
   }
 }
 
 // A page that closed without saying so stops pinging; its port is dropped on the
-// next sweep, and its subscription with it once no other page holds it.
+// next sweep, and its subscription with it once no other page holds it. A hidden
+// page is kept longer, because Chrome runs a hidden tab's timers about once a
+// minute and a healthy hidden page pings that slowly.
 setInterval(() => {
-  const cutoff = Date.now() - timing.portTTL;
+  const now = Date.now();
   for (const [port, meta] of Array.from(ports)) {
-    if (meta.lastSeen < cutoff) drop(port);
+    const ttl = meta.visible ? timing.portTTL : timing.hiddenPortTTL;
+    if (meta.lastSeen < now - ttl) drop(port);
   }
 }, timing.sweep);

@@ -46,7 +46,7 @@ class FakePort {
 
 const ORIGIN = "http://127.0.0.1:1";
 const sandbox = {
-  self: { location: { origin: ORIGIN }, claySyncTiming: { debounce: 5, portTTL: 400, sweep: 50, backoffMin: 1, backoffMax: 10 } },
+  self: { location: { origin: ORIGIN }, claySyncTiming: { debounce: 5, portTTL: 400, hiddenPortTTL: 1200, sweep: 50, backoffMin: 1, backoffMax: 10 } },
   EventSource: FakeEventSource,
   setTimeout, clearTimeout, setInterval, clearInterval, console,
 };
@@ -88,13 +88,11 @@ es.emit("s0", frame42, "42");
 assert.deepEqual(p1.take("frame"), { v: 1, type: "frame", data: frame42 });
 assert.equal(p2.take("frame"), null);
 
-// 4. A hidden page gets nothing until it is visible, then only the latest frame.
+// 4. A hidden page gets every frame at once, and showing it sends nothing twice.
 p1.push({ v: 1, type: "hidden" });
 es.emit("s0", '{"seq":43,"html":"older"}', "43");
 es.emit("s0", '{"seq":44,"html":"latest"}', "44");
-assert.equal(p1.take("frame"), null);
-p1.push({ v: 1, type: "visible" });
-assert.deepEqual(p1.drain().filter((m) => m.type === "frame").map((m) => m.data), ['{"seq":44,"html":"latest"}']);
+assert.deepEqual(p1.drain().filter((m) => m.type === "frame").map((m) => m.data), ['{"seq":43,"html":"older"}', '{"seq":44,"html":"latest"}'], "a hidden page is not held back");
 p1.push({ v: 1, type: "visible" });
 assert.equal(p1.take("frame"), null, "a frame already delivered is not delivered again");
 
@@ -242,7 +240,7 @@ assert.equal(pc5.take("frame").data, '{"seq":5001,"html":"current"}');
 for (const p of [pc1, pc2, pc3, pc4, pc5]) p.push({ v: 1, type: "unsubscribe" });
 await sleep(20);
 
-// 14. Peer and disk state survive a later notification while a page is hidden.
+// 14. A hidden page gets peer and disk state at once, and both survive a later notification for a late joiner.
 const D = ORIGIN + "/d.htmlclay";
 const pd1 = connect(); pd1.take("status");
 pd1.push({ v: 1, type: "subscribe", document: D, lane: "live", since: 0 });
@@ -257,16 +255,17 @@ const notice = JSON.stringify({ seq: 12, type: "notification", msg: "warning" })
 esD.emit("s" + di, peer, "10");
 esD.emit("s" + di, disk, "11");
 esD.emit("s" + di, notice, "12");
-pd1.push({ v: 1, type: "visible" });
 assert.deepEqual(pd1.drain().filter(m => m.type === "frame").map(m => m.data), [peer, disk, notice]);
+pd1.push({ v: 1, type: "visible" });
+assert.equal(pd1.take("frame"), null, "showing the page sends nothing it already has");
 
 pd1.push({ v: 1, type: "hidden" });
 const largeDisk = JSON.stringify({ seq: 13, type: "notification", msgType: "warning", msg: "d.htmlclay changed on disk outside this tab" });
 const laterNotice = JSON.stringify({ seq: 14, type: "notification", msg: "warning" });
 esD.emit("s" + di, largeDisk, "13");
 esD.emit("s" + di, laterNotice, "14");
-pd1.push({ v: 1, type: "visible" });
 assert.deepEqual(pd1.drain().filter(m => m.type === "frame").map(m => m.data), [largeDisk, laterNotice]);
+pd1.push({ v: 1, type: "visible" });
 const largeJoin = connect(); largeJoin.take("status");
 largeJoin.push({ v: 1, type: "subscribe", document: D, lane: "live", since: 0 });
 assert.deepEqual(largeJoin.drain().filter(m => m.type === "frame").map(m => m.data), [peer, largeDisk, laterNotice]);
@@ -293,6 +292,17 @@ for (const p of [pd1, pd2, pd3]) p.push({ v: 1, type: "unsubscribe" });
 await sleep(600);
 assert.equal(FakeEventSource.live().length, 0, "no stream once every page has gone silent");
 assert.equal(p1.closed && p3.closed && p4.closed, true, "silent ports are closed");
+
+// 17. A silent hidden page outlives portTTL, and is dropped after hiddenPortTTL.
+const ph = connect(); ph.take("status");
+ph.push({ v: 1, type: "subscribe", document: ORIGIN + "/h.htmlclay", lane: "live", since: 0 });
+ph.push({ v: 1, type: "hidden" });
+await sleep(600);
+assert.equal(ph.closed, false, "a hidden page is kept past portTTL");
+assert.equal(FakeEventSource.live().length, 1, "its stream stays open");
+await sleep(900);
+assert.equal(ph.closed, true, "a hidden page that stays silent is dropped after hiddenPortTTL");
+assert.equal(FakeEventSource.live().length, 0, "and its stream with it");
 
 console.log("sync-worker harness: ok");
 process.exit(0);
