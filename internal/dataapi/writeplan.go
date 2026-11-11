@@ -73,10 +73,7 @@ func (p *writePlan) checkTargets(ctx *html.Node, rule, value Value, path []any) 
 		if strings.HasSuffix(r, "[]") || r == "." || strings.HasPrefix(r, "@") {
 			return nil
 		}
-		selector := r
-		if at := ruleAttrIndex(r); at != -1 {
-			selector = r[:at]
-		}
+		selector, _, _, _ := splitRule(r)
 		if selector == "" {
 			return nil
 		}

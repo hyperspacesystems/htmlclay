@@ -148,10 +148,9 @@ func extractScalar(d *Document, ctx *html.Node, rule string) (Value, error) {
 	}
 
 	// "sel@name" — split at the last @ outside brackets, parens and quotes, so a selector may
-	// carry its own @ (a mailto href, a container query) and still read as one selector.
-	if at := ruleAttrIndex(rule); at != -1 {
-		selector, name := rule[:at], rule[at+1:]
-
+	// carry its own @ (a mailto href, a container query) and still read as one selector. A "[*]"
+	// selector still reads the first match: the marker belongs to the write face.
+	if selector, name, hasProp, _ := splitRule(rule); hasProp {
 		matches := []*html.Node{ctx}
 		if selector != "" {
 			var err error
@@ -169,7 +168,8 @@ func extractScalar(d *Document, ctx *html.Node, rule string) (Value, error) {
 		return trimmedText(ctx), nil
 	}
 
-	matches, err := Find(ctx, rule, FindOpts{})
+	selector, _, _, _ := splitRule(rule)
+	matches, err := Find(ctx, selector, FindOpts{})
 	if err != nil {
 		return nil, err
 	}

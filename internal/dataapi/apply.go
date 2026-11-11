@@ -228,8 +228,7 @@ func (w *writer) applyScalar(ctx *html.Node, rule string, value Value, depth int
 		return ctx, w.writePropOrAttr(ctx, rule[1:], value)
 	}
 
-	if at := ruleAttrIndex(rule); at != -1 {
-		selector, name := rule[:at], rule[at+1:]
+	if selector, name, hasProp, all := splitRule(rule); hasProp {
 		matches := []*html.Node{ctx}
 		if selector != "" {
 			var err error
@@ -240,7 +239,12 @@ func (w *writer) applyScalar(ctx *html.Node, rule string, value Value, depth int
 		if len(matches) == 0 {
 			return ctx, nil
 		}
-		return ctx, w.writePropOrAttr(matches[0], name, value)
+		for _, n := range firstOrAll(matches, all) {
+			if err := w.writePropOrAttr(n, name, value); err != nil {
+				return nil, err
+			}
+		}
+		return ctx, nil
 	}
 
 	if rule == "." {
@@ -248,15 +252,27 @@ func (w *writer) applyScalar(ctx *html.Node, rule string, value Value, depth int
 		return ctx, nil
 	}
 
-	matches, err := Find(ctx, rule, FindOpts{})
+	selector, _, _, all := splitRule(rule)
+	matches, err := Find(ctx, selector, FindOpts{})
 	if err != nil {
 		return nil, err
 	}
 	if len(matches) == 0 {
 		return ctx, nil
 	}
-	w.setText(matches[0], value)
+	for _, n := range firstOrAll(matches, all) {
+		w.setText(n, value)
+	}
 	return ctx, nil
+}
+
+// firstOrAll is the "[*]" switch: a plain rule writes its first match, an all-matches rule writes
+// every one of them.
+func firstOrAll(matches []*html.Node, all bool) []*html.Node {
+	if all {
+		return matches
+	}
+	return matches[:1]
 }
 
 // setText writes a plain text rule. The comparison is against the TRIMMED text, so re-applying the

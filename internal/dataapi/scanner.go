@@ -458,3 +458,18 @@ func ruleAttrIndex(rule string) int {
 	}
 	return found
 }
+
+// splitRule cuts a scalar rule into its selector and property parts at ruleAttrIndex. A selector that
+// ends in "[*]" names every match instead of the first: all is true and the marker is removed,
+// because "[*]" is not CSS and no selector engine can run it.
+func splitRule(rule string) (selector string, prop string, hasProp bool, all bool) {
+	at := ruleAttrIndex(rule)
+	selector = rule
+	if at != -1 {
+		selector, prop, hasProp = rule[:at], rule[at+1:], true
+	}
+	if strings.HasSuffix(selector, "[*]") {
+		selector, all = strings.TrimSuffix(selector, "[*]"), true
+	}
+	return selector, prop, hasProp, all
+}
