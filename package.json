@@ -21,7 +21,7 @@
   },
   "homepage": "https://htmlclay.com",
   "devDependencies": {
-    "@panphora/host-conformance": "file:npm-vendor/host-conformance.tgz",
+    "@panphora/host-conformance": "1.0.0",
     "playwright": "1.64.1",
     "wrangler": "^4.98.0"
   },
