@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+// DashboardHost is the dashboard's host name. Each served folder is a name under
+// it (<name>.htmlclay.localhost), so the dashboard can frame their documents.
+const DashboardHost = "htmlclay.localhost"
+
 // Build turns facts into the snapshot every shell renders. It is pure: no I/O,
 // no clock other than f.Now.
 func Build(f Facts) Snapshot {
@@ -17,7 +21,7 @@ func Build(f Facts) Snapshot {
 			Version:      f.Host.Version,
 			OS:           f.Host.OS,
 			Port:         f.Host.Port,
-			DashboardURL: fmt.Sprintf("http://htmlclay.localhost:%d/", f.Host.Port),
+			DashboardURL: fmt.Sprintf("http://%s:%d/", DashboardHost, f.Host.Port),
 			Service:      f.Host.Service,
 			Stopped:      f.Host.Stopped,
 		},
@@ -68,7 +72,7 @@ func Build(f Facts) Snapshot {
 			folder.Sync.State = FolderSyncOff
 		}
 		if ff.Served && ff.ServedName != "" {
-			folder.Address = fmt.Sprintf("%s.htmlclay.localhost:%d", ff.ServedName, f.Host.Port)
+			folder.Address = fmt.Sprintf("%s.%s:%d", ff.ServedName, DashboardHost, f.Host.Port)
 			folder.URL = "http://" + folder.Address + "/"
 		}
 		folder.Can, folder.Why = folderRules(f, ff, folder.State)

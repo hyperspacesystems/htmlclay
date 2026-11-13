@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en" clay-mode-switch="live" clay-menu-roster opens-in="edit">
+<head>
+<meta charset="utf-8">
+<meta name="hyper-source" content="https://hyperclay.com/templates/blockeditor/owned/latest.html">
+<meta name="hyper-version" content="1.0.0">
+<meta name="clay-template" content="blockeditor owned">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Untitled</title>
+<meta name="application-name" content="Block editor">
+<link rel="stylesheet" href="https://clayjs.com/v1/src/blockeditor/themes/light-1.css">
+<style>body { margin: 0 }</style>
+<script type="application/json" merge="blockeditor.tools" clay="live">{}</script>
+<script type="application/json" merge="blockeditor.settings" clay="live">{}</script>
+<meta name="theme-color" content="#F7F6F2">
+<script>
+(() => {
+  const root = document.documentElement;
+  const blocks = [...document.head.querySelectorAll('style[clay-variant]')];
+  const named = (name) => blocks.find((style) => style.getAttribute('clay-variant') === name);
+  const saved = named(root.getAttribute('look'));
+  if (saved) for (const style of blocks) style === saved ? style.removeAttribute('media') : style.setAttribute('media', 'not all');
+  const slot = root.getAttribute('visitor-drafts');
+  if (!slot) return;
+  try {
+    const file = location.pathname.replace(/\/{2,}/g, '/').match(/^(.*?\/[^/]+\.(?:html|htmlclay))(?:\/|$)/i);
+    const path = file && file[1].toLowerCase() !== '/index.html' ? file[1] : '/';
+    const hinted = named(JSON.parse(localStorage.getItem(`clay:visitor-drafts:${slot}@${path}`))?.data?.look);
+    if (!hinted || hinted.getAttribute('media') !== 'not all') return;
+    const hint = document.createElement('style');
+    hint.setAttribute('clay', 'editor-ui');
+    hint.setAttribute('clay-look-hint', '');
+    hint.textContent = hinted.textContent;
+    document.head.append(hint);
+    setTimeout(() => hint.remove(), 4000);
+  } catch {}
+})();
+</script>
+<style clay-variant="look-1" clay-variant-label="Classic">
+:where(article[data-blockeditor], .blockeditor-shell) {
+  --chart-1: #9A5710;
+  --chart-2: #7A440A;
+  --chart-3: #5B5953;
+  --chart-4: #23221F;
+  --chart-5: #A1A09B;
+  --chart-6: #6B6862;
+  --chart-text: #23221F;
+  --blockeditor-bg: #F7F6F2;
+  --blockeditor-ink: #23221F;
+  --blockeditor-ink-strong: #23221F;
+  --blockeditor-ink-soft: #5B5953;
+  --blockeditor-ink-faint: #A1A09B;
+  --blockeditor-rule: rgba(35, 34, 31, 0.08);
+  --blockeditor-accent: #9A5710;
+  --blockeditor-link: #7A440A;
+  --blockeditor-caret: #9A5710;
+  --blockeditor-selection: rgba(154, 87, 16, 0.18);
+
+  --blockeditor-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --blockeditor-font-display: Newsreader, "Iowan Old Style", Georgia, serif;
+  --blockeditor-font-heading: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --blockeditor-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --blockeditor-font-size: 17px;
+  --blockeditor-line-height: 1.65;
+  --blockeditor-measure: 632px;
+  --blockeditor-pad-top: 120px;
+  --blockeditor-h1-size: 40px;
+  --blockeditor-h1-weight: 500;
+  --blockeditor-h1-tracking: -0.01em;
+  --blockeditor-h1-line: 1.15;
+  --blockeditor-h2-size: 19px;
+  --blockeditor-h2-weight: 600;
+  --blockeditor-h3-size: 17px;
+  --blockeditor-h3-weight: 600;
+  --blockeditor-block-gap: 0.8em;
+  --blockeditor-indent: 26px;
+
+  --blockeditor-marker: #5B5953;
+  --blockeditor-check-size: 15px;
+  --blockeditor-check-radius: 4px;
+  --blockeditor-check-border: rgba(35, 34, 31, 0.30);
+  --blockeditor-check-fill: #5B5953;
+  --blockeditor-check-ink: #F7F6F2;
+  --blockeditor-done-ink: #5B5953;
+  --blockeditor-toggle-ink: #5B5953;
+  --blockeditor-callout-bg: rgba(35, 34, 31, 0.035);
+  --blockeditor-callout-line: transparent;
+  --blockeditor-code-bg: rgba(35, 34, 31, 0.045);
+  --blockeditor-code-ink: #23221F;
+
+  --blockeditor-chrome-ink-rest: rgba(35, 34, 31, 0.66);
+  --blockeditor-chrome-ink-moved: rgba(35, 34, 31, 0.80);
+  --blockeditor-chrome-bg-rest: rgba(35, 34, 31, 0.035);
+  --blockeditor-chrome-bg-moved: rgba(35, 34, 31, 0.06);
+  --blockeditor-chrome-line-rest: rgba(35, 34, 31, 0.22);
+  --blockeditor-chrome-line-moved: rgba(35, 34, 31, 0.36);
+  --blockeditor-chrome-shadow-rest: none;
+  --blockeditor-chrome-shadow-moved: none;
+  --blockeditor-chrome-radius: 7px;
+  --blockeditor-plus-size: 24px;
+  --blockeditor-fade: 250ms;
+
+  --blockeditor-pop-bg: #FBFAF7;
+  --blockeditor-pop-ink: #23221F;
+  --blockeditor-pop-muted: #5B5953;
+  --blockeditor-pop-line: rgba(35, 34, 31, 0.08);
+  --blockeditor-pop-shadow: 0 1px 2px rgba(35, 34, 31, 0.05), 0 8px 24px rgba(35, 34, 31, 0.07);
+  --blockeditor-pop-hover: rgba(35, 34, 31, 0.06);
+  --blockeditor-pop-radius: 12px;
+  --blockeditor-bar-bg: #F7F6F2;
+  --blockeditor-bar-ink: #5B5953;
+  --blockeditor-scrim: rgba(35, 34, 31, 0.10);
+
+  -webkit-font-smoothing: antialiased;
+}
+html, body { background: #F7F6F2; }
+:root { --sheet: #F7F6F2; --ink: #23221F; --ink-2: #5B5953; --line: rgba(35, 34, 31, 0.08); --hover: rgba(35, 34, 31, 0.06); --shadow: 0 1px 2px rgba(35, 34, 31, 0.05), 0 8px 24px rgba(35, 34, 31, 0.07); --accent: #9A5710; --sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --mono: ui-monospace, "SF Mono", Menlo, monospace; }
+</style>
+<style clay-variant="look-2" clay-variant-label="Typewriter" media="not all">
+@import url("https://clayjs.com/v1/fonts/ibm-plex.css");
+:where(article[data-blockeditor], .blockeditor-shell) {
+  --chart-1: #1E6271;
+  --chart-2: #0F3D47;
+  --chart-3: #5C5548;
+  --chart-4: #29251F;
+  --chart-5: #A39B8C;
+  --chart-6: #756D5F;
+  --chart-text: #29251F;
+  --blockeditor-bg: #F7F3E9;
+  --blockeditor-ink: #29251F;
+  --blockeditor-ink-strong: #1D1A15;
+  --blockeditor-ink-soft: #5C5548;
+  --blockeditor-ink-faint: #706858;
+  --blockeditor-rule: rgba(41, 37, 31, 0.13);
+  --blockeditor-accent: #1E6271;
+  --blockeditor-link: #174E5A;
+  --blockeditor-caret: #1F86A6;
+  --blockeditor-selection: rgba(31, 134, 166, 0.18);
+
+  --blockeditor-font: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --blockeditor-font-display: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --blockeditor-font-heading: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --blockeditor-font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --blockeditor-font-size: 16px;
+  --blockeditor-line-height: 1.75;
+  --blockeditor-measure: 640px;
+  --blockeditor-pad-top: 104px;
+  --blockeditor-h1-size: 31px;
+  --blockeditor-h1-weight: 500;
+  --blockeditor-h1-tracking: -0.025em;
+  --blockeditor-h1-line: 1.25;
+  --blockeditor-h2-size: 18px;
+  --blockeditor-h2-weight: 600;
+  --blockeditor-h3-size: 16px;
+  --blockeditor-h3-weight: 600;
+  --blockeditor-block-gap: 0.9em;
+  --blockeditor-indent: 28px;
+
+  --blockeditor-marker: #5C5548;
+  --blockeditor-check-size: 15px;
+  --blockeditor-check-radius: 2px;
+  --blockeditor-check-border: rgba(41, 37, 31, 0.52);
+  --blockeditor-check-fill: #29251F;
+  --blockeditor-check-ink: #F7F3E9;
+  --blockeditor-done-ink: #706858;
+  --blockeditor-toggle-ink: #5C5548;
+  --blockeditor-callout-bg: rgba(41, 37, 31, 0.035);
+  --blockeditor-callout-line: rgba(41, 37, 31, 0.16);
+  --blockeditor-code-bg: rgba(41, 37, 31, 0.055);
+  --blockeditor-code-ink: #29251F;
+
+  --blockeditor-chrome-ink-rest: rgba(41, 37, 31, 0.66);
+  --blockeditor-chrome-ink-moved: rgba(41, 37, 31, 0.80);
+  --blockeditor-chrome-bg-rest: rgba(41, 37, 31, 0.025);
+  --blockeditor-chrome-bg-moved: rgba(41, 37, 31, 0.055);
+  --blockeditor-chrome-line-rest: rgba(41, 37, 31, 0.20);
+  --blockeditor-chrome-line-moved: rgba(41, 37, 31, 0.36);
+  --blockeditor-chrome-shadow-rest: none;
+  --blockeditor-chrome-shadow-moved: none;
+  --blockeditor-chrome-radius: 3px;
+  --blockeditor-plus-size: 24px;
+  --blockeditor-fade: 200ms;
+
+  --blockeditor-pop-bg: #FBF8F1;
+  --blockeditor-pop-ink: #29251F;
+  --blockeditor-pop-muted: #5C5548;
+  --blockeditor-pop-line: rgba(41, 37, 31, 0.16);
+  --blockeditor-pop-shadow: 0 1px 0 rgba(41, 37, 31, 0.05), 0 6px 20px rgba(41, 37, 31, 0.08);
+  --blockeditor-pop-hover: rgba(41, 37, 31, 0.06);
+  --blockeditor-pop-radius: 6px;
+  --blockeditor-bar-bg: #F7F3E9;
+  --blockeditor-bar-ink: #5C5548;
+  --blockeditor-scrim: rgba(41, 37, 31, 0.12);
+
+  -webkit-font-smoothing: antialiased;
+}
+html, body { background: #F7F3E9; }
+:root { --sheet: #F7F3E9; --ink: #29251F; --ink-2: #5C5548; --line: rgba(41, 37, 31, 0.16); --hover: rgba(41, 37, 31, 0.06); --shadow: 0 1px 0 rgba(41, 37, 31, 0.05), 0 6px 20px rgba(41, 37, 31, 0.08); --accent: #1E6271; --sans: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+</style>
+<style clay-variant="look-3" clay-variant-label="Bold" media="not all">
+@import url("https://clayjs.com/v1/fonts/work-sans.css");
+:where(article[data-blockeditor], .blockeditor-shell) {
+  --chart-1: #4A3DBF;
+  --chart-2: #8A82DA;
+  --chart-3: #4B5260;
+  --chart-4: #1B1E26;
+  --chart-5: #A3AAB6;
+  --chart-6: #2A2380;
+  --chart-text: #1B1E26;
+  --blockeditor-bg: #F2F4F7;
+  --blockeditor-ink: #1B1E26;
+  --blockeditor-ink-strong: #11141A;
+  --blockeditor-ink-soft: #4B5260;
+  --blockeditor-ink-faint: #656D7C;
+  --blockeditor-rule: rgba(27, 30, 38, 0.12);
+  --blockeditor-accent: #4A3DBF;
+  --blockeditor-link: #3A2EA6;
+  --blockeditor-caret: #4A3DBF;
+  --blockeditor-selection: rgba(74, 61, 191, 0.16);
+
+  --blockeditor-font: "Work Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --blockeditor-font-display: "Work Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --blockeditor-font-heading: "Work Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --blockeditor-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --blockeditor-font-size: 16.5px;
+  --blockeditor-line-height: 1.62;
+  --blockeditor-measure: 680px;
+  --blockeditor-pad-top: 96px;
+  --blockeditor-h1-size: 48px;
+  --blockeditor-h1-weight: 700;
+  --blockeditor-h1-tracking: -0.035em;
+  --blockeditor-h1-line: 1.08;
+  --blockeditor-h2-size: 23px;
+  --blockeditor-h2-weight: 650;
+  --blockeditor-h3-size: 18px;
+  --blockeditor-h3-weight: 600;
+  --blockeditor-block-gap: 0.75em;
+  --blockeditor-indent: 1.5em;
+
+  --blockeditor-marker: #4A3DBF;
+  --blockeditor-check-size: 17px;
+  --blockeditor-check-radius: 5px;
+  --blockeditor-check-border: rgba(27, 30, 38, 0.50);
+  --blockeditor-check-fill: #4A3DBF;
+  --blockeditor-check-ink: #F2F4F7;
+  --blockeditor-done-ink: #656D7C;
+  --blockeditor-toggle-ink: #4B5260;
+  --blockeditor-callout-bg: rgba(74, 61, 191, 0.07);
+  --blockeditor-callout-line: transparent;
+  --blockeditor-code-bg: rgba(27, 30, 38, 0.055);
+  --blockeditor-code-ink: #1B1E26;
+
+  --blockeditor-chrome-ink-rest: rgba(27, 30, 38, 0.66);
+  --blockeditor-chrome-ink-moved: rgba(27, 30, 38, 0.80);
+  --blockeditor-chrome-bg-rest: rgba(27, 30, 38, 0.035);
+  --blockeditor-chrome-bg-moved: rgba(27, 30, 38, 0.07);
+  --blockeditor-chrome-line-rest: rgba(27, 30, 38, 0.16);
+  --blockeditor-chrome-line-moved: rgba(27, 30, 38, 0.30);
+  --blockeditor-chrome-shadow-rest: none;
+  --blockeditor-chrome-shadow-moved: 0 1px 3px rgba(17, 20, 26, 0.10);
+  --blockeditor-chrome-radius: 10px;
+  --blockeditor-plus-size: 26px;
+  --blockeditor-fade: 160ms;
+
+  --blockeditor-pop-bg: #FAFBFC;
+  --blockeditor-pop-ink: #1B1E26;
+  --blockeditor-pop-muted: #4B5260;
+  --blockeditor-pop-line: rgba(27, 30, 38, 0.10);
+  --blockeditor-pop-shadow: 0 1px 2px rgba(17, 20, 26, 0.06), 0 14px 36px -8px rgba(17, 20, 26, 0.18);
+  --blockeditor-pop-hover: rgba(74, 61, 191, 0.08);
+  --blockeditor-pop-radius: 14px;
+  --blockeditor-bar-bg: #F2F4F7;
+  --blockeditor-bar-ink: #4B5260;
+  --blockeditor-scrim: rgba(17, 20, 26, 0.18);
+
+  -webkit-font-smoothing: antialiased;
+}
+html, body { background: #F2F4F7; }
+:root { --sheet: #F2F4F7; --ink: #1B1E26; --ink-2: #4B5260; --line: rgba(27, 30, 38, 0.12); --hover: rgba(27, 30, 38, 0.06); --shadow: 0 1px 2px rgba(27, 30, 38, 0.06), 0 10px 24px rgba(27, 30, 38, 0.08); --accent: #4A3DBF; --sans: "Work Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+</style>
+<style clay-menu-skin="1" media="not all">
+[part~="dock"] { --bevel-surface: var(--sheet); --bevel-sunk: var(--hover); --bevel-ink: var(--ink); --bevel-ink-2: var(--ink-2); --bevel-muted: var(--ink-2); --bevel-faint: var(--ink-2); --bevel-line: var(--line); --bevel-line-2: var(--line-2); --bevel-line-3: var(--line-2); --bevel-brass: var(--accent); --bevel-font-sans: var(--sans); --bevel-font-mono: var(--mono); --clay-shadow: var(--shadow); }
+[part~="button"] { width: 32px; height: 32px; border: 0; border-radius: 6px; background: none; color: var(--ink-2); }
+[part~="button"]:hover, [part~="button"][aria-expanded="true"] { color: var(--ink); background: var(--hover); }
+[part~="button"] svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: square; stroke-linejoin: miter; }
+[part~="list"] { width: 270px; padding: 5px; background: var(--sheet); border: 1px solid var(--line-2); border-radius: 8px; box-shadow: var(--shadow); }
+[part~="item"], [part~="dismiss"], [part~="text"] { min-height: 30px; padding: 7px 9px; border-radius: 5px; font: 400 13px/1.3 var(--sans); color: var(--ink); }
+[part~="item"] kbd { padding-left: 14px; font: 400 11px/1 var(--mono); color: var(--ink-2); }
+[part~="quiet"] { font-size: 11.5px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+[part~="dismiss"] { color: var(--ink-2); }
+[part~="dismiss"]:hover { color: var(--ink); }
+[part~="separator"] { height: 1px; margin: 5px 4px; background: var(--line); }
+@media (max-width: 759px) { [part~="button"] { width: 44px; height: 44px; } }
+</style>
+<style>
+:root { --line-2: color-mix(in oklab, var(--line) 70%, var(--ink)); --paper-fill: color-mix(in oklab, var(--sheet) 94%, var(--ink)); }
+body { margin: 0; color: var(--ink); font: 16px/1.5 var(--sans); }
+.page-head { position: sticky; top: 0; z-index: 30; display: flex; justify-content: flex-end; align-items: center; min-height: 44px; padding: 0 12px; pointer-events: none; }
+.page-head > * { pointer-events: auto; }
+html { scroll-padding-top: 52px; }
+article[data-blockeditor] { max-width: 100%; overflow-x: auto; }
+</style>
+<style>@media (scripting: none) { [clay-menu-slot], .blockeditor-dock, .blockeditor-plus, .blockeditor-grip, [visitor-intro] { display: none !important; } }</style>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"look":"html@look","thanks":["a[clay-menu-item]",{"id":"@data-id"}]}</script>
+</head>
+<body>
+<div class="doc-links" hidden>
+<a cms-template data-id="" clay-menu-item clay-menu-section="end" clay-menu-quiet clay-menu-dismiss="Remove this suggestion" href="mailto:david@hyperclay.com?subject=Block%20editor">Send an appreciation email to the creator of this file</a>
+<a data-id="appreciation" clay-menu-item clay-menu-section="end" clay-menu-quiet clay-menu-dismiss="Remove this suggestion" href="mailto:david@hyperclay.com?subject=Block%20editor">Send an appreciation email to the creator of this file</a>
+</div>
+<header class="page-head"><div clay-menu-slot clay-menu-looks no-edit-switch clay-menu-label="Settings"></div></header>
+<article class="blockeditor" clay="freeze" data-blockeditor="1" data-rev="093360993130d818"><h1 data-id="title"></h1>
+<p data-id="p1"></p></article>
+
+<script src="https://clayjs.com/v1/clay.js?plugins=blockeditor,menu,indicator"></script>
+<template data-hyperclay-bar><style>
+.bar { --t-bg: #F7F6F2; --t-ink: #23221F; --t-line: rgba(35, 34, 31, 0.08); --t-accent: #2F5E9E;
+  background: var(--t-bg); color: var(--t-ink); font: 13.5px/1.45 system-ui, sans-serif; }
+@media (prefers-color-scheme: dark) { .bar { --t-bg: #1c2126; --t-ink: #d9ddd5; --t-line: #2a3137; --t-accent: #ef7650; } }
+.bar[data-kind="trial"] { border-top: 1px solid var(--t-line); }
+.bar[data-kind="temp"] { border-bottom: 1px solid var(--t-line); }
+.btn { border: 1px solid var(--t-line); background: transparent; color: var(--t-ink); }
+.primary { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-bg); }
+</style></template>
+</body>
+</html>

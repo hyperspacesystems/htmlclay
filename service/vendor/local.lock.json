@@ -1,15 +1,16 @@
 {
   "local": {
     "ref": "main",
-    "commit": "1d1fbacfa6b9e910649316562aa0a1b2200aa9d5",
-    "committedAt": "2026-11-13T05:15:02-05:00"
+    "commit": "ee7dec57b972417b850d211ce10dfd29ea7577fe",
+    "committedAt": "2026-11-13T06:24:07-05:00"
   },
   "entries": [
     "trial/service.cjs",
     "trial/service-main.cjs",
     "trial/go-document-host.cjs",
     "trial/go-process.cjs",
-    "trial/fs-guard.cjs"
+    "trial/fs-guard.cjs",
+    "src/main/workspace/shell-server.js"
   ],
   "files": {
     "assets/favicon.ico": "c6bee1e3e90a0ed1466698e49e18bb8237818b72e52305424e254e36f1e74584",
@@ -32,6 +33,21 @@
     "src/main/data-loss-guard.js": "8a7d76e5400ed1743dcd01f2857e7871b812a31083f2e5788b3c0ce06f8cad31",
     "src/main/document-host.js": "c0eaa4b68d0782ce7416bd3f51e3f9073fea8e20085bac5349ff160423f5297c",
     "src/main/document-reader.js": "4f03e1db02992d3056015eec51a0af0a23617e0255a74900a86fad42e38ce360",
+    "src/main/document-templates/blank.html": "1591d01f06f9cdd97527abf4abf81c5eb24720d84575f56cf28e4896fb20569c",
+    "src/main/document-templates/blockeditor.html": "a84305fcce73dcf333c4acaa424f5fb3294ee55ed6d2ba77988781b6a92e744b",
+    "src/main/document-templates/devlog.html": "1be01308f8874b0435740938a888e3a1cf4351fe705e36267787d9dfd71a4d75",
+    "src/main/document-templates/freelance-rate-calculator.html": "4d815d98674cd27f09bc986161f7a0457e8c43ee468c6265535c9e7e45794175",
+    "src/main/document-templates/journal.html": "c6f749c23ab3abd64a97660806eee6d8f135e784724221ab0098c67a950265b7",
+    "src/main/document-templates/kanban.html": "0284e93136f2669dbc0c18324a9c6ed43c294c106ea3b7ff9e77b7efdee72b82",
+    "src/main/document-templates/landing.html": "b1b94d6eb579f98f473378065758396cf20db2e688e36030f3462cdcf486df52",
+    "src/main/document-templates/manifest.json": "15fd7e17a49308d14ed4f9963ccb00bf22e49c4452708ab29d123f6075636c9a",
+    "src/main/document-templates/thumbnails/blank.svg": "eb4cc7cda8a53fe35235fcdb260328b76b29da006f92d8c1f6ce8ecb28990dc5",
+    "src/main/document-templates/thumbnails/blockeditor.svg": "3c9256d2d6768a26bfbdbe468a56dd968ecfb3b40f751186b0289783eefc60bc",
+    "src/main/document-templates/thumbnails/devlog.svg": "0758625ca527e839bed75de19a94ceb85575acab73ce50db31474c7f02c05a14",
+    "src/main/document-templates/thumbnails/freelance-rate-calculator.svg": "e98d511bc986868c065d25924d14a69b91d5533341df2bda7bdfaaead26ac42c",
+    "src/main/document-templates/thumbnails/journal.svg": "3284b30feb9354d7ca83cac787ae262d384e46b1e7c80905719b14adf641ee74",
+    "src/main/document-templates/thumbnails/kanban.svg": "712f1d945cfcbdd4c589c37072e9ceb374abcb6d5b21cb3763bac3aca44cd5e8",
+    "src/main/document-templates/thumbnails/landing.svg": "7edf38db70d1a7b45fd4a2cab34cbfc6526044ff420202096f7c93fd38a3e250",
     "src/main/error-logger.js": "1ff09ebc9c1457802ca48b1a84ba8f833911bc065ad968e5f7b575fd5557965d",
     "src/main/external-recovery.js": "ca9e421baa52b3f28476b7af6712f44877e566a13fe1dedaf63a8cbd662d0a73",
     "src/main/format-html.js": "2ba47bf2cf8b4f32aa0977a9768fd9c28628ff83ef1271741ae2520c795f0e43",
@@ -850,6 +866,7 @@
     "src/main/utils/data-extractor.js": "d476e794bb3b373a942d5f9651edfcfea2b93e520cd632cd400f02ef02f31c0d",
     "src/main/utils/data-query.js": "30fdab5fe46b069a9622d322fa91dbf09fab02f3cfcf64b9a2e85b67af7a6af8",
     "src/main/utils/derived-artifacts.js": "25edb54e209fc738f22907d551e8507d5ba3e9effa76c39d4e588ae13a19de97",
+    "src/main/utils/free-name.js": "03a9ceafaf191ce311d411a1252fbf4995fdf0d8dbdc1a1e90a90e215e524425",
     "src/main/utils/page-api.js": "450920f68ff132d149c4f6c4b1a60169953884c53c3c7dc9900a239e0c0bda1f",
     "src/main/utils/path-resolver.js": "0416d13b0c5bea93c14f77e81c473878865c368797c13de9a73e468b20ce179a",
     "src/main/utils/prune-versions.js": "80b96f09172c17d3ffd89be87d6a3efd94697a28105f4693cd76d41db4055965",
@@ -862,6 +879,13 @@
     "src/main/utils/write-queue.js": "d95414accd2482dab955aca43ffd79f9bcf831105b00b2b1e295ca3660326103",
     "src/main/wire-hub.js": "ed012e212435eebf25657c5c5984d764424adc1ffeae3387b09fa567c4841468",
     "src/main/wire-routes.js": "19673cf59303eaaeab4c56d0c84229bc04fc2c8cf36c4a08c4ccad77e4d843dc",
+    "src/main/workspace/auto-name.js": "a9d25957b0489bcbd87426eb00eef257d69bdd226d808d427d9cdbdabddc0a03",
+    "src/main/workspace/commands.js": "19a185d075b640b3c0b3b2c6308046b8b91a2ea55e6759bcbaa41cb615de5410",
+    "src/main/workspace/routes.js": "4ab109426674f3d35c649bb2289e6f9537e5bcc6cca2621a5b07cc4fdcbde300",
+    "src/main/workspace/search-index.js": "d46d31878f48740c3210042a17a0afa2dcb2f17921ce6175c3bb83a3f85420d8",
+    "src/main/workspace/search-worker.js": "5cd6e42ce579555f788029df8abc19309f0fa4ee187df21db7e5103e9f555b9a",
+    "src/main/workspace/shell-server.js": "d2a5b797fb0c881a7e15c3aa3b679322f93c4e6c299273c9577e8e6c35c5b4bd",
+    "src/main/workspace/tree.js": "59c9a9abade06af1a4549c4733158db6e611cfd83f2e95d14ed0ae8c8c4bcf71",
     "src/main/write-contexts.js": "e6ff761606a17f4806a3f2130328f2393f0884ee1592bdc8703ca8b8a7b48918",
     "src/sync-engine/api-client.js": "784305b4c2f3d16ead91b10655c0e86961117d0c0610e0d9fe13da4acc3641e2",
     "src/sync-engine/constants.js": "59040a79d637ac3cad444889ef13557869403b69c9bb15ee0485473f50a016b0",
@@ -873,7 +897,7 @@
     "trial/go-document-host.cjs": "8f364a3f587f72518a9cbcc83b30f706984a9e3ea37113c2d78234c272cf4f0a",
     "trial/go-process.cjs": "339b773a7653c25f88e6a7708f4f53adeef6eacbd4bd35eea4d560090e4671fd",
     "trial/service-main.cjs": "f75c6c5acc3fff9e3afdd1685ea0e774b8efb5986f7914724214212501230247",
-    "trial/service.cjs": "f40b4507a1150ad84c0abb0418c9618037140c8a664890d9fabe9e93c7454b2a"
+    "trial/service.cjs": "119691bcf7a84035632a415a68d0999e32a2d700f8c2ff3e386dc906ce7b42aa"
   },
   "packages": {
     "@panphora/clayjs": "1.24.1",
@@ -919,7 +943,8 @@
       "src/main/server.js",
       "src/main/utils/data-extractor.js",
       "src/main/utils/page-api.js",
-      "src/main/utils/sheet-api.js"
+      "src/main/utils/sheet-api.js",
+      "src/main/workspace/auto-name.js"
     ],
     "chokidar": [
       "src/main/root-observer.js"
@@ -932,7 +957,8 @@
       "src/main/wire-routes.js"
     ],
     "htmlparser2": [
-      "src/main/helpers/declarations.js"
+      "src/main/helpers/declarations.js",
+      "src/main/workspace/search-worker.js"
     ],
     "hyper-html-api": [
       "src/main/data-loss-guard.js",
@@ -974,11 +1000,19 @@
       "src/main/utils/api-sidecar.js",
       "src/main/utils/backup.js",
       "src/main/utils/data-api.js",
+      "src/main/utils/free-name.js",
       "src/main/utils/path-resolver.js",
       "src/main/utils/prune-versions.js",
       "src/main/utils/real-dir-chain.js",
       "src/main/utils/tailwind-scoping.js",
       "src/main/utils/write-queue.js",
+      "src/main/workspace/auto-name.js",
+      "src/main/workspace/commands.js",
+      "src/main/workspace/routes.js",
+      "src/main/workspace/search-index.js",
+      "src/main/workspace/search-worker.js",
+      "src/main/workspace/shell-server.js",
+      "src/main/workspace/tree.js",
       "src/sync-engine/local-boundary.js",
       "src/sync-engine/page-state.js"
     ]

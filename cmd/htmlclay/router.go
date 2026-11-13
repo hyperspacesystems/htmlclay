@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/trust"
@@ -55,7 +56,7 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 		w.Write(indexPage)
 		return
 	}
-	if served, ok := strings.CutSuffix(name, ".htmlclay.localhost"); ok {
+	if served, ok := strings.CutSuffix(name, "."+appcore.DashboardHost); ok {
 		a.serveServed(w, r, served)
 		return
 	}

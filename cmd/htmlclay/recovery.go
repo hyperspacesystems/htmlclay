@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
@@ -91,7 +92,7 @@ func (a *app) ownsOrigin(host string) bool {
 		if name == "localhost" || name == "127.0.0.1" || name == "::1" {
 			return true
 		}
-		if label, ok := strings.CutSuffix(name, ".htmlclay.localhost"); ok && config.ValidServedName(label) == nil {
+		if label, ok := strings.CutSuffix(name, "."+appcore.DashboardHost); ok && config.ValidServedName(label) == nil {
 			return true
 		}
 		label, ok := strings.CutSuffix(name, ".localhost")

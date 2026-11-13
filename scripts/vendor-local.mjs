@@ -23,6 +23,7 @@ const ENTRIES = [
   "trial/go-document-host.cjs",
   "trial/go-process.cjs",
   "trial/fs-guard.cjs",
+  "src/main/workspace/shell-server.js",
 ];
 const COMMIT = /^[0-9a-f]{40}$/;
 const REQUIRED = /(?:^|[^.\w$])(require|import)\s*\(\s*(['"])((?:[^'"\\]|\\.)*)\2\s*\)/g;

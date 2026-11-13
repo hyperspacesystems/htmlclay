@@ -294,6 +294,11 @@ function createTrialService({
   logError = (...args) => console.error('[trial-service]', ...args),
 } = {}) {
   const roots = new Map();
+  // Other routes a host mounts on this listener (`mount`), and who hears roots come
+  // and go (`onRoots`).
+  const mounts = [];
+  const rootListeners = new Set();
+  const rootsChanged = () => { for (const listener of rootListeners) listener(); };
   const rootsByPath = new Map();
   const consultations = new Map();
   const touched = new Map();
@@ -1137,6 +1142,8 @@ function createTrialService({
     const { pathname } = new URL(req.url, 'http://service');
     if (!epochCurrent(req, pathname)) return send(res, 409, { error: 'epoch', epoch });
     if (pathname === ROUTE_PREFIX || pathname.startsWith(`${ROUTE_PREFIX}/`)) return forwardToApp(req, res);
+    const mounted = mounts.find(([prefix]) => pathname.startsWith(prefix));
+    if (mounted) return mounted[1](req, res);
     const handler = req.method === 'POST' ? handlers.get(pathname) : null;
     if (!handler) return send(res, 404, { error: 'not found' });
     const body = await readJson(req);
@@ -1183,6 +1190,7 @@ function createTrialService({
     record.app = createApp({ ...ctx, devHooks: null, isKnownPath: null });
     roots.set(root.id, record);
     rootsByPath.set(canonical, record);
+    rootsChanged();
   }
 
   // Stops serving one root: flush its dirty rooms through Go, then end its event
@@ -1196,6 +1204,7 @@ function createTrialService({
     }
     roots.delete(id);
     rootsByPath.delete(record.path);
+    rootsChanged();
     const connection = getConnection();
     if (connection) delete connection.roots[record.path];
     for (const res of record.responses) {
@@ -1224,6 +1233,17 @@ function createTrialService({
     server,
     rootFor,
     goCall,
+    // Answers every request under `prefix` (it starts and ends with "/") that
+    // passed this listener's host, bearer and epoch checks.
+    mount(prefix, handler) {
+      if (!/^\/.+\/$/.test(prefix) || prefix.startsWith(`${ROUTE_PREFIX}/`)) throw new Error(`bad mount prefix ${prefix}`);
+      mounts.push([prefix, handler]);
+    },
+    // Calls `listener` after a root is added or removed. Answers the unsubscribe.
+    onRoots(listener) {
+      rootListeners.add(listener);
+      return () => rootListeners.delete(listener);
+    },
     // Listens on a free loopback port and answers the service URL.
     listen() {
       return new Promise((resolve, reject) => {

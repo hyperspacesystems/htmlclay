@@ -1,0 +1,72 @@
+[
+  {
+    "id": "blank",
+    "file": "blank.html",
+    "name": "Blank",
+    "description": "An empty HTML file with ClayJS included. Bring your own everything.",
+    "thumbnail": "thumbnails/blank.svg",
+    "listed": true,
+    "bytes": 491,
+    "sha256": "1591d01f06f9cdd97527abf4abf81c5eb24720d84575f56cf28e4896fb20569c"
+  },
+  {
+    "id": "kanban",
+    "file": "kanban.html",
+    "name": "Kanban",
+    "description": "Move work across lists on a simple board you can share by link.",
+    "thumbnail": "thumbnails/kanban.svg",
+    "listed": true,
+    "bytes": 266100,
+    "sha256": "0284e93136f2669dbc0c18324a9c6ed43c294c106ea3b7ff9e77b7efdee72b82"
+  },
+  {
+    "id": "journal",
+    "file": "journal.html",
+    "name": "Journal",
+    "description": "A private journal with search, tags and Markdown export.",
+    "thumbnail": "thumbnails/journal.svg",
+    "listed": false,
+    "bytes": 321951,
+    "sha256": "c6f749c23ab3abd64a97660806eee6d8f135e784724221ab0098c67a950265b7"
+  },
+  {
+    "id": "freelance-rate-calculator",
+    "file": "freelance-rate-calculator.html",
+    "name": "Freelance Rate Calculator",
+    "description": "Stop undercharging. This free freelance rate calculator turns your real living costs, business expenses, and tax rate into the hourly rate you need to charge.",
+    "thumbnail": "thumbnails/freelance-rate-calculator.svg",
+    "listed": true,
+    "bytes": 109194,
+    "sha256": "4d815d98674cd27f09bc986161f7a0457e8c43ee468c6265535c9e7e45794175"
+  },
+  {
+    "id": "blockeditor",
+    "file": "blockeditor.html",
+    "name": "Block editor",
+    "description": "A page for writing, tables, checklists and boards. Starts nearly empty.",
+    "thumbnail": "thumbnails/blockeditor.svg",
+    "listed": true,
+    "bytes": 16357,
+    "sha256": "a84305fcce73dcf333c4acaa424f5fb3294ee55ed6d2ba77988781b6a92e744b"
+  },
+  {
+    "id": "devlog",
+    "file": "devlog.html",
+    "name": "Devlog",
+    "description": "A development log of dated posts.",
+    "thumbnail": "thumbnails/devlog.svg",
+    "listed": false,
+    "bytes": 94487,
+    "sha256": "1be01308f8874b0435740938a888e3a1cf4351fe705e36267787d9dfd71a4d75"
+  },
+  {
+    "id": "landing",
+    "file": "landing.html",
+    "name": "Landing page",
+    "description": "A one-page site for a product or project.",
+    "thumbnail": "thumbnails/landing.svg",
+    "listed": false,
+    "bytes": 187889,
+    "sha256": "b1b94d6eb579f98f473378065758396cf20db2e688e36030f3462cdcf486df52"
+  }
+]

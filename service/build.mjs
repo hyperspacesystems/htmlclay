@@ -109,10 +109,12 @@ async function main() {
     extractNode(archivePath, entry, goos, root);
     fs.rmSync(archivePath);
 
-    for (const name of ['main.cjs', 'package.json', 'package-lock.json']) {
+    for (const name of ['main.cjs', 'shell.cjs', 'package.json', 'package-lock.json']) {
       fs.copyFileSync(path.join(serviceDir, name), path.join(app, name));
     }
     fs.cpSync(path.join(serviceDir, 'vendor'), path.join(app, 'vendor'), { recursive: true });
+    fs.copyFileSync(path.join(repo, 'internal', 'dashboard', 'assets', 'local-app', 'manifest.json'),
+      path.join(app, 'workspace-manifest.json'));
     execFileSync('npm', ['ci', '--omit=optional', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], {
       cwd: app, stdio: 'inherit', env: { ...process.env, npm_config_min_release_age: '0' },
     });

@@ -41,6 +41,7 @@ async function run(dataDir) {
   // the trial, until M4 tests it.
   process.env.HYPERCLAY_PAGE_COMPACTION = '0';
   const { createTrialService } = require('./vendor/local/trial/service.cjs');
+  const { mountShell } = require('./shell.cjs');
 
   const lines = readline.createInterface({ input: process.stdin, crlfDelay: Infinity })[Symbol.asyncIterator]();
   const first = await lines.next();
@@ -55,6 +56,8 @@ async function run(dataDir) {
     throw new BootstrapError('the bootstrap line needs v 1 and a 64-hex secret');
   }
   const service = createTrialService({ secret: boot.secret });
+  // The bundle's bootstrap type carries appVersion but nothing reads it.
+  const shell = mountShell(service, { appVersion: '' });
   const url = await service.listen();
   process.stdout.write(`READY ${JSON.stringify({ url, epoch: service.epoch, pid: process.pid })}\n`);
   for (;;) {
@@ -67,6 +70,7 @@ async function run(dataDir) {
       process.stdout.write('ATTACHED\n');
     }
   }
+  await shell.close();
   await service.close();
 }
 
