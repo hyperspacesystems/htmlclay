@@ -31,7 +31,7 @@ if ! command -v rg >/dev/null; then
 fi
 (cd htmlclay && npm ci --no-audit --no-fund)
 (cd local && npm ci --no-audit --no-fund && ./node_modules/.bin/install-electron --no && node scripts/chrome-for-testing/browser-runtime.cjs install)'
-TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 TZ=America/New_York && umask 022 && bash htmlclay/scripts/trial-regression.sh htmlclay local "$TESTBOX_OUT/trial"'
+TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 TZ=America/New_York HYPER_CHROME_SANDBOX=0 && umask 022 && bash htmlclay/scripts/trial-regression.sh htmlclay local "$TESTBOX_OUT/trial"'
 TESTBOX_TIMEOUT=50m
 BOX
 printf 'test-box-out/\n' > "$S/.gitignore"
