@@ -12,11 +12,13 @@ public enum SettingsRoute: Equatable, Codable, Sendable {
     case pane(SettingsPane)
     case folder(String)
     case program(String)
+    case folderHistory(String)
 
     public var pane: SettingsPane {
         switch self {
         case let .pane(pane): return pane
         case .folder: return .folders
+        case .folderHistory: return .folders
         case .program: return .programs
         }
     }
@@ -84,12 +86,14 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var versionsSize: String
     public var lastSync: String
     public var historySummary: String
+    public var becameViewer: Bool
 
-    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "") {
+    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false) {
         self.id = id; self.name = name; self.path = path; self.origin = origin; self.parentID = parentID
         self.served = served; self.synced = synced; self.address = address; self.documentCount = documentCount
         self.status = status; self.onThisMac = onThisMac; self.missingOnDisk = missingOnDisk
         self.versionsSize = versionsSize; self.lastSync = lastSync; self.historySummary = historySummary
+        self.becameViewer = becameViewer
     }
 
     public var fromAccount: Bool { origin.canSync }
@@ -175,8 +179,10 @@ public struct SyncState: Codable, Equatable, Sendable {
     public var viewOnlyTeams: Int
     public var lastFinished: String
     public var fullName: String
-    public init(connected: Bool = false, username: String = "", keySuffix: String = "", syncingFiles: Int = 0, paused: Bool = false, viewOnlyTeams: Int = 0, lastFinished: String = "", fullName: String = "") {
+    public var offlineChanges: Int
+    public init(connected: Bool = false, username: String = "", keySuffix: String = "", syncingFiles: Int = 0, paused: Bool = false, viewOnlyTeams: Int = 0, lastFinished: String = "", fullName: String = "", offlineChanges: Int = 0) {
         self.lastFinished = lastFinished; self.fullName = fullName
+        self.offlineChanges = offlineChanges
         self.connected = connected; self.username = username; self.keySuffix = keySuffix
         self.syncingFiles = syncingFiles; self.paused = paused; self.viewOnlyTeams = viewOnlyTeams
     }
@@ -187,8 +193,10 @@ public struct UpdateState: Codable, Equatable, Sendable {
     public var ready: String?
     public var checked: String
     public var automatic: Bool
-    public init(current: String = "2.0.3", ready: String? = nil, checked: String = "Today at 9:12", automatic: Bool = true) {
+    public var finishing: Bool
+    public init(current: String = "2.0.3", ready: String? = nil, checked: String = "Today at 9:12", automatic: Bool = true, finishing: Bool = false) {
         self.automatic = automatic
+        self.finishing = finishing
         self.current = current; self.ready = ready; self.checked = checked
     }
 }
@@ -215,11 +223,13 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public var update: UpdateState
     public var preferences: PreferenceState
     public var localMoveOffer: Bool
+    public var hostStopped: Bool
 
-    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false) {
+    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false) {
         self.documents = documents; self.folders = folders; self.programs = programs; self.requests = requests
         self.waiting = waiting; self.sync = sync; self.update = update; self.preferences = preferences
         self.localMoveOffer = localMoveOffer
+        self.hostStopped = hostStopped
     }
 
     public var syncConnected: Bool { sync.connected }
@@ -254,4 +264,20 @@ public enum HostAction: Equatable, Sendable {
     case trustFolder(name: String, path: String)
     case serveFolder(path: String, name: String)
     case addProgram(name: String, path: String)
+    case startUpdate
+    case finishUpdate
+    case restartHost
+}
+
+public enum PreviewOverlay: String, CaseIterable, Sendable {
+    case keyRefused, offline, updateReady, hostStopped, teamViewer, teamFolderMissing
+}
+
+public struct HistoryEntry: Equatable, Identifiable, Sendable {
+    public enum Kind: Sendable { case uploaded, downloaded, renamed, settled }
+    public let id: String
+    public let kind: Kind
+    public let title: String
+    public let detail: String
+    public let time: String
 }

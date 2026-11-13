@@ -459,3 +459,47 @@ public enum Strings {
         public static let add = "Add"
     }
 }
+
+extension Strings.Panel {
+    public static let keyRefused = "Your sync key no longer works. Syncing stopped."
+    public static func offline(_ changes: Int) -> String { "Can't reach hyperclay.com. \(changes) changes will sync when you're back online." }
+    public static func updateReady(_ version: String) -> String { "HTML Clay \(version) is ready" }
+    public static let restart = "Restart"
+    public static let finishing = "Finishing saves and sync…"
+    public static let restartsSoon = "HTML Clay restarts in a moment"
+    public static let hostStopped = "HTML Clay stopped working."
+    public static let hostStoppedSub = "Your files are safe. Open documents can't save until it restarts."
+    public static let showLogs = "Show logs"
+}
+extension Strings.FolderPage {
+    public static let pausedAll = "Syncing is paused for all folders"
+    public static func offline(_ changes: Int) -> String { "Offline, \(changes) changes waiting" }
+    public static func viewerSub(_ team: String) -> String { "You're now a viewer on \(team). Syncing stopped. Your files are still here." }
+    public static let askOwner = "Ask a team owner to make you an editor."
+    public static let open = "Open ↗"
+    public static func missingTitle(_ path: String) -> String { "\(path) isn't there any more" }
+    public static let missingSub = "Syncing stopped. Nothing was deleted on hyperclay.com."
+    public static let setUpAgain = "Set up again…"
+    public static func wasTeam(_ team: String) -> String { "Was \(team)" }
+    public static let wasTeamSub = "Served on this Mac only. Programs still ask one document at a time, as for team folders."
+    public static let reconnect = "Reconnect…"
+    public static func wouldSetUpAgain(_ name: String) -> String { "Build 1: this would set up \(name) again in a new folder." }
+}
+public enum History {
+    public static func title(_ folder: String) -> String { "Folder history · \(folder)" }
+    public static let showSyncLog = "Show sync log"
+    public static let today = "Today"
+}
+extension Strings.Preview {
+    public static let alsoPretend = "Also pretend"
+    public static func overlay(_ overlay: PreviewOverlay) -> String {
+        switch overlay {
+        case .keyRefused: return "Sync key stopped working"
+        case .offline: return "Offline"
+        case .updateReady: return "Update ready"
+        case .hostStopped: return "The host stopped"
+        case .teamViewer: return "Design Team: you became a viewer"
+        case .teamFolderMissing: return "Design Team: folder missing on disk"
+        }
+    }
+}

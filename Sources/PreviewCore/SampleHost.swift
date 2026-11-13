@@ -17,6 +17,7 @@ public enum SampleReducer {
             guard let i = next.folders.firstIndex(where: { $0.id == folderID }) else { return snapshot }
             if on {
                 guard next.folders[i].served, next.folders[i].origin.canSync, next.sync.connected else { return snapshot }
+                guard !(next.folders[i].becameViewer || next.folders[i].missingOnDisk) else { return snapshot }
             }
             next.folders[i].synced = on
         case let .stopTrusting(folderID):
@@ -96,6 +97,16 @@ public enum SampleReducer {
             next.folders[i].synced = next.sync.connected
             next.folders[i].path = "~/hyperclay/" + next.folders[i].name
             next.folders[i].status = "up to date"
+        case .startUpdate:
+            guard next.update.ready != nil else { return snapshot }
+            next.update.finishing = true
+        case .finishUpdate:
+            guard let ready = next.update.ready, next.update.finishing else { return snapshot }
+            next.update.current = ready
+            next.update.ready = nil
+            next.update.finishing = false
+        case .restartHost:
+            next.hostStopped = false
         case let .addProgram(name, path):
             guard !next.programs.contains(where: { $0.name == name }) else { return snapshot }
             var id = name
@@ -166,5 +177,53 @@ public final class SampleHost: HostClient {
 
     public func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) {
         listeners.append(onChange)
+    }
+
+    public func canToggle(_ overlay: PreviewOverlay) -> Bool {
+        switch overlay {
+        case .keyRefused, .offline: return current.sync.connected
+        case .teamViewer, .teamFolderMissing: return current.folder(SampleData.overlayTeamID)?.onThisMac == true
+        case .updateReady, .hostStopped: return true
+        }
+    }
+
+    public func isOn(_ overlay: PreviewOverlay) -> Bool {
+        switch overlay {
+        case .keyRefused: return current.waiting.contains { $0.kind == .syncKeyRefused }
+        case .offline: return current.sync.offlineChanges > 0
+        case .updateReady: return current.update.ready != nil
+        case .hostStopped: return current.hostStopped
+        case .teamViewer: return current.folder(SampleData.overlayTeamID)?.becameViewer == true
+        case .teamFolderMissing: return current.folder(SampleData.overlayTeamID)?.missingOnDisk == true
+        }
+    }
+
+    public func toggle(_ overlay: PreviewOverlay) {
+        guard canToggle(overlay) else { return }
+        let on = !isOn(overlay)
+        let team = current.folders.firstIndex { $0.id == SampleData.overlayTeamID }
+        switch overlay {
+        case .keyRefused:
+            current.waiting.removeAll { $0.kind == .syncKeyRefused }
+            if on { current.waiting.append(WaitingItem(id: "w-key-refused", kind: .syncKeyRefused, title: "Your sync key no longer works. Syncing stopped.")) }
+        case .offline:
+            current.sync.offlineChanges = on ? SampleData.offlineChanges : 0
+        case .updateReady:
+            current.update.ready = on ? "2.1.0" : nil
+            current.update.finishing = false
+        case .hostStopped:
+            current.hostStopped = on
+        case .teamViewer:
+            guard let i = team else { return }
+            current.folders[i].becameViewer = on
+            current.folders[i].synced = !on && current.sync.connected && current.folders[i].served && !current.folders[i].missingOnDisk
+        case .teamFolderMissing:
+            guard let i = team else { return }
+            current.folders[i].missingOnDisk = on
+            current.folders[i].synced = !on && current.sync.connected && current.folders[i].served && !current.folders[i].becameViewer
+            current.waiting.removeAll { $0.id == "w-missing-" + SampleData.overlayTeamID }
+            if on { current.waiting.append(WaitingItem(id: "w-missing-" + SampleData.overlayTeamID, kind: .folderMissing, title: current.folders[i].path + " isn't there any more", subjectID: SampleData.overlayTeamID)) }
+        }
+        listeners.forEach { $0(current) }
     }
 }

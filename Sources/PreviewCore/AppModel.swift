@@ -50,6 +50,7 @@ public final class AppModel {
         snapshot = next
         switch route {
         case let .folder(id) where next.folder(id) == nil: route = .pane(.folders)
+        case let .folderHistory(id) where next.folder(id) == nil: route = .pane(.folders)
         case let .program(id) where next.program(id) == nil: route = .pane(.programs)
         default: break
         }

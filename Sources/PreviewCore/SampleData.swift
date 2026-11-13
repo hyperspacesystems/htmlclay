@@ -13,6 +13,9 @@ public enum SampleData {
     public static let accountDownload = (documents: 214, size: "38 MB")
     public static let teamDownloadSteps = [(files: 0, size: "0"), (files: 8, size: "1.9"), (files: 14, size: "3.3"), (files: 18, size: "4.2")]
     public static let teamDownloadTotal = (files: 18, size: "4.2")
+    public static let overlayTeamID = "design-team"
+    public static let offlineChanges = 8
+    public static let history = [HistoryEntry(id: "h1", kind: .uploaded, title: "Uploaded apps/index.html", detail: "", time: "13:58"), HistoryEntry(id: "h2", kind: .downloaded, title: "Downloaded blog/launch.html", detail: "changed by maria", time: "13:44"), HistoryEntry(id: "h3", kind: .renamed, title: "Renamed notes.html to meeting-notes.html", detail: "", time: "11:20"), HistoryEntry(id: "h4", kind: .settled, title: "Settled a conflict in about.html", detail: "kept both", time: "10:05")]
 
     public static func snapshot(for persona: Persona) -> HostSnapshot {
         switch persona {
@@ -83,7 +86,7 @@ public enum SampleData {
             WaitingItem(id: "w-req-todo", kind: .programRequest, title: "todo.htmlclay wants to run todo-search", detail: "Notes", subjectID: "req-todo"),
         ],
         sync: SyncState(connected: true, username: "panphora", keySuffix: "7f3a", syncingFiles: 5, viewOnlyTeams: 1, lastFinished: "2 minutes ago", fullName: "David Miranda"),
-        update: UpdateState(current: "2.0.3", ready: "2.1.0"),
+        update: UpdateState(current: "2.0.3"),
         preferences: PreferenceState(yourName: "David", useName: true))
 
     static let localUser = HostSnapshot(localMoveOffer: true)
