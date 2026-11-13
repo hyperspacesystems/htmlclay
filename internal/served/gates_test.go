@@ -106,18 +106,18 @@ func TestGatesStripSystemRouteMarker(t *testing.T) {
 }
 
 func TestGatesMarkerRewrite(t *testing.T) {
-	path, marked, ok := gate(httptest.NewRecorder(), newGateRequest("GET", "/_/save", nil), 4321)
+	path, marked, ok := gate(httptest.NewRecorder(), newGateRequest("GET", "/_/save", nil), portPolicy(4321))
 	if !ok || path != "/save" || !marked {
 		t.Errorf("gate(/_/save) = %q, %v, %v, want /save, true, true", path, marked, ok)
 	}
 
-	path, marked, ok = gate(httptest.NewRecorder(), newGateRequest("GET", "/save", nil), 4321)
+	path, marked, ok = gate(httptest.NewRecorder(), newGateRequest("GET", "/save", nil), portPolicy(4321))
 	if !ok || path != "/save" || marked {
 		t.Errorf("gate(/save) = %q, %v, %v, want /save, false, true", path, marked, ok)
 	}
 
 	recorder := httptest.NewRecorder()
-	path, marked, ok = gate(recorder, newGateRequest("GET", "/_/foo.html", nil), 4321)
+	path, marked, ok = gate(recorder, newGateRequest("GET", "/_/foo.html", nil), portPolicy(4321))
 	if ok || marked || path != "" {
 		t.Errorf("gate(/_/foo.html) = %q, %v, %v, want the marker 404", path, marked, ok)
 	}
@@ -137,7 +137,7 @@ func TestGatesMarkerRewrite(t *testing.T) {
 
 func TestGatesCookiesOnPassingRequests(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	if _, _, ok := gate(recorder, newGateRequest("GET", "/index.html", nil), 4321); !ok {
+	if _, _, ok := gate(recorder, newGateRequest("GET", "/index.html", nil), portPolicy(4321)); !ok {
 		t.Fatal("a loopback GET must pass")
 	}
 	cookies := recorder.Header().Values("Set-Cookie")
@@ -161,7 +161,7 @@ func TestGatesHostRunsBeforeOrigin(t *testing.T) {
 		"Host":   "evil.com",
 		"Origin": "https://evil.example",
 	})
-	if _, _, ok := gate(recorder, request, 4321); ok {
+	if _, _, ok := gate(recorder, request, portPolicy(4321)); ok {
 		t.Fatal("a rebound Host must be refused")
 	}
 	if recorder.Code != http.StatusForbidden {
@@ -202,7 +202,7 @@ func TestGatesOriginGate(t *testing.T) {
 			if testCase.local != 0 {
 				request = withLocalPort(request, testCase.local)
 			}
-			_, _, ok := gate(recorder, request, 4321)
+			_, _, ok := gate(recorder, request, portPolicy(4321))
 			if ok != testCase.ok {
 				t.Fatalf("gate passed = %v, want %v (status %d, body %q)", ok, testCase.ok, recorder.Code, recorder.Body.String())
 			}
@@ -225,7 +225,7 @@ func TestGatesOriginGate(t *testing.T) {
 func TestGatesSyncDataRefusalCarriesCode(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := newGateRequest("POST", "/_/sync/data", map[string]string{"Origin": "https://evil.example"})
-	if _, _, ok := gate(recorder, request, 4321); ok {
+	if _, _, ok := gate(recorder, request, portPolicy(4321)); ok {
 		t.Fatal("a cross-origin POST must be refused")
 	}
 	want := `{"msg":"Cross-origin requests are not allowed.","msgType":"error","code":"forbidden"}`

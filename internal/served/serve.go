@@ -18,11 +18,13 @@ import (
 // rootServer answers one root: Local's static catch-all, its document lane, its
 // folder listings and its error body.
 type rootServer struct {
-	baseDir  string
-	registry *consentRegistry
-	assets   fs.FS
-	selected string
-	releases map[string]clayruntime.Release
+	baseDir string
+	// publicHost is the served folder's address; empty in the trial binary.
+	publicHost string
+	registry   *consentRegistry
+	assets     fs.FS
+	selected   string
+	releases   map[string]clayruntime.Release
 	// commit is the one writer of this root's documents: every route that writes
 	// goes through the same host, so two of them cannot interleave.
 	commit *commitHost
@@ -90,6 +92,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	}
 	server := &rootServer{
 		baseDir:        baseDir,
+		publicHost:     root.publicHost,
 		registry:       registry,
 		assets:         cfg.assets,
 		selected:       runtime.Selected,
@@ -109,8 +112,16 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	return server, nil
 }
 
+// policy is this root's gate: by name when it is a served folder, else by port.
+func (s *rootServer) policy(r *http.Request) originPolicy {
+	if s.publicHost != "" {
+		return namePolicy(s.publicHost)
+	}
+	return portPolicy(localPort(r))
+}
+
 func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	urlPath, marked, ok := gate(w, r, localPort(r))
+	urlPath, marked, ok := gate(w, r, s.policy(r))
 	if !ok {
 		return
 	}

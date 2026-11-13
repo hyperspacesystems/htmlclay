@@ -50,6 +50,9 @@ type config struct {
 type rootSpec struct {
 	id   string
 	path string
+	// publicHost is the served folder's own address, "<name>.htmlclay.localhost:<port>".
+	// Empty in the trial binary, where each root has its own port.
+	publicHost string
 }
 
 type readyRoot struct {

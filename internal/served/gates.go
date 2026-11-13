@@ -120,15 +120,60 @@ func localPort(r *http.Request) int {
 	return tcp.Port
 }
 
-func gate(w http.ResponseWriter, r *http.Request, rootPort int) (string, bool, bool) {
-	if !isLoopbackHostHeader(r.Host) {
+// originPolicy is what one root's gate admits. A served folder has a name: only
+// its exact Host, and for writes its exact Origin, are its own, so a sibling
+// folder on the same port is refused even though browsers treat every
+// *.htmlclay.localhost address as the same site. The trial binary serves each
+// root on its own port, and admits any loopback host on that port.
+type originPolicy struct {
+	host     string
+	origin   string
+	rootPort int
+	byPort   bool
+}
+
+// namePolicy is a served folder's gate: publicHost is "<name>.htmlclay.localhost:<port>".
+func namePolicy(publicHost string) originPolicy {
+	host := strings.ToLower(publicHost)
+	return originPolicy{host: host, origin: "http://" + host}
+}
+
+// portPolicy is the trial's gate: the root's own port, or the connection's.
+func portPolicy(rootPort int) originPolicy {
+	return originPolicy{rootPort: rootPort, byPort: true}
+}
+
+func (p originPolicy) hostAllowed(hostHeader string) bool {
+	if p.byPort {
+		return isLoopbackHostHeader(hostHeader)
+	}
+	return strings.ToLower(hostHeader) == p.host
+}
+
+func (p originPolicy) ownOrigin(r *http.Request, origin string) bool {
+	if p.byPort {
+		return isLoopbackOrigin(origin) && isOwnOrigin(origin, localPort(r), p.rootPort)
+	}
+	return strings.ToLower(origin) == p.origin
+}
+
+// sameOriginFetch reports whether a browser marked the request as coming from
+// this origin or from no page at all. A request without the header is a script
+// or an older client, which the Host check already bounds.
+func sameOriginFetch(r *http.Request) bool {
+	sites := r.Header.Values("Sec-Fetch-Site")
+	return len(sites) == 0 || sites[0] == "same-origin" || sites[0] == "none"
+}
+
+func gate(w http.ResponseWriter, r *http.Request, p originPolicy) (string, bool, bool) {
+	if !p.hostAllowed(r.Host) {
 		sendText(w, r, http.StatusForbidden, "Invalid Host header")
 		return "", false, false
 	}
 
 	switch r.Method {
 	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
-		if !originAllowed(w, r, rootPort) {
+		if !originAllowed(w, r, p) {
 			return "", false, false
 		}
 	}
@@ -142,15 +187,20 @@ func gate(w http.ResponseWriter, r *http.Request, rootPort int) (string, bool, b
 			return "", false, false
 		}
 		marked = true
+		// A sibling folder is same-site, so it could otherwise read this
+		// folder's data, versions and live stream with a plain GET.
+		if !p.byPort && !sameOriginFetch(r) {
+			refuseOrigin(w, r)
+			return "", false, false
+		}
 	}
 
 	setSessionCookies(w)
 	return path, marked, true
 }
 
-func originAllowed(w http.ResponseWriter, r *http.Request, rootPort int) bool {
-	sites := r.Header.Values("Sec-Fetch-Site")
-	if len(sites) > 0 && sites[0] != "same-origin" && sites[0] != "none" {
+func originAllowed(w http.ResponseWriter, r *http.Request, p originPolicy) bool {
+	if !sameOriginFetch(r) {
 		refuseOrigin(w, r)
 		return false
 	}
@@ -159,11 +209,7 @@ func originAllowed(w http.ResponseWriter, r *http.Request, rootPort int) bool {
 		return true
 	}
 	origin := origins[0]
-	if origin == "null" || !isLoopbackOrigin(origin) {
-		refuseOrigin(w, r)
-		return false
-	}
-	if !isOwnOrigin(origin, localPort(r), rootPort) {
+	if origin == "null" || !p.ownOrigin(r, origin) {
 		refuseOrigin(w, r)
 		return false
 	}
