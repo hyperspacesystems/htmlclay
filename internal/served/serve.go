@@ -70,8 +70,8 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	}
 	hooks := newLiveHooks(liveRoot)
 	compile := cfg.compileTailwind
-	if compile == nil {
-		compile = func(html string) (string, error) { return tailwindCompiler(cfg.localSource, html) }
+	if compile == nil && defaultTailwindCompile != nil {
+		compile = defaultTailwindCompile(cfg.localSource)
 	}
 	tailwind := newTailwindHost(baseDir, compile, registry)
 	hooks.tailwind = tailwind

@@ -12,6 +12,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 status=0
 fault_files="faults.go control_faults.go"
+trial_files="boot_trial.go rootguard_trial.go tailwind_node.go"
 
 # contains reports whether the space-separated list names file.
 contains() {
@@ -26,7 +27,7 @@ if ! untagged=$(go list -f '{{join .GoFiles " "}}' ./internal/served); then
 	status=1
 else
 	leaked=""
-	for file in $fault_files; do
+	for file in $fault_files $trial_files; do
 		if contains "$untagged" "$file"; then
 			leaked="$leaked $file"
 		fi
@@ -44,7 +45,7 @@ if ! tagged=$(go list -tags managedtrial -f '{{join .GoFiles " "}}' ./internal/s
 	status=1
 else
 	missing=""
-	for file in $fault_files; do
+	for file in $fault_files $trial_files; do
 		if ! contains "$tagged" "$file"; then
 			missing="$missing $file"
 		fi
@@ -55,6 +56,16 @@ else
 	else
 		echo "tagged-files: both"
 	fi
+fi
+
+if ! embeds=$(go list -f '{{join .EmbedFiles " "}}' ./internal/served); then
+	echo "untagged-embeds: go list failed"
+	status=1
+elif contains "$embeds" "tailwind-compile.cjs"; then
+	echo "untagged-embeds: tailwind-compile.cjs is embedded in an untagged build"
+	status=1
+else
+	echo "untagged-embeds: none"
 fi
 
 if CGO_ENABLED=0 go vet ./internal/served >"$tmp/vet.log" 2>&1; then

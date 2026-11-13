@@ -1,6 +1,7 @@
 package served
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -56,6 +57,9 @@ func newHostFromConfig(cfg config) *Host {
 func (h *Host) AddRoot(spec RootSpec) (http.Handler, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.cfg.compileTailwind == nil && defaultTailwindCompile == nil {
+		return nil, errors.New("served: no Tailwind compiler; set Options.CompileTailwind")
+	}
 	if _, taken := h.byID[spec.ID]; taken {
 		return nil, fmt.Errorf("root %q is served twice", spec.ID)
 	}

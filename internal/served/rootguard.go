@@ -71,20 +71,14 @@ func sameOrBelow(path, dir string) bool {
 // the live folder. When the live folder cannot be named it answers true, so the
 // link is refused.
 func reachesLiveRoot(target string) bool {
+	if liveRoot == nil {
+		return false
+	}
 	live, err := liveRoot()
 	if err != nil {
 		return true
 	}
 	return RefuseLiveRoot(target, live) != nil
-}
-
-// DefaultLiveRoot is the live Hyperclay Local apps folder for this user.
-func DefaultLiveRoot() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return realPath(filepath.Join(home, "Documents", "GitHub", "hyper", "LOCAL_APPS"))
 }
 
 // realPath resolves symlinks in the nearest existing ancestor of path and

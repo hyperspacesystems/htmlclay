@@ -1,3 +1,5 @@
+//go:build managedtrial
+
 package served
 
 import (
