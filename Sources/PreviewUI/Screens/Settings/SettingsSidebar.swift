@@ -16,7 +16,7 @@ public struct SettingsSidebar: View {
     public var body: some View {
         VStack(spacing: 2) {
             Color.clear
-                .frame(height: 26)
+                .frame(height: 32)
             ForEach(SettingsPane.allCases, id: \.self) { pane in
                 row(pane)
             }
@@ -41,7 +41,7 @@ public struct SettingsSidebar: View {
             HStack(spacing: 9) {
                 Squircle(Self.color(for: pane), symbol: Self.symbol(for: pane))
                 Text(Strings.Settings.title(pane))
-                    .font(.system(size: 13.5, weight: selected ? .semibold : .medium))
+                    .font(.system(size: 13.5, weight: .medium))
                     .foregroundStyle(selected ? kiln.ink : kiln.ink2)
                 Spacer(minLength: 0)
                 if let count = Self.badgeCount(for: pane, snapshot: model.snapshot) {
@@ -59,6 +59,7 @@ public struct SettingsSidebar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusEffectDisabled()
     }
 
     private static func color(for pane: SettingsPane) -> SquircleColor {

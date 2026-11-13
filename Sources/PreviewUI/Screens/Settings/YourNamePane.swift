@@ -22,8 +22,7 @@ struct YourNamePane: View {
                 .foregroundStyle(kiln.ink)
                 .padding(.bottom, 12)
             KilnCard {
-                KilnRow(title: Strings.YourName.useName,
-                        subtitle: mode == .off ? Strings.YourName.offSub : nil) {
+                KilnRow(title: Strings.YourName.useName) {
                     Toggle(isOn: Binding(
                         get: { model.snapshot.preferences.useName },
                         set: { model.send(.setUseName($0)) }
@@ -50,12 +49,10 @@ struct YourNamePane: View {
                     EmptyView()
                 }
             }
-            if mode != .off {
-                Text(Strings.YourName.note)
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(kiln.muted)
-                    .padding(.top, 10)
-            }
+            Text(mode == .off ? Strings.YourName.offSub : Strings.YourName.note)
+                .font(.system(size: 12.5))
+                .foregroundStyle(kiln.muted)
+                .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { draft = model.snapshot.preferences.yourName }

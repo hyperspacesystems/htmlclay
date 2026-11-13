@@ -39,8 +39,7 @@ public struct SettingsView: View {
             SettingsSidebar(active: activePane)
             pane
         }
-        .frame(width: 840)
-        .frame(minHeight: 490)
+        .frame(minWidth: 840, maxWidth: .infinity, minHeight: 490, maxHeight: .infinity)
         .sheet(item: Binding(get: { pinned == nil ? model.sheet : nil }, set: { model.sheet = $0 })) { sheet in
             KilnRoot { SettingsSheetView(sheet: sheet, actions: actions) }.environment(model)
         }
@@ -91,9 +90,10 @@ public struct SettingsView: View {
                 case .advanced: AdvancedPane()
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: 600, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.top, 18)
+        .padding(.top, 52)
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

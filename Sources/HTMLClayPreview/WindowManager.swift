@@ -75,9 +75,9 @@ final class WindowManager: NSObject, NSWindowDelegate {
                     showWelcome: { [weak self] in self?.showWelcome() },
                     answer: { [weak self] item in self?.showRequest(item) }
                 ))
-            }.environment(model))
+            }.environment(model), settingsStyle: true)
         }
-        if let content = settings?.contentView {
+        if let window = settings, !window.styleMask.contains(.fullScreen), let content = window.contentView {
             let fit = content.fittingSize
             settings?.setContentSize(NSSize(width: 840, height: min(max(490, fit.height), 640)))
         }
@@ -158,11 +158,19 @@ final class WindowManager: NSObject, NSWindowDelegate {
         }
     }
 
-    private func makeWindow<Content: View>(_ root: Content) -> NSWindow {
-        let window = NSWindow(contentRect: .zero, styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView], backing: .buffered, defer: false)
+    private func makeWindow<Content: View>(_ root: Content, settingsStyle: Bool = false) -> NSWindow {
+        var mask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        if settingsStyle { mask.insert(.resizable) }
+        let window = NSWindow(contentRect: .zero, styleMask: mask, backing: .buffered, defer: false)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = false
+        if settingsStyle {
+            window.toolbar = NSToolbar(identifier: "settings")
+            window.toolbarStyle = .unified
+            window.collectionBehavior.insert(.fullScreenPrimary)
+            window.contentMinSize = NSSize(width: 840, height: 490)
+        }
         window.isReleasedWhenClosed = false
         window.delegate = self
         let hosting = NSHostingView(rootView: root.ignoresSafeArea())
