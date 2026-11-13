@@ -1,0 +1,33 @@
+{
+  "local": {
+    "ref": "v1.37.0",
+    "commit": "996a9140636c03c482b71a58a904d035b226d35b",
+    "committedAt": "2026-11-12T03:31:23-05:00"
+  },
+  "files": {
+    "assets/favicon.ico": {
+      "sha256": "c6bee1e3e90a0ed1466698e49e18bb8237818b72e52305424e254e36f1e74584",
+      "bytes": 15086
+    },
+    "assets/favicon.png": {
+      "sha256": "ee38059ae7ede8b541622c8e78729f695d5302d8b5900178e20f1ea27527d0a9",
+      "bytes": 1183
+    },
+    "assets/favicon.svg": {
+      "sha256": "028bee1a149a94e4faf36fb5065eec1c254f345b50c104df59adc27a1c89e6ea",
+      "bytes": 2684
+    },
+    "src/main/assets/sync-data-worker.js": {
+      "sha256": "2dd00bc1f2bff0da5245b231008e6ef011ce716ee8d1c5e099bb5fd560f4398b",
+      "bytes": 18395
+    },
+    "src/main/assets/sync-worker.js": {
+      "sha256": "fb4fd7a4294e39851e5809dc2b6e7dadfda2eb6418e58d8dc76138127f3387f7",
+      "bytes": 8623
+    },
+    "src/main/templates/directory-listing.css": {
+      "sha256": "dd49b7862848a957417cf05d6ca5f2ef5e92dee55c93b98e905a45b18ee79056",
+      "bytes": 3315
+    }
+  }
+}
