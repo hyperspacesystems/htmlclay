@@ -177,4 +177,21 @@ final class SettingsTests: XCTestCase {
             }
         }
     }
+
+    func testFolderSheets() {
+        _ = NSApplication.shared
+        XCTAssertEqual(FoldersPane.orderedLocalFolders(SampleReducer.apply(.trustFolder(name: "Documents", path: "~/Documents"), to: SampleData.snapshot(for: .trustedFolder))),
+                       ["documents", "notes", "journal", "clips"])
+        let sheets: [PreviewSheet] = [.serveFolder(folderID: nil), .serveFolder(folderID: "notes")] + SampleData.trustCandidates.map { .trustFolder(name: $0.name, path: $0.path) }
+        for persona in [Persona.trustedFolder, .syncedWithTeams] {
+            let host = SampleHost(persona: persona)
+            let model = AppModel(host: host, initial: host.current)
+            for sheet in sheets {
+                let hosting = NSHostingView(rootView: KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))
+                hosting.layoutSubtreeIfNeeded()
+                XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 410, persona.rawValue + " " + sheet.id)
+                XCTAssertGreaterThan(hosting.fittingSize.height, 120, persona.rawValue + " " + sheet.id)
+            }
+        }
+    }
 }

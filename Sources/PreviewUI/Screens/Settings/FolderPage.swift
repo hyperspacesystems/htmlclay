@@ -248,7 +248,7 @@ struct FolderPage: View {
             get: { model.snapshot.folder(folderID)?.served ?? false },
             set: { on in
                 if on {
-                    model.send(.setServed(folderID: folderID, on: true))
+                    model.sheet = .serveFolder(folderID: folderID)
                 } else {
                     alert = FolderAlert(kind: .stopServing)
                 }

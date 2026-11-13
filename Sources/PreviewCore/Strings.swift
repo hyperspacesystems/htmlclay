@@ -80,8 +80,6 @@ public enum Strings {
         public static let trustMenu = "Trust a folder…"
         public static let serveMenu = "Serve a folder…"
         public static let connectMenu = "Connect hyperclay.com…"
-        public static let trustNote = "Build 1: this would ask you to choose a folder to trust."
-        public static let serveNote = "Build 1: this would ask you to choose a folder to serve as a local site."
         public static let moveNote = "Build 1: this would bring your Hyperclay Local folders into HTML Clay."
         public static let openHyperclayNote = "Build 1: this would open your folders on hyperclay.com."
         public static let emptyTitle = "Trust a folder when its documents belong together"

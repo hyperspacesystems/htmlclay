@@ -6,12 +6,10 @@ struct FoldersPane: View {
     @Environment(\.kiln) private var kiln
 
     static func orderedLocalFolders(_ snapshot: HostSnapshot) -> [String] {
-        var ids: [String] = []
-        for folder in snapshot.localFolders where folder.parentID == nil {
-            ids.append(folder.id)
-            ids.append(contentsOf: snapshot.children(of: folder.id).map(\.id))
+        func walk(_ folder: Folder) -> [String] {
+            [folder.id] + snapshot.children(of: folder.id).flatMap(walk)
         }
-        return ids
+        return snapshot.localFolders.filter { $0.parentID == nil }.flatMap(walk)
     }
 
     static func orderedAccountFolders(_ snapshot: HostSnapshot) -> [String] {
@@ -61,10 +59,12 @@ struct FoldersPane: View {
             Spacer(minLength: 0)
             Menu {
                 Button(Strings.Folders.trustMenu) {
-                    model.say(Strings.Folders.trustNote)
+                    if let first = TrustRules.firstPick(in: model.snapshot) {
+                        model.sheet = .trustFolder(name: first.name, path: first.path)
+                    }
                 }
                 Button(Strings.Folders.serveMenu) {
-                    model.say(Strings.Folders.serveNote)
+                    model.sheet = .serveFolder(folderID: nil)
                 }
                 if !model.snapshot.sync.connected {
                     Divider()
@@ -89,7 +89,7 @@ struct FoldersPane: View {
                 }
             }
             KilnLink(Strings.Folders.serveLink) {
-                model.say(Strings.Folders.serveNote)
+                model.sheet = .serveFolder(folderID: nil)
             }
         }
         .padding(.bottom, 4)

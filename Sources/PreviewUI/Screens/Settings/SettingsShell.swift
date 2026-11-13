@@ -41,6 +41,17 @@ public struct SettingsView: View {
         }
         .frame(width: 840)
         .frame(minHeight: 490)
+        .sheet(item: Binding(get: { pinned == nil ? model.sheet : nil }, set: { model.sheet = $0 })) { sheet in
+            KilnRoot { SettingsSheetView(sheet: sheet, actions: actions) }.environment(model)
+        }
+        .overlay(alignment: .bottom) {
+            if pinned == nil, let note = model.note {
+                PreviewNote(note)
+                    .padding(.leading, 246)
+                    .padding(.trailing, 24)
+                    .padding(.bottom, 6)
+            }
+        }
     }
 
     private var pane: some View {

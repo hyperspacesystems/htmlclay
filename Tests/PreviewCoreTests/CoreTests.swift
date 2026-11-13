@@ -135,4 +135,40 @@ final class CoreTests: XCTestCase {
         host.pretend(.servedFolder)
         XCTAssertEqual(host.current.preferences.appearance, .dark)
     }
+
+    func testTrustingAFolderAdoptsTrustedFoldersInside() {
+        var s = SampleReducer.apply(.stopTrusting(folderID: "notes"), to: SampleData.snapshot(for: .trustedFolder))
+        XCTAssertEqual(TrustRules.trustedInside("~/Documents/Notes", in: s), 2)
+        s = SampleReducer.apply(.trustFolder(name: "Notes", path: "~/Documents/Notes"), to: s)
+        XCTAssertEqual(s.folder("notes")?.documentCount, 4)
+        XCTAssertEqual(s.children(of: "notes").map(\.id), ["journal", "clips"])
+        s = SampleReducer.apply(.trustFolder(name: "Documents", path: "~/Documents"), to: s)
+        XCTAssertEqual(s.folder("notes")?.parentID, "documents")
+        XCTAssertEqual(s.folder("journal")?.parentID, "notes")
+        XCTAssertEqual(SampleReducer.apply(.trustFolder(name: "Documents", path: "~/Documents"), to: s), s)
+    }
+
+    func testServeFolderServesAnExistingFolderOrAddsOne() {
+        let served = SampleReducer.apply(.serveFolder(path: "~/Documents/Notes", name: "my-notes"), to: SampleData.snapshot(for: .trustedFolder))
+        XCTAssertEqual(served.folder("notes")?.served, true)
+        XCTAssertEqual(served.folder("notes")?.address, "my-notes.hyperclay.localhost:1212")
+        let added = SampleReducer.apply(.serveFolder(path: "~/Sites/blog", name: "blog"), to: HostSnapshot())
+        XCTAssertEqual(added.folders.map(\.id), ["blog"])
+        XCTAssertEqual(added.folders.first?.served, true)
+    }
+
+    func testServeAndTrustRules() {
+        let teams = SampleData.snapshot(for: .syncedWithTeams)
+        XCTAssertEqual(ServeRules.pathProblem("~/hyperclay/panphora/apps", folderID: nil, in: teams), "This is inside panphora, which is already served.")
+        XCTAssertEqual(ServeRules.nameProblem("prototypes", folderID: nil, in: teams), "“prototypes” is already taken. Try another name.")
+        XCTAssertNil(ServeRules.nameProblem("prototypes", folderID: "prototypes", in: teams))
+        XCTAssertFalse(ServeRules.canServe(path: "~/Sites/blog", name: "", folderID: nil, in: teams))
+        XCTAssertTrue(ServeRules.canServe(path: "~/Sites/blog", name: "blog", folderID: nil, in: teams))
+        XCTAssertEqual(ServeRules.startName(folderID: "notes", in: teams), "notes")
+        XCTAssertEqual(ServeRules.firstPick(in: SampleData.snapshot(for: .servedFolder)), 1)
+        XCTAssertEqual(ServeRules.pathProblem("~/HyperclayLocal/panphora", folderID: nil, in: SampleData.snapshot(for: .localUser)), "Hyperclay Local is still serving this folder. Move from Hyperclay Local first.")
+        XCTAssertEqual(TrustRules.firstPick(in: HostSnapshot())?.path, "~/Documents")
+        XCTAssertEqual(TrustRules.pick(after: "~/Documents", in: HostSnapshot())?.path, "~/Documents/Notes")
+        XCTAssertEqual(TrustRules.pick(after: "~/Documents", in: SampleData.snapshot(for: .trustedFolder))?.path, "~/Documents/Recipes")
+    }
 }
