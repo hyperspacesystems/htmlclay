@@ -852,6 +852,18 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 	srv.wire.publish(file.AbsPath, wireEnvelope{
 		V: 1, Type: "wire/cancel", ID: "parked", File: file.AbsPath,
 	})
+	// The dispatcher handles the cancel on its own goroutine. Approving before it has
+	// is a different case (a cancel after start stops the running program), so wait.
+	waitFor(t, time.Second, "the cancel to reach the parked request", func() bool {
+		srv.helperMu.Lock()
+		defer srv.helperMu.Unlock()
+		for _, p := range srv.helperAsking[helperAskKey(file.AbsPath, "search")] {
+			if p.env.ID == "parked" {
+				return false
+			}
+		}
+		return true
+	})
 	close(release)
 	waitFor(t, time.Second, "the parked request to be released", func() bool {
 		srv.helperMu.Lock()
