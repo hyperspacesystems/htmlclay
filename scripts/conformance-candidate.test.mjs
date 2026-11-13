@@ -31,7 +31,7 @@ if (mode.raw) writeFileSync(process.env.CONFORMANCE_REPORT, mode.raw);
 else if (mode.checks) writeFileSync(process.env.CONFORMANCE_REPORT, JSON.stringify({
   schema: 1,
   package: '${PACKAGE}',
-  version: mode.version || '1.0.0',
+  version: mode.version || process.env.FAKE_VERSION || '1.0.0',
   host: '${HOST}',
   checks: mode.checks.map(([id, status]) => ({ id, status })),
 }));
@@ -130,6 +130,19 @@ test('an infrastructure exit fails the job and writes no evidence', () => {
   assert.equal(result.status, 3);
   assert.match(result.stderr, /exited 3, which is not a verdict/);
   assert.equal(fs.existsSync(path.join(cwd, '.conformance', 'conformance-linux.json')), false);
+});
+
+test('prerelease package reports produce evidence on every candidate platform', () => {
+  for (const platform of ['linux', 'linux-amd64-artifact', 'linux-arm64-artifact']) {
+    const { cwd, env } = fixture();
+    const result = run({
+      cwd,
+      env: { ...env, FAKE_VERSION: '1.1.0-sheet.5' },
+      args: ['--platform', platform],
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(evidence(cwd, platform).report.version, '1.1.0-sheet.5');
+  }
 });
 
 test('a signal, a missing report and a malformed report all fail the job', () => {
@@ -239,18 +252,32 @@ test('candidate arguments and manifest identity follow the dispatch', () => {
   assert.equal(canonical({ b: 1, a: [{ d: 2, c: 3 }] }), '{"a":[{"c":3,"d":2}],"b":1}');
 });
 
-function reportFile(checks) {
+function reportFile(checks, version = '1.0.0') {
   const cwd = scratch();
   const file = path.join(cwd, 'report.json');
   fs.writeFileSync(file, JSON.stringify({
     schema: 1,
     package: PACKAGE,
-    version: '1.0.0',
+    version,
     host: HOST,
     checks,
   }));
   return file;
 }
+
+test('package versions accept SemVer prereleases and metadata and refuse malformed values', () => {
+  const checks = [{ id: 'row.one', status: 'pass' }];
+  for (const version of ['0.0.0', '1.0.0', '1.1.0-sheet.5', '1.2.3-0', '1.2.3-0a.2',
+    '1.2.3+build.001', '1.2.3-rc.1+build.002']) {
+    assert.equal(validateReport(reportFile(checks, version)).version, version);
+  }
+  for (const version of [null, 1, '', 'not-a-version', '1.2', 'v1.2.3', '01.2.3',
+    '1.02.3', '1.2.03', '1.2.3-', '1.2.3-01', '1.2.3-rc.01', '1.2.3-rc..1',
+    '1.2.3-rc_1', '1.2.3+', '1.2.3+build..1', '1.2.3\n']) {
+    assert.throws(() => validateReport(reportFile(checks, version)), /names no package version/,
+      JSON.stringify(version));
+  }
+});
 
 test('validateReport accepts every row status the package emits', () => {
   const statuses = ['pass', 'fail', 'skip', 'na', 'waived', 'waiver-unused'];
