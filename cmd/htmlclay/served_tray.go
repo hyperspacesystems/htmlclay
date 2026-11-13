@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/platform"
@@ -60,20 +65,22 @@ func (a *app) pickAndServeFolder() []tray.Row {
 	if !ok {
 		return a.servedFolderRows()
 	}
-	entry, refusal, err := a.serveFolderNamed(dir, "")
-	if refusal != nil || err != nil {
-		msg := ""
-		if refusal != nil {
-			msg = appcore.RefusalMessage(refusal)
-		} else {
-			msg = err.Error()
-		}
+	if refusal := a.trayDo("folder.serve", map[string]any{"path": dir}); refusal != nil {
+		msg := appcore.RefusalMessage(refusal)
 		a.rt.logger.Printf("Could not serve folder %s: %s", dir, msg)
 		go func() {
 			if nErr := a.notifyUser(appcore.TextCannotServe, msg); nErr != nil {
 				a.rt.logger.Printf("Could not show notification: %v", nErr)
 			}
 		}()
+		return a.servedFolderRows()
+	}
+	resolved, rErr := filepath.EvalSymlinks(dir)
+	if rErr != nil {
+		resolved = dir
+	}
+	entry, ok := a.rt.cfg.ServedFolderForPath(resolved)
+	if !ok {
 		return a.servedFolderRows()
 	}
 	address := a.servedAddress(entry)
@@ -102,8 +109,8 @@ func (a *app) copyServedAddress(id string) {
 	if !ok {
 		return
 	}
-	if err := a.copyServedAddressText(id); err != nil {
-		a.rt.logger.Printf("Could not copy the address of served folder %s: %v", f.Name, err)
+	if refusal := a.trayDo("folder.copyAddress", map[string]any{"id": id}); refusal != nil {
+		a.rt.logger.Printf("Could not copy the address of served folder %s: %s", f.Name, refusal.Code)
 	}
 }
 
@@ -128,8 +135,23 @@ func (a *app) stopServedFromTray(id string) []tray.Row {
 	if err != nil || !proceed {
 		return a.servedFolderRows()
 	}
-	if err := a.stopServing(id); err != nil {
-		a.rt.logger.Printf("Could not stop serving folder %s: %v", f.Path, err)
+	if refusal := a.trayDo("folder.stopServing", map[string]any{"id": id}); refusal != nil {
+		a.rt.logger.Printf("Could not stop serving folder %s: %s", f.Path, refusal.Code)
 	}
 	return a.servedFolderRows()
+}
+
+// trayDo runs one tray action through the core, so the tray follows the same rules
+// as the Mac app and the dashboard. Each click is its own action.
+func (a *app) trayDo(typ string, args map[string]any) *appcore.Refusal {
+	raw, err := json.Marshal(args)
+	if err != nil {
+		return &appcore.Refusal{Code: appcore.RefuseBadArguments}
+	}
+	id := make([]byte, 8)
+	if _, err := rand.Read(id); err != nil {
+		return &appcore.Refusal{Code: appcore.RefuseBadArguments}
+	}
+	_, refusal := a.do(context.Background(), appcore.Action{ID: "tray-" + hex.EncodeToString(id), Type: typ, Args: raw}, ChannelTray)
+	return refusal
 }

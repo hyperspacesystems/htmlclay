@@ -206,14 +206,21 @@ func (a *app) handleServeCommand(fields []string) string {
 	if err != nil {
 		return "refused bad path"
 	}
-	entry, refusal, err := a.serveFolderNamed(string(raw), name)
-	if refusal != nil {
+	if refusal := a.trayDo("folder.serve", map[string]any{"path": string(raw), "name": name}); refusal != nil {
 		answer := "refused " + refusal.Code + " " + oneLine(appcore.RefusalMessage(refusal))
+		if refusal.Code == appcore.RefuseFailed {
+			answer = "failed " + oneLine(appcore.RefusalMessage(refusal))
+		}
 		a.rt.logger.Printf("serve %s: %s", string(raw), answer)
 		return answer
 	}
-	if err != nil {
-		answer := "failed " + oneLine(err.Error())
+	resolved, rErr := filepath.EvalSymlinks(string(raw))
+	if rErr != nil {
+		resolved = string(raw)
+	}
+	entry, ok := a.rt.cfg.ServedFolderForPath(resolved)
+	if !ok {
+		answer := "failed the folder was served but is no longer listed"
 		a.rt.logger.Printf("serve %s: %s", string(raw), answer)
 		return answer
 	}
@@ -228,7 +235,13 @@ func (a *app) handleStopServingCommand(fields []string) string {
 		return "refused unknown command"
 	}
 	name := fields[0]
-	err := a.stopServingNamed(name)
+	err := errNoServedFolder
+	if f, ok := a.rt.cfg.ServedFolderByName(name); ok && f.Serving {
+		err = nil
+		if refusal := a.trayDo("folder.stopServing", map[string]any{"id": f.ID}); refusal != nil {
+			err = errors.New(appcore.RefusalMessage(refusal))
+		}
+	}
 	switch {
 	case errors.Is(err, errNoServedFolder):
 		answer := "refused not-served " + oneLine(fmt.Sprintf(appcore.TextNotServed, name))

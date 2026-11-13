@@ -397,16 +397,6 @@ func (a *app) serveFolderNamed(path, name string) (config.ServedFolder, *appcore
 	return a.serveFolder(abs, name)
 }
 
-// stopServingNamed stops the served folder named name. errNoServedFolder says no
-// served folder has that name.
-func (a *app) stopServingNamed(name string) error {
-	f, ok := a.rt.cfg.ServedFolderByName(name)
-	if !ok {
-		return errNoServedFolder
-	}
-	return a.stopServing(f.ID)
-}
-
 // errNoServedFolder is the answer to a stop for a name no served folder has.
 var errNoServedFolder = errors.New("no served folder has that name")
 
