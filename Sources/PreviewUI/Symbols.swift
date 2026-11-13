@@ -20,6 +20,11 @@ public enum Symbols {
     public static let mac = "laptopcomputer"
     public static let sparkles = "sparkles"
     public static let check = "checkmark"
+    public static let offline = "wifi.slash"
+    public static let uploaded = "arrow.up.circle"
+    public static let downloaded = "arrow.down.circle"
+    public static let renamed = "pencil"
+    public static let settled = "arrow.triangle.merge"
 }
 
 public enum WebKeys {

@@ -154,7 +154,6 @@ public enum Strings {
         public static func mergeButton(parent: String) -> String { "Merge into \(parent)…" }
         public static func versionsSub(size: String) -> String { "Kept in this folder · \(size)" }
         public static func versionsNote(folder: String) -> String { "Build 1: this would list the versions and uploads kept in \(folder)." }
-        public static func historyNote(folder: String) -> String { "Build 1: this would open the folder history for \(folder)." }
         public static func accountTitle(username: String) -> String { "@\(username)" }
         public static func stopTrustingTitle(_ name: String) -> String { "Stop trusting \(name)?" }
         public static func stopTrustingMessage(_ name: String) -> String { "Documents open from \(name) stop saving now, and \(name) leaves your Folders list. Files there save again only when you open them yourself." }
@@ -485,11 +484,11 @@ extension Strings.FolderPage {
     public static let reconnect = "Reconnect…"
     public static func wouldSetUpAgain(_ name: String) -> String { "Build 1: this would set up \(name) again in a new folder." }
 }
-public enum History {
+extension Strings { public enum History {
     public static func title(_ folder: String) -> String { "Folder history · \(folder)" }
     public static let showSyncLog = "Show sync log"
     public static let today = "Today"
-}
+} }
 extension Strings.Preview {
     public static let alsoPretend = "Also pretend"
     public static func overlay(_ overlay: PreviewOverlay) -> String {

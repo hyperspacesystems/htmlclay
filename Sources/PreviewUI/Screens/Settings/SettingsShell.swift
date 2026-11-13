@@ -67,6 +67,12 @@ public struct SettingsView: View {
                         } else {
                             FoldersPane()
                         }
+                    case let .folderHistory(id):
+                        if model.snapshot.folder(id) != nil {
+                            FolderHistoryPage(folderID: id)
+                        } else {
+                            FoldersPane()
+                        }
                     default: FoldersPane()
                     }
                 case .programs:

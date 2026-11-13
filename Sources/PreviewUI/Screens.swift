@@ -14,6 +14,9 @@ public enum ScreenCatalog {
         for id in ["notes", "prototypes", "panphora"] where model.snapshot.folder(id) != nil {
             screens.append((settingsPrefix + "folder." + id, AnyView(KilnRoot { SettingsView(route: .folder(id)) }.environment(model))))
         }
+        for id in ["panphora", "design-team"] where model.snapshot.folder(id) != nil {
+            screens.append((settingsPrefix + "history." + id, AnyView(KilnRoot { SettingsView(route: .folderHistory(id)) }.environment(model))))
+        }
         for program in model.snapshot.programs {
             screens.append((settingsPrefix + "program." + program.id, AnyView(KilnRoot { SettingsView(route: .program(program.id)) }.environment(model))))
         }

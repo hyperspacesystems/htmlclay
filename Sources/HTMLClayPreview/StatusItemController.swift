@@ -198,7 +198,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 }
 
 @MainActor
-final class PreviewMenuController: NSObject {
+final class PreviewMenuController: NSObject, NSMenuDelegate {
     private let host: SampleHost
     private let model: AppModel
     private let windows: WindowManager
@@ -239,7 +239,33 @@ final class PreviewMenuController: NSObject {
         let request = NSMenuItem(title: Strings.Preview.showRequest, action: nil, keyEquivalent: "")
         request.submenu = requestMenu
         menu.addItem(request)
+        menu.addItem(.separator())
+        let overlayMenu = NSMenu()
+        overlayMenu.autoenablesItems = false
+        overlayMenu.delegate = self
+        for overlay in PreviewOverlay.allCases {
+            let entry = NSMenuItem(title: Strings.Preview.overlay(overlay), action: #selector(toggleOverlay(_:)), keyEquivalent: "")
+            entry.target = self
+            entry.representedObject = overlay.rawValue
+            overlayMenu.addItem(entry)
+        }
+        let pretendMore = NSMenuItem(title: Strings.Preview.alsoPretend, action: nil, keyEquivalent: "")
+        pretendMore.submenu = overlayMenu
+        menu.addItem(pretendMore)
         item.menu = menu
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        for entry in menu.items {
+            guard let raw = entry.representedObject as? String, let overlay = PreviewOverlay(rawValue: raw) else { continue }
+            entry.state = host.isOn(overlay) ? .on : .off
+            entry.isEnabled = host.canToggle(overlay)
+        }
+    }
+
+    @objc private func toggleOverlay(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let overlay = PreviewOverlay(rawValue: raw) else { return }
+        host.toggle(overlay)
     }
 
     @objc private func pretend(_ sender: NSMenuItem) {

@@ -6,6 +6,10 @@ enum FolderInnerKind: Equatable {
     case sync, onlyOnThisMac, none
 }
 
+enum FolderProblem: Equatable {
+    case none, viewer, missing
+}
+
 struct FolderPage: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
@@ -16,6 +20,18 @@ struct FolderPage: View {
     init(folderID: String, actions: SettingsActions) {
         self.folderID = folderID
         self.actions = actions
+    }
+
+    static func problem(for folder: Folder) -> FolderProblem {
+        if folder.missingOnDisk { return .missing }
+        if folder.becameViewer { return .viewer }
+        return .none
+    }
+
+    static func syncStatus(_ folder: Folder, snapshot: HostSnapshot) -> (dot: StatusDotKind, line: String) {
+        if snapshot.sync.paused { return (.muted, Strings.FolderPage.pausedAll) }
+        if snapshot.sync.offlineChanges > 0 { return (.muted, Strings.FolderPage.offline(snapshot.sync.offlineChanges)) }
+        return (.green, folder.lastSync)
     }
 
     static func levels(for folder: Folder) -> (served: Bool, innerKind: FolderInnerKind) {
@@ -39,10 +55,56 @@ struct FolderPage: View {
         VStack(alignment: .leading, spacing: 0) {
             header(folder)
             KilnPath(Strings.FolderPage.pathLine(path: folder.path, documents: folder.documentCount))
+            if Self.problem(for: folder) != .none {
+                problemCard(folder)
+                    .padding(.bottom, 12)
+            }
             outerCard(folder)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .folderConfirmations(folder: folder, alert: $alert)
+    }
+
+    @ViewBuilder private func problemCard(_ folder: Folder) -> some View {
+        switch Self.problem(for: folder) {
+        case .viewer:
+            KilnCard(kind: .warn) {
+                KilnRow(title: folder.name, subtitle: Strings.FolderPage.viewerSub(folder.name)) {
+                    StatusDot(.amber)
+                } trailing: {
+                    EmptyView()
+                }
+                KilnRowDivider()
+                KilnNoteRow(Strings.FolderPage.askOwner) {
+                    KilnLink(Strings.FolderPage.open) {
+                        model.say(Strings.Sync.wouldOpenSite)
+                    }
+                }
+            }
+        case .missing:
+            KilnCard(kind: .err) {
+                KilnRow(title: Strings.FolderPage.missingTitle(folder.path),
+                        subtitle: Strings.FolderPage.missingSub) {
+                    EmptyView()
+                }
+                KilnRowDivider()
+                HStack(spacing: 8) {
+                    Spacer(minLength: 0)
+                    Button(Strings.Programs.findIt) {
+                        model.say(Strings.Programs.wouldFind(folder.name))
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                    Button(Strings.FolderPage.setUpAgain) {
+                        model.say(Strings.FolderPage.wouldSetUpAgain(folder.name))
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+            }
+        case .none:
+            EmptyView()
+        }
     }
 
     private func header(_ folder: Folder) -> some View {
@@ -180,22 +242,38 @@ struct FolderPage: View {
                     .toggleStyle(KilnSwitchStyle())
                 }
                 if folder.synced {
+                    let status = Self.syncStatus(folder, snapshot: model.snapshot)
                     NestRows {
-                        KilnRow(title: syncTitle(folder), subtitle: folder.lastSync) {
-                            StatusDot(.green)
+                        KilnRow(title: syncTitle(folder), subtitle: status.line) {
+                            StatusDot(status.dot)
                         } trailing: {
                             EmptyView()
                         }
                         KilnRowDivider()
                         KilnRow(title: Strings.FolderPage.folderHistory, subtitle: folder.historySummary) {
                             Button {
-                                model.say(Strings.FolderPage.historyNote(folder: folder.name))
+                                model.route = .folderHistory(folder.id)
                             } label: {
                                 Image(systemName: Symbols.chevronRight)
                                     .font(.system(size: 11))
                                     .foregroundStyle(kiln.faint)
                             }
                             .buttonStyle(.plain)
+                        }
+                    }
+                } else if case let .team(name) = folder.origin, Self.problem(for: folder) == .none {
+                    NestRows {
+                        KilnRow(title: Strings.FolderPage.wasTeam(name), subtitle: Strings.FolderPage.wasTeamSub) {
+                            StatusDot(.muted)
+                        } trailing: {
+                            Button(Strings.FolderPage.reconnect) {
+                                if model.snapshot.sync.connected {
+                                    model.send(.setSynced(folderID: folder.id, on: true))
+                                } else {
+                                    model.sheet = .connect
+                                }
+                            }
+                            .buttonStyle(KilnButtonStyle(.plain))
                         }
                     }
                 }

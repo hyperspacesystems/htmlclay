@@ -1,6 +1,10 @@
 import SwiftUI
 import PreviewCore
 
+enum PanelSection: Hashable {
+    case openDashboard, hostStopped, keyRefused, update, finishing, waiting, syncLine, offline
+}
+
 public struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
@@ -9,13 +13,8 @@ public struct PanelView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Button(Strings.Panel.openDashboard, action: actions.openDashboard)
-                .buttonStyle(KilnButtonStyle(.openDashboard))
-            if !waitingItems.isEmpty {
-                waitingCard
-            }
-            if model.snapshot.sync.connected {
-                syncLine
+            ForEach(Self.topSections(model.snapshot), id: \.self) {
+                section(for: $0)
             }
             if model.snapshot.documents.isEmpty {
                 KilnCard {
@@ -25,6 +24,11 @@ public struct PanelView: View {
                 KilnGroupTitle(Strings.Panel.recentDocuments)
                 documentsCard
             }
+            if model.snapshot.hostStopped {
+                KilnLink(Strings.Panel.showLogs) {
+                    model.say(Strings.Advanced.wouldShowAppLog)
+                }
+            }
             footer
             if let note = model.note {
                 PreviewNote(note)
@@ -32,6 +36,90 @@ public struct PanelView: View {
         }
         .padding(12)
         .frame(width: 382)
+    }
+
+    static func topSections(_ s: HostSnapshot) -> [PanelSection] {
+        var sections: [PanelSection] = [s.hostStopped ? .hostStopped : .openDashboard]
+        let refused = s.waiting.contains { $0.kind == .syncKeyRefused }
+        if refused { sections.append(.keyRefused) }
+        if s.update.ready != nil { sections.append(s.update.finishing ? .finishing : .update) }
+        if s.waiting.contains(where: { $0.earnsDot && $0.kind != .syncKeyRefused }) { sections.append(.waiting) }
+        if s.sync.connected && !refused { sections.append(s.sync.offlineChanges > 0 ? .offline : .syncLine) }
+        return sections
+    }
+
+    @ViewBuilder private func section(for section: PanelSection) -> some View {
+        switch section {
+        case .openDashboard:
+            Button(Strings.Panel.openDashboard, action: actions.openDashboard)
+                .buttonStyle(KilnButtonStyle(.openDashboard))
+        case .hostStopped:
+            KilnCard(kind: .err) {
+                KilnRow(title: Strings.Panel.hostStopped, subtitle: Strings.Panel.hostStoppedSub) {
+                    Button(Strings.Panel.restart) {
+                        model.send(.restartHost)
+                    }
+                    .buttonStyle(KilnButtonStyle(.primary))
+                } trailing: {
+                    EmptyView()
+                }
+            }
+        case .keyRefused:
+            KilnCard(kind: .err) {
+                KilnRow(title: Strings.Panel.keyRefused) {
+                    Button(Strings.Sync.reconnect) {
+                        model.sheet = .connect
+                        actions.openSettings(.sync)
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                }
+            }
+        case .update:
+            let ready = model.snapshot.update.ready ?? model.snapshot.update.current
+            KilnCard {
+                KilnRow(title: Strings.Panel.updateReady(UpdatesPane.short(ready))) {
+                    Squircle(.jade, symbol: Symbols.update)
+                } trailing: {
+                    Button(Strings.Panel.restart) {
+                        model.send(.startUpdate)
+                    }
+                    .buttonStyle(KilnButtonStyle(.primary))
+                }
+            }
+        case .finishing:
+            KilnCard {
+                KilnRow(title: Strings.Panel.finishing, subtitle: Strings.Panel.restartsSoon) {
+                    Image(systemName: Symbols.versions)
+                        .font(.system(size: 15))
+                        .foregroundStyle(kiln.muted)
+                        .frame(width: 24)
+                } trailing: {
+                    EmptyView()
+                }
+            }
+            .task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                if Task.isCancelled { return }
+                if let ready = model.snapshot.update.ready {
+                    model.say(Strings.Updates.wouldRestart(ready))
+                }
+                model.send(.finishUpdate)
+            }
+        case .waiting:
+            waitingCard
+        case .syncLine:
+            syncLine
+        case .offline:
+            HStack(spacing: 6) {
+                Image(systemName: Symbols.offline)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(kiln.muted)
+                Text(Strings.Panel.offline(model.snapshot.sync.offlineChanges))
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(kiln.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private var waitingItems: [WaitingItem] {
@@ -48,7 +136,7 @@ public struct PanelView: View {
         return order.map { (folder: $0, count: counts[$0] ?? 0) }
     }
 
-    private var settingsKinds: [WaitingItem.Kind] { [.syncKeyRefused, .folderMissing, .serviceFailed] }
+    private var settingsKinds: [WaitingItem.Kind] { [.folderMissing, .serviceFailed] }
 
     private var waitingRows: [AnyView] {
         var rows: [AnyView] = []
