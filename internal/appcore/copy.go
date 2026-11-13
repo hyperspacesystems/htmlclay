@@ -82,6 +82,9 @@ var RefusalText = map[string]string{
 	RefuseNothingToMove:     "There is nothing to move from Hyperclay Local.",                                 // TODO-COPY: refusal, max 140 chars
 	RefuseNotConnected:      "Connect your Hyperclay account first.",                                          // TODO-COPY: refusal, max 140 chars
 	RefuseNothingReady:      "No update is ready yet.",                                                        // TODO-COPY: refusal, max 140 chars
+	RefuseNeedsConfirmation: "Approve this in HTML Clay first.",                                               // TODO-COPY: refusal, max 140 chars
+	RefuseFailed:            "HTML Clay couldn\u0027t do that just now. Try again.",                           // TODO-COPY: refusal, max 140 chars
+	RefuseNotYet:            "HTML Clay can\u0027t do that yet. Update HTML Clay and try again.",              // TODO-COPY: refusal, max 140 chars
 	// A folder rule's reason, when an action runs into it.
 	WhyIdentityChanged:    TextWhyServeIdentityChanged,
 	WhyNotOnComputer:      TextWhyNotOnComputer,

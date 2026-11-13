@@ -189,6 +189,9 @@ type app struct {
 	// updateOff is why startSelfUpdater did not start the updater, and empty
 	// when it did. update-now answers with it.
 	updateOff string
+	// core is the app core's own state: revision, epoch, seen waiting ids,
+	// recent action answers, subscribers. See core.go.
+	core coreState
 }
 
 func migrateConfigDir() {
@@ -270,6 +273,7 @@ func main() {
 	fmt.Fprintln(os.Stderr, "[htmlclay] Starting up...")
 
 	a := &app{rt: &appRuntime{}, noTray: *noTray}
+	a.initCore()
 	a.initConfig()
 	defer a.rt.si.Unlock()
 	// Holding the lock makes this the process an update supervisor should judge.

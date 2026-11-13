@@ -410,4 +410,5 @@ func (a *app) saveConfig(what string) {
 	if err := a.rt.cfg.Save(); err != nil {
 		a.rt.logger.Printf("Could not save config after %s: %v", what, err)
 	}
+	a.changed()
 }

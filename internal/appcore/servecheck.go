@@ -52,6 +52,15 @@ const (
 	RefuseNothingToMove     = "nothing-to-move"
 	RefuseNotConnected      = "not-connected"
 	RefuseNothingReady      = "nothing-ready"
+
+	// RefuseNeedsConfirmation is a grant asked for on the dashboard origin, which
+	// only the host's confirmer may approve.
+	RefuseNeedsConfirmation = "needs-confirmation"
+	// RefuseFailed is an effect the app tried to run and could not; the cause goes
+	// to the log, never to the sentence.
+	RefuseFailed = "failed"
+	// RefuseNotYet is an action whose effect the app has no code for yet.
+	RefuseNotYet = "not-yet"
 )
 
 // OtherFolder is a folder that matters to the check: how the asked-for folder stands

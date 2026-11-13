@@ -102,9 +102,19 @@ func (a *app) copyServedAddress(id string) {
 	if !ok {
 		return
 	}
-	if err := a.copyText(a.servedAddress(f) + "/"); err != nil {
+	if err := a.copyServedAddressText(id); err != nil {
 		a.rt.logger.Printf("Could not copy the address of served folder %s: %v", f.Name, err)
 	}
+}
+
+// copyServedAddressText puts a served folder's address on the clipboard and
+// answers what the clipboard did.
+func (a *app) copyServedAddressText(id string) error {
+	f, ok := a.rt.cfg.ServedFolderByID(id)
+	if !ok {
+		return fmt.Errorf("no served folder with id %q", id)
+	}
+	return a.copyText(a.servedAddress(f) + "/")
 }
 
 // stopServedFromTray stops serving a folder after asking first, because its
