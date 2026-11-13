@@ -11,6 +11,7 @@ public enum Symbols {
     public static let update = "arrow.down.circle"
     public static let advanced = "slider.horizontal.3"
     public static let plus = "plus"
+    public static let chevronRight = "chevron.right"
     public static let more = "ellipsis"
     public static let warning = "exclamationmark.triangle.fill"
     public static let copy = "doc.on.doc"

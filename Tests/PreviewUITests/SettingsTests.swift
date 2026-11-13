@@ -31,4 +31,19 @@ final class SettingsTests: XCTestCase {
             }
         }
     }
+
+    func testFoldersPaneOrdersNestedLocalFoldersUnderTheirParent() {
+        XCTAssertEqual(FoldersPane.orderedLocalFolders(SampleData.snapshot(for: .trustedFolder)),
+                       ["notes", "journal", "clips"])
+        XCTAssertEqual(FoldersPane.orderedLocalFolders(SampleData.snapshot(for: .servedFolder)),
+                       ["notes", "prototypes"])
+    }
+
+    func testFolderRowShowsEveryActiveLevelPill() {
+        let snapshot = SampleData.snapshot(for: .syncedWithTeams)
+        guard let panphora = snapshot.folder("panphora") else { return XCTFail("missing panphora") }
+        XCTAssertEqual(FolderRow.pills(for: panphora), [.trusted, .served, .synced])
+        guard let notes = snapshot.folder("notes") else { return XCTFail("missing notes") }
+        XCTAssertEqual(FolderRow.pills(for: notes), [.trusted])
+    }
 }

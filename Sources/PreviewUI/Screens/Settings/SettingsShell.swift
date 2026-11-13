@@ -40,6 +40,12 @@ public struct SettingsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 switch activePane {
                 case .general: GeneralPane(actions: actions)
+                case .folders:
+                    if pinned == nil, case .folder = model.route {
+                        PaneStub(pane: activePane)
+                    } else {
+                        FoldersPane()
+                    }
                 default: PaneStub(pane: activePane)
                 }
             }

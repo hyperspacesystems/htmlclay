@@ -1,0 +1,173 @@
+import SwiftUI
+import PreviewCore
+
+struct FoldersPane: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.kiln) private var kiln
+
+    static func orderedLocalFolders(_ snapshot: HostSnapshot) -> [String] {
+        var ids: [String] = []
+        for folder in snapshot.localFolders where folder.parentID == nil {
+            ids.append(folder.id)
+            ids.append(contentsOf: snapshot.children(of: folder.id).map(\.id))
+        }
+        return ids
+    }
+
+    static func orderedAccountFolders(_ snapshot: HostSnapshot) -> [String] {
+        let onMac = snapshot.accountFolders.filter(\.onThisMac)
+        let offMac = snapshot.accountFolders.filter { !$0.onThisMac }
+        return (personal(onMac) + teams(onMac) + personal(offMac) + teams(offMac)).map(\.id)
+    }
+
+    static func waitingCount(_ snapshot: HostSnapshot, folderID: String) -> Int {
+        snapshot.waiting.filter { $0.subjectID == folderID }.count
+    }
+
+    private static func personal(_ folders: [Folder]) -> [Folder] {
+        folders.filter { folder in
+            if case .account = folder.origin { return true }
+            return false
+        }
+    }
+
+    private static func teams(_ folders: [Folder]) -> [Folder] {
+        folders.filter { folder in
+            if case .team = folder.origin { return true }
+            return false
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            if model.snapshot.folders.isEmpty && !model.snapshot.localMoveOffer {
+                emptyCard
+            }
+            if model.snapshot.localMoveOffer {
+                moveCard
+            }
+            localGroup
+            accountGroup
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var header: some View {
+        HStack(spacing: 0) {
+            Text(Strings.Folders.title)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(kiln.ink)
+            Spacer(minLength: 0)
+            Menu {
+                Button(Strings.Folders.trustMenu) {
+                    model.say(Strings.Folders.trustNote)
+                }
+                Button(Strings.Folders.serveMenu) {
+                    model.say(Strings.Folders.serveNote)
+                }
+                if !model.snapshot.sync.connected {
+                    Divider()
+                    Button(Strings.Folders.connectMenu) {
+                        model.route = .pane(.sync)
+                    }
+                }
+            } label: {
+                Image(systemName: Symbols.plus)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+        .padding(.bottom, 12)
+    }
+
+    private var emptyCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            KilnCard {
+                KilnRow(title: Strings.Folders.emptyTitle, subtitle: Strings.Folders.emptySub) {
+                    EmptyView()
+                }
+            }
+            KilnLink(Strings.Folders.serveLink) {
+                model.say(Strings.Folders.serveNote)
+            }
+        }
+        .padding(.bottom, 4)
+    }
+
+    private var moveCard: some View {
+        KilnCard {
+            KilnRow(title: Strings.Folders.moveTitle, subtitle: Strings.Folders.moveSub) {
+                Squircle(.teal, symbol: Symbols.folder)
+            } trailing: {
+                Button(Strings.Folders.move) {
+                    model.say(Strings.Folders.moveNote)
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
+            }
+        }
+    }
+
+    @ViewBuilder private var localGroup: some View {
+        if !model.snapshot.localFolders.isEmpty {
+            KilnGroupTitle(Strings.Folders.onThisMac)
+            KilnCard {
+                let ids = Self.orderedLocalFolders(model.snapshot)
+                ForEach(Array(ids.enumerated()), id: \.element) { index, id in
+                    if index > 0 {
+                        KilnRowDivider()
+                    }
+                    if let folder = model.snapshot.folder(id) {
+                        FolderRow(folder: folder,
+                                  parent: parent(of: folder),
+                                  waiting: Self.waitingCount(model.snapshot, folderID: id))
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var accountGroup: some View {
+        if model.snapshot.sync.connected {
+            KilnGroupTitle(Strings.Folders.accountGroup(username: model.snapshot.sync.username))
+            KilnCard {
+                let ids = Self.orderedAccountFolders(model.snapshot)
+                ForEach(Array(ids.enumerated()), id: \.element) { index, id in
+                    if index > 0 {
+                        KilnRowDivider()
+                    }
+                    if let folder = model.snapshot.folder(id) {
+                        FolderRow(folder: folder,
+                                  parent: parent(of: folder),
+                                  waiting: Self.waitingCount(model.snapshot, folderID: id))
+                    }
+                }
+                if model.snapshot.sync.viewOnlyTeams > 0 {
+                    if !ids.isEmpty {
+                        KilnRowDivider()
+                    }
+                    viewOnlyRow(model.snapshot.sync.viewOnlyTeams)
+                }
+            }
+        }
+    }
+
+    private func viewOnlyRow(_ count: Int) -> some View {
+        HStack(spacing: 11) {
+            Text(Strings.Folders.viewOnlyTeams(count))
+                .font(.system(size: 13))
+                .foregroundStyle(kiln.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            KilnLink(Strings.Folders.openHyperclay) {
+                model.say(Strings.Folders.openHyperclayNote)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private func parent(of folder: Folder) -> Folder? {
+        guard let parentID = folder.parentID else { return nil }
+        return model.snapshot.folder(parentID)
+    }
+}

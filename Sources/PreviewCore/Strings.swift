@@ -74,6 +74,32 @@ public enum Strings {
             }
         }
     }
+    public enum Folders {
+        public static let title = "Folders"
+        public static let elbow = "└"
+        public static let trustMenu = "Trust a folder…"
+        public static let serveMenu = "Serve a folder…"
+        public static let connectMenu = "Connect hyperclay.com…"
+        public static let trustNote = "Build 1: this would ask you to choose a folder to trust."
+        public static let serveNote = "Build 1: this would ask you to choose a folder to serve as a local site."
+        public static let moveNote = "Build 1: this would bring your Hyperclay Local folders into HTML Clay."
+        public static let openHyperclayNote = "Build 1: this would open your folders on hyperclay.com."
+        public static let emptyTitle = "Trust a folder when its documents belong together"
+        public static let emptySub = "Documents in a trusted folder open without asking and can link to each other."
+        public static let serveLink = "Building a site or an app? Serve a folder with Hyperclay Local…"
+        public static let moveTitle = "Move from Hyperclay Local"
+        public static let moveSub = "Your Hyperclay Local folders were found. Bring them into HTML Clay."
+        public static let move = "Move…"
+        public static let onThisMac = "On this Mac"
+        public static let onlyOnThisMac = "only on this Mac"
+        public static let setUp = "Set up…"
+        public static let openHyperclay = "Open hyperclay.com ↗"
+        public static func accountGroup(username: String) -> String { "hyperclay.com · @\(username)" }
+        public static func inside(parent: String, path: String) -> String { "Inside \(parent) · \(path)" }
+        public static func viewOnlyTeams(_ count: Int) -> String {
+            count == 1 ? "1 team you can only view" : "\(count) teams you can only view"
+        }
+    }
     public enum General {
         public static let title = "General"
         public static let openAtLogin = "Open HTML Clay at login"
