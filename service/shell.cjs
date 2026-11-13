@@ -21,7 +21,7 @@ const { IGNORED } = require('./vendor/local/src/main/root-observer.js');
 const PREFIX = '/v1/shell';
 const READ = /^\/api\/(bootstrap|roots|events|roots\/[^/]+\/(tree|list|search|document))$/;
 const COMMANDS_PATH = /^\/api\/roots\/[^/]+\/commands$/;
-const COMMANDS = new Set(['create', 'folder']);
+const COMMANDS = new Set(['create', 'folder', 'rename', 'move', 'duplicate']);
 const MAX_BODY = 1024 * 1024;
 
 // The bundle's manifest, for the protocol number the bootstrap reports: beside
@@ -88,6 +88,14 @@ function commandOf(body) {
   }
 }
 
+// Go orders every write and consults the service, whose consult takes Local's
+// own locks; a command holding them here would wait on that consult. For the same
+// reason Local's authority (its admission bookkeeping) is the consult's to keep.
+const UNLOCKED = {
+  withDocumentWrite: async (prepare, run) => run(await prepare(), null),
+  withStructureChange: (fn) => fn(null),
+};
+
 function refuse(res, status, reason, error) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify({ error, reason }));
@@ -112,14 +120,39 @@ function mountShell(service, { appVersion }) {
   };
 
   // The writes Local's commands make outside the document host, made by Go.
-  const structure = async (id, kind, steps) => {
+  const restructure = async (id, kind, steps) => {
     const answer = await service.goCall('POST', '/v1/restructure', { opId: randomBytes(16).toString('hex'), root: id, kind, steps });
-    if (answer?.outcome !== 'committed') {
-      throw Object.assign(new Error(`${kind} did not complete: ${answer?.reason ?? 'no answer'}`), { code: answer?.reason ?? 'failed' });
+    const result = { outcome: answer?.outcome, completed: answer?.completed ?? 0, reason: answer?.reason ?? null };
+    if (result.outcome !== 'committed') {
+      const error = new Error(`${kind} did not complete: ${result.reason ?? 'no answer'}`);
+      error.code = result.reason ?? 'failed';
+      Object.defineProperty(result, 'error', { value: error, enumerable: false });
     }
+    return result;
   };
+  const structure = async (id, kind, steps) => {
+    const result = await restructure(id, kind, steps);
+    if (result.error) throw result.error;
+  };
+  // Local's commands move or drop a page's state with a second call after the
+  // restructure. Go carries it in the restructure's own steps instead, inside the
+  // op that moves the file, so the service's settle and a lost settle see it
+  // (protocol v1); the second call then has nothing left to do. A restore (a move
+  // out of .trash/) carries none: trashing dropped it, and Local makes no call.
+  const documentHostFor = (rec) => ({
+    ...rec.goHost,
+    restructure: ({ kind, steps = [] }) => restructure(rec.id, kind, steps.map((step) => {
+      const carried = kind === 'trash' ? 'drop' : kind === 'move' && !step.from.startsWith('.trash/') ? 'move' : null;
+      return { from: step.from, to: step.to, ...(carried && { blockeditorState: carried }) };
+    })),
+    async blockeditorState(request) {
+      if (['move', 'moveDir', 'drop', 'dropDir'].includes(request.op)) return;
+      await rec.goHost.blockeditorState(request);
+    },
+  });
   const commandHostFor = (root) => ({
-    documentHost: record(root.id).goHost,
+    documentHost: documentHostFor(record(root.id)),
+    locks: UNLOCKED,
     files: {
       mkdir: (destination, { rel }) => structure(root.id, 'folder', [{ to: rel }]),
       emptyTrash: () => structure(root.id, 'empty-trash', []),
@@ -127,7 +160,7 @@ function mountShell(service, { appVersion }) {
   });
 
   const create = () => createShellServer({
-    authority: service.authority,
+    authority: null,
     rootPool: { get: (id) => (record(id) ? { state: 'running', deps: {} } : null) },
     observerFor, settings, appVersion, origin, manifest,
     connection: () => ({ online: true, account: { signedIn: false, username: null } }),

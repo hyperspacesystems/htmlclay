@@ -59,13 +59,18 @@ const nodeFiles = {
   },
 };
 
+// Local's own write locks. A host that orders writes itself and consults the
+// process this runs in (HTML Clay's Go host and its service) passes ones that do
+// not lock: the consult takes Local's locks, and holding them here would wait on it.
+const localLocks = { withDocumentWrite, withStructureChange };
+
 function restoredName(original, index) {
   const extension = path.extname(original);
   const stem = extension ? original.slice(0, -extension.length) : original;
   return `${stem} (restored${index ? ` ${index}` : ''})${extension}`;
 }
 
-async function executeCommand({ root, authority, engine, request, tree, moved, changed, documentHost = createRootDocumentHost({ ctx: { root, localAuthority: authority } }), files = nodeFiles }) {
+async function executeCommand({ root, authority, engine, request, tree, moved, changed, documentHost = createRootDocumentHost({ ctx: { root, localAuthority: authority } }), files = nodeFiles, locks = localLocks }) {
   if (!request || typeof request !== 'object') throw refusal('forbidden', 'Invalid command');
   if (request.command === 'create') {
     const template = templateManifest.find(item => item.id === request.template);
@@ -76,7 +81,7 @@ async function executeCommand({ root, authority, engine, request, tree, moved, c
     const registry = getConsentRegistry(root.path);
     const bytes = await fs.readFile(path.join(__dirname, '../document-templates', template.file));
     const html = bytes.toString('utf8');
-    const runCreate = () => withDocumentWrite(async () => {
+    const runCreate = () => locks.withDocumentWrite(async () => {
       const destination = await resolveWritePath(registry, rel);
       return { canonicalPath: destination };
     }, async ({ canonicalPath }, token) => {
@@ -98,7 +103,7 @@ async function executeCommand({ root, authority, engine, request, tree, moved, c
     });
     return engine?.serial ? engine.serial(runCreate) : runCreate();
   }
-  const run = async () => withStructureChange(async token => {
+  const run = async () => locks.withStructureChange(async token => {
     const registry = getConsentRegistry(root.path);
     const parentOf = value => value == null || value === '' ? '' : safePath(value);
     const targetFor = async rel => resolveWritePath(registry, rel);

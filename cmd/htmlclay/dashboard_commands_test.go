@@ -1,0 +1,196 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/panphora/htmlclay/internal/appcore"
+)
+
+// guardService runs the service with Local's write guard on the served folder
+// and answers where its report lands once the service exits.
+func guardService(t *testing.T, dir string) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := filepath.Join(t.TempDir(), "guard.json")
+	guard := filepath.Join(root, "service", "vendor", "local", "trial", "fs-guard.cjs")
+	t.Setenv("HTMLCLAY_SERVICE_CMD", "node -r "+guard+" "+filepath.Join(root, "service", "main.cjs"))
+	roots, _ := json.Marshal([]string{dir})
+	t.Setenv("FS_GUARD_ROOTS", string(roots))
+	t.Setenv("FS_GUARD_OUT", report)
+	return report
+}
+
+// guardWrites stops the service and answers every write the guard saw it make
+// in the served folder, allowed or not.
+func guardWrites(t *testing.T, a *app, report string) []string {
+	t.Helper()
+	a.service.close()
+	var got struct {
+		Forbidden []struct{ Op, Path string } `json:"forbidden"`
+		Allowed   []struct{ Op, Path string } `json:"allowed"`
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		b, err := os.ReadFile(report)
+		if err == nil && json.Unmarshal(b, &got) == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the guard wrote no report: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	var writes []string
+	for _, w := range append(got.Forbidden, got.Allowed...) {
+		writes = append(writes, w.Op+" "+w.Path)
+	}
+	return writes
+}
+
+// TestDashboardCommandsCreateFolder makes a document from a template and a
+// folder through the dashboard: Go writes both, the service writes nothing in
+// the folder, and a name already taken is refused with nothing changed.
+func TestDashboardCommandsCreateFolder(t *testing.T) {
+	serviceRepoTarget(t)
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+	report := guardService(t, dir)
+
+	a := newServiceTestApp(t, home, t.TempDir())
+	serveThroughDo(t, a, "serve-1", dir, "notes")
+	waitForServiceState(t, a, appcore.ServiceRunning, 20*time.Second)
+	c := openDashboard(t, a)
+	id := c.rootIDOf()
+
+	if status, body := c.command(id, map[string]any{"command": "folder", "parent": nil, "name": "Made"}); status != http.StatusOK || body != `{"path":"Made"}` {
+		t.Fatalf("folder = %d %s", status, body)
+	}
+	if info, err := os.Stat(filepath.Join(dir, "Made")); err != nil || !info.IsDir() {
+		t.Fatalf("the folder is not on disk: %v", err)
+	}
+	if status, body := c.command(id, map[string]any{"command": "create", "template": "blank", "parent": "Made", "name": "page.html"}); status != http.StatusOK || body != `{"path":"Made/page.html"}` {
+		t.Fatalf("create = %d %s", status, body)
+	}
+	made, err := os.ReadFile(filepath.Join(dir, "Made", "page.html"))
+	if err != nil || !strings.Contains(strings.ToLower(string(made)), "<html") {
+		t.Fatalf("the created document = %q, %v", made, err)
+	}
+	status, body := c.api(http.MethodGet, "/api/roots/"+url.PathEscape(id)+"/tree", nil)
+	if status != http.StatusOK || !strings.Contains(body, `"path":"Made/page.html"`) {
+		t.Fatalf("tree after the commands = %d %s", status, body)
+	}
+
+	before, _ := os.ReadFile(filepath.Join(dir, "index.html"))
+	if status, body := c.command(id, map[string]any{"command": "create", "template": "blank", "parent": nil, "name": "index.html"}); status != http.StatusConflict {
+		t.Fatalf("create over an existing document = %d %s", status, body)
+	}
+	if status, body := c.command(id, map[string]any{"command": "folder", "parent": nil, "name": "Made"}); status != http.StatusConflict {
+		t.Fatalf("a folder that exists = %d %s", status, body)
+	}
+	if after, _ := os.ReadFile(filepath.Join(dir, "index.html")); !bytes.Equal(before, after) {
+		t.Fatal("a refused create changed the document")
+	}
+	if status, _ := c.command(id, map[string]any{"command": "trash", "path": "index.html"}); status != http.StatusNotImplemented {
+		t.Fatalf("a command group not switched on = %d", status)
+	}
+
+	if writes := guardWrites(t, a, report); len(writes) != 0 {
+		t.Fatalf("the service wrote in the served folder: %v", writes)
+	}
+}
+
+// pageStateFile is where Go keeps a document's page state in a served folder.
+func pageStateFile(dir, name string) string {
+	return filepath.Join(dir, ".hyperclay", "blockeditor-state", filepath.FromSlash(name)+".json")
+}
+
+// TestDashboardCommandsMove renames, moves and duplicates through the dashboard:
+// Go moves each file and carries its page state in the same op, the service
+// writes nothing in the folder, and a name already taken is refused.
+func TestDashboardCommandsMove(t *testing.T) {
+	serviceRepoTarget(t)
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+	writeTestFile(t, filepath.Join(dir, "page.html"), servedTestDocument)
+	writeTestFile(t, filepath.Join(dir, "shelf", "kept.html"), servedTestDocument)
+	writeTestFile(t, pageStateFile(dir, "page.html"), `{"v":1,"rev":"abc","tag":"tag"}`)
+	writeTestFile(t, pageStateFile(dir, "shelf/kept.html"), `{"v":1,"rev":"def","tag":"tag"}`)
+	report := guardService(t, dir)
+
+	a := newServiceTestApp(t, home, t.TempDir())
+	serveThroughDo(t, a, "serve-1", dir, "notes")
+	waitForServiceState(t, a, appcore.ServiceRunning, 20*time.Second)
+	c := openDashboard(t, a)
+	id := c.rootIDOf()
+	exists := func(rel string) bool {
+		_, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel)))
+		return err == nil
+	}
+	stateAt := func(name string) bool {
+		_, err := os.Stat(pageStateFile(dir, name))
+		return err == nil
+	}
+
+	if status, body := c.command(id, map[string]any{"command": "rename", "path": "page.html", "name": "renamed.html"}); status != http.StatusOK || body != `{"path":"renamed.html"}` {
+		t.Fatalf("rename = %d %s", status, body)
+	}
+	if exists("page.html") || !exists("renamed.html") || stateAt("page.html") || !stateAt("renamed.html") {
+		t.Fatalf("after rename: page.html %v, renamed.html %v, state at old %v, at new %v",
+			exists("page.html"), exists("renamed.html"), stateAt("page.html"), stateAt("renamed.html"))
+	}
+
+	if status, body := c.command(id, map[string]any{"command": "move", "path": "renamed.html", "parent": "shelf"}); status != http.StatusOK || body != `{"path":"shelf/renamed.html"}` {
+		t.Fatalf("move = %d %s", status, body)
+	}
+	if exists("renamed.html") || !exists("shelf/renamed.html") || !stateAt("shelf/renamed.html") {
+		t.Fatal("the move did not carry the file and its page state into shelf/")
+	}
+
+	if status, body := c.command(id, map[string]any{"command": "rename", "path": "shelf", "name": "cupboard"}); status != http.StatusOK || body != `{"path":"cupboard"}` {
+		t.Fatalf("folder rename = %d %s", status, body)
+	}
+	if !exists("cupboard/kept.html") || !stateAt("cupboard/kept.html") || stateAt("shelf/kept.html") {
+		t.Fatal("the folder rename did not carry its documents' page state")
+	}
+
+	if status, body := c.command(id, map[string]any{"command": "duplicate", "path": "index.html", "name": "copy.html"}); status != http.StatusOK || body != `{"path":"copy.html"}` {
+		t.Fatalf("duplicate = %d %s", status, body)
+	}
+	original, _ := os.ReadFile(filepath.Join(dir, "index.html"))
+	if copied, err := os.ReadFile(filepath.Join(dir, "copy.html")); err != nil || !bytes.Equal(copied, original) {
+		t.Fatalf("the duplicate = %q, %v", copied, err)
+	}
+
+	if status, body := c.command(id, map[string]any{"command": "rename", "path": "index.html", "name": "copy.html"}); status != http.StatusConflict {
+		t.Fatalf("a rename onto a taken name = %d %s", status, body)
+	}
+	if after, _ := os.ReadFile(filepath.Join(dir, "copy.html")); !bytes.Equal(after, original) || !exists("index.html") {
+		t.Fatal("a refused rename changed a file")
+	}
+	status, body := c.api(http.MethodGet, "/api/roots/"+url.PathEscape(id)+"/tree", nil)
+	for _, want := range []string{`"path":"cupboard/renamed.html"`, `"path":"copy.html"`} {
+		if status != http.StatusOK || !strings.Contains(body, want) {
+			t.Fatalf("tree lacks %s: %d %s", want, status, body)
+		}
+	}
+	if strings.Contains(body, `"path":"shelf`) {
+		t.Fatalf("tree still lists shelf/: %s", body)
+	}
+
+	if writes := guardWrites(t, a, report); len(writes) != 0 {
+		t.Fatalf("the service wrote in the served folder: %v", writes)
+	}
+}

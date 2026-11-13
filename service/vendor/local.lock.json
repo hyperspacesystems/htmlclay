@@ -1,8 +1,8 @@
 {
   "local": {
     "ref": "main",
-    "commit": "ee7dec57b972417b850d211ce10dfd29ea7577fe",
-    "committedAt": "2026-11-13T06:24:07-05:00"
+    "commit": "0cca9e05dbd304a26894fdc56838e4d72977895e",
+    "committedAt": "2026-11-13T06:44:09-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -880,7 +880,7 @@
     "src/main/wire-hub.js": "ed012e212435eebf25657c5c5984d764424adc1ffeae3387b09fa567c4841468",
     "src/main/wire-routes.js": "19673cf59303eaaeab4c56d0c84229bc04fc2c8cf36c4a08c4ccad77e4d843dc",
     "src/main/workspace/auto-name.js": "a9d25957b0489bcbd87426eb00eef257d69bdd226d808d427d9cdbdabddc0a03",
-    "src/main/workspace/commands.js": "19a185d075b640b3c0b3b2c6308046b8b91a2ea55e6759bcbaa41cb615de5410",
+    "src/main/workspace/commands.js": "8f737f706ebac179c792885de495e82c1be94e4d1c72105f035b8127bd3fcfca",
     "src/main/workspace/routes.js": "4ab109426674f3d35c649bb2289e6f9537e5bcc6cca2621a5b07cc4fdcbde300",
     "src/main/workspace/search-index.js": "d46d31878f48740c3210042a17a0afa2dcb2f17921ce6175c3bb83a3f85420d8",
     "src/main/workspace/search-worker.js": "5cd6e42ce579555f788029df8abc19309f0fa4ee187df21db7e5103e9f555b9a",
