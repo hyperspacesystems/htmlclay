@@ -73,6 +73,8 @@ public enum SampleReducer {
             guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
             next.programs[p].allTrustedFolders = on
         case let .setUseName(on): next.preferences.useName = on
+        case let .markSeen(waitingIDs):
+            for i in next.waiting.indices where waitingIDs.contains(next.waiting[i].id) { next.waiting[i].seen = true }
         case let .setAutoUpdate(on): next.update.automatic = on
         case let .trustFolder(name, path):
             guard !next.folders.contains(where: { $0.path == path }) else { return snapshot }
@@ -154,7 +156,8 @@ public enum SampleReducer {
 public final class SampleHost: HostClient {
     public private(set) var persona: Persona
     public private(set) var current: HostSnapshot
-    private var listeners: [@MainActor (HostSnapshot) -> Void] = []
+    private var listeners: [Int: @MainActor (HostSnapshot) -> Void] = [:]
+    private var listenerCount = 0
 
     public init(persona: Persona) {
         self.persona = persona
@@ -166,15 +169,26 @@ public final class SampleHost: HostClient {
         self.persona = persona
         current = SampleData.snapshot(for: persona)
         current.preferences.appearance = appearance
-        listeners.forEach { $0(current) }
+        listeners.values.forEach { $0(current) }
     }
 
     public func load() async throws -> HostSnapshot { current }
 
-    public func perform(_ action: HostAction) async throws -> HostSnapshot {
+    public func perform(_ action: HostAction) async -> HostOutcome {
         current = SampleReducer.apply(action, to: current)
-        listeners.forEach { $0(current) }
-        return current
+        listeners.values.forEach { $0(current) }
+        return .done(current)
+    }
+
+    public func check(_ action: HostAction) async -> Result<HostCheckAnswer, HostRefusal> {
+        switch action {
+        case let .serveFolder(_, name):
+            return .success(HostCheckAnswer(address: "http://\(name).htmlclay.localhost:1212/", name: name))
+        case let .trustFolder(name, path):
+            return .success(HostCheckAnswer(name: name, path: path))
+        default:
+            return .success(HostCheckAnswer())
+        }
     }
 
     @discardableResult
@@ -183,13 +197,16 @@ public final class SampleHost: HostClient {
         if !current.requests.contains(where: { $0.id == sample.request.id }) {
             current.requests.append(sample.request)
             current.waiting.append(sample.item)
-            listeners.forEach { $0(current) }
+            listeners.values.forEach { $0(current) }
         }
         return sample.item
     }
 
-    public func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) {
-        listeners.append(onChange)
+    public func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) -> HostSubscription {
+        listenerCount += 1
+        let key = listenerCount
+        listeners[key] = onChange
+        return HostSubscription { [weak self] in self?.listeners[key] = nil }
     }
 
     public func canToggle(_ overlay: PreviewOverlay) -> Bool {
@@ -237,6 +254,6 @@ public final class SampleHost: HostClient {
             current.waiting.removeAll { $0.id == "w-missing-" + SampleData.overlayTeamID }
             if on { current.waiting.append(WaitingItem(id: "w-missing-" + SampleData.overlayTeamID, kind: .folderMissing, title: current.folders[i].path + " isn't there any more", subjectID: SampleData.overlayTeamID)) }
         }
-        listeners.forEach { $0(current) }
+        listeners.values.forEach { $0(current) }
     }
 }

@@ -374,6 +374,7 @@ public enum HostAction: Equatable, Sendable {
     case finishUpdate
     case restartHost
     case moveFromLocal(folderIDs: [String])
+    case markSeen(waitingIDs: [String])
 }
 
 public enum PreviewOverlay: String, CaseIterable, Sendable {

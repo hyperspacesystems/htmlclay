@@ -125,13 +125,13 @@ final class CoreTests: XCTestCase {
         let host = SampleHost(persona: .trustedFolder)
         let model = AppModel(host: host, initial: host.current)
         model.route = .folder("journal")
-        _ = try await host.perform(.mergeIntoParent(folderID: "journal"))
+        _ = await host.perform(.mergeIntoParent(folderID: "journal"))
         XCTAssertEqual(model.route, .pane(.folders))
     }
 
     func testPretendKeepsAppearance() async throws {
         let host = SampleHost(persona: .newPerson)
-        _ = try await host.perform(.setAppearance(.dark))
+        _ = await host.perform(.setAppearance(.dark))
         host.pretend(.servedFolder)
         XCTAssertEqual(host.current.preferences.appearance, .dark)
     }

@@ -52,7 +52,7 @@ final class SettingsTests: XCTestCase {
 
         let host = SampleHost(persona: .syncedWithTeams)
         let model = AppModel(host: host, initial: host.current)
-        _ = try await host.perform(.setServed(folderID: "panphora", on: false))
+        _ = await host.perform(.setServed(folderID: "panphora", on: false))
         XCTAssertEqual(model.snapshot.folder("panphora")?.served, false)
 
         let hosting = NSHostingView(rootView: KilnRoot { SettingsView(route: .folder("panphora")) }.environment(model))
@@ -85,7 +85,7 @@ final class SettingsTests: XCTestCase {
 
         let host = SampleHost(persona: .servedFolder)
         let model = AppModel(host: host, initial: host.current)
-        _ = try await host.perform(.removeProgramAccess(programID: "search-sh", document: "notes.htmlclay"))
+        _ = await host.perform(.removeProgramAccess(programID: "search-sh", document: "notes.htmlclay"))
         XCTAssertEqual(host.current.program("search-sh")?.allowedDocuments, [])
         XCTAssertEqual(host.current.program("search-sh")?.removedDocuments, ["notes.htmlclay"])
 
@@ -124,10 +124,10 @@ final class SettingsTests: XCTestCase {
 
         let host = SampleHost(persona: .newPerson)
         XCTAssertFalse(host.current.sync.connected)
-        _ = try await host.perform(.connectSample)
+        _ = await host.perform(.connectSample)
         XCTAssertTrue(host.current.sync.connected)
         XCTAssertEqual(SyncPane.orderedFolders(host.current).map(\.id), ["panphora"])
-        _ = try await host.perform(.disconnect)
+        _ = await host.perform(.disconnect)
         XCTAssertFalse(host.current.sync.connected)
 
         for persona in [Persona.newPerson, .syncedWithTeams] {

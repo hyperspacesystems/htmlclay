@@ -9,13 +9,15 @@ public final class AppModel {
     public var route: SettingsRoute = .pane(.general)
     public var sheet: PreviewSheet?
     public private(set) var note: String?
+    public private(set) var lastRefusal: HostRefusal?
     private var noteToken = 0
     private let host: HostClient
+    private var subscription: HostSubscription?
 
     public init(host: HostClient, initial: HostSnapshot) {
         self.host = host
         self.snapshot = initial
-        host.subscribe { [weak self] in self?.receive($0) }
+        subscription = host.subscribe { [weak self] in self?.receive($0) }
     }
 
     public var settingsPane: SettingsPane {
@@ -25,7 +27,12 @@ public final class AppModel {
 
     public func send(_ action: HostAction) {
         Task { [host] in
-            if let next = try? await host.perform(action) { self.receive(next) }
+            switch await host.perform(action) {
+            case let .done(next): self.receive(next)
+            case let .refused(refusal):
+                self.lastRefusal = refusal
+                self.say(refusal.text)
+            }
         }
     }
 
@@ -63,5 +70,6 @@ public final class AppModel {
 
     public func markWaitingSeen() {
         seenWaiting.formUnion(snapshot.waiting.map(\.id))
+        if !snapshot.waiting.isEmpty { send(.markSeen(waitingIDs: snapshot.waiting.map(\.id))) }
     }
 }
