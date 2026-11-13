@@ -255,6 +255,12 @@ func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refu
 		resolved = abs
 	}
 
+	// A folder that was stopped keeps its entry, and so its name, in the config:
+	// serving it again resumes that entry instead of adding a second one.
+	if entry, ok := a.rt.cfg.ServedFolderForPath(resolved); ok && !entry.Serving {
+		return a.resumeServedFolder(entry)
+	}
+
 	localRoots := []string{}
 	for _, root := range wireLocalRoots(wireLocalRootsPath()) {
 		localRoots = append(localRoots, root.Path)
@@ -301,6 +307,102 @@ func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refu
 	}
 	return entry, nil, nil
 }
+
+// resumeServedFolder serves a folder again that an earlier stopServing left in
+// the config with Serving false. It keeps the entry's name, which a requested name
+// never replaces, and it asks the same rules as a first serve: the entry is left
+// out of the served folders the rules see, so it does not overlap itself, while a
+// folder that has since become nested in a trusted folder or bound to Hyperclay
+// Local sync is still refused. An entry whose folder was replaced is refused
+// naming the old entry, and nothing new is recorded.
+func (a *app) resumeServedFolder(entry config.ServedFolder) (config.ServedFolder, *appcore.Refusal, error) {
+	if !trust.IdentityOK(entry.Path, entry.Identity, a.rt.home) {
+		return config.ServedFolder{}, &appcore.Refusal{Code: appcore.RefuseOverlapsServed, OtherPath: entry.Path, OtherName: entry.Name}, nil
+	}
+
+	served := []config.ServedFolder{}
+	for _, f := range a.rt.cfg.ServedFolderList() {
+		if f.ID != entry.ID {
+			served = append(served, f)
+		}
+	}
+	localRoots := []string{}
+	for _, root := range wireLocalRoots(wireLocalRootsPath()) {
+		localRoots = append(localRoots, root.Path)
+	}
+
+	facts := appcore.GatherServeFacts(appcore.ServeInputs{
+		Path:      entry.Path,
+		Name:      entry.Name,
+		Home:      a.rt.home,
+		Protected: []string{a.rt.configDir},
+		Served:    served,
+		Trusted:   a.rt.cfg.TrustedFolderList(),
+		// The resumed name is the entry's own, so it is not taken by it.
+		NameAvailable: func(name string) error {
+			if name == entry.Name {
+				return nil
+			}
+			return a.rt.cfg.ServedNameAvailable(name)
+		},
+		LocalServed: localRoots,
+	})
+	if refusal := appcore.CheckServe(facts); refusal != nil {
+		return config.ServedFolder{}, refusal, nil
+	}
+
+	lock, err := a.servedFolderLock(facts.Path)
+	if err != nil {
+		if errors.Is(err, folderlock.ErrHeld) {
+			return config.ServedFolder{}, &appcore.Refusal{Code: appcore.RefuseServedElsewhere, OtherPath: facts.Path}, nil
+		}
+		return config.ServedFolder{}, nil, err
+	}
+
+	a.closeSitesForServed(facts.Path)
+
+	if !a.rt.cfg.SetServing(entry.ID, true) {
+		lock.Release()
+		return config.ServedFolder{}, nil, fmt.Errorf("no served folder with id %q", entry.ID)
+	}
+	entry.Serving = true
+	a.saveConfig("serve " + entry.Name)
+
+	if err := a.mountServedHeld(entry, lock); err != nil {
+		lock.Release()
+		a.rt.cfg.SetServing(entry.ID, false)
+		a.saveConfig("failed serve " + entry.Name)
+		return config.ServedFolder{}, nil, err
+	}
+	return entry, nil, nil
+}
+
+// serveFolderNamed serves path under name, or under DefaultServedName of its
+// base name when name is empty. It answers the entry served (whose name may differ
+// from the one asked for, on a resume) or a refusal.
+func (a *app) serveFolderNamed(path, name string) (config.ServedFolder, *appcore.Refusal, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return config.ServedFolder{}, nil, err
+	}
+	if name == "" {
+		name = appcore.DefaultServedName(filepath.Base(abs), a.rt.cfg.ServedNameAvailable)
+	}
+	return a.serveFolder(abs, name)
+}
+
+// stopServingNamed stops the served folder named name. errNoServedFolder says no
+// served folder has that name.
+func (a *app) stopServingNamed(name string) error {
+	f, ok := a.rt.cfg.ServedFolderByName(name)
+	if !ok {
+		return errNoServedFolder
+	}
+	return a.stopServing(f.ID)
+}
+
+// errNoServedFolder is the answer to a stop for a name no served folder has.
+var errNoServedFolder = errors.New("no served folder has that name")
 
 // closeSitesForServed closes every site that could still write a file inside p,
 // before p becomes a served folder and its own host takes over those files.

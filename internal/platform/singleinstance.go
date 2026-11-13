@@ -49,7 +49,7 @@ func verifyBanner(c net.Conn) bool {
 // first, so such a build times out and drops the frame instead of opening it.
 const (
 	commandPrefix = 0
-	maxCommand    = 256
+	maxCommand    = 4096
 	maxAnswer     = 1024
 )
 
@@ -124,7 +124,7 @@ func answerCommand(c net.Conn, r *bufio.Reader, refusal string, handler func(str
 // reads the one-line answer.
 func exchangeCommand(c net.Conn, cmd string) (string, error) {
 	if cmd == "" || len(cmd) > maxCommand || strings.ContainsAny(cmd, "\x00\n") {
-		return "", errors.New("a command is one line of at most 256 bytes")
+		return "", errors.New("a command is one line of at most 4096 bytes")
 	}
 	c.SetWriteDeadline(time.Now().Add(2 * time.Second))
 	if _, err := io.WriteString(c, "\x00"+cmd+"\n"); err != nil {

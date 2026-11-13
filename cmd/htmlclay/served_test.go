@@ -685,3 +685,45 @@ func TestServedLockSkippedAtStartup(t *testing.T) {
 		t.Fatalf("stored entry = %+v (found %v), want it to keep Serving true", stored, ok)
 	}
 }
+
+func TestServedServeAgainAfterStop(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+
+	a := newServedTestApp(t, home, t.TempDir())
+	entry, refusal, err := a.serveFolder(dir, "notes")
+	if err != nil || refusal != nil {
+		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+	}
+	if err := a.stopServing(entry.ID); err != nil {
+		t.Fatalf("stopServing: %v", err)
+	}
+
+	again, refusal, err := a.serveFolder(dir, "other")
+	if err != nil {
+		t.Fatalf("serveFolder again: %v", err)
+	}
+	if refusal != nil {
+		t.Fatalf("serving a stopped folder again was refused: %+v", refusal)
+	}
+	if again.Name != "notes" || again.ID != entry.ID {
+		t.Fatalf("served again as %+v, want the stopped entry %s as notes", again, entry.ID)
+	}
+
+	host := servedHostName("notes", servedTestPort)
+	if rec := servedRequest(t, a, http.MethodGet, host, "/index.html", "", nil); rec.Code != http.StatusOK {
+		t.Fatalf("GET index.html after serving again = %d, want 200 (%s)", rec.Code, rec.Body.String())
+	}
+
+	list := a.rt.cfg.ServedFolderList()
+	if len(list) != 1 {
+		t.Fatalf("config holds %d served folders, want one: %+v", len(list), list)
+	}
+	if !list[0].Serving {
+		t.Fatalf("the served folder is not serving: %+v", list[0])
+	}
+}

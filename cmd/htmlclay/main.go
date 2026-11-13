@@ -233,6 +233,10 @@ func main() {
 	if code, handled := updateNowDispatch(os.Args); handled {
 		os.Exit(code)
 	}
+	// serve and stop-serving are clients of the running app too, for the same reasons.
+	if code, handled := serveDispatch(os.Args); handled {
+		os.Exit(code)
+	}
 
 	releaseOwnConsole()
 

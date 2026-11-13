@@ -101,12 +101,23 @@ func runUpdateNow(si platform.SingleInstance, args []string, stdout, stderr io.W
 // socket. The socket only carries frames from this user's own processes.
 func (a *app) handleInstanceCommand(cmd string) string {
 	fields := strings.Fields(cmd)
-	if len(fields) != 2 || fields[0] != "update-now" {
+	if len(fields) == 0 {
 		return "refused unknown command"
 	}
-	answer := a.updateNow(fields[1])
-	a.rt.logger.Printf("update-now %s: %s", fields[1], answer)
-	return answer
+	switch fields[0] {
+	case "update-now":
+		if len(fields) != 2 {
+			return "refused unknown command"
+		}
+		answer := a.updateNow(fields[1])
+		a.rt.logger.Printf("update-now %s: %s", fields[1], answer)
+		return answer
+	case "serve":
+		return a.handleServeCommand(fields[1:])
+	case "stop-serving":
+		return a.handleStopServingCommand(fields[1:])
+	}
+	return "refused unknown command"
 }
 
 // updateNow starts the update to target through the tray's own click, or says
