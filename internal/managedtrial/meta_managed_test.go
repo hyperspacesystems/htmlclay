@@ -17,7 +17,7 @@ import (
 // localMetaExtensions is Local's own /_/meta list, written out here as Local
 // sorts it so the full-host announcement is pinned to a copy rather than to the
 // variable it comes from.
-const localMetaExtensions = "conditional,data-guard-v1,data-read,data-write,format,live-data,live-provenance,page,blockeditor-awareness-v1,blockeditor-format-v1,blockeditor-recovery-v1,people,presence,receipts,record-awareness-v1,scoped-stylesheet,sync,sync-worker,sync-worker-data,upload,wire"
+const localMetaExtensions = "blockeditor,blockeditor-awareness-v1,blockeditor-format-v1,blockeditor-recovery-v1,conditional,data-guard-v1,data-read,data-write,format,live-data,live-provenance,people,presence,receipts,record-awareness-v1,scoped-stylesheet,sync,sync-worker,sync-worker-data,upload,wire"
 
 // metaExtensions reads the extensions array out of one /_/meta answer.
 func metaExtensions(t *testing.T, server *httptest.Server) []string {

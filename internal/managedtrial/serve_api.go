@@ -367,7 +367,7 @@ func (s *rootServer) serveAPIGet(w http.ResponseWriter, r *http.Request, name st
 	if query.unusable() {
 		return apiAnswer(w, r, http.StatusBadRequest, query.failure)
 	}
-	sourcePath, err := resolveWritePath(s.registry, name)
+	sourcePath, err := resolveWriteTarget(s.registry, name)
 	if err != nil {
 		if status, body, ok := apiReadTargetError(err); ok {
 			return apiAnswer(w, r, status, body)
@@ -512,7 +512,7 @@ func (s *rootServer) serveAPIWrite(w http.ResponseWriter, r *http.Request, name 
 	if err != nil {
 		return apiAnswer(w, r, http.StatusBadRequest, apiInvalidJSONBody)
 	}
-	sourcePath, err := resolveWritePath(s.registry, name)
+	sourcePath, err := resolveWriteTarget(s.registry, name)
 	if err != nil {
 		if status, errorBody, ok := apiReadTargetError(err); ok {
 			return apiAnswer(w, r, status, errorBody)
