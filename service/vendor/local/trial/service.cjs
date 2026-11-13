@@ -44,7 +44,7 @@ const RECOVER_ATTEMPTS = 20;
 const RECOVER_DELAY_MS = 500;
 // The room-owning public routes Go forwards arrive under this prefix.
 const ROUTE_PREFIX = '/v1/route';
-const SUPERVISOR_PATHS = new Set(['/v1/flush', '/v1/peer', '/v1/snapshot/take', '/v1/checkpoint-wait']);
+const SUPERVISOR_PATHS = new Set(['/v1/flush', '/v1/peer', '/v1/snapshot/take', '/v1/checkpoint-wait', '/v1/roots']);
 
 // The consultation a piece of room code is running for, so the authority's
 // recovered-copy writer knows where its artifact goes.
@@ -875,7 +875,12 @@ function createTrialService({
   function forwardToApp(req, res) {
     const record = roots.get(String(req.headers['x-trial-root'] ?? ''));
     const publicHost = req.headers['x-trial-public-host'];
-    if (!record || !record.app || typeof publicHost !== 'string' || !publicHost) return send(res, 400, { error: 'route' });
+    if (typeof publicHost !== 'string' || !publicHost) return send(res, 400, { error: 'route' });
+    if (!record || !record.app) return send(res, 404, { error: 'unknown-root' });
+    // Removing the root ends its open event streams (removeRoot); every other
+    // response is left to finish.
+    record.responses.add(res);
+    res.on('close', () => record.responses.delete(res));
     req.url = req.url.slice(ROUTE_PREFIX.length) || '/';
     if (!req.url.startsWith('/')) req.url = `/${req.url}`;
     req.headers.host = publicHost;
@@ -938,13 +943,54 @@ function createTrialService({
   }
 
   // The supervisor's calls (protocol v1, "The supervisor calls the service").
+  function describeUnsaved(keys) {
+    return keys.map((key) => {
+      const target = authority.checkpointTargets(key)[0];
+      return target ? { root: target.rootId, name: target.logicalPath } : { root: null, name: key };
+    });
+  }
+
+  // Roots come and go while the service runs: Go adds one when a folder starts
+  // being served and removes it when it stops (protocol v1, POST /v1/roots). A
+  // removal flushes the root's dirty rooms first; if any stays unsaved, or the
+  // deadline passes, the root stays and the answer lists it under `kept`, so Go
+  // keeps the folder served and the person can retry.
+  handlers.set('/v1/roots', (body, reply) => {
+    const add = body.add ?? [];
+    const remove = body.remove ?? [];
+    const validEntry = (e) => e && typeof e.id === 'string' && e.id && typeof e.path === 'string' && e.path &&
+      typeof e.url === 'string' && e.url;
+    if (!Array.isArray(add) || !Array.isArray(remove) || !add.every(validEntry) ||
+      !remove.every((id) => typeof id === 'string' && id)) {
+      reply({ error: 'bad-request' }, 400);
+      return;
+    }
+    if (!go) {
+      reply({ error: 'not-attached' }, 409);
+      return;
+    }
+    const deadlineMs = Number(body.deadlineMs) || 5000;
+    (async () => {
+      const added = [];
+      const removed = [];
+      const kept = [];
+      for (const entry of add) {
+        await addRoot(entry);
+        added.push(entry.id);
+      }
+      for (const id of remove) {
+        const outcome = await removeRoot(id, deadlineMs);
+        if (outcome.removed) removed.push(id);
+        else kept.push({ id, unsaved: outcome.unsaved, timedOut: outcome.timedOut });
+      }
+      if (added.length) recoverUnconfirmed().catch((error) => logError('recovering unconfirmed documents failed:', error));
+      reply({ added, removed, kept });
+    })().catch((error) => reply({ error: failedWith(error), code: error.code }, error.code === 'root-conflict' ? 409 : 500));
+  });
+
   handlers.set('/v1/flush', (body, reply) => {
     checkpoint.flushDirty({ timeoutMs: Number(body.deadlineMs) || 5000 }).then((result) => {
-      const unsaved = result.unsaved.map((key) => {
-        const target = authority.checkpointTargets(key)[0];
-        return target ? { root: target.rootId, name: target.logicalPath } : { root: null, name: key };
-      });
-      reply({ unsaved, timedOut: Boolean(result.timedOut) });
+      reply({ unsaved: describeUnsaved(result.unsaved), timedOut: Boolean(result.timedOut) });
     }, (error) => reply({ error: failedWith(error) }, 500));
   });
 
@@ -1085,6 +1131,65 @@ function createTrialService({
     });
   }
 
+  // One root Go serves: its live hub, observer, Go adapter and Local's own app on
+  // the forwarded routes. Adding a root that is already there from the same folder
+  // changes nothing.
+  async function addRoot(entry) {
+    const canonical = realpathSync(entry.path);
+    const existing = roots.get(entry.id);
+    if (existing) {
+      if (existing.path === canonical) return;
+      throw Object.assign(new Error(`root ${entry.id} is already served from another folder`), { code: 'root-conflict' });
+    }
+    getConnection().roots[canonical] = entry.id;
+    // `origin` is the root's whole public origin, the one Go serves it at:
+    // Local's own-origin and Host checks compare a tab's with it (server.js
+    // `isOwnOrigin`, `isOwnHostHeader`), because folders can share one port.
+    const publicURL = new URL(entry.url);
+    const root = { id: entry.id, path: canonical, port: Number(publicURL.port), origin: publicURL.origin };
+    const live = createRootLive(root);
+    const ctx = { root, live, localAuthority: authority, localCheckpoint: checkpoint };
+    ctx.observer = new RootObserver(root, { live, localAuthority: authority });
+    await withStructureChange(() => authority.registerRoot({ id: root.id, path: canonical, canonicalPath: canonical }));
+    // Local's checkpoint scheduler writes a dirty room through this root's
+    // host; here that is the Go adapter (POST /v1/checkpoint), as it is for
+    // the app Local mounts on the forwarded routes (server.js registerHost).
+    const goHost = createGoDocumentHost({ ctx });
+    checkpoint.registerHost(root.id, goHost);
+    const record = {
+      id: root.id, path: canonical, origin: entry.url, live, ctx, observer: ctx.observer, goHost, lanes: inProcessLanes(ctx),
+      responses: new Set(),
+    };
+    // Local's own app answers the routes Go forwards. Its document host is
+    // the Go adapter (this process runs with the trial switch on), which it
+    // registers with the checkpoint service in place of goHost.
+    record.app = createApp({ ...ctx, devHooks: null, isKnownPath: null });
+    roots.set(root.id, record);
+    rootsByPath.set(canonical, record);
+  }
+
+  // Stops serving one root: flush its dirty rooms through Go, then end its event
+  // streams and forget it. A room still unsaved after the flush keeps the root.
+  async function removeRoot(id, deadlineMs) {
+    const record = roots.get(id);
+    if (!record) return { removed: true };
+    const flushed = await checkpoint.flushDirty({ timeoutMs: deadlineMs, rootId: id });
+    if (flushed.unsaved.length > 0 || flushed.timedOut) {
+      return { removed: false, unsaved: describeUnsaved(flushed.unsaved), timedOut: Boolean(flushed.timedOut) };
+    }
+    roots.delete(id);
+    rootsByPath.delete(record.path);
+    const connection = getConnection();
+    if (connection) delete connection.roots[record.path];
+    for (const res of record.responses) {
+      if (String(res.getHeader('content-type') ?? '').startsWith('text/event-stream')) res.end();
+    }
+    checkpoint.unregisterWriter(id);
+    await withStructureChange(() => authority.closeRoot(id));
+    await record.observer.stop();
+    return { removed: true };
+  }
+
   const server = http.createServer((req, res) => {
     handle(req, res).catch((error) => {
       if (!res.headersSent) send(res, error.status || 500, { error: error.message });
@@ -1113,35 +1218,8 @@ function createTrialService({
     // it serves (`{ id, path, url }` from its READY line).
     async attachGo({ url, secret: goSecret, epoch: goEpoch, roots: served }) {
       go = { url, secret: goSecret, epoch: goEpoch };
-      const byPath = {};
-      for (const entry of served) byPath[realpathSync(entry.path)] = entry.id;
-      setConnection({ url, secret: goSecret, epoch, peerEpoch: goEpoch, roots: byPath });
-      for (const entry of served) {
-        const canonical = realpathSync(entry.path);
-        // `origin` is the root's whole public origin, the one Go serves it at:
-        // Local's own-origin and Host checks compare a tab's with it (server.js
-        // `isOwnOrigin`, `isOwnHostHeader`), because folders can share one port.
-        const publicURL = new URL(entry.url);
-        const root = { id: entry.id, path: canonical, port: Number(publicURL.port), origin: publicURL.origin };
-        const live = createRootLive(root);
-        const ctx = { root, live, localAuthority: authority, localCheckpoint: checkpoint };
-        ctx.observer = new RootObserver(root, { live, localAuthority: authority });
-        await withStructureChange(() => authority.registerRoot({ id: root.id, path: canonical, canonicalPath: canonical }));
-        // Local's checkpoint scheduler writes a dirty room through this root's
-        // host; here that is the Go adapter (POST /v1/checkpoint), as it is for
-        // the app Local mounts on the forwarded routes (server.js registerHost).
-        const goHost = createGoDocumentHost({ ctx });
-        checkpoint.registerHost(root.id, goHost);
-        const record = {
-          id: root.id, path: canonical, origin: entry.url, live, ctx, observer: ctx.observer, goHost, lanes: inProcessLanes(ctx),
-        };
-        // Local's own app answers the routes Go forwards. Its document host is
-        // the Go adapter (this process runs with the trial switch on), which it
-        // registers with the checkpoint service in place of goHost.
-        record.app = createApp({ ...ctx, devHooks: null, isKnownPath: null });
-        roots.set(root.id, record);
-        rootsByPath.set(canonical, record);
-      }
+      setConnection({ url, secret: goSecret, epoch, peerEpoch: goEpoch, roots: {} });
+      for (const entry of served) await addRoot(entry);
       events?.();
       events = followEvents();
       recoverUnconfirmed().catch((error) => logError('recovering unconfirmed documents failed:', error));
