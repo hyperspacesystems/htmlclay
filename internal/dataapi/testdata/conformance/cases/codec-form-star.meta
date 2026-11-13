@@ -1,0 +1,6 @@
+tier: 1
+face: tag
+token: api
+expect: error
+note: RulesParseError. A codec owns one element's whole value, so it cannot be spread over
+note: every match of a [*] rule.

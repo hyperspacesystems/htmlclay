@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "range B1 writes into a merged cell's covered position",
+  "status": 400,
+  "code": "covered_cell"
+}

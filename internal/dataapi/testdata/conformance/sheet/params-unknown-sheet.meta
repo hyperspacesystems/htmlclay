@@ -1,0 +1,6 @@
+tier: 1
+face: params
+token: api
+expect: error
+params: sheet=Nope
+note: an unknown sheet is refused by the read

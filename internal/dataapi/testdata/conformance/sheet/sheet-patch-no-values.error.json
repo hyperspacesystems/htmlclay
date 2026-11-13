@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "values is a non-empty array of rows, each an array of values",
+  "status": 400,
+  "code": "bad_patch"
+}

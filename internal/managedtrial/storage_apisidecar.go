@@ -206,25 +206,14 @@ func writeAPISidecar(baseDir, name, html string) {
 // JSON.stringify encodes it. A document with no api tag yields nil bytes, which
 // is the delete signal.
 func extractAPIData(html string) ([]byte, error) {
-	document, err := dataapi.ParseBytes([]byte(html))
+	result, err := dataapi.ReadDocument([]byte(html), dataapi.ReadOptions{})
 	if err != nil {
 		return nil, err
 	}
-	tag, err := document.FindRulesIn("api")
-	if err != nil {
-		return nil, err
-	}
-	if tag == nil {
+	if result.Data == nil {
 		return nil, nil
 	}
-	value, err := document.Extract(tag.Rules)
-	if err != nil {
-		return nil, err
-	}
-	if value == nil {
-		return nil, nil
-	}
-	return dataapi.Marshal(value)
+	return dataapi.Marshal(result.Data)
 }
 
 // deleteAPISidecar removes the sidecar if present. Non-fatal.

@@ -203,6 +203,9 @@ func writeErrorName(err error) string {
 		shape    *ShapeMismatch
 		empty    *EmptyListInsert
 		readOnly *RuleTargetReadOnly
+
+		unknownCodec *UnknownCodec
+		codecRefused *CodecRefused
 	)
 	switch {
 	case errors.As(err, &noRules):
@@ -217,6 +220,10 @@ func writeErrorName(err error) string {
 		return "EmptyListInsert"
 	case errors.As(err, &readOnly):
 		return "RuleTargetReadOnly"
+	case errors.As(err, &unknownCodec):
+		return "UnknownCodec"
+	case errors.As(err, &codecRefused):
+		return "CodecRefused"
 	}
 	return fmt.Sprintf("%T", err)
 }

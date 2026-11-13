@@ -9,22 +9,24 @@ import (
 )
 
 type Destruction struct {
-	DestroyedLeaves   int      `json:"destroyedLeaves"`
-	RemovedItems      int      `json:"removedItems"`
-	ItemWipes         int      `json:"itemWipes"`
-	HugeWipes         int      `json:"hugeWipes"`
-	PlaceholderResets int      `json:"placeholderResets"`
-	ModifiedAtoms     int      `json:"modifiedAtoms"`
-	LeafCount         int      `json:"leafCount"`
-	MeaningfulCount   int      `json:"meaningfulCount"`
-	DestroyedMass     int      `json:"destroyedMass"`
-	TotalMass         int      `json:"totalMass"`
-	LeafFrac          float64  `json:"leafFrac"`
-	MassFrac          float64  `json:"massFrac"`
-	ResetFrac         float64  `json:"resetFrac"`
-	AnyDestruction    bool     `json:"anyDestruction"`
-	FuzzyFallback     bool     `json:"fuzzyFallback"`
-	Paths             []string `json:"paths"`
+	DestroyedLeaves      int      `json:"destroyedLeaves"`
+	RemovedItems         int      `json:"removedItems"`
+	ItemWipes            int      `json:"itemWipes"`
+	HugeWipes            int      `json:"hugeWipes"`
+	PlaceholderResets    int      `json:"placeholderResets"`
+	ModifiedAtoms        int      `json:"modifiedAtoms"`
+	LeafCount            int      `json:"leafCount"`
+	CodecLeaves          int      `json:"codecLeaves"`
+	CodecDestroyedLeaves int      `json:"codecDestroyedLeaves"`
+	MeaningfulCount      int      `json:"meaningfulCount"`
+	DestroyedMass        int      `json:"destroyedMass"`
+	TotalMass            int      `json:"totalMass"`
+	LeafFrac             float64  `json:"leafFrac"`
+	MassFrac             float64  `json:"massFrac"`
+	ResetFrac            float64  `json:"resetFrac"`
+	AnyDestruction       bool     `json:"anyDestruction"`
+	FuzzyFallback        bool     `json:"fuzzyFallback"`
+	Paths                []string `json:"paths"`
 }
 
 var idKeys = []string{"id", "_id", "key", "uid", "slug"}
@@ -49,9 +51,17 @@ type scoredPair struct {
 func ClassifyDestruction(base, inc dataapi.Value) *Destruction {
 	D := &Destruction{Paths: []string{}}
 	for _, key := range objectKeyList(base) {
+		if key == CodecsKey || key == FormKey {
+			continue
+		}
 		baseVal, _ := objectLookup(base, key)
 		incVal, _ := objectLookup(inc, key)
-		walk(baseVal, incVal, D, []pathSeg{{key: key}})
+		was, now := codecDeclarations(base, key), codecDeclarations(inc, key)
+		if (was != nil || now != nil) && isPlainObject(baseVal) {
+			walkData(baseVal, incVal, D, []pathSeg{{key: key}}, was, now)
+		} else {
+			walk(baseVal, incVal, D, []pathSeg{{key: key}})
+		}
 	}
 	if D.LeafCount > 0 {
 		D.LeafFrac = float64(D.DestroyedLeaves) / float64(D.LeafCount)
@@ -307,21 +317,6 @@ func walkItemList(baseArr, incArr []dataapi.Value, D *Destruction, path []pathSe
 	n := len(baseArr)
 	m := len(incArr)
 
-	if n*m > fuzzyPairBudget {
-		D.FuzzyFallback = true
-		pairs := n
-		if m < pairs {
-			pairs = m
-		}
-		for i := 0; i < pairs; i++ {
-			classifyMatchedItem(baseArr[i], incArr[i], D, pathWith(path, indexSeg(i)))
-		}
-		if n > m {
-			D.RemovedItems += n - m
-		}
-		return
-	}
-
 	baseMatched := make([]bool, n)
 	incMatched := make([]bool, m)
 	var pairs []itemPair
@@ -368,57 +363,79 @@ func walkItemList(baseArr, incArr []dataapi.Value, D *Destruction, path []pathSe
 		}
 	}
 
-	var candidates []scoredPair
-	for i := 0; i < n; i++ {
-		if baseMatched[i] {
-			continue
-		}
-		for j := 0; j < m; j++ {
-			if incMatched[j] {
-				continue
-			}
-			sim := ItemSimilarity(baseArr[i], incArr[j])
-			if sim >= FuzzyMatchThreshold {
-				candidates = append(candidates, scoredPair{sim, i, j})
-			}
+	var baseLeft, incLeft []int
+	for i := range baseArr {
+		if !baseMatched[i] {
+			baseLeft = append(baseLeft, i)
 		}
 	}
-	sort.SliceStable(candidates, func(a, b int) bool { return candidates[a].sim > candidates[b].sim })
-	for _, c := range candidates {
-		if baseMatched[c.base] || incMatched[c.inc] {
-			continue
+	for i := range incArr {
+		if !incMatched[i] {
+			incLeft = append(incLeft, i)
 		}
-		baseMatched[c.base] = true
-		incMatched[c.inc] = true
-		pairs = append(pairs, itemPair{c.base, c.inc})
 	}
+	if len(baseLeft)*len(incLeft) > fuzzyPairBudget {
+		D.FuzzyFallback = true
+		for k := 0; k < min(len(baseLeft), len(incLeft)); k++ {
+			i, j := baseLeft[k], incLeft[k]
+			baseMatched[i], incMatched[j] = true, true
+			pairs = append(pairs, itemPair{i, j})
+		}
+	} else {
 
-	var leftover []scoredPair
-	for i := 0; i < n; i++ {
-		if baseMatched[i] {
-			continue
-		}
-		if _, ok := itemID(baseArr[i]); ok {
-			continue
-		}
-		for j := 0; j < m; j++ {
-			if incMatched[j] {
+		var candidates []scoredPair
+		for i := 0; i < n; i++ {
+			if baseMatched[i] {
 				continue
 			}
-			if _, ok := itemID(incArr[j]); ok {
+			for j := 0; j < m; j++ {
+				if incMatched[j] {
+					continue
+				}
+				sim := ItemSimilarity(baseArr[i], incArr[j])
+				if sim >= FuzzyMatchThreshold {
+					candidates = append(candidates, scoredPair{sim, i, j})
+				}
+			}
+		}
+		sort.SliceStable(candidates, func(a, b int) bool { return candidates[a].sim > candidates[b].sim })
+		for _, c := range candidates {
+			if baseMatched[c.base] || incMatched[c.inc] {
 				continue
 			}
-			leftover = append(leftover, scoredPair{ItemSimilarity(baseArr[i], incArr[j]), i, j})
+			baseMatched[c.base] = true
+			incMatched[c.inc] = true
+			pairs = append(pairs, itemPair{c.base, c.inc})
 		}
-	}
-	sort.SliceStable(leftover, func(a, b int) bool { return leftover[a].sim > leftover[b].sim })
-	for _, c := range leftover {
-		if baseMatched[c.base] || incMatched[c.inc] {
-			continue
+
+		var leftover []scoredPair
+		for i := 0; i < n; i++ {
+			if baseMatched[i] {
+				continue
+			}
+			if _, ok := itemID(baseArr[i]); ok {
+				continue
+			}
+			for j := 0; j < m; j++ {
+				if incMatched[j] {
+					continue
+				}
+				if _, ok := itemID(incArr[j]); ok {
+					continue
+				}
+				leftover = append(leftover, scoredPair{ItemSimilarity(baseArr[i], incArr[j]), i, j})
+			}
 		}
-		baseMatched[c.base] = true
-		incMatched[c.inc] = true
-		pairs = append(pairs, itemPair{c.base, c.inc})
+		sort.SliceStable(leftover, func(a, b int) bool { return leftover[a].sim > leftover[b].sim })
+		for _, c := range leftover {
+			if baseMatched[c.base] || incMatched[c.inc] {
+				continue
+			}
+			baseMatched[c.base] = true
+			incMatched[c.inc] = true
+			pairs = append(pairs, itemPair{c.base, c.inc})
+		}
+
 	}
 
 	for _, p := range pairs {

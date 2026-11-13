@@ -13,6 +13,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/dataapi"
 	"github.com/panphora/htmlclay/internal/dataguard"
+	"github.com/panphora/htmlclay/internal/gridcodec"
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/pageadmission"
 	"github.com/panphora/htmlclay/internal/session"
@@ -27,6 +28,7 @@ const maxDataWriteSize = 1 << 20
 type writeErrorBody struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
 	Details any    `json:"details,omitempty"`
 }
 
@@ -241,6 +243,14 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		return
 	}
 
+	if mode.face == faceAPI {
+		stripped := htmlutil.StripToken(current)
+		if rules, _, found, rErr := dataapi.DocumentRules(stripped, "api"); rErr == nil && found && dataapi.IsPatchBody(data, rules) {
+			s.patchApplied(w, r, f, current, data)
+			return
+		}
+	}
+
 	var res *dataapi.WriteResult
 	var err error
 	if mode.face == faceQuery {
@@ -312,11 +322,70 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 	f.Unlock()
 
 	if res.Changed {
-		s.observeWrite(f, key, current, written, dataguard.External)
+		ifMatch, _ := listHeader(r, "If-Match")
+		s.observeWrite(f, key, current, written, dataguard.External, dataguard.NamesExactVersion(ifMatch))
 		s.versions.MaybePrune(key, f.AbsPath)
 		s.logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), res.Spliced)
 	}
 	s.writeExtracted(w, written, mode)
+}
+
+// patchApplied applies a sheet patch body. Caller holds f.Lock; patchApplied releases it.
+func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session.File, current []byte, body dataapi.Value) {
+	patch, _ := body.(*dataapi.Object).Get("patch")
+	res, err := dataapi.PatchDocument(htmlutil.StripToken(current), patch, dataapi.PatchOptions{Token: "api"})
+	if err != nil {
+		f.Unlock()
+		status, errBody := mapWriteError(err)
+		if status == http.StatusInternalServerError {
+			s.logger.Printf("Sheet patch of %s failed: %v", f.RelPath, err)
+		}
+		writeWriteError(w, status, errBody)
+		return
+	}
+	written, key, err := s.commitDataEdit(f, current, res.HTML, r.Host)
+	if err != nil {
+		f.Unlock()
+		var refusal *dataEditError
+		if errors.As(err, &refusal) {
+			writeWriteError(w, refusal.status, refusal.body)
+			return
+		}
+		writeWriteError(w, http.StatusInternalServerError, writeErrorBody{Error: "Write failed", Message: "write error"})
+		return
+	}
+	f.NoteWriteFromOutsideTabs()
+	if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
+		s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+	}
+	s.coord.acceptServerReplacement(f)
+	s.coord.publishExternalChange(f, f.Name+" was updated through the data API", forBrowser(written, key, s.documentURLFor(f)), specwire.Etag(written))
+	f.Unlock()
+
+	ifMatch, _ := listHeader(r, "If-Match")
+	s.observeWrite(f, key, current, written, dataguard.External, dataguard.NamesExactVersion(ifMatch))
+	s.versions.MaybePrune(key, f.AbsPath)
+	s.logger.Printf("Patched sheet cells in %s (%d cells, %d rows)", f.RelPath, res.Changed.Cells, res.Changed.Rows)
+
+	etag := specwire.Etag(written)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(patchAnswer{Etag: etag, Changed: res.Changed, Recalculated: false, Stale: res.Stale}); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("ETag", etag)
+	dataHeaders(w)
+	w.WriteHeader(http.StatusOK)
+	w.Write(bytes.TrimRight(buf.Bytes(), "\n"))
+}
+
+type patchAnswer struct {
+	Etag         string            `json:"etag"`
+	Changed      gridcodec.Changed `json:"changed"`
+	Recalculated bool              `json:"recalculated"`
+	Stale        bool              `json:"stale"`
 }
 
 // dataEditError is the refusal commitDataEdit answers with, so the write face sends
@@ -411,5 +480,5 @@ func mapWriteError(err error) (int, writeErrorBody) {
 		return http.StatusBadRequest, writeErrorBody{Error: "Read-only rule", Message: err.Error()}
 	}
 	status, body := mapDataError(err, faceAPI)
-	return status, writeErrorBody{Error: body.Error, Message: body.Message}
+	return status, writeErrorBody{Error: body.Error, Message: body.Message, Code: body.Code}
 }

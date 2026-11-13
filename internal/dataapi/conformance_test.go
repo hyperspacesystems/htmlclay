@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/panphora/htmlclay/internal/gridcodec"
 	"github.com/panphora/htmlclay/internal/testutil"
 )
 
@@ -25,6 +26,9 @@ type caseMeta struct {
 	token  string
 	expect string
 	skip   map[string]string
+	query  Value
+	view   string
+	params *string
 }
 
 // skipReason returns why this host skips the case, if it does. A skip names its host, so a case can
@@ -61,12 +65,15 @@ func loadConformance(t testing.TB) *conformanceCorpus {
 	t.Helper()
 
 	var packed []struct {
-		Name   string   `json:"name"`
-		HTML   string   `json:"html"`
-		Rules  *string  `json:"rules"`
-		Face   string   `json:"face"`
-		Tier   int      `json:"tier"`
-		Skip   []string `json:"skip"`
+		Name   string          `json:"name"`
+		HTML   string          `json:"html"`
+		Rules  *string         `json:"rules"`
+		Face   string          `json:"face"`
+		Tier   int             `json:"tier"`
+		Skip   []string        `json:"skip"`
+		Query  json.RawMessage `json:"query"`
+		View   string          `json:"view"`
+		Params *string         `json:"params"`
 		Expect struct {
 			Data  json.RawMessage            `json:"data"`
 			Files map[string]json.RawMessage `json:"files"`
@@ -82,7 +89,14 @@ func loadConformance(t testing.TB) *conformanceCorpus {
 		if _, seen := corpus.cases[c.Name]; seen {
 			t.Fatalf("data-api.json names %s twice", c.Name)
 		}
-		meta := caseMeta{tier: strconv.Itoa(c.Tier), face: c.Face, expect: "ok", token: "api", skip: map[string]string{}}
+		meta := caseMeta{tier: strconv.Itoa(c.Tier), face: c.Face, expect: "ok", token: "api", skip: map[string]string{}, view: c.View, params: c.Params}
+		if len(c.Query) > 0 {
+			query, err := decodeJSON(string(c.Query))
+			if err != nil {
+				t.Fatalf("data-api.json: %s.query: %v", c.Name, err)
+			}
+			meta.query = query
+		}
 		if _, failed := c.Expect.Files["error.json"]; failed {
 			meta.expect = "error"
 		}
@@ -234,6 +248,10 @@ func jsErrorName(err error) string {
 		version  *UnknownRulesVersion
 		selector SelectorFailure
 		token    *InvalidRulesToken
+
+		unknownCodec *UnknownCodec
+		codecRefused *CodecRefused
+		query        *gridcodec.QueryRefused
 	)
 	switch {
 	case errors.Is(err, errNoRulesTag):
@@ -244,6 +262,12 @@ func jsErrorName(err error) string {
 		return "MaxRuleDepthExceeded"
 	case errors.As(err, &version):
 		return "UnknownRulesVersion"
+	case errors.As(err, &unknownCodec):
+		return "UnknownCodec"
+	case errors.As(err, &codecRefused):
+		return "CodecRefused"
+	case errors.As(err, &query):
+		return "QueryRefused"
 	// css-select throws a plain Error for a selector it cannot parse, so the reference recorded the
 	// bare name. Both selector failures land here, which does NOT hide the gate's divergences: a
 	// gate rejection of a selector the reference ANSWERED shows up as "the reference succeeded", a
@@ -284,6 +308,30 @@ func TestConformanceExtraction(t *testing.T) {
 				t.Skip(r)
 			}
 
+			switch meta.face {
+			case "read":
+				runReadCase(t, name, meta, meta.query, nil)
+				ok++
+				return
+			case "params":
+				raw := ""
+				if meta.params != nil {
+					raw = *meta.params
+				}
+				query, queryErr := ParseSheetQuery(raw)
+				runReadCase(t, name, meta, query, queryErr)
+				ok++
+				return
+			case "patch":
+				runPatchCase(t, name, meta)
+				ok++
+				return
+			case "body":
+				runBodyCase(t, name, meta)
+				ok++
+				return
+			}
+
 			if meta.face == "write" || meta.face == "write-query" {
 				skipped++
 				t.Skip("write face: covered by the write conformance test")
@@ -291,10 +339,10 @@ func TestConformanceExtraction(t *testing.T) {
 
 			parsedDoc := parseCaseHTML(t, name)
 
-			rules, err := resolveRules(t, name, meta, parsedDoc)
+			rules, version, err := resolveRules(t, name, meta, parsedDoc)
 			if err == nil {
 				var extracted Value
-				extracted, err = parsedDoc.Extract(rules)
+				extracted, err = parsedDoc.ExtractWith(rules, ExtractOptions{Version: version})
 				if err == nil {
 					want, hasExpected := readCaseFile(t, name, ".expected.json")
 					if !hasExpected {
@@ -323,25 +371,26 @@ func TestConformanceExtraction(t *testing.T) {
 // resolveRules is the face split: query cases read a .rules file, tag cases read the document. A
 // tag case with no matching script is not an engine error — the JS returns null and the host turns
 // that into its own 400 — so the corpus records a synthetic NoRulesTag and this mirrors it.
-func resolveRules(t *testing.T, name string, meta caseMeta, d *Document) (Value, error) {
+func resolveRules(t *testing.T, name string, meta caseMeta, d *Document) (Value, string, error) {
 	t.Helper()
 
 	if meta.face == "tag" {
 		found, err := d.FindRulesIn(meta.token)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if found == nil {
-			return nil, errNoRulesTag
+			return nil, "", errNoRulesTag
 		}
-		return found.Rules, nil
+		return found.Rules, found.Version, nil
 	}
 
 	source, hasRules := readCaseFile(t, name, ".rules")
 	if !hasRules {
 		t.Fatalf("query-face case has no .rules file")
 	}
-	return ParseRelaxed(source)
+	rules, err := ParseRelaxed(source)
+	return rules, "1", err
 }
 
 func parseCaseHTML(t *testing.T, name string) *Document {
@@ -406,4 +455,204 @@ func TestConformanceCorpusIsCurrent(t *testing.T) {
 	if manifest.Engine == "" || manifest.Cheerio == "" {
 		t.Errorf("VERSION does not pin both versions: %+v", manifest)
 	}
+}
+
+// runReadCase is the reference runner's runReadCase: readDocument with the case's query and view;
+// an error, or a document without the rules tag, is compared as the sheetError body.
+func runReadCase(t *testing.T, name string, meta caseMeta, query Value, queryErr error) {
+	t.Helper()
+	source, ok := readCaseFile(t, name, ".html")
+	if !ok {
+		t.Fatalf("%s has no .html", name)
+	}
+	if queryErr != nil {
+		compareReadError(t, name, meta, queryErr)
+		return
+	}
+	res, err := ReadDocument([]byte(source), ReadOptions{Token: meta.token, Query: query, View: meta.view})
+	if err == nil && !res.Found {
+		err = errNoRulesTag
+	}
+	if err != nil {
+		compareReadError(t, name, meta, err)
+		return
+	}
+	want, hasExpected := readCaseFile(t, name, ".expected.json")
+	if !hasExpected {
+		t.Fatalf("read succeeded, but the reference produced an error")
+	}
+	assertSameJSON(t, name, res.Data, want)
+}
+
+// runBodyCase is the reference runner's runBodyCase: which side of the host's split this body is
+// on, from the document's rules and write.js isPatchBody.
+func runBodyCase(t *testing.T, name string, meta caseMeta) {
+	t.Helper()
+	source, ok := readCaseFile(t, name, ".html")
+	if !ok {
+		t.Fatalf("%s has no .html", name)
+	}
+	raw, ok := readCaseFile(t, name, ".data.json")
+	if !ok {
+		t.Fatalf("%s has no .data.json", name)
+	}
+	body, err := decodeJSON(raw)
+	if err != nil {
+		t.Fatalf("%s.data.json: %v", name, err)
+	}
+	want, hasBody := readCaseFile(t, name, ".body.json")
+	if !hasBody {
+		t.Fatalf("%s has no .body.json", name)
+	}
+	rules, _, found, err := DocumentRules([]byte(source), meta.token)
+	if err != nil {
+		t.Fatalf("DocumentRules: %v", err)
+	}
+	if !found {
+		rules = nil
+	}
+	kind := "data"
+	if IsPatchBody(body, rules) {
+		kind = "patch"
+	}
+	got := NewObject()
+	got.Set("kind", kind)
+	assertSameJSON(t, name, got, want)
+}
+
+// runPatchCase is the reference runner's runPatchCase: patch the source, then compare the bytes it
+// produced, the counts it reported and a fresh read of its own output. Appended rows are named
+// n1, n2, ... so the bytes are the same on every run, as the reference's counter does.
+func runPatchCase(t *testing.T, name string, meta caseMeta) {
+	t.Helper()
+	source, ok := readCaseFile(t, name, ".html")
+	if !ok {
+		t.Fatalf("%s has no .html", name)
+	}
+	raw, ok := readCaseFile(t, name, ".data.json")
+	if !ok {
+		t.Fatalf("%s has no .data.json", name)
+	}
+	patch, err := decodeJSON(raw)
+	if err != nil {
+		t.Fatalf("%s.data.json: %v", name, err)
+	}
+
+	next := 0
+	res, err := PatchDocument([]byte(source), patch, PatchOptions{
+		Token: meta.token,
+		NewID: func() string {
+			next++
+			return "n" + strconv.Itoa(next)
+		},
+	})
+	if err != nil {
+		want, hasError := readCaseFile(t, name, ".error.json")
+		if !hasError {
+			t.Fatalf("PatchDocument failed with %v, but the reference succeeded", err)
+		}
+		assertSameJSON(t, name, sheetErrorBody(err, meta.token), want)
+		return
+	}
+
+	wantHTML, hasAfter := readCaseFile(t, name, ".after.html")
+	if !hasAfter {
+		t.Fatalf("PatchDocument succeeded, but the reference produced %s", wantErrorType(t, name))
+	}
+	if string(res.HTML) != wantHTML {
+		t.Errorf("after.html differs: %s", firstByteDifference(res.HTML, []byte(wantHTML)))
+	}
+
+	wantWrite, hasWrite := readCaseFile(t, name, ".write.json")
+	if !hasWrite {
+		t.Fatalf("%s has no .write.json", name)
+	}
+	changed := NewObject()
+	changed.Set("cells", res.Changed.Cells)
+	changed.Set("rows", res.Changed.Rows)
+	got := NewObject()
+	got.Set("changed", changed)
+	got.Set("stale", res.Stale)
+	assertSameJSON(t, name, got, wantWrite)
+
+	wantData, hasAfterData := readCaseFile(t, name, ".after.json")
+	if !hasAfterData {
+		t.Fatalf("%s has no .after.json", name)
+	}
+	reread, err := ReadDocument(res.HTML, ReadOptions{Token: meta.token})
+	if err != nil {
+		t.Fatalf("ReadDocument(after): %v", err)
+	}
+	if !reread.Found {
+		t.Fatalf("ReadDocument(after) found no rules tag")
+	}
+	assertSameJSON(t, name, reread.Data, wantData)
+}
+
+// firstByteDifference names the offset where two documents part and shows a little either side, so
+// a one-byte divergence is findable in a page-sized file.
+func firstByteDifference(got, want []byte) string {
+	at := 0
+	for at < len(got) && at < len(want) && got[at] == want[at] {
+		at++
+	}
+	window := func(src []byte) string {
+		from := at - 40
+		if from < 0 {
+			from = 0
+		}
+		to := at + 40
+		if to > len(src) {
+			to = len(src)
+		}
+		return string(src[from:to])
+	}
+	return fmt.Sprintf("first difference at byte %d (got %d bytes, want %d)\n got: %q\nwant: %q",
+		at, len(got), len(want), window(got), window(want))
+}
+
+// compareReadError checks a failed read, or a refused query, against the case's recorded error body.
+func compareReadError(t *testing.T, name string, meta caseMeta, err error) {
+	t.Helper()
+	want, hasError := readCaseFile(t, name, ".error.json")
+	if !hasError {
+		t.Fatalf("read failed with %v, but the reference succeeded", err)
+	}
+	assertSameJSON(t, name, sheetErrorBody(err, meta.token), want)
+}
+
+// sheetErrorBody is the reference runner's sheetError: { type, message, status, code? }.
+func sheetErrorBody(err error, token string) Value {
+	body := NewObject()
+	if errors.Is(err, errNoRulesTag) {
+		body.Set("type", "NoRulesTag")
+		body.Set("message", `no script[data-rules-name~="`+token+`"]`)
+		body.Set("status", 400)
+		return body
+	}
+	name := jsErrorName(err)
+	status := 500
+	var refused *CodecRefused
+	var query *gridcodec.QueryRefused
+	code := ""
+	switch {
+	case errors.As(err, &refused):
+		code = refused.Code
+	case errors.As(err, &query):
+		code = query.Code
+	}
+	switch {
+	case name == "CodecRefused" && (code == "sheet-not-canonical" || code == "sheet-write-unavailable"):
+		status = 409
+	case name == "QueryRefused", name == "CodecRefused", name == "UnknownCodec", name == "RulesParseError",
+		name == "UnknownRulesVersion", name == "NoRulesTag":
+		status = 400
+	}
+	body.Set("type", name)
+	body.Set("message", err.Error())
+	body.Set("status", status)
+	if code != "" {
+		body.Set("code", code)
+	}
+	return body
 }

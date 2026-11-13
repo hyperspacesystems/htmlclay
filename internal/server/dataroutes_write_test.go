@@ -49,6 +49,7 @@ func postDataWrite(t *testing.T, srv *Server, target, body string, headers map[s
 type decodedWriteError struct {
 	Error   string          `json:"error"`
 	Message string          `json:"message"`
+	Code    string          `json:"code"`
 	Details json.RawMessage `json:"details"`
 }
 

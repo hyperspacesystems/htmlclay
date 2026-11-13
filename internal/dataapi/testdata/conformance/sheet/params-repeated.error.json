@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "range appears 2 times; send it once",
+  "status": 400,
+  "code": "bad_query"
+}

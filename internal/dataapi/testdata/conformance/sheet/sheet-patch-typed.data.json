@@ -1,0 +1,13 @@
+[
+  {
+    "sheet": "Budget",
+    "range": "A2:C2",
+    "values": [
+      [
+        "02134",
+        true,
+        null
+      ]
+    ]
+  }
+]

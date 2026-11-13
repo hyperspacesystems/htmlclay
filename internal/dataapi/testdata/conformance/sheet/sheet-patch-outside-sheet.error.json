@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "range Z99 reaches past the sheet's rows or columns; append new rows instead",
+  "status": 400,
+  "code": "outside_sheet"
+}

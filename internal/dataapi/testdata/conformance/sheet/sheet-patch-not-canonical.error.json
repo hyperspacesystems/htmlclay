@@ -1,0 +1,6 @@
+{
+  "type": "CodecRefused",
+  "message": "This sheet was edited outside the sheet editor, so the API cannot patch it: open the sheet in the editor and save once.",
+  "status": 409,
+  "code": "sheet-not-canonical"
+}

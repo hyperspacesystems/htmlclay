@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: ok
+query: {"shape":"index"}
+note: the index shape lists tabs without their cells

@@ -1,0 +1,5 @@
+tier: 1
+face: body
+token: api
+expect: ok
+note: the classifier is the same on a version 1 document: patchDocument then refuses it

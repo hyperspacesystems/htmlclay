@@ -19,15 +19,15 @@ type WriteResult struct {
 // WriteDocument applies data to src through the document's own rules tag under the content-only
 // policy. It never returns partial output: every error is returned before any bytes are produced.
 func WriteDocument(src []byte, data Value, token string) (*WriteResult, error) {
-	return writeDocument(src, data, func(d *Document) (Value, error) {
+	return writeDocument(src, data, func(d *Document) (Value, string, error) {
 		found, err := d.FindRulesIn(token)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if found == nil {
-			return nil, &NoRulesTag{Token: token}
+			return nil, "", &NoRulesTag{Token: token}
 		}
-		return found.Rules, nil
+		return found.Rules, found.Version, nil
 	})
 }
 
@@ -38,12 +38,12 @@ func WriteDocumentWithRules(src []byte, data Value, rules Value) (*WriteResult, 
 	default:
 		return nil, &RulesParseError{Message: "Invalid extraction rules: expected a selector, array, or object."}
 	}
-	return writeDocument(src, data, func(_ *Document) (Value, error) { return rules, nil })
+	return writeDocument(src, data, func(_ *Document) (Value, string, error) { return rules, "1", nil })
 }
 
 // writeDocument is the shared write pipeline. resolve turns the parsed document into the rules to
 // apply, so the tag face and the caller-rules face run the same plan, policy and splice.
-func writeDocument(src []byte, data Value, resolve func(*Document) (Value, error)) (*WriteResult, error) {
+func writeDocument(src []byte, data Value, resolve func(*Document) (Value, string, error)) (*WriteResult, error) {
 	// The BOM is not part of the document and x/net/html would parse it as text, so the whole write
 	// runs on the bytes after it and the mark is put back on the output. Spans and the splice edit
 	// the same BOM-less body; a no-op write returns the original src, mark included.
@@ -59,8 +59,12 @@ func writeDocument(src []byte, data Value, resolve func(*Document) (Value, error
 		return nil, err
 	}
 
-	rules, err := resolve(d)
+	rules, version, err := resolve(d)
 	if err != nil {
+		return nil, err
+	}
+	codecs := map[string]Codec{"sheet": SheetCodec}
+	if err := checkCodecRules(rules, version, codecs); err != nil {
 		return nil, err
 	}
 
@@ -86,6 +90,7 @@ func writeDocument(src []byte, data Value, resolve func(*Document) (Value, error
 
 	w := &writer{
 		d:      d,
+		codecs: codecs,
 		dirty:  map[*html.Node]bool{},
 		cloned: map[*html.Node]bool{},
 		spans:  spans,

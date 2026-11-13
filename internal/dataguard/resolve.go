@@ -79,7 +79,7 @@ func (g *Guard) currentEvent(key, absPath string, current []byte) (*ClientEvent,
 			log.Printf("dataguard: could not read an event's recoverable data: %v", err)
 			recoverable = nil
 		}
-		if cur != nil && recoverable != nil && lossUndone(g.classify(recoverable, cur)) {
+		if cur != nil && recoverable != nil && lossUndone(g.classify(NormalizeComposedBaseline(recoverable, current), cur)) {
 			g.clearEvent(st, cur, "restored", false)
 			return nil, g.store.Write(key, absPath, st)
 		}

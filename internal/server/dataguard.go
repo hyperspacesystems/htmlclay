@@ -23,27 +23,7 @@ type Extractor struct{}
 // Extract returns the island under the api rules tag. A page with no such tag is
 // a nil island, not an error; a body that does not parse is an error.
 func (Extractor) Extract(html []byte) (dataapi.Value, error) {
-	doc, err := dataapi.ParseBytes(htmlutil.StripToken(html))
-	if err != nil {
-		return nil, err
-	}
-	tag, err := doc.FindRulesIn("api")
-	if err != nil {
-		return nil, err
-	}
-	if tag == nil {
-		return nil, nil
-	}
-	data, err := doc.Extract(tag.Rules)
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		return nil, nil
-	}
-	island := dataapi.NewObject()
-	island.Set("api", data)
-	return island, nil
+	return dataguard.ExtractIsland(htmlutil.StripToken(html))
 }
 
 // Restore writes recoverable onto html and reads it back out. A refused write
@@ -52,7 +32,7 @@ func (Extractor) Extract(html []byte) (dataapi.Value, error) {
 // it returns ErrNotRestorable instead of the merged document. A restore
 // overwrites the user's file, so the answer is verified before it is written.
 func (e Extractor) Restore(html []byte, recoverable dataapi.Value) ([]byte, error) {
-	if recoverable == nil {
+	if recoverable == nil || dataguard.HasCodecs(recoverable) {
 		return nil, dataguard.ErrNotRestorable
 	}
 	wrapped, ok := recoverable.(*dataapi.Object)
@@ -145,20 +125,21 @@ func provenanceFromRequest(r *http.Request) dataguard.Provenance {
 // observeWrite hands one document write to the guard. It only enqueues: the guard
 // parses the whole document, and a save must never wait for that. prev is the
 // bytes the write replaced (nil when there were none) and next is what was stored.
-func (s *Server) observeWrite(f *session.File, key string, prev, next []byte, prov dataguard.Provenance) {
+func (s *Server) observeWrite(f *session.File, key string, prev, next []byte, prov dataguard.Provenance, ifMatched ...bool) {
 	if key == "" || !isExtractable(f.AbsPath) {
 		return
 	}
 	s.noteGuardSeen(key, next)
 	s.guardQueue.Do(key, func() {
 		s.guard.Observe(dataguard.Observation{
-			Key:      key,
-			AbsPath:  f.AbsPath,
-			NewHTML:  next,
-			PrevHTML: prev,
-			Prov:     prov,
-			History:  NewGuardHistory(s.versions, key, f.AbsPath),
-			Notify:   s.guardNotify(f, key),
+			Key:       key,
+			AbsPath:   f.AbsPath,
+			NewHTML:   next,
+			PrevHTML:  prev,
+			Prov:      prov,
+			IfMatched: len(ifMatched) > 0 && ifMatched[0],
+			History:   NewGuardHistory(s.versions, key, f.AbsPath),
+			Notify:    s.guardNotify(f, key),
 		})
 	})
 }

@@ -97,7 +97,7 @@ func isPlainObject(v dataapi.Value) bool {
 
 // An island is empty when it is null/absent or carries no meaningful value.
 func IsEmptyIsland(island dataapi.Value) bool {
-	switch t := island.(type) {
+	switch t := islandData(island).(type) {
 	case []dataapi.Value:
 		for _, item := range t {
 			if Meaningful(item) {

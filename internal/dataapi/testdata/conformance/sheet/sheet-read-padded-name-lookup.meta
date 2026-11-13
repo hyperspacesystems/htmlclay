@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: ok
+query: {"sheet":" Budget "}
+note: a lookup with the same spaces finds the tab

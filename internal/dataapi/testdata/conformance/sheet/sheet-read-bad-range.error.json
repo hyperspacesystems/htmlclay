@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "range \"A0\" is not an A1 cell or rectangle such as B2 or A1:C3",
+  "status": 400,
+  "code": "bad_range"
+}

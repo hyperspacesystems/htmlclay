@@ -43,6 +43,7 @@ type Observation struct {
 	NewHTML      []byte
 	PrevHTML     []byte // nil for an outside edit
 	Prov         Provenance
+	IfMatched    bool
 	History      HistoryReader
 	Notify       func(kind string, event *ClientEvent, id string)
 }
@@ -102,10 +103,10 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 		return nil, nil
 	}
 
-	inc, err := g.ext.Extract(o.NewHTML)
-	if err != nil {
-		log.Printf("dataguard: could not read the data of %s: %v", o.AbsPath, err)
-		return nil, nil
+	inc, extractErr := g.ext.Extract(o.NewHTML)
+	if extractErr != nil {
+		log.Printf("dataguard: could not read the data of %s: %v", o.AbsPath, extractErr)
+		inc = nil
 	}
 	hash := versions.Hash(o.NewHTML)
 
@@ -114,6 +115,12 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 		return nil, err
 	}
 
+	if extractErr != nil && st.Baseline == nil {
+		seed, _ := g.ext.Extract(o.PrevHTML)
+		if IsEmptyIsland(seed) {
+			return nil, nil
+		}
+	}
 	// Cold start: seed from KNOWN-GOOD content only.
 	if st.Baseline == nil {
 		if o.PrevHTML != nil {
@@ -139,11 +146,29 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 		return nil, nil
 	}
 
+	normalized := NormalizeComposedBaseline(base, o.PrevHTML)
+	baseObject, _ := base.(*dataapi.Object)
+	normalizedObject, _ := normalized.(*dataapi.Object)
+	if normalizedObject != baseObject {
+		base = normalized
+		at := st.Baseline.At
+		st.Baseline = g.baselineOf(base)
+		st.Baseline.At = at
+	}
+	if extractErr != nil && IsEmptyIsland(base) {
+		return nil, nil
+	}
+
 	if st.Event != nil {
 		// The loss is undone only when the current island still CONTAINS every
 		// pinned recoverable atom (additions allowed).
 		D := g.classify(base, inc)
-		if lossUndone(D) {
+		recoverable, err := decodeIsland(st.Event.RecoverableData)
+		if err != nil {
+			return nil, err
+		}
+		comparable := NormalizeComposedBaseline(recoverable, o.NewHTML)
+		if lossUndone(g.classify(comparable, inc)) {
 			id := st.Event.ID
 			st.Event = nil
 			st.Status = "restored"
@@ -158,7 +183,7 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 			}
 			return nil, nil
 		}
-		if ShouldFire(o.Prov, st.UIWorkPending, base, inc, D) {
+		if ShouldFire(o.Prov, st.UIWorkPending && !o.IfMatched, base, inc, D) {
 			st.Event.LastWriteAt = g.now()
 		}
 		if o.Prov == External {
@@ -169,7 +194,7 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 	}
 
 	D := g.classify(base, inc)
-	if ShouldFire(o.Prov, st.UIWorkPending, base, inc, D) {
+	if ShouldFire(o.Prov, st.UIWorkPending && !o.IfMatched, base, inc, D) {
 		hasCopy := g.captureRecover(o, hash)
 		id, err := newEventID()
 		if err != nil {
@@ -232,6 +257,7 @@ func (g *Guard) captureRecover(o Observation, hash string) bool {
 }
 
 func (g *Guard) baselineOf(island dataapi.Value) *Baseline {
+	island = StoredIsland(island)
 	data, err := dataapi.Marshal(island)
 	if err != nil {
 		log.Printf("dataguard: could not encode an island: %v", err)
@@ -250,6 +276,7 @@ func (g *Guard) classify(base, inc dataapi.Value) *Destruction {
 }
 
 func seedBlind(st *State, island dataapi.Value, at int64) {
+	island = StoredIsland(island)
 	if island != nil && !IsEmptyIsland(island) {
 		data, err := dataapi.Marshal(island)
 		if err != nil {
@@ -279,7 +306,7 @@ func (g *Guard) clientEvent(event *Event, current dataapi.Value, currentHTML []b
 		log.Printf("dataguard: could not read an event's recoverable data: %v", err)
 		recoverable = nil
 	}
-	rows := buildPreview(islandField(recoverable, "api"), islandField(current, "api"))
+	rows := IslandPreview(recoverable, current)
 	return &ClientEvent{
 		ID:               event.ID,
 		FirstDetectedAt:  event.FirstDetectedAt,
@@ -287,8 +314,8 @@ func (g *Guard) clientEvent(event *Event, current dataapi.Value, currentHTML []b
 		LossSummary:      event.LossSummary,
 		FieldCount:       len(rows),
 		Preview:          rows,
-		DroppedAdditions: DroppedItems(islandField(recoverable, "api"), islandField(current, "api")),
-		Restorable:       g.ext.CanRestore(currentHTML, recoverable),
+		DroppedAdditions: DroppedItems(OrdinaryData(recoverable), OrdinaryData(current)),
+		Restorable:       !HasCodecs(recoverable) && g.ext.CanRestore(currentHTML, recoverable),
 		CanRevert:        event.HasRecoverCopy,
 		Status:           event.Status,
 	}

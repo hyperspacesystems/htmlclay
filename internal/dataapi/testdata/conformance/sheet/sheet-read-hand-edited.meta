@@ -1,0 +1,5 @@
+tier: 1
+face: read
+token: api
+expect: ok
+note: a hand-edited table still reads through the tree

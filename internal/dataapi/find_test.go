@@ -204,13 +204,13 @@ func TestFindRulesIn(t *testing.T) {
 	})
 
 	t.Run("wrong version", func(t *testing.T) {
-		_, err := doc(t, `<script data-rules-name="api" data-rules-version="2">{}</script>`).FindRulesIn("api")
+		_, err := doc(t, `<script data-rules-name="api" data-rules-version="3">{}</script>`).FindRulesIn("api")
 		var ver *UnknownRulesVersion
 		if !errors.As(err, &ver) {
 			t.Fatalf("got %v, want UnknownRulesVersion", err)
 		}
-		if ver.Version != "2" {
-			t.Errorf("version = %q, want \"2\"", ver.Version)
+		if ver.Version != "3" {
+			t.Errorf("version = %q, want \"3\"", ver.Version)
 		}
 	})
 

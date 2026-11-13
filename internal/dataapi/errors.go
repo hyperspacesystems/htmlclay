@@ -80,14 +80,14 @@ func (e *MaxRuleDepthExceeded) Error() string {
 	return fmt.Sprintf("rule depth exceeded %d at path: %s", maxRuleDepth, strings.Join(e.Path, "."))
 }
 
-// UnknownRulesVersion is a rules tag whose data-rules-version is not "1". A missing attribute
+// UnknownRulesVersion is a rules tag whose data-rules-version is not "1" or "2". A missing attribute
 // reports as empty, matching the JS, where undefined !== "1" fails the same way.
 type UnknownRulesVersion struct {
 	Version string
 }
 
 func (e *UnknownRulesVersion) Error() string {
-	return fmt.Sprintf("unknown rules version: %s. Library supports %q.", e.Version, SupportedRulesVersion)
+	return fmt.Sprintf("unknown rules version: %s. Library supports \"1\" and \"2\".", e.Version)
 }
 
 // InvalidRulesToken is a rules-tag token that failed validation before reaching the selector.
@@ -98,3 +98,22 @@ type InvalidRulesToken struct {
 func (e *InvalidRulesToken) Error() string {
 	return "invalid rules token " + strconv.Quote(e.Token) + " (must match " + rulesToken.String() + ")"
 }
+
+// UnknownCodec is a @codec(name) rule naming a codec this call was not given. A client error.
+type UnknownCodec struct {
+	Name string
+}
+
+func (e *UnknownCodec) Error() string {
+	return fmt.Sprintf("unknown codec %q: no codec by that name is given to this call", e.Name)
+}
+
+// CodecRefused is a codec declining a read or write, with its own code (for example
+// "sheet-not-canonical"). Hosts answer 409 for sheet-not-canonical and sheet-write-unavailable, and
+// 400 for every other code.
+type CodecRefused struct {
+	Code    string
+	Message string
+}
+
+func (e *CodecRefused) Error() string { return e.Message }

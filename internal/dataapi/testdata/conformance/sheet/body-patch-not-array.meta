@@ -1,0 +1,5 @@
+tier: 1
+face: body
+token: api
+expect: ok
+note: a patch value that is not an array is a data write

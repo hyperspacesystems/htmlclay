@@ -1,0 +1,6 @@
+tier: 1
+face: tag
+token: api
+expect: error
+note: RulesParseError. The codec form is reserved in every version, so a version 1 tag refuses
+note: it instead of reading an attribute named codec(upper) and returning null unnoticed.

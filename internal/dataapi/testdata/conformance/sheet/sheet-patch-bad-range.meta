@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: error
+note: row 0 is not a range

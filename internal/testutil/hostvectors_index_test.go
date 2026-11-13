@@ -26,6 +26,8 @@ var goFamilies = map[string]string{
 	"runtime-releases.json":        "internal/clayruntime TestURLVectorsMatchClayJS",
 	"runtime-urls.json":            "internal/clayruntime TestURLVectorsMatchClayJS",
 	"selector-parity.json":         "internal/dataapi TestSelectorParity",
+	"sheet-guard.json":             "internal/dataguard TestSheetGuardVectors",
+	"sheet-codec.json":             "internal/gridcodec TestScanVectors",
 	"spec-wire.json":               "internal/specwire TestHostVectors",
 }
 

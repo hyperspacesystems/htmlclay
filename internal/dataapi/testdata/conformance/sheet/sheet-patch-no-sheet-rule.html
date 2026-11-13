@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><script type="application/json" data-rules-name="api" data-rules-version="2">{"title":"h1"}</script></head><body><h1>Book</h1><main sap data-rev="12"><div items="sheets">
+<section item data-id="s1" data-pos="V"><h2 bind="name">Budget</h2><table grid freeze-cols="1"><colgroup><col data-id="ca" data-pos="G" style="width:180px"><col data-id="cb" data-pos="V" fmt="$#,##0.00"><col data-id="cc" data-pos="l" fmt="0%"></colgroup>
+<thead>
+<tr data-id="r1" data-pos="8"><td style="font-weight:bold">Item</td><td>Cost</td><td>Share</td></tr>
+</thead><tbody>
+<tr data-id="r2" data-pos="G"><td>Rent</td><td n v="1200">$1,200.00</td><td n f="=B2/B$5" v="0.8">80%</td></tr>
+<tr data-id="r3" data-pos="O"><td>Food</td><td n v="300">$300.00</td><td n f="=B3/B$5" v="0.2">20%</td></tr>
+<tr data-id="r4" data-pos="V"></tr>
+<tr data-id="r5" data-pos="d"><td style="font-weight:bold">Total</td><td n f="=SUM(B2:B3)" v="1500">$1,500.00</td></tr>
+<tr data-id="r6" data-pos="l"><td colspan="3" style="text-align:center">Prices as of November</td><td hidden></td><td hidden></td></tr>
+</tbody></table>
+<table grid><colgroup><col data-id="cd" data-pos="G"><col data-id="ce" data-pos="V"></colgroup>
+<tbody>
+<tr data-id="r7" data-pos="G"><td>Lisbon</td><td n v="46095" fmt="mmm d, yyyy">Mar 14, 2026</td></tr>
+<tr data-id="r8" data-pos="V"><td>Budget left</td><td n f="=5000-Budget!B5" v="3500" fmt="$#,##0.00">$3,500.00</td></tr>
+</tbody></table></section>
+</div></main></body></html>

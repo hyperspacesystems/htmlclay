@@ -32,12 +32,12 @@ func sortKeys(v dataapi.Value) dataapi.Value {
 }
 
 func islandHash(island dataapi.Value) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(stableDigest(island))))
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(stableDigest(islandData(island)))))
 }
 
 func islandsEqual(a, b dataapi.Value) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
 	}
-	return stableDigest(a) == stableDigest(b)
+	return stableDigest(islandData(a)) == stableDigest(islandData(b))
 }

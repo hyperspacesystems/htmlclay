@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: error
+query: {"sheet":"Budget"}
+note: names match exactly, so the trimmed name is not a tab

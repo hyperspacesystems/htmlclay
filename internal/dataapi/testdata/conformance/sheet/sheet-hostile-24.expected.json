@@ -1,0 +1,18 @@
+{
+  "title": "Book",
+  "sheets": [
+    {
+      "id": "s1",
+      "name": "Budget",
+      "cols": [],
+      "rows": [
+        {
+          "id": "r",
+          "cells": [
+            "a > b"
+          ]
+        }
+      ]
+    }
+  ]
+}

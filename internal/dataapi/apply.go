@@ -52,6 +52,7 @@ var domPropertiesReadOnly = map[string]bool{
 // skipped rather than undone.
 type writer struct {
 	d        *Document
+	codecs   map[string]Codec
 	refusals []Refusal
 	dirty    map[*html.Node]bool
 	cloned   map[*html.Node]bool
@@ -72,6 +73,10 @@ func validateShape(rule, value Value, path []any, mismatches *[]Mismatch) {
 
 	switch r := rule.(type) {
 	case string:
+		if _, _, isCodec, _ := codecOf(r); isCodec {
+			// A codec judges its own value when it writes.
+			return
+		}
 		if strings.HasSuffix(r, "[]") {
 			items, ok := value.([]Value)
 			if !ok {
@@ -222,6 +227,23 @@ func (w *writer) applyScalar(ctx *html.Node, rule string, value Value, depth int
 			return ctx, nil
 		}
 		return ctx, w.listDiff(ctx, strings.TrimSuffix(rule, "[]"), nil, items, depth, path)
+	}
+
+	if selector, name, isCodec, err := codecOf(rule); err != nil {
+		return nil, err
+	} else if isCodec {
+		matches := []*html.Node{ctx}
+		if selector != "" {
+			if matches, err = Find(ctx, selector, FindOpts{}); err != nil {
+				return nil, err
+			}
+		}
+		if len(matches) > 0 {
+			if err := w.codecs[name].Write(w.d, matches[0], value, CodecContext{}); err != nil {
+				return nil, err
+			}
+		}
+		return ctx, nil
 	}
 
 	if strings.HasPrefix(rule, "@") {

@@ -60,7 +60,7 @@ func TestGuardExtractor(t *testing.T) {
 		{
 			name: "rules tag",
 			html: guardTestDoc,
-			want: `{"api":{"title":"Board"}}`,
+			want: `{"api":{"title":"Board"},"@form":"stored"}`,
 		},
 		{
 			name: "no rules tag is a nil island",
@@ -69,7 +69,7 @@ func TestGuardExtractor(t *testing.T) {
 		},
 		{
 			name:    "unknown rules version does not parse",
-			html:    `<script data-rules-name="api" data-rules-version="2">{t:"h1"}</script>`,
+			html:    `<script data-rules-name="api" data-rules-version="3">{t:"h1"}</script>`,
 			wantErr: true,
 		},
 	}

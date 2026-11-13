@@ -92,6 +92,7 @@
               "baseDir": {
                 "path": "."
               },
+              "ifMatched": false,
               "live": "<live>",
               "name": "a.html",
               "newHtml": {
@@ -244,6 +245,7 @@
               "baseDir": {
                 "path": "."
               },
+              "ifMatched": false,
               "live": "<live>",
               "name": "a.html",
               "newHtml": {
@@ -322,6 +324,7 @@
               "baseDir": {
                 "path": "."
               },
+              "ifMatched": false,
               "live": "<live>",
               "name": "a.html",
               "newHtml": {
@@ -555,6 +558,7 @@
               "baseDir": {
                 "path": "."
               },
+              "ifMatched": false,
               "live": "<live>",
               "name": "p.html",
               "newHtml": {
@@ -707,6 +711,7 @@
               "baseDir": {
                 "path": "."
               },
+              "ifMatched": false,
               "live": "<live>",
               "name": "p.html",
               "newHtml": {
@@ -785,6 +790,7 @@
               "baseDir": {
                 "path": "."
               },
+              "ifMatched": false,
               "live": "<live>",
               "name": "p.html",
               "newHtml": {
@@ -935,6 +941,7 @@
               "baseDir": {
                 "path": "."
               },
+              "ifMatched": false,
               "live": "<live>",
               "name": "d.html",
               "newHtml": {
@@ -2507,6 +2514,7 @@
               "baseDir": {
                 "path": "."
               },
+              "ifMatched": false,
               "live": "<live>",
               "name": "stale.html",
               "newHtml": {

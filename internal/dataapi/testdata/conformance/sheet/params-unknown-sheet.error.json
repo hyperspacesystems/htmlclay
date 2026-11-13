@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "no sheet named \"Nope\"; ask for shape=index to list them",
+  "status": 400,
+  "code": "unknown_sheet"
+}

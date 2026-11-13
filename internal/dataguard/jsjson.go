@@ -1,6 +1,7 @@
 package dataguard
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -20,6 +21,9 @@ func writeValue(b *strings.Builder, v dataapi.Value) {
 		b.WriteString("null")
 	case string:
 		writeString(b, t)
+	case bool, int, float64, json.Number:
+		raw, _ := dataapi.Marshal(t)
+		b.Write(raw)
 	case []dataapi.Value:
 		b.WriteByte('[')
 		for i, item := range t {

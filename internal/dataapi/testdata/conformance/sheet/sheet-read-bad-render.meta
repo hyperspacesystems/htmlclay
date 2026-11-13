@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: error
+query: {"range":"A1","render":"html"}
+note: an unknown render is refused

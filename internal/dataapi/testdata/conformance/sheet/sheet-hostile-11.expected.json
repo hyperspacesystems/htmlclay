@@ -1,0 +1,22 @@
+{
+  "title": "Book",
+  "sheets": [
+    {
+      "id": "s1",
+      "name": "Budget",
+      "cols": [],
+      "rows": [
+        {
+          "id": "r",
+          "cells": [
+            {
+              "f": "=A1",
+              "v": 1,
+              "text": "x"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

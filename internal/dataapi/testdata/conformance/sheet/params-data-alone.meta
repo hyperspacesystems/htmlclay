@@ -1,0 +1,6 @@
+tier: 1
+face: params
+token: api
+expect: ok
+params: data=%7B%22t%22%3A%22h1%22%7D
+note: ?data= alone is not a sheet query; this face reads the tag, a host runs its query face

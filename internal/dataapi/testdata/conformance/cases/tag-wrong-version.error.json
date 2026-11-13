@@ -1,5 +1,5 @@
 {
   "type": "UnknownRulesVersion",
-  "message": "unknown rules version: 2. Library supports \"1\".",
+  "message": "unknown rules version: 3. Library supports \"1\" and \"2\".",
   "status": 400
 }

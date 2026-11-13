@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/panphora/htmlclay/internal/dataapi"
+	"github.com/panphora/htmlclay/internal/dataguard"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
 
@@ -215,18 +216,11 @@ func apiAnswer(w http.ResponseWriter, r *http.Request, status int, body orderedO
 // apiExtractViaTag is data-extractor.js's extractViaTag(html, "api"): the
 // document's own rules tag. A page that publishes no such tag yields nothing.
 func apiExtractViaTag(html []byte) (dataapi.Value, error) {
-	document, err := dataapi.ParseBytes(html)
+	result, err := dataapi.ReadDocument(html, dataapi.ReadOptions{})
 	if err != nil {
 		return nil, err
 	}
-	tag, err := document.FindRulesIn(apiRulesToken)
-	if err != nil {
-		return nil, err
-	}
-	if tag == nil {
-		return nil, nil
-	}
-	return document.Extract(tag.Rules)
+	return result.Data, nil
 }
 
 // apiExtractWithRules is data-extractor.js's extractData(html, rules).
@@ -616,7 +610,7 @@ func (s *rootServer) applySiteData(w http.ResponseWriter, r *http.Request, name,
 
 	written := []byte(previous)
 	if result.Changed {
-		committed, err := s.commitDataAPI(name, sourcePath, result.HTML, previous)
+		committed, err := s.commitDataAPI(name, sourcePath, result.HTML, previous, r.Header.Get("If-Match"))
 		if err != nil {
 			var refused *refusalError
 			if errors.As(err, &refused) {
@@ -650,13 +644,15 @@ func (s *rootServer) applySiteData(w http.ResponseWriter, r *http.Request, name,
 
 // commitDataAPI hands the engine's bytes to the commit core on the data-api lane,
 // with the document as it stood under the lock as the guard's previous copy.
-func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previous string) (string, error) {
+func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previous string, ifMatch string) (string, error) {
 	request := &commitRequest{
 		Kind:         "data-api",
 		Name:         name,
 		Bytes:        html,
 		Text:         true,
 		DataLossPrev: &previous,
+		Headers:      map[string]string{"if-match": ifMatch},
+		IfMatched:    dataguard.NamesExactVersion(ifMatch),
 	}
 	result, err := s.commit.commitLocked(request, commitLane{lane: "save", origin: "api"}, sourcePath)
 	if err != nil {

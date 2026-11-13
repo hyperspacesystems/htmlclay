@@ -149,7 +149,7 @@ const DOC_TAG = [
 const DOC_NO_TAG = '<!doctype html>\n<html><body><h1>Plain</h1></body></html>\n'
 
 const DOC_BAD_TAG =
-  '<!doctype html>\n<html><head><script data-rules-name="api" data-rules-version="2">{"title":"h1"}</script></head>' +
+  '<!doctype html>\n<html><head><script data-rules-name="api" data-rules-version="3">{"title":"h1"}</script></head>' +
   '<body><h1>x</h1></body></html>\n'
 
 const atomicScenarios = []

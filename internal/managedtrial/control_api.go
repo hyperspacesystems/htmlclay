@@ -212,6 +212,7 @@ func claimControlOp(w http.ResponseWriter, events *eventRing, given string) (str
 
 // controlCommitBody is one POST /v1/commit.
 type controlCommitBody struct {
+	IfMatch    string            `json:"ifMatch"`
 	OpID       string            `json:"opId"`
 	Root       string            `json:"root"`
 	Name       string            `json:"name"`
@@ -280,6 +281,7 @@ func (a *controlAPI) serveCommit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &commitRequest{
+		IfMatch:       body.IfMatch,
 		Kind:          body.Kind,
 		Name:          body.Name,
 		Edit:          body.Edit,

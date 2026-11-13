@@ -1,0 +1,108 @@
+{
+  "title": "Book",
+  "sheets": [
+    {
+      "id": "s1",
+      "name": "Budget",
+      "cols": [
+        "x-c0",
+        "x-c1",
+        "x-c2"
+      ],
+      "rows": [
+        {
+          "id": "x-r1",
+          "cells": [
+            "a & b < c > d \" e ' f"
+          ]
+        },
+        {
+          "id": "x-r2",
+          "cells": [
+            "line one\nline two\ttabbed"
+          ]
+        },
+        {
+          "id": "x-r3",
+          "cells": [
+            "  padded  "
+          ]
+        },
+        {
+          "id": "x-r4",
+          "cells": [
+            "-->"
+          ]
+        },
+        {
+          "id": "x-r5",
+          "cells": [
+            "<!-- not a comment -->"
+          ]
+        },
+        {
+          "id": "x-r6",
+          "cells": [
+            "&amp; already escaped text"
+          ]
+        },
+        {
+          "id": "x-r7",
+          "cells": [
+            "Unicode: é ü 中文 😀"
+          ]
+        },
+        {
+          "id": "x-r8",
+          "cells": [
+            "=literal"
+          ]
+        },
+        {
+          "id": "x-r9",
+          "cells": [
+            "02134"
+          ]
+        },
+        {
+          "id": "x-r10",
+          "cells": [
+            "123"
+          ]
+        },
+        {
+          "id": "x-r11",
+          "cells": [
+            "TRUE"
+          ]
+        },
+        {
+          "id": "x-r12",
+          "cells": [
+            {
+              "f": "=IF(A1=\"</table>\",\"<td>\",\"-->\")&\"\n\"&\"a&b\"",
+              "v": 7
+            }
+          ]
+        },
+        {
+          "id": "x-r13",
+          "cells": [
+            null,
+            {
+              "v": 1200,
+              "text": "1,200 kg",
+              "fmt": "#,##0 \"kg\""
+            }
+          ]
+        },
+        {
+          "id": "x-r14",
+          "cells": [
+            "styled row"
+          ]
+        }
+      ]
+    }
+  ]
+}

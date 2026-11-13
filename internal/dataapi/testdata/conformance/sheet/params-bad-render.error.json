@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "render must be one of values, formulas, cells",
+  "status": 400,
+  "code": "bad_render"
+}

@@ -395,6 +395,7 @@ async function runScenario(scenario) {
 }
 
 async function main() {
+  await guard.extractIsland(RICH)
   const answers = []
   for (const scenario of scenarios) answers.push(await runScenario(scenario))
   fs.writeFileSync(outPath, JSON.stringify({ stubs, scenarios: answers }, null, 2) + '\n')

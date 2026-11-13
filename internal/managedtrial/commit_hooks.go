@@ -15,6 +15,7 @@ type dataLossGuardArgs struct {
 	NewHTML     string
 	PrevContent *string
 	Prov        string
+	IfMatched   *bool
 }
 
 // liveMessage is the payload of a saved-lane broadcast.

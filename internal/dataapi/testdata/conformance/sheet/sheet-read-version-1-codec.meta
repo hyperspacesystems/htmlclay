@@ -1,0 +1,5 @@
+tier: 1
+face: read
+token: api
+expect: error
+note: the sheet codec needs rules version 2

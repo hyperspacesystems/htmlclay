@@ -73,11 +73,7 @@ func liveOf(live guardLive) guardLive {
 }
 
 // guardPreviewRow is one "now / yours" line of the recovery panel.
-type guardPreviewRow struct {
-	Key   string `json:"key"`
-	Now   string `json:"now"`
-	Yours string `json:"yours"`
-}
+type guardPreviewRow = dataguard.PreviewRow
 
 // guardClientEvent is the event shape the panel is allowed to see. It carries no
 // filesystem path: a recover path would tell a page where the app stores things.
@@ -99,27 +95,7 @@ type guardClientEvent struct {
 // nil island, not an error; an error means the bytes did not parse or the tag
 // declares a version this engine does not know.
 func extractIsland(html string) (dataapi.Value, error) {
-	document, err := dataapi.ParseBytes([]byte(html))
-	if err != nil {
-		return nil, err
-	}
-	tag, err := document.FindRulesIn(guardRulesName)
-	if err != nil {
-		return nil, err
-	}
-	if tag == nil {
-		return nil, nil
-	}
-	value, err := document.Extract(tag.Rules)
-	if err != nil {
-		return nil, err
-	}
-	if value == nil {
-		return nil, nil
-	}
-	island := dataapi.NewObject()
-	island.Set(guardRulesName, value)
-	return island, nil
+	return dataguard.ExtractIsland([]byte(html))
 }
 
 func safeExtractIsland(html string) (dataapi.Value, bool) {
@@ -296,6 +272,7 @@ type runGuardArgs struct {
 	NewHTML     string
 	PrevContent *string
 	Prov        dataguard.Provenance
+	IfMatched   bool
 	Live        guardLive
 }
 
@@ -303,10 +280,7 @@ type runGuardArgs struct {
 // a loss is raised, else nil, and never fails a write.
 func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 	live := liveOf(args.Live)
-	inc, ok := safeExtractIsland(args.NewHTML)
-	if !ok {
-		return nil
-	}
+	inc, readable := safeExtractIsland(args.NewHTML)
 
 	var raised *guardRecordEvent
 	autoResolvedID := ""
@@ -318,6 +292,22 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 		}
 		if guard == nil {
 			guard = emptyGuard()
+		}
+
+		if guard.Baseline != nil && args.PrevContent != nil {
+			normalized := dataguard.NormalizeComposedBaseline(guard.Baseline.Data, []byte(*args.PrevContent))
+			if normalized != guard.Baseline.Data {
+				guard.Baseline = newGuardBaseline(normalized, guard.Baseline.At)
+			}
+		}
+		if !readable && (guard.Baseline == nil || dataguard.IsEmptyIsland(guard.Baseline.Data)) {
+			var seed dataapi.Value
+			if args.PrevContent != nil {
+				seed, _ = safeExtractIsland(*args.PrevContent)
+			}
+			if dataguard.IsEmptyIsland(seed) {
+				return
+			}
 		}
 
 		if guard.Baseline == nil {
@@ -342,7 +332,7 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 
 		if guard.Event != nil {
 			destruction := classify(base, inc)
-			if lossUndone(destruction) {
+			if lossUndone(classify(dataguard.NormalizeComposedBaseline(guard.Event.RecoverableData, []byte(args.NewHTML)), inc)) {
 				autoResolvedID = guard.Event.ID
 				guard.Event = nil
 				guard.Status = "restored"
@@ -351,7 +341,7 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 				writeGuard(args.BaseDir, args.Name, guard)
 				return
 			}
-			if dataguard.ShouldFire(args.Prov, guard.UIWorkPending, base, inc, destruction) {
+			if dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction) {
 				guard.Event.LastWriteAt = guardNow()
 			}
 			if args.Prov == dataguard.External {
@@ -362,7 +352,7 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 		}
 
 		destruction := classify(base, inc)
-		if dataguard.ShouldFire(args.Prov, guard.UIWorkPending, base, inc, destruction) {
+		if dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction) {
 			backup := captureRecoverPath(args.BaseDir, args.Name, args.PrevContent)
 			guard.Event = &guardRecordEvent{
 				ID:                    guardNewID(),
@@ -476,6 +466,9 @@ func notifyResolved(name, eventID string, live guardLive) {
 // only answers ok when reading it back out reproduces the data exactly: a
 // restore overwrites the person's file.
 func restoreDataOntoHTML(currentHTML string, recoverable dataapi.Value) (string, bool) {
+	if dataguard.HasCodecs(recoverable) {
+		return "", false
+	}
 	data := islandField(recoverable, guardRulesName)
 	if data == nil {
 		return "", false
@@ -514,12 +507,12 @@ func toClientEvent(event *guardRecordEvent, currentHTML string) *guardClientEven
 		currentIsland = island
 	}
 	_, restorable := restoreDataOntoHTML(currentHTML, recoverable)
-	recoverableData := islandField(recoverable, guardRulesName)
+	recoverableData := dataguard.OrdinaryData(recoverable)
 	var currentData dataapi.Value
 	if currentIsland != nil {
-		currentData = islandField(currentIsland, guardRulesName)
+		currentData = dataguard.OrdinaryData(currentIsland)
 	}
-	preview := buildPreview(recoverableData, currentData)
+	preview := dataguard.IslandPreview(recoverable, currentIsland)
 	status := event.Status
 	if status == "" {
 		status = "pending"
@@ -551,7 +544,7 @@ func getGuardEvent(baseDir, name string, currentHTML *string, live guardLive) *g
 		if currentHTML != nil {
 			current, currentOK = safeExtractIsland(*currentHTML)
 		}
-		if currentOK && current != nil && lossUndone(classify(guard.Event.RecoverableData, current)) {
+		if currentOK && current != nil && lossUndone(classify(dataguard.NormalizeComposedBaseline(guard.Event.RecoverableData, []byte(*currentHTML)), current)) {
 			resolvedID := guard.Event.ID
 			clearEvent(baseDir, name, current, "restored", false)
 			notifyResolved(name, resolvedID, live)
@@ -855,6 +848,7 @@ func (h *guardHooks) RunDataLossGuard(args dataLossGuardArgs) {
 		NewHTML:     args.NewHTML,
 		PrevContent: args.PrevContent,
 		Prov:        dataguard.Provenance(args.Prov),
+		IfMatched:   args.IfMatched != nil && *args.IfMatched,
 		Live:        h.live,
 	})
 }

@@ -6,8 +6,18 @@ import (
 	"golang.org/x/net/html"
 )
 
-// SupportedRulesVersion is the only data-rules-version this engine accepts.
-const SupportedRulesVersion = "1"
+// SupportedRulesVersions are the data-rules-version values this engine accepts. Version 2 adds
+// the selector@codec(name) rule form; ordinary rules read the same under both.
+var SupportedRulesVersions = []string{"1", "2"}
+
+func supportedRulesVersion(version string) bool {
+	for _, v := range SupportedRulesVersions {
+		if v == version {
+			return true
+		}
+	}
+	return false
+}
 
 // rulesToken is validated BEFORE it is interpolated into a selector, and rejected rather than
 // sanitised. The charset is also what forecloses selector injection through the ~= match.
@@ -15,8 +25,9 @@ var rulesToken = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // RulesTag is a page's own published endpoint definition.
 type RulesTag struct {
-	Rules Value
-	Node  *html.Node
+	Rules   Value
+	Node    *html.Node
+	Version string
 }
 
 // FindRulesIn returns the first script[data-rules-name~="token"] in root, with its body parsed.
@@ -45,7 +56,7 @@ func (d *Document) FindRulesIn(token string) (*RulesTag, error) {
 	tagNode := candidates[0]
 
 	version, _ := attrValue(tagNode, "data-rules-version")
-	if version != SupportedRulesVersion {
+	if !supportedRulesVersion(version) {
 		return nil, &UnknownRulesVersion{Version: version}
 	}
 
@@ -55,5 +66,5 @@ func (d *Document) FindRulesIn(token string) (*RulesTag, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &RulesTag{Rules: rules, Node: tagNode}, nil
+	return &RulesTag{Rules: rules, Node: tagNode, Version: version}, nil
 }

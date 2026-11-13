@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "sheet is empty; give it a value or leave it out",
+  "status": 400,
+  "code": "bad_query"
+}

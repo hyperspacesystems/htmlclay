@@ -513,6 +513,9 @@ func (h *recordingCommitHooks) RunDataLossGuard(args dataLossGuardArgs) {
 	if args.PrevContent != nil {
 		payload["prevContent"] = *args.PrevContent
 	}
+	if args.IfMatched != nil {
+		payload["ifMatched"] = *args.IfMatched
+	}
 	h.record("dataGuard.runDataLossGuard", "<promise>", payload)
 }
 

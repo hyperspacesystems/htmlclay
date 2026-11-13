@@ -1,0 +1,6 @@
+{
+  "type": "CodecRefused",
+  "message": "this document has no single @codec(sheet) rule to patch",
+  "status": 400,
+  "code": "no-sheet"
+}

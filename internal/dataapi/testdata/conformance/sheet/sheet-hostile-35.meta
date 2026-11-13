@@ -1,0 +1,5 @@
+tier: 1
+face: read
+token: api
+expect: ok
+note: hostile: table with two <thead>s

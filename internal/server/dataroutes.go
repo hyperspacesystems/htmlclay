@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/panphora/htmlclay/internal/dataapi"
+	"github.com/panphora/htmlclay/internal/gridcodec"
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
@@ -48,6 +49,9 @@ type dataMode struct {
 	// applies the same tree.
 	resolved bool
 	value    dataapi.Value
+	// query is a sheet read's parameters (shape, sheet, range, render) on the api face; nil for a
+	// whole read.
+	query dataapi.Value
 }
 
 func (m dataMode) active() bool { return m.face != faceNone }
@@ -61,6 +65,7 @@ const dataExample = `?data={title:"h1",items:".item"}`
 type dataError struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
 	Details string `json:"details,omitempty"`
 	Example string `json:"example,omitempty"`
 }
@@ -178,6 +183,19 @@ func (s *Server) handleDataAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A sheet read's parameters are checked before the file is resolved: a repeated or empty one,
+	// or one mixed with ?data=, is refused here, and so never reveals whether the file exists.
+	query, err := dataapi.ParseSheetQuery(r.URL.RawQuery)
+	if err != nil {
+		status, body := mapDataError(err, faceAPI)
+		writeDataError(w, status, body)
+		return
+	}
+	if query != nil {
+		s.serveFile(w, r, rawPath, dataMode{face: faceAPI, query: query})
+		return
+	}
+
 	// A caller that sent ?data= gets its own rules on this face too; otherwise the document's own
 	// api rules tag answers, exactly as before.
 	mode, answered := s.dataModeForQuery(w, r, extractFilePath(rawPath))
@@ -194,29 +212,49 @@ func (s *Server) handleDataAPI(w http.ResponseWriter, r *http.Request) {
 // bytes already read, which is what makes the two faces impossible to use as a read primitive the
 // plain GET does not already grant.
 func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode) {
-	// The save token is injected on the way OUT of a document response and is normally absent from
-	// disk. "Normally" is not an invariant: an external writer, or someone saving a copy of a served
-	// page, can put an htmlclaytoken attribute back. A capability must not become extractable
-	// because disk happens to contain it.
-	doc, err := dataapi.ParseBytes(htmlutil.StripToken(raw))
-	if err != nil {
-		s.logger.Printf("Data extraction could not parse the document: %v", err)
-		writeDataError(w, http.StatusInternalServerError, extractionFailed())
-		return
-	}
+	var value dataapi.Value
 
-	rules, err := s.rulesFor(doc, mode)
-	if err != nil {
-		status, body := mapDataError(err, mode.face)
-		writeDataError(w, status, body)
-		return
-	}
+	if mode.face == faceAPI && !mode.resolved {
+		// The api face reads through ReadDocument, which knows the sheet codec: a whole read carries
+		// the document's sheets, and a sheet query answers a partial one.
+		res, err := dataapi.ReadDocument(htmlutil.StripToken(raw), dataapi.ReadOptions{Token: "api", Query: mode.query})
+		if err == nil && !res.Found {
+			err = errNoAPIRulesTag
+		}
+		if err != nil {
+			status, body := mapDataError(err, mode.face)
+			if status == http.StatusInternalServerError {
+				s.logger.Printf("Data extraction could not read the document: %v", err)
+			}
+			writeDataError(w, status, body)
+			return
+		}
+		value = res.Data
+	} else {
+		// The save token is injected on the way OUT of a document response and is normally absent
+		// from disk. "Normally" is not an invariant: an external writer, or someone saving a copy of
+		// a served page, can put an htmlclaytoken attribute back. A capability must not become
+		// extractable because disk happens to contain it.
+		doc, err := dataapi.ParseBytes(htmlutil.StripToken(raw))
+		if err != nil {
+			s.logger.Printf("Data extraction could not parse the document: %v", err)
+			writeDataError(w, http.StatusInternalServerError, extractionFailed())
+			return
+		}
 
-	value, err := doc.Extract(rules)
-	if err != nil {
-		status, body := mapDataError(err, mode.face)
-		writeDataError(w, status, body)
-		return
+		rules, version, err := s.rulesFor(doc, mode)
+		if err != nil {
+			status, body := mapDataError(err, mode.face)
+			writeDataError(w, status, body)
+			return
+		}
+
+		value, err = doc.ExtractWith(rules, dataapi.ExtractOptions{Version: version})
+		if err != nil {
+			status, body := mapDataError(err, mode.face)
+			writeDataError(w, status, body)
+			return
+		}
 	}
 
 	body, err := dataapi.Marshal(value)
@@ -234,24 +272,25 @@ func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode
 }
 
 // rulesFor resolves the rule tree for whichever face asked.
-func (s *Server) rulesFor(doc *dataapi.Document, mode dataMode) (dataapi.Value, error) {
+func (s *Server) rulesFor(doc *dataapi.Document, mode dataMode) (dataapi.Value, string, error) {
 	if mode.resolved {
-		return mode.value, nil
+		return mode.value, "1", nil
 	}
 	if mode.face == faceQuery {
-		return dataapi.ParseRelaxed(mode.rules)
+		rules, err := dataapi.ParseRelaxed(mode.rules)
+		return rules, "1", err
 	}
 
 	tag, err := doc.FindRulesIn("api")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if tag == nil {
 		// A missing tag is not an engine error — the status for "this page publishes no such
 		// endpoint" is the server's call — so it is turned into one here.
-		return nil, errNoAPIRulesTag
+		return nil, "", errNoAPIRulesTag
 	}
-	return tag.Rules, nil
+	return tag.Rules, tag.Version, nil
 }
 
 var errNoAPIRulesTag = errors.New(`this page has no rules tag with data-rules-name~="api"`)
@@ -260,6 +299,23 @@ var errNoAPIRulesTag = errors.New(`this page has no rules tag with data-rules-na
 // two sibling css-what failures one line apart in the same file answer 400 and 500 there. The
 // bodies below reproduce theirs; the classification does not.
 func mapDataError(err error, face dataFace) (int, dataError) {
+	var query *gridcodec.QueryRefused
+	if errors.As(err, &query) {
+		return http.StatusBadRequest, dataError{Error: "Invalid sheet query", Message: query.Message, Code: query.Code}
+	}
+	var unknownCodec *dataapi.UnknownCodec
+	if errors.As(err, &unknownCodec) {
+		return http.StatusBadRequest, dataError{Error: "Unknown codec in api rules tag", Message: err.Error(), Code: "unknown-codec"}
+	}
+	var codecRefused *dataapi.CodecRefused
+	if errors.As(err, &codecRefused) {
+		status := http.StatusBadRequest
+		if codecRefused.Code == "sheet-not-canonical" || codecRefused.Code == "sheet-write-unavailable" {
+			status = http.StatusConflict
+		}
+		return status, dataError{Error: "Sheet refused", Message: err.Error(), Code: codecRefused.Code}
+	}
+
 	if face == faceAPI {
 		if errors.Is(err, errNoAPIRulesTag) {
 			return http.StatusBadRequest, dataError{

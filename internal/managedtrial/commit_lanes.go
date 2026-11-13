@@ -300,12 +300,14 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 			prov = h.hooks.ProvenanceForLocalSave(request.UserDriven)
 		}
 	}
+	ifMatched := policy.origin == "api" && request.IfMatched
 	h.hooks.RunDataLossGuard(dataLossGuardArgs{
 		BaseDir:     h.baseDir,
 		Name:        request.Name,
 		NewHTML:     content,
 		PrevContent: request.DataLossPrev,
 		Prov:        prov,
+		IfMatched:   &ifMatched,
 	})
 
 	// Generate the site's Tailwind CSS when it uses one. Non-fatal, for the same

@@ -259,7 +259,7 @@ func TestDataAPIErrors(t *testing.T) {
 	}{
 		{"no rules tag", `<html><body><h1>x</h1></body></html>`,
 			"test.htmlclay", "No api rules tag", 400},
-		{"unsupported version", `<html><body><script data-rules-name="api" data-rules-version="2">{a:"h1"}</script></body></html>`,
+		{"unsupported version", `<html><body><script data-rules-name="api" data-rules-version="3">{a:"h1"}</script></body></html>`,
 			"test.htmlclay", "Unsupported rules version", 400},
 		{"malformed tag body", `<html><body><script data-rules-name="api" data-rules-version="1">{a:</script></body></html>`,
 			"test.htmlclay", "Malformed api rules tag", 400},

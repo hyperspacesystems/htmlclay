@@ -378,7 +378,7 @@
         {
           "kind": "writeSidecar",
           "name": "page.html",
-          "html": "<!doctype html>\n<html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"title\":\"h1\"}</script></head><body><h1>x</h1></body></html>\n"
+          "html": "<!doctype html>\n<html><head><script data-rules-name=\"api\" data-rules-version=\"3\">{\"title\":\"h1\"}</script></head><body><h1>x</h1></body></html>\n"
         }
       ],
       "results": [

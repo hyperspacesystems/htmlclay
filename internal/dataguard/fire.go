@@ -53,7 +53,7 @@ func ShouldFire(prov Provenance, uiWorkPending bool, base, inc dataapi.Value, d 
 	if d.PlaceholderResets >= 3 && d.ResetFrac >= 0.30 {
 		return true
 	}
-	if d.LeafCount <= 3 && d.DestroyedLeaves > 0 && d.DestroyedLeaves == d.MeaningfulCount {
+	if d.LeafCount <= 3 && d.DestroyedLeaves-d.CodecDestroyedLeaves > 0 && d.DestroyedLeaves == d.LeafCount {
 		return true
 	}
 

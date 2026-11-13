@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/clayruntime"
+	"github.com/panphora/htmlclay/internal/dataguard"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
 
@@ -64,6 +65,8 @@ type commitRequest struct {
 	// UserDrivenSet says the request expressed a provenance at all: Local's
 	// `userDriven` is a tri-state, and a save that says nothing is ui-unknown.
 	UserDrivenSet bool
+	IfMatch       string
+	IfMatched     bool
 	SaveID        string
 	DataLossPrev  *string
 	Expected      *commitExpectation
@@ -249,6 +252,14 @@ func (h *commitHost) commitLocked(request *commitRequest, policy commitLane, fil
 		result := refused("changed")
 		h.report(request, &result)
 		return result, nil
+	}
+
+	if policy.origin == "api" && request.IfMatch != "" {
+		previous, err := currentLogical(h.baseDir, request.Name, filePath)
+		if err != nil {
+			return commitResult{}, err
+		}
+		request.IfMatched = previous != nil && dataguard.NamesExactVersion(request.IfMatch) && specwire.IfMatchSatisfied(request.IfMatch, []byte(*previous))
 	}
 
 	result, err := h.runLane(request, policy, filePath)

@@ -1,0 +1,6 @@
+tier: 1
+face: params
+token: api
+expect: error
+params: render=formulas
+note: render without a range is refused by the read

@@ -11,18 +11,29 @@ import (
 // nesting are fine and the twenty-first is the one that fails.
 const maxRuleDepth = 20
 
-// Extract turns a document and a rule tree into a Value. Ported from extract.js.
+// Extract turns a document and a rule tree into a Value under rules version 1 with no codecs.
+// Ported from extract.js.
 //
 // The context node for a top-level rule is the document root, and matching runs over the shadow
 // tree — template content was detached at parse time, so no selector here can observe it.
 func (d *Document) Extract(rules Value) (Value, error) {
-	return extractAt(d, d.Root, rules, trace{})
+	return d.ExtractWith(rules, ExtractOptions{})
+}
+
+// ExtractWith is Extract with a rules version, codecs, and the query and view a codec reads.
+// Callers that read a rules tag pass its Version, so a version 2 tag's codec rules are honored.
+func (d *Document) ExtractWith(rules Value, opts ExtractOptions) (Value, error) {
+	if err := checkCodecRules(rules, opts.Version, opts.Codecs); err != nil {
+		return nil, err
+	}
+	return extractAt(d, d.Root, rules, trace{opts: &opts})
 }
 
 // trace carries the depth counter and the path used in the depth error's message.
 type trace struct {
 	depth int
 	path  []string
+	opts  *ExtractOptions
 }
 
 // child returns the trace one level down. It copies the path rather than appending to it: sibling
@@ -32,7 +43,7 @@ func (t trace) child(segment string) trace {
 	path := make([]string, len(t.path)+1)
 	copy(path, t.path)
 	path[len(t.path)] = segment
-	return trace{depth: t.depth + 1, path: path}
+	return trace{depth: t.depth + 1, path: path, opts: t.opts}
 }
 
 func extractAt(d *Document, ctx *html.Node, rule Value, tr trace) (Value, error) {
@@ -42,7 +53,7 @@ func extractAt(d *Document, ctx *html.Node, rule Value, tr trace) (Value, error)
 
 	switch r := rule.(type) {
 	case string:
-		return extractScalar(d, ctx, r)
+		return extractScalar(d, ctx, r, tr.opts)
 
 	case []Value:
 		// JS destructures [selector, shape]; a shorter array leaves them undefined and any extra
@@ -127,7 +138,7 @@ func listRuleAtHint(selector string, err error) error {
 	return err
 }
 
-func extractScalar(d *Document, ctx *html.Node, rule string) (Value, error) {
+func extractScalar(d *Document, ctx *html.Node, rule string, opts *ExtractOptions) (Value, error) {
 	// "sel[]" — every match's trimmed text, as a list. Empty stays [], never null.
 	if strings.HasSuffix(rule, "[]") {
 		selector := strings.TrimSuffix(rule, "[]")
@@ -140,6 +151,31 @@ func extractScalar(d *Document, ctx *html.Node, rule string) (Value, error) {
 			out = append(out, trimmedText(n))
 		}
 		return out, nil
+	}
+
+	// "sel@codec(name)" — the codec reads the first match's whole value. checkCodecRules has
+	// already refused every codec rule the call cannot honor; the lookup below only guards callers
+	// that reach extractAt without it.
+	if selector, name, ok, err := codecOf(rule); err != nil {
+		return nil, err
+	} else if ok {
+		if opts == nil {
+			opts = &ExtractOptions{}
+		}
+		codec, found := opts.Codecs[name]
+		if !found {
+			return nil, &UnknownCodec{Name: name}
+		}
+		matches := []*html.Node{ctx}
+		if selector != "" {
+			if matches, err = Find(ctx, selector, FindOpts{}); err != nil {
+				return nil, err
+			}
+		}
+		if len(matches) == 0 {
+			return nil, nil
+		}
+		return codec.Read(d, matches[0], CodecContext{Query: opts.Query, View: opts.View, Region: opts.Region})
 	}
 
 	// "@name" — a property of the context node itself.

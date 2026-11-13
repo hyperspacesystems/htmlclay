@@ -17,7 +17,7 @@ const guardRulesTag = `<script type="application/json" data-rules-name="api" dat
 
 // badRulesTag parses as a document but not as a rules tag, which is the
 // fail-open case: the guard cannot read this file's data.
-const badRulesTag = `<script type="application/json" data-rules-name="api" data-rules-version="2">{title:".title"}</script>`
+const badRulesTag = `<script type="application/json" data-rules-name="api" data-rules-version="3">{title:".title"}</script>`
 
 type boardItem struct{ name, note string }
 
@@ -431,9 +431,8 @@ func TestObserveOpenEvent(t *testing.T) {
 	})
 }
 
-// A body the guard cannot read leaves every bookkeeping value exactly as it was
-// and is not an error: the write already happened.
-func TestObserveUnreadableBodyLeavesStateAlone(t *testing.T) {
+// A body the guard cannot read raises against known saved data and retains the baseline.
+func TestObserveUnreadableBodyRaisesAgainstBaseline(t *testing.T) {
 	whole := boardHTML("Board", fourItems...)
 	unreadable := []byte(`<html><body>` + badRulesTag + `</body></html>`)
 
@@ -441,17 +440,17 @@ func TestObserveUnreadableBodyLeavesStateAlone(t *testing.T) {
 	h.observe(whole, nil, dataguard.External)
 	before := h.state()
 
-	if event := h.observe(unreadable, whole, dataguard.UIGestured); event != nil {
-		t.Fatalf("unreadable body raised an event: %+v", event)
+	if event := h.observe(unreadable, whole, dataguard.UIGestured); event == nil {
+		t.Fatal("unreadable body lost saved data without an event")
 	}
 	after := h.state()
-	if after.LastSeenHash != before.LastSeenHash {
-		t.Fatalf("lastSeenHash moved to %q", after.LastSeenHash)
+	if after.LastSeenHash != versions.Hash(unreadable) {
+		t.Fatalf("lastSeenHash did not record the observed bytes: %q", after.LastSeenHash)
 	}
 	if after.Baseline == nil || !bytes.Equal(after.Baseline.Data, before.Baseline.Data) {
 		t.Fatalf("baseline moved: %+v", after.Baseline)
 	}
-	if after.UIWorkPending != before.UIWorkPending || after.Event != nil {
+	if after.UIWorkPending != before.UIWorkPending || after.Event == nil {
 		t.Fatalf("state moved: %+v", after)
 	}
 }

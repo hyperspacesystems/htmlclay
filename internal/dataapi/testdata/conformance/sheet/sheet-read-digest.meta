@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: ok
+view: digest
+note: the digest view is stable per host

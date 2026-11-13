@@ -165,6 +165,7 @@ func emptyGuard() *guardRecord {
 }
 
 func newGuardBaseline(island dataapi.Value, at int64) *guardBaseline {
+	island = dataguard.StoredIsland(island)
 	if island == nil {
 		return nil
 	}

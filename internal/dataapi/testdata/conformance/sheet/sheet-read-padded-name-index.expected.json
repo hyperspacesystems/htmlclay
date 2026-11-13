@@ -1,0 +1,19 @@
+{
+  "title": "Book",
+  "sheets": [
+    {
+      "id": "s1",
+      "name": " Budget ",
+      "rows": 6,
+      "cols": 3,
+      "frozenRows": 1
+    },
+    {
+      "id": "s2",
+      "name": "Styled",
+      "rows": 3,
+      "cols": 3,
+      "frozenRows": 1
+    }
+  ]
+}
