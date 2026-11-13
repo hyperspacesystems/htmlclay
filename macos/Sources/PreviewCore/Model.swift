@@ -60,9 +60,45 @@ public struct RecentDocument: Codable, Equatable, Identifiable, Sendable {
     public var versionsKept: Int
     public var openNow: Bool
     public var opened: String
-    public init(id: String, name: String, place: String, fileMissing: Bool = false, versionsKept: Int = 0, openNow: Bool = false, opened: String = "") {
+    public var url: String
+    public var folderID: String?
+    public var openedAt: Date?
+    public init(id: String, name: String, place: String, fileMissing: Bool = false, versionsKept: Int = 0, openNow: Bool = false, opened: String = "", url: String = "", folderID: String? = nil, openedAt: Date? = nil) {
         self.id = id; self.name = name; self.place = place; self.fileMissing = fileMissing
         self.versionsKept = versionsKept; self.openNow = openNow; self.opened = opened
+        self.url = url; self.folderID = folderID; self.openedAt = openedAt
+    }
+}
+
+public struct FolderCan: Codable, Equatable, Sendable {
+    public var serve: Bool
+    public var stopServing: Bool
+    public var sync: Bool
+    public var stopSyncing: Bool
+    public var stopTrusting: Bool
+    public var merge: Bool
+    public var openWorkspace: Bool
+    public init(serve: Bool = false, stopServing: Bool = false, sync: Bool = false, stopSyncing: Bool = false, stopTrusting: Bool = false, merge: Bool = false, openWorkspace: Bool = false) {
+        self.serve = serve; self.stopServing = stopServing; self.sync = sync; self.stopSyncing = stopSyncing
+        self.stopTrusting = stopTrusting; self.merge = merge; self.openWorkspace = openWorkspace
+    }
+}
+
+public struct HostReason: Codable, Equatable, Sendable {
+    public var code: String
+    public var text: String
+    public init(code: String = "", text: String = "") {
+        self.code = code; self.text = text
+    }
+}
+
+public struct FolderWhy: Codable, Equatable, Sendable {
+    public var serve: HostReason?
+    public var sync: HostReason?
+    public var stopTrusting: HostReason?
+    public var merge: HostReason?
+    public init(serve: HostReason? = nil, sync: HostReason? = nil, stopTrusting: HostReason? = nil, merge: HostReason? = nil) {
+        self.serve = serve; self.sync = sync; self.stopTrusting = stopTrusting; self.merge = merge
     }
 }
 
@@ -91,13 +127,21 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var lastSync: String
     public var historySummary: String
     public var becameViewer: Bool
+    public var fullPath: String
+    public var url: String
+    public var state: String
+    public var can: FolderCan?
+    public var why: FolderWhy
+    public var storageBytes: Int
 
-    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false) {
+    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false, fullPath: String = "", url: String = "", state: String = "ok", can: FolderCan? = nil, why: FolderWhy = FolderWhy(), storageBytes: Int = 0) {
         self.id = id; self.name = name; self.path = path; self.origin = origin; self.parentID = parentID
         self.served = served; self.synced = synced; self.address = address; self.documentCount = documentCount
         self.status = status; self.onThisMac = onThisMac; self.missingOnDisk = missingOnDisk
         self.versionsSize = versionsSize; self.lastSync = lastSync; self.historySummary = historySummary
         self.becameViewer = becameViewer
+        self.fullPath = fullPath; self.url = url; self.state = state; self.can = can; self.why = why
+        self.storageBytes = storageBytes
     }
 
     public var fromAccount: Bool { origin.canSync }
@@ -115,6 +159,16 @@ public struct LocalMoveFolder: Equatable, Identifiable, Sendable {
     public let name: String
     public let port: Int
     public let address: String
+}
+
+public struct MoveFolderInfo: Codable, Equatable, Identifiable, Sendable {
+    public var id: String
+    public var name: String
+    public var port: Int
+    public var address: String
+    public init(id: String = "", name: String = "", port: Int = 0, address: String = "") {
+        self.id = id; self.name = name; self.port = port; self.address = address
+    }
 }
 
 public struct Program: Codable, Equatable, Identifiable, Sendable {
@@ -142,9 +196,13 @@ public struct ProgramRequest: Codable, Equatable, Identifiable, Sendable {
     public var folder: String
     public var path: String
     public var detail: String
-    public init(id: String, kind: Kind, document: String, program: String, folder: String = "", path: String = "", detail: String = "") {
+    public var revision: Int
+    public var answers: [String]
+    public var documentID: String?
+    public init(id: String, kind: Kind, document: String, program: String, folder: String = "", path: String = "", detail: String = "", revision: Int = 0, answers: [String] = [], documentID: String? = nil) {
         self.id = id; self.kind = kind; self.document = document; self.program = program; self.folder = folder
-        self.path = path; self.detail = detail
+        self.path = path; self.detail = detail; self.revision = revision; self.answers = answers
+        self.documentID = documentID
     }
 }
 
@@ -174,11 +232,15 @@ public struct WaitingItem: Codable, Equatable, Identifiable, Sendable {
     public var title: String
     public var detail: String
     public var subjectID: String?
-    public init(id: String, kind: Kind, title: String, detail: String = "", subjectID: String? = nil) {
+    public var seen: Bool
+    public var hostPane: SettingsPane?
+    public var hostEarnsDot: Bool?
+    public init(id: String, kind: Kind, title: String, detail: String = "", subjectID: String? = nil, seen: Bool = false, hostPane: SettingsPane? = nil, hostEarnsDot: Bool? = nil) {
         self.id = id; self.kind = kind; self.title = title; self.detail = detail; self.subjectID = subjectID
+        self.seen = seen; self.hostPane = hostPane; self.hostEarnsDot = hostEarnsDot
     }
-    public var pane: SettingsPane { kind.pane }
-    public var earnsDot: Bool { kind.earnsDot }
+    public var pane: SettingsPane { hostPane ?? kind.pane }
+    public var earnsDot: Bool { hostEarnsDot ?? kind.earnsDot }
 }
 
 public struct SyncState: Codable, Equatable, Sendable {
@@ -218,9 +280,33 @@ public struct PreferenceState: Codable, Equatable, Sendable {
     public var appearance: Appearance
     public var yourName: String
     public var useName: Bool
-    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false) {
+    public var openAtLoginChosen: Bool
+    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false, openAtLoginChosen: Bool = true) {
         self.useName = useName
         self.openAtLogin = openAtLogin; self.aiEditing = aiEditing; self.appearance = appearance; self.yourName = yourName
+        self.openAtLoginChosen = openAtLoginChosen
+    }
+}
+
+public struct HostInfo: Codable, Equatable, Sendable {
+    public var version: String
+    public var os: String
+    public var port: Int
+    public var dashboardURL: String
+    public var service: String
+    public var can: [String: Bool]
+    public init(version: String = "", os: String = "", port: Int = 0, dashboardURL: String = "", service: String = "", can: [String: Bool] = [:]) {
+        self.version = version; self.os = os; self.port = port; self.dashboardURL = dashboardURL
+        self.service = service; self.can = can
+    }
+}
+
+public struct WaitCounts: Codable, Equatable, Sendable {
+    public var total: Int
+    public var byPane: [String: Int]
+    public var dot: Bool
+    public init(total: Int = 0, byPane: [String: Int] = [:], dot: Bool = false) {
+        self.total = total; self.byPane = byPane; self.dot = dot
     }
 }
 
@@ -235,18 +321,26 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public var preferences: PreferenceState
     public var localMoveOffer: Bool
     public var hostStopped: Bool
+    public var rev: Int
+    public var epoch: String
+    public var host: HostInfo
+    public var hostCounts: WaitCounts?
+    public var moveFolders: [MoveFolderInfo]
 
-    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false) {
+    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = []) {
         self.documents = documents; self.folders = folders; self.programs = programs; self.requests = requests
         self.waiting = waiting; self.sync = sync; self.update = update; self.preferences = preferences
         self.localMoveOffer = localMoveOffer
         self.hostStopped = hostStopped
+        self.rev = rev; self.epoch = epoch; self.host = host; self.hostCounts = hostCounts
+        self.moveFolders = moveFolders
     }
 
     public var syncConnected: Bool { sync.connected }
     public var filesStillUploading: Int { sync.connected && !sync.paused && sync.offlineChanges == 0 ? sync.syncingFiles : 0 }
-    public func count(in pane: SettingsPane) -> Int { waiting.filter { $0.pane == pane }.count }
-    public var totalCount: Int { waiting.count }
+    public func count(in pane: SettingsPane) -> Int { hostCounts?.byPane[pane.rawValue] ?? waiting.filter { $0.pane == pane }.count }
+    public var totalCount: Int { hostCounts?.total ?? waiting.count }
+    public func hostCan(_ type: String) -> Bool { host.can[type] ?? true }
 
     public func folder(_ id: String) -> Folder? { folders.first { $0.id == id } }
     public func program(_ id: String) -> Program? { programs.first { $0.id == id } }

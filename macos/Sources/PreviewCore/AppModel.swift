@@ -57,7 +57,8 @@ public final class AppModel {
     }
 
     public var showsDot: Bool {
-        snapshot.waiting.contains { $0.earnsDot && !seenWaiting.contains($0.id) }
+        if let counts = snapshot.hostCounts { return counts.dot }
+        return snapshot.waiting.contains { $0.earnsDot && !seenWaiting.contains($0.id) }
     }
 
     public func markWaitingSeen() {
