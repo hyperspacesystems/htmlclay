@@ -17,6 +17,9 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # Windows runners convert LF to CRLF on checkout, which breaks byte-exact fixtures.
+      - run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
