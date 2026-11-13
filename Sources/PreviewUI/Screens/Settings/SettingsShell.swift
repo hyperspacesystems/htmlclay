@@ -68,6 +68,7 @@ public struct SettingsView: View {
                         }
                     default: ProgramsPane(actions: actions)
                     }
+                case .sync: SyncPane(actions: actions)
                 default: PaneStub(pane: activePane)
                 }
             }

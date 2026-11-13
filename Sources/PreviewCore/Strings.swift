@@ -101,6 +101,34 @@ public enum Strings {
             count == 1 ? "1 team you can only view" : "\(count) teams you can only view"
         }
     }
+    public enum Sync {
+        public static let title = "Sync with hyperclay.com"
+        public static let invite = "Keep a folder in step with your hyperclay.com account or your team. Nothing syncs until you choose a folder."
+        public static let connect = "Connect hyperclay.com…"
+        public static let replaceKey = "Replace key…"
+        public static let disconnect = "Disconnect…"
+        public static let syncing = "Syncing"
+        public static let folders = "Folders"
+        public static let syncingWord = "syncing"
+        public static let setUp = "Set up…"
+        public static let keyRefusedTitle = "Your sync key no longer works"
+        public static let keyRefusedSub = "All folders stopped syncing. Your files are safe on this Mac."
+        public static let reconnect = "Reconnect…"
+        public static let wouldReplaceKey = "Build 1: this would ask for a new sync key."
+        public static let wouldReconnect = "Build 1: this would ask for your username and a new sync key."
+        public static let wouldOpenSite = "Build 1: this would open hyperclay.com in your browser."
+        public static func account(_ username: String) -> String { "@\(username)" }
+        public static func connected(keySuffix: String) -> String { "Connected · sync key ending \(keySuffix)" }
+        public static func syncingFiles(_ n: Int, lastFinished: String) -> String {
+            let base = "Syncing \(n) files…"
+            return lastFinished.isEmpty ? base : base + " · last finished \(lastFinished)"
+        }
+        public static func upToDate(lastFinished: String) -> String {
+            lastFinished.isEmpty ? "Up to date" : "Up to date · last finished \(lastFinished)"
+        }
+        public static func folderLine(path: String, state: String) -> String { "\(path) · \(state)" }
+        public static func review(_ n: Int) -> String { "Review \(n) in dashboard" }
+    }
     public enum FolderPage {
         public static let trusted = "Trusted"
         public static let trustedSubNotServed = ".htmlclay files here save, link to each other, and keep one address. They can also change each other."

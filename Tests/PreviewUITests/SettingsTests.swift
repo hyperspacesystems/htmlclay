@@ -101,4 +101,41 @@ final class SettingsTests: XCTestCase {
         guard let notes = snapshot.folder("notes") else { return XCTFail("missing notes") }
         XCTAssertEqual(FolderRow.pills(for: notes), [.trusted])
     }
+
+    func testSyncPane() async throws {
+        _ = NSApplication.shared
+        let snapshot = SampleData.snapshot(for: .syncedWithTeams)
+        XCTAssertEqual(SyncPane.orderedFolders(snapshot).map(\.id), ["panphora", "design-team", "marketing"])
+        guard let panphora = snapshot.folder("panphora"),
+              let designTeam = snapshot.folder("design-team"),
+              let marketing = snapshot.folder("marketing") else { return XCTFail("missing sample folders") }
+        XCTAssertEqual(SyncPane.dot(for: panphora, snapshot: snapshot), .blue)
+        XCTAssertEqual(SyncPane.dot(for: designTeam, snapshot: snapshot), .amber)
+        XCTAssertEqual(SyncPane.dot(for: marketing, snapshot: snapshot), .muted)
+        XCTAssertEqual(SyncPane.folderSubtitle(panphora, snapshot: snapshot), "~/hyperclay/panphora · syncing")
+        XCTAssertEqual(SyncPane.folderSubtitle(marketing, snapshot: snapshot), "Not on this Mac")
+        XCTAssertEqual(SyncPane.conflicts(designTeam, snapshot: snapshot), 2)
+        XCTAssertEqual(SyncPane.syncingLine(snapshot.sync), "Syncing 5 files… · last finished 2 minutes ago")
+
+        var paused = snapshot
+        paused.sync.paused = true
+        XCTAssertEqual(SyncPane.dot(for: panphora, snapshot: paused), .muted)
+        XCTAssertEqual(SyncPane.syncingLine(paused.sync), "Syncing paused")
+
+        let host = SampleHost(persona: .newPerson)
+        XCTAssertFalse(host.current.sync.connected)
+        _ = try await host.perform(.connectSample)
+        XCTAssertTrue(host.current.sync.connected)
+        XCTAssertEqual(SyncPane.orderedFolders(host.current).map(\.id), ["panphora"])
+        _ = try await host.perform(.disconnect)
+        XCTAssertFalse(host.current.sync.connected)
+
+        for persona in [Persona.newPerson, .syncedWithTeams] {
+            let other = SampleHost(persona: persona)
+            let model = AppModel(host: other, initial: other.current)
+            let hosting = NSHostingView(rootView: KilnRoot { SettingsView(pane: .sync) }.environment(model))
+            hosting.layoutSubtreeIfNeeded()
+            XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 840, persona.rawValue)
+        }
+    }
 }
