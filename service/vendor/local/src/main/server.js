@@ -586,9 +586,44 @@ function originPort(origin) {
 // given while the legacy string form is built before anything has listened on it:
 // `req.socket.localPort` — the port this connection arrived on — is then the only
 // truthful statement of the app's own origin.
+//
+// A root that carries a whole public origin (`ctx.root.origin`) is told apart by
+// that origin instead: HTML Clay serves every folder on one port, at
+// http://<name>.htmlclay.localhost:<port>, so only the name separates them.
 function isOwnOrigin(origin, req, ctx) {
+  const own = publicOrigin(ctx);
+  if (own !== null) return sameOrigin(origin, own);
+  if (!isLoopbackOrigin(origin)) return false;
   const port = originPort(origin);
   return port === ctx.root.port || port === (req.socket && req.socket.localPort);
+}
+
+// The root's whole public origin, normalized, or null when its host gives none.
+function publicOrigin(ctx) {
+  const origin = ctx && ctx.root && ctx.root.origin;
+  if (typeof origin !== 'string' || origin === '') return null;
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return null;
+  }
+}
+
+function sameOrigin(origin, own) {
+  try {
+    return new URL(origin).origin === own;
+  } catch {
+    return false;
+  }
+}
+
+// True when a Host header addresses this root: its public origin's host when it
+// has one, else any loopback name (the DNS-rebinding check).
+function isOwnHostHeader(hostHeader, ctx) {
+  const own = publicOrigin(ctx);
+  if (own === null) return isLoopbackHostHeader(hostHeader);
+  if (typeof hostHeader !== 'string' || hostHeader.length === 0) return false;
+  return sameOrigin(`http://${hostHeader}`, own);
 }
 
 // True when a Host header addresses this server legitimately. Parsed through
@@ -1508,7 +1543,7 @@ function createApp(ctxOrDir, devHooks = null, isKnownPath = null) {
     // request arrives here carrying the attacker's Host header. A loopback Host
     // is the only legitimate way to address this server.
     app.use((req, res, next) => {
-      if (!isLoopbackHostHeader(req.headers.host)) {
+      if (!isOwnHostHeader(req.headers.host, ctx)) {
         return res.status(403).send('Invalid Host header');
       }
       next();
@@ -1557,8 +1592,7 @@ function createApp(ctxOrDir, devHooks = null, isKnownPath = null) {
 
       const origin = req.headers.origin;
       if (origin === undefined) return next();
-      if (origin === 'null' || !isLoopbackOrigin(origin)) return refuse();
-      if (!isOwnOrigin(origin, req, ctx)) return refuse();
+      if (origin === 'null' || !isOwnOrigin(origin, req, ctx)) return refuse();
       next();
     });
 
@@ -3985,6 +4019,8 @@ module.exports = {
   SYSTEM_ROUTES,
   isLoopbackOrigin,
   isLoopbackHostHeader,
+  isOwnOrigin,
+  isOwnHostHeader,
   isLoopbackHostname,
   canonicalForWrite,
   escapeHtml,

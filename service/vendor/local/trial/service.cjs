@@ -1118,9 +1118,11 @@ function createTrialService({
       setConnection({ url, secret: goSecret, epoch, peerEpoch: goEpoch, roots: byPath });
       for (const entry of served) {
         const canonical = realpathSync(entry.path);
-        // `port` is Go's public port for this root: Local's own-origin checks
-        // compare a tab's Origin with it (server.js `isOwnOrigin`).
-        const root = { id: entry.id, path: canonical, port: Number(new URL(entry.url).port) };
+        // `origin` is the root's whole public origin, the one Go serves it at:
+        // Local's own-origin and Host checks compare a tab's with it (server.js
+        // `isOwnOrigin`, `isOwnHostHeader`), because folders can share one port.
+        const publicURL = new URL(entry.url);
+        const root = { id: entry.id, path: canonical, port: Number(publicURL.port), origin: publicURL.origin };
         const live = createRootLive(root);
         const ctx = { root, live, localAuthority: authority, localCheckpoint: checkpoint };
         ctx.observer = new RootObserver(root, { live, localAuthority: authority });

@@ -1,8 +1,8 @@
 {
   "local": {
     "ref": "main",
-    "commit": "cff749fe2a4f8e11241aac070ade5085772c7a51",
-    "committedAt": "2026-11-13T03:41:55-05:00"
+    "commit": "b520afa2b92cbc684b5de3c0c295b6dfe069ad9a",
+    "committedAt": "2026-11-13T03:59:14-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -838,7 +838,7 @@
     "src/main/presence.js": "949ab0d286373a209b45aee6aac94d35f7ea3e6d470e5d4408bfe3ba7869438d",
     "src/main/root-observer.js": "6e92855bddf1f766511b53408ea5191b425818591be52562c363a664cff18927",
     "src/main/runtime-assets.js": "c41a72c8048f5f668cc94b5d768be912f6a0b7247628a54fe2f0d4d7215174c4",
-    "src/main/server.js": "060213aaa3a1cd9522ce8d9fb25013488ebc72ce12d6bc3387e0a2428debf42e",
+    "src/main/server.js": "5a4e23f8699e0cebef0f2a392bbd1b365b58bf744affcb6b6b513de05bd1e8d5",
     "src/main/spec-wire.js": "ddf28f4c87799d5cfff2841e4e5a95c7035c8ec850444c665e44d312d18d9851",
     "src/main/sync-replay.js": "99d46caf494fba4849e62b2f7012df68b844ea06a5f0364c039d1e8969fcc529",
     "src/main/templates/directory-listing.css": "dd49b7862848a957417cf05d6ca5f2ef5e92dee55c93b98e905a45b18ee79056",
@@ -873,7 +873,7 @@
     "trial/go-document-host.cjs": "8f364a3f587f72518a9cbcc83b30f706984a9e3ea37113c2d78234c272cf4f0a",
     "trial/go-process.cjs": "339b773a7653c25f88e6a7708f4f53adeef6eacbd4bd35eea4d560090e4671fd",
     "trial/service-main.cjs": "f75c6c5acc3fff9e3afdd1685ea0e774b8efb5986f7914724214212501230247",
-    "trial/service.cjs": "ce7a3d027bc910c130daeff9bebb2459c14e176a88f470ff4a5cbc212e33c94f"
+    "trial/service.cjs": "b85d0e1f9e13c8d6964556c7b7ccd66e751a92929b30fa720caac3bab6002f4f"
   },
   "packages": {
     "@panphora/clayjs": "1.24.1",
