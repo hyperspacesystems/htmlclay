@@ -229,8 +229,15 @@ final class PreviewMenuController: NSObject {
         let welcome = NSMenuItem(title: Strings.Welcome.title, action: #selector(showWelcome), keyEquivalent: "")
         welcome.target = self
         menu.addItem(welcome)
-        let request = NSMenuItem(title: Strings.Request.allow, action: #selector(showRequest), keyEquivalent: "")
-        request.target = self
+        let requestMenu = NSMenu()
+        for kind in ProgramRequest.Kind.allCases {
+            let entry = NSMenuItem(title: Strings.Preview.requestKind(kind), action: #selector(showRequest(_:)), keyEquivalent: "")
+            entry.target = self
+            entry.representedObject = kind.rawValue
+            requestMenu.addItem(entry)
+        }
+        let request = NSMenuItem(title: Strings.Preview.showRequest, action: nil, keyEquivalent: "")
+        request.submenu = requestMenu
         menu.addItem(request)
         item.menu = menu
     }
@@ -244,8 +251,8 @@ final class PreviewMenuController: NSObject {
 
     @objc private func showWelcome() { windows.showWelcome() }
 
-    @objc private func showRequest() {
-        let item = model.snapshot.waiting.first ?? WaitingItem(id: "sample", kind: .programRequest, title: Strings.Request.title("todo.htmlclay"))
-        windows.showRequest(item)
+    @objc private func showRequest(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let kind = ProgramRequest.Kind(rawValue: raw) else { return }
+        windows.showRequest(host.addSampleRequest(kind))
     }
 }

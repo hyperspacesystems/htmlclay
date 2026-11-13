@@ -203,6 +203,36 @@ public enum Strings {
         public static func title(_ document: String) -> String { "Let \(document) run a program?" }
         public static let dontAllow = "Don't allow"
         public static let allow = "Allow"
+        public static let windowTitle = "HTML Clay"
+        public static func counter(_ position: Int, _ total: Int) -> String { "\(position) of \(total)" }
+        public static let ended = "This request ended"
+        public static func callsIt(_ program: String) -> String { "The document calls it “\(program)”." }
+        public static let foundHere = "Found in a folder where you keep programs."
+        public static let runsAsYou = "A program runs as you. It can read, change or delete any file you can, and use the internet. Allow only a program you trust."
+        public static let moreOptions = "More options"
+        public static func only(_ document: String) -> String { "Only \(document)" }
+        public static func allowFile(_ name: String) -> String { "Allow \(name)" }
+        public static func runNamed(document: String, program: String) -> String { "Let \(document) run “\(program)”?" }
+        public static let noFileLead = "HTML Clay didn't find this program on your Mac. The document should come with instructions. If you're not sure, choose Don't allow: the document still opens and saves."
+        public static let chooseAFile = "Choose a file…"
+        public static func fromTeam(_ folder: String) -> String { "From \(folder). Its editors can change this document later." }
+        public static let teamAsksEachTime = "Team documents always ask one at a time."
+        public static let allowForThisDocument = "Allow for this document"
+        public static let useThisFile = "Use this file?"
+        public static let riskyNote = "Programs that just arrived are the most common way to be tricked."
+        public static let chooseAnother = "Choose another"
+        public static let allowAnyway = "Allow anyway"
+        public static func readFolder(_ document: String) -> String { "Let \(document) read a folder?" }
+        public static func readNote(_ folder: String) -> String { "Allow once lasts until you close the document. Trust lets every document in \(folder) save and link." }
+        public static let allowOnce = "Allow once"
+        public static let trustThisFolder = "Trust this folder"
+        public static func trustOwnFolder(_ document: String) -> String { "Trust the folder \(document) is in?" }
+        public static let ownFolderNote = "Documents there will save, link to each other and keep one address."
+        public static func trustNamed(_ folder: String) -> String { "Trust \(folder)" }
+        public static func folderLine(path: String, detail: String) -> String { detail.isEmpty ? path : "\(path) · \(detail)" }
+        public static let mainFolders = ["~", "~/Desktop", "~/Documents", "~/Downloads"]
+        public static let wouldChooseFile = "Build 1: this would ask you to choose a program file."
+        public static func wouldTrust(_ folder: String) -> String { "Build 1: this would also add \(folder) to your trusted folders." }
     }
     public enum Levels {
         public static let trusted = "Trusted"
@@ -216,6 +246,17 @@ public enum Strings {
         public static let menuTitle = "Preview"
         public static let pretend = "Pretend I am"
         public static let wouldOpenFile = "Build 1: this would ask you to choose a .htmlclay file."
+        public static let showRequest = "Show a request"
+        public static func requestKind(_ kind: ProgramRequest.Kind) -> String {
+            switch kind {
+            case .found: return "A program was found"
+            case .noFile: return "No file found"
+            case .teamDocument: return "A team document"
+            case .riskyFile: return "A risky file"
+            case .folderRead: return "Reading outside the folder"
+            case .folderReadAgain: return "A page asks to trust its own folder"
+            }
+        }
         public static let notYet = "Build 1: this pane comes in a later step tonight."
         public static func wouldOpen(_ name: String) -> String { "Build 1: this would open \(name) in your browser." }
         public static func wouldShowInFinder(_ name: String) -> String { "Build 1: this would show \(name) in Finder." }

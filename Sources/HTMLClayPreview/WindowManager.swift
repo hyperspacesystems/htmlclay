@@ -4,12 +4,16 @@ import Observation
 import PreviewCore
 import PreviewUI
 
+final class RequestPanel: NSPanel {
+    override func cancelOperation(_ sender: Any?) { close() }
+}
+
 @MainActor
 final class WindowManager: NSObject, NSWindowDelegate {
     private let model: AppModel
     private var settings: NSWindow?
     private var welcome: NSWindow?
-    private var request: NSPanel?
+    private var request: RequestPanel?
 
     init(model: AppModel) {
         self.model = model
@@ -94,23 +98,39 @@ final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     func showRequest(_ item: WaitingItem) {
-        request?.close()
-        let panel = NSPanel(contentRect: .zero, styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
-        panel.title = Strings.App.name
+        let hosting = NSHostingView(rootView: KilnRoot {
+            RequestView(itemID: item.id, actions: RequestActions(
+                answer: { [weak self] answered, allow in self?.answer(answered, allow: allow) },
+                close: { [weak self] in self?.request?.close() }))
+        }.environment(model).ignoresSafeArea())
+        hosting.sizingOptions = [.minSize, .intrinsicContentSize, .maxSize]
+        if let panel = request {
+            let top = panel.frame.maxY
+            panel.contentView = hosting
+            panel.setContentSize(hosting.fittingSize)
+            panel.setFrameOrigin(NSPoint(x: panel.frame.minX, y: top - panel.frame.height))
+            present(panel)
+            return
+        }
+        let panel = RequestPanel(contentRect: .zero, styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+        panel.title = Strings.Request.windowTitle
+        panel.titlebarAppearsTransparent = true
+        panel.titleVisibility = .hidden
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.delegate = self
-        panel.contentView = NSHostingView(rootView: KilnRoot {
-            RequestView(item: item) { [weak self] allow in
-                self?.model.send(.answerRequest(waitingID: item.id, allow: allow))
-                self?.request?.close()
-            }
-        }.environment(model))
-        panel.setContentSize(panel.contentView?.fittingSize ?? NSSize(width: 460, height: 200))
+        panel.contentView = hosting
+        panel.setContentSize(hosting.fittingSize)
         panel.center()
         request = panel
         present(panel)
+    }
+
+    private func answer(_ item: WaitingItem, allow: Bool) {
+        let next = RequestQueue.next(after: item.id, in: model.snapshot)
+        model.send(.answerRequest(waitingID: item.id, allow: allow))
+        if let next { showRequest(next) } else { request?.close() }
     }
 
     private func makeWindow<Content: View>(_ root: Content) -> NSWindow {

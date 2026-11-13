@@ -1,24 +1,6 @@
 import SwiftUI
 import PreviewCore
 
-public struct RequestView: View {
-    private let item: WaitingItem
-    private let answer: (Bool) -> Void
-    public init(item: WaitingItem, answer: @escaping (Bool) -> Void = { _ in }) { self.item = item; self.answer = answer }
-    public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(item.title).font(.system(size: 16, weight: .bold))
-            HStack {
-                Spacer()
-                Button(Strings.Request.dontAllow) { answer(false) }
-                Button(Strings.Request.allow) { answer(true) }
-            }
-        }
-        .padding(22)
-        .frame(width: 460)
-    }
-}
-
 @MainActor
 public enum ScreenCatalog {
     private static let settingsPrefix = "settings."
@@ -39,9 +21,16 @@ public enum ScreenCatalog {
             ("welcome", AnyView(KilnRoot { WelcomeView(film: film, menuBarIcon: nil) }.environment(model))),
             ("components", AnyView(KilnRoot { ComponentGallery() }.environment(model))),
         ])
-        if let item = model.snapshot.waiting.first {
-            screens.append(("request", AnyView(KilnRoot { RequestView(item: item) }.environment(model))))
+        for kind in ProgramRequest.Kind.allCases {
+            let s = SampleData.request(kind)
+            screens.append(("request." + kind.rawValue, AnyView(KilnRoot {
+                RequestBody(request: s.request, item: s.item, position: 1, total: 1, actions: RequestActions())
+            }.environment(model))))
         }
+        let queueSample = SampleData.request(.found)
+        screens.append(("request.queue", AnyView(KilnRoot {
+            RequestBody(request: queueSample.request, item: queueSample.item, position: 1, total: 2, actions: RequestActions())
+        }.environment(model))))
         return screens
     }
 }
