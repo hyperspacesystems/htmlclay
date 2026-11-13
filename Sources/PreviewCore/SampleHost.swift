@@ -60,6 +60,7 @@ public enum SampleReducer {
             next.sync.keySuffix = "7f3a"
             next.sync.lastFinished = "just now"
             next.sync.fullName = "David Miranda"
+            next.waiting.removeAll { $0.kind == .syncKeyRefused }
             if next.folder("panphora") == nil {
                 next.folders.append(Folder(id: "panphora", name: "panphora", path: "~/hyperclay/panphora", origin: .account(username: "panphora"), served: true, synced: true, address: "panphora.hyperclay.localhost:1212", documentCount: 31, status: "up to date"))
             }
@@ -95,6 +96,12 @@ public enum SampleReducer {
             next.folders[i].synced = next.sync.connected
             next.folders[i].path = "~/hyperclay/" + next.folders[i].name
             next.folders[i].status = "up to date"
+        case let .addProgram(name, path):
+            guard !next.programs.contains(where: { $0.name == name }) else { return snapshot }
+            var id = name
+            var n = 2
+            while next.program(id) != nil { id = name + "-" + String(n); n += 1 }
+            next.programs.append(Program(id: id, name: name, path: path))
         }
         return next
     }

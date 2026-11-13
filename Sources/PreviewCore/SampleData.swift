@@ -8,6 +8,11 @@ public enum SampleData {
     ]
     public static let servePaths = ["~/Sites/prototypes", "~/hyperclay/panphora/apps", "~/Sites/blog", "~/HyperclayLocal/panphora"]
     public static let hyperclayLocalPaths = ["~/HyperclayLocal/panphora", "~/HyperclayLocal/Design Team"]
+    public static let syncKey = "hcsk_4c1e9b2d07e67f3a"
+    public static let programFiles = ["~/bin/export-csv.py", "~/bin/clay-search", "~/Downloads/search.sh"]
+    public static let accountDownload = (documents: 214, size: "38 MB")
+    public static let teamDownloadSteps = [(files: 0, size: "0"), (files: 8, size: "1.9"), (files: 14, size: "3.3"), (files: 18, size: "4.2")]
+    public static let teamDownloadTotal = (files: 18, size: "4.2")
 
     public static func snapshot(for persona: Persona) -> HostSnapshot {
         switch persona {

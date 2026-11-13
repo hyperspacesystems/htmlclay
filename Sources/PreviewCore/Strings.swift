@@ -421,4 +421,43 @@ public enum Strings {
             public static let back = "Back button"
         }
     }
+    public enum Connect {
+        public static let title = "Connect hyperclay.com"
+        public static let username = "Username"
+        public static let syncKey = "Sync key"
+        public static let keyPlaceholder = "hcsk_…"
+        public static let paste = "Paste"
+        public static let refused = "That sync key wasn't accepted. Get a new one on hyperclay.com."
+        public static let getKey = "Get a sync key ↗"
+        public static let nothingSent = "Nothing is sent to hyperclay.com until you press Connect."
+        public static let connect = "Connect"
+        public static let wouldOpenKeys = "Build 1: this would open the sync key page on hyperclay.com."
+    }
+    public enum AccountFolder {
+        public static func title(_ username: String) -> String { "Where should @\(username) live on this Mac?" }
+        public static let newFolder = "A new folder "
+        public static let existing = "A folder I already have…"
+        public static func willDownload(documents: Int, size: String) -> String { "\(documents) documents, \(size) will download." }
+        public static let willStart = "It will be trusted, served at "
+        public static let willEnd = ", and kept in step with hyperclay.com."
+        public static let back = "Back"
+        public static let setUpAndSync = "Set up and sync"
+        public static let wouldChooseExisting = "Build 1: this would ask you to choose a folder you already have."
+    }
+    public enum TeamSetup {
+        public static func title(_ name: String) -> String { "Set up \(name)" }
+        public static let opensAt = "Opens at "
+        public static let trustCheck = "Trust the documents in this folder. They can change each other."
+        public static func downloading(files: Int, total: Int, size: String, totalSize: String) -> String { "Downloading \(files) of \(total) files · \(size) of \(totalSize) MB" }
+        public static let setUp = "Set up"
+        public static let notEmpty = "This folder isn't empty. Choose an empty one."
+        public static func inside(_ name: String) -> String { "It's inside \(name)." }
+    }
+    public enum AddProgram {
+        public static let title = "Add a program"
+        public static let lead = "No document may run it until you allow one. The first document that asks still gets a request."
+        public static let file = "File"
+        public static let nameHint = "The name documents ask for. Lowercase letters, numbers and hyphens."
+        public static let add = "Add"
+    }
 }

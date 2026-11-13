@@ -59,3 +59,37 @@ public enum TrustRules {
         }
     }
 }
+
+public enum ConnectRules {
+    public static func accepts(_ key: String) -> Bool {
+        key.hasPrefix("hcsk_") && key.count >= 12
+    }
+}
+
+public enum TeamSetupRules {
+    public static func samplePaths(for folder: Folder) -> [String] {
+        ["~/hyperclay/" + folder.name, "~/Documents", "~/hyperclay/panphora/" + ServeRules.defaultName(for: folder.name)]
+    }
+    public static func address(for folder: Folder) -> String {
+        ServeRules.address(for: ServeRules.defaultName(for: folder.name))
+    }
+    public static func problem(_ path: String, in snapshot: HostSnapshot) -> String? {
+        if TrustRules.isMainFolder(path) { return Strings.TeamSetup.notEmpty }
+        if let outer = snapshot.folders.first(where: { !$0.path.isEmpty && path.hasPrefix($0.path + "/") }) { return Strings.TeamSetup.inside(outer.name) }
+        return nil
+    }
+}
+
+public enum ProgramNameProblem: Equatable, Sendable { case invalid, taken }
+
+public enum ProgramRules {
+    public static func defaultName(for path: String) -> String {
+        ((path as NSString).lastPathComponent as NSString).deletingPathExtension.lowercased()
+    }
+    public static func nameProblem(_ name: String, in snapshot: HostSnapshot) -> ProgramNameProblem? {
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
+        if name.isEmpty || name.unicodeScalars.contains(where: { !allowed.contains($0) }) { return .invalid }
+        if snapshot.programs.contains(where: { $0.name == name }) { return .taken }
+        return nil
+    }
+}
