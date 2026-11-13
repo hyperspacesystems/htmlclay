@@ -1,0 +1,81 @@
+// Thin wrapper over the shared `hyper-html-api` engine, ported from the platform's
+// server-lib/data-extractor.js. hyperclay-local is CommonJS and the engine is pure
+// ESM, so the engine loads via a cached dynamic import() and the three functions
+// are async (the only behavioral difference from the platform's sync wrapper —
+// every call site must `await` inside try/catch so a would-be-400 stays a 400).
+//
+// cheerio is loaded with a plain require (it ships a CJS require condition and the
+// engine's cheerio adapter does NOT pull cheerio in — the wrapper owns it, exactly
+// like the platform wrapper does).
+const cheerio = require('cheerio');
+const { loadRead } = require('./sheet-api');
+
+let enginePromise = null;
+function loadEngine() {
+  if (!enginePromise) {
+    enginePromise = Promise.all([
+      import('hyper-html-api/engine'),
+      import('hyper-html-api/cheerio')
+    ]).then(([engine, cheerioAdapterMod]) => ({
+      extract: engine.extract,
+      findRulesIn: engine.findRulesIn,
+      parseRelaxed: engine.parseRelaxed,
+      cheerioAdapter: cheerioAdapterMod.default
+    }));
+  }
+  return enginePromise;
+}
+
+async function extractData(html, rules) {
+  const { extract, cheerioAdapter } = await loadEngine();
+  const queryAdapter = {
+    ...cheerioAdapter,
+    find(...args) {
+      try {
+        return cheerioAdapter.find(...args);
+      } catch (cause) {
+        const error = new Error(cause.message, { cause });
+        error.name = 'InvalidSelector';
+        throw error;
+      }
+    }
+  };
+  return extract(queryAdapter, cheerio.load(html).root(), rules);
+}
+
+// The document's data through its own rules tag, by the reader hyperclay.com uses: a
+// sheet's canonical tables are read without parsing them through the tree. `query`
+// narrows a sheet read ({ shape: 'index' } or { sheet, range, render }); `view: 'digest'`
+// is the data loss guard's view. Null when no tag carries `token`.
+async function extractViaTag(html, token, { query, view } = {}) {
+  const { readDocument } = await loadRead();
+  return readDocument(cheerio.load, html, { token, query, view }).data;
+}
+
+async function parseExtractionRules(str) {
+  const { parseRelaxed } = await loadEngine();
+  return parseRelaxed(str);
+}
+
+let writePromise = null;
+function loadWrite() {
+  if (!writePromise) writePromise = import('hyper-html-api/write');
+  return writePromise;
+}
+
+// Applies a JSON body to a document's source through its own rules tag, content
+// only. Returns { html, changed, spliced }; throws the engine's typed errors.
+async function writeViaTag(html, data, token) {
+  const { writeDocument } = await loadWrite();
+  return writeDocument(cheerio.load, html, data, { token });
+}
+
+// Applies a JSON body through caller-supplied rules (the ?data= mapping) instead
+// of the document's own tag, content only. Same return shape and typed errors as
+// writeViaTag.
+async function writeWithRules(html, data, rules) {
+  const { writeDocument } = await loadWrite();
+  return writeDocument(cheerio.load, html, data, { rules });
+}
+
+module.exports = { extractData, extractViaTag, parseExtractionRules, writeViaTag, writeWithRules };

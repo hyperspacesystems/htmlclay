@@ -9,6 +9,8 @@ executables/
 .DS_Store
 resource_windows_*.syso
 
+service/node_modules/
+
 # wrangler files
 .wrangler
 .dev.vars*
