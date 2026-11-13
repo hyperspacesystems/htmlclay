@@ -11,6 +11,8 @@ mkdir -p "$OUT"
 [ -z "$(ls -A "$OUT")" ] || { echo "$OUT is not empty"; exit 2; }
 OUT=$(cd "$OUT" && pwd)
 T=$(mktemp -d /tmp/trial-regression.XXXX)
+# Local v1.37.0's trial scripts read fixtures under the package's old name.
+[ -e "$H/internal/managedtrial" ] || ln -s served "$H/internal/managedtrial"
 export HTMLCLAY_SOURCE="$H"
 export MANAGED_TRIAL_LOCAL_SOURCE="$L"
 ( cd "$H" && CGO_ENABLED=0 go build -tags managedtrial -o "$T/managed-trial" ./cmd/managed-trial ) || { echo "BUILD FAIL"; exit 3; }
