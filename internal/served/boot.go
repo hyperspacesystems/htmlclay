@@ -124,20 +124,19 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 	}
 
-	var sites []*controlRoot
-	ready := readyLine{PID: os.Getpid(), Epoch: cfg.events.epoch}
+	host := newHostFromConfig(cfg)
+	ready := readyLine{PID: os.Getpid(), Epoch: host.Epoch()}
 	for i, root := range roots {
 		ln, err := net.Listen("tcp", listenAddress(cfg.port, i))
 		if err != nil {
 			closeBound()
 			return fmt.Errorf("--root %q: %w", root.path, err)
 		}
-		handler, err := newRootHandler(root, cfg)
+		handler, err := host.AddRoot(RootSpec{ID: root.id, Path: root.path})
 		if err != nil {
 			closeBound()
 			return err
 		}
-		sites = append(sites, handler.control)
 		bound = append(bound, boundServer{
 			srv: &http.Server{
 				Handler:           handler,
@@ -159,7 +158,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}
 	bound = append(bound, boundServer{
 		srv: &http.Server{
-			Handler:           newControlHandler(secret, sites, cfg.service),
+			Handler:           host.ControlHandler(secret),
 			ReadHeaderTimeout: readHeaderLimit,
 		},
 		ln: controlLn,
@@ -176,18 +175,12 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	for _, b := range bound {
 		go func(b boundServer) { served <- b.srv.Serve(b.ln) }(b)
 	}
-	// Every root reports what changes on disk from here on, so a document
-	// written outside this host reaches its guard and the event stream.
-	for _, site := range sites {
-		site.watcher.start()
-	}
+	host.Start()
 	if _, err := fmt.Fprintf(stdout, "READY %s\n", line); err != nil {
+		host.Close()
 		shutdownAll(bound)
 		return err
 	}
-	// Snapshot entries nobody uploaded go stale, on the interval Local's
-	// root-server pool sweeps them.
-	stopSweep := startSnapshotSweep()
 	_, _ = fmt.Fprintf(stderr, "managed-trial: serving %d roots, control on %s\n", len(roots), ready.Control)
 
 	stdinClosed := make(chan struct{})
@@ -206,10 +199,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 	}
 
-	stopSweep()
-	for _, site := range sites {
-		site.watcher.stop()
-	}
+	host.Close()
 	if err := shutdownAll(bound); err != nil && runErr == nil {
 		runErr = err
 	}
