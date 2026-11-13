@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -281,5 +283,111 @@ func TestDashboardEmptyTrashLinkedElsewhere(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(outside, "keep.html")); err != nil {
 		t.Fatalf("empty-trash reached through the link: %v", err)
+	}
+}
+
+// listenOnServedPort serves the app on the loopback port its folders' addresses
+// name, as main does, so the service can reach Go's own routes.
+func listenOnServedPort(t *testing.T, a *app) {
+	t.Helper()
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", servedTestPort))
+	if err != nil {
+		t.Fatalf("listen on the served port: %v", err)
+	}
+	server := &http.Server{Handler: http.HandlerFunc(a.serveHost), ReadHeaderTimeout: 10 * time.Second}
+	go server.Serve(ln)
+	t.Cleanup(func() { server.Close() })
+}
+
+// TestDashboardSourceSave edits a document's source, lists and opens its
+// versions and restores one through the dashboard: each write is Go's own save
+// or restore route, a stale editor is refused with the file unchanged, and the
+// service writes nothing in the folder.
+func TestDashboardSourceSave(t *testing.T) {
+	serviceRepoTarget(t)
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+	report := guardService(t, dir)
+
+	a := newServiceTestApp(t, home, t.TempDir())
+	listenOnServedPort(t, a)
+	serveThroughDo(t, a, "serve-1", dir, "notes")
+	waitForServiceState(t, a, appcore.ServiceRunning, 20*time.Second)
+	c := openDashboard(t, a)
+	root := "/api/roots/" + url.PathEscape(c.rootIDOf())
+	type source struct {
+		Kind string `json:"kind"`
+		HTML string `json:"html"`
+		Etag string `json:"etag"`
+	}
+	read := func() source {
+		t.Helper()
+		status, body := c.api(http.MethodGet, root+"/source?path=index.html", nil)
+		var got source
+		if status != http.StatusOK || json.Unmarshal([]byte(body), &got) != nil || got.Etag == "" {
+			t.Fatalf("source = %d %s", status, body)
+		}
+		return got
+	}
+	onDisk := func() string {
+		b, err := os.ReadFile(filepath.Join(dir, "index.html"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+
+	first := read()
+	edited := strings.Replace(first.HTML, "</body>", "<p>edited in the code editor</p></body>", 1)
+	status, body := c.api(http.MethodPut, root+"/source", map[string]any{"path": "index.html", "html": edited, "etag": first.Etag, "operationId": "op-1"})
+	var saved source
+	if status != http.StatusOK || json.Unmarshal([]byte(body), &saved) != nil || saved.Kind != "saved" || saved.Etag == first.Etag {
+		t.Fatalf("save = %d %s", status, body)
+	}
+	if !strings.Contains(onDisk(), "edited in the code editor") {
+		t.Fatalf("the save is not on disk: %s", onDisk())
+	}
+
+	before := onDisk()
+	status, body = c.api(http.MethodPut, root+"/source", map[string]any{"path": "index.html", "html": first.HTML, "etag": first.Etag, "operationId": "op-2"})
+	if status != http.StatusConflict && status != http.StatusPreconditionFailed {
+		t.Fatalf("a save from a stale editor = %d %s", status, body)
+	}
+	if onDisk() != before {
+		t.Fatal("a refused save changed the file")
+	}
+
+	status, body = c.api(http.MethodGet, root+"/versions?path=index.html", nil)
+	var versions struct {
+		Versions []struct{ ID string } `json:"versions"`
+	}
+	if status != http.StatusOK || json.Unmarshal([]byte(body), &versions) != nil || len(versions.Versions) == 0 {
+		t.Fatalf("versions = %d %s", status, body)
+	}
+	var restoreID string
+	for _, v := range versions.Versions {
+		status, body := c.api(http.MethodGet, root+"/version?path=index.html&id="+url.QueryEscape(v.ID), nil)
+		if status != http.StatusOK {
+			t.Fatalf("version %s = %d %s", v.ID, status, body)
+		}
+		if !strings.Contains(body, "edited in the code editor") {
+			restoreID = v.ID
+		}
+	}
+	if restoreID == "" {
+		t.Fatalf("no version holds the document before the edit: %v", versions.Versions)
+	}
+	current := read()
+	status, body = c.api(http.MethodPost, root+"/restore", map[string]any{"path": "index.html", "versionId": restoreID, "etag": current.Etag, "operationId": "op-3"})
+	if status != http.StatusOK || !strings.Contains(body, `"kind":"saved"`) {
+		t.Fatalf("restore = %d %s", status, body)
+	}
+	if strings.Contains(onDisk(), "edited in the code editor") {
+		t.Fatal("the restore left the edit on disk")
+	}
+
+	if writes := guardWrites(t, a, report); len(writes) != 0 {
+		t.Fatalf("the service wrote in the served folder: %v", writes)
 	}
 }

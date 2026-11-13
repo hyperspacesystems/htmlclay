@@ -11,6 +11,7 @@
 // group by group as each is tested against the real Go host; the rest answer 501.
 
 const fs = require('fs');
+const http = require('http');
 const path = require('path');
 const { randomBytes } = require('crypto');
 const { Readable } = require('stream');
@@ -19,7 +20,9 @@ const { createShellServer } = require('./vendor/local/src/main/workspace/shell-s
 const { IGNORED } = require('./vendor/local/src/main/root-observer.js');
 
 const PREFIX = '/v1/shell';
-const READ = /^\/api\/(bootstrap|roots|events|roots\/[^/]+\/(tree|list|search|document))$/;
+const READ = /^\/api\/(bootstrap|roots|events|roots\/[^/]+\/(tree|list|search|document|source|versions|version|download))$/;
+// The routes that change a document, each answered by Go's own route for it.
+const WRITES = { PUT: /^\/api\/roots\/[^/]+\/source$/, POST: /^\/api\/roots\/[^/]+\/restore$/ };
 const COMMANDS_PATH = /^\/api\/roots\/[^/]+\/commands$/;
 const COMMANDS = new Set(['create', 'folder', 'rename', 'move', 'duplicate', 'trash', 'restore-trash', 'empty-trash']);
 const MAX_BODY = 1024 * 1024;
@@ -96,6 +99,34 @@ const UNLOCKED = {
   withStructureChange: (fn) => fn(null),
 };
 
+// Go's listener answers every served folder on one port, told apart by Host name.
+// Local's workspace routes reach a root's own server for source saves, versions
+// and restores (routes.js rootHost), the routes every tab uses; fetch cannot set
+// Host, so this asks Go on loopback with http.request.
+function goFetch(url, { method = 'GET', headers = {}, body } = {}) {
+  const target = new URL(url);
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      host: '127.0.0.1', port: target.port, method, path: `${target.pathname}${target.search}`,
+      headers: { ...headers, host: target.host },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('error', reject);
+      res.on('end', () => {
+        const answer = new Headers();
+        for (const [name, value] of Object.entries(res.headers)) {
+          if (value !== undefined) answer.set(name, Array.isArray(value) ? value.join(', ') : value);
+        }
+        const empty = [101, 204, 205, 304].includes(res.statusCode);
+        resolve(new Response(empty ? null : Buffer.concat(chunks), { status: res.statusCode, headers: answer }));
+      });
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
 function refuse(res, status, reason, error) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify({ error, reason }));
@@ -167,6 +198,7 @@ function mountShell(service, { appVersion }) {
     rootTitleFor: (root) => path.basename(root.path),
     rootOriginFor: (root) => new URL(record(root.id).origin).origin,
     commandHostFor,
+    rootHost: { origin: (root) => new URL(record(root.id).origin).origin, fetch: goFetch },
   });
 
   const stopRoots = service.onRoots(() => {
@@ -200,7 +232,9 @@ function mountShell(service, { appVersion }) {
       if (!COMMANDS.has(commandOf(body))) return refuse(res, 501, 'unsupported', 'Not available yet');
       return shell.api(copy, res);
     }
-    if (req.method !== 'GET' || !READ.test(pathname)) return refuse(res, 501, 'unsupported', 'Not available yet');
+    if (!(req.method === 'GET' && READ.test(pathname)) && !WRITES[req.method]?.test(pathname)) {
+      return refuse(res, 501, 'unsupported', 'Not available yet');
+    }
     return shell.api(req, res);
   });
 

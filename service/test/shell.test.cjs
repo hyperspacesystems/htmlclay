@@ -74,7 +74,7 @@ test('commands not switched on answer 501, and a request must come through Go fo
   const before = fs.readdirSync(dir).sort();
   const unknown = await shell(s, '/api/roots/notes/commands', { method: 'POST', body: { command: 'auto-name', path: 'index.html' } });
   assert.equal(unknown.status, 501, 'a command not switched on');
-  assert.equal((await shell(s, '/api/roots/notes/source?path=index.html')).status, 501);
+  assert.equal((await shell(s, '/api/roots/notes/upload', { method: 'POST', body: {} })).status, 501, 'uploads are not switched on');
   assert.deepEqual(fs.readdirSync(dir).sort(), before, 'nothing was written');
 
   assert.equal((await shell(s, '/api/roots', { origin: null })).status, 400);
