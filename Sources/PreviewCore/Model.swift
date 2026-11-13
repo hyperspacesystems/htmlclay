@@ -61,11 +61,15 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var status: String
     public var onThisMac: Bool
     public var missingOnDisk: Bool
+    public var versionsSize: String
+    public var lastSync: String
+    public var historySummary: String
 
-    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false) {
+    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "") {
         self.id = id; self.name = name; self.path = path; self.origin = origin; self.parentID = parentID
         self.served = served; self.synced = synced; self.address = address; self.documentCount = documentCount
         self.status = status; self.onThisMac = onThisMac; self.missingOnDisk = missingOnDisk
+        self.versionsSize = versionsSize; self.lastSync = lastSync; self.historySummary = historySummary
     }
 
     public var fromAccount: Bool { origin.canSync }

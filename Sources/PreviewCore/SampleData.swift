@@ -21,9 +21,9 @@ public enum SampleData {
     ])
 
     static let notes = Folder(id: "notes", name: "Notes", path: "~/Documents/Notes", documentCount: 4, status: "~/Documents/Notes")
-    static let journal = Folder(id: "journal", name: "Journal", path: "~/Documents/Notes/Journal", parentID: "notes", documentCount: 2, status: "Inside Notes")
+    static let journal = Folder(id: "journal", name: "Journal", path: "~/Documents/Notes/Journal", parentID: "notes", documentCount: 6, status: "Inside Notes")
     static let clips = Folder(id: "clips", name: "Clips", path: "~/Documents/Notes/Clips", parentID: "notes", documentCount: 3, status: "Inside Notes")
-    static let prototypes = Folder(id: "prototypes", name: "prototypes", path: "~/GitHub/prototypes", served: true, address: "prototypes.hyperclay.localhost:1212", documentCount: 12, status: "only on this Mac")
+    static let prototypes = Folder(id: "prototypes", name: "prototypes", path: "~/Sites/prototypes", served: true, address: "prototypes.hyperclay.localhost:1212", documentCount: 12, status: "only on this Mac", versionsSize: "6 MB")
     static let todoSearch = Program(id: "todo-search", name: "todo-search", path: "~/bin/todo-search")
 
     static let trustedFolder = HostSnapshot(
@@ -58,8 +58,8 @@ public enum SampleData {
         folders: [
             notes,
             prototypes,
-            Folder(id: "panphora", name: "panphora", path: "~/hyperclay/panphora", origin: .account(username: "panphora"), served: true, synced: true, address: "panphora.hyperclay.localhost:1212", documentCount: 31, status: "up to date"),
-            Folder(id: "design-team", name: "Design Team", path: "~/hyperclay/Design Team", origin: .team(name: "Design Team"), served: true, synced: true, address: "design-team.hyperclay.localhost:1212", documentCount: 18, status: "you are an editor"),
+            Folder(id: "panphora", name: "panphora", path: "~/hyperclay/panphora", origin: .account(username: "panphora"), served: true, synced: true, address: "panphora.hyperclay.localhost:1212", documentCount: 214, status: "up to date", versionsSize: "48 MB", lastSync: "Up to date · 2 minutes ago", historySummary: "12 uploaded, 3 downloaded today"),
+            Folder(id: "design-team", name: "Design Team", path: "~/hyperclay/Design Team", origin: .team(name: "Design Team"), served: true, synced: true, address: "design-team.hyperclay.localhost:1212", documentCount: 18, status: "you are an editor", versionsSize: "21 MB", lastSync: "2 documents changed in both places", historySummary: "4 uploaded, 9 downloaded today"),
             Folder(id: "marketing", name: "Marketing", path: "", origin: .team(name: "Marketing"), status: "Not on this Mac", onThisMac: false),
         ],
         programs: [todoSearch, Program(id: "search-sh", name: "search.sh", path: "~/bin/search.sh", allowedDocuments: ["notes.htmlclay"])],

@@ -18,7 +18,7 @@ public struct NestCard<Content: View>: View {
         content
             .padding(inset)
             .background(fill, in: RoundedRectangle(cornerRadius: cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(line, lineWidth: 1.5))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(line, lineWidth: 2.5))
             .padding(.top, topMargin)
     }
     private var inset: CGFloat {

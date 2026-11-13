@@ -103,7 +103,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         menu.addItem(entry)
     }
 
-    @objc private func openDashboard() { closePanel() }
+    @objc private func openDashboard() {
+        closePanel()
+        windows.openDashboard()
+    }
     @objc private func openSettings() { closePanel(); windows.showSettings(.general) }
 
     @objc private func openAFile() {

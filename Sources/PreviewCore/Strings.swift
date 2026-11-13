@@ -77,6 +77,7 @@ public enum Strings {
         public static let error = "Error"
     }
     public enum Preview {
+        public static let dashboardMissing = "Build 1: the dashboard page is missing from this build."
         public static let menuTitle = "Preview"
         public static let pretend = "Pretend I am"
         public static let wouldOpenFile = "Build 1: this would ask you to choose a .htmlclay file."

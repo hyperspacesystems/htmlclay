@@ -8,7 +8,7 @@ enum SelfCheck {
     static func run() -> Int32 {
         var failures: [String] = []
         var views = 0
-        for name in ["icon-film.html", "tray-icon@2x.png", "tray-icon-alert@2x.png", "AppIcon.icns"] {
+        for name in ["icon-film.html", "dashboard-preview.html", "tray-icon@2x.png", "tray-icon-alert@2x.png", "AppIcon.icns"] {
             let parts = name.split(separator: ".").map(String.init)
             if Bundle.main.url(forResource: parts[0], withExtension: parts[1]) == nil { failures.append("missing resource \(name)") }
         }

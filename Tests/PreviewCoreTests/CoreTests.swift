@@ -82,7 +82,7 @@ final class CoreTests: XCTestCase {
         let after = SampleReducer.apply(.mergeIntoParent(folderID: "journal"), to: t)
         XCTAssertNil(after.folder("journal"))
         XCTAssertNotNil(after.folder("clips"))
-        XCTAssertEqual(after.folder("notes")?.documentCount, 6)
+        XCTAssertEqual(after.folder("notes")?.documentCount, 10)
         XCTAssertEqual(SampleReducer.apply(.mergeIntoParent(folderID: "notes"), to: t), t)
     }
 

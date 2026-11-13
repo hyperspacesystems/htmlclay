@@ -20,6 +20,10 @@ final class WindowManager: NSObject, NSWindowDelegate {
         return try? String(contentsOf: url, encoding: .utf8)
     }
 
+    func openDashboard() {
+        if !Browser.openBundledPage("dashboard-preview") { model.say(Strings.Preview.dashboardMissing) }
+    }
+
     func showSettings(_ pane: SettingsPane) {
         model.settingsPane = pane
         if settings == nil {
