@@ -7,3 +7,6 @@ internal/dataapi/testdata/conformance/sheet/** -text
 
 # The embedded ClayJS release is served and verified byte for byte against its index
 internal/clayruntime/assets/** -text
+
+# Admission fixtures are compared byte for byte after round trips
+internal/pageadmission/testdata/** -text
