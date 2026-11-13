@@ -50,13 +50,18 @@ async function fileFor(root, rel) {
   return file;
 }
 
-function rootUrl(root, route) { return `http://127.0.0.1:${root.port}${route}`; }
+// Where a root's own server answers, and how to reach it. Local's roots each listen
+// on their own loopback port; a host that serves every root on one port by name
+// (HTML Clay) passes its own.
+const localRootHost = { origin: root => `http://127.0.0.1:${root.port}`, fetch: (url, init) => fetch(url, init) };
 
-async function upstream(root, req, route, { method = 'GET', headers = {}, body } = {}) {
+function rootUrl(host, root, route) { return `${host.origin(root)}${route}`; }
+
+async function upstream(host, root, req, route, { method = 'GET', headers = {}, body } = {}) {
   const forwarded = {};
   for (const name of FORWARDED_HEADERS) if (req.headers[name]) forwarded[name] = req.headers[name];
   Object.assign(forwarded, headers);
-  try { return await fetch(rootUrl(root, route), { method, headers: forwarded, body }); }
+  try { return await host.fetch(rootUrl(host, root, route), { method, headers: forwarded, body }); }
   catch { throw refusal('unknown', 'The root response was lost; refresh before trying again', 502); }
 }
 
@@ -82,7 +87,7 @@ function validateSave(request) {
   return documentPath(request.path);
 }
 
-async function handleWorkspaceRoute({ req, res, url, root, route, settings, syncManager }) {
+async function handleWorkspaceRoute({ req, res, url, root, route, settings, syncManager, rootHost = localRootHost }) {
   if (route === 'source' && req.method === 'GET') {
     const rel = documentPath(url.searchParams.get('path'));
     const bytes = await fs.readFile(await fileFor(root, rel));
@@ -97,9 +102,9 @@ async function handleWorkspaceRoute({ req, res, url, root, route, settings, sync
     const request = await readJson(req, SAVE_MAX_BYTES + 1024 * 1024);
     const rel = validateSave(request);
     await fileFor(root, rel);
-    const response = await upstream(root, req, '/_/save', {
+    const response = await upstream(rootHost, root, req, '/_/save', {
       method: 'POST',
-      headers: { 'content-type': 'text/html; charset=utf-8', 'document-url': rootUrl(root, `/${encoded(rel)}`),
+      headers: { 'content-type': 'text/html; charset=utf-8', 'document-url': rootUrl(rootHost, root, `/${encoded(rel)}`),
         'if-match': request.etag, 'save-id': request.operationId, prefer: 'return=representation',
         'x-clay-blockeditor-format': '1' },
       body: request.html,
@@ -113,7 +118,7 @@ async function handleWorkspaceRoute({ req, res, url, root, route, settings, sync
   }
   if (route === 'versions' && req.method === 'GET') {
     const rel = documentPath(url.searchParams.get('path'));
-    const response = await upstream(root, req, `/_/versions/${encoded(rel)}`);
+    const response = await upstream(rootHost, root, req, `/_/versions/${encoded(rel)}`);
     if (!response.ok) return relayRefusal(res, response);
     const body = await response.json();
     return sendJson(res, 200, { versions: body.versions.map(item => ({ id: item.name, savedAt: item.time,
@@ -123,7 +128,7 @@ async function handleWorkspaceRoute({ req, res, url, root, route, settings, sync
     const rel = documentPath(url.searchParams.get('path'));
     const id = safePath(url.searchParams.get('id'));
     if (id.includes('/')) throw refusal('forbidden', 'Invalid version', 400);
-    const response = await upstream(root, req, `/_/version/${encoded(rel)}/${encodeURIComponent(id)}`);
+    const response = await upstream(rootHost, root, req, `/_/version/${encoded(rel)}/${encodeURIComponent(id)}`);
     if (!response.ok) return relayRefusal(res, response);
     return sendJson(res, 200, { id, html: await response.text() });
   }
@@ -135,7 +140,7 @@ async function handleWorkspaceRoute({ req, res, url, root, route, settings, sync
       typeof request.operationId !== 'string' || !request.operationId || request.operationId.length > 128) {
       throw refusal('forbidden', 'Invalid restore request', 400);
     }
-    const response = await upstream(root, req, `/_/restore/${encoded(rel)}/${encodeURIComponent(id)}`, {
+    const response = await upstream(rootHost, root, req, `/_/restore/${encoded(rel)}/${encodeURIComponent(id)}`, {
       method: 'POST', headers: { 'if-match': request.etag, 'save-id': request.operationId },
     });
     if (!response.ok) return relayRefusal(res, response);
@@ -154,9 +159,9 @@ async function handleWorkspaceRoute({ req, res, url, root, route, settings, sync
     if (document) await fileFor(root, document);
     const bytes = await readBytes(req, UPLOAD_MAX_BYTES + 1024 * 1024);
     const context = document
-      ? { 'document-url': rootUrl(root, `/${encoded(document)}`) }
+      ? { 'document-url': rootUrl(rootHost, root, `/${encoded(document)}`) }
       : { 'upload-folder': encodeURIComponent(parent) };
-    const response = await upstream(root, req, '/_/upload', { method: 'POST', headers: context, body: bytes });
+    const response = await upstream(rootHost, root, req, '/_/upload', { method: 'POST', headers: context, body: bytes });
     if (!response.ok) return relayRefusal(res, response);
     const body = await response.json().catch(() => null);
     const uploaded = body?.uploads?.[0]?.url;

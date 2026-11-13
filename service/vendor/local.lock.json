@@ -1,8 +1,8 @@
 {
   "local": {
     "ref": "main",
-    "commit": "0cca9e05dbd304a26894fdc56838e4d72977895e",
-    "committedAt": "2026-11-13T06:44:09-05:00"
+    "commit": "6cc15ef74c868a429715d3501eb757deb07675a5",
+    "committedAt": "2026-11-13T06:55:40-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -881,10 +881,10 @@
     "src/main/wire-routes.js": "19673cf59303eaaeab4c56d0c84229bc04fc2c8cf36c4a08c4ccad77e4d843dc",
     "src/main/workspace/auto-name.js": "a9d25957b0489bcbd87426eb00eef257d69bdd226d808d427d9cdbdabddc0a03",
     "src/main/workspace/commands.js": "8f737f706ebac179c792885de495e82c1be94e4d1c72105f035b8127bd3fcfca",
-    "src/main/workspace/routes.js": "4ab109426674f3d35c649bb2289e6f9537e5bcc6cca2621a5b07cc4fdcbde300",
+    "src/main/workspace/routes.js": "fa824ee047011aace7e6683719918ce30733381e7b50dfdae105c55b7eb5c431",
     "src/main/workspace/search-index.js": "d46d31878f48740c3210042a17a0afa2dcb2f17921ce6175c3bb83a3f85420d8",
     "src/main/workspace/search-worker.js": "5cd6e42ce579555f788029df8abc19309f0fa4ee187df21db7e5103e9f555b9a",
-    "src/main/workspace/shell-server.js": "d2a5b797fb0c881a7e15c3aa3b679322f93c4e6c299273c9577e8e6c35c5b4bd",
+    "src/main/workspace/shell-server.js": "3521eecc1450b1ecb26f10960a8d5fdf8174688d58bd9ac28d9721e1307eced0",
     "src/main/workspace/tree.js": "59c9a9abade06af1a4549c4733158db6e611cfd83f2e95d14ed0ae8c8c4bcf71",
     "src/main/write-contexts.js": "e6ff761606a17f4806a3f2130328f2393f0884ee1592bdc8703ca8b8a7b48918",
     "src/sync-engine/api-client.js": "784305b4c2f3d16ead91b10655c0e86961117d0c0610e0d9fe13da4acc3641e2",

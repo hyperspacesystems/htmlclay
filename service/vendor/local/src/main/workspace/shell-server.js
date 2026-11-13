@@ -96,10 +96,11 @@ function createShellServer({ authority, rootPool, observerFor, settings, appVers
   syncManager = () => null, rootTitleFor = root => path.basename(root.path), appDataPath = null, checkpoint = null,
   onFlushResult = () => false, onFlushClientGone = () => {},
   // A host that serves the workspace itself (HTML Clay) gives its fixed origin, the
-  // bundle's manifest, each root's public origin, and the document host and file
-  // operations commands write through.
+  // bundle's manifest, each root's public origin, the document host and file
+  // operations commands write through, and how to reach a root's own server
+  // (routes.js rootHost).
   origin: fixedOrigin = null, manifest: givenManifest = null,
-  rootOriginFor = root => `http://localhost:${root.port}`, commandHostFor = () => ({}) }) {
+  rootOriginFor = root => `http://localhost:${root.port}`, commandHostFor = () => ({}), rootHost = undefined }) {
   const token = crypto.randomBytes(32).toString('base64url');
   const bootstrapSecret = crypto.randomBytes(32).toString('base64url');
   const sessionSecret = crypto.randomBytes(32).toString('base64url');
@@ -294,7 +295,7 @@ function createShellServer({ authority, rootPool, observerFor, settings, appVers
     if (!root || rootPool.get(id)?.state !== 'running') throw refusal('missing', 'Root is not running', 404);
     const route = match[2];
     if (!['tree', 'list', 'search', 'document', 'commands'].includes(route)) {
-      return handleWorkspaceRoute({ req, res, url, root, route, settings, syncManager });
+      return handleWorkspaceRoute({ req, res, url, root, route, settings, syncManager, rootHost });
     }
     if (route === 'commands' && req.method === 'POST') {
       const request = await readBody(req);

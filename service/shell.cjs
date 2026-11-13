@@ -21,7 +21,7 @@ const { IGNORED } = require('./vendor/local/src/main/root-observer.js');
 const PREFIX = '/v1/shell';
 const READ = /^\/api\/(bootstrap|roots|events|roots\/[^/]+\/(tree|list|search|document))$/;
 const COMMANDS_PATH = /^\/api\/roots\/[^/]+\/commands$/;
-const COMMANDS = new Set(['create', 'folder', 'rename', 'move', 'duplicate']);
+const COMMANDS = new Set(['create', 'folder', 'rename', 'move', 'duplicate', 'trash', 'restore-trash', 'empty-trash']);
 const MAX_BODY = 1024 * 1024;
 
 // The bundle's manifest, for the protocol number the bootstrap reports: beside

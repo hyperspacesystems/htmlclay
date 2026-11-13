@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -102,9 +103,6 @@ func TestDashboardCommandsCreateFolder(t *testing.T) {
 	if after, _ := os.ReadFile(filepath.Join(dir, "index.html")); !bytes.Equal(before, after) {
 		t.Fatal("a refused create changed the document")
 	}
-	if status, _ := c.command(id, map[string]any{"command": "trash", "path": "index.html"}); status != http.StatusNotImplemented {
-		t.Fatalf("a command group not switched on = %d", status)
-	}
 
 	if writes := guardWrites(t, a, report); len(writes) != 0 {
 		t.Fatalf("the service wrote in the served folder: %v", writes)
@@ -192,5 +190,96 @@ func TestDashboardCommandsMove(t *testing.T) {
 
 	if writes := guardWrites(t, a, report); len(writes) != 0 {
 		t.Fatalf("the service wrote in the served folder: %v", writes)
+	}
+}
+
+// TestDashboardCommandsTrash trashes, restores and empties the Trash through
+// the dashboard: Go moves each file and drops its page state, a restore onto a
+// taken name gets a new name, empty-trash keeps the Trash folder, a .trash that
+// links elsewhere is refused with that folder untouched, and the service writes
+// nothing in the folder.
+func TestDashboardCommandsTrash(t *testing.T) {
+	serviceRepoTarget(t)
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+	writeTestFile(t, filepath.Join(dir, "page.html"), servedTestDocument)
+	writeTestFile(t, pageStateFile(dir, "page.html"), `{"v":1,"rev":"abc","tag":"tag"}`)
+	report := guardService(t, dir)
+
+	a := newServiceTestApp(t, home, t.TempDir())
+	serveThroughDo(t, a, "serve-1", dir, "notes")
+	waitForServiceState(t, a, appcore.ServiceRunning, 20*time.Second)
+	c := openDashboard(t, a)
+	id := c.rootIDOf()
+	exists := func(rel string) bool {
+		_, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel)))
+		return err == nil
+	}
+
+	if status, body := c.command(id, map[string]any{"command": "trash", "path": "page.html"}); status != http.StatusOK || body != `{"path":".trash/page.html"}` {
+		t.Fatalf("trash = %d %s", status, body)
+	}
+	if exists("page.html") || !exists(".trash/page.html") {
+		t.Fatal("the trash did not move the file into .trash/")
+	}
+	if _, err := os.Stat(pageStateFile(dir, "page.html")); err == nil {
+		t.Fatal("trashing kept the page state")
+	}
+
+	writeTestFile(t, filepath.Join(dir, "page.html"), servedTestDocument)
+	if status, body := c.command(id, map[string]any{"command": "trash", "path": "page.html"}); status != http.StatusOK || body != `{"path":".trash/page-1.html"}` {
+		t.Fatalf("a second trash of the same name = %d %s", status, body)
+	}
+	if status, body := c.command(id, map[string]any{"command": "restore-trash", "trashPath": ".trash/page.html"}); status != http.StatusOK || body != `{"path":"page.html"}` {
+		t.Fatalf("restore = %d %s", status, body)
+	}
+	writeTestFile(t, filepath.Join(dir, ".trash", "index.html"), servedTestDocument)
+	if status, body := c.command(id, map[string]any{"command": "restore-trash", "trashPath": ".trash/index.html"}); status != http.StatusOK || body != `{"path":"index (restored).html"}` {
+		t.Fatalf("a restore onto a taken name = %d %s", status, body)
+	}
+
+	if status, body := c.command(id, map[string]any{"command": "empty-trash"}); status != http.StatusOK {
+		t.Fatalf("empty-trash = %d %s", status, body)
+	}
+	if names, err := os.ReadDir(filepath.Join(dir, ".trash")); err != nil || len(names) != 0 {
+		t.Fatalf("after empty-trash the Trash holds %d entries (%v)", len(names), err)
+	}
+	if !exists("page.html") || !exists("index.html") || !exists("index (restored).html") {
+		t.Fatal("empty-trash touched a file outside the Trash")
+	}
+
+	if writes := guardWrites(t, a, report); len(writes) != 0 {
+		t.Fatalf("the service wrote in the served folder: %v", writes)
+	}
+}
+
+// TestDashboardEmptyTrashLinkedElsewhere is the one command that deletes, aimed
+// at a .trash that links to another folder: it is refused and that folder keeps
+// everything.
+func TestDashboardEmptyTrashLinkedElsewhere(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("making symlinks on Windows needs Developer Mode")
+	}
+	serviceRepoTarget(t)
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "notes")
+	outside := filepath.Join(home, "elsewhere")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+	writeTestFile(t, filepath.Join(outside, "keep.html"), servedTestDocument)
+	if err := os.Symlink(outside, filepath.Join(dir, ".trash")); err != nil {
+		t.Fatal(err)
+	}
+
+	a := newServiceTestApp(t, home, t.TempDir())
+	serveThroughDo(t, a, "serve-1", dir, "notes")
+	waitForServiceState(t, a, appcore.ServiceRunning, 20*time.Second)
+	c := openDashboard(t, a)
+
+	if status, body := c.command(c.rootIDOf(), map[string]any{"command": "empty-trash"}); status != http.StatusForbidden {
+		t.Fatalf("empty-trash through a link = %d %s", status, body)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "keep.html")); err != nil {
+		t.Fatalf("empty-trash reached through the link: %v", err)
 	}
 }

@@ -72,8 +72,8 @@ test('bootstrap lists the roots Go sent, and the tree and list answer from the f
 test('commands not switched on answer 501, and a request must come through Go for the dashboard', async (t) => {
   const { s, dir } = await servedNotes(t);
   const before = fs.readdirSync(dir).sort();
-  const trashed = await shell(s, '/api/roots/notes/commands', { method: 'POST', body: { command: 'trash', path: 'index.html' } });
-  assert.equal(trashed.status, 501, 'a command group not switched on yet');
+  const unknown = await shell(s, '/api/roots/notes/commands', { method: 'POST', body: { command: 'auto-name', path: 'index.html' } });
+  assert.equal(unknown.status, 501, 'a command not switched on');
   assert.equal((await shell(s, '/api/roots/notes/source?path=index.html')).status, 501);
   assert.deepEqual(fs.readdirSync(dir).sort(), before, 'nothing was written');
 
