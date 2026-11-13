@@ -2,39 +2,6 @@ import SwiftUI
 import WebKit
 import PreviewCore
 
-public struct PanelActions {
-    public var openDashboard: () -> Void
-    public var openSettings: (SettingsPane) -> Void
-    public init(openDashboard: @escaping () -> Void = {}, openSettings: @escaping (SettingsPane) -> Void = { _ in }) {
-        self.openDashboard = openDashboard; self.openSettings = openSettings
-    }
-}
-
-public struct PanelView: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.kiln) private var kiln
-    private let actions: PanelActions
-    public init(actions: PanelActions = PanelActions()) { self.actions = actions }
-    public var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button(Strings.Panel.openDashboard, action: actions.openDashboard)
-                .buttonStyle(KilnPrimaryButtonStyle())
-            if model.snapshot.documents.isEmpty {
-                KilnCard { KilnRow(title: Strings.Panel.noDocumentsTitle) { EmptyView() } }
-            } else {
-                Text(Strings.Panel.recentDocuments).font(.system(size: 13, weight: .semibold)).foregroundStyle(kiln.ink2)
-                KilnCard {
-                    ForEach(model.snapshot.documents) { document in
-                        KilnRow(title: document.name, subtitle: document.place) { EmptyView() }
-                    }
-                }
-            }
-        }
-        .padding(12)
-        .frame(width: 382)
-    }
-}
-
 public struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln

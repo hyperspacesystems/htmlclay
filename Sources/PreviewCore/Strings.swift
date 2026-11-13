@@ -8,11 +8,42 @@ public enum Strings {
         public static let openDashboard = "Open dashboard"
         public static let recentDocuments = "Recent documents"
         public static let noDocumentsTitle = "No documents yet"
+        public static let noDocumentsSub = "Double-click any .htmlclay file in Finder. It shows up here."
         public static let openAFile = "Open a file…"
+        public static let startFromTemplate = "Start from a template"
+        public static let review = "Review"
+        public static let answer = "Answer"
+        public static let pauseSyncing = "Pause syncing"
+        public static let resumeSyncing = "Resume syncing"
+        public static let syncPaused = "Syncing paused"
+        public static let wantsSuffix = " wants"
+        private static let homePrefix = "~/"
+        public static func conflicts(folder: String, count: Int) -> String {
+            count == 1 ? "\(folder): 1 document changed in both places" : "\(folder): \(count) documents changed in both places"
+        }
+        public static func wantsProgram(document: String) -> String { "\(document) wants to run a program" }
+        public static func fileMissing(versions: Int) -> String { "File moved or deleted · \(versions) versions kept" }
+        public static func documentSubtitle(place: String, opened: String) -> String { "\(droppingHome(place)) · \(opened)" }
+        public static func syncing(_ count: Int, username: String) -> String { "Syncing \(count) files… · \(username)" }
+        public static func upToDate(_ username: String) -> String { "Up to date · \(username)" }
+        public static func syncLine(_ sync: SyncState) -> String {
+            if sync.paused { return syncPaused }
+            if sync.syncingFiles > 0 { return syncing(sync.syncingFiles, username: sync.username) }
+            return upToDate(sync.username)
+        }
+        private static func droppingHome(_ place: String) -> String {
+            place.hasPrefix(homePrefix) ? String(place.dropFirst(homePrefix.count)) : place
+        }
     }
     public enum Menu {
         public static let settings = "Settings…"
+        public static let checkForUpdates = "Check for updates…"
         public static let quit = "Quit HTML Clay"
+        public static let rowOpen = "Open"
+        public static let versionHistory = "Version history…"
+        public static let showInFinder = "Show in Finder"
+        public static let exportZip = "Export as zip…"
+        public static let removeFromRecent = "Remove from Recent"
         public static func needsYou(_ count: Int) -> String { "Needs you (\(count))" }
     }
     public enum Welcome {
@@ -48,6 +79,11 @@ public enum Strings {
     public enum Preview {
         public static let menuTitle = "Preview"
         public static let pretend = "Pretend I am"
+        public static let wouldOpenFile = "Build 1: this would ask you to choose a .htmlclay file."
+        public static func wouldOpen(_ name: String) -> String { "Build 1: this would open \(name) in your browser." }
+        public static func wouldShowInFinder(_ name: String) -> String { "Build 1: this would show \(name) in Finder." }
+        public static func wouldExport(_ name: String) -> String { "Build 1: this would export \(name) as a zip file." }
+        public static func wouldRemove(_ name: String) -> String { "Build 1: this would remove \(name) from Recent." }
         public static func persona(_ persona: Persona) -> String {
             switch persona {
             case .newPerson: return "A new person"

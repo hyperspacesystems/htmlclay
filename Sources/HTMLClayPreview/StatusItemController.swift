@@ -57,9 +57,38 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
         add(Strings.Panel.openDashboard, #selector(openDashboard), to: menu)
+        add(Strings.Panel.openAFile, #selector(openAFile), to: menu)
+        if !model.snapshot.documents.isEmpty {
+            let recent = NSMenu()
+            for document in model.snapshot.documents.prefix(8) {
+                let entry = NSMenuItem(title: document.name, action: #selector(openRecent(_:)), keyEquivalent: "")
+                entry.target = self
+                entry.representedObject = document.name
+                recent.addItem(entry)
+            }
+            let parent = NSMenuItem(title: Strings.Panel.recentDocuments, action: nil, keyEquivalent: "")
+            parent.submenu = recent
+            menu.addItem(parent)
+        }
         if model.snapshot.totalCount > 0 {
             menu.addItem(.separator())
-            add(Strings.Menu.needsYou(model.snapshot.totalCount), #selector(openDashboard), to: menu)
+            let needs = NSMenu()
+            for item in model.snapshot.waiting {
+                let entry = NSMenuItem(title: item.title, action: #selector(openWaitingItem(_:)), keyEquivalent: "")
+                entry.target = self
+                entry.representedObject = item.id
+                needs.addItem(entry)
+            }
+            let parent = NSMenuItem(title: Strings.Menu.needsYou(model.snapshot.totalCount), action: nil, keyEquivalent: "")
+            parent.submenu = needs
+            menu.addItem(parent)
+        }
+        if model.snapshot.sync.connected {
+            menu.addItem(.separator())
+            let status = NSMenuItem(title: Strings.Panel.syncLine(model.snapshot.sync), action: nil, keyEquivalent: "")
+            status.isEnabled = false
+            menu.addItem(status)
+            add(model.snapshot.sync.paused ? Strings.Panel.resumeSyncing : Strings.Panel.pauseSyncing, #selector(toggleSync), to: menu)
         }
         menu.addItem(.separator())
         add(Strings.Menu.settings, #selector(openSettings), to: menu, key: ",")
@@ -77,11 +106,39 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     @objc private func openDashboard() { closePanel() }
     @objc private func openSettings() { closePanel(); windows.showSettings(.general) }
 
+    @objc private func openAFile() {
+        closePanel()
+        model.say(Strings.Preview.wouldOpenFile)
+    }
+
+    @objc private func openRecent(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String else { return }
+        closePanel()
+        model.say(Strings.Preview.wouldOpen(name))
+    }
+
+    @objc private func openWaitingItem(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let item = model.snapshot.waiting.first(where: { $0.id == id }) else { return }
+        closePanel()
+        if item.kind == .programRequest {
+            windows.showRequest(item)
+        } else {
+            windows.showSettings(item.pane)
+        }
+    }
+
+    @objc private func toggleSync() {
+        model.send(.setSyncPaused(!model.snapshot.sync.paused))
+    }
+
     private func openPanel() {
         guard let button = item.button, let anchor = button.window else { return }
         let actions = PanelActions(
             openDashboard: { [weak self] in self?.openDashboard() },
-            openSettings: { [weak self] pane in self?.closePanel(); self?.windows.showSettings(pane) })
+            openSettings: { [weak self] pane in self?.closePanel(); self?.windows.showSettings(pane) },
+            answer: { [weak self] item in self?.closePanel(); self?.windows.showRequest(item) },
+            quit: { NSApp.terminate(nil) })
         let hosting = NSHostingView(rootView: KilnRoot { PanelView(actions: actions) }
             .environment(model)
             .clipShape(RoundedRectangle(cornerRadius: 12)))
@@ -102,9 +159,28 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         panel.makeKeyAndOrderFront(nil)
         self.panel = panel
         button.highlight(true)
+        observeSize()
         outsideClicks = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             DispatchQueue.main.async { self?.closePanel() }
         }
+    }
+
+    private func observeSize() {
+        withObservationTracking {
+            _ = model.snapshot
+            _ = model.note
+        } onChange: { [weak self] in
+            DispatchQueue.main.async { self?.sizePanel() }
+        }
+    }
+
+    private func sizePanel() {
+        guard let panel, let content = panel.contentView else { return }
+        let size = content.fittingSize
+        let top = panel.frame.maxY
+        panel.setContentSize(size)
+        panel.setFrameOrigin(NSPoint(x: panel.frame.minX, y: top - size.height))
+        observeSize()
     }
 
     private func closePanel() {
