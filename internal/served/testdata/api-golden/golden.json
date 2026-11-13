@@ -671,7 +671,7 @@
     },
     {
       "path": ".hyperclay/guard/list.json",
-      "sha256": "8a4528e62d24d62820da6d96ddef07e5be41607f74aff8275b00f95571915dbb"
+      "sha256": "cb0cd94a480a5632a053f105e0961a21887b6351383d2f803c12d743d5aa87ea"
     },
     {
       "path": ".hyperclay/guard/list.recover.html",
@@ -679,7 +679,7 @@
     },
     {
       "path": ".hyperclay/guard/single.json",
-      "sha256": "96bb4f7dbaa83e61c53e435c0285c724c7ac17e8718fb72f3020feefd0186d5f"
+      "sha256": "5530931299a7c9747373a10731ac896197d1695dd424651c23ed8b91a6b943f6"
     },
     {
       "path": ".hyperclay/versions/list/2026-11-01-01-00-00-000-0500-001.html",
