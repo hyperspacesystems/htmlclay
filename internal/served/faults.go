@@ -16,6 +16,7 @@ var faultPoints = map[string]bool{
 	faultDurableFail:      true,
 	faultDropReply:        true,
 	faultTailwindHold:     true,
+	faultSettleLost:       true,
 }
 
 type armedFault struct {

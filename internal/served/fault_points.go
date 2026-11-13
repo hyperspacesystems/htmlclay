@@ -9,4 +9,7 @@ const (
 	faultDurableFail      = "durable-fail"
 	faultDropReply        = "drop-reply"
 	faultTailwindHold     = "tailwind-hold"
+	// faultSettleLost makes a structure settle never reach the service, as when
+	// it is slow past the deadline or restarting; rel names the first step's source.
+	faultSettleLost = "settle-lost"
 )

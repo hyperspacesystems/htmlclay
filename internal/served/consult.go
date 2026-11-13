@@ -429,7 +429,8 @@ func (c *consultation) settleStructure(holdID string, completed int, copiedSteps
 		err = fmt.Errorf("structure/settle: %s", answer.Error)
 	}
 	if err != nil {
-		c.link.abort(c.ID, "settle-failed")
+		// The caller marks the touched documents unconfirmed first, then
+		// aborts with the completed steps (commitHost.settleLost).
 		return err
 	}
 	return nil

@@ -130,8 +130,10 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 			for index := range copied {
 				copied[index] = index
 			}
-			if err := consult.settleStructure(holdID, completed, copied, result.Outcome); err != nil {
+			if err := h.settleStructure(consult, entries, holdID, completed, copied, result.Outcome); err != nil {
 				log.Printf("structure %s: settle: %v", kind, err)
+				h.markStructureUnconfirmed(consult.link, entries[:completed], true)
+				consult.link.abortStructureSettle(consult.ID, completed, copied)
 			}
 		}
 		return result, nil
@@ -150,8 +152,12 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 		completed = index + 1
 	}
 	if consult != nil {
-		if err := consult.settleStructure(holdID, completed, copiedSteps, structureAnswer(completed, failure).Outcome); err != nil {
+		if err := h.settleStructure(consult, entries, holdID, completed, copiedSteps, structureAnswer(completed, failure).Outcome); err != nil {
 			log.Printf("structure %s: settle: %v", kind, err)
+			h.markStructureUnconfirmed(consult.link, entries[:completed], false)
+			// The abort waits for the page-state moves below: the service
+			// reconciles from Go's read, which must already carry the moved state.
+			defer consult.link.abortStructureSettle(consult.ID, completed, copiedSteps)
 		}
 	}
 	for _, entry := range entries[:completed] {
@@ -470,4 +476,55 @@ func copyTreeExclusive(from, to string) error {
 		}
 	}
 	return nil
+}
+
+// markStructureUnconfirmed handles a structure settle the service never
+// confirmed: the files moved, but the service's rooms may still be keyed to the
+// old paths, and their next checkpoint would be refused and the edits lost
+// when the room expired. Every page document the completed steps touched is
+// marked unconfirmed at its old and its new path (only the new one for a copy),
+// so semantic writes to either wait. The caller then aborts with the completed
+// steps, so the service can settle late and reconcile each marked document.
+func (h *commitHost) markStructureUnconfirmed(link *serviceLink, done []structureEntry, copy bool) {
+	for _, entry := range done {
+		if !entry.IsDir {
+			if !copy && entry.FromName != "" && isDocumentName(entry.FromName) {
+				link.markUnconfirmed(entry.FromPath, h.rootID, entry.FromName)
+			}
+			if entry.ToName != "" && isDocumentName(entry.ToName) {
+				link.markUnconfirmed(entry.ToPath, h.rootID, entry.ToName)
+			}
+			continue
+		}
+		if entry.ToName == "" {
+			continue
+		}
+		_ = filepath.WalkDir(entry.ToPath, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			rel, relErr := filepath.Rel(entry.ToPath, path)
+			if relErr != nil {
+				return nil
+			}
+			rel = filepath.ToSlash(rel)
+			if !isDocumentName(rel) {
+				return nil
+			}
+			link.markUnconfirmed(path, h.rootID, entry.ToName+"/"+rel)
+			if !copy && entry.FromName != "" {
+				link.markUnconfirmed(filepath.Join(entry.FromPath, filepath.FromSlash(rel)), h.rootID, entry.FromName+"/"+rel)
+			}
+			return nil
+		})
+	}
+}
+
+// settleStructure sends the settle, unless a harness armed settle-lost for the
+// first step's source, which drops it as a slow or restarting service would.
+func (h *commitHost) settleStructure(consult *consultation, entries []structureEntry, holdID string, completed int, copiedSteps []int, outcome string) error {
+	if len(entries) > 0 && takeFault(faultSettleLost, entries[0].FromName) {
+		return errors.New("structure/settle: lost (fault settle-lost)")
+	}
+	return consult.settleStructure(holdID, completed, copiedSteps, outcome)
 }

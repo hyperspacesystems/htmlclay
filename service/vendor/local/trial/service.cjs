@@ -842,7 +842,16 @@ function createTrialService({
   handlers.set('/v1/abort', (body, reply) => {
     reply({ ok: true });
     const consultation = consultations.get(body.consultId);
-    if (consultation) consultation.abort(body.reason);
+    // A lost structure settle: Go moved `completed` steps on disk and could not
+    // tell this process. While the plan is still held, settle it now with Go's
+    // count, so the rooms follow the files instead of staying keyed to paths
+    // that no longer exist (protocol v1, "Gaps recorded").
+    const lateSettle = body.reason === 'settle-failed' && body.structure === true &&
+      Number.isInteger(body.completed) && consultation && consultation.resume;
+    if (lateSettle) {
+      const copiedSteps = Array.isArray(body.copiedSteps) ? body.copiedSteps.filter(Number.isInteger) : [];
+      consultation.continueWith({ settle: { completed: body.completed, copiedSteps } }, () => {});
+    } else if (consultation) consultation.abort(body.reason);
     else {
       prune(tombstones);
       tombstones.set(body.consultId, { at: Date.now() });
@@ -851,6 +860,14 @@ function createTrialService({
     if (body.reason === 'settle-failed' && location) {
       touched.delete(body.consultId);
       setImmediate(() => reconcile(location).catch((error) => logError(`reconcile of ${location.name} failed:`, error)));
+    }
+    // Go marked every page document the structure touched unconfirmed, at its
+    // old and new path, before this abort; each is reconciled from disk and
+    // released. A late settle above runs first: reconcile waits for the
+    // structure boundary it holds.
+    if (body.reason === 'settle-failed' && body.structure === true) {
+      touched.delete(body.consultId);
+      setImmediate(() => recoverUnconfirmed().catch((error) => logError('recovering unconfirmed documents failed:', error)));
     }
   });
 

@@ -184,7 +184,27 @@ func (l *serviceLink) consult(path string, body, out any) error {
 // answers or its epoch changes (a new service never held it). Any other reason
 // is sent once. It never blocks the caller.
 func (l *serviceLink) abort(consultID, reason string) {
-	body := map[string]string{"consultId": consultID, "reason": reason}
+	l.abortWith(map[string]any{"consultId": consultID, "reason": reason}, reason)
+}
+
+// abortStructureSettle tells the service a structure settle was lost after
+// completed steps had moved on disk. A service still holding that plan settles
+// it with these steps, so its rooms follow the files; either way it then
+// reconciles every document Go marked unconfirmed.
+func (l *serviceLink) abortStructureSettle(consultID string, completed int, copiedSteps []int) {
+	if copiedSteps == nil {
+		copiedSteps = []int{}
+	}
+	l.abortWith(map[string]any{
+		"consultId":   consultID,
+		"reason":      "settle-failed",
+		"structure":   true,
+		"completed":   completed,
+		"copiedSteps": copiedSteps,
+	}, "settle-failed")
+}
+
+func (l *serviceLink) abortWith(body map[string]any, reason string) {
 	epoch := l.currentPeer().Epoch
 	go func() {
 		for {
