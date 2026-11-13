@@ -149,8 +149,14 @@ func TestSpawnReadyAttachClose(t *testing.T) {
 	if ready.PID != p.cmd.Process.Pid {
 		t.Fatalf("pid %d, want %d", ready.PID, p.cmd.Process.Pid)
 	}
-	if !log.has("fake service up") {
-		t.Fatalf("log %q, want the stderr line", log.all())
+	// The fake writes READY before its stderr line, and the two pipes are read
+	// separately, so the line may arrive just after Start returns.
+	deadline := time.Now().Add(2 * time.Second)
+	for !log.has("fake service up") {
+		if time.Now().After(deadline) {
+			t.Fatalf("log %q, want the stderr line within 2 s", log.all())
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	if err := p.Attach(Host{URL: "http://127.0.0.1:1", Secret: fakeSecret, Epoch: "e1", Roots: nil}, 10*time.Second); err != nil {
 		t.Fatalf("attach: %v", err)

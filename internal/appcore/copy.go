@@ -93,7 +93,8 @@ var RefusalText = map[string]string{
 	WhyServeFirst:         TextWhySyncServeFirst,
 	WhyViewer:             TextWhySyncViewer,
 	WhyStopServingFirst:   TextWhyStopTrustingServed,
-	RefuseServedElsewhere: "Another copy of HTML Clay is serving this folder. Stop it there first.", // TODO-COPY: refusal, max 140 chars
+	RefuseServedElsewhere: "Another copy of HTML Clay is serving this folder. Stop it there first.",        // TODO-COPY: refusal, max 140 chars
+	RefuseUnsavedEdits:    "Some edits in this folder haven\u0027t been saved yet. Try again in a moment.", // TODO-COPY: refusal, max 140 chars
 }
 
 // RefusalMessage fills in RefusalText for r.

@@ -52,6 +52,9 @@ const (
 	RefuseNothingToMove     = "nothing-to-move"
 	RefuseNotConnected      = "not-connected"
 	RefuseNothingReady      = "nothing-ready"
+	// RefuseUnsavedEdits is a stop serving the live-room service kept, because
+	// the folder still has edits that are not saved.
+	RefuseUnsavedEdits = "unsaved-edits"
 
 	// RefuseNeedsConfirmation is a grant asked for on the dashboard origin, which
 	// only the host's confirmer may approve.

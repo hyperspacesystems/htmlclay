@@ -4,7 +4,8 @@ TESTBOX_REPO=htmlclay-mac
 # The box has Node but no Go. Setup installs the toolchain this Mac and CI use (go.mod: go 1.26),
 # checked against go.dev's published sha256, and links it into ~/.local/bin, which the login
 # shell every setup and command runs in puts on PATH (so `testbox run --command '...'` finds it too).
-# npm ci installs the host-conformance vectors the Go tests read from node_modules.
+# npm ci installs the host-conformance vectors the Go tests read from node_modules, and the
+# live-room service's packages, so the TestService* tests run instead of skipping.
 TESTBOX_SETUP='set -e
 v=1.26.5 sum=5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053
 if [ "$(~/.local/go/bin/go env GOVERSION 2>/dev/null)" != "go$v" ]; then
@@ -15,6 +16,7 @@ fi
 mkdir -p ~/.local/bin
 ln -sf ~/.local/go/bin/go ~/.local/go/bin/gofmt ~/.local/bin/
 npm ci --no-audit --no-fund
+(cd service && npm ci --ignore-scripts --no-audit --no-fund)
 bash scripts/served-golden-local.sh ~/served-golden-local'
 # CI's Linux job runs `go test ./...`. The managed trial's tests sit behind a build tag CI does not
 # set, so they run here as a second step. MANAGED_TRIAL_LOCAL_SOURCE points the served host's golden

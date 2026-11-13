@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -48,9 +49,16 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return nil
 	case "folder.stopServing":
 		if err := a.stopServing(e.FolderID); err != nil {
+			var unsaved errUnsavedEdits
+			if errors.As(err, &unsaved) {
+				return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: e.FolderID}
+			}
 			a.rt.logger.Printf("Could not stop serving folder %s: %v", e.FolderID, err)
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
 		}
+		return nil
+	case "service.restart":
+		a.service.restart()
 		return nil
 	case "folder.reveal":
 		path := a.folderPath(e.FolderID)

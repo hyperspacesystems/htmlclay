@@ -104,7 +104,7 @@ func (a *app) facts() appcore.Facts {
 		Version: version,
 		OS:      runtime.GOOS,
 		Port:    a.rt.port,
-		Service: appcore.ServiceOff,
+		Service: a.service.state(),
 	}
 	f.Folders = a.folderFacts()
 	f.Documents = a.documentFacts()

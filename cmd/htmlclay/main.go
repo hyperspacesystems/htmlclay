@@ -155,8 +155,11 @@ type app struct {
 	servedMu     sync.RWMutex
 	servedByName map[string]*servedMount
 	served       *served.Host
-	stopping     bool
-	noTray       bool
+	// service runs the live-room service while a folder is served. It is nil, and
+	// every call on it is a no-op, until startRuntime builds it.
+	service  *serviceRunner
+	stopping bool
+	noTray   bool
 	// shellServer is the private listener the Mac app talks to, and shellDone closes
 	// when shutdown starts so every event stream ends with its bye line. Both are
 	// zero on a launch without --shell-stdin; the two Once fields let a signal and
@@ -480,6 +483,8 @@ func (a *app) startRuntime() {
 	a.rt.policy = trust.Policy{Home: a.rt.home, Guard: a.rt.guard}
 
 	a.rt.portCandidates = defaultPorts
+
+	a.service = newServiceRunner(a)
 
 	a.rt.logger.Printf("Runtime ready (home=%s)", a.rt.home)
 }

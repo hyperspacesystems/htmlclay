@@ -480,6 +480,9 @@ func (a *app) shutdown() {
 		s.cancel()
 		s.srv.Shutdown(context.Background())
 	}
+	// Save what the live-room service still holds and stop it before the served
+	// mounts are cancelled: it writes through their handlers.
+	a.service.close()
 	a.servedMu.RLock()
 	mounts := make([]*servedMount, 0, len(a.servedByName))
 	for _, m := range a.servedByName {

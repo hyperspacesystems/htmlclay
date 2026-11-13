@@ -56,6 +56,7 @@ func (a *app) newServedHost() *served.Host {
 		Assets:          assets.ProductFS(),
 		CompileTailwind: a.compileServedTailwind,
 		PersonName:      person,
+		Service:         a.service.enabled(),
 	})
 }
 
@@ -177,6 +178,9 @@ func relativeWithin(path, dir string) (string, bool) {
 // trusted folder.
 func (a *app) startServed() {
 	a.served = a.newServedHost()
+	// The control listener answers the service, so it is up before the first
+	// folder mounts: mounting is what asks the service to start.
+	a.service.startControl()
 	for _, f := range a.rt.cfg.ServedFolderList() {
 		if !f.Serving {
 			continue
@@ -200,6 +204,7 @@ func (a *app) startServed() {
 		a.rt.logger.Printf("Serving folder %s at %s", f.Path, a.servedAddress(f))
 	}
 	a.served.Start()
+	a.service.want()
 }
 
 // mountServed takes the folder's lock, then adds its handler to the host and
@@ -231,11 +236,7 @@ func (a *app) mountServedHeld(f config.ServedFolder, lock *folderlock.Lock) erro
 		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	a.servedMu.Lock()
-	if a.servedByName == nil {
-		a.servedByName = make(map[string]*servedMount)
-	}
-	a.servedByName[f.Name] = &servedMount{
+	mount := &servedMount{
 		folder:  f,
 		host:    host,
 		handler: handler,
@@ -243,7 +244,14 @@ func (a *app) mountServedHeld(f config.ServedFolder, lock *folderlock.Lock) erro
 		cancel:  cancel,
 		lock:    lock,
 	}
+	a.servedMu.Lock()
+	if a.servedByName == nil {
+		a.servedByName = make(map[string]*servedMount)
+	}
+	a.servedByName[f.Name] = mount
 	a.servedMu.Unlock()
+	a.service.addRoot(mount)
+	a.service.want()
 	return nil
 }
 
@@ -500,6 +508,21 @@ func (a *app) stopServing(id string) error {
 	if !ok {
 		return fmt.Errorf("no served folder with id %q", id)
 	}
+	// Ask the service to let go of the folder and save what it holds before
+	// anything changes. A folder it kept has unsaved edits, and stopping now
+	// would lose them; a service that does not answer cannot keep a folder
+	// served, so that failure is only logged.
+	kept, err := a.service.removeRoot(id)
+	if err != nil {
+		a.rt.logger.Printf("The live-room service did not answer while stopping %s: %v", f.Name, err)
+	}
+	if len(kept) > 0 {
+		names := make([]string, 0, len(kept))
+		for _, doc := range kept {
+			names = append(names, doc.Name)
+		}
+		return errUnsavedEdits{Names: names}
+	}
 	a.rt.cfg.SetServing(id, false)
 	a.saveConfig("stop serving " + f.Name)
 
@@ -517,6 +540,7 @@ func (a *app) stopServing(id string) error {
 			mount.lock.Release()
 		}
 	}
+	a.service.want()
 	return nil
 }
 
