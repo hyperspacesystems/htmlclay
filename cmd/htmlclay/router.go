@@ -49,6 +49,10 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 		w.Write(indexPage)
 		return
 	}
+	if served, ok := strings.CutSuffix(name, ".htmlclay.localhost"); ok {
+		a.serveServed(w, r, served)
+		return
+	}
 	slug, ok := strings.CutSuffix(name, ".localhost")
 	if !ok || !server.ValidSlug(slug) {
 		http.Error(w, "Forbidden", http.StatusForbidden)

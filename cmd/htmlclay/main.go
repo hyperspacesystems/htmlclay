@@ -16,6 +16,7 @@ import (
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/tray"
@@ -130,10 +131,16 @@ type app struct {
 	// bySlug is the router's view of the live sites, written wherever sites changes and
 	// read on every request behind hostMu, so a request never waits on mu (route holds mu
 	// across filesystem work, and one stalled mount must not block every other site).
-	hostMu   sync.RWMutex
-	bySlug   map[string]*site
-	stopping bool
-	noTray   bool
+	hostMu sync.RWMutex
+	bySlug map[string]*site
+	// servedByName is the router's view of the served folders: one mount per name,
+	// read on every request behind servedMu so it never waits on a.mu or on the
+	// served host. a.served owns the handlers; this map only routes to them.
+	servedMu     sync.RWMutex
+	servedByName map[string]*servedMount
+	served       *served.Host
+	stopping     bool
+	noTray       bool
 	// helperStateMu guards the permission transactions themselves and the current
 	// resolution through dispatcher attachment, so a read can see a whole one
 	// without waiting behind helperMu, which a native dialog can hold for minutes.
@@ -273,6 +280,7 @@ func main() {
 		return
 	}
 	a.startSites()
+	a.startServed()
 	// An update restart left the previous process's sessions behind; take them
 	// back before anything else can register, so every tab that was open keeps
 	// saving at the address it already has. An ordinary launch finds no file.

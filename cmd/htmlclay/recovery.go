@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/trust"
@@ -88,6 +89,9 @@ func (a *app) ownsOrigin(host string) bool {
 	port, _ := strconv.Atoi(p)
 	if port == a.rt.port {
 		if name == "localhost" || name == "127.0.0.1" || name == "::1" {
+			return true
+		}
+		if label, ok := strings.CutSuffix(name, ".htmlclay.localhost"); ok && config.ValidServedName(label) == nil {
 			return true
 		}
 		label, ok := strings.CutSuffix(name, ".localhost")

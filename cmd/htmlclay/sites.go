@@ -413,6 +413,10 @@ func (a *app) routeTrusted(absPath string) (string, bool) {
 // startLegacyRedirects.
 func (a *app) startSites() {
 	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if f, ok := a.rt.cfg.ServedFolderForPath(tf.Path); ok && f.Serving {
+			a.rt.logger.Printf("Trusted folder %s is served at http://%s; it has no separate site", tf.Path, servedHostName(f.Name, a.rt.port))
+			continue
+		}
 		if info, err := os.Stat(tf.Path); err != nil || !info.IsDir() {
 			a.rt.logger.Printf("Trusted folder %s is missing; its address answers with a recovery page", tf.Path)
 			continue
@@ -462,6 +466,15 @@ func (a *app) shutdown() {
 		s.cancel()
 		s.srv.Shutdown(context.Background())
 	}
+	a.servedMu.RLock()
+	mounts := make([]*servedMount, 0, len(a.servedByName))
+	for _, m := range a.servedByName {
+		mounts = append(mounts, m)
+	}
+	a.servedMu.RUnlock()
+	for _, m := range mounts {
+		m.cancel()
+	}
 	if a.rt.httpServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), server.ShutdownBudget)
 		if err := a.rt.httpServer.Shutdown(ctx); err != nil {
@@ -469,6 +482,9 @@ func (a *app) shutdown() {
 			a.rt.httpServer.Close()
 		}
 		cancel()
+	}
+	if a.served != nil {
+		a.served.Close()
 	}
 	// RevokeAll closes the read-root capability handles, so it runs only once no request
 	// can still be reading through one.
