@@ -37,6 +37,9 @@ public enum SampleReducer {
                    !next.programs[p].allowedDocuments.contains(request.document) {
                     next.programs[p].allowedDocuments.append(request.document)
                 }
+                if allow, let p = next.programs.firstIndex(where: { $0.name == request.program }) {
+                    next.programs[p].removedDocuments.removeAll { $0 == request.document }
+                }
             }
         case let .setSyncPaused(paused):
             guard next.sync.connected else { return snapshot }
@@ -48,10 +51,13 @@ public enum SampleReducer {
         case let .removeProgramAccess(programID, document):
             guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
             next.programs[p].allowedDocuments.removeAll { $0 == document }
+            if !next.programs[p].removedDocuments.contains(document) { next.programs[p].removedDocuments.append(document) }
         case .connectSample:
             next.sync.connected = true
             next.sync.username = "panphora"
             next.sync.keySuffix = "7f3a"
+            next.sync.lastFinished = "just now"
+            next.sync.fullName = "David Miranda"
             if next.folder("panphora") == nil {
                 next.folders.append(Folder(id: "panphora", name: "panphora", path: "~/hyperclay/panphora", origin: .account(username: "panphora"), served: true, synced: true, address: "panphora.hyperclay.localhost:1212", documentCount: 31, status: "up to date"))
             }
@@ -59,6 +65,11 @@ public enum SampleReducer {
             next.sync = SyncState()
             for i in next.folders.indices { next.folders[i].synced = false }
             next.waiting.removeAll { $0.kind == .syncKeyRefused }
+        case let .setProgramAllTrusted(programID, on):
+            guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
+            next.programs[p].allTrustedFolders = on
+        case let .setUseName(on): next.preferences.useName = on
+        case let .setAutoUpdate(on): next.update.automatic = on
         case let .setUpTeamFolder(folderID):
             guard let i = next.folders.firstIndex(where: { $0.id == folderID }), !next.folders[i].onThisMac else { return snapshot }
             next.folders[i].onThisMac = true
@@ -96,6 +107,17 @@ public final class SampleHost: HostClient {
         current = SampleReducer.apply(action, to: current)
         listeners.forEach { $0(current) }
         return current
+    }
+
+    @discardableResult
+    public func addSampleRequest(_ kind: ProgramRequest.Kind) -> WaitingItem {
+        let sample = SampleData.request(kind)
+        if !current.requests.contains(where: { $0.id == sample.request.id }) {
+            current.requests.append(sample.request)
+            current.waiting.append(sample.item)
+            listeners.forEach { $0(current) }
+        }
+        return sample.item
     }
 
     public func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) {

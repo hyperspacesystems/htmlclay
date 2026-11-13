@@ -82,8 +82,11 @@ public struct Program: Codable, Equatable, Identifiable, Sendable {
     public var path: String
     public var fileMissing: Bool
     public var allowedDocuments: [String]
-    public init(id: String, name: String, path: String, fileMissing: Bool = false, allowedDocuments: [String] = []) {
+    public var allTrustedFolders: Bool
+    public var removedDocuments: [String]
+    public init(id: String, name: String, path: String, fileMissing: Bool = false, allowedDocuments: [String] = [], allTrustedFolders: Bool = false, removedDocuments: [String] = []) {
         self.id = id; self.name = name; self.path = path; self.fileMissing = fileMissing; self.allowedDocuments = allowedDocuments
+        self.allTrustedFolders = allTrustedFolders; self.removedDocuments = removedDocuments
     }
 }
 
@@ -96,8 +99,11 @@ public struct ProgramRequest: Codable, Equatable, Identifiable, Sendable {
     public var document: String
     public var program: String
     public var folder: String
-    public init(id: String, kind: Kind, document: String, program: String, folder: String = "") {
+    public var path: String
+    public var detail: String
+    public init(id: String, kind: Kind, document: String, program: String, folder: String = "", path: String = "", detail: String = "") {
         self.id = id; self.kind = kind; self.document = document; self.program = program; self.folder = folder
+        self.path = path; self.detail = detail
     }
 }
 
@@ -141,7 +147,10 @@ public struct SyncState: Codable, Equatable, Sendable {
     public var syncingFiles: Int
     public var paused: Bool
     public var viewOnlyTeams: Int
-    public init(connected: Bool = false, username: String = "", keySuffix: String = "", syncingFiles: Int = 0, paused: Bool = false, viewOnlyTeams: Int = 0) {
+    public var lastFinished: String
+    public var fullName: String
+    public init(connected: Bool = false, username: String = "", keySuffix: String = "", syncingFiles: Int = 0, paused: Bool = false, viewOnlyTeams: Int = 0, lastFinished: String = "", fullName: String = "") {
+        self.lastFinished = lastFinished; self.fullName = fullName
         self.connected = connected; self.username = username; self.keySuffix = keySuffix
         self.syncingFiles = syncingFiles; self.paused = paused; self.viewOnlyTeams = viewOnlyTeams
     }
@@ -151,7 +160,9 @@ public struct UpdateState: Codable, Equatable, Sendable {
     public var current: String
     public var ready: String?
     public var checked: String
-    public init(current: String = "2.0.3", ready: String? = nil, checked: String = "Today at 9:12") {
+    public var automatic: Bool
+    public init(current: String = "2.0.3", ready: String? = nil, checked: String = "Today at 9:12", automatic: Bool = true) {
+        self.automatic = automatic
         self.current = current; self.ready = ready; self.checked = checked
     }
 }
@@ -161,7 +172,9 @@ public struct PreferenceState: Codable, Equatable, Sendable {
     public var aiEditing: Bool
     public var appearance: Appearance
     public var yourName: String
-    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "") {
+    public var useName: Bool
+    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false) {
+        self.useName = useName
         self.openAtLogin = openAtLogin; self.aiEditing = aiEditing; self.appearance = appearance; self.yourName = yourName
     }
 }
@@ -209,4 +222,7 @@ public enum HostAction: Equatable, Sendable {
     case connectSample
     case disconnect
     case setUpTeamFolder(folderID: String)
+    case setProgramAllTrusted(programID: String, on: Bool)
+    case setUseName(Bool)
+    case setAutoUpdate(Bool)
 }

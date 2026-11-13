@@ -33,7 +33,7 @@ public enum SampleData {
         ],
         folders: [notes, journal, clips],
         programs: [todoSearch],
-        requests: [ProgramRequest(id: "req-todo", kind: .found, document: "todo.htmlclay", program: "todo-search", folder: "Notes")],
+        requests: [ProgramRequest(id: "req-todo", kind: .found, document: "todo.htmlclay", program: "todo-search", folder: "Notes", path: "~/bin/todo-search")],
         waiting: [WaitingItem(id: "w-req-todo", kind: .programRequest, title: "todo.htmlclay wants to run todo-search", detail: "Notes", subjectID: "req-todo")])
 
     static let servedFolder = HostSnapshot(
@@ -44,7 +44,7 @@ public enum SampleData {
         folders: [notes, prototypes],
         programs: [
             Program(id: "search-sh", name: "search.sh", path: "~/bin/search.sh", allowedDocuments: ["notes.htmlclay"]),
-            Program(id: "bluesky-studio", name: "bluesky-studio", path: "~/Applications/bluesky-studio", allowedDocuments: ["posts.htmlclay", "drafts.htmlclay"]),
+            Program(id: "bluesky-studio", name: "bluesky-studio", path: "~/Applications/bluesky-studio", allowedDocuments: ["posts.htmlclay", "drafts.htmlclay"], allTrustedFolders: true),
             Program(id: "clay-search", name: "clay-search", path: "~/bin/clay-search", fileMissing: true, allowedDocuments: ["index.html"]),
         ],
         waiting: [WaitingItem(id: "w-clay-search", kind: .programFileMissing, title: "clay-search can't be found", detail: "~/bin/clay-search", subjectID: "clay-search")])
@@ -63,15 +63,42 @@ public enum SampleData {
             Folder(id: "marketing", name: "Marketing", path: "", origin: .team(name: "Marketing"), status: "Not on this Mac", onThisMac: false),
         ],
         programs: [todoSearch, Program(id: "search-sh", name: "search.sh", path: "~/bin/search.sh", allowedDocuments: ["notes.htmlclay"])],
-        requests: [ProgramRequest(id: "req-todo", kind: .found, document: "todo.htmlclay", program: "todo-search", folder: "Notes")],
+        requests: [ProgramRequest(id: "req-todo", kind: .found, document: "todo.htmlclay", program: "todo-search", folder: "Notes", path: "~/bin/todo-search")],
         waiting: [
             WaitingItem(id: "w-conflict-index", kind: .conflict, title: "apps/index.html changed in both places", detail: "Design Team", subjectID: "design-team"),
             WaitingItem(id: "w-conflict-pricing", kind: .conflict, title: "pricing.html changed in both places", detail: "Design Team", subjectID: "design-team"),
             WaitingItem(id: "w-req-todo", kind: .programRequest, title: "todo.htmlclay wants to run todo-search", detail: "Notes", subjectID: "req-todo"),
         ],
-        sync: SyncState(connected: true, username: "panphora", keySuffix: "7f3a", syncingFiles: 5, viewOnlyTeams: 1),
+        sync: SyncState(connected: true, username: "panphora", keySuffix: "7f3a", syncingFiles: 5, viewOnlyTeams: 1, lastFinished: "2 minutes ago", fullName: "David Miranda"),
         update: UpdateState(current: "2.0.3", ready: "2.1.0"),
-        preferences: PreferenceState(yourName: "David"))
+        preferences: PreferenceState(yourName: "David", useName: true))
 
     static let localUser = HostSnapshot(localMoveOffer: true)
+
+    public static func request(_ kind: ProgramRequest.Kind) -> (request: ProgramRequest, item: WaitingItem) {
+        let request: ProgramRequest
+        let title: String
+        switch kind {
+        case .found:
+            request = ProgramRequest(id: "req-sample-found", kind: kind, document: "todo.htmlclay", program: "todo-search", folder: "Notes", path: "~/Documents/todo/tools/search.sh")
+            title = "todo.htmlclay wants to run todo-search"
+        case .noFile:
+            request = ProgramRequest(id: "req-sample-noFile", kind: kind, document: "todo.htmlclay", program: "todo-search", folder: "Notes")
+            title = "todo.htmlclay wants to run todo-search"
+        case .teamDocument:
+            request = ProgramRequest(id: "req-sample-teamDocument", kind: kind, document: "roadmap.html", program: "export-csv", folder: "Design Team", path: "~/bin/export-csv.py")
+            title = "roadmap.html wants to run export-csv"
+        case .riskyFile:
+            request = ProgramRequest(id: "req-sample-riskyFile", kind: kind, document: "todo.htmlclay", program: "todo-search", folder: "Notes", path: "~/Downloads/search.sh", detail: "It's in Downloads and changed 2 minutes ago.")
+            title = "todo.htmlclay wants to run todo-search"
+        case .folderRead:
+            request = ProgramRequest(id: "req-sample-folderRead", kind: kind, document: "budget.htmlclay", program: "", folder: "Receipts", path: "~/Documents/Receipts")
+            title = "budget.htmlclay wants to read Receipts"
+        case .folderReadAgain:
+            request = ProgramRequest(id: "req-sample-folderReadAgain", kind: kind, document: "trip-plan.htmlclay", program: "", folder: "Trips", path: "~/Documents/Trips", detail: "3 documents")
+            title = "trip-plan.htmlclay wants you to trust Trips"
+        }
+        let item = WaitingItem(id: "w-" + request.id, kind: .programRequest, title: title, detail: request.folder, subjectID: request.id)
+        return (request, item)
+    }
 }
