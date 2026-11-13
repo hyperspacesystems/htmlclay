@@ -159,13 +159,14 @@ final class PreviewMenuController: NSObject {
     @objc private func pretend(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let persona = Persona(rawValue: raw) else { return }
         host.pretend(persona)
+        model.resetPreviewState()
         rebuild()
     }
 
     @objc private func showWelcome() { windows.showWelcome() }
 
     @objc private func showRequest() {
-        let item = model.snapshot.waiting.first ?? WaitingItem(id: "sample", kind: .programRequest, pane: .programs, title: Strings.Request.title("todo.htmlclay"), earnsDot: true)
+        let item = model.snapshot.waiting.first ?? WaitingItem(id: "sample", kind: .programRequest, title: Strings.Request.title("todo.htmlclay"))
         windows.showRequest(item)
     }
 }
