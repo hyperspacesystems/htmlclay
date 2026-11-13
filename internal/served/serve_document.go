@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -233,7 +233,6 @@ func htmlCommentEnd(str string, from int) int {
 
 // runtimeRelease is one release Local bundles, as its own manifest names it.
 type runtimeRelease struct {
-	Dir      string
 	Selected string
 	Releases map[string]clayruntime.Release
 }
@@ -242,36 +241,35 @@ type runtimeRelease struct {
 // way Local reads them: the offline-runtime manifest names the selected release
 // and the releases to load, and each release's index lists its files and
 // aliases.
-func loadRuntimeReleases(localSource string) (runtimeRelease, error) {
-	dir := filepath.Join(localSource, "src", "main", "offline-runtime")
-	raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+func loadRuntimeReleases(fsys fs.FS) (runtimeRelease, error) {
+	raw, err := fs.ReadFile(fsys, "src/main/offline-runtime/manifest.json")
 	if err != nil {
-		return runtimeRelease{}, fmt.Errorf("--local-source %q: %w", localSource, err)
+		return runtimeRelease{}, fmt.Errorf("local assets: %w", err)
 	}
 	var manifest struct {
 		Selected string   `json:"selected"`
 		Versions []string `json:"versions"`
 	}
 	if err := json.Unmarshal(raw, &manifest); err != nil {
-		return runtimeRelease{}, fmt.Errorf("--local-source %q: offline-runtime/manifest.json: %w", localSource, err)
+		return runtimeRelease{}, fmt.Errorf("local assets: offline-runtime/manifest.json: %w", err)
 	}
 	if manifest.Selected == "" || len(manifest.Versions) == 0 {
-		return runtimeRelease{}, errors.New("--local-source: offline-runtime/manifest.json names no release")
+		return runtimeRelease{}, errors.New("local assets: offline-runtime/manifest.json names no release")
 	}
 	releases := make(map[string]clayruntime.Release, len(manifest.Versions))
 	for _, version := range manifest.Versions {
-		raw, err := os.ReadFile(filepath.Join(dir, version, "offline-manifest.json"))
+		raw, err := fs.ReadFile(fsys, "src/main/offline-runtime/"+version+"/offline-manifest.json")
 		if err != nil {
-			return runtimeRelease{}, fmt.Errorf("--local-source %q: %w", localSource, err)
+			return runtimeRelease{}, fmt.Errorf("local assets: %w", err)
 		}
 		var release clayruntime.Release
 		if err := json.Unmarshal(raw, &release); err != nil {
-			return runtimeRelease{}, fmt.Errorf("--local-source %q: %s/offline-manifest.json: %w", localSource, version, err)
+			return runtimeRelease{}, fmt.Errorf("local assets: %s/offline-manifest.json: %w", version, err)
 		}
 		releases[version] = release
 	}
 	if _, ok := releases[manifest.Selected]; !ok {
-		return runtimeRelease{}, fmt.Errorf("--local-source: the selected release %q is not bundled", manifest.Selected)
+		return runtimeRelease{}, fmt.Errorf("local assets: the selected release %q is not bundled", manifest.Selected)
 	}
-	return runtimeRelease{Dir: dir, Selected: manifest.Selected, Releases: releases}, nil
+	return runtimeRelease{Selected: manifest.Selected, Releases: releases}, nil
 }

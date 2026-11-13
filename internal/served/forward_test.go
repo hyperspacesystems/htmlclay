@@ -115,7 +115,7 @@ func forwardRoot(t *testing.T, peer servicePeer) (*httptest.Server, *rootServer,
 	dir := consultTestRoot(t)
 	events := newEventRing()
 	link := newServiceLink(events, peer)
-	root, err := newRootHandler(rootSpec{id: "root-consult", path: dir}, config{localSource: localSource, events: events, service: link})
+	root, err := newRootHandler(rootSpec{id: "root-consult", path: dir}, config{localSource: localSource, assets: os.DirFS(localSource), events: events, service: link})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,7 +454,7 @@ func TestForwardWithoutServiceKeepsNative(t *testing.T) {
 		t.Skip("MANAGED_TRIAL_LOCAL_SOURCE is unset: the root server reads that checkout's bundled runtime release")
 	}
 	dir := consultTestRoot(t)
-	handler, err := newRootHandler(rootSpec{id: "root-consult", path: dir}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-consult", path: dir}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

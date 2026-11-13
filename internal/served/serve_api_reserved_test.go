@@ -36,7 +36,7 @@ func TestAPIRefusesReservedSitesVersions(t *testing.T) {
 	backupRel := filepath.Join("sites-versions", "notes", "2026-01-01-00-00-00-000.html")
 	writeCommitFile(t, root, backupRel, page("backup"))
 
-	handler, err := newRootHandler(rootSpec{id: "root-reserved", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-reserved", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

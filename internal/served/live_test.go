@@ -40,7 +40,7 @@ func TestLiveKeepalive(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "idle.html"), []byte("<!doctype html><html><body><p>idle</p></body></html>\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
-	handler, err := newRootHandler(rootSpec{id: "root-live", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-live", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

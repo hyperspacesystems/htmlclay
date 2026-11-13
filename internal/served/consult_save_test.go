@@ -61,7 +61,7 @@ func consultSaveServer(t *testing.T, peer servicePeer) (*httptest.Server, *rootS
 	dir := consultTestRoot(t)
 	events := newEventRing()
 	link := newServiceLink(events, peer)
-	handler, err := newRootHandler(rootSpec{id: "root-consult", path: dir}, config{localSource: localSource, events: events, service: link})
+	handler, err := newRootHandler(rootSpec{id: "root-consult", path: dir}, config{localSource: localSource, assets: os.DirFS(localSource), events: events, service: link})
 	if err != nil {
 		t.Fatal(err)
 	}

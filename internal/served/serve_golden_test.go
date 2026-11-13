@@ -161,7 +161,7 @@ func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options golde
 		})
 	}
 
-	runtime, err := loadRuntimeReleases(localSource)
+	runtime, err := loadRuntimeReleases(os.DirFS(localSource))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func runGoldenCasesWith(t *testing.T, caseDir, localSource string, options golde
 	}
 
 	root := serveGoldenRoot(t, caseDir)
-	handler, err := newRootHandler(rootSpec{id: "root-a", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-a", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

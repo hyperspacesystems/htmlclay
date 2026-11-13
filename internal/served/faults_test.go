@@ -351,7 +351,7 @@ func tailwindHoldFixture(t *testing.T) (root, address string, port int, control 
 		t.Fatal(err)
 	}
 	writeCommitFile(t, root, "site.html", []byte(tailwindSitePage("base")))
-	handler, err := newRootHandler(rootSpec{id: "root-tailwind-hold", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-tailwind-hold", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

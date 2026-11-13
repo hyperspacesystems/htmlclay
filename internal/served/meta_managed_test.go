@@ -57,7 +57,7 @@ func TestMetaWithoutServiceAnnouncesTrialExtensions(t *testing.T) {
 	if localSource == "" {
 		t.Skip("MANAGED_TRIAL_LOCAL_SOURCE is unset: the root server reads that checkout's bundled runtime release")
 	}
-	handler, err := newRootHandler(rootSpec{id: "root-meta", path: consultTestRoot(t)}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-meta", path: consultTestRoot(t)}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

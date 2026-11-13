@@ -108,7 +108,7 @@ func TestTailwindNewerBytesWin(t *testing.T) {
 	releaseFirst := make(chan struct{})
 	stubTailwindCompiler(t, firstStarted, secondFinished, releaseFirst)
 
-	handler, err := newRootHandler(rootSpec{id: "root-tailwind-newer", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-tailwind-newer", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestTailwindInstallHoldsTheDocumentLock(t *testing.T) {
 	tailwindCompiler = func(localSource, html string) (string, error) { return tailwindCSSFor(html), nil }
 	t.Cleanup(func() { tailwindCompiler = previous })
 
-	handler, err := newRootHandler(rootSpec{id: "root-tailwind-lock", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-tailwind-lock", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestTailwindReadWaits(t *testing.T) {
 	release := func() { releaseOnce.Do(func() { close(releaseFirst) }) }
 	defer release()
 
-	handler, err := newRootHandler(rootSpec{id: "root-tailwind-read", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-tailwind-read", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

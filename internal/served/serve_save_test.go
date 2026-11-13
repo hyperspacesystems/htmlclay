@@ -92,7 +92,7 @@ func TestSaveAD2StaleLineage(t *testing.T) {
 
 	before := serveFileList(t, root)
 
-	handler, err := newRootHandler(rootSpec{id: "root-ad2", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-ad2", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

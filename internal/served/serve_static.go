@@ -3,8 +3,8 @@
 package served
 
 import (
+	"io/fs"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -23,12 +23,13 @@ var faviconFiles = map[string]string{
 // serveFavicon sends one of those icons the way res.sendFile does: the type its
 // extension names, the file's own stamp, and the same ranges negotiation.
 func (s *rootServer) serveFavicon(w http.ResponseWriter, r *http.Request, name string) error {
-	path := filepath.Join(s.localSource, "assets", name)
-	info, err := os.Stat(path)
+	contentType := mimeTypeFor(name)
+	name = "assets/" + name
+	info, err := fs.Stat(s.assets, name)
 	if err != nil {
 		return err
 	}
-	sendFile(w, r, path, info, mimeTypeFor(name))
+	sendFSFile(w, r, s.assets, name, info, contentType)
 	return nil
 }
 
@@ -63,8 +64,11 @@ func (s *rootServer) serveTemplate(w http.ResponseWriter, r *http.Request, rawPa
 		return nil
 	}
 	name := filepath.Base(filename)
-	path := filepath.Join(s.localSource, "src", "main", "templates", name)
-	css, err := os.ReadFile(path)
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		sendText(w, r, http.StatusNotFound, "Not found")
+		return nil
+	}
+	css, err := fs.ReadFile(s.assets, "src/main/templates/"+name)
 	if err != nil {
 		sendText(w, r, http.StatusNotFound, "Not found")
 		return nil
@@ -85,7 +89,7 @@ func (s *rootServer) runtimeAsset(version, publicPath string) (clayruntime.File,
 	if !ok {
 		return clayruntime.File{}, "", false
 	}
-	return file, filepath.Join(s.runtimeDir, version, filepath.FromSlash(publicPath)), true
+	return file, "src/main/offline-runtime/" + version + "/" + publicPath, true
 }
 
 // serveRuntimeAsset is Local's `/_/clayjs/<version>/<path>`: the bundled
@@ -96,10 +100,10 @@ func (s *rootServer) serveRuntimeAsset(w http.ResponseWriter, r *http.Request) e
 	documentURL := "http://" + r.Host + "/"
 	parsed := clayruntime.ParseRuntimeURL(r.RequestURI, clayruntime.Options{DocumentURL: documentURL})
 	var file clayruntime.File
-	var path string
+	var name string
 	found := false
 	if parsed != nil && parsed.Kind == "local" {
-		file, path, found = s.runtimeAsset(parsed.Version, parsed.Path)
+		file, name, found = s.runtimeAsset(parsed.Version, parsed.Path)
 	}
 	if !found {
 		w.Header().Set("Cache-Control", "no-store")
@@ -125,7 +129,7 @@ func (s *rootServer) serveRuntimeAsset(w http.ResponseWriter, r *http.Request) e
 
 	// The index's own type, with nothing appended to it.
 	h.Set("Content-Type", file.Type)
-	body, err := os.ReadFile(path)
+	body, err := fs.ReadFile(s.assets, name)
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -31,6 +32,7 @@ type config struct {
 	roots          []string
 	port           int
 	localSource    string
+	assets         fs.FS
 	personName     string
 	controlFD      int
 	bootstrapStdin bool
@@ -84,6 +86,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if err := checkLocalSource(cfg.localSource); err != nil {
 		return err
 	}
+	cfg.assets = os.DirFS(cfg.localSource)
 	cfg.events = newEventRing()
 	if cfg.bootstrapStdin && cfg.controlFD >= 0 {
 		return errors.New("use one of --control-fd and --bootstrap-stdin")

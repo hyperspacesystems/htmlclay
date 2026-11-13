@@ -21,7 +21,7 @@ type rootServer struct {
 	baseDir     string
 	registry    *consentRegistry
 	localSource string
-	runtimeDir  string
+	assets      fs.FS
 	selected    string
 	releases    map[string]clayruntime.Release
 	// commit is the one writer of this root's documents: every route that writes
@@ -56,7 +56,7 @@ var htmlRoutePattern = regexp.MustCompile(`^(.*?\.html(?:clay)?)(\/.*)?$`)
 var svgPathPattern = regexp.MustCompile(`(?i)\.svgz?$`)
 
 func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
-	runtime, err := loadRuntimeReleases(cfg.localSource)
+	runtime, err := loadRuntimeReleases(cfg.assets)
 	if err != nil {
 		return nil, err
 	}
@@ -77,11 +77,11 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	if cfg.service != nil {
 		cfg.service.setRoot(root.id, baseDir)
 	}
-	worker, err := readWorkerScript(cfg.localSource, "sync-worker.js")
+	worker, err := readWorkerScript(cfg.assets, "sync-worker.js")
 	if err != nil {
 		return nil, err
 	}
-	dataWorker, err := readWorkerScript(cfg.localSource, "sync-data-worker.js")
+	dataWorker, err := readWorkerScript(cfg.assets, "sync-data-worker.js")
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		baseDir:        baseDir,
 		registry:       registry,
 		localSource:    cfg.localSource,
-		runtimeDir:     runtime.Dir,
+		assets:         cfg.assets,
 		selected:       runtime.Selected,
 		releases:       runtime.Releases,
 		commit:         host,

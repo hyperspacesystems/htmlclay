@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"regexp"
@@ -215,6 +216,33 @@ func parseHTTPDate(value string) (time.Time, bool) {
 }
 
 func sendFile(w http.ResponseWriter, r *http.Request, path string, info os.FileInfo, contentType string) {
+	sendFileFrom(w, r, info, contentType, func(offset, length int64) ([]byte, error) {
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		body, err := io.ReadAll(io.NewSectionReader(file, offset, length))
+		_ = file.Close()
+		return body, err
+	})
+}
+
+// sendFSFile is sendFile for a file inside an fs.FS: the same headers, conditional
+// requests and ranges, with the stamp and bytes read from the FS.
+func sendFSFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, name string, info fs.FileInfo, contentType string) {
+	sendFileFrom(w, r, info, contentType, func(offset, length int64) ([]byte, error) {
+		data, err := fs.ReadFile(fsys, name)
+		if err != nil {
+			return nil, err
+		}
+		if offset+length > int64(len(data)) {
+			return nil, io.ErrUnexpectedEOF
+		}
+		return data[offset : offset+length], nil
+	})
+}
+
+func sendFileFrom(w http.ResponseWriter, r *http.Request, info fs.FileInfo, contentType string, read func(offset, length int64) ([]byte, error)) {
 	h := w.Header()
 	poweredBy(w)
 	if h.Get("Accept-Ranges") == "" {
@@ -278,13 +306,8 @@ func sendFile(w http.ResponseWriter, r *http.Request, path string, info os.FileI
 
 	var body []byte
 	if length > 0 {
-		file, err := os.Open(path)
-		if err != nil {
-			fileFailure(w, r, http.StatusInternalServerError)
-			return
-		}
-		body, err = io.ReadAll(io.NewSectionReader(file, offset, length))
-		_ = file.Close()
+		var err error
+		body, err = read(offset, length)
 		if err != nil {
 			fileFailure(w, r, http.StatusInternalServerError)
 			return

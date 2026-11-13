@@ -44,7 +44,7 @@ const relayTestDocument = `<!doctype html>
 func snapshotTakeTestRoot(t *testing.T, localSource, id string) (*httptest.Server, *httptest.Server) {
 	t.Helper()
 	root := serveGoldenRoot(t, filepath.Join("testdata", "relay-golden"))
-	handler, err := newRootHandler(rootSpec{id: id, path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: id, path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

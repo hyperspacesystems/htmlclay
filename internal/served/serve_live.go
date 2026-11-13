@@ -3,11 +3,11 @@
 package served
 
 import (
+	"io/fs"
 	"math"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -416,8 +416,8 @@ func serveWorkerScript(w http.ResponseWriter, script []byte) error {
 
 // readWorkerScript is SYNC_WORKER_JS or SYNC_DATA_WORKER_JS: the checkout's copy
 // of a worker script, read once, at boot.
-func readWorkerScript(localSource, name string) ([]byte, error) {
-	return os.ReadFile(filepath.Join(localSource, "src", "main", "assets", name))
+func readWorkerScript(fsys fs.FS, name string) ([]byte, error) {
+	return fs.ReadFile(fsys, "src/main/assets/"+name)
 }
 
 // The write budget of one physical SSE response, shared by every sink that

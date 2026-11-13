@@ -120,7 +120,7 @@ func runLiveGolden(t *testing.T, caseDir, localSource, judgedCase string) {
 	freezeLiveClock(t, golden.Clock)
 
 	root := serveGoldenRoot(t, caseDir)
-	handler, err := newRootHandler(rootSpec{id: "root-a", path: root}, config{localSource: localSource})
+	handler, err := newRootHandler(rootSpec{id: "root-a", path: root}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}

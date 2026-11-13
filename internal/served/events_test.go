@@ -76,7 +76,7 @@ func TestEventsCursor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := newRootHandler(rootSpec{id: "root-a", path: dir}, config{localSource: localSource})
+	root, err := newRootHandler(rootSpec{id: "root-a", path: dir}, config{localSource: localSource, assets: os.DirFS(localSource)})
 	if err != nil {
 		t.Fatal(err)
 	}
