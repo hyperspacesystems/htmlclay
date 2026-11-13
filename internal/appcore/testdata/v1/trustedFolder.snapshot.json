@@ -6,7 +6,7 @@
     "version": "2.0.3",
     "os": "darwin",
     "port": 1212,
-    "dashboardURL": "http://htmlclay.localhost:1212/",
+    "dashboardURL": "http://dashboard.htmlclay.localhost:1212/",
     "service": "off",
     "stopped": false
   },

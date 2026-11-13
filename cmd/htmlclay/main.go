@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/platform"
@@ -155,6 +156,9 @@ type app struct {
 	servedMu     sync.RWMutex
 	servedByName map[string]*servedMount
 	served       *served.Host
+	// dashboard is the workspace at htmlclay.localhost, built with the served
+	// host; nil when its bundle could not be read.
+	dashboard *dashboard.Server
 	// service runs the live-room service while a folder is served. It is nil, and
 	// every call on it is a no-op, until startRuntime builds it.
 	service  *serviceRunner

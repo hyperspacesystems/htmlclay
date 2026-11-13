@@ -222,3 +222,79 @@ func TestDashboardFramedDocument(t *testing.T) {
 		t.Fatalf("a load with an id never handed out = %d, bridged %v", res.StatusCode, strings.Contains(page, "data-hyperclay-bridge"))
 	}
 }
+
+// TestDashboardOpen is Open Workspace: the tray row and dashboard.open open the
+// dashboard's entry, a top-level load of the folder's "/" goes there too, and
+// any other request for "/" keeps the listing.
+func TestDashboardOpen(t *testing.T) {
+	serviceRepoTarget(t)
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+
+	a := newServiceTestApp(t, home, t.TempDir())
+	captured := newServedTrayCapture(a)
+	serveThroughDo(t, a, "serve-1", dir, "notes")
+	waitForServiceState(t, a, appcore.ServiceRunning, 20*time.Second)
+	f := a.rt.cfg.ServedFolderList()[0]
+	entryPrefix := a.dashboardOrigin() + "/enter?ticket="
+
+	a.openServedFolder(f.ID)
+	if len(captured.launched) != 1 || !strings.HasPrefix(captured.launched[0], entryPrefix) {
+		t.Fatalf("Open Workspace launched %v", captured.launched)
+	}
+	if refusal := a.trayDo("dashboard.open", map[string]any{"route": "/"}); refusal != nil {
+		t.Fatalf("dashboard.open refused: %v", refusal.Code)
+	}
+	if len(captured.launched) != 2 || !strings.HasPrefix(captured.launched[1], entryPrefix) {
+		t.Fatalf("dashboard.open launched %v", captured.launched)
+	}
+
+	app := httptest.NewServer(http.HandlerFunc(a.serveHost))
+	defer app.Close()
+	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	root := func(host, dest string) *http.Response {
+		t.Helper()
+		r, err := http.NewRequest(http.MethodGet, app.URL+"/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Host = host
+		if dest != "" {
+			r.Header.Set("Sec-Fetch-Dest", dest)
+			r.Header.Set("Sec-Fetch-Mode", "navigate")
+			r.Header.Set("Sec-Fetch-Site", "none")
+		}
+		res, err := noRedirect.Do(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		return res
+	}
+	folderHost := servedHostName("notes", servedTestPort)
+	res := root(folderHost, "document")
+	if res.StatusCode != http.StatusFound || !strings.HasPrefix(res.Header.Get("Location"), entryPrefix) {
+		t.Fatalf("a page load of / = %d to %q", res.StatusCode, res.Header.Get("Location"))
+	}
+	if res := root(folderHost, "image"); res.StatusCode != http.StatusOK {
+		t.Fatalf("an image load of / = %d, want the listing", res.StatusCode)
+	}
+	entry, err := url.Parse(res.Header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, _ := http.NewRequest(http.MethodGet, app.URL+entry.RequestURI(), nil)
+	r.Host = entry.Host
+	r.Header.Set("Sec-Fetch-Site", "none")
+	r.Header.Set("Sec-Fetch-Dest", "document")
+	r.Header.Set("Sec-Fetch-Mode", "navigate")
+	got, err := noRedirect.Do(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got.Body.Close()
+	if got.StatusCode != http.StatusFound || got.Header.Get("Set-Cookie") == "" || got.Header.Get("Location") != "/roots/"+url.PathEscape(f.ID)+"/files" {
+		t.Fatalf("the folder's entry = %d to %q, cookie %q", got.StatusCode, got.Header.Get("Location"), got.Header.Get("Set-Cookie"))
+	}
+}

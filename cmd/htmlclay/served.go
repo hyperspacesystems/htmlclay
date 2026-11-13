@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/platform"
@@ -35,7 +37,7 @@ type servedMount struct {
 }
 
 func servedHostName(name string, port int) string {
-	return name + ".htmlclay.localhost:" + strconv.Itoa(port)
+	return name + "." + appcore.ServedParent + ":" + strconv.Itoa(port)
 }
 
 // servedAddress is a served folder's address with no trailing slash, the one
@@ -58,7 +60,21 @@ func (a *app) newServedHost() *served.Host {
 		PersonName:      person,
 		Service:         a.service.enabled(),
 		Dashboard:       a.dashboardOrigin(),
+		WorkspaceEntry:  a.workspaceEntry,
 	})
+}
+
+// workspaceEntry answers the address that opens a served folder in the
+// workspace, or "" while the workspace cannot list it (no live-room service).
+func (a *app) workspaceEntry(folderID string) string {
+	if a.dashboard == nil || a.service.state() != appcore.ServiceRunning {
+		return ""
+	}
+	entry, err := a.dashboard.EntryURL("/roots/" + url.PathEscape(folderID) + "/files")
+	if err != nil {
+		return ""
+	}
+	return entry
 }
 
 // dashboardOrigin is the workspace's origin on the app's port.
@@ -184,6 +200,13 @@ func relativeWithin(path, dir string) (string, bool) {
 // trusted folder.
 func (a *app) startServed() {
 	a.served = a.newServedHost()
+	board, err := dashboard.New(dashboard.Options{
+		Host: fmt.Sprintf("%s:%d", appcore.DashboardHost, a.rt.port), ProductName: "HTML Clay", API: a.served.DashboardAPI(),
+	})
+	if err != nil {
+		a.rt.logger.Printf("The workspace is unavailable: %v", err)
+	}
+	a.dashboard = board
 	// The control listener answers the service, so it is up before the first
 	// folder mounts: mounting is what asks the service to start.
 	a.service.startControl()

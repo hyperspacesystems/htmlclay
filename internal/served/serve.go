@@ -16,7 +16,10 @@ import (
 // rootServer answers one root: Local's static catch-all, its document lane, its
 // folder listings and its error body.
 type rootServer struct {
-	baseDir string
+	id string
+	// workspaceEntry is where a top-level load of "/" goes (Options.WorkspaceEntry).
+	workspaceEntry func(rootID string) string
+	baseDir        string
 	// publicHost is the served folder's address; empty in the trial binary.
 	publicHost string
 	registry   *consentRegistry
@@ -89,6 +92,8 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		return nil, err
 	}
 	server := &rootServer{
+		id:             root.id,
+		workspaceEntry: cfg.workspaceEntry,
 		baseDir:        baseDir,
 		publicHost:     root.publicHost,
 		registry:       registry,
@@ -110,6 +115,12 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	return server, nil
 }
 
+// pageLoad is a GET a browser makes for a page: no Sec-Fetch-Dest, or document.
+func pageLoad(r *http.Request) bool {
+	dest := r.Header.Get("Sec-Fetch-Dest")
+	return r.Method == http.MethodGet && (dest == "" || dest == "document")
+}
+
 // policy is this root's gate: by name when it is a served folder, else by port.
 func (s *rootServer) policy(r *http.Request) originPolicy {
 	if s.publicHost != "" {
@@ -125,6 +136,16 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if s.service.active() != nil {
 		if forward, name := s.forwardsToService(r, urlPath, marked); forward && s.forwardToService(w, r, name) {
+			return
+		}
+	}
+	// The root opens the workspace, as Local's does: only a top-level page load
+	// of "/" (not HEAD, a framed document's link, an <img>), and only when the
+	// workspace can open; otherwise the listing answers.
+	if urlPath == "/" && !marked && s.workspaceEntry != nil && pageLoad(r) {
+		if entry := s.workspaceEntry(s.id); entry != "" {
+			w.Header().Set("Cache-Control", "no-store")
+			http.Redirect(w, r, entry, http.StatusFound)
 			return
 		}
 	}

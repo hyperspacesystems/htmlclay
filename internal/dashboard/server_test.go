@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const host = "htmlclay.localhost:1212"
+const host = "dashboard.htmlclay.localhost:1212"
 
 type clock struct{ at time.Time }
 

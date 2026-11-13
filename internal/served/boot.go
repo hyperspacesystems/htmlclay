@@ -31,6 +31,8 @@ type config struct {
 	service *serviceLink
 	// dashboard is the workspace origin a framed document load may be framed by.
 	dashboard string
+	// workspaceEntry is where a top-level load of a root's "/" goes, if anywhere.
+	workspaceEntry func(rootID string) string
 	// events is the process's one frame stream: every root's commits and
 	// watcher observations land in it, and the control listener reads it.
 	events *eventRing

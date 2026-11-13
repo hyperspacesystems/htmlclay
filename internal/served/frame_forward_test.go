@@ -31,7 +31,7 @@ func TestFrameForward(t *testing.T) {
 		Assets:          assets.ProductFS(),
 		CompileTailwind: func(string) (string, error) { return "", nil },
 		Service:         true,
-		Dashboard:       "http://htmlclay.localhost:1212",
+		Dashboard:       "http://dashboard.htmlclay.localhost:1212",
 	})
 	t.Cleanup(host.Close)
 	server, _ := switchTestServer(t, host, "framed")
@@ -53,7 +53,7 @@ func TestFrameForward(t *testing.T) {
 	if res.StatusCode != http.StatusOK || body != "<!doctype html><p>bridged</p>" {
 		t.Fatalf("a framed load = %d %q", res.StatusCode, body)
 	}
-	if csp := res.Header.Get("Content-Security-Policy"); csp != "frame-ancestors http://htmlclay.localhost:1212" {
+	if csp := res.Header.Get("Content-Security-Policy"); csp != "frame-ancestors http://dashboard.htmlclay.localhost:1212" {
 		t.Fatalf("a framed load's frame header = %q", csp)
 	}
 	if res.Header.Get("X-Frame-Options") != "" {

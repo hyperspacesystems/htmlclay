@@ -88,6 +88,16 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		}
 		a.core.mu.Unlock()
 		return nil
+	case "dashboard.open":
+		if a.dashboard == nil {
+			return &appcore.Refusal{Code: appcore.RefuseNotYet}
+		}
+		entry, err := a.dashboard.EntryURL(e.Route)
+		if err != nil {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments}
+		}
+		a.launchBrowser(entry)
+		return nil
 	case "document.open":
 		for _, doc := range a.facts().Documents {
 			if doc.ID != e.DocumentID {

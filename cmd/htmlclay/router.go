@@ -56,7 +56,15 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 		w.Write(indexPage)
 		return
 	}
-	if served, ok := strings.CutSuffix(name, "."+appcore.DashboardHost); ok {
+	if name == appcore.DashboardHost {
+		if a.dashboard == nil {
+			http.Error(w, "The workspace is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		a.dashboard.ServeHTTP(w, r)
+		return
+	}
+	if served, ok := strings.CutSuffix(name, "."+appcore.ServedParent); ok {
 		a.serveServed(w, r, served)
 		return
 	}

@@ -36,7 +36,7 @@ func TestDashboardAPIForward(t *testing.T) {
 	host := switchTestHost(t)
 	api := host.DashboardAPI()
 	request := func(target string, headers map[string]string) *httptest.ResponseRecorder {
-		r := httptest.NewRequest(http.MethodGet, "http://htmlclay.localhost:1212"+target, nil)
+		r := httptest.NewRequest(http.MethodGet, "http://dashboard.htmlclay.localhost:1212"+target, nil)
 		for name, value := range headers {
 			r.Header.Set(name, value)
 		}
@@ -66,7 +66,7 @@ func TestDashboardAPIForward(t *testing.T) {
 		t.Fatalf("the service saw %s?%s", got.URL.EscapedPath(), got.URL.RawQuery)
 	}
 	if got.Header.Get("Authorization") != "Bearer "+secret || got.Header.Get("X-Trial-Peer-Epoch") != "0123456789abcdef" ||
-		got.Header.Get("X-Trial-Epoch") != host.Epoch() || got.Header.Get("X-Trial-Public-Origin") != "http://htmlclay.localhost:1212" {
+		got.Header.Get("X-Trial-Epoch") != host.Epoch() || got.Header.Get("X-Trial-Public-Origin") != "http://dashboard.htmlclay.localhost:1212" {
 		t.Fatalf("the service saw headers %v", got.Header)
 	}
 	if got.Header.Get("X-Trial-Root") != "" || got.Header.Get("Cookie") != "" {

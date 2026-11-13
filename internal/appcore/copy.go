@@ -12,7 +12,7 @@ const (
 	TextServeAFolder       = "Serve a Folder…"                                                           // TODO-COPY: tray row that opens the folder picker, max 24 chars
 	TextServedFolders      = "Served Folders"                                                            // TODO-COPY: tray submenu title, max 24 chars
 	TextNoServedFolders    = "No served folders yet"                                                     // TODO-COPY: tray, disabled row when the list is empty, max 32 chars
-	TextOpenServed         = "Open in Browser"                                                           // TODO-COPY: tray, per folder; becomes Open Workspace in SP5, max 24 chars
+	TextOpenServed         = "Open Workspace"                                                            // TODO-COPY: tray, per folder, max 24 chars
 	TextCopyAddress        = "Copy Address"                                                              // TODO-COPY: tray, per folder, max 24 chars
 	TextStopServing        = "Stop Serving"                                                              // TODO-COPY: tray, per folder, and the confirm button, max 24 chars
 	TextFolderMissing      = "(missing)"                                                                 // TODO-COPY: tray, after a served folder's name when its folder is gone, max 16 chars

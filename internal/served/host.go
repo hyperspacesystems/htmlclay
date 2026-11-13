@@ -26,6 +26,10 @@ type Options struct {
 	// Dashboard is the workspace's origin, such as http://htmlclay.localhost:1212:
 	// the only page that may frame a document loaded with workspace-frame.
 	Dashboard string
+	// WorkspaceEntry answers the address that opens a root in the workspace, or
+	// "" when the workspace cannot open it now. A top-level page load of a root's
+	// "/" goes there; everything else keeps the folder listing.
+	WorkspaceEntry func(rootID string) string
 }
 
 // RootSpec is one served folder.
@@ -56,6 +60,7 @@ func NewHost(o Options) *Host {
 		compileTailwind: o.CompileTailwind,
 		personName:      o.PersonName,
 		dashboard:       o.Dashboard,
+		workspaceEntry:  o.WorkspaceEntry,
 		events:          newEventRing(),
 	}
 	if o.Service {

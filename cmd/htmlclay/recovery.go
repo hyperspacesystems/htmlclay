@@ -92,7 +92,7 @@ func (a *app) ownsOrigin(host string) bool {
 		if name == "localhost" || name == "127.0.0.1" || name == "::1" {
 			return true
 		}
-		if label, ok := strings.CutSuffix(name, "."+appcore.DashboardHost); ok && config.ValidServedName(label) == nil {
+		if label, ok := strings.CutSuffix(name, "."+appcore.ServedParent); ok && config.ValidServedName(label) == nil {
 			return true
 		}
 		label, ok := strings.CutSuffix(name, ".localhost")

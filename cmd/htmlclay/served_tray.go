@@ -93,10 +93,15 @@ func (a *app) pickAndServeFolder() []tray.Row {
 	return a.servedFolderRows()
 }
 
-// openServedFolder opens a served folder's address in the browser.
+// openServedFolder opens a served folder in the workspace, or at its own
+// address while the workspace cannot open it.
 func (a *app) openServedFolder(id string) {
 	f, ok := a.rt.cfg.ServedFolderByID(id)
 	if !ok {
+		return
+	}
+	if entry := a.workspaceEntry(f.ID); entry != "" {
+		a.launchBrowser(entry)
 		return
 	}
 	a.launchBrowser(a.servedAddress(f) + "/")
