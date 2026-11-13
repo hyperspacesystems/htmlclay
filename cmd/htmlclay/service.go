@@ -257,6 +257,7 @@ func (r *serviceRunner) spawn() {
 	}
 	secret := newControlSecret()
 	log := func(line string) { r.a.rt.logger.Printf("service: %s", line) }
+	started := time.Now()
 	proc, ready, err := service.Start(context.Background(), service.Spec{
 		Command: command,
 		DataDir: r.dataDir,
@@ -276,6 +277,7 @@ func (r *serviceRunner) spawn() {
 	r.peer = serviceClient{URL: ready.URL, Secret: secret}
 	controlURL, controlSecret := r.controlURL, r.controlSecret
 	r.mu.Unlock()
+	r.a.rt.logger.Printf("The live-room service started in %v (pid %d)", time.Since(started).Round(time.Millisecond), ready.PID)
 	r.step(service.Event{Kind: service.Spawned})
 	go r.awaitExit(proc)
 
@@ -311,6 +313,7 @@ func (r *serviceRunner) awaitExit(proc *service.Process) {
 	if !current {
 		return
 	}
+	r.a.rt.logger.Printf("The live-room service exited (code %d)", proc.ExitCode())
 	r.a.served.ClearServicePeer()
 	r.step(service.Event{Kind: service.Exited})
 }

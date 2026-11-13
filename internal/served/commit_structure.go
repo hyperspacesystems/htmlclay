@@ -103,6 +103,7 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 			return structureResult{Outcome: "refused", Reason: refusal.Code, Refusal: &refusal}, nil
 		}
 		if answer.Decision == "refuse" {
+			log.Printf("structure %s: the service refused: %d %s %s", kind, answer.Status, answer.Code, answer.Body)
 			svc.abort(consult.ID, "refused")
 			refusal := serviceRefusal{Status: answer.Status, Code: answer.Code, Body: answer.Body, Headers: answer.Headers}
 			return structureResult{Outcome: "refused", Reason: answer.Code, Refusal: &refusal}, nil
@@ -183,21 +184,23 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 
 // structureSteps is what the service plans from: each step's root-relative
 // names, their locations under the root, and the canonical paths resolved here.
+// Every path is in Local's upath spelling (forward slashes): the service refuses
+// any other as not normalized, which on Windows was every move.
 func (h *commitHost) structureSteps(kind string, entries []structureEntry) []structureStep {
 	steps := make([]structureStep, 0, len(entries))
 	for _, entry := range entries {
 		step := structureStep{Kind: kind}
 		if entry.FromName != "" {
-			location := filepath.Join(h.baseDir, filepath.FromSlash(entry.FromName))
+			location := filepath.ToSlash(filepath.Join(h.baseDir, filepath.FromSlash(entry.FromName)))
 			isDir := entry.IsDir
 			isSymlink := false
 			if info, err := os.Lstat(location); err == nil {
 				isSymlink = info.Mode()&os.ModeSymlink != 0
 			}
-			step.From = &structureSide{Name: entry.FromName, Location: location, CanonicalPath: entry.FromPath, IsDir: &isDir, IsSymlink: &isSymlink}
+			step.From = &structureSide{Name: entry.FromName, Location: location, CanonicalPath: filepath.ToSlash(entry.FromPath), IsDir: &isDir, IsSymlink: &isSymlink}
 		}
 		if entry.ToName != "" {
-			step.To = &structureSide{Name: entry.ToName, Location: filepath.Join(h.baseDir, filepath.FromSlash(entry.ToName)), CanonicalPath: entry.ToPath}
+			step.To = &structureSide{Name: entry.ToName, Location: filepath.ToSlash(filepath.Join(h.baseDir, filepath.FromSlash(entry.ToName))), CanonicalPath: filepath.ToSlash(entry.ToPath)}
 		}
 		steps = append(steps, step)
 	}

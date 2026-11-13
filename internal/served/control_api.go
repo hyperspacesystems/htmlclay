@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -494,6 +495,11 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 	state := "committed"
 	if result.Outcome != "committed" {
 		state = "refused"
+	}
+	if result.Err != nil {
+		// The answer carries only Local's error code; the system's own error is
+		// what says why a move failed.
+		log.Printf("structure %s: %s after %d step(s): %v", body.Kind, result.Outcome, result.Completed, result.Err)
 	}
 	root.events.finishOp(opID, state, "", cursor)
 	writeControlJSON(w, http.StatusOK, orderedObject{
