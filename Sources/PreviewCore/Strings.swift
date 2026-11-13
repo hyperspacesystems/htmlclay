@@ -74,6 +74,23 @@ public enum Strings {
             }
         }
     }
+    public enum General {
+        public static let title = "General"
+        public static let openAtLogin = "Open HTML Clay at login"
+        public static let aiTitle = "AI editing"
+        public static let aiSub = "Rewrites text you select, using an AI tool on this Mac. The selection goes to that tool's provider."
+        public static let appearanceTitle = "Appearance"
+        public static let appearanceSub = "Controls HTML Clay's Mac windows and the browser dashboard."
+        public static let appearanceSystem = "System"
+        public static let appearanceLight = "Light"
+        public static let appearanceDark = "Dark"
+        public static let dashboard = "Dashboard"
+        public static let dashboardAddress = "dashboard.localhost:1212"
+        public static let open = "Open"
+        public static let welcome = "Welcome window"
+        public static let showAgain = "Show again"
+        public static let documentsLine = "Documents open in your default browser."
+    }
     public enum Request {
         public static func title(_ document: String) -> String { "Let \(document) run a program?" }
         public static let dontAllow = "Don't allow"
@@ -91,6 +108,7 @@ public enum Strings {
         public static let menuTitle = "Preview"
         public static let pretend = "Pretend I am"
         public static let wouldOpenFile = "Build 1: this would ask you to choose a .htmlclay file."
+        public static let notYet = "Build 1: this pane comes in a later step tonight."
         public static func wouldOpen(_ name: String) -> String { "Build 1: this would open \(name) in your browser." }
         public static func wouldShowInFinder(_ name: String) -> String { "Build 1: this would show \(name) in Finder." }
         public static func wouldExport(_ name: String) -> String { "Build 1: this would export \(name) as a zip file." }

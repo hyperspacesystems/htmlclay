@@ -105,7 +105,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     @objc private func openDashboard() {
         closePanel()
-        windows.openDashboard()
+        windows.openBundledDashboard()
     }
     @objc private func openSettings() { closePanel(); windows.showSettings(.general) }
 

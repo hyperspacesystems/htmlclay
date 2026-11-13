@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Observation
 import PreviewCore
 import PreviewUI
 
@@ -13,6 +14,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
     init(model: AppModel) {
         self.model = model
         super.init()
+        applyAppearance(model.snapshot.preferences.appearance)
+        observeAppearance()
     }
 
     static let welcomeDoneKey = "welcomeDone"
@@ -30,14 +33,47 @@ final class WindowManager: NSObject, NSWindowDelegate {
         return try? String(contentsOf: url, encoding: .utf8)
     }
 
-    func openDashboard() {
+    func openBundledDashboard() {
         if !Browser.openBundledPage("dashboard-preview") { model.say(Strings.Preview.dashboardMissing) }
     }
 
+    func applyAppearance(_ appearance: Appearance) {
+        switch appearance {
+        case .system: NSApp.appearance = nil
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+
+    private func observeAppearance() {
+        withObservationTracking {
+            _ = model.snapshot.preferences.appearance
+        } onChange: { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.applyAppearance(self.model.snapshot.preferences.appearance)
+                self.observeAppearance()
+            }
+        }
+    }
+
     func showSettings(_ pane: SettingsPane) {
-        model.settingsPane = pane
+        showSettings(route: .pane(pane))
+    }
+
+    func showSettings(route: SettingsRoute) {
+        model.route = route
         if settings == nil {
-            settings = makeWindow(KilnRoot { SettingsView() }.environment(model))
+            settings = makeWindow(KilnRoot {
+                SettingsView(actions: SettingsActions(
+                    openDashboard: { [weak self] in self?.openBundledDashboard() },
+                    showWelcome: { [weak self] in self?.showWelcome() }
+                ))
+            }.environment(model))
+        }
+        if let content = settings?.contentView {
+            let fit = content.fittingSize
+            settings?.setContentSize(NSSize(width: 840, height: min(max(490, fit.height), 640)))
         }
         present(settings)
     }
