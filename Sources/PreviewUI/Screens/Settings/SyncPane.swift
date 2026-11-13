@@ -59,7 +59,7 @@ struct SyncPane: View {
                 .frame(maxWidth: 400)
                 .fixedSize(horizontal: false, vertical: true)
             Button(Strings.Sync.connect) {
-                model.send(.connectSample)
+                model.sheet = .connect
             }
             .buttonStyle(KilnButtonStyle(.primary))
             .padding(.top, 8)
@@ -91,7 +91,7 @@ struct SyncPane: View {
         KilnCard(kind: .err) {
             KilnRow(title: Strings.Sync.keyRefusedTitle, subtitle: Strings.Sync.keyRefusedSub) {
                 Button(Strings.Sync.reconnect) {
-                    model.say(Strings.Sync.wouldReconnect)
+                    model.sheet = .connect
                 }
                 .buttonStyle(KilnButtonStyle(.primary))
             }
@@ -164,7 +164,7 @@ struct SyncPane: View {
         let count = SyncPane.conflicts(folder, snapshot: model.snapshot)
         if !folder.onThisMac {
             Button(Strings.Sync.setUp) {
-                model.send(.setUpTeamFolder(folderID: folder.id))
+                model.sheet = .teamSetup(folderID: folder.id)
             }
             .buttonStyle(KilnButtonStyle(.plain))
         } else if count > 0 {

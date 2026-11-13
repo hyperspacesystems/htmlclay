@@ -69,7 +69,7 @@ struct FoldersPane: View {
                 if !model.snapshot.sync.connected {
                     Divider()
                     Button(Strings.Folders.connectMenu) {
-                        model.route = .pane(.sync)
+                        model.sheet = .connect
                     }
                 }
             } label: {

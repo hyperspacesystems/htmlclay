@@ -171,4 +171,32 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(TrustRules.pick(after: "~/Documents", in: HostSnapshot())?.path, "~/Documents/Notes")
         XCTAssertEqual(TrustRules.pick(after: "~/Documents", in: SampleData.snapshot(for: .trustedFolder))?.path, "~/Documents/Recipes")
     }
+
+    func testConnectTeamAndProgramRules() {
+        XCTAssertTrue(ConnectRules.accepts(SampleData.syncKey))
+        XCTAssertFalse(ConnectRules.accepts("hcsk_1"))
+        XCTAssertFalse(ConnectRules.accepts("abc123456789"))
+
+        let teams = SampleData.snapshot(for: .syncedWithTeams)
+        guard let marketing = teams.folder("marketing") else { return XCTFail("missing marketing") }
+        let paths = TeamSetupRules.samplePaths(for: marketing)
+        XCTAssertEqual(paths, ["~/hyperclay/Marketing", "~/Documents", "~/hyperclay/panphora/marketing"])
+        XCTAssertNil(TeamSetupRules.problem(paths[0], in: teams))
+        XCTAssertEqual(TeamSetupRules.problem(paths[1], in: teams), "This folder isn't empty. Choose an empty one.")
+        XCTAssertEqual(TeamSetupRules.problem(paths[2], in: teams), "It's inside panphora.")
+        XCTAssertEqual(TeamSetupRules.address(for: marketing), "marketing.hyperclay.localhost:1212")
+
+        XCTAssertEqual(ProgramRules.defaultName(for: "~/bin/export-csv.py"), "export-csv")
+        XCTAssertEqual(ProgramRules.nameProblem("Export CSV", in: teams), .invalid)
+        XCTAssertEqual(ProgramRules.nameProblem("todo-search", in: teams), .taken)
+        XCTAssertNil(ProgramRules.nameProblem("export-csv", in: teams))
+
+        let added = SampleReducer.apply(.addProgram(name: "export-csv", path: "~/bin/export-csv.py"), to: teams)
+        XCTAssertEqual(added.program("export-csv")?.allowedDocuments, [])
+        XCTAssertEqual(SampleReducer.apply(.addProgram(name: "export-csv", path: "~/bin/export-csv.py"), to: added).programs.filter { $0.name == "export-csv" }.count, 1)
+
+        var refused = teams
+        refused.waiting.append(WaitingItem(id: "w-key-refused", kind: .syncKeyRefused, title: "Sync key refused"))
+        XCTAssertFalse(SampleReducer.apply(.connectSample, to: refused).waiting.contains { $0.kind == .syncKeyRefused })
+    }
 }

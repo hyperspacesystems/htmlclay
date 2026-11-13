@@ -11,10 +11,10 @@ struct SettingsSheetView: View {
             switch sheet {
             case let .serveFolder(folderID): ServeSheet(folderID: folderID, snapshot: model.snapshot)
             case let .trustFolder(name, path): TrustSheet(name: name, path: path)
-            case .connect: EmptyView()
-            case .accountFolder: EmptyView()
-            case .teamSetup: EmptyView()
-            case .addProgram: EmptyView()
+            case .connect: ConnectSheet()
+            case let .accountFolder(username): AccountFolderSheet(username: username)
+            case let .teamSetup(folderID): TeamSetupSheet(folderID: folderID)
+            case .addProgram: AddProgramSheet()
             }
         }
         .onExitCommand { model.sheet = nil }

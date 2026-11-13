@@ -10,6 +10,8 @@ public enum KilnFixed {
     public static let openDashBottom = Color(css: 0xE29424)
     public static let openDashBorder = Color(css: 0x6E4008, alpha: 0.28)
     public static let switchOn = Color(css: 0xE2911C)
+    public static let checkOnBorder = Color(css: 0xC4780C)
+    public static let checkInk = Color(css: 0x191208)
     public static let badgeRed = Color(css: 0xDC3E45)
     public static let badgeInk = Color(css: 0xFAF6F6)
     public static let squircleInk = Color(css: 0xF6F7F9)

@@ -34,6 +34,14 @@ public enum ScreenCatalog {
             let sheet = PreviewSheet.serveFolder(folderID: first.id)
             screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
         }
+        for sheet in [PreviewSheet.connect, PreviewSheet.accountFolder(username: SampleData.snapshot(for: .syncedWithTeams).sync.username), PreviewSheet.addProgram] {
+            screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
+        }
+        screens.append(("sheet.connect.refused", AnyView(KilnRoot { ConnectSheet(refused: true) }.environment(model))))
+        if let team = model.snapshot.folders.first(where: { !$0.onThisMac }) {
+            let sheet = PreviewSheet.teamSetup(folderID: team.id)
+            screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
+        }
         let queueSample = SampleData.request(.found)
         screens.append(("request.queue", AnyView(KilnRoot {
             RequestBody(request: queueSample.request, item: queueSample.item, position: 1, total: 2, actions: RequestActions())

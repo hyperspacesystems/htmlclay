@@ -19,6 +19,7 @@ public enum Symbols {
     public static let versions = "clock.arrow.circlepath"
     public static let mac = "laptopcomputer"
     public static let sparkles = "sparkles"
+    public static let check = "checkmark"
 }
 
 public enum WebKeys {

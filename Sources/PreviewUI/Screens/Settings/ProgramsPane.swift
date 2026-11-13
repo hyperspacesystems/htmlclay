@@ -34,7 +34,7 @@ struct ProgramsPane: View {
                 .foregroundStyle(kiln.ink)
             Spacer(minLength: 0)
             Button(Strings.Programs.addProgram) {
-                model.say(Strings.Programs.wouldAdd)
+                model.sheet = .addProgram
             }
             .buttonStyle(KilnButtonStyle(.plain))
         }

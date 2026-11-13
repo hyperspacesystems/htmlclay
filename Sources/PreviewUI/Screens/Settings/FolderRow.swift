@@ -40,7 +40,7 @@ struct FolderRow: View {
                 Squircle(.slate, symbol: Symbols.folder)
             } trailing: {
                 Button(Strings.Folders.setUp) {
-                    model.send(.setUpTeamFolder(folderID: folder.id))
+                    model.sheet = .teamSetup(folderID: folder.id)
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
             }

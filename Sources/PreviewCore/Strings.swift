@@ -113,7 +113,6 @@ public enum Strings {
         public static let keyRefusedSub = "All folders stopped syncing. Your files are safe on this Mac."
         public static let reconnect = "Reconnect…"
         public static let wouldReplaceKey = "Build 1: this would ask for a new sync key."
-        public static let wouldReconnect = "Build 1: this would ask for your username and a new sync key."
         public static let wouldOpenSite = "Build 1: this would open hyperclay.com in your browser."
         public static func account(_ username: String) -> String { "@\(username)" }
         public static func connected(keySuffix: String) -> String { "Connected · sync key ending \(keySuffix)" }
@@ -181,7 +180,6 @@ public enum Strings {
         public static let findIt = "Find it…"
         public static let allTrusted = "All documents in trusted folders"
         public static let noneYet = "No document may run it until you allow one."
-        public static let wouldAdd = "Build 1: this would ask you to choose a program file."
         public static let wouldChooseFile = "Build 1: this would ask you to choose a different file for this program."
         public static func wants(document: String, program: String) -> String { "\(document) wants “\(program)”" }
         public static func mayRun(_ document: String) -> String { "\(document) may run it" }

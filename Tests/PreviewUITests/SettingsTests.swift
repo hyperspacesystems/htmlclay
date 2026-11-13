@@ -194,4 +194,23 @@ final class SettingsTests: XCTestCase {
             }
         }
     }
+
+    func testSyncSheetsLayOut() {
+        _ = NSApplication.shared
+        for persona in [Persona.newPerson, Persona.syncedWithTeams] {
+            let host = SampleHost(persona: persona)
+            let model = AppModel(host: host, initial: host.current)
+            var sheets: [PreviewSheet] = [.connect, .accountFolder(username: "panphora"), .addProgram]
+            if persona == .syncedWithTeams {
+                sheets.append(.teamSetup(folderID: "marketing"))
+            }
+            for sheet in sheets {
+                let hosting = NSHostingView(rootView: KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))
+                hosting.layoutSubtreeIfNeeded()
+                XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 460, "\(persona.rawValue) \(sheet.id)")
+                XCTAssertGreaterThan(hosting.fittingSize.height, 120, "\(persona.rawValue) \(sheet.id)")
+            }
+        }
+        XCTAssertEqual(AccountFolderSheet.path("panphora"), "~/hyperclay/panphora")
+    }
 }
