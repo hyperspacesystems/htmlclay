@@ -128,6 +128,9 @@ public enum SampleReducer {
             var n = 2
             while next.program(id) != nil { id = name + "-" + String(n); n += 1 }
             next.programs.append(Program(id: id, name: name, path: path))
+        case .openDocument, .revealDocument, .forgetDocument, .openFile, .openDashboard,
+             .revealFolder, .copyAddress, .answer, .connect, .quit:
+            return snapshot
         }
         return next
     }

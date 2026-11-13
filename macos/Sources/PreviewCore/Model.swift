@@ -375,6 +375,16 @@ public enum HostAction: Equatable, Sendable {
     case restartHost
     case moveFromLocal(folderIDs: [String])
     case markSeen(waitingIDs: [String])
+    case openDocument(id: String)
+    case revealDocument(id: String)
+    case forgetDocument(id: String)
+    case openFile(path: String)
+    case openDashboard(route: String)
+    case revealFolder(id: String)
+    case copyAddress(folderID: String)
+    case answer(requestID: String, revision: Int, answer: String)
+    case connect(username: String, key: String)
+    case quit(force: Bool)
 }
 
 public enum PreviewOverlay: String, CaseIterable, Sendable {
