@@ -73,7 +73,12 @@
   "waiting": [],
   "counts": {
     "total": 0,
-    "byPane": {},
+    "byPane": {
+      "advanced": 0,
+      "folders": 0,
+      "programs": 0,
+      "sync": 0
+    },
     "dot": false
   },
   "sync": {

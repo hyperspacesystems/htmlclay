@@ -295,11 +295,47 @@
       "answers": []
     }
   ],
-  "waiting": [],
+  "waiting": [
+    {
+      "id": "w-e-conflict-index",
+      "kind": "conflict",
+      "pane": "folders",
+      "earnsDot": true,
+      "seen": false,
+      "title": "apps/index.html changed in both places",
+      "detail": "Design Team",
+      "subjectID": "design-team"
+    },
+    {
+      "id": "w-e-conflict-pricing",
+      "kind": "conflict",
+      "pane": "folders",
+      "earnsDot": true,
+      "seen": false,
+      "title": "pricing.html changed in both places",
+      "detail": "Design Team",
+      "subjectID": "design-team"
+    },
+    {
+      "id": "w-req-todo",
+      "kind": "programRequest",
+      "pane": "programs",
+      "earnsDot": true,
+      "seen": false,
+      "title": "todo.htmlclay wants to run todo-search",
+      "detail": "Notes",
+      "subjectID": "req-todo"
+    }
+  ],
   "counts": {
-    "total": 0,
-    "byPane": {},
-    "dot": false
+    "total": 3,
+    "byPane": {
+      "advanced": 0,
+      "folders": 2,
+      "programs": 1,
+      "sync": 0
+    },
+    "dot": true
   },
   "sync": {
     "connected": true,

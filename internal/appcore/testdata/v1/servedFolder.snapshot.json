@@ -157,10 +157,26 @@
     }
   ],
   "requests": [],
-  "waiting": [],
+  "waiting": [
+    {
+      "id": "w-clay-search",
+      "kind": "programFileMissing",
+      "pane": "programs",
+      "earnsDot": false,
+      "seen": false,
+      "title": "clay-search can't be found",
+      "detail": "~/bin/clay-search",
+      "subjectID": "clay-search"
+    }
+  ],
   "counts": {
-    "total": 0,
-    "byPane": {},
+    "total": 1,
+    "byPane": {
+      "advanced": 0,
+      "folders": 0,
+      "programs": 1,
+      "sync": 0
+    },
     "dot": false
   },
   "sync": {

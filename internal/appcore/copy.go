@@ -41,6 +41,20 @@ const (
 	TextWhyStopTrustingServed    = "Stop serving this folder first."                    // TODO-COPY: why Stop Trusting is off, max 90 chars
 )
 
+// Waiting items: the title, and where a %s appears the subject's name.
+const (
+	TextWaitingProgramRequest  = "%s wants to run %s"                // TODO-COPY: waiting item title, document then program, max 70 chars
+	TextWaitingFolderRead      = "%s wants to read %s"               // TODO-COPY: waiting item title, document then folder, max 70 chars
+	TextWaitingFolderReadAgain = "%s wants you to trust %s"          // TODO-COPY: waiting item title, document then folder, max 70 chars
+	TextWaitingProgramMissing  = "%s can't be found"                 // TODO-COPY: waiting item title, the program's name, max 70 chars
+	TextWaitingFolderMissing   = "%s can't be found"                 // TODO-COPY: waiting item title, the folder's name, max 70 chars
+	TextWaitingServiceFailed   = "HTML Clay's live features stopped" // TODO-COPY: waiting item title when the service failed, max 70 chars
+	TextWaitingConflict        = "%s changed in both places"         // TODO-COPY: waiting item title, the file's path in the folder, max 70 chars
+	TextWaitingSyncKeyRefused  = "Your sync key was refused"         // TODO-COPY: waiting item title, max 70 chars
+	TextWaitingFileTooBig      = "%s is too big to sync"             // TODO-COPY: waiting item title, the file's name, max 70 chars
+	TextWaitingTeamToSetUp     = "%s is ready to set up"             // TODO-COPY: waiting item title, the team folder's name, max 70 chars
+)
+
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
 // %s, where present, is the other folder (OtherPath, or OtherName when set).
 var RefusalText = map[string]string{

@@ -25,8 +25,7 @@ func Build(f Facts) Snapshot {
 		Folders:     make([]Folder, 0, len(f.Folders)),
 		Programs:    make([]Program, 0, len(f.Programs)),
 		Requests:    make([]Request, 0, len(f.Requests)),
-		Waiting:     []WaitingItem{},
-		Counts:      Counts{ByPane: map[string]int{}},
+		Waiting:     waiting(f),
 		Sync:        syncState(f.Sync),
 		Update:      f.Update,
 		Preferences: f.Preferences,
@@ -99,6 +98,7 @@ func Build(f Facts) Snapshot {
 			Answers:    []string{},
 		})
 	}
+	s.Counts = counts(s.Waiting)
 	return s
 }
 
