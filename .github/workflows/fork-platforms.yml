@@ -1,0 +1,41 @@
+name: Fork platforms
+
+# Private fork only (FORK.md): the Go suite and the served-folder host's tests on the
+# systems the test box and this Mac do not cover. Started by hand at batch gates,
+# outside David's work hours:
+#   gh workflow run fork-platforms.yml --ref main
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install the locked packages
+        run: npm ci
+
+      - name: Test
+        run: go test ./... -count=1
+        env:
+          CGO_ENABLED: "0"
+
+      - name: Served-folder host tests
+        run: go test -tags managedtrial ./internal/served/ -count=1
+        env:
+          CGO_ENABLED: "0"

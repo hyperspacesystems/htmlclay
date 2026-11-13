@@ -8,3 +8,4 @@ This repo (`github.com/panphora/htmlclay-mac`, private) is HTML Clay plus the un
 - **No releases from here.** `scripts/release.sh` refuses to run in this checkout. Every workflow in `.github/workflows/` starts only by hand.
 - **Candidate isolation.** Builds from this repo use their own config folder (`HTMLCLAY_CONFIG_BASE`), their own test port and app id, and never attach to the installed HTML Clay.
 - **At release:** the release merge deletes this file in the same commit, because `scripts/release.sh` refuses to run while it exists.
+- **Fork-only files:** `.github/workflows/fork-platforms.yml` runs the Go suite on GitHub's Windows (amd64) and Linux ARM machines, started by hand outside work hours. The release merge deletes it along with this file.
