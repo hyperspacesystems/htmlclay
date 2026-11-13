@@ -7,6 +7,8 @@ public final class AppModel {
     public private(set) var snapshot: HostSnapshot
     public private(set) var seenWaiting: Set<String> = []
     public var route: SettingsRoute = .pane(.general)
+    public private(set) var note: String?
+    private var noteToken = 0
     private let host: HostClient
 
     public init(host: HostClient, initial: HostSnapshot) {
@@ -26,8 +28,19 @@ public final class AppModel {
         }
     }
 
+    public func say(_ text: String) {
+        note = text
+        noteToken += 1
+        let token = noteToken
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            if self?.noteToken == token { self?.note = nil }
+        }
+    }
+
     public func resetPreviewState() {
         seenWaiting = []
+        note = nil
         route = .pane(route.pane)
     }
 

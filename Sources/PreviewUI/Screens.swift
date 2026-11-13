@@ -141,6 +141,7 @@ public enum ScreenCatalog {
             ("panel", AnyView(KilnRoot { PanelView() }.environment(model))),
             ("settings", AnyView(KilnRoot { SettingsView() }.environment(model))),
             ("welcome", AnyView(KilnRoot { WelcomeView(film: film) }.environment(model))),
+            ("components", AnyView(KilnRoot { ComponentGallery() }.environment(model))),
         ]
         if let item = model.snapshot.waiting.first {
             screens.append(("request", AnyView(KilnRoot { RequestView(item: item) }.environment(model))))
