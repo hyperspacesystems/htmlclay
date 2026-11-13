@@ -1,6 +1,8 @@
 import Foundation
 
 public enum SampleReducer {
+    public static let addressSuffix = ".hyperclay.localhost:1212"
+
     public static func apply(_ action: HostAction, to snapshot: HostSnapshot) -> HostSnapshot {
         var next = snapshot
         switch action {
@@ -8,7 +10,7 @@ public enum SampleReducer {
             guard let i = next.folders.firstIndex(where: { $0.id == folderID }) else { return snapshot }
             next.folders[i].served = on
             if on, next.folders[i].address.isEmpty {
-                next.folders[i].address = next.folders[i].name.lowercased().replacingOccurrences(of: " ", with: "-") + ".hyperclay.localhost:1212"
+                next.folders[i].address = next.folders[i].name.lowercased().replacingOccurrences(of: " ", with: "-") + addressSuffix
             }
             if !on { next.folders[i].synced = false }
         case let .setSynced(folderID, on):
@@ -70,6 +72,22 @@ public enum SampleReducer {
             next.programs[p].allTrustedFolders = on
         case let .setUseName(on): next.preferences.useName = on
         case let .setAutoUpdate(on): next.update.automatic = on
+        case let .trustFolder(name, path):
+            guard !next.folders.contains(where: { $0.path == path }) else { return snapshot }
+            let id = newFolderID(name, in: next)
+            let documents = SampleData.trustCandidates.first { $0.path == path }?.documents ?? 0
+            next.folders.append(Folder(id: id, name: name, path: path, parentID: nearestParent(of: path, in: next), documentCount: documents, status: path))
+            adopt(id, path: path, in: &next)
+        case let .serveFolder(path, name):
+            if let i = next.folders.firstIndex(where: { $0.path == path }) {
+                next.folders[i].served = true
+                next.folders[i].address = name + addressSuffix
+            } else {
+                let folderName = (path as NSString).lastPathComponent
+                let id = newFolderID(folderName, in: next)
+                next.folders.append(Folder(id: id, name: folderName, path: path, parentID: nearestParent(of: path, in: next), served: true, address: name + addressSuffix, status: Strings.Folders.onlyOnThisMac, versionsSize: "0 MB"))
+                adopt(id, path: path, in: &next)
+            }
         case let .setUpTeamFolder(folderID):
             guard let i = next.folders.firstIndex(where: { $0.id == folderID }), !next.folders[i].onThisMac else { return snapshot }
             next.folders[i].onThisMac = true
@@ -79,6 +97,25 @@ public enum SampleReducer {
             next.folders[i].status = "up to date"
         }
         return next
+    }
+
+    static func newFolderID(_ name: String, in snapshot: HostSnapshot) -> String {
+        let base = name.lowercased().replacingOccurrences(of: " ", with: "-")
+        var id = base
+        var n = 2
+        while snapshot.folder(id) != nil { id = base + "-" + String(n); n += 1 }
+        return id
+    }
+
+    static func nearestParent(of path: String, in snapshot: HostSnapshot) -> String? {
+        snapshot.localFolders.filter { path.hasPrefix($0.path + "/") }.max { $0.path.count < $1.path.count }?.id
+    }
+
+    static func adopt(_ id: String, path: String, in snapshot: inout HostSnapshot) {
+        for i in snapshot.folders.indices where snapshot.folders[i].origin == .local && snapshot.folders[i].id != id && snapshot.folders[i].path.hasPrefix(path + "/") {
+            let current = snapshot.folders[i].parentID.flatMap { snapshot.folder($0) }?.path ?? ""
+            if current.count < path.count { snapshot.folders[i].parentID = id }
+        }
     }
 }
 

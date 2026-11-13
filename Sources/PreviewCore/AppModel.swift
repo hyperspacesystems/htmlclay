@@ -7,6 +7,7 @@ public final class AppModel {
     public private(set) var snapshot: HostSnapshot
     public private(set) var seenWaiting: Set<String> = []
     public var route: SettingsRoute = .pane(.general)
+    public var sheet: PreviewSheet?
     public private(set) var note: String?
     private var noteToken = 0
     private let host: HostClient
@@ -41,6 +42,7 @@ public final class AppModel {
     public func resetPreviewState() {
         seenWaiting = []
         note = nil
+        sheet = nil
         route = .pane(route.pane)
     }
 

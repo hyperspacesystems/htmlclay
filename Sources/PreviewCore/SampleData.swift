@@ -1,6 +1,14 @@
 import Foundation
 
 public enum SampleData {
+    public static let trustCandidates = [
+        TrustCandidate(name: "Documents", path: "~/Documents", documents: 23),
+        TrustCandidate(name: "Notes", path: "~/Documents/Notes", documents: 4),
+        TrustCandidate(name: "Recipes", path: "~/Documents/Recipes", documents: 7),
+    ]
+    public static let servePaths = ["~/Sites/prototypes", "~/hyperclay/panphora/apps", "~/Sites/blog", "~/HyperclayLocal/panphora"]
+    public static let hyperclayLocalPaths = ["~/HyperclayLocal/panphora", "~/HyperclayLocal/Design Team"]
+
     public static func snapshot(for persona: Persona) -> HostSnapshot {
         switch persona {
         case .newPerson: return HostSnapshot()

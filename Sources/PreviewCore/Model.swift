@@ -26,6 +26,18 @@ public enum Appearance: String, CaseIterable, Codable, Sendable {
     case system, light, dark
 }
 
+public enum PreviewSheet: Equatable, Identifiable, Sendable {
+    case serveFolder(folderID: String?)
+    case trustFolder(name: String, path: String)
+
+    public var id: String {
+        switch self {
+        case let .serveFolder(folderID): return "serve." + (folderID ?? "new")
+        case let .trustFolder(_, path): return "trust." + path
+        }
+    }
+}
+
 public struct RecentDocument: Codable, Equatable, Identifiable, Sendable {
     public var id: String
     public var name: String
@@ -74,6 +86,12 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
 
     public var fromAccount: Bool { origin.canSync }
     public var trusted: Bool { onThisMac }
+}
+
+public struct TrustCandidate: Equatable, Sendable {
+    public let name: String
+    public let path: String
+    public let documents: Int
 }
 
 public struct Program: Codable, Equatable, Identifiable, Sendable {
@@ -225,4 +243,6 @@ public enum HostAction: Equatable, Sendable {
     case setProgramAllTrusted(programID: String, on: Bool)
     case setUseName(Bool)
     case setAutoUpdate(Bool)
+    case trustFolder(name: String, path: String)
+    case serveFolder(path: String, name: String)
 }

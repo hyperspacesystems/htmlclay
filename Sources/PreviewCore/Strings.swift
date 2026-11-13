@@ -311,6 +311,39 @@ public enum Strings {
         public static let wouldChooseFile = "Build 1: this would ask you to choose a program file."
         public static func wouldTrust(_ folder: String) -> String { "Build 1: this would also add \(folder) to your trusted folders." }
     }
+    public enum Sheets {
+        public static let cancel = "Cancel"
+        public static let choose = "Choose…"
+        public static func taken(_ name: String) -> String { "“\(name)” is already taken. Try another name." }
+    }
+    public enum ServeSheet {
+        public static let title = "Serve a folder"
+        public static let leadStart = "It gets an address on this Mac, "
+        public static let leadMono = ".html"
+        public static let leadEnd = " files save too, and the dashboard can create, rename and move files. This also trusts the folder."
+        public static let folder = "Folder"
+        public static let name = "Name"
+        public static let addressPrefix = "Address: "
+        public static let serve = "Serve"
+        public static let localStillServing = "Hyperclay Local is still serving this folder. Move from Hyperclay Local first."
+        public static func insideServed(_ parent: String) -> String { "This is inside \(parent), which is already served." }
+        public static func alreadyServed(_ name: String) -> String { "\(name) is already served." }
+    }
+    public enum TrustSheet {
+        public static let htmlclay = ".htmlclay"
+        public static func mainTitle(_ name: String) -> String { "Trust all of \(name)?" }
+        public static func mainStart(_ name: String) -> String { "\(name) is one of your main personal folders. Every " }
+        public static let mainEnd = " file in it could change every other one. Most people want a single project folder instead."
+        public static let chooseAnother = "Choose another folder…"
+        public static func title(_ name: String) -> String { "Trust \(name)?" }
+        public static let every = "Every "
+        public static let fileIn = " file in "
+        public static let willSave = " will save as you edit, link to the others, and share one address. Documents in "
+        public static let canChange = " can also change each other."
+        public static func inside(_ name: String, count: Int) -> String {
+            count == 1 ? "\(name) already has 1 trusted folder inside. It keeps its own address." : "\(name) already has \(count) trusted folders inside. They keep their own address."
+        }
+    }
     public enum Levels {
         public static let trusted = "Trusted"
         public static let served = "Served"
