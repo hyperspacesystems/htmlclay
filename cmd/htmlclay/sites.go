@@ -456,6 +456,7 @@ func (a *app) startSites() {
 // capability handle.
 func (a *app) shutdown() {
 	a.rt.logger.Printf("Shutting down...")
+	a.endShellStreams()
 
 	a.mu.Lock()
 	a.stopping = true
@@ -510,6 +511,7 @@ func (a *app) shutdown() {
 		s.sessions.RevokeAll()
 	}
 	a.rt.bound.close()
+	a.closeShell()
 }
 
 func fileURL(host, relPath string) string {

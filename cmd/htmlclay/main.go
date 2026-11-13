@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,6 +21,7 @@ import (
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/shellapi"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/trust"
 	"github.com/panphora/htmlclay/internal/update"
@@ -155,6 +157,14 @@ type app struct {
 	served       *served.Host
 	stopping     bool
 	noTray       bool
+	// shellServer is the private listener the Mac app talks to, and shellDone closes
+	// when shutdown starts so every event stream ends with its bye line. Both are
+	// zero on a launch without --shell-stdin; the two Once fields let a signal and
+	// a closed stdin race to shut down without closing done twice.
+	shellServer      *http.Server
+	shellDone        chan struct{}
+	shellStreamsOnce sync.Once
+	shellServerOnce  sync.Once
 	// helperStateMu guards the permission transactions themselves and the current
 	// resolution through dispatcher attachment, so a read can see a whole one
 	// without waiting behind helperMu, which a native dialog can hold for minutes.
@@ -250,6 +260,7 @@ func main() {
 	releaseOwnConsole()
 
 	noTray := flag.Bool("no-tray", false, "Run without system tray (signal-based shutdown)")
+	shellStdin := flag.Bool("shell-stdin", false, "Started by the HTML Clay Mac app: read a secret from stdin and serve the app's private listener")
 	unregister := flag.Bool("unregister", false, "Remove the file associations and the Start on Login entry, then exit")
 	finishUpdate := flag.Bool("finish-update", false, "Internal: finish an update this binary's previous version started")
 	flag.Parse()
@@ -268,11 +279,24 @@ func main() {
 		os.Exit(runFinishUpdate())
 	}
 
+	// The Mac app writes the secret on stdin and expects the private listener to
+	// come up, so a bad line ends the launch before anything binds.
+	var shellSecret string
+	var shellIn io.Reader
+	if *shellStdin {
+		bootstrap, in, err := shellapi.ReadBootstrap(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[htmlclay] %v\n", err)
+			os.Exit(2)
+		}
+		shellSecret, shellIn = bootstrap.Secret, in
+	}
+
 	migrateConfigDir()
 
 	fmt.Fprintln(os.Stderr, "[htmlclay] Starting up...")
 
-	a := &app{rt: &appRuntime{}, noTray: *noTray}
+	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin}
 	a.initCore()
 	a.initConfig()
 	defer a.rt.si.Unlock()
@@ -303,6 +327,9 @@ func main() {
 	}
 	a.startSites()
 	a.startServed()
+	if *shellStdin {
+		a.startShell(shellSecret, shellIn)
+	}
 	// An update restart left the previous process's sessions behind; take them
 	// back before anything else can register, so every tab that was open keeps
 	// saving at the address it already has. An ordinary launch finds no file.

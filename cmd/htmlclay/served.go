@@ -247,26 +247,28 @@ func (a *app) mountServedHeld(f config.ServedFolder, lock *folderlock.Lock) erro
 	return nil
 }
 
-// serveFolder makes path a served folder under name, unless a rule in
-// appcore.CheckServe refuses it. Serving is what gives every file inside it its one
-// writer, so the older sites that could write those files are closed first (see
-// closeSitesForServed).
-func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refusal, error) {
+// servedPath is the folder serving works with: absolute, with symlinks resolved,
+// and the name it is served under, which is DefaultServedName of its base name when
+// none was asked for.
+func (a *app) servedPath(path, name string) (string, string, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return config.ServedFolder{}, nil, err
+		return "", "", err
+	}
+	if name == "" {
+		name = appcore.DefaultServedName(filepath.Base(abs), a.rt.cfg.ServedNameAvailable)
 	}
 	resolved, err := resolveSymlinks(abs)
 	if err != nil {
 		resolved = abs
 	}
+	return resolved, name, nil
+}
 
-	// A folder that was stopped keeps its entry, and so its name, in the config:
-	// serving it again resumes that entry instead of adding a second one.
-	if entry, ok := a.rt.cfg.ServedFolderForPath(resolved); ok && !entry.Serving {
-		return a.resumeServedFolder(entry)
-	}
-
+// serveFacts gathers what the serve rules read for resolved under name, and answers
+// the first rule it breaks. It writes nothing and takes no lock, so serveFolder
+// serves from it and checkServe previews from it.
+func (a *app) serveFacts(resolved, name string) (appcore.ServeFacts, *appcore.Refusal) {
 	localRoots := []string{}
 	for _, root := range wireLocalRoots(wireLocalRootsPath()) {
 		localRoots = append(localRoots, root.Path)
@@ -282,7 +284,40 @@ func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refu
 		LocalServed:   localRoots,
 		NameAvailable: a.rt.cfg.ServedNameAvailable,
 	})
-	if refusal := appcore.CheckServe(facts); refusal != nil {
+	return facts, appcore.CheckServe(facts)
+}
+
+// checkServe answers what serving path under name would do, without serving it: the
+// entry it would create, and the first rule that refuses it. Nothing is written and
+// no lock is taken, so a sheet can show the address before the person confirms.
+func (a *app) checkServe(path, name string) (config.ServedFolder, *appcore.Refusal) {
+	resolved, name, err := a.servedPath(path, name)
+	if err != nil {
+		return config.ServedFolder{}, &appcore.Refusal{Code: appcore.RefuseNotAFolder}
+	}
+	entry := config.ServedFolder{Path: resolved, Name: name}
+	_, refusal := a.serveFacts(resolved, name)
+	return entry, refusal
+}
+
+// serveFolder makes path a served folder under name, unless a rule in
+// appcore.CheckServe refuses it. Serving is what gives every file inside it its one
+// writer, so the older sites that could write those files are closed first (see
+// closeSitesForServed).
+func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refusal, error) {
+	resolved, name, err := a.servedPath(path, name)
+	if err != nil {
+		return config.ServedFolder{}, nil, err
+	}
+
+	// A folder that was stopped keeps its entry, and so its name, in the config:
+	// serving it again resumes that entry instead of adding a second one.
+	if entry, ok := a.rt.cfg.ServedFolderForPath(resolved); ok && !entry.Serving {
+		return a.resumeServedFolder(entry)
+	}
+
+	facts, refusal := a.serveFacts(resolved, name)
+	if refusal != nil {
 		return config.ServedFolder{}, refusal, nil
 	}
 
