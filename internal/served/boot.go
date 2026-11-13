@@ -29,13 +29,16 @@ const (
 var liveRoot = DefaultLiveRoot
 
 type config struct {
-	roots          []string
-	port           int
-	localSource    string
-	assets         fs.FS
-	personName     string
-	controlFD      int
-	bootstrapStdin bool
+	roots       []string
+	port        int
+	localSource string
+	assets      fs.FS
+	// compileTailwind turns one document into its generated stylesheet. Nil
+	// means the Node compile over localSource.
+	compileTailwind func(html string) (string, error)
+	personName      string
+	controlFD       int
+	bootstrapStdin  bool
 	// service is the JS service this host consults while it holds a document's
 	// lock, when the bootstrap line attaches one.
 	service *serviceLink

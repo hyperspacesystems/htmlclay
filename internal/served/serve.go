@@ -18,12 +18,11 @@ import (
 // rootServer answers one root: Local's static catch-all, its document lane, its
 // folder listings and its error body.
 type rootServer struct {
-	baseDir     string
-	registry    *consentRegistry
-	localSource string
-	assets      fs.FS
-	selected    string
-	releases    map[string]clayruntime.Release
+	baseDir  string
+	registry *consentRegistry
+	assets   fs.FS
+	selected string
+	releases map[string]clayruntime.Release
 	// commit is the one writer of this root's documents: every route that writes
 	// goes through the same host, so two of them cannot interleave.
 	commit *commitHost
@@ -70,7 +69,11 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		}
 	}
 	hooks := newLiveHooks(liveRoot)
-	tailwind := newTailwindHost(baseDir, cfg.localSource, registry)
+	compile := cfg.compileTailwind
+	if compile == nil {
+		compile = func(html string) (string, error) { return tailwindCompiler(cfg.localSource, html) }
+	}
+	tailwind := newTailwindHost(baseDir, compile, registry)
 	hooks.tailwind = tailwind
 	host := newCommitHost(baseDir, root.id, registry, hooks, runtime.Releases)
 	host.service = cfg.service
@@ -88,7 +91,6 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	server := &rootServer{
 		baseDir:        baseDir,
 		registry:       registry,
-		localSource:    cfg.localSource,
 		assets:         cfg.assets,
 		selected:       runtime.Selected,
 		releases:       runtime.Releases,

@@ -92,11 +92,11 @@ func tailwindScriptPath() (string, error) {
 // compile a read starts when it misses, and the record of which stylesheets are
 // being compiled, so a read can wait for one.
 type tailwindHost struct {
-	baseDir     string
-	localSource string
-	registry    *consentRegistry
-	mu          sync.Mutex
-	running     map[string]*tailwindRun
+	baseDir    string
+	compileCSS func(html string) (string, error)
+	registry   *consentRegistry
+	mu         sync.Mutex
+	running    map[string]*tailwindRun
 }
 
 // tailwindRun is the compiles in flight for one stylesheet. done closes when the
@@ -106,12 +106,12 @@ type tailwindRun struct {
 	done  chan struct{}
 }
 
-func newTailwindHost(baseDir, localSource string, registry *consentRegistry) *tailwindHost {
+func newTailwindHost(baseDir string, compile func(html string) (string, error), registry *consentRegistry) *tailwindHost {
 	return &tailwindHost{
-		baseDir:     baseDir,
-		localSource: localSource,
-		registry:    registry,
-		running:     make(map[string]*tailwindRun),
+		baseDir:    baseDir,
+		compileCSS: compile,
+		registry:   registry,
+		running:    make(map[string]*tailwindRun),
 	}
 }
 
@@ -179,7 +179,7 @@ func (t *tailwindHost) compile(name, content string) {
 	tailwindSlots <- struct{}{}
 	defer func() { <-tailwindSlots }()
 
-	css, err := tailwindCompiler(t.localSource, content)
+	css, err := t.compileCSS(content)
 	if err != nil {
 		log.Printf("compileTailwind failed (non-fatal): %v", err)
 		return
@@ -233,7 +233,7 @@ func (t *tailwindHost) compileOnMiss(cssPath, htmlPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	css, err := tailwindCompiler(t.localSource, string(html))
+	css, err := t.compileCSS(string(html))
 	if err != nil {
 		return "", err
 	}
