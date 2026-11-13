@@ -26,7 +26,7 @@ fi
 mkdir -p ~/.local/bin
 ln -sf ~/.local/go/bin/go ~/.local/go/bin/gofmt ~/.local/bin/
 (cd htmlclay && npm ci --no-audit --no-fund)
-(cd local && npm ci --no-audit --no-fund && ./node_modules/.bin/install-electron --no)'
+(cd local && npm ci --no-audit --no-fund && ./node_modules/.bin/install-electron --no && node scripts/chrome-for-testing/browser-runtime.cjs install)'
 TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 TZ=America/New_York && umask 022 && bash htmlclay/scripts/trial-regression.sh htmlclay local "$TESTBOX_OUT/trial"'
 TESTBOX_TIMEOUT=50m
 BOX
