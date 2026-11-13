@@ -69,7 +69,9 @@ public struct SettingsView: View {
                     default: ProgramsPane(actions: actions)
                     }
                 case .sync: SyncPane(actions: actions)
-                default: PaneStub(pane: activePane)
+                case .yourName: YourNamePane()
+                case .updates: UpdatesPane()
+                case .advanced: AdvancedPane()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,21 +80,5 @@ public struct SettingsView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
-}
-
-struct PaneStub: View {
-    @Environment(\.kiln) private var kiln
-    private let pane: SettingsPane
-    init(pane: SettingsPane) { self.pane = pane }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(Strings.Settings.title(pane))
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(kiln.ink)
-                .padding(.bottom, 12)
-            PreviewNote(Strings.Preview.notYet)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

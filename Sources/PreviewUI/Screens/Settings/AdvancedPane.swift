@@ -1,0 +1,77 @@
+import SwiftUI
+import PreviewCore
+
+struct AdvancedPane: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.kiln) private var kiln
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(Strings.Settings.title(.advanced))
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(kiln.ink)
+                .padding(.bottom, 12)
+            KilnCard {
+                KilnRow(title: Strings.Advanced.port, subtitle: Strings.Advanced.portSub) {
+                    Text(Strings.Advanced.portNumber)
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(kiln.ink2)
+                }
+                KilnRowDivider()
+                KilnRow(title: Strings.Advanced.liveService, subtitle: Strings.Advanced.liveServiceSub) {
+                    HStack(spacing: 6) {
+                        StatusDot(.green)
+                        Text(Strings.Advanced.running)
+                            .font(.system(size: 13))
+                            .foregroundStyle(kiln.ink2)
+                    }
+                }
+            }
+            KilnGroupTitle(Strings.Advanced.storage)
+            KilnCard {
+                KilnRow(title: Strings.Advanced.versions) {
+                    folderTrailing(Strings.Advanced.versionsSize, note: Strings.Advanced.wouldShowVersions)
+                }
+                KilnRowDivider()
+                KilnRow(title: Strings.Advanced.uploads) {
+                    folderTrailing(Strings.Advanced.uploadsSize, note: Strings.Advanced.wouldShowUploads)
+                }
+            }
+            KilnGroupTitle(Strings.Advanced.troubleshooting)
+            KilnCard {
+                KilnRow(title: Strings.Advanced.logs) {
+                    HStack(spacing: 8) {
+                        Button(Strings.Advanced.showAppLog) {
+                            model.say(Strings.Advanced.wouldShowAppLog)
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
+                        Button(Strings.Advanced.showSyncLog) {
+                            model.say(Strings.Advanced.wouldShowSyncLog)
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
+                    }
+                }
+                KilnRowDivider()
+                KilnRow(title: Strings.Advanced.stopOpening) {
+                    Button(Strings.Advanced.remove) {
+                        model.say(Strings.Advanced.wouldRemoveFileType)
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func folderTrailing(_ size: String, note: String) -> some View {
+        HStack(spacing: 10) {
+            Text(size)
+                .font(.system(size: 13))
+                .foregroundStyle(kiln.muted)
+            Button(Strings.Advanced.showInFinder) {
+                model.say(note)
+            }
+            .buttonStyle(KilnButtonStyle(.plain))
+        }
+    }
+}

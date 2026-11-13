@@ -227,6 +227,55 @@ public enum Strings {
         public static let showAgain = "Show again"
         public static let documentsLine = "Documents open in your default browser."
     }
+    public enum YourName {
+        public static let useName = "Use my name in documents"
+        public static let offSub = "Documents can show who made a change."
+        public static let name = "Name"
+        public static let accountSub = "Your hyperclay.com name"
+        public static let change = "Change on hyperclay.com ↗"
+        public static let note = "Documents can save your name. Anyone you send them to can read it."
+        public static let wouldChange = "Build 1: this would open your hyperclay.com profile."
+    }
+    public enum Updates {
+        public static func ready(_ version: String) -> String { "HTML Clay \(version) is ready" }
+        public static func youHave(_ version: String, checked: String) -> String { "You have \(version) · checked \(checked)" }
+        public static let restart = "Restart to update"
+        public static func current(_ version: String) -> String { "HTML Clay \(version)" }
+        public static func upToDate(checked: String) -> String { "Up to date · checked \(checked)" }
+        public static let checkNow = "Check now"
+        public static let automatic = "Update automatically"
+        public static let restartNote = "HTML Clay finishes saves and sync before it restarts."
+        public static let whatsNew = "What's new"
+        public static let versionDot = "."
+        public static func wouldRestart(_ version: String) -> String { "Build 1: this would restart HTML Clay into \(version)." }
+        public static let wouldCheck = "Build 1: this would check for a new version."
+        public static let wouldShowWhatsNew = "Build 1: this would show what changed in the new version."
+    }
+    public enum Advanced {
+        public static let port = "Port"
+        public static let portSub = "Every address on this Mac uses it. Changing it resets page storage, so HTML Clay only asks when 1212 is taken."
+        public static let portNumber = "1212"
+        public static let liveService = "Live service"
+        public static let liveServiceSub = "Runs served and synced folders"
+        public static let running = "Running"
+        public static let storage = "Storage"
+        public static let versions = "Versions of documents outside served folders"
+        public static let versionsSize = "240 MB"
+        public static let uploads = "Uploads"
+        public static let uploadsSize = "1.2 GB"
+        public static let showInFinder = Menu.showInFinder
+        public static let troubleshooting = "Troubleshooting"
+        public static let logs = "Logs"
+        public static let showAppLog = "Show app log"
+        public static let showSyncLog = "Show sync log"
+        public static let stopOpening = "Stop opening .htmlclay files with HTML Clay"
+        public static let remove = "Remove…"
+        public static let wouldShowVersions = "Build 1: this would show the versions folder in Finder."
+        public static let wouldShowUploads = "Build 1: this would show the uploads folder in Finder."
+        public static let wouldShowAppLog = "Build 1: this would open the app log."
+        public static let wouldShowSyncLog = "Build 1: this would open the sync log."
+        public static let wouldRemoveFileType = "Build 1: this would ask before HTML Clay stops opening .htmlclay files."
+    }
     public enum Request {
         public static func title(_ document: String) -> String { "Let \(document) run a program?" }
         public static let dontAllow = "Don't allow"
@@ -285,7 +334,6 @@ public enum Strings {
             case .folderReadAgain: return "A page asks to trust its own folder"
             }
         }
-        public static let notYet = "Build 1: this pane comes in a later step tonight."
         public static func wouldOpen(_ name: String) -> String { "Build 1: this would open \(name) in your browser." }
         public static func wouldShowInFinder(_ name: String) -> String { "Build 1: this would show \(name) in Finder." }
         public static func wouldExport(_ name: String) -> String { "Build 1: this would export \(name) as a zip file." }

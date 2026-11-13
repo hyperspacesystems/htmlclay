@@ -138,4 +138,43 @@ final class SettingsTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 840, persona.rawValue)
         }
     }
+
+    func testNoPaneIsAStub() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let sources = root.appendingPathComponent("Sources")
+        let files = (FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? []).filter { $0.pathExtension == "swift" }
+        XCTAssertGreaterThan(files.count, 20)
+        for file in files {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            XCTAssertFalse(text.contains("PaneStub"), file.lastPathComponent)
+            XCTAssertFalse(text.contains("notYet"), file.lastPathComponent)
+        }
+    }
+
+    func testUtilityPanes() async throws {
+        _ = NSApplication.shared
+        XCTAssertEqual(YourNamePane.mode(SampleData.snapshot(for: .newPerson)), .off)
+        XCTAssertEqual(YourNamePane.mode(SampleData.snapshot(for: .syncedWithTeams)), .account)
+
+        let localHost = SampleHost(persona: .newPerson)
+        _ = try await localHost.perform(.setUseName(true))
+        XCTAssertEqual(YourNamePane.mode(localHost.current), .local)
+
+        XCTAssertEqual(UpdatesPane.short("2.1.0"), "2.1")
+        XCTAssertEqual(UpdatesPane.short("2.0.3"), "2.0")
+
+        let updateHost = SampleHost(persona: .newPerson)
+        _ = try await updateHost.perform(.setAutoUpdate(false))
+        XCTAssertFalse(updateHost.current.update.automatic)
+
+        for persona in [Persona.newPerson, .syncedWithTeams] {
+            let host = SampleHost(persona: persona)
+            let model = AppModel(host: host, initial: host.current)
+            for pane in [SettingsPane.yourName, .updates, .advanced] {
+                let hosting = NSHostingView(rootView: KilnRoot { SettingsView(pane: pane) }.environment(model))
+                hosting.layoutSubtreeIfNeeded()
+                XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 840, persona.rawValue + " " + pane.rawValue)
+            }
+        }
+    }
 }
