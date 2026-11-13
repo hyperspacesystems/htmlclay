@@ -1,0 +1,50 @@
+{
+  "v": 1,
+  "rev": 1,
+  "epoch": "00000000000000a1",
+  "host": {
+    "version": "2.0.3",
+    "os": "darwin",
+    "port": 1212,
+    "dashboardURL": "http://htmlclay.localhost:1212/",
+    "service": "off",
+    "stopped": false
+  },
+  "documents": [],
+  "folders": [],
+  "programs": [],
+  "requests": [],
+  "waiting": [],
+  "counts": {
+    "total": 0,
+    "byPane": {},
+    "dot": false
+  },
+  "sync": {
+    "connected": false,
+    "username": "",
+    "keySuffix": "",
+    "paused": false,
+    "syncingFiles": 0,
+    "offlineChanges": 0,
+    "viewOnlyTeams": 0,
+    "lastFinishedAt": null,
+    "fullName": ""
+  },
+  "update": {
+    "current": "2.0.3",
+    "ready": null,
+    "checkedAt": "2026-11-12T14:12:00Z",
+    "automatic": true,
+    "finishing": false
+  },
+  "preferences": {
+    "openAtLogin": true,
+    "openAtLoginChosen": true,
+    "aiEditing": true,
+    "appearance": "system",
+    "yourName": "",
+    "useName": false
+  },
+  "move": null
+}

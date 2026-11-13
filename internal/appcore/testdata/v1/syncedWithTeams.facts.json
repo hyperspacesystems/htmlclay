@@ -1,0 +1,273 @@
+{
+  "now": "2026-11-12T15:00:00Z",
+  "rev": 1,
+  "epoch": "00000000000000a1",
+  "home": "/Users/sam",
+  "host": {
+    "version": "2.0.3",
+    "os": "darwin",
+    "port": 1212,
+    "service": "running",
+    "stopped": false
+  },
+  "documents": [
+    {
+      "id": "index",
+      "name": "index.html",
+      "path": "/Users/sam/hyperclay/panphora/index.html",
+      "folderID": "panphora",
+      "url": "http://panphora.htmlclay.localhost:1212/index.html",
+      "openNow": true,
+      "openedAt": "2026-11-12T14:55:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    },
+    {
+      "id": "pricing",
+      "name": "pricing.html",
+      "path": "/Users/sam/hyperclay/Design Team/pricing.html",
+      "folderID": "design-team",
+      "url": "http://design-team.htmlclay.localhost:1212/pricing.html",
+      "openNow": false,
+      "openedAt": "2026-11-12T10:00:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    },
+    {
+      "id": "todo",
+      "name": "todo.htmlclay",
+      "path": "/Users/sam/Documents/Notes/todo.htmlclay",
+      "folderID": "notes",
+      "url": "http://htmlclay1.localhost:1212/todo.htmlclay",
+      "openNow": false,
+      "openedAt": "2026-11-11T16:00:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    }
+  ],
+  "folders": [
+    {
+      "id": "notes",
+      "name": "Notes",
+      "path": "/Users/sam/Documents/Notes",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": "",
+      "trusted": true,
+      "served": false,
+      "servedName": "",
+      "synced": false,
+      "onThisComputer": true,
+      "missing": false,
+      "identityChanged": false,
+      "servedByLocal": false,
+      "boundToLocalSync": false,
+      "viewer": false,
+      "documentCount": 4,
+      "storageBytes": 0,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0
+      }
+    },
+    {
+      "id": "prototypes",
+      "name": "prototypes",
+      "path": "/Users/sam/Sites/prototypes",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": "",
+      "trusted": true,
+      "served": true,
+      "servedName": "prototypes",
+      "synced": false,
+      "onThisComputer": true,
+      "missing": false,
+      "identityChanged": false,
+      "servedByLocal": false,
+      "boundToLocalSync": false,
+      "viewer": false,
+      "documentCount": 12,
+      "storageBytes": 6291456,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0
+      }
+    },
+    {
+      "id": "panphora",
+      "name": "panphora",
+      "path": "/Users/sam/hyperclay/panphora",
+      "origin": {
+        "kind": "account",
+        "username": "panphora"
+      },
+      "parentID": "",
+      "trusted": true,
+      "served": true,
+      "servedName": "panphora",
+      "synced": true,
+      "onThisComputer": true,
+      "missing": false,
+      "identityChanged": false,
+      "servedByLocal": false,
+      "boundToLocalSync": false,
+      "viewer": false,
+      "documentCount": 214,
+      "storageBytes": 50331648,
+      "sync": {
+        "state": "up-to-date",
+        "files": 0,
+        "lastFinishedAt": "2026-11-12T14:58:00Z",
+        "uploadedToday": 12,
+        "downloadedToday": 3
+      }
+    },
+    {
+      "id": "design-team",
+      "name": "Design Team",
+      "path": "/Users/sam/hyperclay/Design Team",
+      "origin": {
+        "kind": "team",
+        "team": "Design Team"
+      },
+      "parentID": "",
+      "trusted": true,
+      "served": true,
+      "servedName": "design-team",
+      "synced": true,
+      "onThisComputer": true,
+      "missing": false,
+      "identityChanged": false,
+      "servedByLocal": false,
+      "boundToLocalSync": false,
+      "viewer": false,
+      "documentCount": 18,
+      "storageBytes": 22020096,
+      "sync": {
+        "state": "conflicts",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 4,
+        "downloadedToday": 9,
+        "role": "editor"
+      }
+    },
+    {
+      "id": "marketing",
+      "name": "Marketing",
+      "path": "",
+      "origin": {
+        "kind": "team",
+        "team": "Marketing"
+      },
+      "parentID": "",
+      "trusted": false,
+      "served": false,
+      "servedName": "",
+      "synced": false,
+      "onThisComputer": false,
+      "missing": false,
+      "identityChanged": false,
+      "servedByLocal": false,
+      "boundToLocalSync": false,
+      "viewer": false,
+      "documentCount": 0,
+      "storageBytes": 0,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "todo-search",
+      "name": "todo-search",
+      "path": "/Users/sam/bin/todo-search",
+      "fileMissing": false,
+      "allowedDocuments": [],
+      "allTrustedFolders": false,
+      "removedDocuments": []
+    },
+    {
+      "id": "search-sh",
+      "name": "search.sh",
+      "path": "/Users/sam/bin/search.sh",
+      "fileMissing": false,
+      "allowedDocuments": [
+        "notes.htmlclay"
+      ],
+      "allTrustedFolders": false,
+      "removedDocuments": []
+    }
+  ],
+  "requests": [
+    {
+      "id": "req-todo",
+      "kind": "found",
+      "revision": 1,
+      "documentID": "todo",
+      "document": "todo.htmlclay",
+      "program": "todo-search",
+      "folder": "Notes",
+      "path": "/Users/sam/bin/todo-search",
+      "detail": ""
+    }
+  ],
+  "events": [
+    {
+      "id": "e-conflict-index",
+      "kind": "conflict",
+      "subjectID": "design-team",
+      "name": "apps/index.html",
+      "detail": "Design Team"
+    },
+    {
+      "id": "e-conflict-pricing",
+      "kind": "conflict",
+      "subjectID": "design-team",
+      "name": "pricing.html",
+      "detail": "Design Team"
+    }
+  ],
+  "seen": [],
+  "sync": {
+    "connected": true,
+    "username": "panphora",
+    "keySuffix": "7f3a",
+    "paused": false,
+    "syncingFiles": 5,
+    "offlineChanges": 0,
+    "viewOnlyTeams": 1,
+    "lastFinishedAt": "2026-11-12T14:58:00Z",
+    "fullName": "David Miranda"
+  },
+  "update": {
+    "current": "2.0.3",
+    "ready": null,
+    "checkedAt": "2026-11-12T14:12:00Z",
+    "automatic": true,
+    "finishing": false
+  },
+  "preferences": {
+    "openAtLogin": true,
+    "openAtLoginChosen": true,
+    "aiEditing": true,
+    "appearance": "system",
+    "yourName": "David",
+    "useName": true
+  },
+  "move": null
+}

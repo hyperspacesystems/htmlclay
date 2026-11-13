@@ -1,0 +1,102 @@
+{
+  "now": "2026-11-12T15:00:00Z",
+  "rev": 1,
+  "epoch": "00000000000000a1",
+  "home": "/Users/sam",
+  "host": {
+    "version": "2.0.3",
+    "os": "darwin",
+    "port": 1212,
+    "service": "off",
+    "stopped": false
+  },
+  "documents": [
+    {
+      "id": "budget",
+      "name": "budget.htmlclay",
+      "path": "/Users/sam/Downloads/budget.htmlclay",
+      "folderID": "",
+      "url": "http://htmlclay1.localhost:1212/budget.htmlclay",
+      "openNow": true,
+      "openedAt": "2026-11-12T14:55:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    },
+    {
+      "id": "recipe-box",
+      "name": "recipe-box.htmlclay",
+      "path": "/Users/sam/Documents/recipe-box.htmlclay",
+      "folderID": "",
+      "url": "http://htmlclay2.localhost:1212/recipe-box.htmlclay",
+      "openNow": false,
+      "openedAt": "2026-11-11T16:00:00Z",
+      "fileMissing": true,
+      "versionsKept": 9
+    },
+    {
+      "id": "trip-plan",
+      "name": "trip-plan.htmlclay",
+      "path": "/Users/sam/Documents/trip-plan.htmlclay",
+      "folderID": "",
+      "url": "http://htmlclay2.localhost:1212/trip-plan.htmlclay",
+      "openNow": false,
+      "openedAt": "2026-11-11T16:00:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    },
+    {
+      "id": "reading-list",
+      "name": "reading-list.htmlclay",
+      "path": "/Users/sam/Desktop/reading-list.htmlclay",
+      "folderID": "",
+      "url": "http://htmlclay3.localhost:1212/reading-list.htmlclay",
+      "openNow": false,
+      "openedAt": "2026-11-09T16:00:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    },
+    {
+      "id": "invoice",
+      "name": "invoice.htmlclay",
+      "path": "/Users/sam/Documents/Work/invoice.htmlclay",
+      "folderID": "",
+      "url": "http://htmlclay4.localhost:1212/invoice.htmlclay",
+      "openNow": false,
+      "openedAt": "2026-11-03T16:00:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    }
+  ],
+  "folders": [],
+  "programs": [],
+  "requests": [],
+  "events": [],
+  "seen": [],
+  "sync": {
+    "connected": false,
+    "username": "",
+    "keySuffix": "",
+    "paused": false,
+    "syncingFiles": 0,
+    "offlineChanges": 0,
+    "viewOnlyTeams": 0,
+    "lastFinishedAt": null,
+    "fullName": ""
+  },
+  "update": {
+    "current": "2.0.3",
+    "ready": null,
+    "checkedAt": "2026-11-12T14:12:00Z",
+    "automatic": true,
+    "finishing": false
+  },
+  "preferences": {
+    "openAtLogin": true,
+    "openAtLoginChosen": true,
+    "aiEditing": true,
+    "appearance": "system",
+    "yourName": "",
+    "useName": false
+  },
+  "move": null
+}
