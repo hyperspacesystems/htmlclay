@@ -1,5 +1,4 @@
 import SwiftUI
-import WebKit
 import PreviewCore
 
 public struct SettingsView: View {
@@ -49,40 +48,6 @@ public struct SettingsView: View {
     }
 }
 
-public struct FilmView: NSViewRepresentable {
-    private let html: String?
-    public init(html: String?) { self.html = html }
-    public func makeNSView(context: Context) -> WKWebView {
-        let view = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
-        view.setValue(false, forKey: "drawsBackground")
-        if let html { view.loadHTMLString(html, baseURL: nil) }
-        return view
-    }
-    public func updateNSView(_ view: WKWebView, context: Context) {}
-}
-
-public struct WelcomeView: View {
-    @Environment(\.kiln) private var kiln
-    private let film: String?
-    private let done: () -> Void
-    private let openSettings: () -> Void
-    public init(film: String?, done: @escaping () -> Void = {}, openSettings: @escaping () -> Void = {}) {
-        self.film = film; self.done = done; self.openSettings = openSettings
-    }
-    public var body: some View {
-        VStack(spacing: 14) {
-            FilmView(html: film).frame(width: 104, height: 104)
-            Text(Strings.Welcome.title).font(.system(size: 23, weight: .bold))
-            HStack {
-                Button(Strings.Welcome.openSettings, action: openSettings)
-                Button(Strings.Welcome.allSet, action: done).buttonStyle(KilnPrimaryButtonStyle()).frame(width: 140)
-            }
-        }
-        .padding(34)
-        .frame(width: 760)
-    }
-}
-
 public struct RequestView: View {
     private let item: WaitingItem
     private let answer: (Bool) -> Void
@@ -107,7 +72,7 @@ public enum ScreenCatalog {
         var screens: [(name: String, view: AnyView)] = [
             ("panel", AnyView(KilnRoot { PanelView() }.environment(model))),
             ("settings", AnyView(KilnRoot { SettingsView() }.environment(model))),
-            ("welcome", AnyView(KilnRoot { WelcomeView(film: film) }.environment(model))),
+            ("welcome", AnyView(KilnRoot { WelcomeView(film: film, menuBarIcon: nil) }.environment(model))),
             ("components", AnyView(KilnRoot { ComponentGallery() }.environment(model))),
         ]
         if let item = model.snapshot.waiting.first {

@@ -17,7 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = StatusItemController(model: model, windows: windows)
         previewMenu = PreviewMenuController(host: host, model: model, windows: windows)
         NSApp.mainMenu = MainMenu.build(target: self)
-        if !CommandLine.arguments.contains("--no-welcome") { windows.showWelcome() }
+        let welcomeDone = UserDefaults.standard.bool(forKey: WindowManager.welcomeDoneKey)
+        if !welcomeDone, !CommandLine.arguments.contains("--no-welcome") { windows.showWelcome() }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

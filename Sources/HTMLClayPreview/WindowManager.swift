@@ -15,6 +15,16 @@ final class WindowManager: NSObject, NSWindowDelegate {
         super.init()
     }
 
+    static let welcomeDoneKey = "welcomeDone"
+
+    static func menuBarIcon() -> NSImage? {
+        guard let url = Bundle.main.url(forResource: "tray-icon@2x", withExtension: "png"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
+        return image
+    }
+
     static func film() -> String? {
         guard let url = Bundle.main.url(forResource: "icon-film", withExtension: "html") else { return nil }
         return try? String(contentsOf: url, encoding: .utf8)
@@ -36,7 +46,11 @@ final class WindowManager: NSObject, NSWindowDelegate {
         welcome?.close()
         welcome = makeWindow(KilnRoot {
             WelcomeView(film: Self.film(),
-                        done: { [weak self] in self?.welcome?.close() },
+                        menuBarIcon: Self.menuBarIcon(),
+                        done: { [weak self] in
+                            UserDefaults.standard.set(true, forKey: Self.welcomeDoneKey)
+                            self?.welcome?.close()
+                        },
                         openSettings: { [weak self] in self?.welcome?.close(); self?.showSettings(.general) })
         }.environment(model))
         present(welcome)

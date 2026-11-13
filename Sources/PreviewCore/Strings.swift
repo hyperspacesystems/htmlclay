@@ -48,8 +48,18 @@ public enum Strings {
     }
     public enum Welcome {
         public static let title = "HTML Clay is ready"
+        public static let lead = "Now you can open .htmlclay files on this Mac. Double-click one: it opens in your browser, and your changes save back into the file."
+        public static let filesTitle = "Files that save themselves"
+        public static let filesSub = "Edit in the browser. The file on your Mac updates as you go."
+        public static let versionsTitle = "Versions you can go back to"
+        public static let versionsSub = "HTML Clay keeps earlier versions of each document."
+        public static let localTitle = "Stays on your Mac"
+        public static let localSub = "No account needed. It works offline."
+        public static let moreTitle = "When you want more"
+        public static let moreSub = "Serve a folder as a local site, or sync with hyperclay.com. Both are in Settings."
         public static let allSet = "I'm all set"
         public static let openSettings = "Open Settings"
+        public static let menuBarHint = "HTML Clay lives in your menu bar:"
     }
     public enum Settings {
         public static func title(_ pane: SettingsPane) -> String {
