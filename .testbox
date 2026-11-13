@@ -1,6 +1,6 @@
 # Runs the Go suite on a throwaway box: `testbox run`.
 # See ~/Documents/GitHub/bash_commands/testbox/README.md.
-TESTBOX_REPO=htmlclay
+TESTBOX_REPO=htmlclay-mac
 # The box has Node but no Go. Setup installs the toolchain this Mac and CI use (go.mod: go 1.26),
 # checked against go.dev's published sha256, and links it into ~/.local/bin, which the login
 # shell every setup and command runs in puts on PATH (so `testbox run --command '...'` finds it too).

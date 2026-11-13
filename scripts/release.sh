@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
+if [ -f "$ROOT_DIR/FORK.md" ]; then
+  echo "This is the private fork (FORK.md). Releases run only from the public htmlclay checkout." >&2
+  exit 1
+fi
+
 # Promotion has its own publication-only preflight and recovery path.
 for arg in "$@"; do
   case "$arg" in
