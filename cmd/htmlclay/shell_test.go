@@ -301,11 +301,13 @@ func TestShellStdin(t *testing.T) {
 		t.Cleanup(func() { _ = os.RemoveAll(folder) })
 
 		action := shellJSON("serve1", "folder.serve", map[string]string{"path": folder, "name": "shell-stdin-test"})
-		// The request is sent, but its answer is never read: stdin closes while it
-		// is still in flight, so what this checks is that a write already under way
-		// completes before the host is gone.
+		// Stdin closes while the request is in flight. The host may not have read
+		// it yet, and then the client hears an error and nothing was promised; but
+		// an action the host answered must be in the config when it is gone.
 		wrote := make(chan struct{}, 1)
+		answered := make(chan int, 1)
 		go func() {
+			defer close(answered)
 			request, err := http.NewRequest(http.MethodPost, ready.Shell+"/shell/v1/actions", strings.NewReader(action))
 			if err != nil {
 				return
@@ -321,6 +323,7 @@ func TestShellStdin(t *testing.T) {
 			}
 			request = request.WithContext(httptrace.WithClientTrace(context.Background(), trace))
 			if response, err := http.DefaultClient.Do(request); err == nil {
+				answered <- response.StatusCode
 				response.Body.Close()
 			}
 		}()
@@ -341,6 +344,14 @@ func TestShellStdin(t *testing.T) {
 			t.Fatalf("the app exited %d, want 0; stderr:\n%s", code, stderr.String())
 		}
 
+		status, ok := <-answered
+		if !ok {
+			t.Logf("stdin closed before the host read the serve request; the client heard an error, so nothing was promised")
+			return
+		}
+		if status != http.StatusOK {
+			t.Fatalf("folder.serve answered %d during shutdown, want 200", status)
+		}
 		raw, err := os.ReadFile(filepath.Join(configDir, "config.json"))
 		if err != nil {
 			t.Fatalf("read the config back: %v", err)
@@ -362,7 +373,7 @@ func TestShellStdin(t *testing.T) {
 			}
 		}
 		if !served {
-			t.Fatalf("config servedFolders = %+v, want %s serving (the write in flight completed)\nstderr:\n%s", saved.ServedFolders, folder, stderr.String())
+			t.Fatalf("config servedFolders = %+v, want %s serving (the host answered the serve)\nstderr:\n%s", saved.ServedFolders, folder, stderr.String())
 		}
 	})
 
