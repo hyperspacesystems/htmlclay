@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/service"
 )
 
 // serviceRepoTarget needs node on PATH and the service's node_modules, since
@@ -141,6 +142,9 @@ func saveServed(t *testing.T, a *app, name, dir, document string) {
 // Without a service command the app is exactly what it was before the service
 // existed: no process, no service link, and saves on Go's native lanes.
 func TestServiceOffWithoutCommand(t *testing.T) {
+	if service.Bundled() {
+		t.Skip("a bundled build always runs its own service")
+	}
 	t.Setenv("HTMLCLAY_SERVICE_CMD", "")
 	home := evalTempHome(t)
 	dir := filepath.Join(home, "notes")

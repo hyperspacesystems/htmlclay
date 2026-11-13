@@ -23,3 +23,5 @@ service/node_modules/
 
 __pycache__/
 test-box-out/
+/internal/service/blobs/
+/service/.cache/

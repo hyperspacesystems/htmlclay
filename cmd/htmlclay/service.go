@@ -86,8 +86,9 @@ var serviceHTTPClient = &http.Client{Transport: &http.Transport{Proxy: nil, Disa
 // serviceRunner drives one service process with the supervisor's state machine.
 type serviceRunner struct {
 	a       *app
-	command []string // nil: no service
-	dataDir string   // <config dir>/service
+	command []string                 // from HTMLCLAY_SERVICE_CMD; nil in a bundled build
+	install func() ([]string, error) // extracts the bundled program; nil without one
+	dataDir string                   // <config dir>/service
 
 	mu      sync.Mutex
 	machine service.Machine
@@ -100,15 +101,23 @@ type serviceRunner struct {
 	control       *http.Server // serves a.served.ControlHandler(controlSecret)
 }
 
-// newServiceRunner builds the runner for this process. With no command in the
-// environment there is no service, and every call below is a no-op.
+// newServiceRunner builds the runner for this process. A bundled build runs
+// the program it carries and ignores HTMLCLAY_SERVICE_CMD; any other build runs
+// that command when it is set. With neither there is no service, and every call
+// below is a no-op.
 func newServiceRunner(a *app) *serviceRunner {
-	return &serviceRunner{
+	r := &serviceRunner{
 		a:             a,
-		command:       service.CommandFromEnv(),
 		dataDir:       filepath.Join(a.rt.configDir, "service"),
 		controlSecret: newControlSecret(),
 	}
+	if service.Bundled() {
+		root := filepath.Join(a.rt.configDir, "service-runtime")
+		r.install = func() ([]string, error) { return service.Install(root) }
+	} else {
+		r.command = service.CommandFromEnv()
+	}
+	return r
 }
 
 // newControlSecret answers 64 lowercase hex characters for the control listener.
@@ -122,7 +131,7 @@ func newControlSecret() string {
 
 // enabled reports whether this build has a service program to run.
 func (r *serviceRunner) enabled() bool {
-	return r != nil && len(r.command) > 0
+	return r != nil && (len(r.command) > 0 || r.install != nil)
 }
 
 // startControl listens on a free loopback port and serves the host's control API
@@ -236,10 +245,20 @@ func (r *serviceRunner) process() *service.Process {
 // follows. It runs on a goroutine of its own: Start and Attach wait on the
 // process, which must never happen under mu.
 func (r *serviceRunner) spawn() {
+	command := r.command
+	if r.install != nil {
+		installed, err := r.install()
+		if err != nil {
+			r.a.rt.logger.Printf("The live-room service could not be unpacked: %v", err)
+			r.step(service.Event{Kind: service.Exited})
+			return
+		}
+		command = installed
+	}
 	secret := newControlSecret()
 	log := func(line string) { r.a.rt.logger.Printf("service: %s", line) }
 	proc, ready, err := service.Start(context.Background(), service.Spec{
-		Command: r.command,
+		Command: command,
 		DataDir: r.dataDir,
 		Log:     log,
 	}, secret, serviceSpawnTimeout)
