@@ -1,0 +1,473 @@
+package server
+
+import (
+	"context"
+	"errors"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/panphora/htmlclay/internal/dataguard"
+	"github.com/panphora/htmlclay/internal/logging"
+	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/versions"
+)
+
+type Server struct {
+	// httpServer and listener are set by New only. A hosted server (NewHosted) has neither:
+	// the app's one http.Server dispatches to it by Host through ServeHTTP.
+	httpServer *http.Server
+	listener   net.Listener
+	// handler is the whole middleware chain over the mux, which is what ServeHTTP runs.
+	handler http.Handler
+	// hosts are the exact Host header values this server answers.
+	hosts    []string
+	port     int
+	sessions *session.Manager
+	logger   *logging.Logger
+	versions *versions.Store
+	// runtimeNoticeMu guards runtimeNotices, the (path, detail) pairs already logged for a
+	// document served with public runtime URLs.
+	runtimeNoticeMu sync.Mutex
+	runtimeNotices  map[string]bool
+	internalDir     string
+	// uploadsDir is the per-computer uploads library, ~/htmlclay/uploads. Empty
+	// when the home directory could not be resolved, which refuses uploads and
+	// 404s the library route rather than writing anywhere else.
+	uploadsDir string
+	// uploadKeyMu guards the library key: the one secret that makes an upload's
+	// name unguessable, read out of the library on first use and then held here.
+	uploadKeyMu sync.Mutex
+	uploadKey   []byte
+	broker      *broker
+	// beforeAssetCapabilityOpen runs between an asset path being resolved and the
+	// capability open that acts on it. Tests only; nil everywhere else.
+	beforeAssetCapabilityOpen func()
+	// beforeFirstOpenSnapshot runs at the instant the first-open snapshot is about
+	// to be published, so a test can observe the state the publish happens in.
+	// Tests only; nil everywhere else.
+	beforeFirstOpenSnapshot func()
+	ls                      *LiveSync
+	ownsLiveSync            bool
+	hub                     *hub
+	watcher                 *watcher
+	coord                   *streamCoordinator
+	// wire is per-server, unlike the shared live-sync runtime above: a site is
+	// the lifetime boundary for an instruction channel, so untrusting a folder
+	// (which closes the site) cannot leave a live wire into it.
+	wire           *wireHub
+	helperBindings helperBindingRegistry
+	helperMu       sync.Mutex
+	helpers        map[string]*helperDispatcher
+	helperOffline  map[string][]string
+	// helperAsking parks requests for a helper the person has not answered,
+	// keyed by helperAskKey, while one dialog asks about it.
+	helperAsking map[string][]parkedHelperRequest
+	// helperSetting marks, by helperAskKey, a setup dialog that is running, so a
+	// second setup request for the same name waits its turn instead of stacking.
+	helperSetting map[string]bool
+	// helperAskQuiet holds, per file, when a page may next raise the dialog
+	// after one that granted nothing.
+	helperAskQuiet map[string]time.Time
+	aiEdit         aiEditRegistry
+	// guard judges every write to a document against the baseline HTML Clay last
+	// wrote, so a save or an outside edit that destroys data can raise a notice.
+	// guardQueue serializes its observations and resolves per history key, and
+	// guardStore keeps its state in the document's versions folder.
+	guard      *dataguard.Guard
+	guardQueue *dataguard.Queue
+	guardStore *dataguard.Store
+	// guardSeenMu guards guardSeen, the last document hash the guard has seen per
+	// history key. It is written when an observation is enqueued, so the document
+	// read can tell an outside edit from the bytes it already knows without
+	// reading any file.
+	guardSeenMu sync.Mutex
+	guardSeen   map[string]string
+
+	// hooks are the app-level decisions this server cannot make itself. A nil
+	// field disables that route; a zero Hooks (tests, standalone servers)
+	// disables all of them.
+	hooks Hooks
+	// openMu guards the open-request nonce map, the denied-directory lists, and
+	// the auto-registration counter.
+	openMu         sync.Mutex
+	openNonces     map[string]openNonce
+	openDenied     []string
+	trustDenied    []string
+	autoRegistered int
+
+	// tailwindCompile builds the stylesheet a document links. It is injected so a
+	// test can answer without a compiler, and so a build with no Tailwind binary
+	// still answers the route (with an empty stylesheet).
+	tailwindCompile func(ctx context.Context, html []byte) ([]byte, error)
+	// tailwindMu guards tailwindLogged. Compiles themselves are serialized by the
+	// package-level tailwindCompileMu, because the app builds one Server per folder.
+	tailwindMu sync.Mutex
+	// tailwindLogged is guarded by tailwindMu. It remembers the compiles that
+	// already logged a failure, so a page retrying a broken stylesheet every load
+	// fills the log once.
+	tailwindLogged map[string]bool
+}
+
+// UploadsLibraryDir is the one folder on this computer every upload lands in,
+// ~/htmlclay/uploads, beside the examples folder the app already keeps there.
+// A document links its files as /_/uploads/<folder>/<name>, which every site
+// server answers from here, so the document can move anywhere and keep them.
+func UploadsLibraryDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "htmlclay", "uploads"), nil
+}
+
+// ResolvedUploadsLibraryDir is UploadsLibraryDir with the library created and
+// every symlink in the path resolved, so the one folder has one spelling.
+//
+// ~/htmlclay is a symlink whenever the library lives somewhere else -- Dropbox,
+// an external drive -- and a lexical path then names a folder that is not the
+// one the OS opens. isInternal compares real paths, so a lexical library would
+// miss its own files and serve a page dropped in it as an editable page with a
+// save token. Creating it here means the resolution also answers for a library
+// that does not exist yet, which the startup-only resolution could not.
+func ResolvedUploadsLibraryDir() (string, error) {
+	dir, err := UploadsLibraryDir()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(dir)
+}
+
+// SeqPath is where the live-sync sequence high-water mark lives, beside the
+// backups in a private 0700 directory the server refuses to serve.
+func SeqPath(store *versions.Store) string {
+	return filepath.Join(store.BaseDir(), ".livesync-seq")
+}
+
+func listenerServer(ln net.Listener, s *Server) *Server {
+	s.listener = ln
+	s.port = ln.Addr().(*net.TCPAddr).Port
+	s.httpServer = &http.Server{
+		Handler:           s.handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	return s
+}
+
+// New builds a server on its own listener that owns its own live-sync runtime and
+// tears it down on Shutdown/Close. Used by tests and any single-server caller. It
+// accepts the two loopback spellings of its port as Host and owns no other origin.
+func New(ln net.Listener, sessions *session.Manager, logger *logging.Logger, store *versions.Store) *Server {
+	hosts := LoopbackHosts(ln.Addr().(*net.TCPAddr).Port)
+	s := newServer(sessions, logger, store, NewLiveSync(store, logger), hosts, ownsHosts(hosts))
+	s.ownsLiveSync = true
+	return listenerServer(ln, s)
+}
+
+// NewHosted builds a server that answers exactly one Host value, <slug>.localhost:<port>,
+// and owns no listener: the process's one http.Server routes requests to it by Host
+// through ServeHTTP. ours is the app's view of which origins are its own, for the
+// cross-site navigation rule. It shares the injected live-sync runtime with its sibling
+// sites; Shutdown and Close release its broker, wire and AI edits and leave the runtime
+// and the listener alone, because both belong to the process.
+func NewHosted(host string, ours OriginOwner, sessions *session.Manager, logger *logging.Logger, store *versions.Store, ls *LiveSync) *Server {
+	s := newServer(sessions, logger, store, ls, []string{host}, ours)
+	if _, p, err := net.SplitHostPort(host); err == nil {
+		s.port, _ = strconv.Atoi(p)
+	}
+	return s
+}
+
+// Host is the one Host value a hosted server answers, or the first loopback spelling for
+// a listener server.
+func (s *Server) Host() string { return s.hosts[0] }
+
+// ServeHTTP runs the full middleware chain, Host gate included, for a request the
+// process router has already matched to this server.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.handler.ServeHTTP(w, r)
+}
+
+func newServer(sessions *session.Manager, logger *logging.Logger, store *versions.Store, ls *LiveSync, hosts []string, ours OriginOwner) *Server {
+	// The guard keeps its sidecars in the document's versions folder, which the
+	// versions store already owns the location of.
+	guardStore := dataguard.NewStore(func(key, absPath string) (string, error) {
+		return store.ExistingFolder(key, absPath)
+	})
+	guardQueue := &dataguard.Queue{}
+	guard := dataguard.NewGuard(guardStore, Extractor{}, func() int64 { return time.Now().UnixMilli() })
+	guard.SetQueue(guardQueue)
+
+	s := &Server{
+		sessions: sessions,
+		hosts:    hosts,
+		logger:   logger,
+		versions: store,
+		broker:   newBroker(sessions, logger, defaultConfirm),
+		ls:       ls,
+		hub:      ls.hub,
+		watcher:  ls.watcher,
+		coord:    ls.coord,
+		wire:     newWireHub(),
+
+		guard:      guard,
+		guardQueue: guardQueue,
+		guardStore: guardStore,
+		guardSeen:  map[string]string{},
+
+		tailwindLogged: map[string]bool{},
+	}
+	s.tailwindCompile = s.compileTailwind
+	// The watcher is shared by every site, so an external change is offered to each
+	// site's guard and judged by the one that owns the document's key.
+	s.watcher.onExternalWrite(s.observeExternalChange)
+	// Not fatal: a server with no home directory still serves every document, it
+	// just cannot store or answer an upload.
+	s.uploadsDir, _ = ResolvedUploadsLibraryDir()
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /_/read/{token}", s.handleRead)
+	mux.HandleFunc("POST /_/save/{token}", sameOrigin(s.handleSave))
+	mux.HandleFunc("POST /_/upload/{token}", sameOrigin(s.handleUpload))
+	mux.HandleFunc("GET /_/meta/{token}", s.handleMeta)
+	mux.HandleFunc("GET /_/blockeditor-state/{token}", s.handlePageState)
+	mux.HandleFunc("GET /_/data-loss/{token}", s.handleDataLossGet)
+	mux.HandleFunc("POST /_/data-loss/{token}", sameOrigin(s.handleDataLossResolve))
+	// Spec §5 names the tokenless address as the one place a client may learn what
+	// a host supports, and forbids gating discovery tighter than the documents
+	// served. This host mints tokens, so it answers both: the token route adds a
+	// per-document block to the same answer, and this one is the host scope alone.
+	// An addition, not a replacement -- every existing caller keeps its route.
+	//
+	// Explicitly registered because a bare "/_/meta" does not match the "{token}"
+	// pattern above. Verified with httptest: without this line the path falls to
+	// the "/{path...}" catch-all, which reads it as a request for a file and
+	// answers 403 "Read access required" -- a JSON body that parses cleanly and
+	// says nothing about this host.
+	// Deliberately outside sameOrigin: the answer names no document and carries
+	// no credential, and a client that cannot ask is a client that saves blindly.
+	mux.HandleFunc("GET /_/meta", s.handleHostMeta)
+	mux.HandleFunc("GET /_/versions/{token}", s.handleListVersions)
+	mux.HandleFunc("GET /_/version/{token}/{name}", s.handleReadVersion)
+	mux.HandleFunc("POST /_/restore/{token}/{name}", sameOrigin(s.handleRestoreVersion))
+	// The page menu's file actions. Same-origin and token-bearing, because the host
+	// does something to the user's computer on the page's word.
+	mux.HandleFunc("POST /_/reveal/{token}", sameOrigin(s.handleReveal))
+	mux.HandleFunc("POST /_/helper-setup/{token}", sameOrigin(s.handleHelperSetup))
+	mux.HandleFunc("POST /_/versions-folder/{token}", sameOrigin(s.handleVersionsFolder))
+	mux.HandleFunc("POST /_/export/{token}", sameOrigin(s.handleExport))
+	// Registered ahead of the catch-all. The stream is a read, but it joins the
+	// gate: live-sync authorizes by registered path rather than by token, so
+	// without the gate it is reachable by any page the user's browser has open.
+	// Spec §10: one address, GET to receive and POST to send. The old
+	// /_/live-sync/* paths are gone rather than aliased, per David 2026-08-21,
+	// since nothing outside our own clients speaks this yet. Both handlers now
+	// take the spec's spelling and still accept the pre-spec one, so the move
+	// is a rename for a caller that was already correct.
+	mux.HandleFunc("GET /_/sync", sameOrigin(s.handleLiveSyncStream))
+	mux.HandleFunc("POST /_/sync", sameOrigin(s.handleLiveSyncSave))
+	// Spec §10's `sync-worker`: the worker script every tab on the origin
+	// shares one stream through. See sync_worker.go for why it sits outside the
+	// gate.
+	mux.HandleFunc("GET /_/sync/worker.js", s.handleSyncWorker)
+	// The pre-spec addresses, kept permanently rather than as a grace period. A saved
+	// document is a frozen client: the Collection dashboard opens this exact stream from
+	// inline page script, so every dashboard ever minted names this path and no library
+	// update can reach it. hyperclayjs hardcodes both too. The handlers already read
+	// document-url/page-url, Document-URL/Page-URL and snapshot/html, so these are pure
+	// aliases with no duplicated logic.
+	mux.HandleFunc("GET /_/live-sync/stream", sameOrigin(s.handleLiveSyncStream))
+	mux.HandleFunc("POST /_/live-sync/save", sameOrigin(s.handleLiveSyncSave))
+	// Both endpoints keep their 1.2.0 URLs. User HTML calls
+	// /_/workspace-request/{token} directly, so the concept renames in Go and
+	// not on the wire; /_/open-request is only ever called by bytes this server
+	// injects, but there is nothing to gain by moving it.
+	mux.HandleFunc("POST /_/open-request", sameOrigin(s.handleOpenRequest))
+	mux.HandleFunc("POST /_/workspace-request/{token}", sameOrigin(s.handleTrustRequest))
+	// The data API sits ahead of the catch-all. Verified with httptest: "/_/api/{path...}" does NOT
+	// match bare "/_/api" (ServeMux 307-redirects it), hence the explicit first line; "/_/api/" with
+	// a trailing slash DOES match the wildcard with path == "", so the handler answers 400 for an
+	// empty path either way; "/_/apix" still falls to the catch-all; and "/_%2Fapi/x" decodes into a
+	// single segment and cannot smuggle into this route.
+	//
+	// This shadows any real user file at ~/_/api/…, which is the one behavior change.
+	mux.HandleFunc("GET /_/api", s.handleDataAPI)
+	mux.HandleFunc("GET /_/api/{path...}", s.handleDataAPI)
+
+	// Writes through the same address. No sameOrigin wrapper: like the wire, this admits local
+	// processes, which attest no browser headers. handleDataAPIWrite runs wireCaller itself and
+	// requires the file's Save-Token from any browser caller.
+	mux.HandleFunc("POST /_/api", s.handleDataAPIWrite)
+	mux.HandleFunc("POST /_/api/{path...}", s.handleDataAPIWrite)
+
+	// The whole wire subtree mounts behind one guard, so a route cannot be added
+	// to it without the guard in front. Its guard is deliberately NOT sameOrigin:
+	// the wire admits local processes, which attest no browser headers at all.
+	//
+	// Registered per method rather than as a bare "/_/wire/": ServeMux refuses a
+	// method-agnostic subtree alongside the method-specific catch-all below
+	// ("matches fewer methods but has a more general path pattern") and panics at
+	// registration. Listing the two methods the wire uses keeps one guard while
+	// leaving anything else on the subtree to fall through as it would anyway.
+	wire := s.wireMux()
+	mux.Handle("GET /_/wire/", wire)
+	mux.Handle("POST /_/wire/", wire)
+
+	// The uploads library, ahead of the catch-all so a stored file is answered from
+	// the one per-computer folder rather than read as a file under home. No token:
+	// an <img> carries none. HostValidationMiddleware still wraps the whole mux.
+	mux.HandleFunc("GET /_/uploads/{path...}", s.handleLibraryUpload)
+
+	// The ClayJS release embedded in this binary, so a document loads its client with
+	// no network. Public bytes: outside sameOrigin, since <script> and <link> fetch them.
+	// Registered ahead of the catch-all, which would otherwise read the path as a file.
+	mux.HandleFunc("GET /_/clayjs/{rest...}", s.handleRuntimeAsset)
+
+	// A document that links /tailwindcss/<name>.css gets a stylesheet compiled from
+	// that document's own HTML. Registered ahead of the catch-all, which would
+	// otherwise read the name as a file under home and 403 for want of a token.
+	mux.HandleFunc("GET /tailwindcss/{path...}", s.handleTailwind)
+
+	mux.HandleFunc("GET /{path...}", s.handleServeFile)
+
+	// The plain page address carries the write too, so a caller that read through ?data= can write
+	// through the same URL shape. The handler refuses everything a document write does not address
+	// and every reserved /_/ path that reached it unmatched, which ServeMux used to answer 405 for.
+	mux.HandleFunc("POST /{path...}", s.handleDataFileWrite)
+
+	s.handler = HostGate(s.loggingMiddleware(mux), ours, hosts...)
+	return s
+}
+
+// SetInternalDir marks a directory the server must never serve, whatever the
+// read roots say. htmlclay's own config tree holds its log and settings, and a
+// grant that happens to cover that directory must not turn into a read path.
+// Denying on the serve path is structural; a grant-time guard can only ever
+// cover the grants it happens to see.
+func (s *Server) SetInternalDir(dir string) { s.internalDir = dir }
+
+// SetSiteLabel names this site in the permission dialog so the user knows which
+// page is asking. Optional; the broker falls back to a generic label.
+func (s *Server) SetSiteLabel(label string) { s.broker.label = label }
+
+// isInternal reports whether absPath belongs to htmlclay's own state and must be
+// refused outright, before any existence check, so the denial is not an oracle.
+//
+// The uploads library is htmlclay's own state too: it holds files the person
+// uploaded, named and served as attachments, and it must never be a page's
+// folder. A read root, a trusted folder, or a grant that covers ~/htmlclay would
+// otherwise turn a .htmlclay dropped in the library into an editable page with a
+// save token. The dedicated GET /_/uploads/ route does not go through here, so
+// the library is still served where it is meant to be.
+func (s *Server) isInternal(absPath string) bool {
+	if s.versions.Contains(absPath) {
+		return true
+	}
+	if s.internalDir != "" && session.EqualOrUnder(absPath, s.internalDir) {
+		return true
+	}
+	return s.uploadsDir != "" && session.EqualOrUnder(absPath, s.uploadsDir)
+}
+
+func (s *Server) Start() error {
+	if s.httpServer == nil {
+		return errors.New("server: a hosted server has no listener; route to it with ServeHTTP")
+	}
+	err := s.httpServer.Serve(s.listener)
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
+}
+
+// Shutdown releases parked permission requests and closes every SSE stream
+// before handing off to http.Server.Shutdown. Both otherwise hold graceful
+// shutdown open until its timeout and are then force-closed. A server that shares
+// an injected live-sync runtime leaves it running (the process shuts the shared
+// runtime down once, before the per-site HTTP servers).
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.CancelAIEdits()
+	s.guardQueue.Settle()
+	s.broker.shutdown()
+	s.wire.shutdown()
+	if s.ownsLiveSync {
+		s.ls.Shutdown()
+	}
+	if s.httpServer == nil {
+		return nil
+	}
+	return s.httpServer.Shutdown(ctx)
+}
+
+func (s *Server) Close() error {
+	s.CancelAIEdits()
+	s.guardQueue.Settle()
+	s.broker.shutdown()
+	s.wire.shutdown()
+	if s.ownsLiveSync {
+		s.ls.Shutdown()
+	}
+	if s.httpServer == nil {
+		return nil
+	}
+	return s.httpServer.Close()
+}
+
+func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rw := &responseWriter{ResponseWriter: w, status: 200}
+		next.ServeHTTP(rw, r)
+		s.logger.Printf("%s %s %d %s", r.Method, redactPath(r.URL.Path), rw.status, time.Since(start))
+	})
+}
+
+// redactPath hides the session token in token-bearing routes so the secret is
+// never written to the log file or stderr.
+func redactPath(p string) string {
+	for _, prefix := range []string{
+		"/_/save/", "/_/read/", "/_/meta/", "/_/upload/",
+		"/_/versions/", "/_/version/", "/_/restore/",
+		"/_/reveal/", "/_/versions-folder/", "/_/export/",
+		"/_/workspace-request/", "/_/helper-setup/",
+	} {
+		if strings.HasPrefix(p, prefix) {
+			return prefix + "<redacted>"
+		}
+	}
+	return p
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.status = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+// Unwrap lets http.ResponseController reach the underlying writer for Flush and
+// SetWriteDeadline. Without it SSE cannot flush at all.
+func (rw *responseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
+}
+
+func (rw *responseWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}

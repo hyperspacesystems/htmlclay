@@ -1,0 +1,113 @@
+package main
+
+import (
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestDeadFolderNeverTakesALiveFoldersHostname(t *testing.T) {
+	home, _ := filepath.EvalSymlinks(t.TempDir())
+	dead := filepath.Join(home, "aaa-dead")
+	live := filepath.Join(home, "zzz-live")
+	page := filepath.Join(live, "index.htmlclay")
+	writeTestFile(t, filepath.Join(dead, "x.htmlclay"), "<html><body>x</body></html>")
+	writeTestFile(t, page, "<html><body>live</body></html>")
+
+	cfgBase := t.TempDir()
+	first := newTestAppWithConfigDir(t, home, cfgBase)
+	if err := first.trustFolder(dead); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.trustFolder(live); err != nil {
+		t.Fatal(err)
+	}
+	s, rel := first.openForTest(t, page)
+	bookmark := s.url(rel)
+	first.shutdown()
+
+	second := newTestAppWithConfigDir(t, home, cfgBase)
+	second.rt.cfg.SetTrustedIdentity(dead, "not-the-folder-on-disk")
+	second.startSites()
+	t.Cleanup(second.shutdown)
+
+	deadSlug, liveSlug := second.rt.cfg.SiteSlug(dead), second.rt.cfg.SiteSlug(live)
+	if deadSlug == "" || liveSlug == "" || deadSlug == liveSlug {
+		t.Fatalf("a dead folder and a live one must have their own addresses: dead=%q live=%q", deadSlug, liveSlug)
+	}
+	code, body := fetch(t, bookmark)
+	if code != 200 || !strings.Contains(body, "savetoken") {
+		t.Fatalf("the live folder should keep its remembered address, got %d", code)
+	}
+}
+
+func TestDeadFolderUnderALiveOneExplainsItsOwnReapproval(t *testing.T) {
+	home, _ := filepath.EvalSymlinks(t.TempDir())
+	proj := filepath.Join(home, "proj")
+	sub := filepath.Join(proj, "sub")
+	page := filepath.Join(sub, "deep.htmlclay")
+	writeTestFile(t, page, "<html><body>deep</body></html>")
+
+	cfgBase := t.TempDir()
+	first := newTestAppWithConfigDir(t, home, cfgBase)
+	if err := first.trustFolder(sub); err != nil {
+		t.Fatal(err)
+	}
+	s, rel := first.openForTest(t, page)
+	subBookmark := s.url(rel)
+	if err := first.trustFolder(proj); err != nil {
+		t.Fatal(err)
+	}
+	first.shutdown()
+
+	second := newTestAppWithConfigDir(t, home, cfgBase)
+	second.rt.cfg.SetTrustedIdentity(sub, "not-the-folder-on-disk")
+	second.startSites()
+	t.Cleanup(second.shutdown)
+
+	code, headers, body := do(t, browserClient(), navRequest(t, subBookmark))
+	if code != 404 || headers.Get("Location") != "" {
+		t.Fatalf("a dead source relocated: %d, %q", code, headers.Get("Location"))
+	}
+	if body != string(deadFolderPage) {
+		t.Fatalf("expected the dead-folder approval page, got %q", body)
+	}
+	if n := registrations(t, second, page); n != 0 {
+		t.Fatalf("a dead source registered the file in %d sites", n)
+	}
+}
+
+func TestUntrustingADeadFolderSwapsItsPage(t *testing.T) {
+	home, _ := filepath.EvalSymlinks(t.TempDir())
+	proj := filepath.Join(home, "proj")
+	page := filepath.Join(proj, "index.htmlclay")
+	writeTestFile(t, page, "<html><body>index</body></html>")
+
+	cfgBase := t.TempDir()
+	first := newTestAppWithConfigDir(t, home, cfgBase)
+	if err := first.trustFolder(proj); err != nil {
+		t.Fatal(err)
+	}
+	s, rel := first.openForTest(t, page)
+	bookmark := s.url(rel)
+	first.shutdown()
+
+	second := newTestAppWithConfigDir(t, home, cfgBase)
+	second.rt.cfg.SetTrustedIdentity(proj, "not-the-folder-on-disk")
+	second.startSites()
+	t.Cleanup(second.shutdown)
+
+	if _, body := fetch(t, bookmark); !strings.Contains(body, "needs approving again") {
+		t.Fatal("setup: expected the dead-folder page before untrusting")
+	}
+	if err := second.untrustFolder(proj); err != nil {
+		t.Fatal(err)
+	}
+	_, body := fetch(t, bookmark)
+	if strings.Contains(body, "needs approving again") {
+		t.Fatal("an untrusted folder's port must not ask for the folder to be approved again")
+	}
+	if !strings.Contains(body, "Nothing is open at this address") {
+		t.Fatal("expected the ordinary recovery page")
+	}
+}

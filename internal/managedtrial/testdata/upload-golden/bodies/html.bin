@@ -1,0 +1,6 @@
+------htmlclay-upload-golden
+Content-Disposition: form-data; name="file"; filename="x.html"
+Content-Type: text/html
+
+<html><body>hi</body></html>
+------htmlclay-upload-golden--

@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: error
+note: a cell covered by a merge is not addressable

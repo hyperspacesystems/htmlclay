@@ -1,0 +1,6 @@
+tier: 1
+face: params
+token: api
+expect: ok
+params: v=7
+note: an unrelated parameter is the whole read

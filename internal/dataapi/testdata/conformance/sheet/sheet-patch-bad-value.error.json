@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "a value is a number, true, false, text or null",
+  "status": 400,
+  "code": "bad_value"
+}

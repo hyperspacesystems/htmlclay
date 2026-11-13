@@ -1,0 +1,14 @@
+{
+  "operationId": "op-1",
+  "patch": [
+    {
+      "sheet": "Budget",
+      "range": "B3",
+      "values": [
+        [
+          450
+        ]
+      ]
+    }
+  ]
+}

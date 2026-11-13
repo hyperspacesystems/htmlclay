@@ -1,0 +1,24 @@
+{
+  "title": "Book",
+  "sheets": {
+    "sheet": "Budget",
+    "range": "A1:C3",
+    "values": [
+      [
+        "Item",
+        "Cost",
+        "Share"
+      ],
+      [
+        "Rent",
+        1200,
+        "=B2/B$5"
+      ],
+      [
+        "Food",
+        300,
+        "=B3/B$5"
+      ]
+    ]
+  }
+}

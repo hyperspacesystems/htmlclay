@@ -1,0 +1,6 @@
+tier: 1
+face: params
+token: api
+expect: ok
+params: sheet=Styled&range=A1%3AB2&render=formulas
+note: percent-encoded values decode before the read

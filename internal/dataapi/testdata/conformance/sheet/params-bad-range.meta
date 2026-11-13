@@ -1,0 +1,6 @@
+tier: 1
+face: params
+token: api
+expect: error
+params: range=A0
+note: a bad range is refused by the read

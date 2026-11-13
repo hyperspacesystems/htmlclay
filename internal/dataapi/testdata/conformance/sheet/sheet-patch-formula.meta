@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: ok
+note: a string starting with = is a formula; the host cannot compute it, so the tab is stale

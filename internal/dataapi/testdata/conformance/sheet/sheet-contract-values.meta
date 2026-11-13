@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: ok
+query: {"range":"A1:C4","render":"values"}
+note: 0 and FALSE type as number and boolean, 02134 and =literal stay text, a formula keeps raw 0.8 beside its shown 80%, a covered cell reads null, a formatted empty cell keeps fmt, 15 digits is a number and 16 is text (render values)

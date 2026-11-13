@@ -1,0 +1,6 @@
+tier: 1
+face: tag
+token: api
+expect: error
+note: RulesParseError. A codec rule must be the value of a top level key, so one nested inside
+note: an object or a list shape refuses instead of being read as an attribute.

@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: ok
+query: {"sheet":"Styled"}
+note: one tab selected by its name

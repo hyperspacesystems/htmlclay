@@ -1,0 +1,5 @@
+tier: 1
+face: read
+token: api
+expect: ok
+note: a grid in a textarea element reads through the tree

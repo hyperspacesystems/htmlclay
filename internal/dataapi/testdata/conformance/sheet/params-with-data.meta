@@ -1,0 +1,6 @@
+tier: 1
+face: params
+token: api
+expect: error
+params: shape=index&data=%7B%7D
+note: a sheet parameter with ?data= is refused

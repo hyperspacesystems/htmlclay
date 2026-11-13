@@ -1,0 +1,5 @@
+tier: 1
+face: read
+token: api
+expect: ok
+note: a tab name keeps its surrounding spaces

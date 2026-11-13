@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: ok
+note: appended rows are named n1, n2, ...

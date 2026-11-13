@@ -1,0 +1,5 @@
+{
+  "type": "RulesParseError",
+  "message": "A @codec(name) rule must be the value of a top level key.",
+  "status": 400
+}

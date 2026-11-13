@@ -1,0 +1,5 @@
+tier: 1
+face: body
+token: api
+expect: ok
+note: any key besides patch and operationId makes the body a data write

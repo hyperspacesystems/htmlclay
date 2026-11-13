@@ -1,0 +1,5 @@
+{
+  "type": "RulesParseError",
+  "message": "A @codec(name) rule cannot use [*].",
+  "status": 400
+}

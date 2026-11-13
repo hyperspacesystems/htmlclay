@@ -1,0 +1,48 @@
+{
+  "title": "Book",
+  "sheets": [
+    {
+      "id": "s1",
+      "name": "Budget",
+      "cols": [
+        "st-c0",
+        "st-c1",
+        "st-c2"
+      ],
+      "rows": [
+        {
+          "id": "st-r1",
+          "cells": [
+            "Name",
+            "Share",
+            "Note"
+          ]
+        },
+        {
+          "id": "st-r2",
+          "cells": [
+            {
+              "v": "Red",
+              "style": "color:#c00"
+            },
+            {
+              "v": 0.125,
+              "text": "12.5%",
+              "style": "text-align:right;font-style:italic"
+            },
+            {
+              "v": "underlined",
+              "style": "text-decoration:underline;white-space:nowrap"
+            }
+          ]
+        },
+        {
+          "id": "st-r3",
+          "cells": [
+            "last"
+          ]
+        }
+      ]
+    }
+  ]
+}

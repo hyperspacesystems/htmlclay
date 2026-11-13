@@ -1,0 +1,70 @@
+@layer blockeditor {
+  article[data-blockeditor] {
+    --blockeditor-link: #164583;
+    --blockeditor-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --blockeditor-color-gray: #5B5953; --blockeditor-color-brown: #8A5A1E; --blockeditor-color-orange: #B4531A; --blockeditor-color-yellow: #7A6210; --blockeditor-color-green: #3E6A28;
+    --blockeditor-color-blue: #1F5A8A; --blockeditor-color-purple: #5E4596; --blockeditor-color-pink: #A23E6E; --blockeditor-color-red: #9E3B2F;
+    --blockeditor-mark-bg-gray: rgba(35, 34, 31, 0.12); --blockeditor-mark-bg-brown: rgba(138, 90, 30, 0.20); --blockeditor-mark-bg-orange: rgba(180, 83, 26, 0.20);
+    --blockeditor-mark-bg-yellow: rgba(122, 98, 16, 0.22); --blockeditor-mark-bg-green: rgba(62, 106, 40, 0.20); --blockeditor-mark-bg-blue: rgba(31, 90, 138, 0.18);
+    --blockeditor-mark-bg-purple: rgba(94, 69, 150, 0.18); --blockeditor-mark-bg-pink: rgba(162, 62, 110, 0.18); --blockeditor-mark-bg-red: rgba(158, 59, 47, 0.18);
+    min-height: 100vh;
+    box-sizing: border-box;
+    padding: var(--blockeditor-pad-top) 16px 30vh;
+    background: var(--blockeditor-bg);
+    color: var(--blockeditor-ink);
+    font-family: var(--blockeditor-font);
+    font-size: var(--blockeditor-font-size);
+    line-height: var(--blockeditor-line-height);
+    overflow-wrap: break-word;
+  }
+  article[data-blockeditor] ::selection { background: var(--blockeditor-selection); }
+  article[data-blockeditor] > * { max-width: var(--blockeditor-measure); margin: var(--blockeditor-block-gap) auto; }
+  article[data-blockeditor] > h1 { font-family: var(--blockeditor-font-display); font-size: var(--blockeditor-h1-size); font-weight: var(--blockeditor-h1-weight); letter-spacing: var(--blockeditor-h1-tracking); line-height: var(--blockeditor-h1-line); color: var(--blockeditor-ink-strong); margin-block: 0 0.6em; }
+  article[data-blockeditor] > h2 { font-family: var(--blockeditor-font-heading); font-size: var(--blockeditor-h2-size); font-weight: var(--blockeditor-h2-weight); color: var(--blockeditor-ink-strong); line-height: 1.35; margin-block-start: 1.4em; }
+  article[data-blockeditor] > h3 { font-family: var(--blockeditor-font-heading); font-size: var(--blockeditor-h3-size); font-weight: var(--blockeditor-h3-weight); color: var(--blockeditor-ink-strong); margin-block-start: 1.2em; }
+  article[data-blockeditor] a { color: var(--blockeditor-link, var(--blockeditor-accent)); }
+  article[data-blockeditor] code { font-family: var(--blockeditor-font-mono); font-size: 0.88em; background: var(--blockeditor-code-bg); color: var(--blockeditor-code-ink); border-radius: 4px; padding: 0.1em 0.3em; }
+  article[data-blockeditor] pre { position: relative; padding: 32px 14px 12px; font-family: var(--blockeditor-font-mono); font-size: 0.88em; background: var(--blockeditor-code-bg); color: var(--blockeditor-code-ink); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  article[data-blockeditor] pre[data-lang] { white-space: pre; overflow-wrap: normal; }
+  article[data-blockeditor] pre code { display: block; overflow-x: auto; background: none; padding: 0; font-size: inherit; }
+  article[data-blockeditor] .blockeditor-callout { background: var(--blockeditor-callout-bg); border: 1px solid var(--blockeditor-callout-line); border-radius: 8px; padding: 10px 14px; }
+  article[data-blockeditor] hr { border: 0; border-top: 1px solid var(--blockeditor-rule); margin-block: 1.2em; }
+  article[data-blockeditor] ul, article[data-blockeditor] ol { padding-inline-start: var(--blockeditor-indent); }
+  article[data-blockeditor] li { padding-inline-start: 0; }
+  article[data-blockeditor] li::marker { color: var(--blockeditor-marker); }
+  article[data-blockeditor] li:has(> input[type="checkbox"]) { list-style: none; }
+  article[data-blockeditor] li > input[type="checkbox"] { appearance: none; width: var(--blockeditor-check-size); height: var(--blockeditor-check-size); margin: 0 calc(var(--blockeditor-indent) - var(--blockeditor-check-size)) 0 0; vertical-align: -0.12em; border: 1px solid var(--blockeditor-check-border); border-radius: var(--blockeditor-check-radius); }
+  article[data-blockeditor] li > input[type="checkbox"]:checked { background: var(--blockeditor-check-fill); border-color: var(--blockeditor-check-fill); }
+  article[data-blockeditor] li > input[type="checkbox"]:checked::after { content: ""; display: block; width: 100%; height: 100%; background: var(--blockeditor-check-ink); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.8 8.4l2.9 2.9 5.5-6.4' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 72% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.8 8.4l2.9 2.9 5.5-6.4' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 72% no-repeat; }
+  article[data-blockeditor] li:has(> input[type="checkbox"]:checked) { color: var(--blockeditor-done-ink); text-decoration: line-through; }
+  article[data-blockeditor] details { padding-inline-start: var(--blockeditor-indent); }
+  article[data-blockeditor] summary { color: var(--blockeditor-toggle-ink); cursor: pointer; }
+  article[data-blockeditor] figure { max-width: var(--blockeditor-measure); }
+  article[data-blockeditor] figure img, article[data-blockeditor] figure svg { display: block; max-width: 100%; height: auto; }
+  article[data-blockeditor] figcaption { color: var(--blockeditor-ink-soft); font-size: 0.88em; text-align: center; }
+  article[data-blockeditor] [data-type="file"] { padding: 8px 12px; border: 1px solid var(--blockeditor-rule); border-radius: 8px; }
+  article[data-blockeditor] table { width: 100%; border-collapse: collapse; border: 1px solid var(--blockeditor-rule); border-radius: 8px; }
+  article[data-blockeditor] th, article[data-blockeditor] td { min-width: 120px; padding: 6px 10px; border-inline-end: 1px solid var(--blockeditor-rule); border-block-end: 1px solid var(--blockeditor-rule); text-align: start; white-space: pre-wrap; }
+  article[data-blockeditor] th { background: var(--blockeditor-code-bg); color: var(--blockeditor-ink-soft); font-weight: 600; }
+  article[data-blockeditor] th[data-kind="number"], article[data-blockeditor] td[data-kind="number"] { text-align: end; }
+  article[data-blockeditor] blockquote { color: var(--blockeditor-ink-soft); padding-inline-start: var(--blockeditor-indent); }
+  article[data-blockeditor] span[data-color="gray"] { color: var(--blockeditor-color-gray); }
+  article[data-blockeditor] span[data-color="brown"] { color: var(--blockeditor-color-brown); }
+  article[data-blockeditor] span[data-color="orange"] { color: var(--blockeditor-color-orange); }
+  article[data-blockeditor] span[data-color="yellow"] { color: var(--blockeditor-color-yellow); }
+  article[data-blockeditor] span[data-color="green"] { color: var(--blockeditor-color-green); }
+  article[data-blockeditor] span[data-color="blue"] { color: var(--blockeditor-color-blue); }
+  article[data-blockeditor] span[data-color="purple"] { color: var(--blockeditor-color-purple); }
+  article[data-blockeditor] span[data-color="pink"] { color: var(--blockeditor-color-pink); }
+  article[data-blockeditor] span[data-color="red"] { color: var(--blockeditor-color-red); }
+  article[data-blockeditor] mark[data-color="gray"] { background: var(--blockeditor-mark-bg-gray); }
+  article[data-blockeditor] mark[data-color="brown"] { background: var(--blockeditor-mark-bg-brown); }
+  article[data-blockeditor] mark[data-color="orange"] { background: var(--blockeditor-mark-bg-orange); }
+  article[data-blockeditor] mark[data-color="yellow"] { background: var(--blockeditor-mark-bg-yellow); }
+  article[data-blockeditor] mark[data-color="green"] { background: var(--blockeditor-mark-bg-green); }
+  article[data-blockeditor] mark[data-color="blue"] { background: var(--blockeditor-mark-bg-blue); }
+  article[data-blockeditor] mark[data-color="purple"] { background: var(--blockeditor-mark-bg-purple); }
+  article[data-blockeditor] mark[data-color="pink"] { background: var(--blockeditor-mark-bg-pink); }
+  article[data-blockeditor] mark[data-color="red"] { background: var(--blockeditor-mark-bg-red); }
+  article[data-blockeditor] mark { color: inherit; }
+}

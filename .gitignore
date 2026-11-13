@@ -1,0 +1,23 @@
+.env
+node_modules/
+/htmlclay
+/htmlclay.exe
+HTMLClay.app
+*.dmg
+executables/
+.notarization-submissions.json
+.DS_Store
+resource_windows_*.syso
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
+.deploy
+
+/internal/tailwind/blobs/
+/.conformance/
+
+__pycache__/
+test-box-out/

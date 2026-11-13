@@ -1,0 +1,21 @@
+# Runs the Go suite on a throwaway box: `testbox run`.
+# See ~/Documents/GitHub/bash_commands/testbox/README.md.
+TESTBOX_REPO=htmlclay
+# The box has Node but no Go. Setup installs the toolchain this Mac and CI use (go.mod: go 1.26),
+# checked against go.dev's published sha256, and links it into ~/.local/bin, which the login
+# shell every setup and command runs in puts on PATH (so `testbox run --command '...'` finds it too).
+# npm ci installs the host-conformance vectors the Go tests read from node_modules.
+TESTBOX_SETUP='set -e
+v=1.26.5 sum=5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053
+if [ "$(~/.local/go/bin/go env GOVERSION 2>/dev/null)" != "go$v" ]; then
+  curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go$v.linux-amd64.tar.gz"
+  echo "$sum  /tmp/go.tgz" | sha256sum -c -
+  rm -rf ~/.local/go && mkdir -p ~/.local && tar -xzf /tmp/go.tgz -C ~/.local
+fi
+mkdir -p ~/.local/bin
+ln -sf ~/.local/go/bin/go ~/.local/go/bin/gofmt ~/.local/bin/
+npm ci --no-audit --no-fund'
+# CI's Linux job runs `go test ./...`. The managed trial's tests sit behind a build tag CI does not
+# set, so they run here as a second step. Linux builds ship with CGO_ENABLED=0.
+TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 && go test ./... -count=1 && go test -tags managedtrial ./internal/managedtrial/ -count=1'
+TESTBOX_TIMEOUT=${TESTBOX_TIMEOUT:-45m}

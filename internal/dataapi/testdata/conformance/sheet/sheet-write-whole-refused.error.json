@@ -1,0 +1,7 @@
+{
+  "type": "CodecRefused",
+  "message": "A sheet cannot be replaced as a whole value yet: send patch operations instead, for example [{ \"sheet\": \"Budget\", \"range\": \"B3\", \"values\": [[450]] }].",
+  "status": 409,
+  "details": null,
+  "code": "sheet-write-unavailable"
+}

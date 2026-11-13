@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  # Manual only (2026-10-23). Running on every push reported failures from
+  # work in progress; dispatch it when preparing a release or deploy:
+  #   gh workflow run ci.yml
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: ["${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}", ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # Now that this runs on push, an unbounded hang would burn GitHub's 6h ceiling
+    # every time and report as "cancelled" rather than as a failure.
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install the locked packages
+        run: npm ci
+
+      - name: Test
+        run: go test ./... -count=1
+
+      - name: Build
+        run: go build -o htmlclay${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/htmlclay
+        env:
+          CGO_ENABLED: ${{ runner.os == 'macOS' && '1' || '0' }}
+
+  # The conformance gate runs `npm run conformance`, which drives the host-conformance
+  # package against a real server, in a browser and over HTTP, from the host's own
+  # origin. It is the one gate a release is gated on; `go test ./...` no longer knows
+  # anything about it.
+  #
+  # Linux only. The gate tests the protocol this host speaks, which is the same on every
+  # platform, and the matrix above already proves the suite builds and runs everywhere.
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install the conformance package and browser driver
+        run: |
+          npm ci
+          npx --no-install playwright install --with-deps chromium
+
+      - name: Conformance gate
+        run: npm run conformance
+
+  # The shipped Linux tarball, used the way a Linux user uses it: install.sh into a
+  # fresh HOME, the desktop must know the file type, a file must serve and save from
+  # a real browser, tray mode must survive a machine with no session bus, the
+  # permission prompt must appear and fail closed without a dialog tool, and
+  # uninstall.sh must leave nothing behind. `go test` proves the code; this proves
+  # the download. Both shipped arches, on the runners that build them.
+  linux-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/htmlclay-build/tailwind
+          key: tailwind-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('internal/tailwind/assets.go') }}
+
+      - name: Build the Linux binary the tarball ships
+        run: bash packaging/linux/build.sh
+
+      # What a stock Ubuntu desktop has and a bare runner does not: the MIME and
+      # desktop-entry tooling install.sh talks to, zenity for the prompt, and a
+      # virtual display to show it on.
+      - name: Install desktop tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
+
+      - name: Install the conformance package and browser driver
+        run: |
+          npm ci
+          npx --no-install playwright install --with-deps chromium
+
+      - name: Linux checks
+        run: bash scripts/linux-checks/run-all.sh
+
+      - name: Upload check artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-checks-${{ matrix.runner }}
+          path: linux-check-artifacts/

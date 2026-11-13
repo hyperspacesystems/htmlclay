@@ -1,0 +1,214 @@
+[
+  {
+    "op": "open",
+    "name": "A",
+    "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "open",
+    "name": "B",
+    "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html&lane=saved",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "open",
+    "name": "C",
+    "path": "/live-sync/stream?page-url=http://127.0.0.1:{PORT}/notes.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "open",
+    "name": "D",
+    "path": "/_/sync?s=saved:0:http://127.0.0.1:{PORT}/notes.html&s=live:0:http://127.0.0.1:{PORT}/missing.html&s=live:0:http://127.0.0.1:{PORT}/other.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "request",
+    "name": "save-notes",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "text/html",
+      "Save-Trigger": "user"
+    },
+    "bodyFile": "save-notes.html"
+  },
+  {
+    "op": "wait",
+    "ms": 200
+  },
+  {
+    "op": "request",
+    "name": "save-clobber",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "text/html",
+      "Save-Trigger": "user"
+    },
+    "bodyFile": "save-clobber.html"
+  },
+  {
+    "op": "wait",
+    "ms": 200
+  },
+  {
+    "op": "request",
+    "name": "data-loss-event",
+    "method": "GET",
+    "path": "/_/data-loss",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+    }
+  },
+  {
+    "op": "request",
+    "name": "data-loss-restore",
+    "method": "POST",
+    "path": "/_/data-loss/{FROM}",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"file\": \"notes.html\", \"choice\": \"restore\"}",
+    "fromCase": {
+      "case": "data-loss-event",
+      "json": "event.id"
+    }
+  },
+  {
+    "op": "wait",
+    "ms": 200
+  },
+  {
+    "op": "request",
+    "name": "notes-restored",
+    "method": "GET",
+    "path": "/notes.html"
+  },
+  {
+    "op": "request",
+    "name": "save-notes-again",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+      "Content-Type": "text/html",
+      "Save-Trigger": "user"
+    },
+    "bodyFile": "save-notes.html"
+  },
+  {
+    "op": "wait",
+    "ms": 200
+  },
+  {
+    "op": "close",
+    "name": "A"
+  },
+  {
+    "op": "open",
+    "name": "E",
+    "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin",
+      "Last-Event-ID": "{FRAME:A:2}"
+    }
+  },
+  {
+    "op": "open",
+    "name": "F",
+    "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin",
+      "Last-Event-ID": "1"
+    }
+  },
+  {
+    "op": "open",
+    "name": "missing",
+    "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/gone.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "request",
+    "name": "sync-no-parameters",
+    "method": "GET",
+    "path": "/_/sync",
+    "headers": {}
+  },
+  {
+    "op": "request",
+    "name": "sync-empty-document-url",
+    "method": "GET",
+    "path": "/_/sync?document-url=",
+    "headers": {}
+  },
+  {
+    "op": "request",
+    "name": "sync-list-cross-site",
+    "method": "GET",
+    "path": "/_/sync?s=live:0:http://127.0.0.1:{PORT}/notes.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin",
+      "Origin": "http://example.com"
+    }
+  },
+  {
+    "op": "request",
+    "name": "sync-list-over-limit",
+    "method": "GET",
+    "path": "/_/sync?s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "request",
+    "name": "sync-list-unmarked",
+    "method": "GET",
+    "path": "/sync?s=x",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "request",
+    "name": "sync-worker",
+    "method": "GET",
+    "path": "/_/sync/worker.js",
+    "headers": {}
+  },
+  {
+    "op": "request",
+    "name": "sync-worker-unmarked",
+    "method": "GET",
+    "path": "/sync/worker.js",
+    "headers": {}
+  },
+  {
+    "op": "request",
+    "name": "sync-v2-shaped",
+    "method": "GET",
+    "path": "/_/sync?v=2&m=abc123:http://127.0.0.1:{PORT}/notes.html",
+    "headers": {
+      "Sec-Fetch-Site": "same-origin"
+    }
+  },
+  {
+    "op": "close",
+    "name": "B"
+  }
+]

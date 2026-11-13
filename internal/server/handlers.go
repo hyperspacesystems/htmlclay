@@ -1,0 +1,1924 @@
+package server
+
+import (
+	"crypto/sha256"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/panphora/htmlclay/internal/clayruntime"
+	"github.com/panphora/htmlclay/internal/helper"
+	"github.com/panphora/htmlclay/internal/htmlutil"
+	"github.com/panphora/htmlclay/internal/pageadmission"
+	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/specwire"
+	"github.com/panphora/htmlclay/internal/versions"
+)
+
+// errRefusedInternal marks a registered-file read whose descriptor, once opened,
+// resolves outside home or into htmlclay's own hidden/internal state (a symlink
+// swapped in under the file's pathname). Callers turn it into a 404/403 rather than
+// a 500 and never serve the bytes.
+var errRefusedInternal = errors.New("registered file resolves to a refused location")
+
+// openRegisteredFile opens a registered file for reading and enforces the
+// "never serve internal state" invariant against the OPEN DESCRIPTOR rather than the
+// pathname. os.Open follows any symlink swapped in under absPath, but platform.RealPath
+// then reports where the held inode really lives, so a component swapped for a symlink
+// into the config/versions tree (or out of home, or into a dotfile) is caught no
+// matter how the pathname is raced. Caller closes the returned file.
+func (s *Server) openRegisteredFile(absPath string) (*os.File, error) {
+	f, err := os.Open(absPath)
+	if err != nil {
+		return nil, err
+	}
+	real, err := platform.RealPath(f)
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	real = filepath.Clean(real)
+	home := s.sessions.HomeDir()
+	if _, ok := session.ContainWithinHome(home, real); !ok || s.isInternal(real) || session.HasHiddenComponent(home, real) {
+		f.Close()
+		return nil, errRefusedInternal
+	}
+	return f, nil
+}
+
+// readRegisteredFile reads a registered file through openRegisteredFile's descriptor
+// check, so no read route can be tricked into returning internal state.
+func (s *Server) readRegisteredFile(absPath string) ([]byte, error) {
+	f, err := s.openRegisteredFile(absPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
+}
+
+const maxSaveSize = 50 * 1024 * 1024
+
+// writeFormatRefusal answers a page write the document's format floor refuses.
+// Nothing was written: the floor is decided before any backup, sidecar or file write.
+func writeFormatRefusal(w http.ResponseWriter, refusal *pageadmission.FormatRefusal) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusConflict)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok": false, "error": refusal.Error(), "msg": refusal.Error(),
+		"code": pageadmission.PageFormatUpgrade, "reason": pageadmission.PageFormatUpgrade, "minimum": refusal.Minimum,
+	})
+}
+
+// writeOldFormatRefusal answers a save in the block editor's format from before
+// ClayJS 1.24.0, sent by a tab still on the old runtime. Same 409 shape as a format
+// refusal. It asks for no reload: the message tells the person to copy their text first.
+func writeOldFormatRefusal(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusConflict)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok": false, "error": pageadmission.OldFormatMessage, "msg": pageadmission.OldFormatMessage,
+		"code": pageadmission.OldFormatCode, "reason": pageadmission.OldFormatCode,
+	})
+}
+
+// hostExtensions names the capabilities this host implements, in the spec §9
+// registry's spelling. Host scope: identical for every document served, which is
+// why both /_/meta routes read it from here instead of each carrying its own
+// literal and drifting the day one of them gains an extension.
+//
+// `sync` is announced because this host serves both halves of the §10 address, and
+// both §10 artifacts: a `snapshot` to the other editors, a `document` to the viewers.
+// The usual flow needs no client relay for viewers at all, since a save already
+// pushes the new document out; the document lane exists for the case §10 names, a
+// client wanting viewers updated with no save behind it.
+//
+// §10's `sync` promises the relay and the one-document stream. `sync-worker`,
+// announced below, adds the stream's list spelling (any number of subscriptions on
+// one connection) and the worker script at /_/sync/worker.js through which every
+// tab shares that one stream.
+//
+// `format` is NOT announced, and must not be while this host stores every save's
+// bytes exactly as sent. §4 says a host that does not declare it ignores
+// `formathtml` entirely, which is precisely what this host does.
+//
+// `conditional` is a promise, not a description: §6 says a host that advertises it
+// MUST honour it, because accepting If-Match and ignoring it tells clients they are
+// protected when they are not. Announce it only while handleSave still refuses on a
+// stamp mismatch.
+// sync-worker distinguishes the repaired shared transport from earlier sync hosts.
+//
+// `blockeditor-awareness-v1` and `record-awareness-v1` are announced because this host has no
+// presence relay and does not need one: every tab of a document here runs in one
+// browser on one machine, so awareness travels over a BroadcastChannel the client opens
+// itself. `awareness` in the document block names that transport and the scope, and no
+// HTTP presence route is advertised beside them because none is served. `presence` is
+// deliberately absent: it names a host relay, and ClayJS (every published version)
+// turns its shared sync worker off on a host that announces it. `blockeditor-recovery-v1`
+// promises that `document.blockeditorState.href` returns the page state stored with the exact
+// file bytes and backup identity, so a client may retire journaled page work against it
+// (Document 12 Step 8).
+var hostExtensions = []string{"blockeditor", "blockeditor-awareness-v1", "blockeditor-recovery-v1", "conditional", "data-guard-v1", "data-read", "data-write", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
+
+// maxSaveIDLen caps the §6 receipt id this host will remember. The spec asks for
+// at least 128 bits of randomness, which is 32 hex characters or 22 in base64url;
+// this is generous room above either. An id longer than this is dropped rather
+// than truncated, because half an id is not an id, and remembering an unbounded
+// header per open file is memory a caller could hand this host for free.
+const maxSaveIDLen = 128
+
+// hostMeta is the host-scope half of the discovery answer, and the whole of what
+// the tokenless route returns. Separate from fileMeta rather than reusing it with
+// empty fields: a body carrying `"name": "", "size": 0` describes a zero-byte file
+// with no name, which is a worse answer than saying nothing about any document.
+type hostMeta struct {
+	Spec       int      `json:"spec"`
+	Extensions []string `json:"extensions"`
+}
+
+type fileMeta struct {
+	// Spec and Extensions describe the HOST, not this document, and are the same
+	// for every file it serves. Added to the existing shape rather than replacing
+	// it: the body carried no `spec` before, so a spec client already read
+	// htmlclay as a bare core host, and every existing field still answers.
+	Spec       int      `json:"spec"`
+	Extensions []string `json:"extensions"`
+	// Path is the document's location relative to home, in URL form: always
+	// forward-slashed, so a client can build a URL from it. AbsolutePath is the
+	// OS-native counterpart and keeps the platform's own separators, which is why
+	// the two differ on Windows. Set through filepath.ToSlash, a no-op wherever
+	// the separator is already "/".
+	Path         string `json:"path"`
+	AbsolutePath string `json:"absolutePath"`
+	Name         string `json:"name"`
+	Size         int64  `json:"size"`
+	LastModified string `json:"lastModified"`
+	// Named for the attribute it reports, so a reader comparing the two is not
+	// asked to know they are the same thing.
+	HTMLClayID string `json:"documentid,omitempty"`
+	// The pre-spec spelling of the field above, same value, permanent.
+	//
+	// No LIBRARY reads it: both clients take only `spec`, `extensions` and
+	// `document` from a meta answer. But this route exists for the document that
+	// has no other way to learn anything about itself, one served sandboxed with an
+	// opaque origin and no cookie, and a page's own hand-written script is exactly
+	// the reader that would call it. Every shipped HTML Clay answered here with
+	// `htmlclayid`, so a document that asked in 1.7.0 hardcoded that spelling, and
+	// no update ever reaches its inline script. Dropping the key turns a working
+	// read into `undefined` against an API that still answers 200, which is the
+	// worst shape a break can take.
+	//
+	// The ATTRIBUTE deliberately does not do the same, and this is the one place the
+	// two differ on purpose. A save token is ephemeral and stripped on the way in, so
+	// injecting it under both spellings costs nothing that lasts; a document id is
+	// durable and reaches disk, so injecting both would write the retired spelling
+	// into every stored document forever, which is the opposite of what renaming it
+	// was for. So the attribute takes the break knowingly, exactly as the save-token
+	// rename did, and only this field carries the old name.
+	LegacyHTMLClayID string `json:"htmlclayid,omitempty"`
+	// Spec §5 puts everything genuinely per-document in its own block, and §6 puts
+	// the etag there. It is the only part of a discovery answer a host ever
+	// withholds, which is why it is a pointer: a caller who may not see the file
+	// gets an answer with no block at all, exactly as for a file that does not
+	// exist, so /_/meta can never be used to probe for documents.
+	Document *documentMeta `json:"document,omitempty"`
+}
+
+// documentMeta is the per-document half of a discovery answer.
+type documentMeta struct {
+	Etag         string `json:"etag"`
+	WireMode     string `json:"wireMode,omitempty"`
+	WireBudgetMS int    `json:"wireBudgetMs"`
+	// The largest document this host accepts, in uncompressed UTF-8 bytes of the
+	// save body and inclusive of the limit itself: the same constant the save route
+	// applies, not a second copy of the number. Announced here so a client can warn
+	// a person before a save is refused instead of learning the size only from a
+	// refusal. It is per-document because it lives in the block §5 reserves for that,
+	// and there is no top-level duplicate.
+	MaxBytes int64        `json:"maxBytes"`
+	Versions bool         `json:"versions,omitempty"`
+	Helpers  []helperMeta `json:"helpers,omitempty"`
+	// §6's receipt: which save produced the bytes this etag stamps. Reported only
+	// when the pair still verifies against those bytes, so a client that sees its
+	// own id here has been TOLD what it stores came from a body that client sent,
+	// rather than having guessed it from the document merely having moved. That is
+	// the entire difference between this and the reconcile it replaces.
+	//
+	// It lives in the document block, and so is withheld from a caller who may not
+	// read the document, for the same reason the etag is: both describe one file.
+	SaveID string `json:"saveId,omitempty"`
+	// Writable is what this session may do, not what the file is: it is the same
+	// admission handleSave applies before it reads a body, so a client can offer
+	// Edit only where a save would be admitted. Always present, true or false.
+	Writable bool `json:"writable"`
+	// §9: a host that announces `upload` caps the size it accepts and REPORTS that
+	// cap here. Without it a conforming client does not upload at all and does not
+	// probe the route to find out, so announcing the capability while omitting this
+	// block is the same to a client as not having it, except that the host looks
+	// like it does. The conformance page caught exactly that.
+	//
+	// Whether a caller may upload is per-document, which is why it lives here rather
+	// than beside the extension list. On this host every served file belongs to the
+	// person running it, so `allowed` is what this host IS, not a permission lookup.
+	Upload uploadMeta `json:"upload"`
+	// The same per-document facts the top level carries, in the place §5 puts them.
+	//
+	// Duplicated, not moved. §5 says a fact about one document belongs in this block,
+	// so a client can tell it from a fact about the host, and a client reading only the
+	// spec looks nowhere else. But every shipped HTML Clay answered with these at the
+	// top level, and the reader this route exists for is a sandboxed document's own
+	// inline script, which is frozen the moment the file is saved. Moving them would
+	// turn a working read into `undefined` against an API still answering 200.
+	Path         string `json:"path"`
+	AbsolutePath string `json:"absolutePath"`
+	Name         string `json:"name"`
+	Size         int64  `json:"size"`
+	LastModified string `json:"lastModified"`
+	DocumentID   string `json:"documentid,omitempty"`
+	// The pre-spec spelling, same value, for the same reason it survives at the top
+	// level and on the root element itself.
+	LegacyDocumentID string `json:"htmlclayid,omitempty"`
+	// §9 People: who is asking. Present only on a host that offers People; `me` is
+	// null while the person has sharing turned off. Never `members`: an app profile
+	// is one person, not a directory.
+	People *peopleMeta `json:"people,omitempty"`
+	// Where awareness for THIS document travels, and over which channel. Per-document
+	// because the scope names one document, and it lives in the block that is
+	// withheld from a caller who may not read the file, so such a caller is told no
+	// channel to listen on either.
+	//
+	// Never an endpoint. This host serves no HTTP presence route, and a client that
+	// reads a capability here and then probes a route learns nothing it can trust;
+	// `broadcast` is the whole answer, and the scope is what the channel is named for.
+	Awareness awarenessMeta `json:"awareness"`
+	// The page editor's stored Yjs state for these exact bytes, read conditionally
+	// on the etag above. Named here so a client never guesses the route.
+	PageState *pageStateMeta `json:"blockeditorState,omitempty"`
+	// The pending data-loss event for this document, named by an address the
+	// client reads rather than constructs. Present only for a document the guard
+	// can key.
+	DataGuard *dataGuardMeta `json:"dataGuard,omitempty"`
+	// The file actions this host offers for THIS document, each an address the
+	// page POSTs to. Absent when the app wired no file-manager or export hook, so
+	// a standalone server offers none rather than naming routes that refuse.
+	Actions *documentActions `json:"actions,omitempty"`
+}
+
+type pageStateMeta struct {
+	Href string `json:"href"`
+}
+
+type dataGuardMeta struct {
+	Href string `json:"href"`
+}
+
+type documentActions struct {
+	Reveal   *postAction `json:"reveal,omitempty"`
+	Versions *postAction `json:"versions,omitempty"`
+	Export   *postAction `json:"export,omitempty"`
+}
+
+// postAction names a same-origin URL the page POSTs to, rather than one it
+// navigates to: the host does the work, and a refusal is a JSON reply rather
+// than a page.
+type postAction struct {
+	Post string `json:"post"`
+}
+
+// awarenessMeta names the transport a document's presence travels over on this host:
+// the same-browser BroadcastChannel the durable local lane already uses.
+//
+// A relayed host answers `{"transport":"host"}` and no scope, because its channel is a
+// connection the host itself owns. This host has no such connection, so it names the
+// scope instead, and a client selects exactly one adapter from what it reads.
+type awarenessMeta struct {
+	Transport string `json:"transport"`
+	// Scope is the canonical identity of this document: its tracked id where one is
+	// supplied, otherwise its path relative to home. Never the file name alone --
+	// two documents called `index.htmlclay` in different folders are two documents,
+	// and a channel shared between them would draw one file's peer into the other.
+	Scope string `json:"scope"`
+	// The honest local label: these sessions are tabs on this computer, not
+	// authenticated people elsewhere, and the UI must not pretend otherwise.
+	Label string `json:"label"`
+}
+
+type peopleMeta struct {
+	Me *personMeta `json:"me"`
+}
+
+type personMeta struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// extensions is hostExtensions plus what this server's hooks add. A fresh slice, so
+// the package-level list is never appended to in place.
+func (s *Server) extensions() []string {
+	floorRuntime := clayruntime.SelectedHas("src/core/page-format.js")
+	if s.hooks.Profile == nil && !floorRuntime {
+		return hostExtensions
+	}
+	out := append([]string(nil), hostExtensions...)
+	if s.hooks.Profile != nil {
+		out = append(out, "people")
+	}
+	if floorRuntime {
+		out = append(out, "blockeditor-format-v1")
+	}
+	sort.Strings(out)
+	return out
+}
+
+// people is this document's People block, or nil on a host without People.
+func (s *Server) people() *peopleMeta {
+	if s.hooks.Profile == nil {
+		return nil
+	}
+	id, name, ok := s.hooks.Profile()
+	if !ok {
+		return &peopleMeta{}
+	}
+	return &peopleMeta{Me: &personMeta{ID: id, Name: name}}
+}
+
+type uploadMeta struct {
+	Allowed  bool   `json:"allowed"`
+	MaxBytes int64  `json:"maxBytes"`
+	Access   string `json:"access"`
+}
+
+func (s *Server) lookupSession(w http.ResponseWriter, r *http.Request) (*session.File, bool) {
+	token := r.PathValue("token")
+	f, ok := s.sessions.Lookup(token)
+	if !ok {
+		s.writeError(w, http.StatusUnauthorized, "invalid token")
+		return nil, false
+	}
+	return f, true
+}
+
+func extractFilePath(rawPath string) string {
+	lower := strings.ToLower(rawPath)
+	for _, suffix := range []string{".htmlclay", ".html"} {
+		if idx := strings.Index(lower, suffix); idx >= 0 {
+			end := idx + len(suffix)
+			if end == len(rawPath) || rawPath[end] == '/' {
+				return rawPath[:end]
+			}
+		}
+	}
+	return rawPath
+}
+
+func (s *Server) handleServeFile(w http.ResponseWriter, r *http.Request) {
+	rawPath := r.PathValue("path")
+
+	// Answered before any path or query work, because these two paths name the app
+	// itself rather than a file on disk. favicon.go has the reason they cannot be
+	// served the ordinary way.
+	if serveAppFavicon(w, r, rawPath) {
+		return
+	}
+
+	// Classified from the query string alone, before any path work, because a malformed data
+	// parameter is a property of what the caller sent and reveals nothing about what is on disk.
+	// Anything that is not a data request falls through and is served exactly as it is today.
+	mode, answered := s.dataModeForQuery(w, r, extractFilePath(rawPath))
+	if answered {
+		return
+	}
+	s.serveFile(w, r, rawPath, mode)
+}
+
+// serveFile is the shared entry point for a plain GET and for both data faces. rawPath is the
+// request path before extractFilePath truncation, because serveAsset needs it intact.
+func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, rawPath string, mode dataMode) {
+	relPath := extractFilePath(rawPath)
+
+	absPath, err := ValidatePath(relPath, s.sessions.HomeDir())
+	if err != nil {
+		s.logger.Printf("Invalid path %q: %v", relPath, err)
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	// Backups are internal state and are never served on the app's own origin, and
+	// the config directory sits under the user's home on every platform. This is a
+	// cheap pre-filter rather than the load-bearing check: the path it judges is an
+	// ancestor of the one serveAsset judges and isInternal is downward-closed, so
+	// everything caught here is caught again below, by serveAsset's own lexical
+	// check for an unregistered path or by readRegisteredFile's descriptor guard
+	// for a registered one. Keep it lexical: isInternal is pure string work, so the
+	// refusal reads the same whether or not anything is at that path.
+	if s.isInternal(absPath) {
+		s.logger.Printf("Denying request for internal path %s", absPath)
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	resolved, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		// Unresolvable, which normally means it is not there. Answering 404 here
+		// would answer BEFORE the scope check and make this an existence oracle: a
+		// missing out-of-scope path would 404 instantly while a present one parked
+		// and 403'd, which enumerates the home tree. Hand it to serveAsset, which
+		// classifies scope on the lexical path and parks either way.
+		s.serveAsset(w, r, rawPath, mode)
+		return
+	}
+	absPath = filepath.Clean(resolved)
+
+	// Internal-ness is deliberately NOT answered here. Deciding it after resolving
+	// but before serveAsset's scope gate made a path that resolves into the config
+	// or versions tree answer 404 instantly while a nonexistent path parked and
+	// 403'd, which is the existence oracle again. A registered file is protected by
+	// readRegisteredFile's descriptor guard below; anything else falls through to
+	// serveAsset, which re-checks internal-ness AFTER the scope gate.
+
+	f, ok := s.sessions.LookupByPath(absPath)
+	if !ok {
+		// An unregistered HTML Clay document inside a trusted folder registers
+		// itself through the app seam before serving, so a link inside a project
+		// lands on an editable page with no prompt. Everything about the
+		// decision up to the seam call is lock- and string-work only (trusted
+		// scope first, then hidden/internal), preserving the oracle-avoidance
+		// ordering serveAsset relies on.
+		//
+		// A data request never registers. Registration is per-file state created on
+		// a caller's say-so, and it can redirect to another site's origin, neither of
+		// which belongs in a JSON read. The request falls through to serveAsset, which
+		// is the stricter path, so a data face can only ever read less than a
+		// navigation would.
+		if !mode.active() && s.shouldAutoRegister(r, absPath) {
+			if regFile, handled := s.autoRegister(w, r, absPath); handled {
+				return
+			} else if regFile != nil {
+				s.serveRegistered(w, r, regFile, mode)
+				return
+			}
+		}
+		s.serveAsset(w, r, rawPath, mode)
+		return
+	}
+
+	s.serveRegistered(w, r, f, mode)
+}
+
+// ensureHistoryKeyLocked resolves this file's durable backup identity exactly
+// once and returns it, along with whether that identity was freshly minted and so
+// is still provisional until something makes it durable. data is the file's
+// current disk bytes: they are read for an existing htmlclayid, and hashed into a
+// path key on every other route through here. Nothing is written to disk.
+//
+// This is the one seam where a key is allowed to come into existence, which is
+// what keeps the watcher structurally unable to mint one. Serving, saving, and a
+// wire handler's lease all resolve through here. Deriving a key anywhere else is
+// how a first-save backup once ended up under a path hash while everything later
+// keyed by id, orphaning it. Caller holds f.Lock.
+func (s *Server) ensureHistoryKeyLocked(f *session.File, data []byte) (key string, provisional bool) {
+	if k := f.HistoryKey(); k != "" {
+		return k, false
+	}
+	if !strings.EqualFold(filepath.Ext(f.AbsPath), ".htmlclay") {
+		f.SetHistoryKey(versions.Key(f.AbsPath, data))
+		return f.HistoryKey(), false
+	}
+	id, prov, err := s.versions.ResolveIdentity(f.AbsPath, htmlutil.ReadHTMLClayID(data))
+	if err != nil {
+		s.logger.Printf("Could not resolve identity for %s: %v", f.RelPath, err)
+		f.SetHistoryKey(versions.Key(f.AbsPath, data))
+		return f.HistoryKey(), false
+	}
+	f.SetHistoryKey("id:" + id)
+	return f.HistoryKey(), prov
+}
+
+// serveRegistered serves a registered file with its identity and, on a real
+// document load, its save token.
+func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *session.File, mode dataMode) {
+	f.Lock()
+	data, err := s.readRegisteredFile(f.AbsPath)
+	if err != nil {
+		f.Unlock()
+		if errors.Is(err, errRefusedInternal) {
+			s.logger.Printf("Refusing to serve %s: resolves to a protected location", f.AbsPath)
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+		s.logger.Printf("Error reading %s: %v", f.AbsPath, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// A data request touches no per-file state: no identity resolution, no history key, no
+	// first-open snapshot, no NoteFirstObservation, no cookie and no token. A JSON read is not an
+	// editing session. The lock is released before parsing, so a 17 ms extraction never sits on the
+	// save path.
+	//
+	// What actually guarantees the bytes are a WHOLE pre-save or post-save document is that both
+	// writers (save and restore) publish through atomicWriteFile's rename, not this mutex —
+	// MEASURED, by replacing this branch with an unlocked re-read and finding the concurrency test
+	// still green over three runs. The lock is kept anyway: it costs nothing on a loopback server,
+	// it matches how every other reader here behaves, and it is what would still hold if a future
+	// write path stopped being a rename.
+	//
+	// Observable consequence, tested: ?data={id:"html@documentid"} is null before the first save,
+	// while the page's own clay.extractData() sees the injected id.
+	if mode.active() {
+		f.Unlock()
+		s.writeExtracted(w, data, mode)
+		return
+	}
+
+	// firstServe is captured before any record is touched, so the first-open
+	// snapshot still sees a genuinely fresh file.
+	firstServe := !f.Observed()
+
+	// Resolve the file's durable identity exactly once, without ever writing to
+	// disk. The id rides only in the bytes served (below); it reaches the file
+	// only when the client's own save carries it back. Every later list, read,
+	// restore and save reads this stored key.
+	key, provisional := s.ensureHistoryKeyLocked(f, data)
+
+	// served carries the durable id; the bytes on disk never do. Injecting the
+	// tracked id over whatever disk holds is also model B′'s self-heal: a file
+	// whose id was stripped or replaced externally is re-anchored on the next serve.
+	served := s.projectForServe(w, r, data)
+	if r.Header.Get("Clay-Source") != "1" && utf8.Valid(served) {
+		if record, ok, err := s.versions.PageStateFor(key, f.AbsPath, versions.Hash(data)); err == nil && ok {
+			served = []byte(pageadmission.InsertPageTag(string(served), record.Tag))
+		}
+	}
+	if id, ok := versions.IDFromKey(key); ok {
+		served = htmlutil.SetHTMLClayID(served, id)
+	}
+
+	// The response carries the version stamp of the DISK bytes it was built from,
+	// computed before anything was injected, so a client can tell the version it
+	// navigated to from whatever a later discovery answer reports. data is never
+	// touched: the stamp describes the file, not the response.
+	served = htmlutil.InjectDocumentETag(served, specwire.Etag(data))
+
+	// B1a: capture a version when a file is first served, so a freshly opened file
+	// that is never saved still has something to restore.
+	//
+	// Published inside f.Lock(), per B1. Publishing after the unlock let two
+	// concurrent GETs interleave: GET1 captured H0 and was descheduled, GET2 saw
+	// the file as observed and returned a token with no snapshot work, a save
+	// published H0 then H1, and GET1 then published its stale H0, leaving history
+	// ending at H0 after a successful H1 save. Two tabs opening one file at once
+	// is ordinary.
+	pruneKey := ""
+	if firstServe {
+		// Seed both per-file records from the DISK bytes, so the first real save
+		// compares like-for-like and does not false-positive as a stale write.
+		f.NoteFirstObservation(versions.Hash(data))
+
+		// A trusted-folder auto-registration skips the first-serve snapshot: a
+		// page can pull a whole tree into registration, and snapshotting each
+		// file on serve would copy the tree into the versions store on a page's
+		// say-so. Nothing durable is lost — the first real save's pre-write
+		// backup still captures the pre-existing state, because no history
+		// exists yet.
+		if s.sessions.Via(f.AbsPath) != session.ViaTrusted {
+			if s.beforeFirstOpenSnapshot != nil {
+				s.beforeFirstOpenSnapshot()
+			}
+			// The snapshot stores the raw disk bytes, not the injected ones, so it
+			// dedups against the first save's pre-write backup instead of doubling
+			// every file.
+			if _, bErr := s.versions.Backup(key, f.AbsPath, data); bErr != nil {
+				s.logger.Printf("First-open snapshot failed for %s: %v", f.RelPath, bErr)
+			} else if provisional {
+				// This snapshot's identity was freshly minted; mark it so it is
+				// reclaimed if no save ever makes it durable.
+				if pErr := s.versions.SetProvisional(key, f.AbsPath, true); pErr != nil {
+					s.logger.Printf("Could not mark provisional history for %s: %v", f.RelPath, pErr)
+				}
+			}
+			pruneKey = key
+		}
+	}
+	f.Unlock()
+
+	// An outside edit made while no tab was open reaches no subscriber, so the
+	// watcher drops it and this load is the only place it can be caught. The
+	// comparison is against an in-memory hash, so a load that finds nothing new
+	// pays for one hash, and the catch-up reads and judges outside the file lock,
+	// so a save never waits behind it.
+	if seen := s.guardSeenHash(key, f.AbsPath); seen != "" && seen != versions.Hash(data) {
+		s.catchUpGuard(f, key)
+	}
+
+	// Bulk pruning runs on the store lock only, never inside f.Lock().
+	if pruneKey != "" {
+		s.versions.MaybePrune(pruneKey, f.AbsPath)
+	}
+
+	// The token is a save capability, and it rides only into real documents. A
+	// silent fetch() (Sec-Fetch-Dest: empty), an iframe, or a subresource request
+	// gets the same bytes without the token, so harvesting a sibling page's
+	// capability needs a visible top-level tab per victim instead of an invisible
+	// loop. Absent means a legacy browser without Sec-Fetch support, which keeps
+	// the document behavior; every current browser sends the header.
+	if dest := r.Header.Get("Sec-Fetch-Dest"); dest == "" || dest == "document" {
+		served = htmlutil.InjectToken(served, f.Token)
+		if names := s.setupBarNames(f.AbsPath); len(names) > 0 && s.hooks.AskHelper != nil && r.Header.Get("Clay-Source") != "1" {
+			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(setupBarHTML(names)))
+		}
+		// The notice a ClayJS page draws needs a runtime that carries the module,
+		// so a document pinned to an older one, or using no ClayJS at all, would
+		// never hear about a pending loss. The server tells it the same way it
+		// tells a page its programs are not set up: with a bar a save strips.
+		if event := s.pendingGuardEvent(f, key); event != nil {
+			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(guardBarHTML(event)))
+		}
+	}
+
+	// B0: edit mode via cookie, matching hyperclay-local. Both clients fall back
+	// to exactly this cookie, read synchronously from document.cookie, and the
+	// response cookie arrives before scripts execute. Host-only (no Domain).
+	http.SetCookie(w, &http.Cookie{
+		Name:     "isAdminOfCurrentResource",
+		Value:    "true",
+		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
+		HttpOnly: false,
+		Secure:   false,
+	})
+
+	// B6: tokens are per-process, so any cache validator means a 304 after a
+	// restart hands back a dead token and every save 401s silently.
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Vary", "Clay-Source")
+	w.Write(served)
+}
+
+// serveAsset serves a file that was never opened directly: an asset (css, js,
+// image) or a linked page referenced by an opened file. Allowed only under the
+// folder tree of an opened file, and served without token injection, so linked
+// pages cannot save. rawPath is the request path before extractFilePath
+// truncation, so asset paths containing ".html" in a directory name stay intact.
+func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath string, mode dataMode) {
+	absPath, err := ValidatePath(rawPath, s.sessions.HomeDir())
+	if err != nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	// Everything from here down to the scope check is decided on the LEXICAL path,
+	// with no filesystem call, so none of it can reveal whether the requested file
+	// exists. Internal and hidden paths are refused outright; both tests are pure
+	// string work and name locations a page can already infer.
+	if s.isInternal(absPath) {
+		s.logger.Printf("Denying request for internal path %s", absPath)
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	// Hidden files and directories are never served as assets and never prompt, so
+	// a granted folder cannot expose its .git, .env, or .ssh. A file the user
+	// explicitly opened is served by handleServeFile above, never here.
+	if session.HasHiddenComponent(s.sessions.HomeDir(), absPath) {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	// Scope is classified before any existence check, so an out-of-scope read ends
+	// in the same fixed 403 whether or not anything is at that path. Resolving
+	// first made a missing file a fast 404 and a present one a 403, which let a
+	// page enumerate the whole non-hidden home tree without being granted anything.
+	//
+	// This decides only whether to ASK. It never authorizes a read: that stays with
+	// OpenAsset's held os.Root capability and the RealPath guard below, both of
+	// which judge the path the descriptor actually landed on, so a lexical path
+	// that looks in scope but resolves elsewhere is still refused.
+	//
+	// Do NOT add an existence check before the prompt, here or in the broker.
+	// Prompting only for paths that exist rebuilds this oracle at directory
+	// granularity: a missing folder would 403 instantly while a present one held
+	// until the user answered.
+	if _, _, inScope := s.sessions.AssetRoot(absPath); !inScope {
+		// A navigation the browser started itself (the address bar, a bookmark, a
+		// link from another app) is not this page asking to read anything, so a
+		// prompt naming the page would blame it for the user's own request.
+		// Serving the file anyway would run it on this folder's origin with this
+		// folder's read access, so refuse and say where it opens instead.
+		if browserNavigation(r) {
+			writeOutsideFolder(w)
+			return
+		}
+		// Hold the request open and ask the user to widen reads; on Allow the same
+		// request resumes with no reload, on Deny a fixed 403.
+		rc := http.NewResponseController(w)
+		_ = rc.SetWriteDeadline(time.Time{})
+		if !s.broker.await(r.Context(), absPath) {
+			write403(w)
+			return
+		}
+	}
+
+	resolved, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	absPath = filepath.Clean(resolved)
+
+	// Re-checked on the resolved path: the lexical tests above cannot see a symlink
+	// pointing into the versions/config tree or into a hidden directory.
+	if s.isInternal(absPath) {
+		s.logger.Printf("Denying request for internal path %s", absPath)
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	if session.HasHiddenComponent(s.sessions.HomeDir(), absPath) {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	// The exact instant a swapped directory component would take effect: the path
+	// has been resolved and cleared, and the capability open has not happened yet.
+	// Nil in production; a test installs it to hold a request here while it stages
+	// the swap, which is the only way to reach this window on purpose.
+	if s.beforeAssetCapabilityOpen != nil {
+		s.beforeAssetCapabilityOpen()
+	}
+
+	file, authorized, err := s.sessions.OpenAsset(absPath)
+	if !authorized {
+		// The lexical path was in scope, or was just granted, but the resolved one
+		// is covered by no root: a symlink leaving its root, or a root revoked
+		// mid-request. Refuse rather than prompt to grant whatever the link pointed
+		// at.
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	// TOCTOU guard, bound to the open descriptor. os.Root follows relative symlinks
+	// that resolve within the root, and the config/versions tree can sit inside an
+	// opened root, so a directory component swapped for a symlink between the
+	// EvalSymlinks check above and this capability open could have redirected the read
+	// into that tree. Ask the OS for the real path of the descriptor we actually hold
+	// and refuse if it is internal or hidden. Unlike a second EvalSymlinks+Stat, this
+	// cannot be defeated by re-swapping the pathname: RealPath reports where the held
+	// inode lives, not what a name currently points at. The checks above stay as the
+	// fast path for the common, unraced case.
+	real, err := platform.RealPath(file)
+	if err != nil {
+		s.logger.Printf("Could not resolve real path for asset %s: %v", absPath, err)
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	real = filepath.Clean(real)
+	if s.isInternal(real) || session.HasHiddenComponent(s.sessions.HomeDir(), real) {
+		s.logger.Printf("Denying asset resolving to internal/hidden path: %s", absPath)
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	// The data projection attaches HERE, after the whole ladder: lexical validation, the internal
+	// and hidden filters, the scope gate and its prompt, the capability open, the regular-file test
+	// and the descriptor-bound RealPath re-check. Nothing above this line knows a data face exists,
+	// which is what makes "can never read a file the plain GET could not" structural rather than
+	// something to keep verifying.
+	if mode.active() {
+		raw, rErr := io.ReadAll(file)
+		if rErr != nil {
+			s.logger.Printf("Error reading asset %s for extraction: %v", absPath, rErr)
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+		s.writeExtracted(w, raw, mode)
+		return
+	}
+
+	uploaded := refusedUpload(strings.ToLower(filepath.Ext(real))) && inAssetsFolder(real)
+
+	// A read-only HTML Clay document reached by a real user navigation forks to
+	// the bannered path: buffered, nonce-bearing, uncacheable. Everything else
+	// (assets, fetches, iframes, non-.htmlclay pages) streams below unchanged.
+	if !uploaded && s.shouldOfferOpen(r, real) {
+		s.serveReadOnlyWithBanner(w, r, file, real)
+		return
+	}
+
+	name := filepath.Base(absPath)
+	setAssetHeaders(w, name, uploaded)
+
+	// B8: assets always revalidate. Detailed failure causes go in the log; the
+	// response bodies above stay coarse.
+	etag, err := assetETag(file, info)
+	if err != nil {
+		s.logger.Printf("Error computing ETag for %s: %v", absPath, err)
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("ETag", etag)
+
+	// B7: explicit .br/.gz sidecar metadata only, never generic negotiation.
+	if encoding, inner, ok := sidecarEncoding(name); ok {
+		s.serveEncodedSidecar(w, r, inner, encoding, etag, info, file)
+		return
+	}
+
+	http.ServeContent(w, r, name, info.ModTime(), file)
+}
+
+// setAssetHeaders applies the inert-asset rules both the catch-all asset lane and
+// the uploads library serve with, so the two cannot drift apart. uploaded marks a
+// file that arrived as an upload, which is a download whatever its type.
+//
+// An SVG is a document: it can carry <script>, and served inline from this origin
+// it runs with the same authority as the page beside it. Uploads accept SVG
+// precisely BECAUSE serving it inert is possible, so this header is what makes
+// that decision safe. Unconditional, because provenance is not knowable here: a
+// file that arrived through /_/upload and one the person saved into the folder
+// themselves look identical at serve time.
+//
+// Never sniff. http.ServeContent guesses a type from the bytes when none is set,
+// and a file with no extension or an unknown one that holds HTML would come back
+// as a page that runs script on this origin. An unknown type is a download.
+func setAssetHeaders(w http.ResponseWriter, name string, uploaded bool) {
+	ext := strings.ToLower(filepath.Ext(name))
+	if ext == ".svg" || ext == ".svgz" {
+		w.Header().Set("Content-Disposition", "attachment")
+	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	ctype := mime.TypeByExtension(ext)
+	if ext == ".htmlclay" {
+		// Not in any MIME table, and it was only ever served as a page because
+		// the bytes were sniffed. Say so explicitly instead.
+		ctype = "text/html; charset=utf-8"
+	}
+	if ctype == "" {
+		ctype = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", ctype)
+	// A page type inside an uploads folder is something that arrived as an
+	// attachment before this check existed: hand it over as a download.
+	if uploaded {
+		w.Header().Set("Content-Disposition", "attachment")
+	}
+}
+
+// write403 is the fixed response for a denied out-of-scope read. It carries no
+// path and no proposed root: those appear only in the native dialog and the
+// tray, never in a body a page can read. Classified before any existence check,
+// so it is not an oracle for which out-of-scope files exist. The classification
+// above it is lexical, so a denial cannot be used to test whether a file exists.
+func write403(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-HTMLClay-Error", "read-access-required")
+	w.WriteHeader(http.StatusForbidden)
+	w.Write([]byte(`{"type":"about:blank","title":"Read access required","status":403,` +
+		`"detail":"This page requested a file outside its permitted folder; access was not granted."}`))
+}
+
+// browserNavigation reports a top-level navigation no page started: Fetch
+// Metadata sends Sec-Fetch-Site: none only for the address bar, bookmarks and
+// links opened from outside the browser, and a page cannot forge it.
+func browserNavigation(r *http.Request) bool {
+	return r.Method == http.MethodGet &&
+		r.Header.Get("Sec-Fetch-Site") == "none" &&
+		r.Header.Get("Sec-Fetch-Mode") == "navigate" &&
+		r.Header.Get("Sec-Fetch-Dest") == "document"
+}
+
+// writeOutsideFolder answers browserNavigation for a path outside this site's
+// folder. Like write403 it is the same response whether or not anything is at
+// that path.
+func writeOutsideFolder(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-HTMLClay-Error", "outside-folder")
+	w.WriteHeader(http.StatusForbidden)
+	w.Write([]byte(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Outside this folder</title></head>` +
+		`<body style="font-family:system-ui,sans-serif;max-width:36em;margin:4em auto;padding:0 1em;line-height:1.5">` +
+		`<h1 style="font-size:1.3em">This file is outside this folder</h1>` +
+		`<p>HTML Clay serves each folder at its own address, and this address only serves the folder it was opened for. ` +
+		`To view the file, open it from your file manager.</p></body></html>`))
+}
+
+// maxETagHashSize bounds the bytes hashed to build a content ETag. Above it the
+// validator falls back to metadata, which is documented below.
+const maxETagHashSize = 32 * 1024 * 1024
+
+// assetETag derives the validator from the asset's content rather than from its
+// mtime and size. A metadata-only ETag returned 304 for a same-size replacement
+// with a preserved timestamp, so the browser kept stale bytes, while the watcher
+// path explicitly accounts for exactly that replacement pattern: the two
+// disagreed about whether the file had changed.
+//
+// Above maxETagHashSize the metadata form is kept deliberately. Hashing an
+// arbitrarily large asset on every conditional request costs more than the stale
+// window is worth, and assets that big are media, not the hand-edited HTML and
+// CSS the replacement pattern applies to.
+func assetETag(file *os.File, info os.FileInfo) (string, error) {
+	if info.Size() > maxETagHashSize {
+		return fmt.Sprintf(`"m%x-%x"`, info.ModTime().UnixNano(), info.Size()), nil
+	}
+	h := sha256.New()
+	if _, err := io.Copy(h, file); err != nil {
+		return "", err
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`"c%x-%x"`, info.Size(), h.Sum(nil)[:16]), nil
+}
+
+// sidecarEncoding recognizes an explicitly requested pre-compressed sidecar. Only
+// these two suffixes are recognized, and only when the URL names them directly.
+func sidecarEncoding(name string) (encoding, inner string, ok bool) {
+	switch {
+	case strings.HasSuffix(name, ".br"):
+		return "br", strings.TrimSuffix(name, ".br"), true
+	case strings.HasSuffix(name, ".gz"):
+		return "gzip", strings.TrimSuffix(name, ".gz"), true
+	}
+	return "", "", false
+}
+
+// serveEncodedSidecar serves a pre-compressed asset with the Content-Encoding it
+// actually has, and a Content-Type derived from the inner extension. This is the
+// bug that started the thread: htmlclay served a .br sidecar without
+// Content-Encoding, and the client read compressed bytes as a mesh header.
+//
+// http.ServeContent is skipped deliberately. It sniffs Content-Type from the
+// compressed bytes and negotiates Range against the encoded stream. Range is
+// declined instead: Accept-Ranges is never advertised for an encoded sidecar, so
+// a Range header here is unsolicited and the full representation is returned.
+// Dropping Content-Encoding to satisfy a Range would reintroduce the original bug.
+func (s *Server) serveEncodedSidecar(w http.ResponseWriter, r *http.Request, inner, encoding, etag string, info os.FileInfo, file io.Reader) {
+	ctype := mime.TypeByExtension(filepath.Ext(inner))
+	if ctype == "" {
+		ctype = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", ctype)
+	w.Header().Set("Content-Encoding", encoding)
+	w.Header().Set("Accept-Ranges", "none")
+
+	if r.Header.Get("Range") != "" {
+		s.logger.Printf("Declining Range on encoded sidecar %s; serving full representation", inner)
+	}
+
+	if etagMatches(r.Header.Get("If-None-Match"), etag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
+	if r.Method == http.MethodHead {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if _, err := io.Copy(w, file); err != nil {
+		s.logger.Printf("Error writing sidecar %s: %v", inner, err)
+	}
+}
+
+func etagMatches(header, etag string) bool {
+	if header == "" {
+		return false
+	}
+	for _, candidate := range strings.Split(header, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "*" || candidate == etag || strings.TrimPrefix(candidate, "W/") == etag {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) handleRead(w http.ResponseWriter, r *http.Request) {
+	f, ok := s.lookupSession(w, r)
+	if !ok {
+		return
+	}
+
+	data, err := s.readRegisteredFile(f.AbsPath)
+	if err != nil {
+		if errors.Is(err, errRefusedInternal) {
+			s.logger.Printf("Refusing to read %s: resolves to a protected location", f.AbsPath)
+			s.writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		s.logger.Printf("Error reading %s: %v", f.AbsPath, err)
+		s.writeError(w, http.StatusInternalServerError, "read error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Write(data)
+}
+
+// trustedWriteRevoked reports whether f's only claim to a save capability was
+// trusted-folder coverage that has since been revoked. Untrusting a folder
+// closes its origin and unregisters its files, so the token normally dies with
+// it; this closes the gap for a request that resolved its token before the
+// revoke landed, so revocation bites even a session already looked up.
+//
+// It reads the session's installed roots rather than the declared list on
+// purpose: this is the write path, and what authorizes a write is the held
+// capability, not what config says.
+func (s *Server) trustedWriteRevoked(f *session.File) bool {
+	via := s.sessions.Via(f.AbsPath)
+	return via.Has(session.ViaTrusted) &&
+		!via.Has(session.ViaOsOpen) &&
+		!s.sessions.TrustedCovers(f.AbsPath)
+}
+
+func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
+	f, ok := s.lookupSession(w, r)
+	if !ok {
+		return
+	}
+	if s.trustedWriteRevoked(f) {
+		s.writeError(w, http.StatusUnauthorized, "invalid token")
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxSaveSize)
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			s.writeError(w, http.StatusRequestEntityTooLarge, "body too large (max 50MB)")
+			return
+		}
+		s.writeError(w, http.StatusInternalServerError, "read error")
+		return
+	}
+
+	if len(body) == 0 {
+		s.writeError(w, http.StatusBadRequest, "empty body")
+		return
+	}
+
+	// Spec §3: /_/save takes the document as text, and this route has exactly one
+	// body shape. A JSON body is refused rather than guessed at, because a host
+	// that quietly wrote an envelope's `content` would be inventing a second shape
+	// for the one route the spec says has only one. Anything a save needs to say
+	// beyond the document travels in a header, and an unstripped snapshot belongs
+	// to the §10 relay, never to a save.
+	if isJSONContentType(r.Header.Get("Content-Type")) {
+		uploadError(w, http.StatusUnsupportedMediaType, "unsupported-type",
+			"/_/save takes the document as text, not JSON.")
+		return
+	}
+
+	body = htmlutil.StripToken(body)
+	// A banner that reached a token-holding tab (live-sync can push one into an
+	// edit-mode page) must never autosave itself into the file.
+	body = htmlutil.StripBanner(body)
+
+	// A client that saves what it was served would write this host's /_/clayjs/
+	// URLs and their descriptor into the document, and the file would then load
+	// only here. ClayJS turns its own snapshot back first; a host cannot rely on
+	// every client doing it (an older ClayJS, a hand-written save, a restored
+	// copy), so the bytes that become the document are canonicalized here.
+	body = canonicalForWrite(r.Host, body)
+
+	// A valid save is always a full document (the browser serializes
+	// documentElement.outerHTML). Reject anything without an <html> tag so a
+	// stray request cannot overwrite the file with a fragment or junk.
+	if !htmlutil.HasHTMLTag(body) {
+		s.writeError(w, http.StatusBadRequest, "body is not an HTML document")
+		return
+	}
+
+	// A tab still running the block editor from before ClayJS 1.24.0 is refused
+	// first, before If-Match and every other write check, so its client shows
+	// "copy your text, then reload" rather than a conflict it cannot resolve.
+	if pageadmission.OldBlockeditorFormat(string(body)) {
+		s.logger.Printf("Refusing a save of %s: it carries the block editor format from before ClayJS 1.24.0", f.RelPath)
+		writeOldFormatRefusal(w)
+		return
+	}
+
+	f.Lock()
+	current, readErr := s.readRegisteredFile(f.AbsPath)
+	// A registered path that now resolves into protected state (a swapped-in symlink
+	// to the config/versions tree, or out of home) must not be read into a backup or
+	// written over; refuse the whole save rather than proceed. A plain not-found is
+	// left to the normal first-save path below.
+	if errors.Is(readErr, errRefusedInternal) {
+		f.Unlock()
+		s.logger.Printf("Refusing to save %s: resolves to a protected location", f.AbsPath)
+		s.writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	// Spec §6's `conditional` capability, and the first thing checked after the
+	// read, because a refusal here must write NOTHING: not the file, not a backup,
+	// not even the identity claim ensureHistoryKeyLocked would make below.
+	//
+	// Only a request that carries If-Match is judged. A save without the header is
+	// the core last-write-wins save and is left exactly as it was, which is why
+	// announcing `conditional` changes nothing for a client that never asks.
+	//
+	// §6's receipt id. Opaque, never a credential, never minted here: this host
+	// only ever echoes what a client sent. Length-capped because it is remembered
+	// per open file and an unbounded header would be free memory to hand away.
+	saveID := r.Header.Get("Save-ID")
+	if len(saveID) > maxSaveIDLen {
+		saveID = ""
+	}
+
+	// Present-but-empty is a different case from absent, and Values distinguishes
+	// them where Get cannot: an empty field is a client that computed its stamp
+	// wrong, and dropping it back to last-write-wins would silently remove the
+	// protection it asked for. hyperclay and hyperclay-local both refuse it, and a
+	// document that saves against all three must get the same answer from each.
+	if ifMatch, sent := listHeader(r, "If-Match"); sent {
+		// A read that failed for any reason other than "there is no file yet" means
+		// this host cannot say what the stored bytes ARE, and `current` is nil only
+		// because the read gave up. Judging the stamp against those nil bytes turns
+		// the failure into an answer: the refusal hands back the empty-content etag
+		// as though it described the file, and a client that does the obvious thing
+		// and retries with the etag it was just given is let through to replace bytes
+		// nobody could read. Nothing backs them up either, because the pre-write
+		// backup is guarded on the same failed read. A conditional save is a promise
+		// to compare; a host that cannot read cannot compare, and says so.
+		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
+			f.Unlock()
+			s.logger.Printf("Cannot judge a conditional save of %s: %v", f.RelPath, readErr)
+			s.writeError(w, http.StatusInternalServerError, "cannot read the stored document")
+			return
+		}
+		if !specwire.IfMatchSatisfied(ifMatch, current) {
+			changedBy := conflictAttribution(f, current, readErr)
+			currentEtag := specwire.Etag(current)
+			receipt := f.SaveReceiptFor(currentEtag)
+			f.Unlock()
+			s.logger.Printf("Refusing a conditional save of %s: the stored bytes have moved on", f.RelPath)
+			conflictRefusal(w, f.Name, currentEtag, changedBy, receipt)
+			return
+		}
+	}
+	conversionHeader, hasConversionHeader := listHeader(r, "Blockeditor-Conversion")
+	if hasConversionHeader && conversionHeader == "" {
+		f.Unlock()
+		writePageAdmissionError(w, &pageadmission.Refusal{Reason: "invalid-header"})
+		return
+	}
+	decision, admissionErr := pageadmission.CheckWrite(string(current), string(body), conversionHeader)
+	if admissionErr == nil && decision != pageadmission.Ordinary {
+		ifMatch, sent := listHeader(r, "If-Match")
+		if !sent || strings.TrimSpace(ifMatch) == "*" || strings.Contains(ifMatch, ",") ||
+			!specwire.IfMatchSatisfied(ifMatch, current) {
+			admissionErr = &pageadmission.Refusal{Reason: "file-changed"}
+		}
+	}
+	if admissionErr != nil {
+		f.Unlock()
+		writePageAdmissionError(w, admissionErr)
+		return
+	}
+	formatted, formatErr := pageadmission.CheckPageFormat(string(current), string(body),
+		pageadmission.FormatCapability(r.Header.Get(pageadmission.PageFormatHeader)))
+	var formatRefusal *pageadmission.FormatRefusal
+	if errors.As(formatErr, &formatRefusal) {
+		f.Unlock()
+		writeFormatRefusal(w, formatRefusal)
+		return
+	}
+	body = []byte(formatted)
+	if decision == pageadmission.Ordinary && strings.TrimSpace(r.Header.Get("Blockeditor-Write")) == "v1" &&
+		pageadmission.NothingToWrite(string(current), string(body)) {
+		if tag, ok := pageadmission.PageTag(string(body)); ok {
+			key, _ := s.ensureHistoryKeyLocked(f, current)
+			diskHash := versions.Hash(current)
+			if err := s.versions.PreparePageState(key, f.AbsPath, diskHash,
+				versions.NewPageStateRecord(diskHash, s.blockeditorGeneration(key, f.AbsPath, diskHash, decision), tag)); err != nil {
+				f.Unlock()
+				s.refusePageState(w, f, err)
+				return
+			}
+		}
+		currentEtag := specwire.Etag(current)
+		f.Unlock()
+		w.Header().Set("ETag", currentEtag)
+		writePageAdmissionError(w, &pageadmission.Refusal{Reason: "nothing-to-write"})
+		return
+	}
+	tag, hasTag := pageadmission.PageTag(string(body))
+	body = []byte(pageadmission.StripPageTag(string(body)))
+
+	// The backup identity comes from the key resolved at first serve, never from
+	// the bytes on disk or in the body. Deriving it from disk meant that on a first
+	// save the id-less on-disk bytes (the host no longer writes the id) keyed by
+	// path hash while everything later keyed by id, orphaning the pre-save backup.
+	// A save that somehow precedes a serve resolves identity the same way serving
+	// does; the body's own id is never adopted, so a pasted-in foreign id cannot
+	// move the history (model B′).
+	key, _ := s.ensureHistoryKeyLocked(f, body)
+
+	// B5: compare the on-disk hash against lastServerWrite. Hashing the on-disk
+	// bytes on both sides sidesteps the token inject/strip round-trip entirely.
+	// The notice cannot tell two tabs apart, because lastServerWrite advanced on
+	// the first tab's write. Backups are the actual safety net.
+	stale := false
+	if readErr == nil {
+		currentHash := versions.Hash(current)
+		if !f.NoteFirstObservation(currentHash) && f.LastServerWrite() != currentHash {
+			stale = true
+		}
+	}
+
+	// A truncation in progress must not be overwritten. os.WriteFile truncates and
+	// then writes, so a writer paused in that gap leaves zero bytes on disk that
+	// are not a document at all; watchEmptyQuiet exists to wait exactly that out.
+	// Saving over them in the meantime is worse than a stale tab: rename unlinks
+	// the inode the external writer still has open, so its later write lands on a
+	// file with no name and is lost, with no version of it anywhere. An autosave
+	// firing on its own debounce is the ordinary way to reach this, and the tab has
+	// no idea the file was emptied underneath it.
+	//
+	// The refusal lifts on its own, because it is keyed on the watcher's pending
+	// candidate: within watchEmptyQuiet either the writer's real bytes arrive or
+	// the empty state publishes, and a save that still means to overwrite then goes
+	// through against a document the page has actually been shown.
+	if readErr == nil && stale && len(current) == 0 && s.watcher.emptyPending(f.AbsPath) {
+		f.Unlock()
+		s.logger.Printf("Refusing to save over a truncation in progress: %s", f.RelPath)
+		s.writeError(w, http.StatusConflict,
+			"the file was just emptied on disk; retry once that change reaches the page")
+		return
+	}
+
+	// The page state is stored before anything else of this save is: a sidecar
+	// that cannot be written refuses the save with no backup and no file write.
+	if hasTag {
+		diskHash := ""
+		if readErr == nil {
+			diskHash = versions.Hash(current)
+		}
+		record := versions.NewPageStateRecord(versions.Hash(body), s.blockeditorGeneration(key, f.AbsPath, diskHash, decision), tag)
+		if pErr := s.versions.PreparePageState(key, f.AbsPath, diskHash, record); pErr != nil {
+			f.Unlock()
+			s.refusePageState(w, f, pErr)
+			return
+		}
+	}
+
+	// B1: version the existing content on the first save of a file, so the
+	// pre-Hyperclay state survives, then version the INCOMING bytes before writing
+	// them. Versioning the outgoing pre-write bytes would mean the most recent
+	// successful save is the one state never written to history, so an external
+	// clobber would destroy exactly the version you would want back.
+	//
+	// A stale write is the other case where the on-disk bytes must be versioned
+	// first: that content came from outside, so nothing else has ever recorded it,
+	// and this save is about to clobber it. Backups are the actual safety net
+	// behind the warning.
+	if readErr == nil && (stale || !s.versions.HasHistory(key, f.AbsPath)) {
+		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
+			s.logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
+		}
+	}
+	// Backup failure never fails a normal save.
+	if _, bErr := s.versions.Backup(key, f.AbsPath, body); bErr != nil {
+		s.logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
+	}
+
+	err = atomicWriteFile(f.AbsPath, body)
+	if err == nil {
+		if sErr := s.versions.SettlePageState(key, f.AbsPath, body); sErr != nil {
+			s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
+		}
+		f.RecordServerWrite(versions.Hash(body))
+		f.NoteWriteByThisHost()
+		// §6's receipt, bound here and nowhere else: this is the one moment the
+		// host knows both which request's body it stored and what those stored
+		// bytes stamp to. saveID is "" for a client that sent none, which still
+		// replaces the pair so a remembered id cannot outlive its own bytes.
+		f.RecordSaveReceipt(saveID, specwire.Etag(body))
+		// This save makes the history durable. The backup above already defaulted
+		// the meta to non-provisional, but a save that only deduplicated skips that
+		// write, so clear the flag explicitly.
+		if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
+			s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+		}
+		s.coord.acceptServerReplacement(f)
+		s.broadcastDiskHTML(f, body, key)
+	}
+	f.Unlock()
+
+	if err == nil {
+		s.observeWrite(f, key, current, body, provenanceFromRequest(r))
+	}
+
+	if err != nil {
+		s.logger.Printf("Error saving %s: %v", f.AbsPath, err)
+		s.writeError(w, http.StatusInternalServerError, "write error")
+		return
+	}
+
+	// Bulk pruning runs on the store lock only, never inside f.Lock().
+	s.versions.MaybePrune(key, f.AbsPath)
+
+	s.logger.Printf("Saved %s (%d bytes)", f.RelPath, len(body))
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+
+	// Every save answers with the stamp of what was just stored (§6). Both exits
+	// carry it, and that is not tidiness: a client learns its stamp only from a
+	// save response or from /_/meta, and it CLEARS the one it holds when a response
+	// arrives without one. A success that omitted the stamp would leave the tab
+	// unprotected until its next discovery call, silently, right after the moment
+	// it was most sure it was in sync.
+	//
+	// `body` and not the bytes read back: it is what atomicWriteFile stored, and
+	// re-reading would stamp whatever landed in between rather than this save.
+	etag := specwire.Etag(body)
+
+	// Echoed straight back rather than re-read from the file: this response is
+	// about the save that just happened, and a client matches it against the id it
+	// sent. An id-less save echoes nothing, which omits the field.
+	saveIDEcho := saveID
+
+	if stale {
+		s.logger.Printf("Stale write: %s changed on disk since this server last wrote it", f.RelPath)
+		stalePayload := map[string]interface{}{
+			"ok":      true,
+			"msg":     f.Name + " had been changed outside this tab. Your version was saved; the previous one is in Backups.",
+			"msgType": "warning",
+			"etag":    etag,
+		}
+		if saveIDEcho != "" {
+			stalePayload["saveId"] = saveIDEcho
+		}
+		json.NewEncoder(w).Encode(stalePayload)
+		return
+	}
+	okPayload := map[string]interface{}{
+		"ok": true, "msg": "Saved", "msgType": "success", "etag": etag,
+	}
+	if saveIDEcho != "" {
+		okPayload["saveId"] = saveIDEcho
+	}
+	json.NewEncoder(w).Encode(okPayload)
+}
+
+// isJSONContentType reports whether a Content-Type declares JSON, including the
+// `+json` structured suffix.
+//
+// It splits on ';' rather than going through mime.ParseMediaType. A header this
+// route REFUSES does not have to be well formed, and ParseMediaType fails on
+// something like `application/json;;` — treating that failure as "not JSON" is the
+// most permissive possible reading of bytes we could not understand, and it let the
+// old envelope through to be written to the file verbatim.
+func isJSONContentType(ct string) bool {
+	mediaType, _, _ := strings.Cut(ct, ";")
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	return mediaType == "application/json" || strings.HasSuffix(mediaType, "+json")
+}
+
+// replaceFile renames tmp over target, retrying briefly before giving up.
+//
+// Windows will not replace a file that another handle currently has open, and Go
+// opens files without FILE_SHARE_DELETE, so any concurrent reader blocks the
+// rename. htmlclay supplies its own reader: the watcher re-reads the served file
+// every 250ms to notice outside edits, so a save that lands during that read
+// fails with "Access is denied" and the user is told their save did not work.
+// The read itself lasts microseconds, so the first backoff clears it in practice.
+//
+// The rename goes through os.Root because on Windows that is a POSIX-semantics
+// rename (FILE_RENAME_POSIX_SEMANTICS), which replaces a file another program
+// holds open with FILE_SHARE_DELETE. os.Rename is MoveFileEx, which refuses any
+// open target, so before this a file merely open in another program could not be
+// saved at all. A handle without FILE_SHARE_DELETE still blocks both.
+//
+// On POSIX the first attempt always succeeds and this never sleeps.
+func replaceFile(tmpPath, targetPath string) error {
+	root, err := os.OpenRoot(filepath.Dir(targetPath))
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	for _, backoff := range []time.Duration{0, 5, 15, 40, 100} {
+		if backoff > 0 {
+			time.Sleep(backoff * time.Millisecond)
+		}
+		if err = root.Rename(filepath.Base(tmpPath), filepath.Base(targetPath)); err == nil {
+			return nil
+		}
+	}
+	return err
+}
+
+// beforeAtomicReplace runs inside atomicWriteFile once the replacement bytes are
+// fully on disk in the temp file and before the rename that publishes them. That
+// is the one instant at which a reader could see a torn file if the write were
+// not staged, so it is the instant a test wants to hold. Tests only; nil
+// everywhere else.
+var beforeAtomicReplace func()
+
+func atomicWriteFile(targetPath string, data []byte) error {
+	dir := filepath.Dir(targetPath)
+	tmp, err := os.CreateTemp(dir, ".htmlclay-save-*")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+
+	defer func() {
+		if tmpPath != "" {
+			os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return fmt.Errorf("sync temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temp file: %w", err)
+	}
+
+	if info, err := os.Stat(targetPath); err == nil {
+		os.Chmod(tmpPath, info.Mode())
+	}
+
+	if beforeAtomicReplace != nil {
+		beforeAtomicReplace()
+	}
+
+	if err := replaceFile(tmpPath, targetPath); err != nil {
+		return fmt.Errorf("rename to target: %w", err)
+	}
+
+	tmpPath = ""
+
+	// Fsync the directory so the rename is durable: without this, a crash right
+	// after a successful save can revert the file to its previous contents. The
+	// error is returned rather than discarded, because a save that cannot be made
+	// durable must not be acknowledged as one.
+	if err := versions.SyncDir(dir); err != nil {
+		return fmt.Errorf("sync directory: %w", err)
+	}
+
+	return nil
+}
+
+// handleHostMeta answers the tokenless GET /_/meta from spec §5: what this host
+// supports, and nothing about any document.
+//
+// It takes no token, checks nothing and can fail for no reason, and all three are
+// deliberate. §5 makes the caller the page a person just loaded, possibly with no
+// session at all, and makes this the only address a client is permitted to learn
+// capabilities from. Gate it and the client downgrades to plain saves, silently
+// losing every capability this host does offer.
+//
+// The `document` block is the only part a host ever withholds, and this route
+// withholds it always: a caller holding a token has a per-document route to ask
+// on. Omission is the conforming answer, and §5 is explicit that a client reads a
+// missing block as the absence of a version stamp and nothing more. What must
+// never happen here is a 404 for a per-document reason, which is why this handler
+// has no path to one: a 404 tells a client the whole host is spec-unaware.
+func (s *Server) handleHostMeta(w http.ResponseWriter, r *http.Request) {
+	noStoreJSON(w)
+	json.NewEncoder(w).Encode(hostMeta{
+		Spec:       specVersion,
+		Extensions: s.extensions(),
+	})
+}
+
+func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
+	f, ok := s.lookupSession(w, r)
+	if !ok {
+		return
+	}
+
+	rf, err := s.openRegisteredFile(f.AbsPath)
+	if err != nil {
+		if errors.Is(err, errRefusedInternal) {
+			s.logger.Printf("Refusing meta for %s: resolves to a protected location", f.AbsPath)
+			s.writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		s.logger.Printf("Error stat %s: %v", f.AbsPath, err)
+		s.writeError(w, http.StatusInternalServerError, "stat error")
+		return
+	}
+	defer rf.Close()
+
+	info, err := rf.Stat()
+	if err != nil {
+		s.logger.Printf("Error stat %s: %v", f.AbsPath, err)
+		s.writeError(w, http.StatusInternalServerError, "stat error")
+		return
+	}
+
+	// Read once and use the bytes for both answers below. The descriptor is
+	// consumed by a read, so the id fallback and the etag cannot each take their
+	// own; and both must describe the same moment, or a client could seed a stamp
+	// for one state while being told the id of another.
+	stored, readErr := io.ReadAll(rf)
+	if readErr != nil {
+		s.logger.Printf("Error reading %s for meta: %v", f.AbsPath, readErr)
+		s.writeError(w, http.StatusInternalServerError, "read error")
+		return
+	}
+
+	// Report the tracked identity, which the host injects when serving. Between
+	// first serve and first save the disk carries no id, so reading it off disk
+	// would report none while the served document already has one.
+	storedEtag := specwire.Etag(stored)
+
+	var htmlclayID string
+	var saveID string
+	var historyKey string
+	f.Lock()
+	historyKey = f.HistoryKey()
+	if id, ok := versions.IDFromKey(historyKey); ok {
+		htmlclayID = id
+	}
+	// Verified against the bytes this answer is about to stamp, not against
+	// whatever was stored when the pair was written. Any other writer moved the
+	// bytes on, and an unverifiable receipt reads as absent.
+	saveID = f.SaveReceiptFor(storedEtag)
+	f.Unlock()
+	if htmlclayID == "" {
+		htmlclayID = htmlutil.ReadHTMLClayID(stored)
+	}
+
+	meta := fileMeta{
+		Spec:       specVersion,
+		Extensions: s.extensions(),
+		// RelPath comes from filepath.Rel, so on Windows it arrives with
+		// backslashes; `path` is the field a client builds a URL from, and the URL
+		// this same document is served at is forward-slashed. AbsolutePath stays
+		// OS-native on purpose -- it names a file on disk, not a route.
+		Path:             filepath.ToSlash(f.RelPath),
+		AbsolutePath:     f.AbsPath,
+		Name:             f.Name,
+		Size:             info.Size(),
+		LastModified:     info.ModTime().UTC().Format(time.RFC3339),
+		HTMLClayID:       htmlclayID,
+		LegacyHTMLClayID: htmlclayID,
+		// The stamp is taken from the bytes on disk, which are what a save is
+		// compared against. Not from the served bytes: those carry an injected
+		// token and id that never reach the file, so stamping them would hand a
+		// client a value no save of its own could ever match.
+		Document: &documentMeta{
+			Etag:         storedEtag,
+			SaveID:       saveID,
+			Writable:     !s.trustedWriteRevoked(f),
+			WireBudgetMS: helper.StructuredDeadline,
+			MaxBytes:     maxSaveSize,
+			Versions:     true,
+			// The same constant the upload route enforces, not a second copy of the
+			// number: a cap that is announced and a cap that is applied drifting apart
+			// is worse than announcing none, because a client would refuse files this
+			// host accepts or send files it refuses.
+			Upload:           uploadMeta{Allowed: true, MaxBytes: maxUploadSize, Access: uploadAccessLocal},
+			Path:             filepath.ToSlash(f.RelPath),
+			AbsolutePath:     f.AbsPath,
+			Name:             f.Name,
+			Size:             info.Size(),
+			LastModified:     info.ModTime().UTC().Format(time.RFC3339),
+			DocumentID:       htmlclayID,
+			LegacyDocumentID: htmlclayID,
+			Awareness:        awarenessMeta{Transport: "broadcast", Scope: awarenessScope(htmlclayID, f.RelPath), Label: "This computer"},
+			PageState:        &pageStateMeta{Href: "/_/blockeditor-state/" + r.PathValue("token")},
+			Actions:          s.documentActions(r.PathValue("token")),
+		},
+	}
+	meta.Document.WireMode, meta.Document.Helpers = s.helperDiscovery(f.AbsPath)
+	meta.Document.People = s.people()
+	if historyKey != "" {
+		meta.Document.DataGuard = &dataGuardMeta{Href: "/_/data-loss/" + r.PathValue("token")}
+	}
+
+	noStoreJSON(w)
+	if meta.Document.People != nil {
+		// Names a person: never kept by a shared cache.
+		w.Header().Set("Cache-Control", "private, no-store")
+	}
+	json.NewEncoder(w).Encode(meta)
+}
+
+// handlePageState returns the stored page state for the exact bytes on disk. It is
+// conditional: the caller names the etag it accepted, and any other etag is refused,
+// so a state is never handed out for bytes the caller has not seen.
+func (s *Server) handlePageState(w http.ResponseWriter, r *http.Request) {
+	f, ok := s.lookupSession(w, r)
+	if !ok {
+		return
+	}
+	ifMatch, sent := listHeader(r, "If-Match")
+	if !sent || strings.TrimSpace(ifMatch) == "" {
+		writePageStateError(w, http.StatusPreconditionRequired, "precondition-required", "")
+		return
+	}
+	f.Lock()
+	data, err := s.readRegisteredFile(f.AbsPath)
+	if err != nil {
+		f.Unlock()
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	etag := specwire.Etag(data)
+	if strings.TrimSpace(ifMatch) == "*" || strings.Contains(ifMatch, ",") || !specwire.IfMatchSatisfied(ifMatch, data) {
+		f.Unlock()
+		writePageStateError(w, http.StatusPreconditionFailed, "etag-mismatch", etag)
+		return
+	}
+	key := f.HistoryKey()
+	var record versions.PageStateRecord
+	found := false
+	if key != "" {
+		record, found, err = s.versions.PageStateFor(key, f.AbsPath, versions.Hash(data))
+	}
+	f.Unlock()
+	if err != nil || !found {
+		writePageStateError(w, http.StatusNotFound, "no-blockeditor-state", etag)
+		return
+	}
+	documentID, _ := versions.IDFromKey(key)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("ETag", etag)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"version": 1, "documentId": documentID, "generation": record.Generation,
+		"etag": etag, "stateHash": record.StateHash, "tag": record.Tag,
+	})
+}
+
+func writePageStateError(w http.ResponseWriter, status int, code, etag string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	if etag != "" {
+		w.Header().Set("ETag", etag)
+	}
+	w.WriteHeader(status)
+	body := map[string]string{"error": "page state unavailable", "code": code}
+	if etag != "" {
+		body["etag"] = etag
+	}
+	json.NewEncoder(w).Encode(body)
+}
+
+// The spec's §3 code registry, keyed by the status this host already answers with.
+//
+// Derived here rather than passed at each of the forty-six call sites, so a status and
+// its code can never drift apart, and so adding a route cannot forget one. A status the
+// registry does not name carries no code at all. §3's registry is open, so a host may
+// add a name it needs, but inventing one here would be worse than omitting the field:
+// a client branches on the value, and a name nobody else uses is a branch nobody else
+// takes. `read-only` has no status of its own and belongs to whichever route grows that
+// behaviour, so it is not here.
+//
+// 409 is deliberately absent, and it is the one entry that has to be argued for rather
+// than read off the status line. §6 gives `conflict` one meaning, the If-Match refusal,
+// and `conflictRefusal` writes that code itself on the 412. This host's only other 409
+// is the truncation guard, which is temporary and lifts itself as soon as the watcher
+// publishes the external writer's bytes. Naming it `conflict` told clayjs a document
+// version had collided, and clayjs answers that by suspending autosave until a person
+// resolves it: a self-clearing host condition became a hold nothing clears. So the
+// truncation refusal carries its message and no code, which is what §3 asks of a
+// refusal it has no name for.
+// awarenessScope is the canonical document identity a same-browser channel is named
+// for. The same rule the client already applies to its own per-document records: the
+// host's tracked id where one is supplied, else the exact path relative to home. Not
+// the name, which merges two folders' documents and forgets a rename. Origin is not
+// part of it because a BroadcastChannel is already per-origin, so two hosts cannot
+// reach each other's channel through it.
+func awarenessScope(documentID, relPath string) string {
+	if documentID != "" {
+		return "id:" + documentID
+	}
+	return "path:" + filepath.ToSlash(relPath)
+}
+
+// The spec's code registry, keyed by the status this host already answers with.
+var specErrorCodes = map[int]string{
+	http.StatusUnauthorized:          "unauthorized",
+	http.StatusPaymentRequired:       "payment-required",
+	http.StatusForbidden:             "forbidden",
+	http.StatusNotFound:              "not-found",
+	http.StatusRequestEntityTooLarge: "too-large",
+	http.StatusUnsupportedMediaType:  "unsupported-type",
+	http.StatusUnprocessableEntity:   "invalid-document",
+}
+
+// Both shapes, on purpose, and permanently.
+//
+// `msg` and `code` are what §3 names, and what a client written against the spec reads:
+// without them every refusal from this host is an opaque non-2xx, and "you are not
+// allowed" cannot be told from "that file is gone". `ok` and `error` are what this host
+// has always sent, and a document that reads them is frozen: its inline script ships
+// inside the file and no update ever reaches it. So the old pair does not go away when
+// the new one arrives, the same way the pre-rename save token does not.
+func (s *Server) writeError(w http.ResponseWriter, status int, message string) {
+	code := specErrorCodes[status]
+	writeSaveError(w, status, message, code, "")
+}
+
+func writeSaveError(w http.ResponseWriter, status int, message, code, reason string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	body := map[string]interface{}{
+		"ok":    false,
+		"error": message,
+		"msg":   message,
+	}
+	if code != "" {
+		body["code"] = code
+	}
+	if reason != "" {
+		body["reason"] = reason
+	}
+	json.NewEncoder(w).Encode(body)
+}
+
+func pageAdmissionFields(err error) (int, string, string) {
+	var format *pageadmission.FormatError
+	if errors.As(err, &format) {
+		return http.StatusConflict, "blockeditor-format", ""
+	}
+	var refused *pageadmission.Refusal
+	if !errors.As(err, &refused) {
+		return http.StatusInternalServerError, "", ""
+	}
+	switch refused.Reason {
+	case "invalid-header":
+		return http.StatusBadRequest, "blockeditor-conversion-refused", refused.Reason
+	case "invalid-capture":
+		return http.StatusUnprocessableEntity, "blockeditor-conversion-refused", refused.Reason
+	case "invalid-source", "ambiguous-source":
+		return http.StatusConflict, "blockeditor-conversion-refused", refused.Reason
+	case "implicit-conversion":
+		return http.StatusConflict, "blockeditor-conversion-required", refused.Reason
+	case "source-changed":
+		return http.StatusConflict, "blockeditor-conversion-stale", refused.Reason
+	case "file-changed":
+		return http.StatusPreconditionRequired, "blockeditor-conversion-stale", refused.Reason
+	case "nothing-to-write":
+		return http.StatusConflict, "blockeditor-nothing-to-write", refused.Reason
+	default:
+		return http.StatusInternalServerError, "", ""
+	}
+}
+
+func writePageAdmissionError(w http.ResponseWriter, err error) {
+	status, code, reason := pageAdmissionFields(err)
+	if status == http.StatusInternalServerError {
+		writeSaveError(w, status, "page write failed", "", "")
+		return
+	}
+	writeSaveError(w, status, err.Error(), code, reason)
+}
+
+// listHeader reports a list-valued header and whether it was sent at all.
+//
+// Two reasons it is not Header.Get. Get collapses "absent" and "present but empty"
+// into the same empty string, and for If-Match those mean opposite things: one is an
+// ordinary unconditional save, the other is a client whose stamp went wrong and must
+// be refused. And a client may legally send a list field across several physical
+// lines, which RFC 9110 §5.3 says is equivalent to one line joined by commas, so
+// reading only the first would refuse a request whose matching tag happens to be on
+// the second. Node joins duplicates the same way, which is what hyperclay and
+// hyperclay-local already see, and three hosts answering one request differently is
+// the class of bug this train exists to remove.
+func listHeader(r *http.Request, name string) (string, bool) {
+	values := r.Header.Values(name)
+	if len(values) == 0 {
+		return "", false
+	}
+	return strings.Join(values, ", "), true
+}
+
+// conflictAttribution names what moved a document out from under a conditional
+// save, or returns "" when this host genuinely cannot tell (spec §6).
+//
+// Only one of the registered values is knowable here, and only sometimes. If the
+// bytes on disk are ones this process wrote during this run, then the write that
+// moved the document past the caller's stamp went through this same server, which
+// on a single-user desktop host means the same person in another tab or on another
+// device: `another-tab`.
+//
+// Everything else is omitted rather than guessed. A change this host did not make
+// came from outside it -- a text editor, a script, a sync client, an agent -- and
+// nothing on this side distinguishes them. §6 is explicit that a host which cannot
+// tell omits the field, because a confident wrong attribution is worse than none,
+// and the wrong answer available here is the reassuring one.
+//
+// WrittenByThisHost, not LastServerWrite alone: that record is also seeded by the
+// first observation of a file, so after a restart an outside edit made while
+// htmlclay was closed is indistinguishable from this host's own write.
+func conflictAttribution(f *session.File, current []byte, readErr error) string {
+	if readErr != nil {
+		return ""
+	}
+	// The digest test alone is not enough: a file can go B -> C -> B, and once it is
+	// back at B every hash this host holds matches again, so an external editor's undo
+	// reads exactly like this host's own write. The watcher records that it saw the
+	// intermediate state, and that record only clears when this host writes again.
+	if f.WrittenByThisHost() && f.LastServerWrite() == versions.Hash(current) && !f.ExternalWriteSinceOwnWrite() {
+		return "another-tab"
+	}
+	return ""
+}
+
+// conflictRefusal writes the §6 refusal: 412, nothing stored, and a body a client
+// can act on.
+//
+// The current stamp rides along so a client can reconcile without a second
+// request. Nothing in the spec requires it and no client is entitled to expect it,
+// but a refusal whose whole point is "your stamp is stale" may as well carry the
+// one that is not.
+func conflictRefusal(w http.ResponseWriter, name, etag, changedBy, saveID string) {
+	body := map[string]any{
+		"ok":      false,
+		"msg":     name + " changed since you last loaded it. Your version was not saved.",
+		"msgType": "error",
+		"code":    "conflict",
+		"etag":    etag,
+	}
+	// Omitted, never sent empty: §6 makes absence the conforming answer, and a
+	// client reads an empty string as an unrecognized value rather than as no
+	// value.
+	if changedBy != "" {
+		body["changedBy"] = changedBy
+	}
+	// The receipt for the bytes that caused this refusal. A client recognising its
+	// OWN id here learns that its own earlier save is what moved the document, which
+	// is a late duplicate rather than a conflict, and re-sends instead of alarming
+	// somebody about themselves. Omitted on the same terms as changedBy.
+	if saveID != "" {
+		body["saveId"] = saveID
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusPreconditionFailed)
+	json.NewEncoder(w).Encode(body)
+}
+
+// blockeditorGeneration keeps the page lineage of the state stored for the bytes on
+// disk, and starts a new one for a first capture, a conversion, or bytes the
+// sidecar holds no state for (an external replacement).
+func (s *Server) blockeditorGeneration(key, absPath, diskHash string, decision pageadmission.Decision) string {
+	if decision == pageadmission.Ordinary && diskHash != "" {
+		if record, ok, err := s.versions.PageStateFor(key, absPath, diskHash); err == nil && ok {
+			return record.Generation
+		}
+	}
+	generation, err := versions.NewPageGeneration()
+	if err != nil {
+		return ""
+	}
+	return generation
+}
+
+// refusePageState answers a save whose page state could not be stored. Nothing
+// was written: the sidecar is written before the file, and the file only after it.
+func (s *Server) refusePageState(w http.ResponseWriter, f *session.File, err error) {
+	if errors.Is(err, versions.ErrInvalidPageState) {
+		s.logger.Printf("Refusing a save of %s: its page state is not valid", f.RelPath)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid page state", "code": "invalid-blockeditor-state"})
+		return
+	}
+	s.logger.Printf("Refusing a save of %s: cannot store its page state: %v", f.RelPath, err)
+	s.writeError(w, http.StatusInternalServerError, "cannot store page state")
+}

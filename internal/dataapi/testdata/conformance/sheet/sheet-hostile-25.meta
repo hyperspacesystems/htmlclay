@@ -1,0 +1,5 @@
+tier: 1
+face: read
+token: api
+expect: ok
+note: hostile: row <tr data-pos="a" data-id="r">

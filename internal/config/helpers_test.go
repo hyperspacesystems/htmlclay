@@ -1,0 +1,640 @@
+package config
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestValidHelperName(t *testing.T) {
+	cases := []struct {
+		name string
+		want bool
+	}{
+		{"search", true},
+		{"search-2", true},
+		{"a", true},
+		{"123", true},
+		{"", false},
+		{"-search", false},
+		{"search-", false},
+		{"Search", false},
+		{"search_tool", false},
+		{"search tool", false},
+		{"café", false},
+		{"abcdefghijklmnopqrstuvwxyz123456", true},
+		{"abcdefghijklmnopqrstuvwxyz1234567", false},
+	}
+	for _, tc := range cases {
+		if got := ValidHelperName(tc.name); got != tc.want {
+			t.Errorf("ValidHelperName(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestHelperRegistryRoundTripAndResolution(t *testing.T) {
+	base := t.TempDir()
+	cfg, _, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := cfg.AddHelperProgram("search", "/helpers/first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := cfg.AddHelperProgram("search", "/helpers/second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ID == second.ID || first.ID == "" || second.ID == "" {
+		t.Fatalf("program IDs are not distinct opaque values: %q, %q", first.ID, second.ID)
+	}
+
+	resolution, ok := cfg.ResolveHelper("/docs/app.htmlclay", "search", true)
+	if !ok || resolution.Decided || resolution.Allowed || resolution.Program.ID != "" ||
+		len(resolution.Candidates) != 2 || resolution.Candidates[0].ID != first.ID || resolution.Candidates[1].ID != second.ID {
+		t.Fatalf("an undecided name with two registrations must list both and pick neither: %+v, %v", resolution, ok)
+	}
+	if previous, ok := cfg.SetHelperAnyDocument(second.ID, true); !ok || previous {
+		t.Fatalf("SetHelperAnyDocument = %v, %v", previous, ok)
+	}
+	resolution, ok = cfg.ResolveHelper("/docs/app.htmlclay", "search", true)
+	if !ok || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != second.ID {
+		t.Fatalf("any-document resolution = %+v, %v", resolution, ok)
+	}
+
+	allow := HelperDecision{Document: "/docs/app.htmlclay", Name: "search", Program: first.ID, Allowed: true, DecidedAt: 20}
+	if _, _, err := cfg.DecideHelper(allow); err != nil {
+		t.Fatal(err)
+	}
+	resolution, ok = cfg.ResolveHelper(allow.Document, allow.Name, true)
+	if !ok || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != first.ID {
+		t.Fatalf("allowed resolution = %+v, %v", resolution, ok)
+	}
+
+	replaced := HelperDecision{Document: allow.Document, Name: allow.Name, Program: second.ID, Allowed: true, DecidedAt: 30}
+	previous, had, err := cfg.DecideHelper(replaced)
+	if err != nil || !had || previous != allow {
+		t.Fatalf("replace decision = %+v, %v, %v", previous, had, err)
+	}
+	resolution, ok = cfg.ResolveHelper(replaced.Document, replaced.Name, true)
+	if !ok || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != second.ID {
+		t.Fatalf("replaced resolution = %+v, %v", resolution, ok)
+	}
+
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolution, ok = loaded.ResolveHelper(replaced.Document, replaced.Name, true)
+	if !ok || !resolution.Decided || !resolution.Allowed || resolution.Program.Path != second.Path {
+		t.Fatalf("round-trip resolution = %+v, %v", resolution, ok)
+	}
+	data, err := os.ReadFile(filepath.Join(DirFrom(base), "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if fields["helperPrograms"] == nil || fields["helperDecisions"] == nil {
+		t.Fatalf("helper fields use the wrong JSON keys: %s", data)
+	}
+}
+
+func TestHelperMutationsCanRestoreExactSavedBytes(t *testing.T) {
+	base := t.TempDir()
+	cfg, _, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, _ := cfg.AddHelperProgram("search", "/helpers/first")
+	second, _ := cfg.AddHelperProgram("format", "/helpers/second")
+	decisions := []HelperDecision{
+		{Document: "/docs/a.htmlclay", Name: "search", Program: first.ID, Allowed: true, DecidedAt: 30},
+		{Document: "/docs/b.htmlclay", Name: "format", Program: second.ID, Allowed: true, DecidedAt: 10},
+		{Document: "/docs/c.htmlclay", Name: "search", Program: first.ID, Allowed: true, DecidedAt: 20},
+	}
+	for _, d := range decisions {
+		if _, _, err := cfg.DecideHelper(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(DirFrom(base), "config.json")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	removedProgram, ok := cfg.RemoveHelperProgram(first.ID)
+	if !ok || removedProgram != first {
+		t.Fatalf("remove returned %+v, %v", removedProgram, ok)
+	}
+	if got := cfg.HelperDecisionList(); len(got) != len(decisions) {
+		t.Fatalf("removing a program dropped decision rows: %+v", got)
+	}
+	if !cfg.RestoreHelperProgram(removedProgram) {
+		t.Fatal("program restore failed")
+	}
+	forgotten := cfg.ForgetHelperProgramDecisions(first.ID)
+	if got := cfg.RestoreHelperDecisions(forgotten); got != len(forgotten) {
+		t.Fatalf("restored %d forgotten decisions, want %d", got, len(forgotten))
+	}
+	one, ok := cfg.ForgetHelperDecision(decisions[1].Document, decisions[1].Name)
+	if !ok || one != decisions[1] || cfg.RestoreHelperDecisions([]HelperDecision{one}) != 1 {
+		t.Fatalf("single decision restore failed: %+v, %v", one, ok)
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(after, before) {
+		t.Fatalf("restore changed saved bytes:\nbefore: %s\nafter:  %s", before, after)
+	}
+}
+
+func TestHelperCapsRefuseInsertion(t *testing.T) {
+	cfg := &Config{}
+	for i := 0; i < helperProgramCap; i++ {
+		if _, err := cfg.AddHelperProgram(fmt.Sprintf("helper%d", i), fmt.Sprintf("/helper/%d", i)); err != nil {
+			t.Fatalf("program %d: %v", i, err)
+		}
+	}
+	if _, err := cfg.AddHelperProgram("overflow", "/helper/overflow"); !errors.Is(err, ErrHelperRegistryFull) {
+		t.Fatalf("program overflow error = %v", err)
+	}
+	program := cfg.HelperProgramList()[0]
+	for i := 0; i < helperDecisionCap; i++ {
+		d := HelperDecision{Document: fmt.Sprintf("/doc/%d", i), Name: "search", Program: program.ID, Allowed: true, DecidedAt: int64(i)}
+		if _, _, err := cfg.DecideHelper(d); err != nil {
+			t.Fatalf("decision %d: %v", i, err)
+		}
+	}
+	if _, _, err := cfg.DecideHelper(HelperDecision{Document: "/overflow", Name: "search", Program: program.ID, Allowed: true}); !errors.Is(err, ErrHelperDecisionsFull) {
+		t.Fatalf("decision overflow error = %v", err)
+	}
+	updated := HelperDecision{Document: "/doc/0", Name: "search", Program: program.ID, Allowed: true, DecidedAt: 999}
+	if previous, had, err := cfg.DecideHelper(updated); err != nil || !had || previous.Document != updated.Document {
+		t.Fatalf("replacement at cap = %+v, %v, %v", previous, had, err)
+	}
+}
+
+func TestHelperLoadNormalization(t *testing.T) {
+	base := t.TempDir()
+	programs := []HelperProgram{
+		{ID: "kept", Name: "search", Path: "/helpers/search", AddedAt: 2},
+		{ID: "kept", Name: "other", Path: "/helpers/duplicate", AddedAt: 3},
+		{ID: "invalid", Name: "Not Valid", Path: "/helpers/invalid", AddedAt: 1},
+	}
+	decisions := []HelperDecision{
+		{Document: "/docs/a", Name: "search", Program: "kept", Allowed: true, DecidedAt: 1},
+		{Document: "/docs/a", Name: "search", Program: "kept", Allowed: true, DecidedAt: 5},
+		{Document: "/docs/b", Name: "Not Valid", DecidedAt: 2},
+		{Document: "/docs/c", Name: "other", Program: "missing", Allowed: true, DecidedAt: 3},
+		{Document: "/docs/d", Name: "format", Program: "kept", DecidedAt: 4},
+	}
+	raw, err := json.Marshal(map[string]any{
+		"startOnLogin":    true,
+		"helperPrograms":  programs,
+		"helperDecisions": decisions,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeConfigJSON(t, base, string(raw))
+
+	cfg, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.DroppedHelperPrograms != 2 || res.DroppedHelperDecisions != 3 {
+		t.Fatalf("normalization result = %+v", res)
+	}
+	if got := cfg.HelperProgramList(); len(got) != 1 || got[0] != programs[0] {
+		t.Fatalf("programs after normalization = %+v", got)
+	}
+	// Ordered by DecidedAt. /docs/c names a program this config does not
+	// register: it survives the load and reads as undecided, the same way it
+	// survives RemoveHelperProgram, rather than being deleted behind the user.
+	// Both refusals are gone: a refusal lasts one open and is never stored.
+	got := cfg.HelperDecisionList()
+	if len(got) != 2 ||
+		got[0].Document != "/docs/c" || got[0].Program != "missing" ||
+		got[1].DecidedAt != 5 {
+		t.Fatalf("decisions after normalization = %+v", got)
+	}
+	if resolution, _ := cfg.ResolveHelper("/docs/c", "other", true); resolution.Decided {
+		t.Fatalf("a kept decision naming an unregistered program must read as undecided: %+v", resolution)
+	}
+	if !cfg.StartOnLoginEnabled() {
+		t.Fatal("normalization reset an unrelated setting")
+	}
+}
+
+func TestHelperLoadCapsMissingThenOldestDecision(t *testing.T) {
+	base := t.TempDir()
+	present := t.TempDir()
+	programs := make([]HelperProgram, helperProgramCap+1)
+	for i := range programs {
+		programs[i] = HelperProgram{ID: fmt.Sprintf("p%d", i), Name: fmt.Sprintf("p%d", i), Path: fmt.Sprintf("/p/%d", i), AddedAt: int64(i)}
+	}
+	decisions := make([]HelperDecision, 0, helperDecisionCap+2)
+	for i := 0; i < helperDecisionCap+1; i++ {
+		decisions = append(decisions, HelperDecision{Document: present, Name: fmt.Sprintf("h%d", i), Program: "p0", Allowed: true, DecidedAt: int64(i + 1)})
+	}
+	missing := HelperDecision{Document: filepath.Join(base, "missing.htmlclay"), Name: "missing", Program: "p0", Allowed: true, DecidedAt: 9999}
+	decisions = append(decisions, missing)
+	raw, err := json.Marshal(map[string]any{"helperPrograms": programs, "helperDecisions": decisions})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeConfigJSON(t, base, string(raw))
+
+	cfg, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.HelperProgramList()) != helperProgramCap || res.DroppedHelperPrograms != 1 {
+		t.Fatalf("program cap result = %d, %+v", len(cfg.HelperProgramList()), res)
+	}
+	got := cfg.HelperDecisionList()
+	if len(got) != helperDecisionCap || res.DroppedHelperDecisions != 2 {
+		t.Fatalf("decision cap result = %d, %+v", len(got), res)
+	}
+	for _, d := range got {
+		if d == missing || d.Name == "h0" {
+			t.Fatalf("load retained an eviction-priority decision: %+v", d)
+		}
+	}
+}
+
+func TestHelperErrorsAndListCopies(t *testing.T) {
+	cfg := &Config{}
+	if _, err := cfg.AddHelperProgram("Bad Name", "/helper"); !errors.Is(err, ErrHelperNameInvalid) {
+		t.Fatalf("invalid program name error = %v", err)
+	}
+	program, err := cfg.AddHelperProgram("search", "/helper")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := cfg.DecideHelper(HelperDecision{Name: "Bad Name"}); !errors.Is(err, ErrHelperNameInvalid) {
+		t.Fatalf("invalid decision name error = %v", err)
+	}
+	if _, _, err := cfg.DecideHelper(HelperDecision{Document: "/doc", Name: "search", Program: "missing", Allowed: true}); err == nil {
+		t.Fatal("allowed decision for an unknown program succeeded")
+	}
+	if _, _, err := cfg.DecideHelper(HelperDecision{Document: "/doc", Name: "search", Program: program.ID, Allowed: true}); err != nil {
+		t.Fatal(err)
+	}
+	programList := cfg.HelperProgramList()
+	decisionList := cfg.HelperDecisionList()
+	programList[0].Name = "changed"
+	decisionList[0].Name = "changed"
+	if cfg.HelperProgramList()[0].Name != "search" || cfg.HelperDecisionList()[0].Name != "search" {
+		t.Fatal("list method exposed mutable config storage")
+	}
+}
+
+// The failure matrix's "decision exists, program unregistered" row. Unregistering
+// a program must leave its decision rows alone: they read as undecided while it
+// is gone, and re-registering the same ID brings them back rather than asking
+// every affected document again.
+func TestUnregisteringAProgramKeepsItsDecisions(t *testing.T) {
+	cfg := &Config{}
+	program, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision := HelperDecision{Document: "/docs/a.htmlclay", Name: "search", Program: program.ID, Allowed: true, DecidedAt: 1}
+	if _, _, err := cfg.DecideHelper(decision); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := cfg.RemoveHelperProgram(program.ID); !ok {
+		t.Fatal("remove reported the program was not registered")
+	}
+	if got := cfg.HelperDecisionList(); len(got) != 1 || got[0] != decision {
+		t.Fatalf("removal dropped the decision row: %+v", got)
+	}
+	if resolution, _ := cfg.ResolveHelper(decision.Document, decision.Name, true); resolution.Decided {
+		t.Fatalf("a decision naming an unregistered program must read as undecided: %+v", resolution)
+	}
+
+	if !cfg.RestoreHelperProgram(program) {
+		t.Fatal("restoring the program failed")
+	}
+	resolution, ok := cfg.ResolveHelper(decision.Document, decision.Name, true)
+	if !ok || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+		t.Fatalf("re-registering the same ID must restore the decision: %+v, %v", resolution, ok)
+	}
+}
+
+// Rollback must be able to put back exactly the row it displaced, including one
+// whose program is no longer registered, because removal and load both keep that
+// row. A failed approval used to delete the replacement and silently fail to
+// restore the original.
+func TestRestoringADecisionWhoseProgramIsGoneSucceeds(t *testing.T) {
+	cfg := &Config{}
+	stale := HelperDecision{Document: "/docs/a.htmlclay", Name: "search", Program: "gone", Allowed: true, DecidedAt: 1}
+	if got := cfg.RestoreHelperDecisions([]HelperDecision{stale}); got != 1 {
+		t.Fatalf("restored %d rows, want 1", got)
+	}
+	if got := cfg.HelperDecisionList(); len(got) != 1 || got[0] != stale {
+		t.Fatalf("decisions after restore = %+v", got)
+	}
+	// Allowed with no program at all stays refused: that row is malformed, not
+	// stale, and nothing can ever bind it.
+	malformed := HelperDecision{Document: "/docs/b.htmlclay", Name: "search", Allowed: true, DecidedAt: 2}
+	if got := cfg.RestoreHelperDecisions([]HelperDecision{malformed}); got != 0 {
+		t.Fatalf("restored %d malformed rows, want 0", got)
+	}
+}
+
+func TestResolveHelperNeverPicksBetweenSharedNames(t *testing.T) {
+	cfg := &Config{}
+	only, err := cfg.AddHelperProgram("ocr", "/helpers/ocr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolution, ok := cfg.ResolveHelper("/docs/a.htmlclay", "ocr", true)
+	if !ok || resolution.Decided || resolution.Program.ID != only.ID || len(resolution.Candidates) != 1 {
+		t.Fatalf("a single registration is proposed as the program: %+v, %v", resolution, ok)
+	}
+
+	first, _ := cfg.AddHelperProgram("search", "/helpers/first")
+	second, _ := cfg.AddHelperProgram("search", "/helpers/second")
+	cfg.SetHelperAnyDocument(first.ID, true)
+	cfg.SetHelperAnyDocument(second.ID, true)
+	resolution, _ = cfg.ResolveHelper("/docs/a.htmlclay", "search", true)
+	if resolution.Decided || resolution.Program.ID != "" || len(resolution.Candidates) != 2 {
+		t.Fatalf("two programs allowed for any document must leave the name undecided: %+v", resolution)
+	}
+
+	if resolution, ok := cfg.ResolveHelper("/docs/a.htmlclay", "missing", true); ok || resolution.Decided || len(resolution.Candidates) != 0 {
+		t.Fatalf("an unregistered name = %+v, %v", resolution, ok)
+	}
+}
+
+// Forgetting a program's decisions clears the allows that point at it, and
+// nothing that belongs to another name or another program.
+func TestForgettingDecisionsReachesOnlyThatProgramsAllows(t *testing.T) {
+	cfg := &Config{}
+	search, _ := cfg.AddHelperProgram("search", "/helpers/search")
+	other, _ := cfg.AddHelperProgram("search", "/helpers/other")
+	ocr, _ := cfg.AddHelperProgram("ocr", "/helpers/ocr")
+	decisions := []HelperDecision{
+		{Document: "/docs/a.htmlclay", Name: "search", Program: search.ID, Allowed: true, DecidedAt: 1},
+		{Document: "/docs/b.htmlclay", Name: "search", Program: other.ID, Allowed: true, DecidedAt: 2},
+		{Document: "/docs/c.htmlclay", Name: "ocr", Program: ocr.ID, Allowed: true, DecidedAt: 3},
+	}
+	for _, d := range decisions {
+		if _, _, err := cfg.DecideHelper(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	removed := cfg.ForgetHelperProgramDecisions(search.ID)
+	if len(removed) != 1 || removed[0] != decisions[0] {
+		t.Fatalf("forgetting search removed %+v, want only its allow", removed)
+	}
+	if got := cfg.HelperDecisionList(); len(got) != 2 || got[0] != decisions[1] || got[1] != decisions[2] {
+		t.Fatalf("remaining decisions = %+v", got)
+	}
+
+	if removed := cfg.ForgetHelperProgramDecisions("not-registered"); len(removed) != 0 {
+		t.Fatalf("an unknown id forgot %+v", removed)
+	}
+}
+
+// 1.9.x wrote a refusal as allowed:false with no program. A refusal now lasts
+// one open, so that row is dropped at load and the document asks again.
+func TestRefusalsFrom19AreDroppedOnLoad(t *testing.T) {
+	base := t.TempDir()
+	if err := os.MkdirAll(DirFrom(base), 0700); err != nil {
+		t.Fatal(err)
+	}
+	legacy := `{"helperPrograms":[{"id":"p1","name":"search","path":"/helpers/search","addedAt":1}],` +
+		`"helperDecisions":[{"document":"/docs/a.htmlclay","name":"ocr","allowed":false,"decidedAt":7},` +
+		`{"document":"/docs/b.htmlclay","name":"search","program":"p1","allowed":true,"decidedAt":8}]}`
+	if err := os.WriteFile(filepath.Join(DirFrom(base), "config.json"), []byte(legacy), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.DroppedHelperDecisions != 1 {
+		t.Fatalf("dropped decisions = %d, want the one refusal", res.DroppedHelperDecisions)
+	}
+	got := cfg.HelperDecisionList()
+	if len(got) != 1 || got[0].Name != "search" || !got[0].Allowed || got[0].Program != "p1" {
+		t.Fatalf("decisions after load = %+v, want only the allow", got)
+	}
+	if resolution, _ := cfg.ResolveHelper("/docs/a.htmlclay", "ocr", true); resolution.Decided {
+		t.Fatalf("the 1.9.x refusal survived the load: %+v", resolution)
+	}
+}
+
+func TestDecideHelperRejectsARefusal(t *testing.T) {
+	cfg := &Config{}
+	program, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := cfg.DecideHelper(HelperDecision{Document: "/docs/a.htmlclay", Name: "search", Program: program.ID}); err == nil {
+		t.Fatal("a refusal was stored")
+	}
+	if got := cfg.HelperDecisionList(); len(got) != 0 {
+		t.Fatalf("a rejected refusal left a row: %+v", got)
+	}
+	if _, _, err := cfg.DecideHelper(HelperDecision{Document: "/docs/a.htmlclay", Name: "search", Program: program.ID, Allowed: true}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A refusal row can only reach the struct by hand: DecideHelper refuses it and
+// the load path drops it. ResolveHelper still must not read one as an allow, or
+// a hand-edited config would grant a program the user refused.
+func TestResolveHelperIgnoresARefusalRow(t *testing.T) {
+	cfg := &Config{}
+	program, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.HelperDecisions = []HelperDecision{
+		{Document: "/docs/a.htmlclay", Name: "search", Program: program.ID, DecidedAt: 1},
+	}
+	resolution, ok := cfg.ResolveHelper("/docs/a.htmlclay", "search", true)
+	if resolution.Allowed {
+		t.Fatalf("a refusal row resolved as an allow: %+v, %v", resolution, ok)
+	}
+	if resolution.Decided {
+		t.Fatalf("a refusal row resolved as decided: %+v, %v", resolution, ok)
+	}
+	if resolution.Program.ID != program.ID || len(resolution.Candidates) != 1 {
+		t.Fatalf("the refusal row hid the registration: %+v, %v", resolution, ok)
+	}
+}
+
+func TestResolveHelperAnyDocumentNeedsTrust(t *testing.T) {
+	cfg := &Config{}
+	program, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.SetHelperAnyDocument(program.ID, true); !ok {
+		t.Fatal("SetHelperAnyDocument reported the program was not registered")
+	}
+	resolution, ok := cfg.ResolveHelper("/docs/a.htmlclay", "search", true)
+	if !ok || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+		t.Fatalf("any-document resolution inside a trusted folder = %+v, %v", resolution, ok)
+	}
+	resolution, ok = cfg.ResolveHelper("/docs/a.htmlclay", "search", false)
+	if !ok || resolution.Decided || resolution.Allowed || resolution.Program.ID != program.ID ||
+		len(resolution.Candidates) != 1 || resolution.Candidates[0].ID != program.ID {
+		t.Fatalf("any-document resolution outside a trusted folder = %+v, %v, want the registration proposed but undecided", resolution, ok)
+	}
+}
+
+func TestResolveHelperPerDocumentAllowIgnoresTrust(t *testing.T) {
+	cfg := &Config{}
+	program, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	allow := HelperDecision{Document: "/docs/a.htmlclay", Name: "search", Program: program.ID, Allowed: true, DecidedAt: 1}
+	if _, _, err := cfg.DecideHelper(allow); err != nil {
+		t.Fatal(err)
+	}
+	resolution, ok := cfg.ResolveHelper(allow.Document, allow.Name, false)
+	if !ok || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+		t.Fatalf("per-document allow outside a trusted folder = %+v, %v", resolution, ok)
+	}
+}
+
+func TestRevokeHelperBeatsAnyDocument(t *testing.T) {
+	cfg := &Config{}
+	program, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.SetHelperAnyDocument(program.ID, true); !ok {
+		t.Fatal("SetHelperAnyDocument reported the program was not registered")
+	}
+	if previous, had, err := cfg.RevokeHelper("/docs/a.htmlclay", "search"); err != nil || had || previous != (HelperDecision{}) {
+		t.Fatalf("RevokeHelper = %+v, %v, %v, want no previous row", previous, had, err)
+	}
+	resolution, ok := cfg.ResolveHelper("/docs/a.htmlclay", "search", true)
+	if !ok || !resolution.Decided || !resolution.Revoked || resolution.Allowed {
+		t.Fatalf("revoked resolution = %+v, %v", resolution, ok)
+	}
+	resolution, ok = cfg.ResolveHelper("/docs/b.htmlclay", "search", true)
+	if !ok || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+		t.Fatalf("another document lost the any-document grant: %+v, %v", resolution, ok)
+	}
+}
+
+func TestRevokeHelperReplacesAllowAndRestores(t *testing.T) {
+	cfg := &Config{}
+	program, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	allow := HelperDecision{Document: "/docs/a.htmlclay", Name: "search", Program: program.ID, Allowed: true, DecidedAt: 1}
+	if _, _, err := cfg.DecideHelper(allow); err != nil {
+		t.Fatal(err)
+	}
+	previous, had, err := cfg.RevokeHelper(allow.Document, allow.Name)
+	if err != nil || !had || previous != allow {
+		t.Fatalf("RevokeHelper = %+v, %v, %v, want the allow it replaced", previous, had, err)
+	}
+	if resolution, _ := cfg.ResolveHelper(allow.Document, allow.Name, true); !resolution.Revoked || resolution.Allowed {
+		t.Fatalf("the allow survived the revocation: %+v", resolution)
+	}
+	if _, ok := cfg.ForgetHelperDecision(allow.Document, allow.Name); !ok {
+		t.Fatal("ForgetHelperDecision reported no row")
+	}
+	if got := cfg.RestoreHelperDecisions([]HelperDecision{previous}); got != 1 {
+		t.Fatalf("restored %d rows, want 1", got)
+	}
+	resolution, _ := cfg.ResolveHelper(allow.Document, allow.Name, true)
+	if !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+		t.Fatalf("restored resolution = %+v", resolution)
+	}
+}
+
+// A revocation is stored so it outlasts the any-document grant, so the load path
+// keeps it. A 1.9.x refusal (allowed false with a program) is still dropped.
+func TestNormalizeKeepsRevocations(t *testing.T) {
+	base := t.TempDir()
+	if err := os.MkdirAll(DirFrom(base), 0700); err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"helperPrograms":[{"id":"p1","name":"search","path":"/helpers/search","addedAt":1}],` +
+		`"helperDecisions":[{"document":"/docs/a.htmlclay","name":"search","revoked":true,"allowed":false,"decidedAt":7},` +
+		`{"document":"/docs/b.htmlclay","name":"search","program":"p1","allowed":false,"decidedAt":8},` +
+		`{"document":"/docs/c.htmlclay","name":"search","program":"p1","allowed":true,"decidedAt":9}]}`
+	if err := os.WriteFile(filepath.Join(DirFrom(base), "config.json"), []byte(raw), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.DroppedHelperDecisions != 1 {
+		t.Fatalf("dropped decisions = %d, want the one legacy refusal", res.DroppedHelperDecisions)
+	}
+	got := cfg.HelperDecisionList()
+	if len(got) != 2 {
+		t.Fatalf("decisions after load = %+v, want the revocation and the allow", got)
+	}
+	if !got[0].Revoked || got[0].Allowed || got[0].Program != "" || got[0].Document != "/docs/a.htmlclay" {
+		t.Fatalf("revocation row after load = %+v", got[0])
+	}
+	if !got[1].Allowed || got[1].Revoked || got[1].Document != "/docs/c.htmlclay" {
+		t.Fatalf("allow row after load = %+v", got[1])
+	}
+}
+
+func TestSetHelperProgramPathKeepsID(t *testing.T) {
+	cfg := &Config{}
+	program, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	allow := HelperDecision{Document: "/docs/a.htmlclay", Name: "search", Program: program.ID, Allowed: true, DecidedAt: 1}
+	if _, _, err := cfg.DecideHelper(allow); err != nil {
+		t.Fatal(err)
+	}
+	previous, ok := cfg.SetHelperProgramPath(program.ID, "/helpers/search-2")
+	if !ok || previous != program.Path {
+		t.Fatalf("SetHelperProgramPath = %q, %v, want the old path", previous, ok)
+	}
+	moved, ok := cfg.LookupHelperProgram(program.ID)
+	if !ok || moved.ID != program.ID || moved.Path != "/helpers/search-2" || moved.Name != program.Name {
+		t.Fatalf("program after relink = %+v, %v", moved, ok)
+	}
+	if got := cfg.HelperDecisionList(); len(got) != 1 || got[0] != allow {
+		t.Fatalf("decisions after relink = %+v", got)
+	}
+	if resolution, _ := cfg.ResolveHelper(allow.Document, allow.Name, true); !resolution.Allowed || resolution.Program.Path != "/helpers/search-2" {
+		t.Fatalf("resolution after relink = %+v", resolution)
+	}
+	if _, ok := cfg.SetHelperProgramPath("not-registered", "/helpers/none"); ok {
+		t.Fatal("SetHelperProgramPath accepted an unknown id")
+	}
+}

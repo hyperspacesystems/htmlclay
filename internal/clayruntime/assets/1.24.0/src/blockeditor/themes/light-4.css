@@ -1,0 +1,299 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
+/* Light 4: warm paper, compact Inter with small 14px section heads, amber selection and frosted faint chrome, from the Gemini Argon bake-off seat. */
+
+@import url("./content.css");
+
+:where(article[data-blockeditor], .blockeditor-shell) {
+  --chart-1: #8A6A2E;
+  --chart-2: #6d4e0b;
+  --chart-3: #6E6A62;
+  --chart-4: #2B2926;
+  --chart-5: #9B968C;
+  --chart-6: #3B3833;
+  --chart-text: #2B2926;
+  --blockeditor-bg: #FAF8F4;
+  --blockeditor-ink: #2B2926;
+  --blockeditor-ink-strong: #1E1D1A;
+  --blockeditor-ink-soft: #6E6A62;
+  --blockeditor-ink-faint: #9B968C;
+  --blockeditor-rule: rgba(31, 30, 27, 0.08);
+  --blockeditor-accent: #8A6A2E;
+  --blockeditor-link: #6d4e0b;
+  --blockeditor-caret: #2B2926;
+  --blockeditor-selection: rgba(196, 152, 74, 0.22);
+
+  --blockeditor-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --blockeditor-font-display: var(--blockeditor-font);
+  --blockeditor-font-heading: var(--blockeditor-font);
+  --blockeditor-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --blockeditor-font-size: 16px;
+  --blockeditor-line-height: 1.68;
+  --blockeditor-measure: 586px;
+  --blockeditor-pad-top: 84px;
+  --blockeditor-h1-size: 27px;
+  --blockeditor-h1-weight: 600;
+  --blockeditor-h1-tracking: -0.022em;
+  --blockeditor-h1-line: 1.24;
+  --blockeditor-h2-size: 14px;
+  --blockeditor-h2-weight: 600;
+  --blockeditor-h3-size: 14px;
+  --blockeditor-h3-weight: 500;
+  --blockeditor-block-gap: 0.32em;
+  --blockeditor-indent: 1.375em;
+
+  --blockeditor-marker: #9B968C;
+  --blockeditor-check-size: 16px;
+  --blockeditor-check-radius: 4px;
+  --blockeditor-check-border: rgba(31, 30, 27, 0.28);
+  --blockeditor-check-fill: #3B3833;
+  --blockeditor-check-ink: #FAF8F4;
+  --blockeditor-done-ink: #6E6A62;
+  --blockeditor-toggle-ink: #6E6A62;
+  --blockeditor-callout-bg: rgba(31, 30, 27, 0.026);
+  --blockeditor-callout-line: rgba(31, 30, 27, 0.07);
+  --blockeditor-code-bg: rgba(31, 30, 27, 0.055);
+  --blockeditor-code-ink: #35322D;
+
+  --blockeditor-chrome-ink-rest: rgba(31, 30, 27, 0.66);
+  --blockeditor-chrome-ink-moved: rgba(31, 30, 27, 0.80);
+  --blockeditor-chrome-bg-rest: rgba(250, 248, 244, 0.78);
+  --blockeditor-chrome-bg-moved: rgba(250, 248, 244, 0.92);
+  --blockeditor-chrome-line-rest: rgba(31, 30, 27, 0.065);
+  --blockeditor-chrome-line-moved: rgba(31, 30, 27, 0.13);
+  --blockeditor-chrome-shadow-rest: 0 1px 2px rgba(31, 30, 27, 0.025);
+  --blockeditor-chrome-shadow-moved: 0 2px 6px rgba(31, 30, 27, 0.05);
+  --blockeditor-chrome-radius: 8px;
+  --blockeditor-plus-size: 24px;
+  --blockeditor-fade: 180ms;
+
+  --blockeditor-pop-bg: #F6F3EC;
+  --blockeditor-pop-ink: #262421;
+  --blockeditor-pop-muted: #78736A;
+  --blockeditor-pop-line: rgba(31, 30, 27, 0.12);
+  --blockeditor-pop-shadow: 0 10px 28px rgba(31, 30, 27, 0.09), 0 2px 6px rgba(31, 30, 27, 0.05);
+  --blockeditor-pop-hover: rgba(31, 30, 27, 0.065);
+  --blockeditor-pop-radius: 10px;
+  --blockeditor-bar-bg: #F6F3EC;
+  --blockeditor-bar-ink: #262421;
+  --blockeditor-scrim: rgba(24, 23, 20, 0.14);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+article[data-blockeditor] figure[data-type="chart"] { --chart-1: #8A6A2E; --chart-2: #6d4e0b; --chart-3: #6E6A62; --chart-4: #2B2926; --chart-5: #9B968C; --chart-6: #3B3833; --chart-text: #2B2926; max-width: 100%; }
+article[data-blockeditor] figure[data-type="chart"] > svg { display: block; width: 100%; height: auto; color: var(--chart-text); font: 12px Inter, sans-serif; }
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) {
+  letter-spacing: -0.006em;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > p {
+  margin-block-end: 0.62em;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > h2,
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > h3 {
+  margin-block: 1.55em 0.4em;
+  line-height: 1.4;
+  letter-spacing: -0.008em;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) > h1:first-child {
+  margin-block-end: 0.67em;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) :not(pre) > code {
+  font-size: 0.86em;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li[data-kind="check"][data-checked="true"] {
+  text-decoration-color: var(--blockeditor-ink-faint);
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li[data-kind="check"]::before {
+  border-width: 1.25px;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-toggle {
+  padding-block: 7px;
+  padding-inline-end: 10px;
+  border: 1px solid rgba(31, 30, 27, 0.07);
+  border-radius: 7px;
+  background: rgba(31, 30, 27, 0.026);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-toggle-button::before {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: var(--blockeditor-toggle-ink);
+  clip-path: polygon(30% 20%, 80% 50%, 30% 80%);
+  transform-origin: 50% 50%;
+  vertical-align: -0.05em;
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-toggle[data-expanded="true"] > .blockeditor-toggle-button::before {
+  transform: rotate(90deg);
+}
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) aside.blockeditor-callout {
+  border-radius: 7px;
+}
+
+.blockeditor-shell .blockeditor-dock {
+  gap: 2px;
+  padding: 3px 6px;
+}
+
+.blockeditor-shell .blockeditor-dock .blockeditor-tool {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: -0.005em;
+}
+
+.blockeditor-shell .blockeditor-tool svg {
+  width: 14px;
+  height: 14px;
+}
+
+.blockeditor-shell .blockeditor-tool-sep {
+  width: 1px;
+  height: 13px;
+  margin: 0 2px;
+  background: rgba(31, 30, 27, 0.055);
+}
+
+.blockeditor-shell.is-moved .blockeditor-tool-sep {
+  background: rgba(31, 30, 27, 0.10);
+}
+
+.blockeditor-shell .blockeditor-plus {
+  border-radius: 6px;
+  background: rgba(31, 30, 27, 0.022);
+}
+
+.blockeditor-shell.is-moved .blockeditor-plus {
+  background: rgba(31, 30, 27, 0.048);
+}
+
+.blockeditor-shell .blockeditor-plus svg {
+  width: 13px;
+  height: 13px;
+}
+
+.blockeditor-shell .blockeditor-bubble {
+  gap: 2px;
+  padding: 4px 5px;
+  border-radius: 8px;
+}
+
+.blockeditor-shell .blockeditor-bubble .blockeditor-tool {
+  height: 26px;
+  min-width: 26px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.blockeditor-shell .blockeditor-menu {
+  width: 264px;
+  padding: 6px;
+}
+
+.blockeditor-shell .blockeditor-menu-title {
+  padding: 4px 8px 5px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.blockeditor-shell .blockeditor-menu-item {
+  gap: 10px;
+  min-height: 33px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13.5px;
+}
+
+.blockeditor-shell .blockeditor-menu-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: rgba(31, 30, 27, 0.045);
+  border: 1px solid rgba(31, 30, 27, 0.075);
+}
+
+.blockeditor-shell .blockeditor-menu-label {
+  font-weight: 450;
+  line-height: 1.25;
+}
+
+.blockeditor-shell .blockeditor-menu-hint {
+  font-family: var(--blockeditor-font-mono);
+  font-size: 11px;
+}
+
+@media (max-width: 560px) {
+  :where(article[data-blockeditor], .blockeditor-shell) {
+    --blockeditor-font-size: 15.5px;
+    --blockeditor-line-height: 1.62;
+    --blockeditor-h1-size: 23px;
+    --blockeditor-pad-top: 68px;
+  }
+
+  .blockeditor-shell .blockeditor-bubble {
+    padding: 0 16px;
+    border-radius: 0;
+    box-shadow: 0 -4px 16px rgba(31, 30, 27, 0.06);
+  }
+
+  .blockeditor-shell .blockeditor-bubble .blockeditor-tool {
+    height: 34px;
+    min-width: 36px;
+    font-size: 13px;
+  }
+
+  .blockeditor-shell .blockeditor-menu {
+    width: auto;
+    padding: 8px 12px 12px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .blockeditor-shell .blockeditor-menu::before {
+    content: "";
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 2px auto 8px;
+    border-radius: 2px;
+    background: var(--blockeditor-pop-line);
+  }
+
+  .blockeditor-shell .blockeditor-menu-item {
+    min-height: 45px;
+    padding: 6px 10px;
+    font-size: 14.5px;
+  }
+
+  .blockeditor-shell .blockeditor-menu-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .blockeditor-shell .blockeditor-plus {
+    width: 28px;
+    height: 28px;
+  }
+}

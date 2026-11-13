@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "patch is a non-empty list of operations",
+  "status": 400,
+  "code": "bad_patch"
+}

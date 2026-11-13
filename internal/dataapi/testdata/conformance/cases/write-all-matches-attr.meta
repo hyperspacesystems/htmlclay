@@ -1,0 +1,6 @@
+tier: 1
+face: write
+expect: ok
+skip: htmlclay=all-matches form not ported yet (multi-page sites release 1, step G1)
+note: The marker goes on the selector, before the @prop separator, and every match's attribute
+note: is written.

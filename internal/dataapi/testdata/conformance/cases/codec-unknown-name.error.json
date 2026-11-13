@@ -1,0 +1,5 @@
+{
+  "type": "UnknownCodec",
+  "message": "unknown codec \"nope\": no codec by that name is given to this call",
+  "status": 400
+}

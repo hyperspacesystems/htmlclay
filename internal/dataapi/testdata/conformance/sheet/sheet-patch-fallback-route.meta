@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: ok
+note: a grid outside the tree route is read through the tree and refused, not patched

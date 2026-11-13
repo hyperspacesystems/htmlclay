@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "render needs a range, for example range=A1:C10&render=formulas",
+  "status": 400,
+  "code": "bad_render"
+}

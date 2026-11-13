@@ -1,0 +1,5 @@
+{
+  "type": "RulesParseError",
+  "message": "The @codec(name) rule form needs a rules tag with data-rules-version=\"2\".",
+  "status": 400
+}

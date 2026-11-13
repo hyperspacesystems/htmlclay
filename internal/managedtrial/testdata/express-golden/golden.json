@@ -1,0 +1,488 @@
+[
+  {
+    "request": {
+      "method": "GET",
+      "path": "/text",
+      "headers": {}
+    },
+    "status": 200,
+    "headers": {
+      "content-length": "11",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"b-Kq5sNclPz7QV2+lfQIuc6R7oRu0\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "aGVsbG8gd29ybGQ="
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {}
+    },
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXowMTIzNDU2Nzg5"
+  },
+  {
+    "request": {
+      "method": "HEAD",
+      "path": "/text",
+      "headers": {}
+    },
+    "status": 200,
+    "headers": {
+      "content-length": "11",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"b-Kq5sNclPz7QV2+lfQIuc6R7oRu0\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": ""
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/text",
+      "headers": {
+        "if-none-match": "W/\"b-Kq5sNclPz7QV2+lfQIuc6R7oRu0\""
+      }
+    },
+    "status": 304,
+    "headers": {
+      "etag": "W/\"b-Kq5sNclPz7QV2+lfQIuc6R7oRu0\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": ""
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/text",
+      "headers": {
+        "if-none-match": "\"0000000-deadbeef\""
+      }
+    },
+    "status": 200,
+    "headers": {
+      "content-length": "11",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"b-Kq5sNclPz7QV2+lfQIuc6R7oRu0\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "aGVsbG8gd29ybGQ="
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/text",
+      "headers": {
+        "if-none-match": "*"
+      }
+    },
+    "status": 304,
+    "headers": {
+      "etag": "W/\"b-Kq5sNclPz7QV2+lfQIuc6R7oRu0\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": ""
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/text",
+      "headers": {
+        "if-none-match": "W/\"b-Kq5sNclPz7QV2+lfQIuc6R7oRu0\"",
+        "cache-control": "no-cache"
+      }
+    },
+    "status": 200,
+    "headers": {
+      "content-length": "11",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"b-Kq5sNclPz7QV2+lfQIuc6R7oRu0\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "aGVsbG8gd29ybGQ="
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "if-none-match": "W/\"24-16f6435cc88\""
+      }
+    },
+    "status": 304,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": ""
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "if-modified-since": "Thu, 02 Jan 2020 03:04:06 GMT"
+      }
+    },
+    "status": 304,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": ""
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "if-modified-since": "Thu, 02 Jan 2020 03:04:04 GMT"
+      }
+    },
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXowMTIzNDU2Nzg5"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "range": "bytes=0-4"
+      }
+    },
+    "status": 206,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "5",
+      "content-range": "bytes 0-4/36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "YWJjZGU="
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "range": "bytes=-3"
+      }
+    },
+    "status": 206,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "3",
+      "content-range": "bytes 33-35/36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "Nzg5"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "range": "bytes=1000-2000"
+      }
+    },
+    "status": 416,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "21",
+      "content-range": "bytes */36",
+      "content-type": "text/plain; charset=utf-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "SW50ZXJuYWwgc2VydmVyIGVycm9y"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "range": "bytes=1000-2000",
+        "if-range": "W/\"24-16f6435cc88\""
+      }
+    },
+    "status": 416,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "21",
+      "content-range": "bytes */36",
+      "content-type": "text/plain; charset=utf-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "SW50ZXJuYWwgc2VydmVyIGVycm9y"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "range": "bytes=1000-2000",
+        "if-range": "\"0000000-deadbeef\""
+      }
+    },
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXowMTIzNDU2Nzg5"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "range": "bytes=0-1,3-4"
+      }
+    },
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXowMTIzNDU2Nzg5"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "range": "bytes=0-2",
+        "if-range": "W/\"24-16f6435cc88\""
+      }
+    },
+    "status": 206,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "3",
+      "content-range": "bytes 0-2/36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "YWJj"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "range": "bytes=0-2",
+        "if-range": "\"0000000-deadbeef\""
+      }
+    },
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXowMTIzNDU2Nzg5"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "if-match": "\"0000000-deadbeef\""
+      }
+    },
+    "status": 412,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "21",
+      "content-type": "text/plain; charset=utf-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "SW50ZXJuYWwgc2VydmVyIGVycm9y"
+  },
+  {
+    "request": {
+      "method": "HEAD",
+      "path": "/file",
+      "headers": {}
+    },
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "36",
+      "content-type": "text/plain; charset=UTF-8",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": ""
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/json",
+      "headers": {}
+    },
+    "status": 200,
+    "headers": {
+      "content-length": "96",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"60-MchCyfzn6Ay9Av2mYqg2w6t5nYo\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "eyJodG1sIjoiPGI+JjwvYj4iLCJhY2NlbnQiOiLDqSIsImVtb2ppIjoi8J+OiSIsImxpbmUiOiLigKgiLCJuIjoxLCJvayI6dHJ1ZSwibmVzdGVkIjp7ImEiOiJ4In19"
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/empty",
+      "headers": {}
+    },
+    "status": 200,
+    "headers": {
+      "content-length": "0",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": ""
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/buffer",
+      "headers": {}
+    },
+    "status": 200,
+    "headers": {
+      "content-length": "5",
+      "content-type": "application/octet-stream",
+      "etag": "W/\"5-eBh6PGFDRRhkAm07SCqt5CvXwn8\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "AAEC/v8="
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/forbidden",
+      "headers": {}
+    },
+    "status": 403,
+    "headers": {
+      "content-length": "19",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"13-OxsTL6IB85fkJxv9HO8uum0slCI\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "SW52YWxpZCBIb3N0IGhlYWRlcg=="
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/missing",
+      "headers": {}
+    },
+    "status": 404,
+    "headers": {
+      "content-length": "14",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "RmlsZSBub3QgZm91bmQ="
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/cookies",
+      "headers": {}
+    },
+    "status": 200,
+    "headers": {
+      "content-length": "2",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2-eoX0dku9ba8cNUXvu/DyeabcC+s\"",
+      "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": "b2s="
+  },
+  {
+    "request": {
+      "method": "GET",
+      "path": "/file",
+      "headers": {
+        "if-none-match": "*",
+        "if-modified-since": "Thu, 02 Jan 2020 03:04:05 GMT"
+      }
+    },
+    "status": 304,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "etag": "W/\"24-16f6435cc88\"",
+      "last-modified": "Thu, 02 Jan 2020 03:04:05 GMT",
+      "x-powered-by": "Express"
+    },
+    "bodyBase64": ""
+  }
+]

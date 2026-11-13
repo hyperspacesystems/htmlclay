@@ -1,0 +1,647 @@
+name: Release
+
+# Names the run after what it is releasing AND the commit it came from, so a
+# specific release can be found again later without matching on timestamps.
+# Two releases dispatched close together are otherwise indistinguishable in the
+# run list, and picking the wrong one means watching someone else's build go
+# green and then tagging an untested commit.
+run-name: "Release ${{ inputs.version }} (${{ inputs.source_sha || github.sha }})"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number (without v prefix, e.g. 1.2.3)"
+        required: true
+        type: string
+      source_sha:
+        description: "Exact commit to build. Defaults to the dispatched ref's head."
+        required: false
+        type: string
+
+# One release at a time, and never cancel one in flight: a cancelled run can
+# leave artifacts uploaded to R2 with no manifest naming them, and notarization
+# in particular is not safe to interrupt.
+#
+# That is the ONLY guarantee here, and the comment used to claim more. GitHub
+# keeps a single pending slot, so of two runs waiting behind a third the older
+# is cancelled rather than queued, and it does not promise that queued runs
+# start in dispatch order. Neither matters for how releases actually happen
+# (one operator, minutes apart, each watching its own run), and both would if
+# releases were ever dispatched in a batch.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  # Every job builds this one commit rather than "whatever main is now". Without
+  # it, a push landing between dispatch and checkout ships code the test gate
+  # never saw, and the tag then claims a release that was never built.
+  #
+  # The checkout steps below spell this expression out again rather than reading
+  # SOURCE_SHA. Whether workflow-level env reaches a step's `with:` block is a
+  # context-availability rule, and this workflow signs and notarizes: a wrong
+  # guess there resolves to an empty ref and is discovered mid-release. `inputs`
+  # and `github` are available everywhere, so the checkouts use those directly.
+  SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+
+jobs:
+  # ── Test gate: nothing is released unless the suite passes on every OS ──
+  test:
+    strategy:
+      matrix:
+        os: ["${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}", ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # The release script blocks on this job. An unbounded hang stalls a release
+    # for six hours instead of failing it.
+    timeout-minutes: 20
+    steps:
+      # Before the first checkout, because checkout is what would resolve a
+      # moving name. `actions/checkout` takes a branch or tag as happily as a
+      # commit, so `source_sha: refs/heads/main` would let these three jobs
+      # resolve to different trees, and would then be written into the manifest
+      # as though it identified the build. It identifies nothing: locally
+      # `git diff refs/heads/main..HEAD` is empty, so the board would read
+      # CURRENT with real work unshipped.
+      - name: Refuse a source_sha that is not a full commit id
+        if: inputs.source_sha != ''
+        shell: bash
+        # Through env, never interpolated into the script: a `run:` block that
+        # pastes a dispatch input straight into shell is a command injection.
+        env:
+          CLAIMED_SHA: ${{ inputs.source_sha }}
+        run: |
+          if ! printf '%s' "$CLAIMED_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "source_sha must be a full 40-character commit id: $CLAIMED_SHA"
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install the locked packages
+        run: npm ci
+      - run: go test ./... -count=1
+        env:
+          CGO_ENABLED: ${{ runner.os == 'macOS' && '1' || '0' }}
+
+  # ── License gate: the LICENSE must still ablate to plain MIT ──
+  # The First Million Stays Yours License converts by deleting a labelled clause list, so a release
+  # whose residue is no longer MIT would ship a promise it cannot keep.
+  license:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+      - run: python3 scripts/ablation-check.py LICENSE
+
+  # ── Linux: build binary, package as tar.gz ──
+  build-linux:
+    needs: [test, license]
+    strategy:
+      matrix:
+        goarch: [amd64, arm64]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install the locked packages
+        run: npm ci
+      - name: Fetch Tailwind
+        run: go run ./cmd/fetchtailwind -goos linux -goarch ${{ matrix.goarch }}
+
+      - name: Test the Tailwind bundle
+        if: matrix.goarch == 'amd64'
+        run: go test -tags tailwind_bundle ./internal/tailwind/ -count=1
+
+      - name: Build
+        run: |
+          GOOS=linux GOARCH=${{ matrix.goarch }} \
+            go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ inputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
+          go version -m htmlclay | grep -q -- '-tags=tailwind_bundle'
+        env:
+          CGO_ENABLED: "0"
+
+      - name: Package
+        run: |
+          stage=htmlclay-linux-${{ matrix.goarch }}
+          mkdir -p "$stage"
+          cp htmlclay "$stage/"
+          cp packaging/linux/htmlclay.desktop \
+             packaging/linux/htmlclay-mime.xml \
+             packaging/linux/htmlclay.png \
+             packaging/linux/htmlclay.svg \
+             packaging/linux/application-x-htmlclay.png \
+             packaging/linux/application-x-htmlclay.svg \
+             packaging/linux/install-icon.sh \
+             packaging/linux/install.sh \
+             packaging/linux/uninstall.sh \
+             "$stage/"
+          chmod +x "$stage/install.sh" "$stage/install-icon.sh" "$stage/uninstall.sh"
+          tar czf "$stage.tar.gz" -C "$stage" .
+
+      # The self-updater's payload is the same binary the tarball holds, gzipped.
+      # -n keeps the file name and time out of the header, so a rebuild of the
+      # same commit gives the same bytes.
+      - name: Update artifact
+        env:
+          VERSION: ${{ inputs.version }}
+          GOARCH: ${{ matrix.goarch }}
+        run: gzip -9 -n -c htmlclay > "htmlclay-${VERSION}-linux-${GOARCH}.gz"
+
+      # Installer artifacts are named dist-*, update payloads update-*, so the
+      # upload job can download them into separate folders: everything in
+      # artifacts/ lands in SHA256SUMS, the receipt and the website stamp.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-htmlclay-linux-${{ matrix.goarch }}.tar.gz
+          path: htmlclay-linux-${{ matrix.goarch }}.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-linux-${{ matrix.goarch }}
+          path: htmlclay-${{ inputs.version }}-linux-${{ matrix.goarch }}.gz
+
+  # ── Windows: build both architectures, sign with Azure Trusted Signing ──
+  build-windows:
+    needs: [test, license]
+    strategy:
+      matrix:
+        goarch: [amd64, arm64]
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      # Two icon groups, not one: resource 1 is the app icon Explorer draws on
+      # htmlclay.exe, resource 2 is the document icon that the DefaultIcon
+      # registry value names by ID (internal/platform/register_windows.go). goversioninfo
+      # embeds a single -icon and numbers it itself, which is why this is
+      # go-winres; the IDs have to be ours to name.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install the locked packages
+        run: npm ci
+      - name: Embed icon and version resources
+        run: |
+          go run github.com/tc-hib/go-winres@v0.3.1 make `
+            --in packaging/windows/winres.json `
+            --out cmd/htmlclay/resource `
+            --arch ${{ matrix.goarch }} `
+            --file-version "${{ inputs.version }}" --product-version "${{ inputs.version }}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        shell: pwsh
+
+      - name: Fetch Tailwind
+        run: |
+          go run ./cmd/fetchtailwind -goos windows -goarch ${{ matrix.goarch }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        shell: pwsh
+
+      - name: Test the Tailwind bundle
+        if: matrix.goarch == 'amd64'
+        run: go test -tags tailwind_bundle ./internal/tailwind/ -count=1
+        shell: pwsh
+
+      - name: Build
+        run: |
+          $env:CGO_ENABLED = "0"
+          $env:GOARCH = "${{ matrix.goarch }}"
+          go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ inputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle')) { Write-Error "built without the Tailwind bundle"; exit 1 }
+        shell: pwsh
+
+      - name: Install TrustedSigning module
+        run: Install-Module -Name TrustedSigning -Force -Scope CurrentUser -AcceptLicense
+        shell: pwsh
+
+      - name: Sign with Azure Trusted Signing
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          Invoke-TrustedSigning `
+            -Endpoint "https://eus.codesigning.azure.net" `
+            -CodeSigningAccountName "Hyperclay" `
+            -CertificateProfileName "HyperclayLocalPublicCertProfile" `
+            -Files "$PWD\htmlclay.exe" `
+            -FileDigest SHA256 `
+            -TimestampRfc3161 "http://timestamp.acs.microsoft.com" `
+            -TimestampDigest SHA256 `
+            -Verbose
+        shell: pwsh
+
+      - name: Verify signature
+        run: |
+          $sig = Get-AuthenticodeSignature "htmlclay.exe"
+          Write-Host "Status: $($sig.Status)"
+          Write-Host "Signer: $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne "Valid") {
+            Write-Error "Signature verification failed!"
+            exit 1
+          }
+          # Azure Trusted Signing issues three-day certificates, so an untimestamped
+          # signature stops validating three days after the release and Windows then
+          # treats the binary as unsigned. Status is "Valid" here either way, because
+          # the certificate has not expired yet on the runner, so the timestamp is the
+          # only thing that proves the signature will still verify for a downloader.
+          if (-not $sig.TimeStamperCertificate) {
+            Write-Error "Signature has no RFC3161 timestamp; it would expire with the certificate."
+            exit 1
+          }
+          Write-Host "Timestamped by: $($sig.TimeStamperCertificate.Subject)"
+        shell: pwsh
+
+      - name: Package
+        run: |
+          Compress-Archive `
+            -Path htmlclay.exe,packaging\windows\README.txt,packaging\windows\register.bat `
+            -DestinationPath htmlclay-windows-${{ matrix.goarch }}.zip
+        shell: pwsh
+
+      # The self-updater's payload is the signed, timestamped exe the zip holds,
+      # byte for byte.
+      - name: Update artifact
+        run: Copy-Item htmlclay.exe "htmlclay-${{ inputs.version }}-windows-${{ matrix.goarch }}.exe"
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-htmlclay-windows-${{ matrix.goarch }}.zip
+          path: htmlclay-windows-${{ matrix.goarch }}.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-windows-${{ matrix.goarch }}
+          path: htmlclay-${{ inputs.version }}-windows-${{ matrix.goarch }}.exe
+
+  # ── macOS: build universal binary, sign + notarize with Apple ──
+  build-macos:
+    needs: [test, license]
+    runs-on: ${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+
+      - name: Install appdmg (styled DMG builder)
+        run: npm install -g appdmg
+
+      - name: Import Developer ID certificate
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KPW="$(openssl rand -base64 24)"
+          security create-keychain -p "$KPW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KPW" "$KEYCHAIN"
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KPW" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Install the locked packages
+        run: npm ci
+      - name: Test the Tailwind bundle
+        run: |
+          go run ./cmd/fetchtailwind -goos darwin -goarch arm64
+          go test -tags tailwind_bundle ./internal/tailwind/ -count=1
+
+      - name: Build, sign & notarize (universal)
+        env:
+          VERSION: ${{ inputs.version }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          UPDATE_CHANNEL: stable
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        run: bash packaging/macos/build.sh --universal
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-HTMLClay-universal.dmg
+          path: HTMLClay-*.dmg
+
+      # Sparkle's signed archive and appcast. Releases keep working before the
+      # key exists: with neither half set, the artifact holds only a SKIPPED
+      # marker, no appcast is published, and the app keeps linking to the
+      # download page. With only one half set the release fails, because an
+      # app carrying a public key whose feed is never published, or a feed no
+      # app can verify, is a half-done setup.
+      - name: Sign the Sparkle update
+        env:
+          VERSION: ${{ inputs.version }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        run: |
+          mkdir -p sparkle-out
+          if [ -z "$SPARKLE_ED_PRIVATE_KEY" ] && [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
+            echo "::notice title=Sparkle feed skipped::Neither SPARKLE_ED_PRIVATE_KEY nor SPARKLE_PUBLIC_ED_KEY is set, so this release publishes no macOS appcast."
+            touch sparkle-out/SKIPPED
+            exit 0
+          fi
+          if [ -z "$SPARKLE_ED_PRIVATE_KEY" ] || [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
+            echo "::error::Set both the SPARKLE_ED_PRIVATE_KEY secret and the SPARKLE_PUBLIC_ED_KEY repository variable, or neither."
+            exit 1
+          fi
+          bash packaging/macos/sparkle-appcast.sh "$VERSION" "HTMLClay-${VERSION}-universal.app.zip" sparkle-out
+
+      # Its own artifact name, matching neither dist-* nor update-*, so the
+      # archive never lands in SHA256SUMS, the receipt or the signed feed.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sparkle-macos
+          path: sparkle-out/
+
+  # ── Upload to R2 ──
+  upload:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: artifacts
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: update-*
+          path: updates
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: sparkle-macos
+          path: sparkle
+
+      # Checked out into src/ rather than the workspace root, where checkout
+      # would empty the folder and take the downloads with it.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          path: src
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: src/go.sum
+
+      # Built before anything is uploaded, so a missing or stray update artifact
+      # fails the release while R2 is still untouched. Hashes the exact bytes
+      # that are uploaded below.
+      - name: Build the update feed payload
+        working-directory: src
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          go run ./cmd/mkfeed payload \
+            -version "$VERSION" \
+            -source-sha "$SOURCE_SHA" \
+            -date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "$GITHUB_WORKSPACE/updates" > "$GITHUB_WORKSPACE/update-payload.json"
+          cat "$GITHUB_WORKSPACE/update-payload.json"
+
+      # Releases keep working before the signing key exists: no seed, no feed,
+      # and installed apps keep linking to the download page. A seed without its
+      # key id is a half-done setup, so that one fails.
+      - name: Check for the update feed signing key
+        id: feedkey
+        env:
+          HTMLCLAY_UPDATE_SEED: ${{ secrets.HTMLCLAY_UPDATE_SEED }}
+          HTMLCLAY_UPDATE_KEY_ID: ${{ vars.HTMLCLAY_UPDATE_KEY_ID }}
+        run: |
+          if [ -z "$HTMLCLAY_UPDATE_SEED" ]; then
+            echo "::notice title=Update feed skipped::The HTMLCLAY_UPDATE_SEED secret is not set, so this release publishes no signed update feed."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$HTMLCLAY_UPDATE_KEY_ID" ]; then
+            echo "::error::The HTMLCLAY_UPDATE_SEED secret is set but the HTMLCLAY_UPDATE_KEY_ID repository variable is not."
+            exit 1
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      # The whole verification story for the Linux tarball, which is unsigned, and
+      # useful on the other two as well. Written outside artifacts/ so it cannot
+      # list a hash of itself, and so it stays out of the release-info file list,
+      # which names the downloads rather than the metadata about them. The names
+      # inside are bare, so `sha256sum -c SHA256SUMS` works in a download folder.
+      - name: Checksum every artifact
+        run: |
+          (cd artifacts && sha256sum *) > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          pip install awscli --quiet
+          aws configure set aws_access_key_id "$R2_ACCESS_KEY"
+          aws configure set aws_secret_access_key "$R2_SECRET_KEY"
+          aws configure set region auto
+
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+          # Cache lifetime follows whether the name can ever be reused. Only the
+          # macOS dmg carries the version, so it is immutable and caches for a
+          # year. The Windows zips and Linux tarballs keep stable names and are
+          # OVERWRITTEN by every release, while the download page publishes each
+          # release's SHA-256 beside them: a long cache there serves the previous
+          # archive next to the new hash, so someone verifying their download gets
+          # a mismatch and reads it as a tampered file.
+          for file in artifacts/*; do
+            filename=$(basename "$file")
+            case "$filename" in
+              *"${{ inputs.version }}"*) cache="public, max-age=31536000, immutable" ;;
+              *)                         cache="public, max-age=60" ;;
+            esac
+            echo "Uploading $filename ($cache)..."
+            aws s3 cp "$file" "s3://${R2_BUCKET}/$filename" \
+              --endpoint-url "$ENDPOINT" \
+              --cache-control "$cache"
+          done
+
+          echo "All artifacts uploaded to R2"
+
+      # Immutable keys: the version is in every name, and each feed url also
+      # carries the sha256, so a rebuild of the same version never meets a cached
+      # copy of the old bytes. A key that already holds these bytes is skipped; one
+      # that holds other bytes fails the release, because a feed already published
+      # may name them (scripts/r2-put-immutable.sh). Read back from the bucket and
+      # compared, so the feed below only ever names bytes R2 really holds.
+      - name: Upload update artifacts
+        env:
+          VERSION: ${{ inputs.version }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          export ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          for file in updates/*; do
+            bash src/scripts/r2-put-immutable.sh "$file" "update/${VERSION}/$(basename "$file")" application/octet-stream
+          done
+
+      # After every artifact, before the receipt. The archive copy is what a bad
+      # feed is rolled back from; update/stable.json is what installed apps read,
+      # so it caches for a minute like the other files rewritten each release.
+      - name: Sign and publish the update feed
+        if: steps.feedkey.outputs.enabled == 'true'
+        working-directory: src
+        env:
+          VERSION: ${{ inputs.version }}
+          HTMLCLAY_UPDATE_SEED: ${{ secrets.HTMLCLAY_UPDATE_SEED }}
+          HTMLCLAY_UPDATE_KEY_ID: ${{ vars.HTMLCLAY_UPDATE_KEY_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          FEED="$GITHUB_WORKSPACE/stable.json"
+          go run ./cmd/signfeed sign -key-id "$HTMLCLAY_UPDATE_KEY_ID" \
+            "$GITHUB_WORKSPACE/update-payload.json" > "$FEED"
+          go run ./cmd/mkfeed verify -version "$VERSION" "$FEED"
+
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          aws s3 cp "$FEED" "s3://${R2_BUCKET}/update/${VERSION}/stable.json" \
+            --endpoint-url "$ENDPOINT" \
+            --content-type "application/json" \
+            --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "$FEED" "s3://${R2_BUCKET}/update/stable.json" \
+            --endpoint-url "$ENDPOINT" \
+            --content-type "application/json" \
+            --cache-control "public, max-age=60"
+          echo "Published update/stable.json for ${VERSION}"
+
+      # After the Windows and Linux feed, before the receipt: the archive, put
+      # once and read back like the update artifacts, then the appcast that names it. The versioned appcast copy is what
+      # a bad one is rolled back from; update/macos/appcast.xml is what installed
+      # apps read, so it caches for a minute.
+      - name: Publish the Sparkle update
+        env:
+          VERSION: ${{ inputs.version }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ -f sparkle/SKIPPED ]; then
+            echo "::notice title=Sparkle feed skipped::No macOS appcast was built for this release."
+            exit 0
+          fi
+          ZIP="sparkle/HTMLClay-${VERSION}-universal.app.zip"
+          test -f "$ZIP"
+          test -f sparkle/appcast.xml
+          grep -q "<sparkle:version>${VERSION}</sparkle:version>" sparkle/appcast.xml
+
+          export ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          bash src/scripts/r2-put-immutable.sh "$ZIP" "update/${VERSION}/$(basename "$ZIP")" application/zip
+
+          aws s3 cp sparkle/appcast.xml "s3://${R2_BUCKET}/update/${VERSION}/appcast.xml" \
+            --endpoint-url "$ENDPOINT" \
+            --content-type "application/xml" \
+            --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp sparkle/appcast.xml "s3://${R2_BUCKET}/update/macos/appcast.xml" \
+            --endpoint-url "$ENDPOINT" \
+            --content-type "application/xml" \
+            --cache-control "public, max-age=60"
+          echo "Published update/macos/appcast.xml for ${VERSION}"
+
+      - name: Upload release-info.json
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+          FILES=$(ls artifacts/ | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          # sha256sum prints "<hash>  <name>"; flip the pair so jq can build a
+          # filename-keyed object out of it.
+          SHA256=$(awk '{print $2" "$1}' SHA256SUMS | jq -R -s -c \
+            'split("\n") | map(select(. != "")) | map(split(" ")) | map({(.[0]): .[1]}) | add')
+          # `schema` and `sourceSha` are additive. Every shipped binary decodes
+          # this feed with a two-field struct and no DisallowUnknownFields
+          # (internal/update/update.go), so new keys are ignored by installs
+          # already in the wild, back to the oldest release.
+          #
+          # sourceSha is what lets a tool tell "this build is what the tree
+          # holds" from "this build is older than the tree" without guessing
+          # from a tag. The tag is written AFTER this file, by a later step, so
+          # it cannot be the authority here.
+          jq -n \
+            --argjson schema 2 \
+            --arg latest "${{ inputs.version }}" \
+            --arg sourceSha "${{ env.SOURCE_SHA }}" \
+            --arg url "https://htmlclay.com/#downloads" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson files "$FILES" \
+            --argjson sha256 "$SHA256" \
+            '{schema: $schema, latest: $latest, sourceSha: $sourceSha, url: $url, date: $date, files: $files, sha256: $sha256}' > htmlclay-release-info.json
+
+          # Both files below are stable-named and rewritten by every release, and
+          # both are read to decide something about the CURRENT one (the updater
+          # checks for a new version, SHA256SUMS is what a download is verified
+          # against), so neither may be served from the previous release.
+          #
+          # ORDER IS LOAD-BEARING: the manifest goes LAST, and nothing whose
+          # failure would mean the release is incomplete may follow it. It is not
+          # only the update feed, it is the receipt hypersave reads to decide
+          # whether a release happened. Uploaded first, a failing SHA256SUMS
+          # upload leaves a red workflow, no git tag and an unstamped website
+          # behind a manifest already naming the new version, so the release
+          # reads as done and the next run skips the stage.
+
+          # text/plain so the download page can link it and a browser shows it
+          # rather than saving an extensionless file.
+          aws s3 cp SHA256SUMS "s3://${R2_BUCKET}/SHA256SUMS" \
+            --endpoint-url "$ENDPOINT" \
+            --content-type "text/plain" \
+            --cache-control "public, max-age=60"
+
+          aws s3 cp htmlclay-release-info.json "s3://${R2_BUCKET}/htmlclay-release-info.json" \
+            --endpoint-url "$ENDPOINT" \
+            --content-type "application/json" \
+            --cache-control "public, max-age=60"
+
+          echo "Uploaded SHA256SUMS, then htmlclay-release-info.json"

@@ -1,0 +1,130 @@
+{
+  "title": "Book",
+  "sheets": [
+    {
+      "id": "s1",
+      "name": "Budget",
+      "cols": [
+        "ca",
+        "cb",
+        "cc"
+      ],
+      "rows": [
+        {
+          "id": "r1",
+          "cells": [
+            {
+              "v": "Item",
+              "style": "font-weight:bold"
+            },
+            "Cost",
+            "Share"
+          ]
+        },
+        {
+          "id": "r2",
+          "cells": [
+            "Rent2",
+            {
+              "v": 1200,
+              "text": "$1,200.00"
+            },
+            {
+              "f": "=B2/B$5",
+              "v": 0.8,
+              "text": "80%"
+            }
+          ]
+        },
+        {
+          "id": "r3",
+          "cells": [
+            "Food",
+            {
+              "v": 300,
+              "text": "$300.00"
+            },
+            {
+              "f": "=B3/B$5",
+              "v": 0.2,
+              "text": "20%"
+            }
+          ]
+        },
+        {
+          "id": "r4",
+          "cells": []
+        },
+        {
+          "id": "r5",
+          "cells": [
+            {
+              "v": "Total",
+              "style": "font-weight:bold"
+            },
+            {
+              "f": "=SUM(B2:B3)",
+              "v": 1500,
+              "text": "$1,500.00"
+            }
+          ]
+        },
+        {
+          "id": "r6",
+          "cells": [
+            {
+              "v": "Prices as of November",
+              "style": "text-align:center",
+              "colspan": 3
+            }
+          ]
+        }
+      ],
+      "stale": true
+    },
+    {
+      "id": "s2",
+      "name": "Styled",
+      "cols": [
+        "st-c0",
+        "st-c1",
+        "st-c2"
+      ],
+      "rows": [
+        {
+          "id": "st-r1",
+          "cells": [
+            "Name",
+            "Share",
+            "Note"
+          ]
+        },
+        {
+          "id": "st-r2",
+          "cells": [
+            {
+              "v": "x",
+              "style": "color:#c00"
+            },
+            {
+              "v": 0.125,
+              "text": "12.5%",
+              "style": "text-align:right;font-style:italic"
+            },
+            {
+              "v": "underlined",
+              "style": "text-decoration:underline;white-space:nowrap"
+            }
+          ]
+        },
+        {
+          "id": "st-r3",
+          "cells": [
+            "last"
+          ]
+        }
+      ],
+      "stale": true
+    }
+  ]
+}

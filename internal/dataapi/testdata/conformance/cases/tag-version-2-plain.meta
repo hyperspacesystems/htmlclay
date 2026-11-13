@@ -1,0 +1,6 @@
+tier: 1
+face: tag
+token: api
+expect: ok
+note: A version 2 tag with only ordinary rules reads exactly as version 1 does. The version
+note: gates the @codec(name) form, it does not change how selectors or lists are read.

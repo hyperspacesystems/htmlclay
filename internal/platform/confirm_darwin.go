@@ -1,0 +1,95 @@
+//go:build darwin
+
+package platform
+
+import (
+	"os/exec"
+	"strings"
+)
+
+// confirmDialog shows a three-button modal via osascript. "activate me" brings
+// the osascript process (and its dialog) to the foreground; without it a dialog
+// spawned from the background tray process appears behind the active window and
+// gets missed. This was verified in the grant-flow spike: plain `display dialog`
+// went unnoticed, `activate me` broke through. `giving up after 120` matches the
+// broker's park ceiling so an ignored dialog closes itself with no answer.
+//
+// Only "Deny" is fixed. The two affirmative labels come from the caller, because
+// the same three-button shape asks two different questions and each one has to
+// name the grant it actually makes.
+func confirmDialog(title, message string, labels ConfirmLabels) (ConfirmChoice, error) {
+	out, err := exec.Command("osascript", "-e", "activate me", "-e", confirmDialogScript(title, message, labels)).CombinedOutput()
+	if err != nil {
+		if userCancelled(labels.denyLabel(), out) {
+			return ConfirmDeny, nil
+		}
+		return ConfirmDismissed, err
+	}
+	return choiceFromOSAScript(osascriptButton(string(out)), labels), nil
+}
+
+// confirmDialogScript builds the display dialog. display dialog draws at most
+// three buttons, so a Later button does not fit; asking for one instead leaves
+// the dialog with no default button and no cancel button, which is what makes
+// Return and Escape do nothing. Only a click answers it, or the timeout, which
+// answers nothing. Without Later, Deny is the default button, as it always was.
+func confirmDialogScript(title, message string, labels ConfirmLabels) string {
+	script := "display dialog " + appleScriptString(message) +
+		" with title " + appleScriptString(title) +
+		" buttons {" + appleScriptString(labels.denyLabel()) + ", " + appleScriptString(labels.Allow) + ", " + appleScriptString(labels.Always) + "}"
+	if labels.Later == "" {
+		script += " default button " + appleScriptString(labels.denyLabel())
+	}
+	return script + " with icon caution giving up after 120"
+}
+
+// userCancelled reports whether osascript failed only because the person
+// clicked the refusing button. display dialog treats a button titled Cancel as
+// its cancel button: clicking it, or pressing Escape, ends the script with
+// error -128. That is an answer, the refusing one, not a failure.
+func userCancelled(refuseLabel string, out []byte) bool {
+	return refuseLabel == "Cancel" && strings.Contains(string(out), "(-128)")
+}
+
+// osascriptButton returns the exact label the user clicked. `display dialog`
+// answers with "button returned:<label>, gave up:false", and a dialog that gave
+// up carries no label at all.
+//
+// Matching on substrings is not good enough now that callers supply their own
+// labels: one label can be a prefix of the other ("Allow" inside "Allow for Any
+// Document"), and either can appear in the message text above the buttons, which
+// CombinedOutput does not separate from the answer.
+func osascriptButton(out string) string {
+	const key = "button returned:"
+	i := strings.Index(out, key)
+	if i < 0 {
+		return ""
+	}
+	label := out[i+len(key):]
+	if j := strings.Index(label, ", gave up:"); j >= 0 {
+		label = label[:j]
+	}
+	return strings.TrimRight(label, "\r\n")
+}
+
+// confirmTwoButtons is confirmDialog's two-button variant, sharing its
+// foregrounding and its 120s give-up (which self-dismisses to deny).
+func confirmTwoButtons(title, message, allowLabel, refuseLabel string) (bool, error) {
+	dialog := "display dialog " + appleScriptString(message) +
+		" with title " + appleScriptString(title) +
+		" buttons {" + appleScriptString(refuseLabel) + ", " + appleScriptString(allowLabel) + "} default button " +
+		appleScriptString(refuseLabel) + " with icon caution giving up after 120"
+	out, err := exec.Command("osascript", "-e", "activate me", "-e", dialog).CombinedOutput()
+	if err != nil {
+		if userCancelled(refuseLabel, out) {
+			return false, nil
+		}
+		return false, err
+	}
+	// The refusing button and "gave up:true" both read as no.
+	return allowLabel != "" && osascriptButton(string(out)) == allowLabel, nil
+}
+
+// missingDialogAdvice always answers "nothing is missing": the prompt is an
+// osascript dialog, and osascript is part of macOS.
+func missingDialogAdvice() string { return "" }

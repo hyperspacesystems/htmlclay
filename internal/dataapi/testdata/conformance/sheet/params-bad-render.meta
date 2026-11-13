@@ -1,0 +1,6 @@
+tier: 1
+face: params
+token: api
+expect: error
+params: range=A1&render=html
+note: a bad render is refused by the read

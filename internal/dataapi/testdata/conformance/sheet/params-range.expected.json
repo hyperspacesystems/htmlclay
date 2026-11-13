@@ -1,0 +1,17 @@
+{
+  "title": "Book",
+  "sheets": {
+    "sheet": "Styled",
+    "range": "A1:B2",
+    "values": [
+      [
+        "Name",
+        "Share"
+      ],
+      [
+        "Red",
+        0.125
+      ]
+    ]
+  }
+}

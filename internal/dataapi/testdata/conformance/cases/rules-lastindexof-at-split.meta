@@ -1,0 +1,11 @@
+tier: 3
+face: query
+expect: ok
+note: The property split scans for the last "@" at bracket depth zero and outside quotes, so an @
+note: inside an attribute value stays part of the selector. `a[href*="@"]` is one selector reading
+note: the link's text, not a broken split into 'a[href*="' plus a property name.
+note: This case previously pinned the opposite: a plain lastIndexOf over the whole rule, which cut
+note: the selector mid-bracket and left css-what to report "Attribute value didn't end". It was
+note: fixed across all four implementations at once (2026-08-13) rather than left as a divergence,
+note: because splitting inside the brackets always leaves an unclosed "[" or quote, so every rule
+note: the old split touched was a hard parse error and nothing could have depended on it.

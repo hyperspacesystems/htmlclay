@@ -1,0 +1,6 @@
+tier: 1
+face: tag
+token: api
+expect: error
+note: UnknownCodec. The reference runner passes no codecs, so any codec name is unknown here;
+note: a host that does not know the codec refuses rather than returning null.

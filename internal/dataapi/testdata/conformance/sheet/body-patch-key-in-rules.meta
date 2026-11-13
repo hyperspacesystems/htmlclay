@@ -1,0 +1,5 @@
+tier: 1
+face: body
+token: api
+expect: ok
+note: rules with a top level patch key make the body a data write

@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: ok
+note: a clean tab patches even when another tab was hand edited

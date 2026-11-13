@@ -1,0 +1,509 @@
+package config
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"os"
+	"sort"
+	"time"
+)
+
+const (
+	helperProgramCap  = 32
+	helperDecisionCap = 512
+)
+
+var (
+	ErrHelperNameInvalid   = errors.New("invalid helper name")
+	ErrHelperRegistryFull  = errors.New("helper program registry is full")
+	ErrHelperDecisionsFull = errors.New("helper decision registry is full")
+)
+
+// HelperProgram is one registered program. ID is a stable opaque local id and is
+// what a decision points at. Name is a display name and is not unique: two
+// registrations may share one because each document binds the name to a program.
+//
+// Path is stored as selected and is never resolved through EvalSymlinks. A
+// program installed behind a stable symlink must pick up package manager updates.
+type HelperProgram struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	AnyDocument bool   `json:"anyDocument,omitempty"`
+	AddedAt     int64  `json:"addedAt"`
+}
+
+// HelperDecision is one document's answer for one name. An allow names the
+// registration ID, so permission cannot pass to a later registration that merely
+// reuses the display name. A revocation (Revoked, Allowed false, no Program) is
+// the person taking access away from this document in the Programs page; it is
+// stored so it outlasts the any-document grant that would otherwise apply. A
+// dialog's Deny is never stored: it lasts one open.
+type HelperDecision struct {
+	Document  string `json:"document"`
+	Name      string `json:"name"`
+	Program   string `json:"program,omitempty"`
+	Allowed   bool   `json:"allowed"`
+	Revoked   bool   `json:"revoked,omitempty"`
+	DecidedAt int64  `json:"decidedAt"`
+}
+
+// HelperResolution is what one name in one document resolves to. Program is
+// set when the answer names exactly one program: an allow, or an undecided name
+// with a single registration. Candidates lists every registration of an
+// undecided name, so a prompt can show them all rather than pick one.
+type HelperResolution struct {
+	Decided    bool
+	Allowed    bool
+	Revoked    bool
+	Program    HelperProgram
+	Candidates []HelperProgram
+}
+
+// ValidHelperName reports whether s is lowercase ASCII letters, digits, and
+// hyphens, from 1 to 32 bytes, with no leading or trailing hyphen. A document
+// supplies this text to a native permission prompt, so it is bounded here.
+func ValidHelperName(s string) bool {
+	if len(s) == 0 || len(s) > 32 || s[0] == '-' || s[len(s)-1] == '-' {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if (s[i] < 'a' || s[i] > 'z') && (s[i] < '0' || s[i] > '9') && s[i] != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+// Canonical ordering lets a rollback restore the exact bytes Save wrote without
+// exposing mutable slice indexes through the transaction API.
+func helperProgramLess(a, b HelperProgram) bool {
+	if a.AddedAt != b.AddedAt {
+		return a.AddedAt < b.AddedAt
+	}
+	return a.ID < b.ID
+}
+
+func helperDecisionLess(a, b HelperDecision) bool {
+	if a.DecidedAt != b.DecidedAt {
+		return a.DecidedAt < b.DecidedAt
+	}
+	if a.Document != b.Document {
+		return a.Document < b.Document
+	}
+	return a.Name < b.Name
+}
+
+func sortHelperPrograms(programs []HelperProgram) {
+	sort.SliceStable(programs, func(i, j int) bool {
+		return helperProgramLess(programs[i], programs[j])
+	})
+}
+
+func sortHelperDecisions(decisions []HelperDecision) {
+	sort.SliceStable(decisions, func(i, j int) bool {
+		return helperDecisionLess(decisions[i], decisions[j])
+	})
+}
+
+func newHelperProgramID(programs []HelperProgram) (string, error) {
+	for {
+		var raw [16]byte
+		if _, err := rand.Read(raw[:]); err != nil {
+			return "", fmt.Errorf("cannot generate helper program id: %w", err)
+		}
+		id := hex.EncodeToString(raw[:])
+		unique := true
+		for _, p := range programs {
+			if p.ID == id {
+				unique = false
+				break
+			}
+		}
+		if unique {
+			return id, nil
+		}
+	}
+}
+
+func (c *Config) AddHelperProgram(name, path string) (HelperProgram, error) {
+	if !ValidHelperName(name) {
+		return HelperProgram{}, ErrHelperNameInvalid
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.HelperPrograms) >= helperProgramCap {
+		return HelperProgram{}, ErrHelperRegistryFull
+	}
+	id, err := newHelperProgramID(c.HelperPrograms)
+	if err != nil {
+		return HelperProgram{}, err
+	}
+	// ResolveHelper lists the registrations of a name oldest first, and two
+	// registrations inside one clock tick would otherwise be ordered by their
+	// random IDs. Windows advances the wall clock once per interrupt.
+	addedAt := time.Now().UnixNano()
+	for _, existing := range c.HelperPrograms {
+		if existing.AddedAt >= addedAt {
+			addedAt = existing.AddedAt + 1
+		}
+	}
+	p := HelperProgram{ID: id, Name: name, Path: path, AddedAt: addedAt}
+	c.HelperPrograms = append(c.HelperPrograms, p)
+	sortHelperPrograms(c.HelperPrograms)
+	return p, nil
+}
+
+func (c *Config) RestoreHelperProgram(p HelperProgram) bool {
+	if p.ID == "" || !ValidHelperName(p.Name) {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.HelperPrograms) >= helperProgramCap {
+		return false
+	}
+	for _, existing := range c.HelperPrograms {
+		if existing.ID == p.ID {
+			return false
+		}
+	}
+	c.HelperPrograms = append(c.HelperPrograms, p)
+	sortHelperPrograms(c.HelperPrograms)
+	return true
+}
+
+// RemoveHelperProgram unregisters a program and leaves every decision row alone,
+// including the rows that pointed at it. ResolveHelper already reads an allowed
+// decision whose program is gone as undecided, so those documents ask again at
+// next open, and re-registering the same ID restores them.
+//
+// Deleting them here would be the wrong shape. Forgetting decisions
+// is its own tray action (ForgetHelperProgramDecisions), so folding it into
+// removal makes one menu item silently do two things.
+func (c *Config) RemoveHelperProgram(id string) (HelperProgram, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, p := range c.HelperPrograms {
+		if p.ID != id {
+			continue
+		}
+		c.HelperPrograms = append(c.HelperPrograms[:i], c.HelperPrograms[i+1:]...)
+		return p, true
+	}
+	return HelperProgram{}, false
+}
+
+func (c *Config) SetHelperAnyDocument(id string, v bool) (previous bool, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, p := range c.HelperPrograms {
+		if p.ID == id {
+			previous = p.AnyDocument
+			c.HelperPrograms[i].AnyDocument = v
+			return previous, true
+		}
+	}
+	return false, false
+}
+
+func (c *Config) HelperProgramList() []HelperProgram {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]HelperProgram(nil), c.HelperPrograms...)
+}
+
+func (c *Config) LookupHelperProgram(id string) (HelperProgram, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, p := range c.HelperPrograms {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return HelperProgram{}, false
+}
+
+func (c *Config) DecideHelper(d HelperDecision) (previous HelperDecision, had bool, err error) {
+	if !ValidHelperName(d.Name) {
+		return HelperDecision{}, false, ErrHelperNameInvalid
+	}
+	if !d.Allowed || d.Revoked {
+		return HelperDecision{}, false, errors.New("helper refusals are not stored")
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	found := false
+	for _, p := range c.HelperPrograms {
+		if p.ID == d.Program {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return HelperDecision{}, false, fmt.Errorf("helper program %q is not registered", d.Program)
+	}
+	for i, existing := range c.HelperDecisions {
+		if existing.Document == d.Document && existing.Name == d.Name {
+			c.HelperDecisions[i] = d
+			sortHelperDecisions(c.HelperDecisions)
+			return existing, true, nil
+		}
+	}
+	if len(c.HelperDecisions) >= helperDecisionCap {
+		return HelperDecision{}, false, ErrHelperDecisionsFull
+	}
+	c.HelperDecisions = append(c.HelperDecisions, d)
+	sortHelperDecisions(c.HelperDecisions)
+	return HelperDecision{}, false, nil
+}
+
+func (c *Config) RestoreHelperDecisions(ds []HelperDecision) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	restored := 0
+	for _, d := range ds {
+		// An allowed row naming an unregistered program is restorable, because
+		// RemoveHelperProgram and normalizeHelpers both keep exactly that row.
+		// Refusing it here made rollback lossy in the one case it exists for: a
+		// failed approval that replaced such a row deleted the replacement and
+		// then could not put the original back. Allowed with NO program is still
+		// refused, because that row is malformed rather than stale.
+		if len(c.HelperDecisions) >= helperDecisionCap || !ValidHelperName(d.Name) ||
+			(d.Allowed && (d.Program == "" || d.Revoked)) || (!d.Allowed && d.Program != "") {
+			continue
+		}
+		duplicate := false
+		for _, existing := range c.HelperDecisions {
+			if existing.Document == d.Document && existing.Name == d.Name {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			continue
+		}
+		c.HelperDecisions = append(c.HelperDecisions, d)
+		restored++
+	}
+	sortHelperDecisions(c.HelperDecisions)
+	return restored
+}
+
+func (c *Config) ForgetHelperDecision(document, name string) (HelperDecision, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, d := range c.HelperDecisions {
+		if d.Document == document && d.Name == name {
+			c.HelperDecisions = append(c.HelperDecisions[:i], c.HelperDecisions[i+1:]...)
+			return d, true
+		}
+	}
+	return HelperDecision{}, false
+}
+
+// RevokeHelper stores a revocation for one document and name, replacing any
+// allow. It returns the row it replaced so a failed save can restore it.
+func (c *Config) RevokeHelper(document, name string) (previous HelperDecision, had bool, err error) {
+	if !ValidHelperName(name) {
+		return HelperDecision{}, false, ErrHelperNameInvalid
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	row := HelperDecision{Document: document, Name: name, Revoked: true, DecidedAt: time.Now().UnixNano()}
+	for i, existing := range c.HelperDecisions {
+		if existing.Document == document && existing.Name == name {
+			c.HelperDecisions[i] = row
+			sortHelperDecisions(c.HelperDecisions)
+			return existing, true, nil
+		}
+	}
+	if len(c.HelperDecisions) >= helperDecisionCap {
+		return HelperDecision{}, false, ErrHelperDecisionsFull
+	}
+	c.HelperDecisions = append(c.HelperDecisions, row)
+	sortHelperDecisions(c.HelperDecisions)
+	return HelperDecision{}, false, nil
+}
+
+// SetHelperProgramPath points a registration at a new file and keeps its ID, so
+// every decision that names it carries over. Callers confirm with the person
+// first: this widens what those decisions run.
+func (c *Config) SetHelperProgramPath(id, path string) (previous string, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, p := range c.HelperPrograms {
+		if p.ID == id {
+			previous = p.Path
+			c.HelperPrograms[i].Path = path
+			return previous, true
+		}
+	}
+	return "", false
+}
+
+// ForgetHelperProgramDecisions removes the allows that point at the program.
+func (c *Config) ForgetHelperProgramDecisions(id string) []HelperDecision {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.forgetHelperDecisionsLocked(func(d HelperDecision) bool {
+		return d.Allowed && d.Program == id
+	})
+}
+
+func (c *Config) forgetHelperDecisionsLocked(match func(HelperDecision) bool) []HelperDecision {
+	kept := make([]HelperDecision, 0, len(c.HelperDecisions))
+	removed := make([]HelperDecision, 0)
+	for _, d := range c.HelperDecisions {
+		if match(d) {
+			removed = append(removed, d)
+		} else {
+			kept = append(kept, d)
+		}
+	}
+	c.HelperDecisions = kept
+	return removed
+}
+
+func (c *Config) HelperDecisionList() []HelperDecision {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]HelperDecision(nil), c.HelperDecisions...)
+}
+
+// ResolveHelper answers in one locked read whether there is a decision, whether
+// it allows execution, and which registered program it selects. trusted says
+// whether the document sits in a trusted folder: an any-document registration
+// applies only then. It never picks between registrations that share a name:
+// two allowed for any document leave the name undecided, and an undecided name
+// with several registrations carries them all as Candidates and no Program, so
+// the prompt asks which one.
+func (c *Config) ResolveHelper(document, name string, trusted bool) (HelperResolution, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, d := range c.HelperDecisions {
+		if d.Document != document || d.Name != name {
+			continue
+		}
+		if d.Revoked {
+			return HelperResolution{Decided: true, Revoked: true}, true
+		}
+		if !d.Allowed {
+			break
+		}
+		for _, p := range c.HelperPrograms {
+			if p.ID == d.Program {
+				return HelperResolution{Decided: true, Allowed: true, Program: p}, true
+			}
+		}
+		break
+	}
+	var candidates, anyDocument []HelperProgram
+	for _, p := range c.HelperPrograms {
+		if p.Name != name {
+			continue
+		}
+		candidates = append(candidates, p)
+		if p.AnyDocument {
+			anyDocument = append(anyDocument, p)
+		}
+	}
+	if trusted && len(anyDocument) == 1 {
+		return HelperResolution{Decided: true, Allowed: true, Program: anyDocument[0]}, true
+	}
+	if len(candidates) == 0 {
+		return HelperResolution{}, false
+	}
+	resolution := HelperResolution{Candidates: candidates}
+	if len(candidates) == 1 {
+		resolution.Program = candidates[0]
+	}
+	return resolution, true
+}
+
+func (c *Config) normalizeHelpers() (droppedPrograms, droppedDecisions int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	programs := make([]HelperProgram, 0, len(c.HelperPrograms))
+	programIDs := make(map[string]bool, len(c.HelperPrograms))
+	for _, p := range c.HelperPrograms {
+		if p.ID == "" || !ValidHelperName(p.Name) || programIDs[p.ID] || len(programs) >= helperProgramCap {
+			droppedPrograms++
+			continue
+		}
+		programIDs[p.ID] = true
+		programs = append(programs, p)
+	}
+	sortHelperPrograms(programs)
+	c.HelperPrograms = programs
+
+	type decisionKey struct {
+		document string
+		name     string
+	}
+	decisions := make([]HelperDecision, 0, len(c.HelperDecisions))
+	decisionIndexes := make(map[decisionKey]int, len(c.HelperDecisions))
+	for _, d := range c.HelperDecisions {
+		// A decision naming a program that is not registered is kept, not dropped.
+		// ResolveHelper already reads it as undecided, so the document asks again
+		// and the answer replaces this row in place; dropping it here would make
+		// the load path disagree with RemoveHelperProgram, which leaves the same
+		// rows alone. An allowed decision naming NO program is different: it is
+		// malformed rather than stale, and there is nothing for a later answer to
+		// key off.
+		// A revocation (Revoked, no Program) is kept: it outlasts an any-document grant.
+		// Refusals from 1.9.x are dropped: a refusal now lasts one open.
+		revocation := d.Revoked && !d.Allowed && d.Program == ""
+		if !ValidHelperName(d.Name) || (!revocation && (!d.Allowed || d.Program == "" || d.Revoked)) {
+			droppedDecisions++
+			continue
+		}
+		key := decisionKey{document: d.Document, name: d.Name}
+		if i, duplicate := decisionIndexes[key]; duplicate {
+			droppedDecisions++
+			if d.DecidedAt > decisions[i].DecidedAt {
+				decisions[i] = d
+			}
+			continue
+		}
+		decisionIndexes[key] = len(decisions)
+		decisions = append(decisions, d)
+	}
+	if over := len(decisions) - helperDecisionCap; over > 0 {
+		type eviction struct {
+			index   int
+			missing bool
+		}
+		evictions := make([]eviction, len(decisions))
+		for i, d := range decisions {
+			_, statErr := os.Stat(d.Document)
+			evictions[i] = eviction{index: i, missing: os.IsNotExist(statErr)}
+		}
+		sort.SliceStable(evictions, func(i, j int) bool {
+			a, b := evictions[i], evictions[j]
+			if a.missing != b.missing {
+				return a.missing
+			}
+			return helperDecisionLess(decisions[a.index], decisions[b.index])
+		})
+		remove := make(map[int]bool, over)
+		for _, e := range evictions[:over] {
+			remove[e.index] = true
+		}
+		kept := make([]HelperDecision, 0, helperDecisionCap)
+		for i, d := range decisions {
+			if remove[i] {
+				droppedDecisions++
+			} else {
+				kept = append(kept, d)
+			}
+		}
+		decisions = kept
+	}
+	sortHelperDecisions(decisions)
+	c.HelperDecisions = decisions
+	return droppedPrograms, droppedDecisions
+}

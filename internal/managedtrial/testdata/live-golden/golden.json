@@ -1,0 +1,528 @@
+{
+  "streams": [
+    {
+      "name": "A",
+      "request": {
+        "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1793512800000\ndata: {\"seq\":1793512800000}",
+        ": connected",
+        "id: 1793512800002\ndata: {\"type\":\"notification\",\"msgType\":\"data-loss\",\"msg\":\"Saved data overwritten\",\"action\":\"raised\",\"data\":{\"id\":\"00000000-0000-4000-8000-000000000000\",\"firstDetectedAt\":1793512800000,\"lastWriteAt\":1793512800000,\"lossSummary\":{\"provenance\":\"ui-gestured\",\"destroyedAtoms\":4,\"removedItems\":0,\"modifiedAtoms\":0,\"paths\":[\"api.items[1]\",\"api.items[2]\",\"api.items[3]\",\"api.notes\"]},\"fieldCount\":2,\"preview\":[{\"key\":\"items\",\"now\":\"alpha\",\"yours\":\"alpha, beta, gamma, delta\"},{\"key\":\"notes\",\"now\":\"— empty —\",\"yours\":\"Kept by hand, with delta.\"}],\"droppedAdditions\":0,\"restorable\":true,\"canRevert\":true,\"status\":\"pending\"}}",
+        "id: 1793512800004\ndata: {\"type\":\"notification\",\"msgType\":\"data-loss\",\"msg\":\"Data guard resolved\",\"action\":\"resolved\",\"data\":{\"id\":\"00000000-0000-4000-8000-000000000000\"}}"
+      ],
+      "buffer": ""
+    },
+    {
+      "name": "B",
+      "request": {
+        "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html&lane=saved",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1793512800000\ndata: {\"seq\":1793512800000}",
+        ": connected",
+        "id: 1793512800000\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n    <script type=\\\"application/json\\\" data-rules-name=\\\"api\\\" data-rules-version=\\\"1\\\">{\\\"title\\\":\\\"h1\\\",\\\"items\\\":\\\"ul.items li[]\\\",\\\"notes\\\":\\\"p.notes\\\"}</script>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <ul class=\\\"items\\\">\\n      <li>alpha</li>\\n      <li>beta</li>\\n      <li>gamma</li>\\n      <li>delta</li>\\n    </ul>\\n    <p class=\\\"notes\\\">Kept by hand, with delta.</p>\\n  </body>\\n</html>\\n\",\"sender\":\"server-save\",\"seq\":1793512800000}",
+        "id: 1793512800001\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n    <script type=\\\"application/json\\\" data-rules-name=\\\"api\\\" data-rules-version=\\\"1\\\">{\\\"title\\\":\\\"h1\\\",\\\"items\\\":\\\"ul.items li[]\\\",\\\"notes\\\":\\\"p.notes\\\"}</script>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <ul class=\\\"items\\\">\\n      <li>alpha</li>\\n    </ul>\\n    <p class=\\\"notes\\\"></p>\\n  </body>\\n</html>\\n\",\"sender\":\"server-save\",\"seq\":1793512800001}",
+        "id: 1793512800003\ndata: {\"html\":\"<!DOCTYPE html><html lang=\\\"en\\\"><head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n    <script type=\\\"application/json\\\" data-rules-name=\\\"api\\\" data-rules-version=\\\"1\\\">{\\\"title\\\":\\\"h1\\\",\\\"items\\\":\\\"ul.items li[]\\\",\\\"notes\\\":\\\"p.notes\\\"}</script>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <ul class=\\\"items\\\">\\n      <li>alpha</li>\\n    <li>beta</li><li>gamma</li><li>delta</li></ul>\\n    <p class=\\\"notes\\\">Kept by hand, with delta.</p>\\n  \\n\\n</body></html>\",\"sender\":\"server-save\",\"seq\":1793512800003}",
+        "id: 1793512800005\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n    <script type=\\\"application/json\\\" data-rules-name=\\\"api\\\" data-rules-version=\\\"1\\\">{\\\"title\\\":\\\"h1\\\",\\\"items\\\":\\\"ul.items li[]\\\",\\\"notes\\\":\\\"p.notes\\\"}</script>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <ul class=\\\"items\\\">\\n      <li>alpha</li>\\n      <li>beta</li>\\n      <li>gamma</li>\\n      <li>delta</li>\\n    </ul>\\n    <p class=\\\"notes\\\">Kept by hand, with delta.</p>\\n  </body>\\n</html>\\n\",\"sender\":\"server-save\",\"seq\":1793512800005}"
+      ],
+      "buffer": ""
+    },
+    {
+      "name": "C",
+      "request": {
+        "path": "/live-sync/stream?page-url=http://127.0.0.1:{PORT}/notes.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1793512800000\ndata: {\"seq\":1793512800000}",
+        ": connected",
+        "id: 1793512800002\ndata: {\"type\":\"notification\",\"msgType\":\"data-loss\",\"msg\":\"Saved data overwritten\",\"action\":\"raised\",\"data\":{\"id\":\"00000000-0000-4000-8000-000000000000\",\"firstDetectedAt\":1793512800000,\"lastWriteAt\":1793512800000,\"lossSummary\":{\"provenance\":\"ui-gestured\",\"destroyedAtoms\":4,\"removedItems\":0,\"modifiedAtoms\":0,\"paths\":[\"api.items[1]\",\"api.items[2]\",\"api.items[3]\",\"api.notes\"]},\"fieldCount\":2,\"preview\":[{\"key\":\"items\",\"now\":\"alpha\",\"yours\":\"alpha, beta, gamma, delta\"},{\"key\":\"notes\",\"now\":\"— empty —\",\"yours\":\"Kept by hand, with delta.\"}],\"droppedAdditions\":0,\"restorable\":true,\"canRevert\":true,\"status\":\"pending\"}}",
+        "id: 1793512800004\ndata: {\"type\":\"notification\",\"msgType\":\"data-loss\",\"msg\":\"Data guard resolved\",\"action\":\"resolved\",\"data\":{\"id\":\"00000000-0000-4000-8000-000000000000\"}}"
+      ],
+      "buffer": ""
+    },
+    {
+      "name": "D",
+      "request": {
+        "path": "/_/sync?s=saved:0:http://127.0.0.1:{PORT}/notes.html&s=live:0:http://127.0.0.1:{PORT}/missing.html&s=live:0:http://127.0.0.1:{PORT}/other.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\ndata: {\"sub\":0,\"seq\":1793512800000}",
+        "event: cursor\ndata: {\"sub\":1,\"error\":\"not-found\"}",
+        "event: cursor\ndata: {\"sub\":2,\"seq\":1793512800000}",
+        "event: s0\nid: 1793512800000\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n    <script type=\\\"application/json\\\" data-rules-name=\\\"api\\\" data-rules-version=\\\"1\\\">{\\\"title\\\":\\\"h1\\\",\\\"items\\\":\\\"ul.items li[]\\\",\\\"notes\\\":\\\"p.notes\\\"}</script>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <ul class=\\\"items\\\">\\n      <li>alpha</li>\\n      <li>beta</li>\\n      <li>gamma</li>\\n      <li>delta</li>\\n    </ul>\\n    <p class=\\\"notes\\\">Kept by hand, with delta.</p>\\n  </body>\\n</html>\\n\",\"sender\":\"server-save\",\"seq\":1793512800000}",
+        "event: s0\nid: 1793512800001\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n    <script type=\\\"application/json\\\" data-rules-name=\\\"api\\\" data-rules-version=\\\"1\\\">{\\\"title\\\":\\\"h1\\\",\\\"items\\\":\\\"ul.items li[]\\\",\\\"notes\\\":\\\"p.notes\\\"}</script>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <ul class=\\\"items\\\">\\n      <li>alpha</li>\\n    </ul>\\n    <p class=\\\"notes\\\"></p>\\n  </body>\\n</html>\\n\",\"sender\":\"server-save\",\"seq\":1793512800001}",
+        "event: s0\nid: 1793512800003\ndata: {\"html\":\"<!DOCTYPE html><html lang=\\\"en\\\"><head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n    <script type=\\\"application/json\\\" data-rules-name=\\\"api\\\" data-rules-version=\\\"1\\\">{\\\"title\\\":\\\"h1\\\",\\\"items\\\":\\\"ul.items li[]\\\",\\\"notes\\\":\\\"p.notes\\\"}</script>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <ul class=\\\"items\\\">\\n      <li>alpha</li>\\n    <li>beta</li><li>gamma</li><li>delta</li></ul>\\n    <p class=\\\"notes\\\">Kept by hand, with delta.</p>\\n  \\n\\n</body></html>\",\"sender\":\"server-save\",\"seq\":1793512800003}",
+        "event: s0\nid: 1793512800005\ndata: {\"html\":\"<!doctype html>\\n<html lang=\\\"en\\\">\\n  <head>\\n    <meta charset=\\\"utf-8\\\">\\n    <title>Notes</title>\\n    <script type=\\\"application/json\\\" data-rules-name=\\\"api\\\" data-rules-version=\\\"1\\\">{\\\"title\\\":\\\"h1\\\",\\\"items\\\":\\\"ul.items li[]\\\",\\\"notes\\\":\\\"p.notes\\\"}</script>\\n  </head>\\n  <body>\\n    <h1>Reading list</h1>\\n    <ul class=\\\"items\\\">\\n      <li>alpha</li>\\n      <li>beta</li>\\n      <li>gamma</li>\\n      <li>delta</li>\\n    </ul>\\n    <p class=\\\"notes\\\">Kept by hand, with delta.</p>\\n  </body>\\n</html>\\n\",\"sender\":\"server-save\",\"seq\":1793512800005}"
+      ],
+      "buffer": ""
+    },
+    {
+      "name": "E",
+      "request": {
+        "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin",
+          "Last-Event-ID": "1793512800002"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1793512800002\ndata: {\"seq\":1793512800002}",
+        "id: 1793512800004\ndata: {\"type\":\"notification\",\"msgType\":\"data-loss\",\"msg\":\"Data guard resolved\",\"action\":\"resolved\",\"data\":{\"id\":\"00000000-0000-4000-8000-000000000000\"}}",
+        ": connected"
+      ],
+      "buffer": ""
+    },
+    {
+      "name": "F",
+      "request": {
+        "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/notes.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin",
+          "Last-Event-ID": "1"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1\ndata: {\"seq\":1,\"resync\":true}",
+        "id: 1793512800002\ndata: {\"type\":\"notification\",\"msgType\":\"data-loss\",\"msg\":\"Saved data overwritten\",\"action\":\"raised\",\"data\":{\"id\":\"00000000-0000-4000-8000-000000000000\",\"firstDetectedAt\":1793512800000,\"lastWriteAt\":1793512800000,\"lossSummary\":{\"provenance\":\"ui-gestured\",\"destroyedAtoms\":4,\"removedItems\":0,\"modifiedAtoms\":0,\"paths\":[\"api.items[1]\",\"api.items[2]\",\"api.items[3]\",\"api.notes\"]},\"fieldCount\":2,\"preview\":[{\"key\":\"items\",\"now\":\"alpha\",\"yours\":\"alpha, beta, gamma, delta\"},{\"key\":\"notes\",\"now\":\"— empty —\",\"yours\":\"Kept by hand, with delta.\"}],\"droppedAdditions\":0,\"restorable\":true,\"canRevert\":true,\"status\":\"pending\"}}",
+        "id: 1793512800004\ndata: {\"type\":\"notification\",\"msgType\":\"data-loss\",\"msg\":\"Data guard resolved\",\"action\":\"resolved\",\"data\":{\"id\":\"00000000-0000-4000-8000-000000000000\"}}",
+        ": connected"
+      ],
+      "buffer": ""
+    },
+    {
+      "name": "missing",
+      "request": {
+        "path": "/_/sync?document-url=http://127.0.0.1:{PORT}/gone.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-type": "text/event-stream",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-accel-buffering": "no",
+        "x-powered-by": "Express"
+      },
+      "frames": [
+        "event: cursor\nid: 1793512800005\ndata: {\"seq\":1793512800005}",
+        ": connected"
+      ],
+      "buffer": ""
+    }
+  ],
+  "cases": [
+    {
+      "name": "save-notes",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "text/html",
+          "Save-Trigger": "user"
+        },
+        "bodyFile": "save-notes.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-CDBBsdHdK8yn9j2Xqxuwk2R4w8Y\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"5e5077a327376156\"}"
+      }
+    },
+    {
+      "name": "save-clobber",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "text/html",
+          "Save-Trigger": "user"
+        },
+        "bodyFile": "save-clobber.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-8+QGW4oAZ1t6j4pzKak4f5EbsVQ\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"868b0771c061a50c\"}"
+      }
+    },
+    {
+      "name": "data-loss-event",
+      "request": {
+        "method": "GET",
+        "path": "/_/data-loss",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "521",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"209-rXRbxuVv9OGCLD298cz8/EOQ/Ec\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"event\":{\"id\":\"00000000-0000-4000-8000-000000000000\",\"firstDetectedAt\":1793512800000,\"lastWriteAt\":1793512800000,\"lossSummary\":{\"provenance\":\"ui-gestured\",\"destroyedAtoms\":4,\"removedItems\":0,\"modifiedAtoms\":0,\"paths\":[\"api.items[1]\",\"api.items[2]\",\"api.items[3]\",\"api.notes\"]},\"fieldCount\":2,\"preview\":[{\"key\":\"items\",\"now\":\"alpha\",\"yours\":\"alpha, beta, gamma, delta\"},{\"key\":\"notes\",\"now\":\"— empty —\",\"yours\":\"Kept by hand, with delta.\"}],\"droppedAdditions\":0,\"restorable\":true,\"canRevert\":true,\"status\":\"pending\"}}"
+      }
+    },
+    {
+      "name": "data-loss-restore",
+      "request": {
+        "method": "POST",
+        "path": "/_/data-loss/00000000-0000-4000-8000-000000000000",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "fromCase": {
+          "case": "data-loss-event",
+          "json": "event.id"
+        },
+        "body": "{\"file\": \"notes.html\", \"choice\": \"restore\"}"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "50",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"32-53HrJZHhJNb5gm777nRjkmim1Sg\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"ok\":true,\"choice\":\"restore\",\"status\":\"restored\"}"
+      }
+    },
+    {
+      "name": "notes-restored",
+      "request": {
+        "method": "GET",
+        "path": "/notes.html",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "478",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1de-cxpM+Z9gJtFqmIlqaTfucCeXDdo\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "vary": "Clay-Source",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "<!DOCTYPE html><html documentetag=\"5f13efca5c842c13\" lang=\"en\"><head>\n    <meta charset=\"utf-8\">\n    <title>Notes</title>\n    <script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"1\">{\"title\":\"h1\",\"items\":\"ul.items li[]\",\"notes\":\"p.notes\"}</script>\n  </head>\n  <body>\n    <h1>Reading list</h1>\n    <ul class=\"items\">\n      <li>alpha</li>\n    <li>beta</li><li>gamma</li><li>delta</li></ul>\n    <p class=\"notes\">Kept by hand, with delta.</p>\n  \n\n</body></html>"
+      }
+    },
+    {
+      "name": "save-notes-again",
+      "request": {
+        "method": "POST",
+        "path": "/_/save",
+        "headers": {
+          "Document-URL": "http://127.0.0.1:{PORT}/notes.html",
+          "Content-Type": "text/html",
+          "Save-Trigger": "user"
+        },
+        "bodyFile": "save-notes.html"
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d-CDBBsdHdK8yn9j2Xqxuwk2R4w8Y\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "{\"msg\":\"Saved\",\"msgType\":\"success\",\"etag\":\"5e5077a327376156\"}"
+      }
+    },
+    {
+      "name": "sync-no-parameters",
+      "request": {
+        "method": "GET",
+        "path": "/_/sync",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "31",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1f-9uxPWJP9ydoYDVbvXWkMZ/PJKpM\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "document-url parameter required"
+      }
+    },
+    {
+      "name": "sync-empty-document-url",
+      "request": {
+        "method": "GET",
+        "path": "/_/sync?document-url=",
+        "headers": {}
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "31",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1f-9uxPWJP9ydoYDVbvXWkMZ/PJKpM\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "document-url parameter required"
+      }
+    },
+    {
+      "name": "sync-list-cross-site",
+      "request": {
+        "method": "GET",
+        "path": "/_/sync?s=live:0:http://127.0.0.1:{PORT}/notes.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin",
+          "Origin": "http://example.com"
+        }
+      },
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Forbidden"
+      }
+    },
+    {
+      "name": "sync-list-over-limit",
+      "request": {
+        "method": "GET",
+        "path": "/_/sync?s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x&s=live:0:x",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "Bad Request"
+      }
+    },
+    {
+      "name": "sync-list-unmarked",
+      "request": {
+        "method": "GET",
+        "path": "/sync?s=x",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "31",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1f-9uxPWJP9ydoYDVbvXWkMZ/PJKpM\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "document-url parameter required"
+      }
+    },
+    {
+      "name": "sync-worker",
+      "request": {
+        "method": "GET",
+        "path": "/_/sync/worker.js",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "cache-control": "no-cache",
+        "content-length": "8623",
+        "content-type": "text/javascript; charset=utf-8",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-content-type-options": "nosniff",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "// HTML Clay's shared live-sync worker: Malleable Document spec, section 10.\n//\n// One instance per origin (a SharedWorker named \"clay-sync\") holds the origin's\n// single /_/sync stream and fans its frames out to every page over MessagePorts.\n// The stream lists every subscription in its URL, so a change to the set closes\n// the stream and reopens it from a new URL, with each surviving subscription\n// resuming from the last id it saw. The page contract (every message carries\n// v: 1) is the spec's, not this file's.\n\"use strict\";\n\nconst timing = Object.assign(\n  { debounce: 50, portTTL: 60000, sweep: 30000, backoffMin: 1000, backoffMax: 30000 },\n  self.claySyncTiming\n);\n\n// The host's cap on subscriptions per stream (livesync.go maxSharedSubs). Checked\n// here so the page past it is answered on its own port, instead of the host\n// refusing the whole list and every other page with it.\nconst maxSubs = 256;\n\n// key -> { document, lane, since, opened, latest: {id, data} | null, ports: Set, index }\nconst subs = new Map();\n// port -> { key, visible, seen, since, lastSeen }\nconst ports = new Map();\n\nlet stream = null;\nlet state = \"closed\";\nlet rebuildTimer = null;\nlet reconnectTimer = null;\nlet backoff = timing.backoffMin;\n\nfunction keyOf(document, lane) {\n  return lane + \"\\n\" + document;\n}\n\nfunction send(port, msg) {\n  try {\n    port.postMessage(Object.assign({ v: 1 }, msg));\n  } catch (_) {\n    drop(port);\n  }\n}\n\nfunction setState(next) {\n  if (next === state) return;\n  state = next;\n  for (const port of ports.keys()) send(port, { type: \"status\", state });\n}\n\nself.onconnect = (event) => {\n  const port = event.ports[0];\n  ports.set(port, { key: null, visible: true, seen: 0, since: 0, lastSeen: Date.now() });\n  port.onmessage = (e) => handle(port, e.data);\n  port.onmessageerror = () => drop(port);\n  if (typeof port.addEventListener === \"function\") port.addEventListener(\"close\", () => drop(port));\n  send(port, { type: \"status\", state });\n};\n\nfunction handle(port, msg) {\n  const meta = ports.get(port);\n  if (!meta || !msg || msg.v !== 1) return;\n  meta.lastSeen = Date.now();\n  switch (msg.type) {\n    case \"subscribe\":\n      subscribe(port, meta, msg);\n      break;\n    case \"unsubscribe\":\n      unsubscribe(port, meta);\n      break;\n    case \"visible\":\n      meta.visible = true;\n      deliverLatest(port, meta);\n      break;\n    case \"hidden\":\n      meta.visible = false;\n      break;\n    case \"ping\":\n      send(port, { type: \"pong\" });\n      break;\n  }\n}\n\nfunction subscribe(port, meta, msg) {\n  const since = msg.since === undefined ? 0 : msg.since;\n  // Checked as the host checks an entry, and answered on this port alone. Sent\n  // as it came, one bad entry would make the host refuse the whole list, and\n  // every other page's stream with it.\n  if (typeof msg.document !== \"string\" || msg.document === \"\" ||\n      (msg.lane !== \"live\" && msg.lane !== \"saved\") ||\n      !Number.isSafeInteger(since) || since < 0) {\n    send(port, { type: \"gone\" });\n    return;\n  }\n  unsubscribe(port, meta);\n  const key = keyOf(msg.document, msg.lane);\n  let sub = subs.get(key);\n  if (!sub) {\n    if (subs.size >= maxSubs) {\n      send(port, { type: \"gone\" });\n      return;\n    }\n    sub = { document: msg.document, lane: msg.lane, since, opened: false, latest: null, content: new Map(), needsResync: false, ports: new Set(), index: -1 };\n    subs.set(key, sub);\n    scheduleRebuild();\n  } else if (!sub.opened && since > 0 && (sub.since === 0 || since < sub.since)) {\n    // Two pages asking for one document before its stream is open: resume from\n    // the lower position, and let each page's own staleness check drop what it\n    // has already applied. Zero is the absence of a position, not a low one: the\n    // host reads it as \"no past\" and replays nothing, so it never lowers a real one.\n    sub.since = since;\n  }\n  sub.ports.add(port);\n  meta.key = key;\n  meta.seen = 0;\n  meta.since = since;\n  meta.cursored = false;\n  if (sub.opened) {\n    sendCursor(port, meta, sub, sub.needsResync);\n    deliverLatest(port, meta);\n  }\n}\n\nfunction sendCursor(port, meta, sub, resync) {\n  const behind = !meta.cursored && meta.since > 0 && meta.since < sub.since && sub.content.size === 0;\n  meta.cursored = true;\n  send(port, { type: \"cursor\", seq: sub.since, resync: resync || behind });\n}\n\nfunction unsubscribe(port, meta) {\n  const key = meta.key;\n  if (key === null) return;\n  meta.key = null;\n  const sub = subs.get(key);\n  if (!sub) return;\n  sub.ports.delete(port);\n  if (sub.ports.size === 0) {\n    subs.delete(key);\n    scheduleRebuild();\n  }\n}\n\nfunction drop(port) {\n  const meta = ports.get(port);\n  if (!meta) return;\n  unsubscribe(port, meta);\n  ports.delete(port);\n  try {\n    port.close();\n  } catch (_) {}\n}\n\nfunction deliverLatest(port, meta) {\n  if (meta.key === null || !meta.visible) return;\n  const sub = subs.get(meta.key);\n  if (!sub || sub.latest === null || sub.latest.id === meta.seen) return;\n  const frames = [...sub.content.values(), sub.latest].sort((a, b) => a.id - b.id);\n  for (const frame of frames) {\n    if (frame.id <= meta.seen) continue;\n    meta.seen = frame.id;\n    send(port, { type: \"frame\", data: frame.data });\n  }\n}\n\nfunction scheduleRebuild() {\n  clearTimeout(rebuildTimer);\n  rebuildTimer = setTimeout(rebuild, timing.debounce);\n}\n\nfunction rebuild() {\n  clearTimeout(rebuildTimer);\n  rebuildTimer = null;\n  clearTimeout(reconnectTimer);\n  reconnectTimer = null;\n  if (stream !== null) {\n    stream.close();\n    stream = null;\n  }\n  const order = Array.from(subs.values());\n  if (order.length === 0) {\n    setState(\"closed\");\n    return;\n  }\n  const query = order.map((sub, i) => {\n    sub.index = i;\n    return \"s=\" + encodeURIComponent(sub.lane + \":\" + sub.since + \":\" + sub.document);\n  });\n  const es = new EventSource(self.location.origin + \"/_/sync?\" + query.join(\"&\"));\n  stream = es;\n  setState(\"connecting\");\n  es.onopen = () => {\n    if (stream !== es) return;\n    backoff = timing.backoffMin;\n    setState(\"open\");\n  };\n  es.addEventListener(\"cursor\", (e) => onCursor(order, e));\n  order.forEach((sub, i) => es.addEventListener(\"s\" + i, (e) => onFrame(sub, e)));\n  es.onerror = () => {\n    if (stream !== es) return;\n    // The browser's own reconnect would reuse this URL and every position in it.\n    // Rebuilding instead resumes each subscription from where it is now.\n    es.close();\n    stream = null;\n    setState(\"connecting\");\n    reconnectTimer = setTimeout(rebuild, backoff);\n    backoff = Math.min(backoff * 2, timing.backoffMax);\n  };\n}\n\nfunction onCursor(order, e) {\n  let cursor;\n  try {\n    cursor = JSON.parse(e.data);\n  } catch (_) {\n    return;\n  }\n  const sub = order[cursor.sub];\n  if (!sub || subs.get(keyOf(sub.document, sub.lane)) !== sub) return;\n  if (cursor.error) {\n    for (const port of sub.ports) {\n      const meta = ports.get(port);\n      if (meta) meta.key = null;\n      send(port, { type: \"gone\" });\n    }\n    sub.ports.clear();\n    // The stream still lists it: rebuild without it, and with nothing left, close.\n    subs.delete(keyOf(sub.document, sub.lane));\n    scheduleRebuild();\n    return;\n  }\n  sub.opened = true;\n  if (cursor.resync === true) {\n    sub.latest = null;\n    sub.content.clear();\n    // A cursor cannot prove that a later frame repairs both peer and disk state.\n    sub.needsResync = true;\n  }\n  if (typeof cursor.seq === \"number\") sub.since = cursor.seq;\n  for (const port of sub.ports) {\n    const meta = ports.get(port);\n    if (meta) sendCursor(port, meta, sub, cursor.resync === true);\n  }\n}\n\nfunction onFrame(sub, e) {\n  const id = Number(e.lastEventId);\n  if (Number.isFinite(id) && id > sub.since) sub.since = id;\n  sub.latest = { id: sub.since, data: e.data };\n  try {\n    const data = JSON.parse(e.data);\n    if (data.type === \"notification\" && (data.data?.kind === \"external-change\" ||\n        (typeof data.msg === \"string\" && data.msg.endsWith(\"changed on disk outside this tab\")))) {\n      sub.content.set(\"disk\", sub.latest);\n    } else if (typeof data.html === \"string\") {\n      sub.content.set(\"peer\", sub.latest);\n    }\n  } catch (_) {}\n  for (const port of sub.ports) {\n    const meta = ports.get(port);\n    if (!meta || !meta.visible) continue;\n    meta.seen = sub.latest.id;\n    send(port, { type: \"frame\", data: e.data });\n  }\n}\n\n// A page that closed without saying so stops pinging; its port is dropped on the\n// next sweep, and its subscription with it once no other page holds it.\nsetInterval(() => {\n  const cutoff = Date.now() - timing.portTTL;\n  for (const [port, meta] of Array.from(ports)) {\n    if (meta.lastSeen < cutoff) drop(port);\n  }\n}, timing.sweep);\n"
+      }
+    },
+    {
+      "name": "sync-worker-unmarked",
+      "request": {
+        "method": "GET",
+        "path": "/sync/worker.js",
+        "headers": {}
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "14",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "File not found"
+      }
+    },
+    {
+      "name": "sync-v2-shaped",
+      "request": {
+        "method": "GET",
+        "path": "/_/sync?v=2&m=abc123:http://127.0.0.1:{PORT}/notes.html",
+        "headers": {
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "status": 400,
+      "headers": {
+        "content-length": "31",
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"1f-9uxPWJP9ydoYDVbvXWkMZ/PJKpM\"",
+        "set-cookie": "isAdminOfCurrentResource=true; Path=/; SameSite=Lax, isLoggedIn=true; Path=/; SameSite=Lax",
+        "x-powered-by": "Express"
+      },
+      "body": {
+        "text": "document-url parameter required"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": ".hyperclay/api-v2/notes.html.json",
+      "sha256": "07fc13b0ed62c057e35b17c45c0ab4f853baef23c2008e10cdef3b6a53a59c5d"
+    },
+    {
+      "path": ".hyperclay/guard/notes.json",
+      "sha256": "d052c20936721a0dbb8a3e3b4904ea084a24527b349fd09ddc6866ec7fc449bb"
+    },
+    {
+      "path": ".hyperclay/guard/notes.recover.html",
+      "sha256": "5e5077a327376156c964f96ff6712bf9ecb2479c74af5fe6e5ab194aea2e858d"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-001.html",
+      "sha256": "5e5077a327376156c964f96ff6712bf9ecb2479c74af5fe6e5ab194aea2e858d"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-002.html",
+      "sha256": "868b0771c061a50c906033c1312b480c3229632be473a29cd65fc6915e767697"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-003.html",
+      "sha256": "5f13efca5c842c1367278148696a9b3faa7b1614523f4bf48cffbd0d9e96cc17"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500-004.html",
+      "sha256": "5e5077a327376156c964f96ff6712bf9ecb2479c74af5fe6e5ab194aea2e858d"
+    },
+    {
+      "path": ".hyperclay/versions/notes/2026-11-01-01-00-00-000-0500.html",
+      "sha256": "1931b38d81670f9294ec369ea2284ae08a1621110572cd9c8143467d5c9b8b2a"
+    },
+    {
+      "path": "notes.html",
+      "sha256": "5e5077a327376156c964f96ff6712bf9ecb2479c74af5fe6e5ab194aea2e858d"
+    },
+    {
+      "path": "other.html",
+      "sha256": "8ef1812acd945f15a24470c7cd16f8d45da3f8d38abb466316c6017e179862e1"
+    },
+    {
+      "path": "sub/deep.html",
+      "sha256": "3b3609c6287fe003d676b3e608911758f039942ebcb38b6e37465ed0b4ab172f"
+    }
+  ],
+  "clock": 1793512800000,
+  "pages": []
+}

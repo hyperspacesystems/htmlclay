@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "data cannot be combined with shape; a sheet query reads the document's own rules",
+  "status": 400,
+  "code": "bad_query"
+}

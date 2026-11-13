@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: error
+query: {"sheet":"Budget","range":"A0"}
+note: row 0 is not a range

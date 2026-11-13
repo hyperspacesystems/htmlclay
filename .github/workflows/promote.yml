@@ -1,0 +1,40 @@
+name: Promote qualified HTML Clay
+run-name: promote ${{ inputs.record_sha256 }}
+on:
+  workflow_dispatch:
+    inputs:
+      record:
+        description: Sealed promotion record JSON
+        required: true
+        type: string
+      record_sha256:
+        description: SHA256 of the exact record input
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: htmlclay-publication
+  cancel-in-progress: false
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install storage CLI
+        run: python3 -m pip install awscli
+      - name: Publish retained candidate bytes
+        env:
+          PROMOTION_RECORD: ${{ inputs.record }}
+          PROMOTION_RECORD_SHA256: ${{ inputs.record_sha256 }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_CANDIDATES_ACCESS_KEY_ID: ${{ secrets.R2_CANDIDATES_ACCESS_KEY_ID }}
+          R2_CANDIDATES_SECRET_ACCESS_KEY: ${{ secrets.R2_CANDIDATES_SECRET_ACCESS_KEY }}
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python3 scripts/promote_candidate.py publish

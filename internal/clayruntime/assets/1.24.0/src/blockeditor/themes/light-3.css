@@ -1,0 +1,130 @@
+/* Light 3: sage-grey paper with a Georgia title, quiet green-grey chrome and soft wash highlights, from the Codex bake-off seat. */
+
+@import url("./content.css");
+
+:where(article[data-blockeditor], .blockeditor-shell) {
+  --chart-1: #3c5039;
+  --chart-2: #303931;
+  --chart-3: #727c70;
+  --chart-4: #495048;
+  --chart-5: #8c9187;
+  --chart-6: #c9cdbe;
+  --chart-text: #495048;
+  --blockeditor-bg: #f8f7f3;
+  --blockeditor-ink: #495048;
+  --blockeditor-ink-strong: #303931;
+  --blockeditor-ink-soft: #727c70;
+  --blockeditor-ink-faint: #8c9187;
+  --blockeditor-rule: #e3e5dc;
+  --blockeditor-accent: #3c5039;
+  --blockeditor-caret: #303931;
+  --blockeditor-selection: #e0e7d8;
+
+  --blockeditor-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --blockeditor-font-display: Georgia, "Times New Roman", serif;
+  --blockeditor-font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --blockeditor-font-size: 16px;
+  --blockeditor-line-height: 1.72;
+  --blockeditor-measure: 650px;
+  --blockeditor-pad-top: 115px;
+  --blockeditor-h1-size: 38px;
+  --blockeditor-h1-weight: 400;
+  --blockeditor-h1-tracking: -0.034em;
+  --blockeditor-h1-line: 1.18;
+  --blockeditor-h2-size: 14px;
+  --blockeditor-h2-weight: 600;
+  --blockeditor-h3-size: 13px;
+  --blockeditor-h3-weight: 600;
+  --blockeditor-block-gap: 1.3em;
+  --blockeditor-indent: 1.375em;
+
+  --blockeditor-marker: #727c70;
+  --blockeditor-check-size: 15px;
+  --blockeditor-check-radius: 3px;
+  --blockeditor-check-border: #8c9187;
+  --blockeditor-check-fill: #eef0e8;
+  --blockeditor-check-ink: #727c70;
+  --blockeditor-done-ink: #8c9187;
+  --blockeditor-toggle-ink: #727c70;
+  --blockeditor-callout-bg: #eef0e8;
+  --blockeditor-callout-line: transparent;
+  --blockeditor-code-bg: rgba(48, 57, 49, 0.05);
+  --blockeditor-code-ink: #303931;
+
+  --blockeditor-chrome-ink-rest: rgba(73, 80, 72, 0.80);
+  --blockeditor-chrome-ink-moved: rgba(73, 80, 72, 0.92);
+  --blockeditor-chrome-bg-rest: rgba(252, 251, 248, 0.40);
+  --blockeditor-chrome-bg-moved: rgba(252, 251, 248, 0.59);
+  --blockeditor-chrome-line-rest: rgba(201, 205, 190, 0.40);
+  --blockeditor-chrome-line-moved: rgba(201, 205, 190, 0.59);
+  --blockeditor-chrome-shadow-rest: none;
+  --blockeditor-chrome-shadow-moved: none;
+  --blockeditor-chrome-radius: 9px;
+  --blockeditor-plus-size: 27px;
+  --blockeditor-fade: 220ms;
+
+  --blockeditor-pop-bg: #fcfbf8;
+  --blockeditor-pop-ink: #495048;
+  --blockeditor-pop-muted: #8c9187;
+  --blockeditor-pop-line: #e3e5dc;
+  --blockeditor-pop-shadow: 0 5px 20px rgba(36, 44, 32, 0.06), 0 1px 3px rgba(36, 44, 32, 0.03);
+  --blockeditor-pop-hover: #eef0e8;
+  --blockeditor-pop-radius: 12px;
+  --blockeditor-bar-bg: #fcfbf8;
+  --blockeditor-bar-ink: #727c70;
+  --blockeditor-scrim: rgba(36, 44, 32, 0.12);
+}
+
+article[data-blockeditor] figure[data-type="chart"] { --chart-1: #3c5039; --chart-2: #303931; --chart-3: #727c70; --chart-4: #495048; --chart-5: #8c9187; --chart-6: #c9cdbe; --chart-text: #495048; max-width: 100%; }
+article[data-blockeditor] figure[data-type="chart"] > svg { display: block; width: 100%; height: auto; color: var(--chart-text); font: 12px system-ui, sans-serif; }
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) { letter-spacing: 0.002em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) h1 { margin-block: 0 0.74em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) h2 { margin-block: 1.9em 0.78em; line-height: 1.6; letter-spacing: 0.003em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) h3 { margin-block: 1.6em 0.6em; line-height: 1.6; }
+
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li { margin-block: 0.15em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li[data-kind="bullet"][data-indent="1"]::before,
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li[data-kind="bullet"][data-indent="3"]::before,
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li[data-kind="bullet"][data-indent="5"]::before,
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li[data-kind="bullet"][data-indent="7"]::before { background: none; border: 1.5px solid currentColor; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li[data-kind="check"] { margin-block: 0.25em; }
+:is(article[data-blockeditor], .blockeditor-shell .blockeditor-editor) .blockeditor-li[data-kind="check"][data-checked="true"] { text-decoration-color: #e3e5dc; }
+
+.blockeditor-shell .blockeditor-dock { gap: 2px; padding: 3px 5px; }
+.blockeditor-shell .blockeditor-tool { min-width: 28px; height: 28px; border-radius: 5px; }
+.blockeditor-shell .blockeditor-tool svg { width: 16px; height: 16px; }
+.blockeditor-shell .blockeditor-tool-turn { padding: 0 8px; font-size: 12px; }
+.blockeditor-shell .blockeditor-tool-sep { height: 14px; margin: 0 4px; }
+
+.blockeditor-shell .blockeditor-plus { border-radius: 7px; }
+.blockeditor-shell .blockeditor-plus svg { width: 16px; height: 16px; }
+
+.blockeditor-shell .blockeditor-bubble { gap: 2px; padding: 5px; border-radius: 9px; color: #727c70; }
+.blockeditor-shell .blockeditor-bubble .blockeditor-tool { width: 30px; height: 29px; }
+
+.blockeditor-shell .blockeditor-menu { width: 264px; padding: 13px 7px 7px; }
+.blockeditor-shell .blockeditor-menu-title { padding: 0 9px 10px; font-size: 11px; line-height: 1.5; color: #8c9187; }
+.blockeditor-shell .blockeditor-menu-item { gap: 12px; min-height: 39px; padding: 7px 10px; border-radius: 6px; font-size: 13px; }
+.blockeditor-shell .blockeditor-menu-icon { color: #727c70; }
+.blockeditor-shell .blockeditor-menu-hint { font-size: 11px; color: #8c9187; }
+.blockeditor-shell .blockeditor-menu-item[aria-selected="true"],
+.blockeditor-shell .blockeditor-menu-item[aria-selected="true"] .blockeditor-menu-icon { color: #3c5039; }
+
+@media (max-width: 560px) {
+  :where(article[data-blockeditor], .blockeditor-shell) {
+    --blockeditor-font-size: 15px;
+    --blockeditor-line-height: 1.7;
+    --blockeditor-pad-top: 63px;
+    --blockeditor-h1-size: 32px;
+    --blockeditor-h1-tracking: -0.028em;
+  }
+  .blockeditor-shell .blockeditor-plus { width: 44px; height: 44px; border-radius: 10px; }
+  .blockeditor-shell .blockeditor-plus svg { width: 18px; height: 18px; }
+  .blockeditor-shell .blockeditor-bubble { min-height: 44px; padding: 5px 4px; border-radius: 10px; box-shadow: 0 2px 10px rgba(36, 44, 32, 0.04); }
+  .blockeditor-shell .blockeditor-bubble .blockeditor-tool { min-width: 24px; width: auto; height: 32px; padding: 0 5px; }
+  .blockeditor-shell .blockeditor-menu { width: 100%; padding: 10px 12px 16px; border-radius: 17px 17px 0 0; box-shadow: 0 -6px 24px rgba(20, 30, 20, 0.05); }
+  .blockeditor-shell .blockeditor-menu::before { content: ""; display: block; width: 30px; height: 3px; margin: 0 auto 15px; border-radius: 3px; background: #e3e5dc; }
+  .blockeditor-shell .blockeditor-menu-title { padding: 0 10px 11px; font-size: 12px; }
+  .blockeditor-shell .blockeditor-menu-item { gap: 14px; min-height: 46px; padding: 10px 12px; font-size: 14px; }
+}

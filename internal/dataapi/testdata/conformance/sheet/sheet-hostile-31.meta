@@ -1,0 +1,5 @@
+tier: 1
+face: read
+token: api
+expect: ok
+note: hostile: table <table grid stale freeze-cols="1">

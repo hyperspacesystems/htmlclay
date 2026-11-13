@@ -1,0 +1,2 @@
+# Golden fixtures are byte-exact: a multipart body or a recorded answer keeps its CRLF.
+** -text

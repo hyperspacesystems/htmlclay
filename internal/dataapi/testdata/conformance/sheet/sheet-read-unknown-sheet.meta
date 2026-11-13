@@ -1,0 +1,6 @@
+tier: 1
+face: read
+token: api
+expect: error
+query: {"sheet":"Nope"}
+note: a tab that is not there is refused

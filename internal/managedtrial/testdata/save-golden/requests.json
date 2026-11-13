@@ -1,0 +1,176 @@
+[
+  {
+    "name": "save-document-url",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-same-body-again",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-page-url",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Page-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-no-url",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-json",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "application/json"
+    },
+    "body": "{\"html\":\"<html></html>\"}"
+  },
+  {
+    "name": "save-notes",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/notes.txt",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-missing-document",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/missing.html",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-missing-folder",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/nofolder/deep.html",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-if-match",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>Two</h1>\n<p>After</p>\n</body>\n</html>\n",
+    "ifMatchFrom": {
+      "case": "save-same-body-again",
+      "json": "etag"
+    }
+  },
+  {
+    "name": "save-if-match-stale",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "text/html",
+      "If-Match": "\"0123456789abcdef\""
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-if-match-empty",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "text/html",
+      "If-Match": ""
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-with-id",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "text/html",
+      "Save-ID": "save-42",
+      "Save-Trigger": "user"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+  },
+  {
+    "name": "meta-after-save",
+    "method": "GET",
+    "path": "/_/meta",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html"
+    }
+  },
+  {
+    "name": "save-paged",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/paged.html",
+      "Content-Type": "text/html"
+    },
+    "bodyFile": "paged-tagged.html"
+  },
+  {
+    "name": "save-get",
+    "method": "GET",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html"
+    }
+  },
+  {
+    "name": "save-bare",
+    "method": "POST",
+    "path": "/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/b.htmlclay",
+      "Content-Type": "text/html"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+  },
+  {
+    "name": "save-cross-site",
+    "method": "POST",
+    "path": "/_/save",
+    "headers": {
+      "Document-URL": "http://127.0.0.1:{PORT}/a.html",
+      "Content-Type": "text/html",
+      "Origin": "http://evil.example"
+    },
+    "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Doc</title>\n</head>\n<body>\n<h1>One</h1>\n</body>\n</html>\n"
+  }
+]

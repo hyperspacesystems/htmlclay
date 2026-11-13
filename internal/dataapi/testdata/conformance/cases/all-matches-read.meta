@@ -1,0 +1,7 @@
+tier: 1
+face: tag
+token: api
+expect: ok
+skip: htmlclay=all-matches form not ported yet (multi-page sites release 1, step G1)
+note: The [*] marker belongs to the write face: extraction still reports the first match under
+note: an ordinary key, so a [*] rule reads like the same rule without the marker.
