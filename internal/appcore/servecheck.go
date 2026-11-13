@@ -15,6 +15,10 @@ type Refusal struct {
 	Code      string
 	OtherPath string
 	OtherName string
+	// Field names the argument at fault, for a form to mark ("name", "path").
+	Field string
+	// SubjectID is the folder, program or request the refusal is about.
+	SubjectID string
 }
 
 const (
@@ -33,6 +37,21 @@ const (
 	// holding the folder's lock. CheckServe does not return it: the lock is taken
 	// after the check. It is listed here so every door knows the code.
 	RefuseServedElsewhere = "served-elsewhere"
+
+	// Action refusals (Plan).
+	RefuseUnknownAction     = "unknown-action"
+	RefuseBadArguments      = "bad-arguments"
+	RefuseNoSuchFolder      = "no-such-folder"
+	RefuseNoSuchProgram     = "no-such-program"
+	RefuseNoSuchDocument    = "no-such-document"
+	RefuseNoSuchRequest     = "no-such-request"
+	RefuseRequestChanged    = "request-changed"
+	RefuseAnswerNotOffered  = "answer-not-offered"
+	RefuseNotAllowedNow     = "not-allowed-now"
+	RefuseUnknownPreference = "unknown-preference"
+	RefuseNothingToMove     = "nothing-to-move"
+	RefuseNotConnected      = "not-connected"
+	RefuseNothingReady      = "nothing-ready"
 )
 
 // OtherFolder is a folder that matters to the check: how the asked-for folder stands

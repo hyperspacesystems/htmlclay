@@ -95,7 +95,7 @@ func Build(f Facts) Snapshot {
 			Folder:     r.Folder,
 			Path:       r.Path,
 			Detail:     r.Detail,
-			Answers:    []string{},
+			Answers:    AnswersFor(r.Kind),
 		})
 	}
 	s.Counts = counts(s.Waiting)

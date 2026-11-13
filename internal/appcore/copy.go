@@ -58,18 +58,39 @@ const (
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
 // %s, where present, is the other folder (OtherPath, or OtherName when set).
 var RefusalText = map[string]string{
-	RefuseNotAFolder:       "That is not a folder. Pick a folder instead.",                                   // TODO-COPY: refusal, max 140 chars
-	RefuseOutsideHome:      "Only folders inside your home folder can be served.",                            // TODO-COPY: refusal, max 140 chars
-	RefuseIsHome:           "Your whole home folder can't be served. Pick a folder inside it.",               // TODO-COPY: refusal, max 140 chars
-	RefuseProtectedFolder:  "HTML Clay keeps its own files in this folder, so it can't be served.",           // TODO-COPY: refusal, max 140 chars
-	RefuseOverlapsServed:   "This folder overlaps %s, which is already served. Stop serving that one first.", // TODO-COPY: refusal, max 140 chars
-	RefuseServedByLocal:    "Hyperclay Local is serving this folder now. Stop it there first.",               // TODO-COPY: refusal, max 140 chars
-	RefuseBoundToLocalSync: "This folder syncs with Hyperclay Local. Disconnect it there first.",             // TODO-COPY: refusal, max 140 chars
-	RefuseNestedTrusted:    "This folder overlaps the trusted folder %s. Stop trusting one of them first.",   // TODO-COPY: refusal, max 140 chars
-	RefuseNameInvalid:      "That name can't be used. Use lowercase letters, numbers and hyphens.",           // TODO-COPY: refusal, max 140 chars
-	RefuseNameTaken:        "Another served folder already uses that name. Pick another.",                    // TODO-COPY: refusal, max 140 chars
-	RefuseNameRetired:      "That name was used before and can't be used again. Pick another.",               // TODO-COPY: refusal, max 140 chars
-	RefuseServedElsewhere:  "Another copy of HTML Clay is serving this folder. Stop it there first.",         // TODO-COPY: refusal, max 140 chars
+	RefuseNotAFolder:        "That is not a folder. Pick a folder instead.",                                   // TODO-COPY: refusal, max 140 chars
+	RefuseOutsideHome:       "Only folders inside your home folder can be served.",                            // TODO-COPY: refusal, max 140 chars
+	RefuseIsHome:            "Your whole home folder can't be served. Pick a folder inside it.",               // TODO-COPY: refusal, max 140 chars
+	RefuseProtectedFolder:   "HTML Clay keeps its own files in this folder, so it can't be served.",           // TODO-COPY: refusal, max 140 chars
+	RefuseOverlapsServed:    "This folder overlaps %s, which is already served. Stop serving that one first.", // TODO-COPY: refusal, max 140 chars
+	RefuseServedByLocal:     "Hyperclay Local is serving this folder now. Stop it there first.",               // TODO-COPY: refusal, max 140 chars
+	RefuseBoundToLocalSync:  "This folder syncs with Hyperclay Local. Disconnect it there first.",             // TODO-COPY: refusal, max 140 chars
+	RefuseNestedTrusted:     "This folder overlaps the trusted folder %s. Stop trusting one of them first.",   // TODO-COPY: refusal, max 140 chars
+	RefuseNameInvalid:       "That name can't be used. Use lowercase letters, numbers and hyphens.",           // TODO-COPY: refusal, max 140 chars
+	RefuseNameTaken:         "Another served folder already uses that name. Pick another.",                    // TODO-COPY: refusal, max 140 chars
+	RefuseNameRetired:       "That name was used before and can't be used again. Pick another.",               // TODO-COPY: refusal, max 140 chars
+	RefuseUnknownAction:     "HTML Clay doesn't know that action. Update HTML Clay and try again.",            // TODO-COPY: refusal, max 140 chars
+	RefuseBadArguments:      "Something was missing from that request. Try again.",                            // TODO-COPY: refusal, max 140 chars
+	RefuseNoSuchFolder:      "That folder is no longer listed.",                                               // TODO-COPY: refusal, max 140 chars
+	RefuseNoSuchProgram:     "That program is no longer listed.",                                              // TODO-COPY: refusal, max 140 chars
+	RefuseNoSuchDocument:    "That document is no longer listed.",                                             // TODO-COPY: refusal, max 140 chars
+	RefuseNoSuchRequest:     "That request has ended.",                                                        // TODO-COPY: refusal, max 140 chars
+	RefuseRequestChanged:    "That request changed while you were answering. Look at it again.",               // TODO-COPY: refusal, max 140 chars
+	RefuseAnswerNotOffered:  "That answer isn't one this request offers.",                                     // TODO-COPY: refusal, max 140 chars
+	RefuseNotAllowedNow:     "That isn't possible for this folder right now.",                                 // TODO-COPY: refusal, max 140 chars
+	RefuseUnknownPreference: "HTML Clay doesn't have that setting.",                                           // TODO-COPY: refusal, max 140 chars
+	RefuseNothingToMove:     "There is nothing to move from Hyperclay Local.",                                 // TODO-COPY: refusal, max 140 chars
+	RefuseNotConnected:      "Connect your Hyperclay account first.",                                          // TODO-COPY: refusal, max 140 chars
+	RefuseNothingReady:      "No update is ready yet.",                                                        // TODO-COPY: refusal, max 140 chars
+	// A folder rule's reason, when an action runs into it.
+	WhyIdentityChanged:    TextWhyServeIdentityChanged,
+	WhyNotOnComputer:      TextWhyNotOnComputer,
+	WhyNotFromAccount:     TextWhySyncNotFromAccount,
+	WhyConnectFirst:       TextWhySyncConnectFirst,
+	WhyServeFirst:         TextWhySyncServeFirst,
+	WhyViewer:             TextWhySyncViewer,
+	WhyStopServingFirst:   TextWhyStopTrustingServed,
+	RefuseServedElsewhere: "Another copy of HTML Clay is serving this folder. Stop it there first.", // TODO-COPY: refusal, max 140 chars
 }
 
 // RefusalMessage fills in RefusalText for r.

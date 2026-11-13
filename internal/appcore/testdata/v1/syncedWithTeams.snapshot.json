@@ -292,7 +292,11 @@
       "folder": "Notes",
       "path": "/Users/sam/bin/todo-search",
       "detail": "",
-      "answers": []
+      "answers": [
+        "deny",
+        "allow-document",
+        "allow-all-trusted"
+      ]
     }
   ],
   "waiting": [
