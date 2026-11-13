@@ -23,6 +23,9 @@ type Options struct {
 	// Service makes the host consult a live-room service. It starts with no peer,
 	// so semantic writes answer 503 until SetServicePeer.
 	Service bool
+	// Dashboard is the workspace's origin, such as http://htmlclay.localhost:1212:
+	// the only page that may frame a document loaded with workspace-frame.
+	Dashboard string
 }
 
 // RootSpec is one served folder.
@@ -52,6 +55,7 @@ func NewHost(o Options) *Host {
 		assets:          o.Assets,
 		compileTailwind: o.CompileTailwind,
 		personName:      o.PersonName,
+		dashboard:       o.Dashboard,
 		events:          newEventRing(),
 	}
 	if o.Service {

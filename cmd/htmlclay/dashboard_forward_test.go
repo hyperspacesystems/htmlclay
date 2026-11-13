@@ -161,3 +161,64 @@ func TestDashboardForward(t *testing.T) {
 		t.Fatalf("the API without the token = %d", status)
 	}
 }
+
+// TestDashboardFramedDocument opens a document in the workspace's frame: the
+// address the dashboard hands out loads through the folder's own address, the
+// service bridges it, and only the dashboard may frame it. An id the workspace
+// never handed out loads the plain document.
+func TestDashboardFramedDocument(t *testing.T) {
+	serviceRepoTarget(t)
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+
+	a := newServiceTestApp(t, home, t.TempDir())
+	serveThroughDo(t, a, "serve-1", dir, "notes")
+	waitForServiceState(t, a, appcore.ServiceRunning, 20*time.Second)
+	c := openDashboard(t, a)
+
+	status, body := c.api(http.MethodGet, "/api/roots/"+url.PathEscape(c.rootIDOf())+"/document?path=index.html", nil)
+	var doc struct {
+		FrameURL string `json:"frameUrl"`
+		WireID   int    `json:"wireId"`
+	}
+	if status != http.StatusOK || json.Unmarshal([]byte(body), &doc) != nil || doc.FrameURL == "" {
+		t.Fatalf("document = %d %s", status, body)
+	}
+	frame, err := url.Parse(doc.FrameURL)
+	if err != nil || frame.Host != servedHostName("notes", servedTestPort) {
+		t.Fatalf("frameUrl = %q", doc.FrameURL)
+	}
+
+	app := httptest.NewServer(http.HandlerFunc(a.serveHost))
+	defer app.Close()
+	load := func(target string) (*http.Response, string) {
+		t.Helper()
+		r, err := http.NewRequest(http.MethodGet, app.URL+target, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Host = frame.Host
+		r.Header.Set("Sec-Fetch-Dest", "iframe")
+		r.Header.Set("Sec-Fetch-Site", "same-site")
+		res, err := http.DefaultClient.Do(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return res, string(b)
+	}
+
+	res, page := load(frame.RequestURI())
+	if res.StatusCode != http.StatusOK || !strings.Contains(page, "data-hyperclay-bridge") {
+		t.Fatalf("the framed load = %d, bridged %v", res.StatusCode, strings.Contains(page, "data-hyperclay-bridge"))
+	}
+	if csp := res.Header.Get("Content-Security-Policy"); csp != "frame-ancestors "+a.dashboardOrigin() {
+		t.Fatalf("the framed load's frame header = %q", csp)
+	}
+	res, page = load(fmt.Sprintf("/index.html?workspace-frame=%d", doc.WireID+100))
+	if res.StatusCode != http.StatusOK || strings.Contains(page, "data-hyperclay-bridge") {
+		t.Fatalf("a load with an id never handed out = %d, bridged %v", res.StatusCode, strings.Contains(page, "data-hyperclay-bridge"))
+	}
+}

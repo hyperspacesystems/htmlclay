@@ -57,7 +57,13 @@ func (a *app) newServedHost() *served.Host {
 		CompileTailwind: a.compileServedTailwind,
 		PersonName:      person,
 		Service:         a.service.enabled(),
+		Dashboard:       a.dashboardOrigin(),
 	})
+}
+
+// dashboardOrigin is the workspace's origin on the app's port.
+func (a *app) dashboardOrigin() string {
+	return fmt.Sprintf("http://%s:%d", appcore.DashboardHost, a.rt.port)
 }
 
 // compileServedTailwind is the host's Tailwind seam: the same compiler and

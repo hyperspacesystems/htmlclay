@@ -299,6 +299,9 @@ function createTrialService({
   const mounts = [];
   const rootListeners = new Set();
   const rootsChanged = () => { for (const listener of rootListeners) listener(); };
+  // Who says whether a framed document load belongs to an open workspace
+  // (`frames`): Local's app asks it before it bridges the document.
+  let workspaceFrame = null;
   const rootsByPath = new Map();
   const consultations = new Map();
   const touched = new Map();
@@ -1187,7 +1190,8 @@ function createTrialService({
     // Local's own app answers the routes Go forwards. Its document host is
     // the Go adapter (this process runs with the trial switch on), which it
     // registers with the checkpoint service in place of goHost.
-    record.app = createApp({ ...ctx, devHooks: null, isKnownPath: null });
+    record.app = createApp({ ...ctx, devHooks: null, isKnownPath: null,
+      workspaceFrame: (...args) => (workspaceFrame ? workspaceFrame(...args) : null) });
     roots.set(root.id, record);
     rootsByPath.set(canonical, record);
     rootsChanged();
@@ -1238,6 +1242,11 @@ function createTrialService({
     mount(prefix, handler) {
       if (!/^\/.+\/$/.test(prefix) || prefix.startsWith(`${ROUTE_PREFIX}/`)) throw new Error(`bad mount prefix ${prefix}`);
       mounts.push([prefix, handler]);
+    },
+    // Sets who answers a framed document load (rootId, rel, wireId) with
+    // { wireId, shellOrigin } or null: Local's root option `workspaceFrame`.
+    frames(fn) {
+      workspaceFrame = fn;
     },
     // Calls `listener` after a root is added or removed. Answers the unsubscribe.
     onRoots(listener) {

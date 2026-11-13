@@ -1,8 +1,8 @@
 {
   "local": {
     "ref": "main",
-    "commit": "6cc15ef74c868a429715d3501eb757deb07675a5",
-    "committedAt": "2026-11-13T06:55:40-05:00"
+    "commit": "5bc52a7ed15f2413b7b3123bb273a2316c23203a",
+    "committedAt": "2026-11-13T07:10:39-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -897,7 +897,7 @@
     "trial/go-document-host.cjs": "8f364a3f587f72518a9cbcc83b30f706984a9e3ea37113c2d78234c272cf4f0a",
     "trial/go-process.cjs": "339b773a7653c25f88e6a7708f4f53adeef6eacbd4bd35eea4d560090e4671fd",
     "trial/service-main.cjs": "f75c6c5acc3fff9e3afdd1685ea0e774b8efb5986f7914724214212501230247",
-    "trial/service.cjs": "119691bcf7a84035632a415a68d0999e32a2d700f8c2ff3e386dc906ce7b42aa"
+    "trial/service.cjs": "48cb2f63f3d2257ab4fc42c3dd8392f56bc6f6132df273c3296391384e90a4ae"
   },
   "packages": {
     "@panphora/clayjs": "1.24.1",

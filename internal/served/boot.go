@@ -29,6 +29,8 @@ type config struct {
 	// service is the JS service this host consults while it holds a document's
 	// lock, when the bootstrap line attaches one.
 	service *serviceLink
+	// dashboard is the workspace origin a framed document load may be framed by.
+	dashboard string
 	// events is the process's one frame stream: every root's commits and
 	// watcher observations land in it, and the control listener reads it.
 	events *eventRing

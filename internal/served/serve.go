@@ -105,7 +105,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	}
 	if cfg.service != nil {
 		server.service = cfg.service
-		server.serviceProxy = newServiceProxy(cfg.service, root.id)
+		server.serviceProxy = newServiceProxy(cfg.service, root.id, cfg.dashboard)
 	}
 	return server, nil
 }

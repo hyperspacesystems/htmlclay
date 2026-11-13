@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -19,7 +20,10 @@ type canonicalKey struct{}
 // root, the public origin and host, and for a data API request the canonical
 // path it resolved. Answers stream with immediate flushes, and the upstream
 // request ends with the client's.
-func newServiceProxy(link *serviceLink, rootID string) *httputil.ReverseProxy {
+//
+// A document load carrying workspace-frame may be framed by the dashboard and by
+// nothing else.
+func newServiceProxy(link *serviceLink, rootID, dashboard string) *httputil.ReverseProxy {
 	return &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			peer := link.currentPeer()
@@ -52,6 +56,10 @@ func newServiceProxy(link *serviceLink, rootID string) *httputil.ReverseProxy {
 		ModifyResponse: func(res *http.Response) error {
 			sent, _ := res.Request.Context().Value(sentCookiesKey{}).([]string)
 			dropRepeatedCookies(res.Header, sent)
+			if dashboard != "" && workspaceFramed(res.Request) {
+				res.Header.Del("X-Frame-Options")
+				res.Header.Set("Content-Security-Policy", "frame-ancestors "+dashboard)
+			}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -100,6 +108,8 @@ func (s *rootServer) forwardsToService(r *http.Request, urlPath string, marked b
 	switch {
 	case getOrHead && (urlPath == "/sync" || urlPath == "/live-sync/stream"):
 		return true, ""
+	case getOrHead && !marked && workspaceFramed(r) && framedDocument.MatchString(urlPath):
+		return true, ""
 	case post && relayAddress(urlPath) && bareAllowed(urlPath, marked):
 		return true, ""
 	case marked && (getOrHead || post) && systemPath == "/sync/data":
@@ -125,6 +135,16 @@ func (s *rootServer) forwardsToService(r *http.Request, urlPath string, marked b
 		}
 	}
 	return false, ""
+}
+
+// framedDocument is a path that names a document, as Local's catch-all route
+// matches one (an .html or .htmlclay segment, then anything).
+var framedDocument = regexp.MustCompile(`(?i)^/.*?\.html(?:clay)?(?:/.*)?$`)
+
+// workspaceFramed reports a document load the workspace made for its frame:
+// Local's own code in the service checks the id and adds the workspace bridge.
+func workspaceFramed(r *http.Request) bool {
+	return r.URL.Query().Has("workspace-frame")
 }
 
 // forwardToService answers a room-owning request through the service. A data

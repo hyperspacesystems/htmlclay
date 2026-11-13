@@ -201,6 +201,10 @@ function mountShell(service, { appVersion }) {
     rootHost: { origin: (root) => new URL(record(root.id).origin).origin, fetch: goFetch },
   });
 
+  // A document load carrying workspace-frame is bridged when this workspace
+  // handed out that id for that document (shell-server.js frame).
+  service.frames((rootId, rel, wireId) => (shell ? shell.frame(rootId, rel, wireId) : null));
+
   const stopRoots = service.onRoots(() => {
     shell?.rootsChanged();
     for (const [id, watcher] of watchers) {
@@ -241,6 +245,7 @@ function mountShell(service, { appVersion }) {
   return {
     async close() {
       stopRoots();
+      service.frames(null);
       await shell?.stop();
       await Promise.all([...watchers.values()].map((watcher) => watcher.close()));
       watchers.clear();
