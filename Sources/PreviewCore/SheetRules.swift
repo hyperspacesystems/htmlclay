@@ -43,6 +43,15 @@ public enum ServeRules {
     }
 }
 
+public enum MoveRules {
+    public static func ordered(_ checked: Set<String>) -> [String] {
+        SampleData.localMoveFolders.map(\.id).filter { checked.contains($0) }
+    }
+    public static func canMove(blockers: Int, checked: Set<String>, key: String) -> Bool {
+        blockers == 0 && !checked.isEmpty && !key.isEmpty
+    }
+}
+
 public enum TrustRules {
     public static func isMainFolder(_ path: String) -> Bool {
         Strings.Request.mainFolders.contains(path)

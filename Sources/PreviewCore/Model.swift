@@ -35,6 +35,8 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
     case accountFolder(username: String)
     case teamSetup(folderID: String)
     case addProgram
+    case moveFromLocal
+    case movedFromLocal
 
     public var id: String {
         switch self {
@@ -44,6 +46,8 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
         case let .accountFolder(username): return "account." + username
         case let .teamSetup(folderID): return "team." + folderID
         case .addProgram: return "add-program"
+        case .moveFromLocal: return "move"
+        case .movedFromLocal: return "moved"
         }
     }
 }
@@ -104,6 +108,13 @@ public struct TrustCandidate: Equatable, Sendable {
     public let name: String
     public let path: String
     public let documents: Int
+}
+
+public struct LocalMoveFolder: Equatable, Identifiable, Sendable {
+    public let id: String
+    public let name: String
+    public let port: Int
+    public let address: String
 }
 
 public struct Program: Codable, Equatable, Identifiable, Sendable {
@@ -233,6 +244,7 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     }
 
     public var syncConnected: Bool { sync.connected }
+    public var filesStillUploading: Int { sync.connected && !sync.paused && sync.offlineChanges == 0 ? sync.syncingFiles : 0 }
     public func count(in pane: SettingsPane) -> Int { waiting.filter { $0.pane == pane }.count }
     public var totalCount: Int { waiting.count }
 
@@ -267,10 +279,15 @@ public enum HostAction: Equatable, Sendable {
     case startUpdate
     case finishUpdate
     case restartHost
+    case moveFromLocal(folderIDs: [String])
 }
 
 public enum PreviewOverlay: String, CaseIterable, Sendable {
     case keyRefused, offline, updateReady, hostStopped, teamViewer, teamFolderMissing
+}
+
+public enum SampleNotification: String, CaseIterable, Sendable {
+    case conflict, keyStopped, addedToTeam, wentBack, cantOpen
 }
 
 public struct HistoryEntry: Equatable, Identifiable, Sendable {

@@ -107,6 +107,19 @@ public enum SampleReducer {
             next.update.finishing = false
         case .restartHost:
             next.hostStopped = false
+        case let .moveFromLocal(folderIDs):
+            guard next.localMoveOffer else { return snapshot }
+            let source = SampleData.syncedWithTeams
+            next.localMoveOffer = false
+            for id in folderIDs where next.folder(id) == nil {
+                if let folder = source.folder(id) { next.folders.append(folder) }
+            }
+            for item in source.waiting where item.kind == .conflict && folderIDs.contains(item.subjectID ?? "") && !next.waiting.contains(where: { $0.id == item.id }) {
+                next.waiting.append(item)
+            }
+            if !folderIDs.isEmpty && !next.sync.connected {
+                next.sync = SyncState(connected: true, username: "panphora", keySuffix: "7f3a", lastFinished: "just now", fullName: "David Miranda")
+            }
         case let .addProgram(name, path):
             guard !next.programs.contains(where: { $0.name == name }) else { return snapshot }
             var id = name

@@ -457,6 +457,77 @@ public enum Strings {
         public static let nameHint = "The name documents ask for. Lowercase letters, numbers and hyphens."
         public static let add = "Add"
     }
+    public enum Move {
+        public static let title = "Move your folders from Hyperclay Local"
+        public static func mapping(port: Int, address: String) -> String { "localhost:\(port) → \(address)" }
+        public static let beforeYouMove = "Before you move"
+        public static let localRunning = "Hyperclay Local is still running."
+        public static let quitLocal = "Quit Hyperclay Local"
+        public static func unsaved(_ document: String) -> String { "\(document) has unsaved changes in Hyperclay Local." }
+        public static let showIt = "Show it"
+        public static let comesAlong = "Comes along"
+        public static func comesAlongText(conflicts: Int) -> String { "Versions, folder history, and \(conflicts) open conflicts, still waiting for you. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address." }
+        public static let notNow = "Not now"
+        public static let moveFolders = "Move folders"
+        public static let wouldQuitLocal = "Build 1: this would quit Hyperclay Local after it saves."
+        public static func wouldShowUnsaved(_ document: String) -> String { "Build 1: this would show \(document) in Hyperclay Local." }
+        public static let movedTitle = "Your folders moved"
+        public static let switchesTitle = "Serve and sync switches"
+        public static let switchesWhere = "Settings › Folders"
+        public static let noticesTitle = "Notices"
+        public static let noticesWhere = "Needs you, in the dashboard"
+        public static let activityTitle = "Activity"
+        public static let activityWhere = "Each folder's history"
+        public static let workspaceTitle = "The workspace window"
+        public static let workspaceWhere = "Your browser"
+        public static func conflictsWaiting(_ count: Int) -> String { count == 1 ? "1 conflict is waiting in Needs you." : "\(count) conflicts are waiting in Needs you." }
+    }
+    public enum Quit {
+        public static let finishingTitle = "Finishing up…"
+        public static func uploading(_ files: Int) -> String { "Uploading \(files) files to hyperclay.com. Your files are already saved on this Mac." }
+        public static let quitNow = "Quit now"
+        public static func cantSaveTitle(_ document: String) -> String { "\(document) can't save" }
+        public static let cantSaveMessage = "The file is no longer writable. Quitting now loses the last change."
+        public static let showDocument = "Show document"
+        public static let retry = "Retry"
+        public static let quitAnyway = "Quit anyway"
+        public static func portTitle(_ port: String, process: String) -> String { "Port \(port) is in use by “\(process)”" }
+        public static let portMessage = "HTML Clay can use another port, but every page's saved browser data starts over at the new address."
+        public static func quitProcess(_ process: String) -> String { "Quit \(process) and retry" }
+        public static func usePort(_ port: Int) -> String { "Use port \(port)" }
+        public static let wouldQuit = "Build 1: HTML Clay would quit now. The preview stays open."
+        public static func wouldRetrySave(_ document: String) -> String { "Build 1: this would try saving \(document) again." }
+        public static func wouldQuitProcess(_ process: String) -> String { "Build 1: this would quit \(process) and start HTML Clay on port 1212." }
+        public static func wouldUsePort(_ port: Int) -> String { "Build 1: this would move every address to port \(port). Saved browser data starts over." }
+    }
+    public enum Notify {
+        public static func title(_ note: SampleNotification) -> String {
+            switch note {
+            case .conflict: return "Design Team: index.html changed in both places"
+            case .keyStopped: return "Your sync key stopped working"
+            case .addedToTeam: return "You were added to Marketing"
+            case .wentBack: return "HTML Clay went back to 2.0"
+            case .cantOpen: return "Can't open trip-plan.htmlclay"
+            }
+        }
+        public static func body(_ note: SampleNotification) -> String {
+            switch note {
+            case .conflict: return "Choose which to keep. Its upload waits."
+            case .keyStopped: return "Syncing stopped. Your files are safe."
+            case .addedToTeam: return "Set it up on this Mac in Settings › Folders."
+            case .wentBack: return "2.1 didn't start correctly."
+            case .cantOpen: return "HTML Clay only opens files in your home folder."
+            }
+        }
+        public static let fallbackNote = "Shown here because notifications are off for HTML Clay Preview."
+    }
+}
+
+extension Strings.Preview {
+    public static let quitWhileUploading = "Quit while uploading"
+    public static let saveCantFinish = "Quit when a save can't finish"
+    public static let portTaken = "Port 1212 taken at launch"
+    public static let sendNotification = "Send a notification"
 }
 
 extension Strings.Panel {
