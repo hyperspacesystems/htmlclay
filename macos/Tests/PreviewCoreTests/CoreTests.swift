@@ -151,7 +151,7 @@ final class CoreTests: XCTestCase {
     func testServeFolderServesAnExistingFolderOrAddsOne() {
         let served = SampleReducer.apply(.serveFolder(path: "~/Documents/Notes", name: "my-notes"), to: SampleData.snapshot(for: .trustedFolder))
         XCTAssertEqual(served.folder("notes")?.served, true)
-        XCTAssertEqual(served.folder("notes")?.address, "my-notes.hyperclay.localhost:1212")
+        XCTAssertEqual(served.folder("notes")?.address, "my-notes.htmlclay.localhost:1212")
         let added = SampleReducer.apply(.serveFolder(path: "~/Sites/blog", name: "blog"), to: HostSnapshot())
         XCTAssertEqual(added.folders.map(\.id), ["blog"])
         XCTAssertEqual(added.folders.first?.served, true)
@@ -184,7 +184,7 @@ final class CoreTests: XCTestCase {
         XCTAssertNil(TeamSetupRules.problem(paths[0], in: teams))
         XCTAssertEqual(TeamSetupRules.problem(paths[1], in: teams), "This folder isn't empty. Choose an empty one.")
         XCTAssertEqual(TeamSetupRules.problem(paths[2], in: teams), "It's inside panphora.")
-        XCTAssertEqual(TeamSetupRules.address(for: marketing), "marketing.hyperclay.localhost:1212")
+        XCTAssertEqual(TeamSetupRules.address(for: marketing), "marketing.htmlclay.localhost:1212")
 
         XCTAssertEqual(ProgramRules.defaultName(for: "~/bin/export-csv.py"), "export-csv")
         XCTAssertEqual(ProgramRules.nameProblem("Export CSV", in: teams), .invalid)

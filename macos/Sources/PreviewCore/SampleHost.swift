@@ -1,7 +1,7 @@
 import Foundation
 
 public enum SampleReducer {
-    public static let addressSuffix = ".hyperclay.localhost:1212"
+    public static let addressSuffix = ".htmlclay.localhost:1212"
 
     public static func apply(_ action: HostAction, to snapshot: HostSnapshot) -> HostSnapshot {
         var next = snapshot
@@ -63,7 +63,7 @@ public enum SampleReducer {
             next.sync.fullName = "David Miranda"
             next.waiting.removeAll { $0.kind == .syncKeyRefused }
             if next.folder("panphora") == nil {
-                next.folders.append(Folder(id: "panphora", name: "panphora", path: "~/hyperclay/panphora", origin: .account(username: "panphora"), served: true, synced: true, address: "panphora.hyperclay.localhost:1212", documentCount: 31, status: "up to date"))
+                next.folders.append(Folder(id: "panphora", name: "panphora", path: "~/hyperclay/panphora", origin: .account(username: "panphora"), served: true, synced: true, address: "panphora.htmlclay.localhost:1212", documentCount: 31, status: "up to date"))
             }
         case .disconnect:
             next.sync = SyncState()

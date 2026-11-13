@@ -412,7 +412,7 @@ public enum Strings {
             public static let rowTitle = "Journal folder"
             public static let rowSubtitle = "Inside Notes"
             public static let switchTitle = "Serve this folder"
-            public static let switchSubtitle = "Reachable at notes.hyperclay.localhost:1212"
+            public static let switchSubtitle = "Reachable at notes.htmlclay.localhost:1212"
             public static let badgeTitle = "Waiting requests"
             public static let back = "Back button"
         }
