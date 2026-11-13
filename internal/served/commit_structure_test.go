@@ -10,7 +10,8 @@ import (
 
 // TestRestructureLocksEveryPath proves a structure change waits for a write on
 // every path it names: a save holding the destination's lock delays a move onto
-// it, and the move is judged against the state that save left behind.
+// it, and the move is judged against the state that save left behind, which now
+// holds a file there, so the move refuses and both files keep their bytes.
 func TestRestructureLocksEveryPath(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -77,13 +78,50 @@ func TestRestructureLocksEveryPath(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("the move never finished")
 	}
-	if result.Outcome != "committed" || result.Completed != 1 {
-		t.Fatalf("the move got %+v, want committed after the save", result)
+	if result.Outcome != "failed" || result.Completed != 0 || result.Reason != "EEXIST" {
+		t.Fatalf("the move got %+v, want failed EEXIST after the save", result)
 	}
 	if data, err := os.ReadFile(filepath.Join(root, "b.html")); err != nil {
 		t.Fatal(err)
-	} else if !bytes.Equal(data, first) {
-		t.Errorf("the move did not replace the saved file: %q", data)
+	} else if !bytes.Contains(data, []byte("<h1>Two</h1>")) {
+		t.Errorf("the move replaced the saved file: %q", data)
+	}
+	if data, err := os.ReadFile(filepath.Join(root, "a.html")); err != nil || !bytes.Equal(data, first) {
+		t.Errorf("the source changed: %q %v", data, err)
+	}
+}
+
+// TestRestructureRefusesATakenName proves a workspace move or duplicate onto a
+// name another tab took after the workspace checked it keeps both files, while
+// a case-only rename (the source itself) still goes through.
+func TestRestructureRefusesATakenName(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFile(t, root, "a.txt", []byte("A bytes"))
+	writeCommitFile(t, root, "dest.txt", []byte("other tab's bytes"))
+	host := newCommitHost(root, "root-taken-name", newConsentRegistry(root, nil), nil, nil)
+	for _, kind := range []string{"move", "duplicate"} {
+		result, _ := host.restructure(kind, []structureEntry{{
+			FromPath: filepath.Join(root, "a.txt"),
+			ToPath:   filepath.Join(root, "dest.txt"),
+		}})
+		if result.Outcome != "failed" || result.Reason != "EEXIST" {
+			t.Errorf("%s onto a taken name got %+v, want failed EEXIST", kind, result)
+		}
+		for name, want := range map[string]string{"a.txt": "A bytes", "dest.txt": "other tab's bytes"} {
+			if data, err := os.ReadFile(filepath.Join(root, name)); err != nil || string(data) != want {
+				t.Errorf("after %s, %s = %q %v, want %q", kind, name, data, err, want)
+			}
+		}
+	}
+	result, _ := host.restructure("move", []structureEntry{{
+		FromPath: filepath.Join(root, "a.txt"),
+		ToPath:   filepath.Join(root, "b.txt"),
+	}})
+	if result.Outcome != "committed" {
+		t.Errorf("a move to a free name got %+v, want committed", result)
 	}
 }
 

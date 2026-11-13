@@ -70,12 +70,15 @@ type commitGoldenStructure struct {
 	To   string `json:"to"`
 }
 
-// TestCommitGolden compares every scenario but AD2 exactly: the answers, the
-// hook calls and the tree.
+// TestCommitGolden compares every scenario exactly (the answers, the hook calls
+// and the tree) but two: AD2, and a workspace move onto an existing name, which
+// Local's primitive replaces because Local checks the name under the same lock.
+// Here the workspace checks before Go's lock, so Go refuses it instead
+// (TestRestructureRefusesATakenName).
 func TestCommitGolden(t *testing.T) {
 	golden := loadCommitGolden(t)
 	for _, scenario := range golden.Scenarios {
-		if scenario.Name == "ad2-stale-lineage" {
+		if scenario.Name == "ad2-stale-lineage" || scenario.Name == "restructure-move-onto-existing" {
 			continue
 		}
 		scenario := scenario

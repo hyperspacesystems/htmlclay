@@ -296,6 +296,37 @@ func (r *serviceRunner) spawn() {
 		return
 	}
 	r.step(service.Event{Kind: service.Attached})
+	r.reconcileRoots(host.Roots)
+}
+
+// reconcileRoots sends the service the folders served or stopped while it was
+// attaching: the attach carried the list as it stood before the handshake, and
+// addRoot and removeRoot do nothing until the service is running.
+func (r *serviceRunner) reconcileRoots(attached []service.Root) {
+	sent := make(map[string]bool, len(attached))
+	for _, root := range attached {
+		sent[root.ID] = true
+	}
+	current := make(map[string]bool)
+	var missing []*servedMount
+	r.a.servedMu.RLock()
+	for _, m := range r.a.servedByName {
+		current[m.folder.ID] = true
+		if !sent[m.folder.ID] {
+			missing = append(missing, m)
+		}
+	}
+	r.a.servedMu.RUnlock()
+	for _, m := range missing {
+		r.addRoot(m)
+	}
+	for id := range sent {
+		if !current[id] {
+			if _, err := r.removeRoot(id); err != nil {
+				r.a.rt.logger.Printf("The live-room service did not let go of folder %s: %v", id, err)
+			}
+		}
+	}
 }
 
 // awaitExit reports one process's exit to the machine. A process that is no

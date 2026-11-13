@@ -185,6 +185,18 @@ func TestStateStopWhileStarting(t *testing.T) {
 	})
 }
 
+// TestStateStopBeforeSpawned proves a stop chosen while Node is still starting
+// (before the runner has a process) is sent again once the process exists.
+func TestStateStopBeforeSpawned(t *testing.T) {
+	run(t, []step{
+		{0, on, []CommandKind{Spawn, WakeAt}, Starting},
+		{100 * time.Millisecond, off, []CommandKind{Stop}, Stopping},
+		{200 * time.Millisecond, spawned, []CommandKind{Stop}, Stopping},
+		{300 * time.Millisecond, attach, nil, Stopping},
+		{400 * time.Millisecond, exit, nil, Off},
+	})
+}
+
 func TestStateServedAgainWhileStopping(t *testing.T) {
 	run(t, []step{
 		{0, on, []CommandKind{Spawn, WakeAt}, Starting},

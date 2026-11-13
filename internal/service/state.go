@@ -114,6 +114,11 @@ func (m *Machine) Step(now time.Time, ev Event) []Command {
 	case Want:
 		return m.setWant(now, ev.On)
 	case Spawned:
+		// A stop that came while the process was still starting found nothing
+		// to stop; now there is one.
+		if m.state == Stopping {
+			return []Command{{Kind: Stop}}
+		}
 		return nil
 	case Attached:
 		if m.state != Starting {

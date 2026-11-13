@@ -25,12 +25,16 @@ type structurePolicy struct {
 	retire      bool
 	copy        bool
 	crossDevice bool
+	// exclusive refuses a step whose destination already exists. The workspace
+	// checks names before Go's structure lock, so another tab or a save can
+	// take a name in between; a move or copy onto it would lose those bytes.
+	exclusive bool
 }
 
 var structureKinds = map[string]structurePolicy{
-	"move":       {crossDevice: true},
-	"trash":      {retire: true, crossDevice: true},
-	"duplicate":  {copy: true},
+	"move":       {crossDevice: true, exclusive: true},
+	"trash":      {retire: true, crossDevice: true, exclusive: true},
+	"duplicate":  {copy: true, exclusive: true},
 	"sync-move":  {crossDevice: true},
 	"sync-trash": {retire: true, crossDevice: true},
 }
@@ -115,6 +119,10 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 	var failure error
 	if policy.copy {
 		for index, entry := range entries {
+			if err := destinationFree(policy, entry); err != nil {
+				failure = err
+				break
+			}
 			if err := os.MkdirAll(upathDir(entry.ToPath), 0o777); err != nil {
 				failure = err
 				break
@@ -142,6 +150,10 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 
 	var copiedSteps []int
 	for index, entry := range entries {
+		if err := destinationFree(policy, entry); err != nil {
+			failure = err
+			break
+		}
 		copied, err := moveEntry(entry.FromPath, entry.ToPath, policy.crossDevice)
 		if err != nil {
 			failure = err
@@ -308,6 +320,25 @@ func structureErrorCode(err error) string {
 		return "EPERM"
 	}
 	return "failed"
+}
+
+// destinationFree refuses an exclusive step whose destination is taken, unless
+// it is the source itself (a case-only rename on a case-insensitive disk).
+func destinationFree(policy structurePolicy, entry structureEntry) error {
+	if !policy.exclusive {
+		return nil
+	}
+	taken, err := os.Lstat(entry.ToPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if source, err := os.Lstat(entry.FromPath); err == nil && os.SameFile(source, taken) {
+		return nil
+	}
+	return &fs.PathError{Op: "rename", Path: entry.ToPath, Err: fs.ErrExist}
 }
 
 // moveEntry is Local's moveEntry: a rename, and on a cross-device rename a copy
