@@ -1,6 +1,8 @@
 package served
 
 import (
+	"errors"
+	"io/fs"
 	"log"
 	"os"
 	"regexp"
@@ -203,36 +205,62 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 		content = logical
 	}
 
-	// Check if this is the first save (no versions exist yet).
-	siteVersionsDir := upathJoin(h.baseDir, versionsDirName, backupName)
-	isFirstSave := true
-	if entries, err := os.ReadDir(siteVersionsDir); err == nil {
-		isFirstSave = len(entries) == 0
-	}
-
-	// The bytes already on disk, read once: the first-save backup stores their
-	// file part, and a save that changed only the merge state leaves them alone.
-	var existingContent *string
-	if data, err := os.ReadFile(filePath); err == nil {
-		text := string(data)
-		existingContent = &text
-	}
-
-	if isFirstSave && existingContent != nil {
-		existingFile, _ := splitPage(*existingContent)
-		CreateBackup(h.baseDir, backupName, []byte(existingFile), nil)
-	}
-	if existingContent == nil || *existingContent != fileContent {
-		CreateBackup(h.baseDir, backupName, []byte(fileContent), nil)
+	// The bytes already on disk, read once. Local keeps them only on the first
+	// save, so bytes another program wrote were replaced with no copy anywhere.
+	existingContent, kept := h.keepReplaced(request.Name, filePath)
+	if !kept {
+		if consult != nil {
+			consult.end(errReplacedNotKept)
+		}
+		return refused("backup-failed"), nil
 	}
 
 	// The sidecar lands before the file, and only the file part reaches disk.
-	stored, err := h.placeBytes(request.Name, filePath, content, request.BeforeRename)
+	// Another program can write the file while this save runs: keep what it
+	// wrote, read again just before the rename that replaces it.
+	lastSeen := existingContent
+	keepOutsideWrite := func() error {
+		if request.BeforeRename != nil {
+			if err := request.BeforeRename(); err != nil {
+				return err
+			}
+		}
+		// Keeping a version takes a while (it is fsynced), and another write
+		// can land meanwhile: read again until the file holds still.
+		for attempt := 0; attempt < keepOutsideAttempts; attempt++ {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					return nil
+				}
+				return errReplacedNotKept
+			}
+			current := string(data)
+			if lastSeen != nil && current == *lastSeen {
+				return nil
+			}
+			currentFile, _ := splitPage(current)
+			if CreateBackup(h.baseDir, backupName, []byte(currentFile), nil) == nil {
+				return errReplacedNotKept
+			}
+			lastSeen = &current
+		}
+		return nil
+	}
+	stored, err := h.placeBytes(request.Name, filePath, content, keepOutsideWrite)
 	if err != nil {
 		if consult != nil {
 			consult.settleFailed(err, saveSender(policy))
 		}
+		if errors.Is(err, errReplacedNotKept) {
+			return refused("backup-failed"), nil
+		}
 		return commitResult{}, err
+	}
+	// Published after the rename, so history lists it after anything it replaced,
+	// including bytes another program wrote mid-save.
+	if existingContent == nil || *existingContent != fileContent || lastSeen != existingContent {
+		CreateBackup(h.baseDir, backupName, []byte(fileContent), nil)
 	}
 
 	// Recorded from the bytes actually written.
@@ -366,4 +394,30 @@ func tailwindCSSName(html string) string {
 // indeterminate, never committed.
 func indefinite(err error) error {
 	return &indeterminateError{err: err, code: errnoCode(err)}
+}
+
+// errReplacedNotKept stops a write whose replaced bytes could not be read or
+// kept as a version, before anything is written.
+// keepOutsideAttempts bounds the re-reads before a rename, so a program
+// rewriting the file nonstop cannot hold a save forever.
+const keepOutsideAttempts = 5
+
+var errReplacedNotKept = errors.New("the bytes this write replaces could not be kept as a version")
+
+// keepReplaced keeps the bytes a write is about to replace as a version, unless
+// they already are the newest one, and answers the bytes it read. kept is false
+// when they needed keeping and could not be: the write must not replace them.
+func (h *commitHost) keepReplaced(name, filePath string) (existing *string, kept bool) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, errors.Is(err, fs.ErrNotExist)
+	}
+	text := string(data)
+	file, _ := splitPage(text)
+	if !recentVersionsHold(upathJoin(h.baseDir, versionsDirName, backupSiteName(name)), file) {
+		if CreateBackup(h.baseDir, backupSiteName(name), []byte(file), nil) == nil {
+			return &text, false
+		}
+	}
+	return &text, true
 }

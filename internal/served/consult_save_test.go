@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -470,5 +471,80 @@ func TestConsultedDataAPIRefusal(t *testing.T) {
 	}
 	if onDisk := consultTestDisk(t, filepath.Join(dir, "index.html")); onDisk != consultSaveAPIPage {
 		t.Fatalf("index.html = %q, want the bytes unchanged", onDisk)
+	}
+}
+
+// A consulted save whose replaced bytes cannot be kept as a version refuses the
+// save and aborts its own consultation, so the live-room service releases the
+// document instead of holding it for a save that never landed.
+func TestConsultedSaveBackupFailureAborts(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root writes into a read-only versions folder")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows ignores a folder's read-only mode")
+	}
+	consultShortAborts(t)
+	script := newConsultScript(func(path string, body map[string]any, call int) any {
+		switch path {
+		case "/v1/admit":
+			return map[string]any{
+				"decision":    "proceed",
+				"logical":     map[string]any{"encoding": "utf8", "data": consultSavePage},
+				"file":        map[string]any{"encoding": "utf8", "data": consultSavePage},
+				"reservation": "r1",
+			}
+		case "/v1/settle":
+			return map[string]any{"ok": true}
+		}
+		return nil
+	})
+	server, _, dir := consultSaveServer(t, consultSavePeer(t, script))
+	outside := strings.Replace(consultSavePage, "<h1>Saved</h1>", "<h1>Outside</h1>", 1)
+	consultWriteFile(t, dir, "page.html", []byte(outside))
+	versionsDir := filepath.Join(dir, versionsDirName, "page")
+	if err := os.MkdirAll(versionsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(versionsDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(versionsDir, 0o755) })
+
+	status, _, answer := consultSavePost(t, server, "page.html", consultSavePage, nil)
+	if status != http.StatusConflict {
+		t.Fatalf("the save whose version could not be written answered %d, want %d: %s", status, http.StatusConflict, strings.TrimSpace(string(answer)))
+	}
+	decoded := map[string]any{}
+	if err := json.Unmarshal(answer, &decoded); err != nil {
+		t.Fatalf("answer %s is not JSON: %v", answer, err)
+	}
+	if decoded["code"] != "backup-failed" {
+		t.Fatalf("the refused save answered %s, want code backup-failed", strings.TrimSpace(string(answer)))
+	}
+	if onDisk := consultTestDisk(t, filepath.Join(dir, "page.html")); onDisk != outside {
+		t.Fatalf("page.html = %q, want the outside edit's bytes", onDisk)
+	}
+
+	consultWaitFor(t, script, "/v1/abort")
+	admit := script.only(t, "/v1/admit").Body
+	abort := script.only(t, "/v1/abort").Body
+	if abort["consultId"] != admit["consultId"] {
+		t.Fatalf("abort consultId = %v, want the admit's %v", abort["consultId"], admit["consultId"])
+	}
+	admitIndex, abortIndex := -1, -1
+	for index, exchange := range script.exchanges {
+		switch exchange.Path {
+		case "/v1/admit":
+			admitIndex = index
+		case "/v1/abort":
+			abortIndex = index
+		}
+	}
+	if admitIndex < 0 || abortIndex < admitIndex {
+		t.Fatalf("the host called %v, want an abort after the admit", script.exchanges)
+	}
+	if calls := script.count("/v1/settle"); calls != 0 {
+		t.Fatalf("settle was called %d times for a save that wrote nothing, want none", calls)
 	}
 }

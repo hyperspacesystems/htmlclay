@@ -42,6 +42,9 @@ type HostState struct {
 	DashboardURL string `json:"dashboardURL"`
 	Service      string `json:"service"`
 	Stopped      bool   `json:"stopped"`
+
+	// Can is every action type, true when this host runs it now.
+	Can map[string]bool `json:"can"`
 }
 
 type Document struct {

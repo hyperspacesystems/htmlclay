@@ -95,6 +95,8 @@ type serviceRunner struct {
 	proc    *service.Process
 	peer    serviceClient // the running process's URL and secret, zero when none
 	timer   *time.Timer
+	// afterSave, when a test sets it, runs once close's final save has finished.
+	afterSave func()
 
 	controlSecret string       // 64 hex, made once at startup
 	controlURL    string       // http://127.0.0.1:<port>
@@ -489,6 +491,9 @@ func (r *serviceRunner) close() {
 		for _, doc := range unsaved {
 			r.a.rt.logger.Printf("Quitting with unsaved edits in %s: %s", doc.Root, doc.Name)
 		}
+	}
+	if r.afterSave != nil {
+		r.afterSave()
 	}
 	r.step(service.Event{Kind: service.Want, On: false})
 	deadline := time.Now().Add(serviceCloseWait)

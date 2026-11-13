@@ -34,8 +34,14 @@ var version = "1.16.2"
 //go:embed example.htmlclay
 var exampleHTML []byte
 
+// shellFailures is stdout when the Mac app started the host: fatal then prints a FAILED line it can read.
+var shellFailures io.Writer
+
 func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "[htmlclay] "+format+"\n", args...)
+	if shellFailures != nil {
+		_ = shellapi.WriteFailed(shellFailures, shellapi.Failure{Code: shellapi.FailFatal, Message: fmt.Sprintf(format, args...)})
+	}
 	os.Exit(1)
 }
 
@@ -72,6 +78,8 @@ type appRuntime struct {
 	portCandidates []int
 	// confirmPort overrides the port-taken dialog. Production leaves it nil.
 	confirmPort func(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error)
+	// confirmQuit overrides the unsaved-edits quit dialog. Production leaves it nil.
+	confirmQuit func(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error)
 	// portOwner and quitProcess override the port-owner lookup and the quit request.
 	portOwner   func(port int) (pid int, name string, ok bool)
 	quitProcess func(pid int, force bool) error
@@ -163,7 +171,11 @@ type app struct {
 	// every call on it is a no-op, until startRuntime builds it.
 	service  *serviceRunner
 	stopping bool
-	noTray   bool
+	// shutdownOnce: the tray, host.quit and the shell's end of input can all shut down.
+	shutdownOnce sync.Once
+	noTray       bool
+	// shell: started by the Mac app (--shell-stdin)
+	shell bool
 	// shellServer is the private listener the Mac app talks to, and shellDone closes
 	// when shutdown starts so every event stream ends with its bye line. Both are
 	// zero on a launch without --shell-stdin; the two Once fields let a signal and
@@ -294,16 +306,18 @@ func main() {
 		bootstrap, in, err := shellapi.ReadBootstrap(os.Stdin)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[htmlclay] %v\n", err)
+			_ = shellapi.WriteFailed(os.Stdout, shellapi.Failure{Code: shellapi.FailBadBootstrap})
 			os.Exit(2)
 		}
 		shellSecret, shellIn = bootstrap.Secret, in
+		shellFailures = os.Stdout
 	}
 
 	migrateConfigDir()
 
 	fmt.Fprintln(os.Stderr, "[htmlclay] Starting up...")
 
-	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin}
+	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin, shell: *shellStdin}
 	a.initCore()
 	a.initConfig()
 	defer a.rt.si.Unlock()
@@ -316,9 +330,12 @@ func main() {
 	a.startRuntime()
 	a.finishUpgrade()
 
-	a.refreshLoginItem()
-	a.refreshFileTypes()
-	a.warnMissingDialogs()
+	// The Mac app owns the login item and file types; a host it started changes neither.
+	if !a.shell {
+		a.refreshLoginItem()
+		a.refreshFileTypes()
+		a.warnMissingDialogs()
+	}
 
 	// Bind the one port before argv is processed, asking the user what to do if it is held,
 	// then build every live trusted folder's site, so a URL bookmarked before the last quit
@@ -329,6 +346,12 @@ func main() {
 			a.rt.logger.Close()
 			a.rt.si.Unlock()
 			os.Exit(1)
+		}
+		if a.shell {
+			_ = shellapi.WriteFailed(os.Stdout, shellapi.Failure{Code: shellapi.FailPortTaken, Port: a.rt.cfg.Port()})
+			a.rt.logger.Close()
+			a.rt.si.Unlock()
+			os.Exit(4)
 		}
 		return
 	}
@@ -391,6 +414,11 @@ func (a *app) initConfig() {
 	}
 
 	if !isPrimary {
+		if a.shell {
+			fmt.Fprintln(os.Stderr, "[htmlclay] Another instance is running")
+			_ = shellapi.WriteFailed(os.Stdout, shellapi.Failure{Code: shellapi.FailAlreadyRunning})
+			os.Exit(3)
+		}
 		fmt.Fprintln(os.Stderr, "[htmlclay] Another instance running, forwarding file...")
 		args := flag.Args()
 		if len(args) > 0 {
@@ -604,6 +632,7 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 		Open:        a.openServedFolder,
 		CopyAddress: a.copyServedAddress,
 		Stop:        a.stopServedFromTray,
+		BeforeQuit:  a.confirmQuit,
 	}, &tray.HelperHooks{
 		Title:     a.helperProgramsTitle,
 		List:      a.helperProgramRows,

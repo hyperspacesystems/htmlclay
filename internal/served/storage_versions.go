@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -60,8 +59,15 @@ var recoveredDocRe = regexp.MustCompile(`(?i)\.(html|htmlclay)$`)
 // generator stubs the Date constructor.
 var versionClock = func() int64 { return time.Now().UnixMilli() }
 
+// linkFile is os.Link, a variable so a test can stub the filesystems that
+// refuse hard links (exFAT, some network and cloud drives).
+var linkFile = os.Link
+
+// versionZone is the zone version names are written in: the computer's own.
+var versionZone = func() *time.Location { return time.Local }
+
 func clockTime() time.Time {
-	return time.UnixMilli(versionClock()).In(time.Local)
+	return time.UnixMilli(versionClock()).In(versionZone())
 }
 
 // VersionField is one key/value pair of an emitted event payload or a logger
@@ -335,7 +341,7 @@ func publishVersion(dir, ext string, content []byte, tempPath string) (Published
 				return PublishedVersion{}, fmt.Errorf("No free backup name for %s%s after %d attempts", stamp, ext, maxCollisionAttempts)
 			}
 			*plan.reuseInstant += 1
-			stamp = GenerateTimestamp(time.UnixMilli(*plan.reuseInstant).In(time.Local))
+			stamp = GenerateTimestamp(time.UnixMilli(*plan.reuseInstant).In(versionZone()))
 			suffix = 0
 		}
 
@@ -345,7 +351,7 @@ func publishVersion(dir, ext string, content []byte, tempPath string) (Published
 		}
 		full := filepath.ToSlash(filepath.Join(dir, filename))
 
-		err := os.Link(tempPath, full)
+		err := linkFile(tempPath, full)
 		if err == nil {
 			return PublishedVersion{Filename: filename, Full: full}, nil
 		}
@@ -353,17 +359,18 @@ func publishVersion(dir, ext string, content []byte, tempPath string) (Published
 			suffix += 1
 			continue
 		}
-		if linkUnsupported(err) {
-			// No hard links on this filesystem: publish by rename. The temp is
-			// already fully written and fsynced, so no partial file can appear;
-			// the only property lost vs link is no-replace exclusivity, which
-			// the caller's lock already provides.
-			if err := os.Rename(tempPath, full); err != nil {
-				return PublishedVersion{}, err
-			}
-			return PublishedVersion{Filename: filename, Full: full}, nil
+		// No hard links here (exFAT, some network and cloud drives; Windows
+		// answers its own error codes, not EPERM or ENOTSUP): publish by rename.
+		// The temp is fully written and fsynced, so no partial file can appear.
+		// A rename replaces, so a name already taken moves on to the next one.
+		if _, statErr := os.Lstat(full); statErr == nil {
+			suffix += 1
+			continue
 		}
-		return PublishedVersion{}, err
+		if err := os.Rename(tempPath, full); err != nil {
+			return PublishedVersion{}, err
+		}
+		return PublishedVersion{Filename: filename, Full: full}, nil
 	}
 }
 
@@ -456,7 +463,7 @@ func maybePrune(baseDir, siteVersionsDir string, obs *VersionObserver) {
 	lastPruneAt[siteVersionsDir] = now
 	lastPruneMu.Unlock()
 
-	result := PruneSiteVersions(baseDir, siteVersionsDir, time.UnixMilli(now).In(time.Local), obs)
+	result := PruneSiteVersions(baseDir, siteVersionsDir, time.UnixMilli(now).In(versionZone()), obs)
 	if len(result.Deleted) != 0 {
 		observerConsole(obs, "log", fmt.Sprintf("[BACKUP] Pruned %d old version(s) from %s", len(result.Deleted), siteVersionsDir))
 	}
@@ -745,15 +752,38 @@ func randomHex() string {
 	return hex.EncodeToString(buf[:])
 }
 
-// linkUnsupported reports the errors fs.link answers on a filesystem without
-// hard links (exFAT USB sticks, some network shares), where the store falls
-// back to a rename so backups keep working rather than failing closed.
-func linkUnsupported(err error) bool {
-	var linkErr *os.LinkError
-	if !errors.As(err, &linkErr) {
+// recentVersionsHold reports whether one of the newest few versions in dir, by
+// the store's one ordering, holds exactly content. A few, not one: two documents
+// named alike (notes.html, notes.htmlclay) share a versions folder, and a write
+// caught mid-save lands after the save's own version.
+func recentVersionsHold(dir, content string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
 		return false
 	}
-	return errors.Is(linkErr.Err, syscall.EPERM) ||
-		errors.Is(linkErr.Err, syscall.ENOTSUP) ||
-		errors.Is(linkErr.Err, syscall.ENOSYS)
+	var candidates []VersionEntry
+	for _, entry := range entries {
+		name := entry.Name()
+		if !entry.Type().IsRegular() || !IsVersionName(name) {
+			continue
+		}
+		candidate := VersionEntry{Name: name, Full: filepath.Join(dir, name)}
+		if _, dated := ParseVersionTimestamp(name); !dated {
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			candidate.MtimeMs = info.ModTime().UnixMilli()
+		}
+		candidates = append(candidates, candidate)
+	}
+	sort.Slice(candidates, func(i, j int) bool { return CompareNewestFirst(candidates[i], candidates[j]) < 0 })
+	for i := 0; i < len(candidates) && i < recentVersionsChecked; i++ {
+		if data, err := os.ReadFile(candidates[i].Full); err == nil && string(data) == content {
+			return true
+		}
+	}
+	return false
 }
+
+const recentVersionsChecked = 3

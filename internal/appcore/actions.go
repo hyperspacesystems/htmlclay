@@ -62,6 +62,7 @@ var ActionClasses = map[string]Class{
 
 	"folder.trust":     ClassGrant,
 	"folder.serve":     ClassGrant,
+	"file.open":        ClassGrant,
 	"request.answer":   ClassGrant,
 	"program.add":      ClassGrant,
 	"sync.connect":     ClassGrant,
@@ -183,6 +184,11 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return nil, &Refusal{Code: RefuseNoSuchDocument, SubjectID: args.ID}
 		}
 		return one(Effect{Type: a.Type, DocumentID: args.ID})
+	case "file.open":
+		if args.Path == "" {
+			return bad("path")
+		}
+		return one(Effect{Type: a.Type, Path: args.Path})
 	case "dashboard.open":
 		return one(Effect{Type: a.Type, Route: args.Route})
 	case "folder.reveal", "folder.copyAddress":

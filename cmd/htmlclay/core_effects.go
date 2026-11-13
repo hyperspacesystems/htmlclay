@@ -12,6 +12,24 @@ import (
 	"github.com/panphora/htmlclay/internal/platform"
 )
 
+// implementedActions is every action type runEffect has a case for. The snapshot
+// reports it as host.can; TestImplementedActionsMatchRunEffect keeps the two equal.
+var implementedActions = []string{
+	"dashboard.open",
+	"document.open",
+	"file.open",
+	"folder.copyAddress",
+	"folder.reveal",
+	"folder.serve",
+	"folder.stopServing",
+	"folder.stopTrusting",
+	"folder.trust",
+	"host.quit",
+	"prefs.set",
+	"service.restart",
+	"waiting.markSeen",
+}
+
 // runEffect runs one effect with the code the app already has for that change.
 // An effect whose code is not here yet answers not-yet.
 func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal {
@@ -20,7 +38,7 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		canonical, err := a.rt.policy.Canonical(e.Path)
 		if err != nil {
 			a.rt.logger.Printf("Could not trust folder %s: %v", e.Path, err)
-			return &appcore.Refusal{Code: appcore.RefuseFailed}
+			return &appcore.Refusal{Code: appcore.RefuseCannotTrust}
 		}
 		if err := a.trustFolder(canonical); err != nil {
 			a.rt.logger.Printf("Could not trust folder %s: %v", canonical, err)
@@ -59,6 +77,18 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return nil
 	case "service.restart":
 		a.service.restart()
+		return nil
+	case "host.quit":
+		if !e.Force {
+			names, answered := a.unsavedDocuments()
+			if !answered || len(names) > 0 {
+				return &appcore.Refusal{Code: appcore.RefuseQuitUnsaved, Documents: names}
+			}
+		}
+		go func() {
+			a.shutdown()
+			os.Exit(0)
+		}()
 		return nil
 	case "folder.reveal":
 		path := a.folderPath(e.FolderID)
@@ -110,6 +140,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 			return nil
 		}
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
+	case "file.open":
+		return a.openPath(e.Path)
 	}
 	return &appcore.Refusal{Code: appcore.RefuseNotYet}
 }
@@ -136,6 +168,10 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 		a.saveConfig("preference aiEditing")
 		return nil
 	case "openAtLogin":
+		// The Mac app takes over Open at Login in milestone 7; until then a host it started never writes the login item.
+		if a.shell {
+			return &appcore.Refusal{Code: appcore.RefuseNotYet}
+		}
 		var on bool
 		if json.Unmarshal(e.Value, &on) != nil {
 			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}

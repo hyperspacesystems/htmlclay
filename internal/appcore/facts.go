@@ -31,6 +31,9 @@ type HostFacts struct {
 	Port    int    `json:"port"`
 	Service string `json:"service"`
 	Stopped bool   `json:"stopped"`
+
+	// Implemented is every action type this host runs; Build marks the rest false in host.can.
+	Implemented []string `json:"implemented"`
 }
 
 type DocumentFact struct {

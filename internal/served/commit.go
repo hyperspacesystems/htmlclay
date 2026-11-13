@@ -3,6 +3,7 @@ package served
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"regexp"
 	"strings"
@@ -242,6 +243,9 @@ func (h *commitHost) commit(request *commitRequest) (commitResult, error) {
 // the lane runs. The /_/save route calls it directly, because its own If-Match
 // judgement has to happen inside the same lock, before anything is written.
 func (h *commitHost) commitLocked(request *commitRequest, policy commitLane, filePath string) (commitResult, error) {
+	if err := h.folderGone(); err != nil {
+		return commitResult{}, err
+	}
 	changed, err := h.preconditionFailed(request, filePath)
 	if err != nil {
 		return commitResult{}, err
@@ -442,4 +446,13 @@ func mtimeNs(filePath string) *int64 {
 // modifiedTime turns the request's epoch milliseconds into a time.
 func modifiedTime(ms int64) time.Time {
 	return time.UnixMilli(ms)
+}
+
+// folderGone refuses a write into a served folder the person deleted or moved
+// away: writing would re-create it around this one document.
+func (h *commitHost) folderGone() error {
+	if _, err := os.Stat(h.baseDir); errors.Is(err, fs.ErrNotExist) {
+		return &codedWriteError{code: "moved-or-deleted", message: "This file has been moved or deleted. Please refresh the page."}
+	}
+	return nil
 }

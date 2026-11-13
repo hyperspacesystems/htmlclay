@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -84,6 +85,9 @@ type ServedFolderHooks struct {
 	Open        func(id string)
 	CopyAddress func(id string)
 	Stop        func(id string) []Row
+	// BeforeQuit runs when the person chooses Quit; false keeps the app open.
+	// May be nil.
+	BeforeQuit func() bool
 }
 
 // HelperHooks are the app operations the Programs submenu drives. Each returns
@@ -133,6 +137,7 @@ type slot struct {
 
 type Tray struct {
 	cfg           *config.Config
+	quitting      atomic.Bool
 	version       string
 	onOpenExample func()
 	onOpenBackups func()
@@ -541,7 +546,16 @@ func (t *Tray) onReady() {
 			case <-t.updateItem.ClickedCh:
 				t.clickUpdate()
 			case <-quitItem.ClickedCh:
-				systray.Quit()
+				// Asking can take a while (a save check, then a dialog), and the
+				// menu's other clicks arrive on this loop.
+				if t.quitting.CompareAndSwap(false, true) {
+					go func() {
+						defer t.quitting.Store(false)
+						if t.served == nil || t.served.BeforeQuit == nil || t.served.BeforeQuit() {
+							systray.Quit()
+						}
+					}()
+				}
 			}
 		}
 	}()

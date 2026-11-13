@@ -130,13 +130,14 @@ func TestVersionsGolden(t *testing.T) {
 		locations[zone] = loc
 	}
 
-	originalLocal := time.Local
+	originalZone := versionZone
 	originalClock := versionClock
 	defer func() {
-		time.Local = originalLocal
+		versionZone = originalZone
 		versionClock = originalClock
 	}()
-	time.Local = locations[golden.Zone]
+	recordedZone := locations[golden.Zone]
+	versionZone = func() *time.Location { return recordedZone }
 
 	checkVersionTimestamps(t, golden, locations)
 

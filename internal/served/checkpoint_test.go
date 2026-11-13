@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -415,5 +416,71 @@ func TestControlCheckpointLogicalPrev(t *testing.T) {
 	admit := script.only(t, "/v1/admit").Body
 	if prev := consultTestData(t, admit["dataLossPrev"], "admit dataLossPrev"); prev != string(want) {
 		t.Fatalf("admit dataLossPrev = %q, want the logical page %q", prev, want)
+	}
+}
+
+// TestControlCheckpointBackupFailureRefused is a checkpoint whose write hits
+// bytes this host cannot keep as a version: it answers refused backup-failed,
+// never ok, so the service keeps the room dirty and tries again.
+func TestControlCheckpointBackupFailureRetried(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root writes into a read-only versions folder")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows ignores a folder's read-only mode")
+	}
+	consultShortAborts(t)
+	script := newConsultScript(func(path string, body map[string]any, call int) any {
+		switch path {
+		case "/v1/render-checkpoint":
+			return map[string]any{
+				"kind":      "render",
+				"logical":   map[string]any{"encoding": "utf8", "data": consultSavePage},
+				"revision":  4,
+				"captureId": "cap1",
+				"artifacts": []any{},
+			}
+		case "/v1/admit":
+			return map[string]any{
+				"decision":    "proceed",
+				"logical":     map[string]any{"encoding": "utf8", "data": consultSavePage},
+				"file":        map[string]any{"encoding": "utf8", "data": consultSavePage},
+				"reservation": nil,
+			}
+		case "/v1/settle":
+			return map[string]any{"ok": true}
+		}
+		return nil
+	})
+	_, handler, dir := consultSaveServer(t, consultSavePeer(t, script))
+	outside := strings.Replace(consultSavePage, "<h1>Saved</h1>", "<h1>Outside</h1>", 1)
+	consultWriteFile(t, dir, "page.html", []byte(outside))
+	versionsDir := filepath.Join(dir, versionsDirName, "page")
+	if err := os.MkdirAll(versionsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(versionsDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(versionsDir, 0o755) })
+	control := controlTestServer(t, handler.control)
+
+	status, answer := controlJSON(t, control, controlSecret, http.MethodPost, "/v1/checkpoint", map[string]any{
+		"opId":         strings.Repeat("9", 32),
+		"root":         "root-consult",
+		"name":         "page.html",
+		"roomIdentity": "7",
+		"generation":   nil,
+	})
+	// Answered as a failed operation so the service retries it with its
+	// backoff: a refusal is never retried, and "ok" would count as saved.
+	if status != http.StatusInternalServerError {
+		t.Fatalf("checkpoint answered %d %v, want 500 so the service retries", status, answer)
+	}
+	if message, _ := answer["error"].(string); !strings.Contains(message, "backup-failed") {
+		t.Fatalf("checkpoint error %v, want it to name backup-failed", answer)
+	}
+	if onDisk := consultTestDisk(t, filepath.Join(dir, "page.html")); onDisk != outside {
+		t.Fatalf("page.html = %q, want the outside edit's bytes", onDisk)
 	}
 }

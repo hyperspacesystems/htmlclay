@@ -7,9 +7,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/shellapi"
 )
 
@@ -35,6 +38,9 @@ func (b shellBackend) Check(act appcore.Action) (shellapi.Preview, *appcore.Refu
 	if refusal != nil {
 		return shellapi.Preview{}, refusal
 	}
+	if act.Type == "folder.trust" {
+		return b.trustPreview(effects[0].Path)
+	}
 	if act.Type != "folder.serve" {
 		return shellapi.Preview{}, nil
 	}
@@ -43,6 +49,8 @@ func (b shellBackend) Check(act appcore.Action) (shellapi.Preview, *appcore.Refu
 			continue
 		}
 		if effect.FolderID != "" {
+			// Serving a stopped folder again resumes its entry and keeps its name
+			// (serveFolder), so a name typed for a known folder is not used.
 			return b.preview(servedNameOf(facts, effect.FolderID)), nil
 		}
 		entry, refusal := b.a.checkServe(effect.Path, effect.Name)
@@ -54,15 +62,45 @@ func (b shellBackend) Check(act appcore.Action) (shellapi.Preview, *appcore.Refu
 	return shellapi.Preview{}, nil
 }
 
+// trustPreview is the Trust sheet's answer: the folder as it will be stored, or
+// why it cannot be trusted, and what the person should know first.
+func (b shellBackend) trustPreview(path string) (shellapi.Preview, *appcore.Refusal) {
+	canonical, err := b.a.rt.policy.Canonical(path)
+	if err != nil {
+		return shellapi.Preview{}, &appcore.Refusal{Code: appcore.RefuseCannotTrust}
+	}
+	preview := shellapi.Preview{Path: canonical, Name: filepath.Base(canonical)}
+	if b.a.rt.policy.IsPersonal(canonical) {
+		preview.Warnings = append(preview.Warnings, shellapi.Warning{Code: "personal-folder", Text: appcore.TextWarnPersonalFolder})
+	}
+	var inside []string
+	for _, tf := range b.a.rt.cfg.TrustedFolderList() {
+		if tf.Path != canonical && pathrel.SameOrBelow(tf.Path, canonical) {
+			inside = append(inside, filepath.Base(tf.Path))
+		}
+	}
+	if len(inside) > 0 {
+		preview.Warnings = append(preview.Warnings, shellapi.Warning{
+			Code:  "contains-trusted",
+			Text:  fmt.Sprintf(appcore.TextWarnContainsTrusted, strings.Join(inside, ", ")),
+			Names: inside,
+		})
+	}
+	return preview, nil
+}
+
 // Answer is the remembered outcome of an action id in this epoch, so a reply the
 // Mac app lost does not have to be sent again.
 func (b shellBackend) Answer(id string) (appcore.Snapshot, *appcore.Refusal, bool) {
 	b.a.initCore()
 	b.a.core.mu.Lock()
-	defer b.a.core.mu.Unlock()
 	answer, ok := b.a.core.answers[id]
+	b.a.core.mu.Unlock()
 	if !ok {
 		return appcore.Snapshot{}, nil, false
+	}
+	if answer.Running {
+		return b.a.snapshot(), &appcore.Refusal{Code: appcore.RefuseStillRunning}, true
 	}
 	return answer.Snapshot, answer.Refusal, true
 }
@@ -131,7 +169,7 @@ func (a *app) startShell(secret string, in io.Reader) {
 }
 
 // endShellStreams closes done, so every open event stream answers with its bye
-// line. Shutdown runs it first, before anything else is torn down.
+// line. Shutdown runs it right after the live-room service's final save.
 func (a *app) endShellStreams() {
 	if a.shellDone == nil {
 		return

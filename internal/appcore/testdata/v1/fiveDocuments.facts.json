@@ -8,7 +8,22 @@
     "os": "darwin",
     "port": 1212,
     "service": "off",
-    "stopped": false
+    "stopped": false,
+    "implemented": [
+      "dashboard.open",
+      "document.open",
+      "file.open",
+      "folder.copyAddress",
+      "folder.reveal",
+      "folder.serve",
+      "folder.stopServing",
+      "folder.stopTrusting",
+      "folder.trust",
+      "host.quit",
+      "prefs.set",
+      "service.restart",
+      "waiting.markSeen"
+    ]
   },
   "documents": [
     {

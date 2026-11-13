@@ -29,6 +29,7 @@ func Build(f Facts) Snapshot {
 			DashboardURL: fmt.Sprintf("http://%s:%d/", DashboardHost, f.Host.Port),
 			Service:      f.Host.Service,
 			Stopped:      f.Host.Stopped,
+			Can:          hostCan(f.Host.Implemented),
 		},
 		Documents:   make([]Document, 0, len(f.Documents)),
 		Folders:     make([]Folder, 0, len(f.Folders)),
@@ -109,6 +110,20 @@ func Build(f Facts) Snapshot {
 	}
 	s.Counts = counts(s.Waiting)
 	return s
+}
+
+// hostCan answers every action type the core knows: true when the host runs it.
+func hostCan(implemented []string) map[string]bool {
+	can := make(map[string]bool, len(ActionClasses))
+	for typ := range ActionClasses {
+		can[typ] = false
+	}
+	for _, typ := range implemented {
+		if _, known := ActionClasses[typ]; known {
+			can[typ] = true
+		}
+	}
+	return can
 }
 
 // folderState is the first state that applies, in the order the shells read them.

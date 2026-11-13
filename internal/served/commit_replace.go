@@ -80,6 +80,14 @@ func (h *commitHost) commitReplace(request *commitRequest, filePath string) (com
 		}
 	}
 
+	if request.Kind == "guard-restore" {
+		if _, kept := h.keepReplaced(request.Name, filePath); !kept {
+			if consult != nil {
+				consult.end(errReplacedNotKept)
+			}
+			return refused("backup-failed"), nil
+		}
+	}
 	CreateBackup(h.baseDir, backupName, []byte(fileContent), nil)
 
 	stored, err := h.placeBytes(request.Name, filePath, content, nil)

@@ -230,6 +230,18 @@ func (s *rootServer) serveSave(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
+	// Judged before the stamp, which would otherwise call a deleted folder a
+	// conflicting edit.
+	if gone := s.commit.folderGone(); gone != nil {
+		var coded *codedWriteError
+		errors.As(gone, &coded)
+		return saveAnswer(w, r, http.StatusConflict, orderedObject{
+			{Key: "msg", Value: coded.message},
+			{Key: "msgType", Value: "error"},
+			{Key: "code", Value: coded.code},
+		})
+	}
+
 	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" || headerPresent(r, "If-Match") {
 		if conflict := s.judgeIfMatch(filePath, name, ifMatch); conflict != nil {
 			return s.writeConflict(w, r, name, conflict)

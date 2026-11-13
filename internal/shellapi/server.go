@@ -35,6 +35,17 @@ type Backend interface {
 type Preview struct {
 	Address string `json:"address,omitempty"`
 	Name    string `json:"name,omitempty"`
+	// Path is the folder as the host will store it (folder.trust).
+	Path string `json:"path,omitempty"`
+	// Warnings are things the person should know before going ahead; none refuses.
+	Warnings []Warning `json:"warnings,omitempty"`
+}
+
+// Warning is one thing a sheet shows before the person confirms.
+type Warning struct {
+	Code  string   `json:"code"`
+	Text  string   `json:"text"`
+	Names []string `json:"names,omitempty"`
 }
 
 const (
@@ -234,7 +245,7 @@ func writeOutcome(w http.ResponseWriter, snapshot appcore.Snapshot, refusal *app
 func errorBody(r *appcore.Refusal) map[string]any {
 	body := map[string]any{
 		"code":      r.Code,
-		"retryable": r.Code == appcore.RefuseFailed || r.Code == appcore.RefuseRequestChanged,
+		"retryable": r.Code == appcore.RefuseFailed || r.Code == appcore.RefuseRequestChanged || r.Code == appcore.RefuseStillRunning,
 		"text":      appcore.RefusalMessage(r),
 	}
 	if r.Field != "" {
@@ -242,6 +253,9 @@ func errorBody(r *appcore.Refusal) map[string]any {
 	}
 	if r.SubjectID != "" {
 		body["subjectID"] = r.SubjectID
+	}
+	if len(r.Documents) > 0 {
+		body["documents"] = r.Documents
 	}
 	return body
 }

@@ -69,3 +69,31 @@ func WriteReady(out io.Writer, r Ready) error {
 	_, err = fmt.Fprintf(out, "READY %s\n", raw)
 	return err
 }
+
+// Failure is the one line the host prints instead of READY when it cannot start.
+// The Mac app shows the designed alert for Code and does not restart the host.
+type Failure struct {
+	V       int    `json:"v"`
+	Code    string `json:"code"`
+	Port    int    `json:"port,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// The failure codes. A new code needs a matching alert in the Mac app.
+const (
+	FailBadBootstrap   = "bad-bootstrap"
+	FailAlreadyRunning = "already-running"
+	FailPortTaken      = "port-taken"
+	FailFatal          = "fatal"
+)
+
+// WriteFailed prints FAILED {json} and a newline.
+func WriteFailed(out io.Writer, f Failure) error {
+	f.V = 1
+	raw, err := json.Marshal(f)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(out, "FAILED %s\n", raw)
+	return err
+}

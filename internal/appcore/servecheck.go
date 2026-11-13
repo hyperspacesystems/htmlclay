@@ -19,10 +19,14 @@ type Refusal struct {
 	Field string
 	// SubjectID is the folder, program or request the refusal is about.
 	SubjectID string
+	// Documents names the documents a refusal is about, as "<served name>/<file>"
+	// (quit-unsaved: the edits the live-room service could not save).
+	Documents []string
 }
 
 const (
 	RefuseNotAFolder       = "not-a-folder"
+	RefuseCannotTrust      = "cannot-trust"
 	RefuseOutsideHome      = "outside-home"
 	RefuseIsHome           = "is-home"
 	RefuseProtectedFolder  = "protected-folder"
@@ -44,6 +48,8 @@ const (
 	RefuseNoSuchFolder      = "no-such-folder"
 	RefuseNoSuchProgram     = "no-such-program"
 	RefuseNoSuchDocument    = "no-such-document"
+	RefuseFileMissing       = "file-missing"
+	RefuseFileOutsideHome   = "file-outside-home"
 	RefuseNoSuchRequest     = "no-such-request"
 	RefuseRequestChanged    = "request-changed"
 	RefuseAnswerNotOffered  = "answer-not-offered"
@@ -55,6 +61,9 @@ const (
 	// RefuseUnsavedEdits is a stop serving the live-room service kept, because
 	// the folder still has edits that are not saved.
 	RefuseUnsavedEdits = "unsaved-edits"
+	// RefuseQuitUnsaved is a quit the host held back, because the live-room
+	// service could not save every edit. A forced quit goes ahead.
+	RefuseQuitUnsaved = "quit-unsaved"
 
 	// RefuseNeedsConfirmation is a grant asked for on the dashboard origin, which
 	// only the host's confirmer may approve.
@@ -62,6 +71,9 @@ const (
 	// RefuseFailed is an effect the app tried to run and could not; the cause goes
 	// to the log, never to the sentence.
 	RefuseFailed = "failed"
+	// RefuseStillRunning is an action that is already running; the answer comes
+	// when its effects finish.
+	RefuseStillRunning = "still-running"
 	// RefuseNotYet is an action whose effect the app has no code for yet.
 	RefuseNotYet = "not-yet"
 )
@@ -117,14 +129,21 @@ func CheckServe(f ServeFacts) *Refusal {
 			return &Refusal{Code: RefuseNestedTrusted, OtherPath: other.Path, OtherName: other.Name}
 		}
 	}
+	return NameRefusal(f.NameErr)
+}
+
+// NameRefusal answers the served-name rules alone: nil when the name may be given
+// out now, else the refusal. A folder named by id is already ruled on by Plan, so
+// the name is the whole answer a sheet still needs.
+func NameRefusal(err error) *Refusal {
 	switch {
-	case errors.Is(f.NameErr, config.ErrServedNameInvalid):
+	case errors.Is(err, config.ErrServedNameInvalid):
 		return &Refusal{Code: RefuseNameInvalid}
-	case errors.Is(f.NameErr, config.ErrServedNameTaken):
+	case errors.Is(err, config.ErrServedNameTaken):
 		return &Refusal{Code: RefuseNameTaken}
-	case errors.Is(f.NameErr, config.ErrServedNameRetired):
+	case errors.Is(err, config.ErrServedNameRetired):
 		return &Refusal{Code: RefuseNameRetired}
-	case f.NameErr != nil:
+	case err != nil:
 		return &Refusal{Code: RefuseNameInvalid}
 	}
 	return nil

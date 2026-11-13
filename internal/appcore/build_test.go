@@ -28,3 +28,26 @@ func TestDisplayPath(t *testing.T) {
 		})
 	}
 }
+
+func TestHostCanListsEveryType(t *testing.T) {
+	snapshot := Build(Facts{Host: HostFacts{Implemented: []string{"folder.serve", "made-up.type"}}})
+	if len(snapshot.Host.Can) != len(ActionClasses) {
+		t.Fatalf("host.can has %d keys, want %d", len(snapshot.Host.Can), len(ActionClasses))
+	}
+	if !snapshot.Host.Can["folder.serve"] {
+		t.Fatal("host.can says folder.serve is not implemented")
+	}
+	for _, typ := range []string{"document.open", "file.open", "waiting.markSeen"} {
+		if snapshot.Host.Can[typ] {
+			t.Fatalf("host.can says %s is implemented, but the facts do not list it", typ)
+		}
+	}
+	for typ, can := range snapshot.Host.Can {
+		if typ != "folder.serve" && can {
+			t.Fatalf("host.can says %s is implemented, but the facts do not list it", typ)
+		}
+	}
+	if _, ok := snapshot.Host.Can["made-up.type"]; ok {
+		t.Fatal("host.can lists made-up.type, which is no action type")
+	}
+}

@@ -331,6 +331,10 @@ func (a *app) lookupPortOwner(port int) (int, string, bool) {
 }
 
 func (a *app) askPortTaken(port, pid int, name string, known bool) portDecision {
+	if a.shell {
+		a.rt.logger.Printf("Port %d is taken; the Mac app is told instead of a dialog", port)
+		return portQuit
+	}
 	retry := "Retry"
 	if known {
 		retry = "Quit It and Retry"

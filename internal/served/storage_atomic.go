@@ -10,6 +10,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode/utf8"
 )
 
 // Shared atomic publication for every writer that touches a served file,
@@ -35,10 +36,20 @@ const (
 	atomicTempCounterMod = 1000000
 )
 
-// atomicRenameRetryCodes are the rename failures Windows retries. POSIX renames
-// over open files without complaint, so there an EPERM from rename is a real
-// permission problem and is reported at once, not five times over half a second.
+// atomicRenameRetryCodes are the rename failures Windows retries, while
+// Defender or the Search indexer holds the file for a moment: Local's list, by
+// Node's names. Only Windows retries (renameWithRetry): POSIX renames over
+// open files without complaint.
 var atomicRenameRetryCodes = []syscall.Errno{syscall.EPERM, syscall.EBUSY, syscall.EACCES}
+
+// atomicRenameRetryWin32 is the same list as Go sees it: os.Rename on Windows
+// answers Win32 codes, which Go's EPERM, EBUSY and EACCES never equal there.
+// Node maps these three onto the names above.
+var atomicRenameRetryWin32 = []syscall.Errno{
+	5,  // ERROR_ACCESS_DENIED
+	32, // ERROR_SHARING_VIOLATION
+	33, // ERROR_LOCK_VIOLATION
+}
 
 // atomicDirSyncUnsupported lists the codes a directory fsync gives where the
 // platform cannot sync a directory at all (Windows, some network and FUSE
@@ -75,7 +86,24 @@ func nextAtomicTempPath(dir, base string) string {
 	atomicTempCounter = (atomicTempCounter + 1) % atomicTempCounterMod
 	n := atomicTempCounter
 	atomicTempMu.Unlock()
-	return filepath.Join(dir, "."+base+"."+strconv.Itoa(os.Getpid())+"."+strconv.Itoa(n)+".tmp")
+	return filepath.Join(dir, "."+tempStem(base)+"."+strconv.Itoa(os.Getpid())+"."+strconv.Itoa(n)+".tmp")
+}
+
+// atomicTempStemMax keeps a temp name within the 255-byte name limit of every
+// supported file system: the dot, pid, counter and suffix add at most 30 bytes.
+const atomicTempStemMax = 200
+
+// tempStem is base cut to atomicTempStemMax bytes at a character boundary, so
+// a document with a long name can still be saved through its temp.
+func tempStem(base string) string {
+	if len(base) <= atomicTempStemMax {
+		return base
+	}
+	cut := atomicTempStemMax
+	for cut > 0 && !utf8.RuneStart(base[cut]) {
+		cut--
+	}
+	return base[:cut]
 }
 
 // syncDirectory fsyncs a directory so a rename into it survives a crash.
@@ -120,7 +148,7 @@ func renameWithRetry(tmpPath, filePath string, beforeRename func() error) error 
 		if err == nil {
 			return nil
 		}
-		if attempt == atomicRenameAttempts || !hasErrno(err, atomicRenameRetryCodes) {
+		if attempt == atomicRenameAttempts || !(hasErrno(err, atomicRenameRetryCodes) || hasErrno(err, atomicRenameRetryWin32)) {
 			return err
 		}
 		time.Sleep(delay)

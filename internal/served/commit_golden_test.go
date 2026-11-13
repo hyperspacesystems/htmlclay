@@ -173,14 +173,14 @@ func freezeCommitClock(t *testing.T, scenario commitGoldenScenario) *commitClock
 		t.Fatalf("LoadLocation: %v", err)
 	}
 	clock := &commitClock{pages: scenario.Pages}
-	previousLocal := time.Local
+	previousZone := versionZone
 	previousClock := versionClock
 	previousGeneration := pageStateNewGeneration
-	time.Local = zone
+	versionZone = func() *time.Location { return zone }
 	versionClock = func() int64 { return clock.now }
 	pageStateNewGeneration = clock.nextGeneration
 	t.Cleanup(func() {
-		time.Local = previousLocal
+		versionZone = previousZone
 		versionClock = previousClock
 		pageStateNewGeneration = previousGeneration
 	})

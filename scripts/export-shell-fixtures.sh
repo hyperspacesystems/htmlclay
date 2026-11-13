@@ -9,4 +9,6 @@ dst="$root/macos/Tests/PreviewCoreTests/Fixtures/v1"
 mkdir -p "$dst"
 rm -f "$dst"/*.snapshot.json
 cp "$src"/*.snapshot.json "$dst"/
-echo "Copied $(ls "$src"/*.snapshot.json | wc -l | tr -d ' ') snapshots to ${dst#"$root"/}"
+cp "$src"/actions.json "$dst"/
+cp "$root/cmd/htmlclay/testdata/shell/events.v1.ndjson" "$dst"/
+echo "Copied $(ls "$src"/*.snapshot.json | wc -l | tr -d ' ') snapshots, actions.json and events.v1.ndjson to ${dst#"$root"/}"

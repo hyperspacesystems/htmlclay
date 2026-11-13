@@ -274,6 +274,18 @@ func TestShellActions(t *testing.T) {
 	})
 }
 
+// TestErrorBodyDocuments proves a refusal names the documents it is about, so the
+// Mac app can show a person which edits a quit would lose.
+func TestErrorBodyDocuments(t *testing.T) {
+	body := errorBody(&appcore.Refusal{Code: appcore.RefuseQuitUnsaved, Documents: []string{"notes/a.html"}})
+	if !reflect.DeepEqual(body["documents"], []string{"notes/a.html"}) {
+		t.Fatalf("errorBody documents = %v, want [notes/a.html]", body["documents"])
+	}
+	if _, ok := errorBody(&appcore.Refusal{Code: appcore.RefuseQuitUnsaved})["documents"]; ok {
+		t.Fatal("a refusal without documents carried a documents key")
+	}
+}
+
 func assertRefusal(t *testing.T, body io.Reader) {
 	t.Helper()
 	var decoded struct {

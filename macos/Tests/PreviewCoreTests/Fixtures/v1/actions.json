@@ -1,0 +1,113 @@
+{
+  "v": 1,
+  "actions": [
+    {
+      "type": "dashboard.open",
+      "class": "safe"
+    },
+    {
+      "type": "document.forget",
+      "class": "safe"
+    },
+    {
+      "type": "document.open",
+      "class": "safe"
+    },
+    {
+      "type": "document.reveal",
+      "class": "safe"
+    },
+    {
+      "type": "file.open",
+      "class": "grant"
+    },
+    {
+      "type": "folder.copyAddress",
+      "class": "safe"
+    },
+    {
+      "type": "folder.merge",
+      "class": "revoke"
+    },
+    {
+      "type": "folder.reveal",
+      "class": "safe"
+    },
+    {
+      "type": "folder.serve",
+      "class": "grant"
+    },
+    {
+      "type": "folder.setSynced",
+      "class": "grant"
+    },
+    {
+      "type": "folder.setUpTeam",
+      "class": "grant"
+    },
+    {
+      "type": "folder.stopServing",
+      "class": "revoke"
+    },
+    {
+      "type": "folder.stopTrusting",
+      "class": "revoke"
+    },
+    {
+      "type": "folder.trust",
+      "class": "grant"
+    },
+    {
+      "type": "host.quit",
+      "class": "safe"
+    },
+    {
+      "type": "move.start",
+      "class": "grant"
+    },
+    {
+      "type": "prefs.set",
+      "class": "safe"
+    },
+    {
+      "type": "program.add",
+      "class": "grant"
+    },
+    {
+      "type": "program.removeAccess",
+      "class": "revoke"
+    },
+    {
+      "type": "program.setAllTrusted",
+      "class": "grant"
+    },
+    {
+      "type": "request.answer",
+      "class": "grant"
+    },
+    {
+      "type": "service.restart",
+      "class": "safe"
+    },
+    {
+      "type": "sync.connect",
+      "class": "grant"
+    },
+    {
+      "type": "sync.disconnect",
+      "class": "revoke"
+    },
+    {
+      "type": "sync.setPaused",
+      "class": "safe"
+    },
+    {
+      "type": "update.start",
+      "class": "safe"
+    },
+    {
+      "type": "waiting.markSeen",
+      "class": "safe"
+    }
+  ]
+}

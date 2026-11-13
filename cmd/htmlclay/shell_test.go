@@ -119,6 +119,171 @@ func TestShellBackendDoesThroughTheCore(t *testing.T) {
 	}
 }
 
+func TestShellCheckTrust(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(plain, "index.html"), servedTestDocument)
+	hidden := filepath.Join(home, ".secret")
+	if err := os.MkdirAll(hidden, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outer := filepath.Join(home, "outer")
+	inner := filepath.Join(outer, "inner")
+	writeTestFile(t, filepath.Join(inner, "index.html"), servedTestDocument)
+
+	a := buildTestApp(t, home, t.TempDir())
+	backend := shellBackend{a}
+
+	trust := func(id, path string) (shellapi.Preview, *appcore.Refusal) {
+		return backend.Check(appcore.Action{
+			ID:   id,
+			Type: "folder.trust",
+			Args: json.RawMessage(fmt.Sprintf(`{"path":%q}`, path)),
+		})
+	}
+
+	preview, refusal := trust("c-plain", plain)
+	if refusal != nil {
+		t.Fatalf("Check of a plain folder refused: %+v", refusal)
+	}
+	if preview.Path != plain {
+		t.Fatalf("preview path = %q, want %q", preview.Path, plain)
+	}
+	if preview.Name != "notes" {
+		t.Fatalf("preview name = %q, want notes", preview.Name)
+	}
+	if len(preview.Warnings) != 0 {
+		t.Fatalf("plain folder warnings = %+v, want none", preview.Warnings)
+	}
+
+	if _, refusal := trust("c-home", home); refusal == nil || refusal.Code != appcore.RefuseCannotTrust {
+		t.Fatalf("Check of the home folder = %+v, want a %s refusal", refusal, appcore.RefuseCannotTrust)
+	}
+	if _, refusal := trust("c-hidden", hidden); refusal == nil || refusal.Code != appcore.RefuseCannotTrust {
+		t.Fatalf("Check of a hidden folder = %+v, want a %s refusal", refusal, appcore.RefuseCannotTrust)
+	}
+
+	documents := filepath.Join(home, "Documents")
+	if err := os.MkdirAll(documents, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	preview, refusal = trust("c-personal", documents)
+	if refusal != nil {
+		t.Fatalf("Check of a personal folder refused: %+v", refusal)
+	}
+	personal := false
+	for _, warning := range preview.Warnings {
+		if warning.Code == "personal-folder" && warning.Text == appcore.TextWarnPersonalFolder {
+			personal = true
+		}
+	}
+	if !personal {
+		t.Fatalf("warnings = %+v, want a personal-folder warning", preview.Warnings)
+	}
+
+	if err := a.trustFolder(inner); err != nil {
+		t.Fatalf("trustFolder(%s): %v", inner, err)
+	}
+	before := a.rt.cfg.TrustedFolderList()
+	preview, refusal = trust("c-outer", outer)
+	if refusal != nil {
+		t.Fatalf("Check of a folder holding a trusted folder refused: %+v", refusal)
+	}
+	contains := false
+	for _, warning := range preview.Warnings {
+		if warning.Code != "contains-trusted" {
+			continue
+		}
+		contains = len(warning.Names) == 1 && warning.Names[0] == "inner"
+		if want := fmt.Sprintf(appcore.TextWarnContainsTrusted, "inner"); warning.Text != want {
+			t.Fatalf("contains-trusted text = %q, want %q", warning.Text, want)
+		}
+	}
+	if !contains {
+		t.Fatalf("warnings = %+v, want a contains-trusted warning naming inner", preview.Warnings)
+	}
+	after := a.rt.cfg.TrustedFolderList()
+	if len(after) != len(before) {
+		t.Fatalf("trusted folders = %+v after Check, want %+v unchanged", after, before)
+	}
+	for i := range after {
+		if after[i] != before[i] {
+			t.Fatalf("trusted folders = %+v after Check, want %+v unchanged", after, before)
+		}
+	}
+
+	_, refusal = backend.Do(context.Background(), appcore.Action{
+		ID:   "t-home",
+		Type: "folder.trust",
+		Args: json.RawMessage(fmt.Sprintf(`{"path":%q}`, home)),
+	})
+	if refusal == nil || refusal.Code != appcore.RefuseCannotTrust {
+		t.Fatalf("Do folder.trust of the home folder = %+v, want a %s refusal", refusal, appcore.RefuseCannotTrust)
+	}
+}
+
+func TestShellCheckServeKnownFolderKeepsName(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	blog := filepath.Join(home, "blog")
+	writeTestFile(t, filepath.Join(blog, "index.html"), servedTestDocument)
+	notes := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(notes, "index.html"), servedTestDocument)
+
+	a := buildTestApp(t, home, t.TempDir())
+	a.rt.port = servedTestPort
+	a.startServed()
+	t.Cleanup(func() {
+		if a.served != nil {
+			a.served.Close()
+		}
+	})
+	backend := shellBackend{a}
+
+	entry, refusal, err := a.serveFolder(blog, "blog")
+	if err != nil || refusal != nil {
+		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+	}
+	if err := a.stopServing(entry.ID); err != nil {
+		t.Fatalf("stopServing: %v", err)
+	}
+	if _, refusal, err := a.serveFolder(notes, "notes"); err != nil || refusal != nil {
+		t.Fatalf("serveFolder(notes): refusal=%+v err=%v", refusal, err)
+	}
+
+	check := func(id, name string) (shellapi.Preview, *appcore.Refusal) {
+		return backend.Check(appcore.Action{
+			ID:   "c-" + name,
+			Type: "folder.serve",
+			Args: json.RawMessage(fmt.Sprintf(`{"id":%q,"name":%q}`, id, name)),
+		})
+	}
+
+	// A stopped folder served again resumes its entry and keeps its name, so the
+	// address and what pages stored under it stay the same; check says so, and the
+	// action does it.
+	preview, refusal := check(entry.ID, "blog2")
+	if refusal != nil || preview.Name != "blog" {
+		t.Fatalf("Check of a stopped folder with a typed name = %+v, %+v; want its own name blog", preview, refusal)
+	}
+	snapshot, refusal := a.do(context.Background(), appcore.Action{
+		ID:   "serve-again",
+		Type: "folder.serve",
+		Args: json.RawMessage(fmt.Sprintf(`{"id":%q,"name":"blog2"}`, entry.ID)),
+	}, ChannelShell)
+	if refusal != nil {
+		t.Fatalf("serving the stopped folder again refused: %+v", refusal)
+	}
+	if got := snapshotFolder(t, snapshot, entry.ID); !got.Served || got.Address != preview.Address {
+		t.Fatalf("served again at %q (served %v), want the address check gave, %q", got.Address, got.Served, preview.Address)
+	}
+}
+
 // freeLoopbackPort answers a port free on both loopback stacks, the way the app
 // asks for it: a launch finds the port held on one stack and asks the person.
 func freeLoopbackPort(t *testing.T) int {
@@ -194,6 +359,104 @@ func readReady(t *testing.T, stdout io.Reader, timeout time.Duration) (shellapi.
 	case <-time.After(timeout):
 		return shellapi.Ready{}, false
 	}
+}
+
+// readFailed waits up to timeout for the host's one FAILED line on stdout.
+func readFailed(t *testing.T, stdout io.Reader, timeout time.Duration) (shellapi.Failure, bool) {
+	t.Helper()
+	found := make(chan shellapi.Failure, 1)
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			payload, ok := strings.CutPrefix(scanner.Text(), "FAILED ")
+			if !ok {
+				continue
+			}
+			var failure shellapi.Failure
+			if err := json.Unmarshal([]byte(payload), &failure); err != nil {
+				return
+			}
+			found <- failure
+			return
+		}
+	}()
+	select {
+	case failure := <-found:
+		return failure, true
+	case <-time.After(timeout):
+		return shellapi.Failure{}, false
+	}
+}
+
+// shellBase is a short temporary base for every directory the host touches, so
+// nothing it writes lands in this Mac's real home.
+func shellBase(t *testing.T) string {
+	t.Helper()
+	base, err := os.MkdirTemp("", "htmlclay-shell-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(base) })
+	return base
+}
+
+// writeShellConfig writes the config the host finds at its first launch.
+func writeShellConfig(t *testing.T, base, config string) {
+	t.Helper()
+	dir := filepath.Join(base, "htmlclay")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(config+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// startShellHost starts the host the way the Mac app does: --shell-stdin, a
+// secret on stdin, and every directory under base.
+func startShellHost(t *testing.T, bin, base string) (*exec.Cmd, io.WriteCloser, io.Reader, *strings.Builder) {
+	t.Helper()
+	var stderr strings.Builder
+	cmd := exec.Command(bin, "--shell-stdin")
+	cmd.Env = append(os.Environ(), "HOME="+base, "HTMLCLAY_CONFIG_BASE="+base)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+	return cmd, stdin, stdout, &stderr
+}
+
+// shellSnapshot answers the app's GET /shell/v1/snapshot, so a test can prove the
+// primary host is still serving.
+func shellSnapshot(t *testing.T, shell, secret string) string {
+	t.Helper()
+	request, err := http.NewRequest(http.MethodGet, shell+"/shell/v1/snapshot", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Authorization", "Bearer "+secret)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("GET snapshot: %v", err)
+	}
+	body, err := io.ReadAll(response.Body)
+	response.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("GET snapshot = %d %s, want 200", response.StatusCode, body)
+	}
+	return string(body)
 }
 
 // waitExit waits for the child to exit and reports its code.
@@ -406,6 +669,156 @@ func TestShellStdin(t *testing.T) {
 		}
 		if strings.Contains(stdout.String(), "READY") {
 			t.Fatalf("the app printed READY after a bad bootstrap line: %q", stdout.String())
+		}
+	})
+
+	t.Run("a bad bootstrap line answers FAILED", func(t *testing.T) {
+		base := shellBase(t)
+		cmd, stdin, stdout, stderr := startShellHost(t, bin, base)
+		t.Cleanup(func() { _ = stdin.Close() })
+
+		if _, err := fmt.Fprint(stdin, "not json\n"); err != nil {
+			t.Fatalf("write the bad bootstrap line: %v", err)
+		}
+		failure, ok := readFailed(t, stdout, 30*time.Second)
+		if !ok {
+			t.Fatalf("no FAILED line within 30s; stderr:\n%s", stderr.String())
+		}
+		if failure.V != 1 || failure.Code != shellapi.FailBadBootstrap {
+			t.Fatalf("FAILED = %+v, want v1 with code %q", failure, shellapi.FailBadBootstrap)
+		}
+		code, exited := waitExit(t, cmd, 30*time.Second, stderr)
+		if !exited {
+			t.Fatalf("the app did not exit after a bad bootstrap line; stderr:\n%s", stderr.String())
+		}
+		if code != 2 {
+			t.Fatalf("the app exited %d, want 2; stderr:\n%s", code, stderr.String())
+		}
+	})
+
+	t.Run("a second copy answers FAILED already-running", func(t *testing.T) {
+		base := shellBase(t)
+		writeShellConfig(t, base, fmt.Sprintf(`{"startOnLogin": false, "port": %d, "updates": "off"}`, freeLoopbackPort(t)))
+
+		_, firstStdin, firstStdout, firstStderr := startShellHost(t, bin, base)
+		defer firstStdin.Close()
+		secret := randomSecret(t)
+		if _, err := fmt.Fprintf(firstStdin, `{"v":1,"secret":%q}`+"\n", secret); err != nil {
+			t.Fatalf("write the bootstrap line: %v\n%s", err, firstStderr.String())
+		}
+		ready, ok := readReady(t, firstStdout, 30*time.Second)
+		if !ok {
+			t.Fatalf("the first host printed no READY line within 30s; stderr:\n%s", firstStderr.String())
+		}
+
+		second, secondStdin, secondStdout, secondStderr := startShellHost(t, bin, base)
+		t.Cleanup(func() { _ = secondStdin.Close() })
+		if _, err := fmt.Fprintf(secondStdin, `{"v":1,"secret":%q}`+"\n", randomSecret(t)); err != nil {
+			t.Fatalf("write the second bootstrap line: %v\n%s", err, secondStderr.String())
+		}
+		failure, ok := readFailed(t, secondStdout, 30*time.Second)
+		if !ok {
+			t.Fatalf("the second copy printed no FAILED line within 30s; stderr:\n%s", secondStderr.String())
+		}
+		if failure.V != 1 || failure.Code != shellapi.FailAlreadyRunning {
+			t.Fatalf("FAILED = %+v, want v1 with code %q", failure, shellapi.FailAlreadyRunning)
+		}
+		code, exited := waitExit(t, second, 30*time.Second, secondStderr)
+		if !exited {
+			t.Fatalf("the second copy did not exit; stderr:\n%s", secondStderr.String())
+		}
+		if code != 3 {
+			t.Fatalf("the second copy exited %d, want 3; stderr:\n%s", code, secondStderr.String())
+		}
+		if body := shellSnapshot(t, ready.Shell, secret); !strings.Contains(body, `"v":1`) {
+			t.Fatalf("the first host answered %q, want the snapshot of a running host", body)
+		}
+	})
+
+	t.Run("a taken port answers FAILED port-taken without a dialog", func(t *testing.T) {
+		held, err := net.Listen("tcp4", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("hold a port: %v", err)
+		}
+		t.Cleanup(func() { held.Close() })
+		port := held.Addr().(*net.TCPAddr).Port
+
+		base := shellBase(t)
+		writeShellConfig(t, base, fmt.Sprintf(`{"startOnLogin": false, "port": %d, "updates": "off"}`, port))
+
+		cmd, stdin, stdout, stderr := startShellHost(t, bin, base)
+		t.Cleanup(func() { _ = stdin.Close() })
+		if _, err := fmt.Fprintf(stdin, `{"v":1,"secret":%q}`+"\n", randomSecret(t)); err != nil {
+			t.Fatalf("write the bootstrap line: %v\n%s", err, stderr.String())
+		}
+		failure, ok := readFailed(t, stdout, 30*time.Second)
+		if !ok {
+			t.Fatalf("no FAILED line within 30s on port %d, so a dialog may be waiting; stderr:\n%s", port, stderr.String())
+		}
+		if failure.V != 1 || failure.Code != shellapi.FailPortTaken || failure.Port != port {
+			t.Fatalf("FAILED = %+v, want v1 with code %q and port %d", failure, shellapi.FailPortTaken, port)
+		}
+		code, exited := waitExit(t, cmd, 30*time.Second, stderr)
+		if !exited {
+			t.Fatalf("the app did not exit with port %d taken; stderr:\n%s", port, stderr.String())
+		}
+		if code != 4 {
+			t.Fatalf("the app exited %d, want 4; stderr:\n%s", code, stderr.String())
+		}
+	})
+
+	t.Run("a host started by the app leaves the login item alone", func(t *testing.T) {
+		base := shellBase(t)
+		writeShellConfig(t, base, fmt.Sprintf(`{"startOnLogin": true, "port": %d, "updates": "off"}`, freeLoopbackPort(t)))
+
+		_, stdin, stdout, stderr := startShellHost(t, bin, base)
+		defer stdin.Close()
+		secret := randomSecret(t)
+		if _, err := fmt.Fprintf(stdin, `{"v":1,"secret":%q}`+"\n", secret); err != nil {
+			t.Fatalf("write the bootstrap line: %v\n%s", err, stderr.String())
+		}
+		ready, ok := readReady(t, stdout, 30*time.Second)
+		if !ok {
+			t.Fatalf("no READY line within 30s; stderr:\n%s", stderr.String())
+		}
+		if ready.V != 1 {
+			t.Fatalf("READY = %+v, want v1", ready)
+		}
+
+		launchAgents := filepath.Join(base, "Library", "LaunchAgents")
+		if _, err := os.Stat(launchAgents); err == nil {
+			t.Fatalf("%s exists after READY; a host the Mac app started must not write the login item", launchAgents)
+		}
+
+		action := shellJSON("pref1", "prefs.set", map[string]any{"key": "openAtLogin", "value": true})
+		request, err := http.NewRequest(http.MethodPost, ready.Shell+"/shell/v1/actions", strings.NewReader(action))
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set("Authorization", "Bearer "+secret)
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatalf("POST prefs.set: %v", err)
+		}
+		body, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var outcome struct {
+			Ok    bool `json:"ok"`
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(body, &outcome); err != nil {
+			t.Fatalf("decode the answer: %v\n%s", err, body)
+		}
+		if response.StatusCode != http.StatusConflict || outcome.Ok || outcome.Error.Code != appcore.RefuseNotYet {
+			t.Fatalf("prefs.set openAtLogin = %d %s, want a %q refusal", response.StatusCode, body, appcore.RefuseNotYet)
+		}
+		if _, err := os.Stat(launchAgents); err == nil {
+			t.Fatalf("%s exists after prefs.set; a host the Mac app started must not write the login item", launchAgents)
 		}
 	})
 }

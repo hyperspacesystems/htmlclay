@@ -154,6 +154,15 @@ func (a *controlAPI) serveCheckpoint(w http.ResponseWriter, r *http.Request) {
 		_ = writeRefusal(w, r, result.Refusal)
 		return
 	}
+	// The bytes on disk could not be kept as a version, so nothing was written.
+	// Answered as a failed operation, which the service retries with its
+	// bounded backoff; an "ok" with nothing written would count as done, and a
+	// refusal is never retried.
+	if result.Outcome == "refused" && result.Reason == "backup-failed" {
+		root.events.finishOp(opID, "refused", "", "")
+		writeControlJSON(w, http.StatusInternalServerError, controlError{Error: "backup-failed: the bytes on disk could not be kept as a version"})
+		return
+	}
 	var written any
 	if result.Outcome == "committed" {
 		written = controlBytesValue(result.Content)

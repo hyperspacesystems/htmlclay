@@ -9,21 +9,30 @@ import (
 // each copy: note says where it shows and how long it may be.
 
 const (
-	TextServeAFolder       = "Serve a Folder…"                                                                       // copy: tray row that opens the folder picker, max 24 chars
-	TextServedFolders      = "Served Folders"                                                                        // copy: tray submenu title, max 24 chars
-	TextNoServedFolders    = "No served folders yet"                                                                 // copy: tray, disabled row when the list is empty, max 32 chars
-	TextOpenServed         = "Open Workspace"                                                                        // copy: tray, per folder, max 24 chars
-	TextCopyAddress        = "Copy Address"                                                                          // copy: tray, per folder, max 24 chars
-	TextStopServing        = "Stop Serving"                                                                          // copy: tray, per folder, and the confirm button, max 24 chars
-	TextFolderMissing      = "(missing)"                                                                             // copy: tray, after a served folder's name when its folder is gone, max 16 chars
-	TextPickServeFolder    = "Choose a folder to serve at its own address."                                          // copy: folder picker prompt, max 120 chars
-	TextStopServingTitle   = "Stop serving this folder?"                                                             // copy: confirm dialog title, max 40 chars
-	TextStopServingMessage = "%s will stop working. The files in the folder stay where they are."                    // copy: confirm dialog body, %s is the address, max 160 chars
-	TextNowServed          = "%s is served at %s"                                                                    // copy: notification and CLI success line, %s name then address, max 120 chars
-	TextNotServed          = "No served folder is named %s."                                                         // copy: CLI, stop-serving with an unknown name, max 80 chars
-	TextStopped            = "Stopped serving %s."                                                                   // copy: CLI success line, max 80 chars
-	TextCannotServe        = "HTML Clay can't serve this folder"                                                     // copy: notification title for a refusal, max 48 chars
-	TextServeCLIWindows    = "The htmlclay serve command runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
+	TextQuitUnsavedTitle    = "Some edits aren't saved yet"                                                               // copy: quit dialog title, max 40 chars
+	TextQuitUnsavedBody     = "HTML Clay couldn't save these documents:\n\n%s\n\nQuitting now loses those edits."         // copy: quit dialog body, %s is the documents one per line, max 200 chars without the list
+	TextQuitRetry           = "Retry"                                                                                     // copy: quit dialog button that tries to save again, max 16 chars
+	TextQuitAnyway          = "Quit anyway"                                                                               // copy: quit dialog button that quits and loses the edits, max 16 chars
+	TextQuitCancel          = "Cancel"                                                                                    // copy: quit dialog button that keeps the app open, max 16 chars
+	TextQuitNotQuitting     = "HTML Clay is still open because these edits aren't saved: %s. Try Quit again in a moment." // TODO-COPY: notice when no quit dialog can be shown (Linux without zenity or kdialog); %s lists the documents
+	TextQuitNoAnswer        = "Your open documents could not be checked."                                                 // copy: quit dialog list line when the service could not be asked, max 60 chars
+	TextServeAFolder        = "Serve a Folder…"                                                                           // copy: tray row that opens the folder picker, max 24 chars
+	TextServedFolders       = "Served Folders"                                                                            // copy: tray submenu title, max 24 chars
+	TextNoServedFolders     = "No served folders yet"                                                                     // copy: tray, disabled row when the list is empty, max 32 chars
+	TextOpenServed          = "Open Workspace"                                                                            // copy: tray, per folder, max 24 chars
+	TextCopyAddress         = "Copy Address"                                                                              // copy: tray, per folder, max 24 chars
+	TextStopServing         = "Stop Serving"                                                                              // copy: tray, per folder, and the confirm button, max 24 chars
+	TextFolderMissing       = "(missing)"                                                                                 // copy: tray, after a served folder's name when its folder is gone, max 16 chars
+	TextPickServeFolder     = "Choose a folder to serve at its own address."                                              // copy: folder picker prompt, max 120 chars
+	TextStopServingTitle    = "Stop serving this folder?"                                                                 // copy: confirm dialog title, max 40 chars
+	TextStopServingMessage  = "%s will stop working. The files in the folder stay where they are."                        // copy: confirm dialog body, %s is the address, max 160 chars
+	TextNowServed           = "%s is served at %s"                                                                        // copy: notification and CLI success line, %s name then address, max 120 chars
+	TextNotServed           = "No served folder is named %s."                                                             // copy: CLI, stop-serving with an unknown name, max 80 chars
+	TextStopped             = "Stopped serving %s."                                                                       // copy: CLI success line, max 80 chars
+	TextCannotServe         = "HTML Clay can't serve this folder"                                                         // copy: notification title for a refusal, max 48 chars
+	TextServeCLIWindows     = "The htmlclay serve command runs on Mac and Linux. On Windows, use the HTML Clay menu."     // copy: CLI, on Windows, max 120 chars
+	TextWarnPersonalFolder  = "This is one of your main folders. HTML Clay will be able to save every document in it."    // TODO-COPY: trust sheet warning before trusting a personal folder
+	TextWarnContainsTrusted = "These folders inside it are already trusted and become part of it: %s."                    // TODO-COPY: trust sheet warning, %s lists the trusted folders inside
 )
 
 // Why texts: the footnote or tooltip beside a control that is off.
@@ -74,6 +83,8 @@ var RefusalText = map[string]string{
 	RefuseNoSuchFolder:      "That folder is no longer listed. Add it again if you still want to use it.",                  // copy: refusal, max 140 chars
 	RefuseNoSuchProgram:     "That program is no longer listed. Look at the list again.",                                   // copy: refusal, max 140 chars
 	RefuseNoSuchDocument:    "That document is no longer listed. Open it again if you still need it.",                      // copy: refusal, max 140 chars
+	RefuseFileMissing:       "That file isn't there anymore. It may have been moved or deleted.",                           // copy: refusal, max 140 chars TODO-COPY
+	RefuseFileOutsideHome:   "HTML Clay only opens files inside your home folder. Move the file there and open it again.",  // copy: refusal, max 140 chars TODO-COPY
 	RefuseNoSuchRequest:     "That request has ended. Try again if you still need it.",                                     // copy: refusal, max 140 chars
 	RefuseRequestChanged:    "That request changed while you were answering. Look at it again.",                            // copy: refusal, max 140 chars
 	RefuseAnswerNotOffered:  "That answer isn't one this request offers. Choose one of the options shown.",                 // copy: refusal, max 140 chars
@@ -84,6 +95,8 @@ var RefusalText = map[string]string{
 	RefuseNothingReady:      "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
 	RefuseNeedsConfirmation: "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars
 	RefuseFailed:            "HTML Clay couldn't do that just now. Try again.",                                             // copy: refusal, max 140 chars
+	RefuseCannotTrust:       "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.", // copy: refusal, max 140 chars TODO-COPY
+	RefuseStillRunning:      "HTML Clay is still doing that. Wait a moment.",                                               // copy: refusal, max 140 chars TODO-COPY
 	RefuseNotYet:            "HTML Clay can't do that yet. Update HTML Clay and try again.",                                // copy: refusal, max 140 chars
 	// A folder rule's reason, when an action runs into it.
 	WhyIdentityChanged:    TextWhyServeIdentityChanged,
@@ -93,8 +106,9 @@ var RefusalText = map[string]string{
 	WhyServeFirst:         TextWhySyncServeFirst,
 	WhyViewer:             TextWhySyncViewer,
 	WhyStopServingFirst:   TextWhyStopTrustingServed,
-	RefuseServedElsewhere: "Another copy of HTML Clay is serving this folder. Stop it there first.",   // copy: refusal, max 140 chars
-	RefuseUnsavedEdits:    "Some edits in this folder haven't been saved yet. Try again in a moment.", // copy: refusal, max 140 chars
+	RefuseServedElsewhere: "Another copy of HTML Clay is serving this folder. Stop it there first.",      // copy: refusal, max 140 chars
+	RefuseUnsavedEdits:    "Some edits in this folder haven't been saved yet. Try again in a moment.",    // copy: refusal, max 140 chars
+	RefuseQuitUnsaved:     "Some edits haven't been saved yet. Try again, or quit anyway and lose them.", // copy: refusal, max 140 chars
 }
 
 // RefusalMessage fills in RefusalText for r.

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/panphora/htmlclay/internal/specwire"
@@ -172,7 +173,24 @@ func resolveWriteTarget(registry *consentRegistry, name string) (string, error) 
 	if _, err := validateSegments(name); err != nil {
 		return "", invalidFilePathError()
 	}
+	if nameTooLong(upathBase(name) + sidecarSuffix) {
+		return "", &PathError{Status: 400, Message: "This document's name is too long to save. Rename it to something shorter, then save again."} // TODO-COPY: save refusal for a file name over 250 bytes
+	}
 	return resolveWritePath(registry, name)
+}
+
+// A document keeps records beside it named "<name>.json" (page state, data
+// API, guard), so that name must fit too.
+const sidecarSuffix = ".json"
+
+// nameTooLong reports whether name is past the file system's name limit: 255
+// bytes on Linux, 255 UTF-16 units on macOS (APFS, HFS+) and Windows (NTFS),
+// where a long Cyrillic or Japanese name is legal at well over 255 bytes.
+func nameTooLong(name string) bool {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		return jsStringLength(name) > 255
+	}
+	return len(name) > 255
 }
 
 // invalidFilePathError is validateAndResolvePath's refusal.

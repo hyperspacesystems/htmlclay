@@ -3,13 +3,21 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/session"
 )
 
 // coreAction builds an action the way a door sends one.
@@ -336,5 +344,470 @@ func TestCorePreferences(t *testing.T) {
 	_, refusal = a.do(context.Background(), coreAction(t, "pref-2", "prefs.set", map[string]any{"key": "appearance", "value": "dark"}), ChannelTray)
 	if refusal == nil || refusal.Code != appcore.RefuseNotYet {
 		t.Fatalf("prefs.set appearance = %+v, want %q", refusal, appcore.RefuseNotYet)
+	}
+}
+
+func TestCoreFileOpen(t *testing.T) {
+	t.Run("opens a file inside home", func(t *testing.T) {
+		home := evalTempHome(t)
+		file := filepath.Join(home, "notes", "page.htmlclay")
+		writeTestFile(t, file, servedTestDocument)
+
+		a := newServedTestApp(t, home, t.TempDir())
+		var launched []string
+		a.rt.launchBrowser = func(target string) error {
+			launched = append(launched, target)
+			return nil
+		}
+		snapshot, refusal := a.do(context.Background(), coreAction(t, "open-1", "file.open", map[string]string{"path": file}), ChannelTray)
+		if refusal != nil {
+			t.Fatalf("file.open refused: %+v", refusal)
+		}
+		if len(launched) != 1 || !strings.HasPrefix(launched[0], "http://") {
+			t.Fatalf("file.open launched %q, want exactly one http:// URL", launched)
+		}
+		name := filepath.Base(file)
+		for _, doc := range snapshot.Documents {
+			if doc.Name == name {
+				return
+			}
+		}
+		t.Fatalf("file.open did not list %q in %+v", name, snapshot.Documents)
+	})
+
+	t.Run("a missing file", func(t *testing.T) {
+		home := evalTempHome(t)
+		file := filepath.Join(home, "notes", "gone.htmlclay")
+
+		a := newServedTestApp(t, home, t.TempDir())
+		var launched []string
+		a.rt.launchBrowser = func(target string) error {
+			launched = append(launched, target)
+			return nil
+		}
+		_, refusal := a.do(context.Background(), coreAction(t, "open-missing", "file.open", map[string]string{"path": file}), ChannelTray)
+		if refusal == nil || refusal.Code != appcore.RefuseFileMissing {
+			t.Fatalf("file.open of a missing file = %+v, want %q", refusal, appcore.RefuseFileMissing)
+		}
+		if len(launched) != 0 {
+			t.Fatalf("file.open of a missing file launched %q, want nothing", launched)
+		}
+	})
+
+	t.Run("a file outside home", func(t *testing.T) {
+		home := evalTempHome(t)
+		outside, err := filepath.EvalSymlinks(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if session.EqualOrUnder(home, outside) {
+			t.Skipf("%s is inside the test home %s", outside, home)
+		}
+		file := filepath.Join(outside, "page.htmlclay")
+		writeTestFile(t, file, servedTestDocument)
+
+		a := newServedTestApp(t, home, t.TempDir())
+		var launched []string
+		a.rt.launchBrowser = func(target string) error {
+			launched = append(launched, target)
+			return nil
+		}
+		_, refusal := a.do(context.Background(), coreAction(t, "open-outside", "file.open", map[string]string{"path": file}), ChannelTray)
+		if refusal == nil || refusal.Code != appcore.RefuseFileOutsideHome {
+			t.Fatalf("file.open of a file outside home = %+v, want %q", refusal, appcore.RefuseFileOutsideHome)
+		}
+		if len(launched) != 0 {
+			t.Fatalf("file.open of a file outside home launched %q, want nothing", launched)
+		}
+	})
+
+	t.Run("an empty path", func(t *testing.T) {
+		home := evalTempHome(t)
+
+		a := newServedTestApp(t, home, t.TempDir())
+		var launched []string
+		a.rt.launchBrowser = func(target string) error {
+			launched = append(launched, target)
+			return nil
+		}
+		_, refusal := a.do(context.Background(), coreAction(t, "open-empty", "file.open", map[string]string{"path": ""}), ChannelTray)
+		if refusal == nil || refusal.Code != appcore.RefuseBadArguments {
+			t.Fatalf("file.open with no path = %+v, want %q", refusal, appcore.RefuseBadArguments)
+		}
+		if len(launched) != 0 {
+			t.Fatalf("file.open with no path launched %q, want nothing", launched)
+		}
+	})
+
+	t.Run("a file inside a served folder", func(t *testing.T) {
+		home := evalTempHome(t)
+		dir := filepath.Join(home, "notes")
+		file := filepath.Join(dir, "page.htmlclay")
+		writeTestFile(t, file, servedTestDocument)
+
+		a := newServedTestApp(t, home, t.TempDir())
+		if _, refusal, err := a.serveFolder(dir, "notes"); err != nil || refusal != nil {
+			t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+		}
+		var launched []string
+		a.rt.launchBrowser = func(target string) error {
+			launched = append(launched, target)
+			return nil
+		}
+		_, refusal := a.do(context.Background(), coreAction(t, "open-served", "file.open", map[string]string{"path": file}), ChannelTray)
+		if refusal != nil {
+			t.Fatalf("file.open of a served file refused: %+v", refusal)
+		}
+		want := servedFileURL("notes", "page.htmlclay")
+		if len(launched) != 1 || launched[0] != want {
+			t.Fatalf("file.open of a served file launched %q, want exactly %q", launched, want)
+		}
+	})
+}
+
+func TestCoreDashboardCannotOpenFile(t *testing.T) {
+	home := evalTempHome(t)
+	file := filepath.Join(home, "notes", "page.htmlclay")
+	writeTestFile(t, file, servedTestDocument)
+
+	a := newServedTestApp(t, home, t.TempDir())
+	var launched []string
+	a.rt.launchBrowser = func(target string) error {
+		launched = append(launched, target)
+		return nil
+	}
+	_, refusal := a.do(context.Background(), coreAction(t, "dashboard-open", "file.open", map[string]string{"path": file}), ChannelDashboard)
+	if refusal == nil || refusal.Code != appcore.RefuseNeedsConfirmation {
+		t.Fatalf("file.open from the dashboard = %+v, want %q", refusal, appcore.RefuseNeedsConfirmation)
+	}
+	if len(launched) != 0 {
+		t.Fatalf("file.open from the dashboard launched %q, want nothing", launched)
+	}
+}
+
+func TestOpenFileStillNotifies(t *testing.T) {
+	home := evalTempHome(t)
+	outside, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.EqualOrUnder(home, outside) {
+		t.Skipf("%s is inside the test home %s", outside, home)
+	}
+	file := filepath.Join(outside, "page.htmlclay")
+	writeTestFile(t, file, servedTestDocument)
+
+	a := newServedTestApp(t, home, t.TempDir())
+	titles := make(chan string, 4)
+	a.rt.notify = func(title, message string) error {
+		titles <- title
+		return nil
+	}
+	a.rt.launchBrowser = func(string) error {
+		t.Error("opening a file outside home launched a browser")
+		return nil
+	}
+	a.openFile(file)
+
+	select {
+	case title := <-titles:
+		if title != "HTML Clay can't open this file" {
+			t.Fatalf("notification title = %q, want %q", title, "HTML Clay can't open this file")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("opening a file outside home did not notify")
+	}
+}
+
+func TestCoreEachAnswerHasItsOwnRev(t *testing.T) {
+	home := evalTempHome(t)
+	a := newServedTestApp(t, home, t.TempDir())
+
+	before := a.snapshot().Rev
+
+	first, refusal := a.do(context.Background(), coreAction(t, "rev-on", "prefs.set", map[string]any{"key": "aiEditing", "value": true}), ChannelTray)
+	if refusal != nil {
+		t.Fatalf("prefs.set aiEditing = true refused: %+v", refusal)
+	}
+	second, refusal := a.do(context.Background(), coreAction(t, "rev-off", "prefs.set", map[string]any{"key": "aiEditing", "value": false}), ChannelTray)
+	if refusal != nil {
+		t.Fatalf("prefs.set aiEditing = false refused: %+v", refusal)
+	}
+
+	if !first.Preferences.AIEditing || second.Preferences.AIEditing {
+		t.Fatalf("aiEditing = %v then %v, want true then false", first.Preferences.AIEditing, second.Preferences.AIEditing)
+	}
+	if first.Rev <= before {
+		t.Errorf("first answer rev = %d, want above the starting %d", first.Rev, before)
+	}
+	if second.Rev <= before {
+		t.Errorf("second answer rev = %d, want above the starting %d", second.Rev, before)
+	}
+	if second.Rev <= first.Rev {
+		t.Errorf("second answer rev = %d, want above the first answer's %d", second.Rev, first.Rev)
+	}
+}
+
+func TestCoreRunningActionIsReserved(t *testing.T) {
+	home := evalTempHome(t)
+	a := newServedTestApp(t, home, t.TempDir())
+	backend := shellBackend{a}
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var calls int32
+	a.core.beforeEffect = func(appcore.Effect) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			close(entered)
+			<-release
+		}
+	}
+
+	action := coreAction(t, "slow-1", "prefs.set", map[string]any{"key": "aiEditing", "value": true})
+	type outcome struct {
+		snapshot appcore.Snapshot
+		refusal  *appcore.Refusal
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		snapshot, refusal := a.do(context.Background(), action, ChannelTray)
+		done <- outcome{snapshot: snapshot, refusal: refusal}
+	}()
+
+	<-entered
+
+	if _, refusal, ok := backend.Answer("slow-1"); !ok || refusal == nil || refusal.Code != appcore.RefuseStillRunning {
+		t.Fatalf("Answer while running = %+v ok=%v, want %q", refusal, ok, appcore.RefuseStillRunning)
+	}
+	if _, refusal := a.do(context.Background(), action, ChannelTray); refusal == nil || refusal.Code != appcore.RefuseStillRunning {
+		t.Fatalf("repeated action while running = %+v, want %q", refusal, appcore.RefuseStillRunning)
+	}
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Errorf("effects ran %d times while the first was running, want 1", got)
+	}
+
+	close(release)
+	result := <-done
+	if result.refusal != nil {
+		t.Fatalf("the running action refused: %+v", result.refusal)
+	}
+	answer, refusal, ok := backend.Answer("slow-1")
+	if !ok || refusal != nil {
+		t.Fatalf("Answer after the action = %+v ok=%v, want the answer", refusal, ok)
+	}
+	if answer.Rev != result.snapshot.Rev {
+		t.Errorf("stored answer rev = %d, want the action's own %d", answer.Rev, result.snapshot.Rev)
+	}
+}
+
+func TestCoreDocumentCount(t *testing.T) {
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "proj")
+	writeTestFile(t, filepath.Join(dir, "a.html"), servedTestDocument)
+	writeTestFile(t, filepath.Join(dir, "b.htmlclay"), servedTestDocument)
+	writeTestFile(t, filepath.Join(dir, "sub", "c.htm"), servedTestDocument)
+	writeTestFile(t, filepath.Join(dir, "notes.txt"), "notes")
+	writeTestFile(t, filepath.Join(dir, ".hyperclay", "versions", "a", "1.html"), servedTestDocument)
+
+	a := newServedTestApp(t, home, t.TempDir())
+	if err := a.trustFolder(dir); err != nil {
+		t.Fatalf("trustFolder: %v", err)
+	}
+	folder := snapshotFolderAt(t, a.snapshot(), dir)
+	if folder.DocumentCount != 3 {
+		t.Errorf("folder documentCount = %d, want 3", folder.DocumentCount)
+	}
+}
+
+func TestCoreWatcherPublishesUnannouncedChange(t *testing.T) {
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "proj")
+	writeTestFile(t, filepath.Join(dir, "a.html"), servedTestDocument)
+
+	a := newServedTestApp(t, home, t.TempDir())
+	if err := a.trustFolder(dir); err != nil {
+		t.Fatalf("trustFolder: %v", err)
+	}
+	a.core.watchEvery = 50 * time.Millisecond
+
+	updates, unsubscribe := a.subscribe()
+	select {
+	case <-updates:
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := time.After(3 * time.Second)
+	found := false
+	for !found {
+		select {
+		case snapshot := <-updates:
+			for _, folder := range snapshot.Folders {
+				if folder.Path == dir && folder.State == appcore.FolderMissing {
+					found = true
+				}
+			}
+		case <-deadline:
+			t.Fatal("no snapshot showing the folder missing arrived within 3s")
+		}
+	}
+
+	unsubscribe()
+	gone := time.After(1 * time.Second)
+	for {
+		a.core.mu.Lock()
+		watching := a.core.watching
+		a.core.mu.Unlock()
+		if !watching {
+			return
+		}
+		select {
+		case <-gone:
+			t.Fatal("the facts watcher is still running a second after the last unsubscribe")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
+
+func TestCoreNoWatcherWithoutSubscribers(t *testing.T) {
+	a := newServedTestApp(t, evalTempHome(t), t.TempDir())
+	a.core.watchEvery = 50 * time.Millisecond
+	time.Sleep(200 * time.Millisecond)
+
+	a.core.mu.Lock()
+	watching := a.core.watching
+	counts := len(a.core.countCache)
+	a.core.mu.Unlock()
+	if watching {
+		t.Error("the facts watcher runs with no subscriber")
+	}
+	if counts != 0 {
+		t.Errorf("countCache holds %d folders with no subscriber, want none", counts)
+	}
+}
+
+func TestCoreDocumentOpenedAt(t *testing.T) {
+	home := evalTempHome(t)
+	file := filepath.Join(home, "notes", "page.htmlclay")
+	writeTestFile(t, file, servedTestDocument)
+
+	a := newServedTestApp(t, home, t.TempDir())
+	a.rt.launchBrowser = func(string) error { return nil }
+	if _, refusal := a.do(context.Background(), coreAction(t, "open-opened-at", "file.open", map[string]string{"path": file}), ChannelTray); refusal != nil {
+		t.Fatalf("file.open refused: %+v", refusal)
+	}
+
+	id := "d" + shortHash(file)
+	openedAt := func(snapshot appcore.Snapshot) *time.Time {
+		t.Helper()
+		for _, doc := range snapshot.Documents {
+			if doc.ID == id {
+				return doc.OpenedAt
+			}
+		}
+		t.Fatalf("no document %q in %+v", id, snapshot.Documents)
+		return nil
+	}
+
+	first := openedAt(a.snapshot())
+	if first == nil {
+		t.Fatal("the open document has no openedAt")
+	}
+	if since := time.Since(*first); since > time.Minute || since < -time.Minute {
+		t.Errorf("openedAt = %v, want within the last minute", first)
+	}
+	second := openedAt(a.snapshot())
+	if second == nil || !second.Equal(*first) {
+		t.Errorf("second snapshot openedAt = %v, want the first %v", second, first)
+	}
+}
+
+// runEffectCases reads core_effects.go and answers every string literal in a case
+// of runEffect's switch on e.Type.
+func runEffectCases(t *testing.T) []string {
+	t.Helper()
+	file, err := parser.ParseFile(token.NewFileSet(), "core_effects.go", nil, 0)
+	if err != nil {
+		t.Fatalf("parse core_effects.go: %v", err)
+	}
+	var cases []string
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Name.Name != "runEffect" || fn.Body == nil {
+			continue
+		}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			sw, ok := n.(*ast.SwitchStmt)
+			if !ok {
+				return true
+			}
+			sel, ok := sw.Tag.(*ast.SelectorExpr)
+			if !ok || sel.Sel.Name != "Type" {
+				return true
+			}
+			for _, stmt := range sw.Body.List {
+				clause, ok := stmt.(*ast.CaseClause)
+				if !ok {
+					continue
+				}
+				for _, expr := range clause.List {
+					lit, ok := expr.(*ast.BasicLit)
+					if !ok || lit.Kind != token.STRING {
+						continue
+					}
+					typ, err := strconv.Unquote(lit.Value)
+					if err != nil {
+						t.Fatalf("unquote %s: %v", lit.Value, err)
+					}
+					cases = append(cases, typ)
+				}
+			}
+			return true
+		})
+	}
+	if len(cases) == 0 {
+		t.Fatal("found no case in runEffect's switch on e.Type")
+	}
+	sort.Strings(cases)
+	return cases
+}
+
+// TestImplementedActionsMatchRunEffect keeps implementedActions and the cases of
+// runEffect equal: a case with no entry would say not-yet after the click, and an
+// entry with no case would promise what the host cannot do.
+func TestImplementedActionsMatchRunEffect(t *testing.T) {
+	cases := runEffectCases(t)
+	listed := append([]string(nil), implementedActions...)
+	sort.Strings(listed)
+
+	inCases := map[string]bool{}
+	for _, typ := range cases {
+		inCases[typ] = true
+	}
+	inList := map[string]bool{}
+	for _, typ := range listed {
+		inList[typ] = true
+	}
+	var missingFromList, missingFromSwitch []string
+	for _, typ := range cases {
+		if !inList[typ] {
+			missingFromList = append(missingFromList, typ)
+		}
+	}
+	for _, typ := range listed {
+		if !inCases[typ] {
+			missingFromSwitch = append(missingFromSwitch, typ)
+		}
+	}
+	if len(missingFromList) > 0 || len(missingFromSwitch) > 0 {
+		t.Fatalf("implementedActions and runEffect differ: runEffect cases missing from implementedActions: %v; implementedActions entries with no runEffect case: %v", missingFromList, missingFromSwitch)
+	}
+	for _, typ := range listed {
+		if _, ok := appcore.ActionClasses[typ]; !ok {
+			t.Fatalf("implementedActions lists %s, which is no action type", typ)
+		}
 	}
 }

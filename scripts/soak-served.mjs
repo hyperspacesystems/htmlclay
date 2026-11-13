@@ -129,9 +129,15 @@ function save({ port, host, doc, body }) {
   });
 }
 
+// The host's child processes: its live-room service. Windows has no pgrep, and
+// a parent lookup there missed the service 8 times in 9, so it matches the
+// service's command line instead (one host runs at a time in a soak).
 function serviceChildren(hostPid) {
+  const [command, args] = process.platform === 'win32'
+    ? ['powershell.exe', ['-NoProfile', '-Command', `(Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -like '*main.cjs*' }).ProcessId`]]
+    : ['pgrep', ['-P', String(hostPid)]];
   try {
-    return execFileSync('pgrep', ['-P', String(hostPid)], { encoding: 'utf8' }).split('\n').filter(Boolean).map(Number);
+    return execFileSync(command, args, { encoding: 'utf8' }).split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map(Number);
   } catch {
     return [];
   }

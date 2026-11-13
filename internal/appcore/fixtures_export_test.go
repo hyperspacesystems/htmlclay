@@ -2,6 +2,7 @@ package appcore
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -43,5 +44,55 @@ func TestShellFixturesMatch(t *testing.T) {
 		if !bytes.Equal(a, b) {
 			t.Errorf("%s differs from the Swift copy; run scripts/export-shell-fixtures.sh", name)
 		}
+	}
+	actions, err := os.ReadFile(filepath.Join(src, "actions.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	swiftActions, err := os.ReadFile(filepath.Join(dst, "actions.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(actions, swiftActions) {
+		t.Errorf("actions.json differs from the Swift copy; run scripts/export-shell-fixtures.sh")
+	}
+}
+
+// actionClass is one action type and the class it carries, as the Mac app reads
+// them: the app sends an action of a class its window may send.
+type actionClass struct {
+	Type  string `json:"type"`
+	Class string `json:"class"`
+}
+
+// TestActionListFixture writes the action types and their classes for the Swift
+// tests, so the app's list cannot drift from Go's.
+func TestActionListFixture(t *testing.T) {
+	list := make([]actionClass, 0, len(ActionClasses))
+	for name, class := range ActionClasses {
+		list = append(list, actionClass{Type: name, Class: class.String()})
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].Type < list[j].Type })
+	got, err := json.MarshalIndent(struct {
+		V       int           `json:"v"`
+		Actions []actionClass `json:"actions"`
+	}{V: 1, Actions: list}, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = append(got, '\n')
+	path := filepath.Join("testdata", "v1", "actions.json")
+	if *update {
+		if err := os.WriteFile(path, got, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatal("testdata/v1/actions.json is stale: go test ./internal/appcore -run TestActionListFixture -update, then scripts/export-shell-fixtures.sh")
 	}
 }

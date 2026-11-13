@@ -455,8 +455,11 @@ func (a *app) startSites() {
 // shutdown stops the server, every site and every legacy listener, and releases every
 // capability handle.
 func (a *app) shutdown() {
+	a.shutdownOnce.Do(a.shutdownNow)
+}
+
+func (a *app) shutdownNow() {
 	a.rt.logger.Printf("Shutting down...")
-	a.endShellStreams()
 
 	a.mu.Lock()
 	a.stopping = true
@@ -483,6 +486,8 @@ func (a *app) shutdown() {
 	// Save what the live-room service still holds and stop it before the served
 	// mounts are cancelled: it writes through their handlers.
 	a.service.close()
+	// Tell the Mac app bye only now: what the service held is saved, or logged as lost.
+	a.endShellStreams()
 	a.servedMu.RLock()
 	mounts := make([]*servedMount, 0, len(a.servedByName))
 	for _, m := range a.servedByName {

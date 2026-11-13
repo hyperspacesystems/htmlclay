@@ -182,6 +182,9 @@ func (a *app) restartForUpdate(target string, install func(handoffPath string) e
 			return errUpdateCancelled
 		}
 	}
+	if !a.confirmQuit() {
+		return errUpdateCancelled
+	}
 	if !waitQuiet(&a.rt.writesInFlight, updateQuietFor, updateQuietLimit) {
 		return errUpdateBusy
 	}
