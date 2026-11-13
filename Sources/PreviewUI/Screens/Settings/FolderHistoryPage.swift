@@ -34,17 +34,17 @@ struct FolderHistoryPage: View {
                 KilnBackButton {
                     model.route = .folder(folderID)
                 }
-                Text(History.title(folder.name))
+                Text(Strings.History.title(folder.name))
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(kiln.ink)
                 Spacer(minLength: 0)
-                Button(History.showSyncLog) {
+                Button(Strings.History.showSyncLog) {
                     model.say(Strings.Advanced.wouldShowSyncLog)
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
             }
             .padding(.bottom, 4)
-            KilnGroupTitle(History.today)
+            KilnGroupTitle(Strings.History.today)
             KilnCard {
                 ForEach(SampleData.history.indices, id: \.self) { index in
                     if index > 0 { KilnRowDivider() }
