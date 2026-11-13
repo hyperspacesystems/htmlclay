@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/panphora/htmlclay/internal/pathrel"
 )
 
 func TestRunServesEveryRootAndStopsOnStdinEOF(t *testing.T) {
@@ -287,7 +289,7 @@ func TestConsentRefusesSymlinkIntoLiveRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	saved := liveRoot
-	liveRoot = func() (string, error) { return realPath(live) }
+	liveRoot = func() (string, error) { return pathrel.RealPath(live) }
 	t.Cleanup(func() { liveRoot = saved })
 
 	root := t.TempDir()
@@ -299,8 +301,8 @@ func TestConsentRefusesSymlinkIntoLiveRoot(t *testing.T) {
 	}
 	registry := newConsentRegistry(root, nil)
 	registry.Ready()
-	liveReal, _ := realPath(live)
-	otherReal, _ := realPath(other)
+	liveReal, _ := pathrel.RealPath(live)
+	otherReal, _ := pathrel.RealPath(other)
 	consented := registry.ConsentedRoots()
 	if containsString(consented, upathResolve(liveReal)) {
 		t.Fatalf("the live folder was consented: %v", consented)

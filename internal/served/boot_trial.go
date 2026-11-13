@@ -15,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/panphora/htmlclay/internal/pathrel"
 )
 
 type boundServer struct {
@@ -212,7 +214,7 @@ func resolveRoots(raw []string, live string) ([]rootSpec, error) {
 		if err := RefuseLiveRoot(root, live); err != nil {
 			return nil, err
 		}
-		resolved, err := realPath(root)
+		resolved, err := pathrel.RealPath(root)
 		if err != nil {
 			return nil, fmt.Errorf("--root %q: %w", root, err)
 		}
