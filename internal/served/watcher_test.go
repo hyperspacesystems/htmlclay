@@ -148,3 +148,19 @@ func TestWatcherOutsideEdit(t *testing.T) {
 		t.Fatalf("the watcher ran the outside-edit pass on the host's own bytes: %+v", ownGuard)
 	}
 }
+
+func TestNextWalkWaitScalesWithTheWalk(t *testing.T) {
+	cases := []struct{ took, want time.Duration }{
+		{0, watchPollInterval},
+		{time.Millisecond, 150 * time.Millisecond},
+		{100 * time.Microsecond, watchPollInterval},
+		{10 * time.Millisecond, 1500 * time.Millisecond},
+		{50 * time.Millisecond, 7500 * time.Millisecond},
+		{time.Second, watchPollMax},
+	}
+	for _, c := range cases {
+		if got := nextWalkWait(c.took); got != c.want {
+			t.Errorf("nextWalkWait(%v) = %v, want %v", c.took, got, c.want)
+		}
+	}
+}

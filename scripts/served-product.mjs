@@ -172,7 +172,7 @@ export async function startProduct({
     const finish = (error) => {
       clearTimeout(timer);
       if (error) reject(error);
-      else resolve({ url, port: chosen, configBase, logPath, stop });
+      else resolve({ url, port: chosen, configBase, logPath, pid: child.pid, stop });
     };
     child.on('error', (error) => finish(new Error(`the app could not start: ${error.message}`)));
     exitPromise.then(({ code, signal }) => {

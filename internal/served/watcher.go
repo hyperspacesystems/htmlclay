@@ -15,8 +15,19 @@ import (
 // inotify binding and the walk is what chokidar's own poller does anyway.
 
 const (
-	// watchPollInterval is SYNC_CONFIG.FILE_STABILIZATION.pollInterval.
+	// watchPollInterval is SYNC_CONFIG.FILE_STABILIZATION.pollInterval, the
+	// shortest wait between walks.
 	watchPollInterval = 100 * time.Millisecond
+
+	// watchWalkCost and watchPollMax keep a large folder's idle cost down: after
+	// each walk the next waits watchWalkCost times as long as that walk took,
+	// between watchPollInterval and watchPollMax. A walk of 50,000 files kept a full
+	// core busy at a fixed 100 ms; the factor is 150 rather than the 50 that walking
+	// alone would need, because each walk's garbage is collected on other threads
+	// (measured: 60 left 2.9 percent of one core). Small folders still poll every
+	// 100 ms; the largest notice an outside edit within about 15 seconds.
+	watchWalkCost = 150
+	watchPollMax  = 15 * time.Second
 
 	// watchStability is SYNC_CONFIG.FILE_STABILIZATION.stabilityThreshold: a
 	// path is reported only after it has looked the same for this long, so the
@@ -104,17 +115,23 @@ func (w *rootWatcher) start() {
 	w.done = done
 	go func() {
 		defer close(done)
-		ticker := time.NewTicker(watchPollInterval)
-		defer ticker.Stop()
+		timer := time.NewTimer(watchPollInterval)
+		defer timer.Stop()
 		for {
 			select {
 			case <-halt:
 				return
-			case now := <-ticker.C:
+			case now := <-timer.C:
 				w.examine(now)
+				timer.Reset(nextWalkWait(time.Since(now)))
 			}
 		}
 	}()
+}
+
+// nextWalkWait is how long to wait after a walk that took took.
+func nextWalkWait(took time.Duration) time.Duration {
+	return min(max(took*watchWalkCost, watchPollInterval), watchPollMax)
 }
 
 // stop ends the poll and waits for the walk in flight.

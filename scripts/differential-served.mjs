@@ -67,7 +67,7 @@ export async function main({ env = process.env, argv = process.argv.slice(2), lo
     const trialSpare = path.join(scratch, 'trial-spare');
     const productRoot = path.join(scratch, 'product-root');
     mkdirSync(trialSpare, { recursive: true });
-    for (const root of [trialRoot, productRoot]) cpSync(source, root, { recursive: true });
+    for (const root of [trialRoot, productRoot]) cpSync(source, root, { recursive: true, preserveTimestamps: true });
 
     // `trial/p8.mjs` starts its managed side exactly this way: two roots, the
     // second empty, and a scratch folder for the two children's logs.
@@ -89,7 +89,10 @@ export async function main({ env = process.env, argv = process.argv.slice(2), lo
       '--b', product.url,
       '--root', productRoot,
       '--out', differentialOut,
-      '--stage', 'full',
+      // native until the product runs the Node service (sub plan 4, step 4.12): the
+      // service's extensions are the AD1 allowance. File times are kept in the copies,
+      // because a document's ETag carries its modification time.
+      '--stage', 'native',
     ], {
       cwd: local, env, encoding: 'utf8', maxBuffer: MAX_BUFFER,
     });

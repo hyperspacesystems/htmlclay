@@ -44,6 +44,7 @@ step conformance-served node --import "$H/scripts/localhost-dns.mjs" "$H/scripts
   --bin "$T/htmlclay" --local "$L" --out "$OUT/conformance" --trial-report "$OUT/p1-trial.json"
 step differential-served node --import "$H/scripts/localhost-dns.mjs" "$H/scripts/differential-served.mjs" \
   --bin "$T/htmlclay" --trial-bin "$T/managed-trial" --local "$L" --source "$T/synthetic" --out "$OUT/differential"
+step watcher-cpu node --import "$H/scripts/localhost-dns.mjs" "$H/scripts/watcher-cpu.mjs" --bin "$T/htmlclay" --seconds 120
 echo "finished $(date '+%Y-%m-%d %H:%M:%S %Z')" >> "$OUT/pins.txt"
 rm -rf "$T"
 if [ $fail -eq 0 ]; then echo DONE >> "$OUT/summary.log"; else echo FAILED >> "$OUT/summary.log"; fi
