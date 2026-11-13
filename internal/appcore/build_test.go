@@ -1,6 +1,9 @@
 package appcore
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestDisplayPath(t *testing.T) {
 	cases := []struct {
@@ -17,6 +20,8 @@ func TestDisplayPath(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			// The system's own paths: Windows spells these with backslashes.
+			c.home, c.path, c.want = filepath.FromSlash(c.home), filepath.FromSlash(c.path), filepath.FromSlash(c.want)
 			if got := displayPath(c.home, c.path); got != c.want {
 				t.Fatalf("displayPath(%q, %q) = %q, want %q", c.home, c.path, got, c.want)
 			}

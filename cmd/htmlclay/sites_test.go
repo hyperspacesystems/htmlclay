@@ -142,6 +142,16 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 	a.rt.quitProcess = func(int, bool) error { return nil }
 	t.Cleanup(func() {
 		ls.Shutdown()
+		// The served folders' lock files stay open while mounted, and Windows
+		// cannot delete an open file, so they are released before t.TempDir
+		// removes the lock directory (as shutdown does).
+		a.service.close()
+		a.servedMu.RLock()
+		for _, m := range a.servedByName {
+			m.cancel()
+			m.lock.Release()
+		}
+		a.servedMu.RUnlock()
 		a.mu.Lock()
 		defer a.mu.Unlock()
 		// Set stopping the way the real shutdown does, under this same lock. Work
@@ -2614,7 +2624,8 @@ func TestGuardRefusesASymlinkedUploadsLibraryByBothSpellings(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(home, "htmlclay", "uploads")); err == nil {
 		t.Fatal("the library must not exist before the guard is built")
 	}
-	a := newTestApp(t, home)
+	// startRuntime runs before the listener, as main does.
+	a := buildTestApp(t, home, t.TempDir())
 	a.startRuntime()
 
 	if err := os.MkdirAll(filepath.Join(linked, "uploads", "assets-board"), 0o755); err != nil {

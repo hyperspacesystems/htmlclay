@@ -244,6 +244,9 @@ func TestLiveStalledReaderDropped(t *testing.T) {
 		hub.subscribe("doc.html", writer, "saved")
 		close(subscribed)
 		<-r.Context().Done()
+		// As holdStream's unsubscribe does: no hub write may still be on this
+		// response once the handler returns.
+		writer.destroy()
 	}))
 	t.Cleanup(server.Close)
 

@@ -18,6 +18,7 @@ func TestWithin(t *testing.T) {
 		{"/a", "/a/b", false},
 	}
 	for _, c := range cases {
+		c.path, c.dir = filepath.FromSlash(c.path), filepath.FromSlash(c.dir)
 		if got := Within(c.path, c.dir); got != c.want {
 			t.Errorf("Within(%q, %q) = %v, want %v", c.path, c.dir, got, c.want)
 		}

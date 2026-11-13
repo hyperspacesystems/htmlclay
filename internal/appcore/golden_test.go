@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -16,6 +17,9 @@ var update = flag.Bool("update", false, "rewrite testdata/v1/*.snapshot.json fro
 var personas = []string{"newPerson", "fiveDocuments", "trustedFolder", "servedFolder", "syncedWithTeams", "localUser"}
 
 func TestGolden(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the facts are macOS paths, and Build shows paths in the system's own spelling; TestDisplayPath covers Windows")
+	}
 	dir := filepath.Join("testdata", "v1")
 	for _, name := range personas {
 		t.Run(name, func(t *testing.T) {

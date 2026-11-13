@@ -10,3 +10,11 @@ internal/clayruntime/assets/** -text
 
 # Admission fixtures are compared byte for byte after round trips
 internal/pageadmission/testdata/** -text
+
+# Embedded bundles verified against their locks and manifests byte for byte
+internal/dashboard/assets/** -text
+internal/served/assets/** -text
+
+# App core snapshot goldens, compared byte for byte (and their Swift copy)
+internal/appcore/testdata/** -text
+macos/Tests/PreviewCoreTests/Fixtures/** -text

@@ -75,7 +75,7 @@ func TestServedTrayRowsListOnlyServingFoldersAndMarkAMissingOne(t *testing.T) {
 	if len(rows) != 1 || rows[0].Path != servedNotes.ID {
 		t.Fatalf("rows after stopping drafts = %+v, want only %s", rows, servedNotes.ID)
 	}
-	if !strings.HasPrefix(rows[0].Label, "notes") || !strings.Contains(rows[0].Label, "~/notes") {
+	if !strings.HasPrefix(rows[0].Label, "notes") || !strings.Contains(rows[0].Label, filepath.FromSlash("~/notes")) {
 		t.Fatalf("label = %q, want the name and the path with home shown as ~", rows[0].Label)
 	}
 	if strings.Contains(rows[0].Label, appcore.TextFolderMissing) {

@@ -36,6 +36,11 @@ func newServeCLITestApp(t *testing.T) (*app, string) {
 		t.Fatal(err)
 	}
 	a := newServedTestApp(t, home, t.TempDir())
+	// The command refuses on Windows (its own test below); the rest of these
+	// run its logic on every system.
+	previous := serveOS
+	serveOS = "linux"
+	t.Cleanup(func() { serveOS = previous })
 	return a, home
 }
 

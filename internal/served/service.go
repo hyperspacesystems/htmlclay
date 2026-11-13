@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -251,6 +252,11 @@ type unconfirmedSet struct {
 	paths map[string]unconfirmedEntry
 }
 
+// unconfirmedKey is one spelling of a path for the set: the resolvers answer
+// forward slashes (Local's upath) and the structure steps answer the system's
+// separator, which on Windows are two spellings of one file.
+func unconfirmedKey(canonicalPath string) string { return filepath.ToSlash(canonicalPath) }
+
 func newUnconfirmedSet() *unconfirmedSet {
 	return &unconfirmedSet{paths: make(map[string]unconfirmedEntry)}
 }
@@ -259,23 +265,24 @@ func newUnconfirmedSet() *unconfirmedSet {
 func (s *unconfirmedSet) mark(canonicalPath, root, name string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.paths[canonicalPath]; ok {
+	key := unconfirmedKey(canonicalPath)
+	if _, ok := s.paths[key]; ok {
 		return false
 	}
-	s.paths[canonicalPath] = unconfirmedEntry{Root: root, Name: name}
+	s.paths[key] = unconfirmedEntry{Root: root, Name: name}
 	return true
 }
 
 func (s *unconfirmedSet) lift(canonicalPath string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.paths, canonicalPath)
+	delete(s.paths, unconfirmedKey(canonicalPath))
 }
 
 func (s *unconfirmedSet) has(canonicalPath string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, ok := s.paths[canonicalPath]
+	_, ok := s.paths[unconfirmedKey(canonicalPath)]
 	return ok
 }
 

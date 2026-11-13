@@ -236,10 +236,16 @@ func TestServiceKilledComesBack(t *testing.T) {
 		t.Fatal("no live-room service process while a folder is served")
 	}
 	before.Kill()
-	waitForServiceState(t, a, appcore.ServiceRunning, 10*time.Second)
+	// Until the runner notices the exit, the state still reads running, so wait
+	// for the new process itself.
+	deadline := time.Now().Add(10 * time.Second)
 	after := a.service.process()
-	if after == nil || after == before {
-		t.Fatalf("the live-room service did not come back as a new process (%p, then %p)", before, after)
+	for after == nil || after == before || a.service.state() != appcore.ServiceRunning {
+		if time.Now().After(deadline) {
+			t.Fatalf("the live-room service did not come back as a new process (%p, then %p)", before, after)
+		}
+		time.Sleep(25 * time.Millisecond)
+		after = a.service.process()
 	}
 
 	rec := servedRequest(t, a, http.MethodPost, s.host, "/_/save/"+token, strings.Replace(servedTestDocument, "<p>first</p>", "<p>second</p>", 1), map[string]string{
