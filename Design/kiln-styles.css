@@ -1203,91 +1203,10 @@ svg.ico-lg {
 /* ============================================================================
    E2 EXPLORATION PATTERNS (3 Related Switches: Trusted, Serve, Sync)
    ============================================================================ */
-/* E2-1: Connected Vertical Spine (Winner) */
-.spine-card {
-  background: var(--n-card);
-  border: 1px solid var(--n-card-border);
-  border-radius: 11px;
-  padding: 6px 16px;
-}
-
-.spine-step {
-  display: flex;
-  align-items: stretch;
-  gap: 14px;
-}
-
-.spine-rail {
-  width: 26px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 14px;
-  flex: none;
-}
-
-.spine-node {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12px;
-  font-weight: 700;
-  background: var(--n-card-sunk);
-  border: 1.5px solid var(--n-muted);
-  color: var(--n-muted);
-  flex: none;
-}
-
-.spine-node.on {
-  background: #E2911C;
-  border-color: #BA710A;
-  color: #1A1308;
-}
-
-.spine-line {
-  width: 2.5px;
-  flex: 1 1 auto;
-  min-height: 18px;
-  background: var(--n-row-sep);
-  margin: 4px 0 -10px;
-  border-radius: 2px;
-}
-
-.spine-line.on {
-  background: #E2911C;
-}
-
-.spine-body {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 13px 0;
-  border-bottom: 1px solid var(--n-row-sep);
-}
-
-.spine-step:last-child .spine-body {
-  border-bottom: none;
-}
-
-.spine-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.spine-detail {
-  margin-top: 10px;
-  background: var(--n-card-2);
-  border: 1px solid var(--n-card-border);
-  border-radius: 8px;
-}
-
-/* E2-2: Nested Containment Frames (Chosen Winner) */
+/* E2-2: Nested containment cards */
 .nest-outer {
   background: var(--n-card);
-  border: 1.5px solid rgba(226, 145, 28, 0.44);
+  border: 2.5px solid rgba(226, 145, 28, 0.44);
   border-radius: 12px;
   padding: 14px;
 }
@@ -1295,7 +1214,7 @@ svg.ico-lg {
 .nest-mid {
   margin-top: 12px;
   background: var(--n-card-2);
-  border: 1.5px solid var(--n-card-border);
+  border: 2.5px solid var(--n-card-border);
   border-radius: 10px;
   padding: 13px;
 }
@@ -1307,7 +1226,7 @@ svg.ico-lg {
 .nest-inner {
   margin-top: 12px;
   background: var(--n-card-sunk);
-  border: 1.5px solid var(--n-card-border);
+  border: 2.5px solid var(--n-card-border);
   border-radius: 9px;
   padding: 12px;
 }
@@ -1327,48 +1246,7 @@ svg.ico-lg {
   background: var(--n-card-2);
 }
 
-/* E2-3: Top Stepped Track Bar */
-.track-meter {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  background: var(--n-card-sunk);
-  border: 1px solid var(--n-card-border);
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 10px;
-}
-
-.track-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 11px;
-  border-radius: 99px;
-  background: var(--n-card);
-  border: 1px solid var(--n-card-border);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--n-muted);
-}
-
-.track-pill.on {
-  background: #EC9F2E;
-  border-color: #BA710A;
-  color: #1A1308;
-}
-
-.track-bridge {
-  flex: 1 1 auto;
-  height: 2px;
-  background: var(--n-row-sep);
-}
-
-.track-bridge.on {
-  background: #E2911C;
-}
-
-/* E2-4: Indented Tree-Branch Rows */
+/* Tree elbow glyph */
 .elbow {
   color: var(--n-muted);
   font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -1479,10 +1357,12 @@ svg.ico-lg {
 }
 
 .dn .car {
-  width: 11px;
+  width: 7px;
+  margin-right: -6px;
   text-align: center;
   color: var(--ws-faint);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1;
   flex: none;
 }
 
@@ -1550,14 +1430,76 @@ svg.ico-lg {
   color: var(--ws-ink);
 }
 
-.dback-link {
+
+.dtrail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ws-muted);
+  margin-bottom: 3px;
+}
+
+.dtrail-back {
+  color: var(--ws-brass);
+  font-weight: 580;
+}
+
+.dtitle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dbar-min {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--ws-line);
+  background: var(--ws-ground);
+  font-size: 13px;
+  color: var(--ws-muted);
+  white-space: nowrap;
+}
+
+.dbar-back {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 13px;
-  font-weight: 580;
+  gap: 4px;
   color: var(--ws-brass);
-  margin-bottom: 3px;
+  font-weight: 580;
+}
+
+.dbar-file {
+  color: var(--ws-ink);
+  font-weight: 620;
+}
+
+.dbar-status {
+  margin-left: 4px;
+  color: var(--ws-teal);
+  font-weight: 550;
+}
+
+.dbar-gap {
+  flex: 1 1 auto;
+}
+
+.dbar-act {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: var(--ws-ink-2);
+}
+
+.doc-flush {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
 }
 
 .dsub-line {
@@ -1588,11 +1530,14 @@ svg.ico-lg {
 
 .dbtn-primary {
   background: #EC9F2E;
-  color: #181208;
-  border: 1.5px solid #1C1710;
-  box-shadow: 2px 2px 0 #1C1710;
-  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-weight: 650;
+  color: #1A140B;
+  font-weight: 620;
+  border: 1px solid rgba(110, 64, 8, 0.32);
+  box-shadow: none;
+}
+
+.mode-col[data-mode="dark"] .dbtn-primary {
+  border-color: transparent;
 }
 
 .dpill {
