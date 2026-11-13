@@ -1,4 +1,4 @@
-//go:build managedtrial && !windows
+//go:build !windows
 
 package served
 

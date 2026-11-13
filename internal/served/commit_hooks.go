@@ -1,5 +1,3 @@
-//go:build managedtrial
-
 package served
 
 // The commit core never talks to the data-loss guard, the live channel, the

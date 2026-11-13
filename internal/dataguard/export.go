@@ -1,5 +1,3 @@
-//go:build managedtrial
-
 package dataguard
 
 import "github.com/panphora/htmlclay/internal/dataapi"

@@ -1,5 +1,3 @@
-//go:build managedtrial
-
 package served
 
 import "net/http"

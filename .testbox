@@ -17,5 +17,5 @@ ln -sf ~/.local/go/bin/go ~/.local/go/bin/gofmt ~/.local/bin/
 npm ci --no-audit --no-fund'
 # CI's Linux job runs `go test ./...`. The managed trial's tests sit behind a build tag CI does not
 # set, so they run here as a second step. Linux builds ship with CGO_ENABLED=0.
-TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 && go test ./... -count=1 && go test -tags managedtrial ./internal/served/ -count=1'
+TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 && go test ./... -count=1 && go test -tags managedtrial ./internal/served/ -count=1 && bash cmd/managed-trial/release-contents.sh'
 TESTBOX_TIMEOUT=${TESTBOX_TIMEOUT:-45m}

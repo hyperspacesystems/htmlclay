@@ -1,8 +1,6 @@
-//go:build managedtrial
-
 // Package served is the managed Go trial host for Hyperclay Local
-// documents. Every file in it carries the managedtrial build tag, so release
-// builds cannot contain it.
+// documents. Its fault hooks carry the managedtrial build tag, so a release
+// build compiles them to no-ops.
 package served
 
 import (
