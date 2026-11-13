@@ -199,4 +199,36 @@ final class CoreTests: XCTestCase {
         refused.waiting.append(WaitingItem(id: "w-key-refused", kind: .syncKeyRefused, title: "Sync key refused"))
         XCTAssertFalse(SampleReducer.apply(.connectSample, to: refused).waiting.contains { $0.kind == .syncKeyRefused })
     }
+
+    func testMoveFromLocalAndQuitRule() {
+        let local = SampleData.snapshot(for: .localUser)
+        let moved = SampleReducer.apply(.moveFromLocal(folderIDs: ["panphora", "design-team"]), to: local)
+        XCTAssertFalse(moved.localMoveOffer)
+        XCTAssertEqual(moved.folders.map(\.id), ["panphora", "design-team"])
+        XCTAssertTrue(moved.sync.connected)
+        XCTAssertEqual(moved.waiting.filter { $0.kind == .conflict }.count, 2)
+        XCTAssertEqual(SampleReducer.apply(.moveFromLocal(folderIDs: ["panphora", "design-team"]), to: moved), moved)
+        XCTAssertTrue(SampleReducer.apply(.moveFromLocal(folderIDs: ["panphora"]), to: local).waiting.isEmpty)
+
+        XCTAssertEqual(MoveRules.ordered(["design-team", "panphora"]), ["panphora", "design-team"])
+        XCTAssertFalse(MoveRules.canMove(blockers: 1, checked: ["panphora"], key: "k"))
+        XCTAssertFalse(MoveRules.canMove(blockers: 0, checked: [], key: "k"))
+        XCTAssertFalse(MoveRules.canMove(blockers: 0, checked: ["panphora"], key: String()))
+        XCTAssertTrue(MoveRules.canMove(blockers: 0, checked: ["panphora"], key: "k"))
+
+        let syncing = SampleData.snapshot(for: .syncedWithTeams)
+        XCTAssertEqual(syncing.filesStillUploading, 5)
+        var paused = syncing
+        paused.sync.paused = true
+        XCTAssertEqual(paused.filesStillUploading, 0)
+        var offline = syncing
+        offline.sync.offlineChanges = 8
+        XCTAssertEqual(offline.filesStillUploading, 0)
+        XCTAssertEqual(HostSnapshot().filesStillUploading, 0)
+
+        for note in SampleNotification.allCases {
+            XCTAssertFalse(Strings.Notify.title(note).isEmpty)
+            XCTAssertFalse(Strings.Notify.body(note).isEmpty)
+        }
+    }
 }

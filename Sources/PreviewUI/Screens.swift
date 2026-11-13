@@ -45,6 +45,12 @@ public enum ScreenCatalog {
             let sheet = PreviewSheet.teamSetup(folderID: team.id)
             screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
         }
+        for sheet in [PreviewSheet.moveFromLocal, PreviewSheet.movedFromLocal] {
+            screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
+        }
+        for note in SampleNotification.allCases {
+            screens.append(("notification." + note.rawValue, AnyView(KilnRoot { NotificationCard(note: note) }.environment(model))))
+        }
         let queueSample = SampleData.request(.found)
         screens.append(("request.queue", AnyView(KilnRoot {
             RequestBody(request: queueSample.request, item: queueSample.item, position: 1, total: 2, actions: RequestActions())

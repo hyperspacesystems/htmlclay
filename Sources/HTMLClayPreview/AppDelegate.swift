@@ -9,19 +9,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: WindowManager!
     private var statusItem: StatusItemController!
     private var previewMenu: PreviewMenuController!
+    private var alerts: AppAlerts!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         host = SampleHost(persona: .newPerson)
         model = AppModel(host: host, initial: host.current)
+        alerts = AppAlerts(model: model)
         windows = WindowManager(model: model)
         statusItem = StatusItemController(model: model, windows: windows)
-        previewMenu = PreviewMenuController(host: host, model: model, windows: windows)
+        previewMenu = PreviewMenuController(host: host, model: model, windows: windows, alerts: alerts)
         NSApp.mainMenu = MainMenu.build(target: self)
         let welcomeDone = UserDefaults.standard.bool(forKey: WindowManager.welcomeDoneKey)
         if !welcomeDone, !CommandLine.arguments.contains("--no-welcome") { windows.showWelcome() }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let files = model.snapshot.filesStillUploading
+        if files > 0 { _ = alerts.finishingUp(files: files) }
+        return .terminateNow
+    }
 
     @objc func openSettings(_ sender: Any?) { windows.showSettings(.general) }
 }

@@ -202,12 +202,15 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
     private let host: SampleHost
     private let model: AppModel
     private let windows: WindowManager
+    private let alerts: AppAlerts
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private lazy var notifier = SampleNotifier(windows: windows)
 
-    init(host: SampleHost, model: AppModel, windows: WindowManager) {
+    init(host: SampleHost, model: AppModel, windows: WindowManager, alerts: AppAlerts) {
         self.host = host
         self.model = model
         self.windows = windows
+        self.alerts = alerts
         super.init()
         item.button?.title = Strings.Preview.menuTitle
         rebuild()
@@ -252,7 +255,27 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
         let pretendMore = NSMenuItem(title: Strings.Preview.alsoPretend, action: nil, keyEquivalent: "")
         pretendMore.submenu = overlayMenu
         menu.addItem(pretendMore)
+        menu.addItem(.separator())
+        addPreviewItem(Strings.Preview.quitWhileUploading, #selector(quitWhileUploading), to: menu)
+        addPreviewItem(Strings.Preview.saveCantFinish, #selector(cantSave), to: menu)
+        addPreviewItem(Strings.Preview.portTaken, #selector(portTaken), to: menu)
+        let notes = NSMenu()
+        for note in SampleNotification.allCases {
+            let entry = NSMenuItem(title: Strings.Notify.title(note), action: #selector(sendNotification(_:)), keyEquivalent: "")
+            entry.target = self
+            entry.representedObject = note.rawValue
+            notes.addItem(entry)
+        }
+        let noteParent = NSMenuItem(title: Strings.Preview.sendNotification, action: nil, keyEquivalent: "")
+        noteParent.submenu = notes
+        menu.addItem(noteParent)
         item.menu = menu
+    }
+
+    private func addPreviewItem(_ title: String, _ action: Selector, to menu: NSMenu) {
+        let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        entry.target = self
+        menu.addItem(entry)
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -276,6 +299,20 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func showWelcome() { windows.showWelcome() }
+
+    @objc private func quitWhileUploading() {
+        _ = alerts.finishingUp(files: max(model.snapshot.sync.syncingFiles, 3))
+        model.say(Strings.Quit.wouldQuit)
+    }
+
+    @objc private func cantSave() { alerts.cantSave() }
+
+    @objc private func portTaken() { alerts.portTaken() }
+
+    @objc private func sendNotification(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let note = SampleNotification(rawValue: raw) else { return }
+        notifier.send(note)
+    }
 
     @objc private func showRequest(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let kind = ProgramRequest.Kind(rawValue: raw) else { return }

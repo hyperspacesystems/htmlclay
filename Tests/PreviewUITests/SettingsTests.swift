@@ -213,4 +213,22 @@ final class SettingsTests: XCTestCase {
         }
         XCTAssertEqual(AccountFolderSheet.path("panphora"), "~/hyperclay/panphora")
     }
+
+    func testMoveSheetsAndNotificationCardLayOut() {
+        _ = NSApplication.shared
+        let host = SampleHost(persona: .localUser)
+        let model = AppModel(host: host, initial: host.current)
+        for sheet in [PreviewSheet.moveFromLocal, PreviewSheet.movedFromLocal] {
+            let hosting = NSHostingView(rootView: KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))
+            hosting.layoutSubtreeIfNeeded()
+            XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 460, sheet.id)
+            XCTAssertGreaterThan(hosting.fittingSize.height, 120, sheet.id)
+        }
+        for note in SampleNotification.allCases {
+            let hosting = NSHostingView(rootView: KilnRoot { NotificationCard(note: note) }.environment(model))
+            hosting.layoutSubtreeIfNeeded()
+            XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 368, note.rawValue)
+            XCTAssertGreaterThanOrEqual(hosting.fittingSize.height, 50, note.rawValue)
+        }
+    }
 }

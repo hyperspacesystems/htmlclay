@@ -14,6 +14,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     private var settings: NSWindow?
     private var welcome: NSWindow?
     private var request: RequestPanel?
+    private var notice: NSPanel?
 
     init(model: AppModel) {
         self.model = model
@@ -131,6 +132,30 @@ final class WindowManager: NSObject, NSWindowDelegate {
         let next = RequestQueue.next(after: item.id, in: model.snapshot)
         model.send(.answerRequest(waitingID: item.id, allow: allow))
         if let next { showRequest(next) } else { request?.close() }
+    }
+
+    func showNotificationFallback(_ note: SampleNotification) {
+        let hosting = NSHostingView(rootView: KilnRoot { NotificationCard(note: note) }
+            .environment(model)
+            .clipShape(RoundedRectangle(cornerRadius: 13)))
+        let size = hosting.fittingSize
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.level = .statusBar
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.isReleasedWhenClosed = false
+        panel.contentView = hosting
+        let visible = NSScreen.main?.visibleFrame ?? .zero
+        panel.setFrameOrigin(NSPoint(x: visible.maxX - size.width - 18, y: visible.maxY - size.height - 12))
+        notice?.orderOut(nil)
+        notice = panel
+        panel.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self, weak panel] in
+            panel?.orderOut(nil)
+            if let self, self.notice === panel { self.notice = nil }
+        }
     }
 
     private func makeWindow<Content: View>(_ root: Content) -> NSWindow {

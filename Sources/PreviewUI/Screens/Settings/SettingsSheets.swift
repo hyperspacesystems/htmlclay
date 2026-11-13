@@ -15,7 +15,8 @@ struct SettingsSheetView: View {
             case let .accountFolder(username): AccountFolderSheet(username: username)
             case let .teamSetup(folderID): TeamSetupSheet(folderID: folderID)
             case .addProgram: AddProgramSheet()
-            case .moveFromLocal, .movedFromLocal: EmptyView()
+            case .moveFromLocal: MoveSheet()
+            case .movedFromLocal: MovedSheet(actions: actions)
             }
         }
         .onExitCommand { model.sheet = nil }

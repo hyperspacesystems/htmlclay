@@ -101,7 +101,7 @@ struct FoldersPane: View {
                 Squircle(.teal, symbol: Symbols.folder)
             } trailing: {
                 Button(Strings.Folders.move) {
-                    model.say(Strings.Folders.moveNote)
+                    model.sheet = .moveFromLocal
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
             }
