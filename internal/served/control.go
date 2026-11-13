@@ -20,8 +20,8 @@ type controlHealth struct {
 
 // newControlHandler answers the private control listener. Without a secret
 // nothing authenticates, so every request is unauthorized.
-func newControlHandler(secret string, roots []*controlRoot, link *serviceLink) http.Handler {
-	api := newControlAPI(roots)
+func newControlHandler(secret string, roots controlRoots, events *eventRing, link *serviceLink) http.Handler {
+	api := newControlAPI(roots, events)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !controlAuthorized(r, secret) {
 			writeControlJSON(w, http.StatusUnauthorized, controlError{Error: "unauthorized"})
@@ -31,7 +31,7 @@ func newControlHandler(secret string, roots []*controlRoot, link *serviceLink) h
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/health" {
-			writeControlJSON(w, http.StatusOK, controlHealth{OK: true, Roots: len(roots)})
+			writeControlJSON(w, http.StatusOK, controlHealth{OK: true, Roots: len(roots.controlRootList())})
 			return
 		}
 		if route := api.serviceRoute(r, link); route != nil {

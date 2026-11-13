@@ -40,9 +40,33 @@ func controlTestRoot(t *testing.T, id string) *controlRoot {
 	return newControlRoot(id, baseDir, registry, host, newEventRing())
 }
 
+// testControlRoots is a fixed list behind controlRoots, for the tests that
+// build a control API without a host.
+type testControlRoots []*controlRoot
+
+func (r testControlRoots) controlRoot(id string) (*controlRoot, bool) {
+	for _, root := range r {
+		if root.id == id {
+			return root, true
+		}
+	}
+	return nil, false
+}
+
+func (r testControlRoots) controlRootList() []*controlRoot { return r }
+
+// testControlEvents is the ring those roots feed, which newControlAPI used to
+// find for itself.
+func testControlEvents(roots []*controlRoot) *eventRing {
+	if len(roots) == 0 {
+		return nil
+	}
+	return roots[0].events
+}
+
 func controlTestServer(t *testing.T, roots ...*controlRoot) *httptest.Server {
 	t.Helper()
-	server := httptest.NewServer(newControlHandler(controlSecret, roots, nil))
+	server := httptest.NewServer(newControlHandler(controlSecret, testControlRoots(roots), testControlEvents(roots), nil))
 	t.Cleanup(server.Close)
 	return server
 }

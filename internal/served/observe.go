@@ -9,7 +9,8 @@ import "log"
 // `changed` and is observed on its own. Failures are logged: the watcher has
 // no caller to answer.
 func (h *commitHost) observeOutside(event, rel string) {
-	if h.service == nil || !isDocumentName(rel) {
+	svc := h.service.active()
+	if svc == nil || !isDocumentName(rel) {
 		return
 	}
 	filePath, err := h.resolveWrite(rel)
@@ -19,7 +20,7 @@ func (h *commitHost) observeOutside(event, rel string) {
 	}
 	unlock := h.locks.lock(filePath)
 	defer unlock()
-	if h.service.barred(filePath) {
+	if svc.barred(filePath) {
 		// The service reconciles an unconfirmed document from a fresh read.
 		return
 	}
@@ -28,7 +29,7 @@ func (h *commitHost) observeOutside(event, rel string) {
 		log.Printf("observe %s: %v", rel, err)
 		return
 	}
-	consult := h.service.begin(newOpID(), nil, h.rootID, h.baseDir, rel, filePath, "observe", "external")
+	consult := svc.begin(newOpID(), nil, h.rootID, h.baseDir, rel, filePath, "observe", "external")
 	answer, err := consult.observe(event, current)
 	if err != nil {
 		consult.end(err)

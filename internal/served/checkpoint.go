@@ -30,7 +30,7 @@ func (a *controlAPI) serveCheckpoint(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	link := root.commit.service
+	link := root.commit.service.active()
 	if link == nil {
 		writeControlJSON(w, http.StatusNotFound, controlError{Error: "checkpoint needs the service"})
 		return

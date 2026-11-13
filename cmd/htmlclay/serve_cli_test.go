@@ -181,6 +181,9 @@ func TestServeCommandAcceptsALongPath(t *testing.T) {
 }
 
 func TestServeCommandLeavesUpdateNowAlone(t *testing.T) {
+	orig := updateNowOS
+	t.Cleanup(func() { updateNowOS = orig })
+	updateNowOS = "darwin"
 	a, _ := newServeCLITestApp(t)
 	want := "already " + version
 	if got := a.handleInstanceCommand("update-now " + version); got != want {

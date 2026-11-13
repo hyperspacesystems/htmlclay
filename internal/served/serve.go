@@ -123,7 +123,7 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if s.service != nil {
+	if s.service.active() != nil {
 		if forward, name := s.forwardsToService(r, urlPath, marked); forward && s.forwardToService(w, r, name) {
 			return
 		}

@@ -59,25 +59,24 @@ func newControlRoot(id, baseDir string, registry *consentRegistry, host *commitH
 	}
 }
 
+// controlRoots is where the control API finds the served roots: the host looks
+// them up per request, so a root added or removed while it runs is seen.
+type controlRoots interface {
+	controlRoot(id string) (*controlRoot, bool)
+	controlRootList() []*controlRoot
+}
+
 // controlAPI routes the control listener's /v1 paths to the root they name.
 type controlAPI struct {
-	roots  []*controlRoot
-	byID   map[string]*controlRoot
+	roots  controlRoots
 	events *eventRing
 }
 
-func newControlAPI(roots []*controlRoot) *controlAPI {
-	api := &controlAPI{roots: roots, byID: make(map[string]*controlRoot, len(roots))}
-	for _, root := range roots {
-		api.byID[root.id] = root
-		if api.events == nil {
-			api.events = root.events
-		}
+func newControlAPI(roots controlRoots, events *eventRing) *controlAPI {
+	if events == nil {
+		events = newEventRing()
 	}
-	if api.events == nil {
-		api.events = newEventRing()
-	}
-	return api
+	return &controlAPI{roots: roots, events: events}
 }
 
 // route is the API's route table: the path and method the request names, or nil
@@ -115,7 +114,7 @@ func (a *controlAPI) route(r *http.Request) http.HandlerFunc {
 
 // root finds the root a request names, or answers why it cannot.
 func (a *controlAPI) root(w http.ResponseWriter, id string) (*controlRoot, bool) {
-	root, ok := a.byID[id]
+	root, ok := a.roots.controlRoot(id)
 	if !ok {
 		writeControlJSON(w, http.StatusBadRequest, controlError{Error: "unknown root: " + id})
 		return nil, false

@@ -399,7 +399,7 @@ func TestAbortRetries(t *testing.T) {
 func TestUnconfirmedRoutes(t *testing.T) {
 	root := controlTestRoot(t, "root-0")
 	link := newServiceLink(root.events, servicePeer{})
-	server := httptest.NewServer(newControlHandler(controlSecret, []*controlRoot{root}, link))
+	server := httptest.NewServer(newControlHandler(controlSecret, testControlRoots{root}, root.events, link))
 	t.Cleanup(server.Close)
 
 	filePath, err := resolveWritePath(root.registry, "doc.html")
@@ -458,7 +458,7 @@ func TestUnconfirmedRoutes(t *testing.T) {
 		t.Fatalf("GET /v1/unconfirmed = %v, want none", answer)
 	}
 
-	bare := httptest.NewServer(newControlHandler(controlSecret, []*controlRoot{root}, nil))
+	bare := httptest.NewServer(newControlHandler(controlSecret, testControlRoots{root}, root.events, nil))
 	t.Cleanup(bare.Close)
 	for _, route := range []struct {
 		method string
@@ -486,7 +486,7 @@ func TestControlEpochCheck(t *testing.T) {
 		Secret: strings.Repeat("ab", 32),
 		Epoch:  "aaaaaaaaaaaaaaaa",
 	})
-	server := httptest.NewServer(newControlHandler(controlSecret, []*controlRoot{root}, link))
+	server := httptest.NewServer(newControlHandler(controlSecret, testControlRoots{root}, root.events, link))
 	t.Cleanup(server.Close)
 
 	get := func(headers map[string]string) (int, map[string]any) {

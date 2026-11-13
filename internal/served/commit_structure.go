@@ -85,16 +85,17 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 		return structureResult{}, fmt.Errorf("Unknown structure kind: %s", kind)
 	}
 
+	svc := h.service.active()
 	var consult *consultation
 	var holdID string
-	if h.service != nil {
+	if svc != nil {
 		// The full-host stage: the service plans the rooms' move before the
 		// first file moves and settles it with what completed (protocol v1,
 		// structure/prepare and structure/settle).
 		if opID == "" {
 			opID = newOpID()
 		}
-		consult = h.service.begin(opID, opHandle, h.rootID, h.baseDir, "", "", "structure", kind)
+		consult = svc.begin(opID, opHandle, h.rootID, h.baseDir, "", "", "structure", kind)
 		answer, err := consult.prepareStructure(h.structureSteps(kind, entries))
 		if err != nil {
 			consult.end(err)
@@ -102,7 +103,7 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 			return structureResult{Outcome: "refused", Reason: refusal.Code, Refusal: &refusal}, nil
 		}
 		if answer.Decision == "refuse" {
-			h.service.abort(consult.ID, "refused")
+			svc.abort(consult.ID, "refused")
 			refusal := serviceRefusal{Status: answer.Status, Code: answer.Code, Body: answer.Body, Headers: answer.Headers}
 			return structureResult{Outcome: "refused", Reason: answer.Code, Refusal: &refusal}, nil
 		}

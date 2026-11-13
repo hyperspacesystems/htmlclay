@@ -445,10 +445,11 @@ func (c *consultation) end(err error) {
 // or the name is not a page document, and a refusal when the document's last
 // settle failed and it has not been reconciled.
 func (h *commitHost) beginLane(request *commitRequest, filePath, lane, origin string) (*consultation, *commitResult) {
-	if h.service == nil || !isDocumentName(request.Name) {
+	svc := h.service.active()
+	if svc == nil || !isDocumentName(request.Name) {
 		return nil, nil
 	}
-	if h.service.barred(filePath) {
+	if svc.barred(filePath) {
 		result := refusedBy(retryableRefusal("unconfirmed"))
 		return nil, &result
 	}
@@ -458,7 +459,7 @@ func (h *commitHost) beginLane(request *commitRequest, filePath, lane, origin st
 	if request.ConsultOrigin != "" {
 		origin = request.ConsultOrigin
 	}
-	return h.service.begin(request.OpID, request.OpHandle, h.rootID, h.baseDir, request.Name, filePath, lane, origin), nil
+	return svc.begin(request.OpID, request.OpHandle, h.rootID, h.baseDir, request.Name, filePath, lane, origin), nil
 }
 
 // admitted runs admit for one lane and decodes a proceed answer into the
@@ -473,7 +474,7 @@ func (h *commitHost) admitted(consult *consultation, args admitArgs) (string, st
 		return "", "", &result
 	}
 	if answer.Decision == "refuse" {
-		h.service.abort(consult.ID, "refused")
+		consult.link.abort(consult.ID, "refused")
 		result := refusedBy(serviceRefusal{Status: answer.Status, Code: answer.Code, Body: answer.Body, Headers: answer.Headers})
 		return "", "", &result
 	}

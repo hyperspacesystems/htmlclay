@@ -32,7 +32,7 @@ func consultStructureServer(t *testing.T, peer servicePeer) (*httptest.Server, s
 	host := newCommitHost(baseDir, "root-consult", registry, newGuardHooks(nil), nil)
 	host.service = link
 	root := newControlRoot("root-consult", baseDir, registry, host, events)
-	server := httptest.NewServer(newControlHandler(controlSecret, []*controlRoot{root}, link))
+	server := httptest.NewServer(newControlHandler(controlSecret, testControlRoots{root}, events, link))
 	t.Cleanup(server.Close)
 	return server, baseDir
 }

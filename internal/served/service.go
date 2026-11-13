@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -51,6 +52,19 @@ type serviceLink struct {
 	mu    sync.Mutex
 	peer  servicePeer
 	roots map[string]string
+
+	// detached is set while the supervisor has switched the service off (it failed
+	// five times): requests then run as if there were no link at all.
+	detached atomic.Bool
+}
+
+// active is the link when it is switched on, nil when there is no link or it is
+// detached. Every request-time use of the link goes through it.
+func (l *serviceLink) active() *serviceLink {
+	if l == nil || l.detached.Load() {
+		return nil
+	}
+	return l
 }
 
 func newServiceLink(events *eventRing, peer servicePeer) *serviceLink {
@@ -70,6 +84,14 @@ func (l *serviceLink) setRoot(id, baseDir string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.roots[id] = baseDir
+}
+
+// dropRoot forgets one served root's folder: a root removed while the host runs
+// no longer receives recovered copies.
+func (l *serviceLink) dropRoot(id string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.roots, id)
 }
 
 func (l *serviceLink) rootDir(id string) (string, bool) {

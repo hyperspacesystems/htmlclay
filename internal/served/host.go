@@ -20,6 +20,9 @@ type Options struct {
 	LocalSource string
 	// PersonName is the name written into new versions' author field, as --person-name does today.
 	PersonName string
+	// Service makes the host consult a live-room service. It starts with no peer,
+	// so semantic writes answer 503 until SetServicePeer.
+	Service bool
 }
 
 // RootSpec is one served folder.
@@ -44,13 +47,17 @@ type Host struct {
 }
 
 func NewHost(o Options) *Host {
-	return newHostFromConfig(config{
+	cfg := config{
 		localSource:     o.LocalSource,
 		assets:          o.Assets,
 		compileTailwind: o.CompileTailwind,
 		personName:      o.PersonName,
 		events:          newEventRing(),
-	})
+	}
+	if o.Service {
+		cfg.service = newServiceLink(cfg.events, servicePeer{})
+	}
+	return newHostFromConfig(cfg)
 }
 
 func newHostFromConfig(cfg config) *Host {
@@ -98,6 +105,9 @@ func (h *Host) RemoveRoot(id string) bool {
 	if h.started {
 		server.control.watcher.stop()
 	}
+	if h.cfg.service != nil {
+		h.cfg.service.dropRoot(id)
+	}
 	return true
 }
 
@@ -111,16 +121,76 @@ func (h *Host) Handler(id string) (http.Handler, bool) {
 	return server, true
 }
 
-// ControlHandler answers the control listener. It sees the roots added before it is
-// called; roots added afterwards are a later step.
+// ControlHandler answers the control listener. It looks the roots up per
+// request, so a root added after it is called is found too.
 func (h *Host) ControlHandler(secret string) http.Handler {
+	return newControlHandler(secret, h, h.cfg.events, h.cfg.service)
+}
+
+// SetServicePeer points the link at a running service. The values must pass
+// validServicePeer (boot.go).
+func (h *Host) SetServicePeer(url, secret, epoch string) error {
+	if h.cfg.service == nil {
+		return errors.New("served: the host has no service link")
+	}
+	peer := servicePeer{URL: url, Secret: secret, Epoch: epoch}
+	if !validServicePeer(peer) {
+		return errors.New("served: not a service peer: a loopback address, a 64-hex secret and a 16-hex epoch")
+	}
+	h.cfg.service.setPeer(peer)
+	return nil
+}
+
+// ClearServicePeer forgets the peer: the service is starting or restarting.
+func (h *Host) ClearServicePeer() {
+	if h.cfg.service == nil {
+		return
+	}
+	h.cfg.service.setPeer(servicePeer{})
+}
+
+// DetachService switches the link off: every request runs Go's native lanes.
+// It is a no-op without Options.Service.
+func (h *Host) DetachService() {
+	if h.cfg.service == nil {
+		return
+	}
+	h.cfg.service.detached.Store(true)
+}
+
+// AttachService switches the link back on. It is a no-op without Options.Service.
+func (h *Host) AttachService() {
+	if h.cfg.service == nil {
+		return
+	}
+	h.cfg.service.detached.Store(false)
+}
+
+// ServiceDetached reports the switch, for tests and the snapshot.
+func (h *Host) ServiceDetached() bool {
+	return h.cfg.service != nil && h.cfg.service.detached.Load()
+}
+
+// controlRoot is the control API's lookup for one root by its id.
+func (h *Host) controlRoot(id string) (*controlRoot, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	server, ok := h.byID[id]
+	if !ok {
+		return nil, false
+	}
+	return server.control, true
+}
+
+// controlRootList is every served root, in the order they were added.
+func (h *Host) controlRootList() []*controlRoot {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	sites := make([]*controlRoot, 0, len(h.roots))
 	for _, root := range h.roots {
 		sites = append(sites, root.control)
 	}
-	return newControlHandler(secret, sites, h.cfg.service)
+	return sites
 }
 
 func (h *Host) Epoch() string {

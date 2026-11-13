@@ -131,6 +131,10 @@ func (s *rootServer) forwardsToService(r *http.Request, urlPath string, marked b
 // API request is forwarded only when its document has a live page store;
 // otherwise it stays on the native route (answered false).
 func (s *rootServer) forwardToService(w http.ResponseWriter, r *http.Request, name string) bool {
+	svc := s.service.active()
+	if svc == nil {
+		return false
+	}
 	if name != "" {
 		filePath, err := s.commit.resolveWrite(name)
 		if err != nil {
@@ -140,13 +144,13 @@ func (s *rootServer) forwardToService(w http.ResponseWriter, r *http.Request, na
 		if err != nil || !store {
 			return false
 		}
-		if r.Method == http.MethodPost && s.service.barred(filePath) {
+		if r.Method == http.MethodPost && svc.barred(filePath) {
 			writeServiceUnavailable(w, r, "unconfirmed")
 			return true
 		}
 		r = r.WithContext(context.WithValue(r.Context(), canonicalKey{}, filePath))
 	}
-	if s.service.currentPeer().URL == "" {
+	if svc.currentPeer().URL == "" {
 		writeServiceUnavailable(w, r, "service-unavailable")
 		return true
 	}

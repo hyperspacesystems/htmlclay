@@ -184,8 +184,9 @@ func invalidFilePathError() error {
 // stamp of the document the request names, withheld by omission on every
 // failure.
 func (s *rootServer) serveMeta(w http.ResponseWriter, r *http.Request) error {
+	svc := s.service.active()
 	extensions := trialMetaExtensions
-	if s.service != nil {
+	if svc != nil {
 		extensions = managedMetaExtensions
 	}
 	body := orderedObject{
