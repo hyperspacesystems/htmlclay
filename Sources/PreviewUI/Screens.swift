@@ -29,6 +29,9 @@ public enum ScreenCatalog {
         for pane in SettingsPane.allCases {
             screens.append((settingsPrefix + pane.rawValue, AnyView(KilnRoot { SettingsView(pane: pane) }.environment(model))))
         }
+        for id in ["notes", "prototypes", "panphora"] where model.snapshot.folder(id) != nil {
+            screens.append((settingsPrefix + "folder." + id, AnyView(KilnRoot { SettingsView(route: .folder(id)) }.environment(model))))
+        }
         screens.append(contentsOf: [
             ("welcome", AnyView(KilnRoot { WelcomeView(film: film, menuBarIcon: nil) }.environment(model))),
             ("components", AnyView(KilnRoot { ComponentGallery() }.environment(model))),

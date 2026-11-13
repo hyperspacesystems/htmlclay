@@ -94,11 +94,57 @@ public enum Strings {
         public static let onlyOnThisMac = "only on this Mac"
         public static let setUp = "Set up…"
         public static let openHyperclay = "Open hyperclay.com ↗"
+        public static func copied(_ address: String) -> String { "Copied \(address) to the clipboard." }
         public static func accountGroup(username: String) -> String { "hyperclay.com · @\(username)" }
         public static func inside(parent: String, path: String) -> String { "Inside \(parent) · \(path)" }
         public static func viewOnlyTeams(_ count: Int) -> String {
             count == 1 ? "1 team you can only view" : "\(count) teams you can only view"
         }
+    }
+    public enum FolderPage {
+        public static let trusted = "Trusted"
+        public static let trustedSubNotServed = ".htmlclay files here save, link to each other, and keep one address. They can also change each other."
+        public static let trustedSubServed = "Documents here save, link to each other, and can change each other. Turning off asks first and removes this folder."
+        public static let serve = "Serve on this Mac"
+        public static let serveSubOff = "Gives a web address on this Mac, and lets .html files save too"
+        public static let serveSubOn = "Local web address and .html saving enabled."
+        public static let serveSubOnlyOnThisMac = " · Only on this Mac"
+        public static let address = "Address"
+        public static let copy = "Copy"
+        public static let versions = "Versions and uploads"
+        public static let show = "Show"
+        public static let sync = "Sync with hyperclay.com"
+        public static let syncSub = "Turning off disconnects sync while keeping files served on this Mac."
+        public static let onlyOnThisMac = "Only on this Mac"
+        public static let onlyOnThisMacSub = "Connect your hyperclay.com account to sync folders."
+        public static let connect = "Connect…"
+        public static let folderHistory = "Folder history"
+        public static let cancel = "Cancel"
+        public static let stopTrusting = "Stop trusting"
+        public static let stopServing = "Stop serving"
+        public static let disconnect = "Disconnect"
+        public static func pathLine(path: String, documents: Int) -> String { "\(path) · \(documents) documents" }
+        public static func childrenTitle(count: Int, parent: String) -> String { "\(count) trusted folders inside \(parent) keep their own address" }
+        public static func childrenSub(parent: String) -> String { "Documents in them stay separate from \(parent) and keep their own browser data." }
+        public static func mergeButton(parent: String) -> String { "Merge into \(parent)…" }
+        public static func versionsSub(size: String) -> String { "Kept in this folder · \(size)" }
+        public static func versionsNote(folder: String) -> String { "Build 1: this would list the versions and uploads kept in \(folder)." }
+        public static func historyNote(folder: String) -> String { "Build 1: this would open the folder history for \(folder)." }
+        public static func accountTitle(username: String) -> String { "@\(username)" }
+        public static func stopTrustingTitle(_ name: String) -> String { "Stop trusting \(name)?" }
+        public static func stopTrustingMessage(_ name: String) -> String { "Documents open from \(name) stop saving now, and \(name) leaves your Folders list. Files there save again only when you open them yourself." }
+        public static func stopServingTitle(_ name: String) -> String { "Stop serving \(name)?" }
+        public static func stopServingMessage(_ name: String) -> String { "Its address stops working and .html files there stop saving. The folder stays trusted and keeps its name for later." }
+        public static func disconnectTitle(_ name: String) -> String { "Disconnect \(name)?" }
+        public static func disconnectMessage(_ name: String, team: Bool) -> String {
+            let base = "Your files stay on this Mac and keep being served. Changes no longer sync."
+            return team ? base + " Programs keep treating it as a team folder." : base
+        }
+        public static func mergeTitle(child: String, parent: String) -> String { "Merge \(child) into \(parent)?" }
+        public static func mergeMessage(child: String, parent: String, documents: Int) -> String {
+            "\(child)'s \(documents) documents will move to \(parent)'s address, where documents in \(parent) can link to and change each other. Anything those documents saved in the browser stays behind at \(child)'s old address. Your files on disk stay right where they are."
+        }
+        public static func mergeAction(parent: String) -> String { "Merge into \(parent)" }
     }
     public enum General {
         public static let title = "General"

@@ -11,7 +11,7 @@ public struct SettingsActions {
 
 public struct SettingsView: View {
     @Environment(AppModel.self) private var model
-    private let pinned: SettingsPane?
+    private let pinned: SettingsRoute?
     private let actions: SettingsActions
 
     public init(actions: SettingsActions = SettingsActions()) {
@@ -20,11 +20,18 @@ public struct SettingsView: View {
     }
 
     public init(pane: SettingsPane, actions: SettingsActions = SettingsActions()) {
-        self.pinned = pane
+        self.pinned = .pane(pane)
         self.actions = actions
     }
 
-    private var activePane: SettingsPane { pinned ?? model.route.pane }
+    public init(route: SettingsRoute, actions: SettingsActions = SettingsActions()) {
+        self.pinned = route
+        self.actions = actions
+    }
+
+    private var activeRoute: SettingsRoute { pinned ?? model.route }
+
+    private var activePane: SettingsPane { activeRoute.pane }
 
     public var body: some View {
         HStack(spacing: 0) {
@@ -41,10 +48,14 @@ public struct SettingsView: View {
                 switch activePane {
                 case .general: GeneralPane(actions: actions)
                 case .folders:
-                    if pinned == nil, case .folder = model.route {
-                        PaneStub(pane: activePane)
-                    } else {
-                        FoldersPane()
+                    switch activeRoute {
+                    case let .folder(id):
+                        if model.snapshot.folder(id) != nil {
+                            FolderPage(folderID: id, actions: actions)
+                        } else {
+                            FoldersPane()
+                        }
+                    default: FoldersPane()
                     }
                 default: PaneStub(pane: activePane)
                 }
