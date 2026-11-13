@@ -31,7 +31,7 @@ while IFS= read -r file; do
 		continue
 	fi
 	case "$file" in
-	internal/managedtrial/* | cmd/managed-trial/* | *_managedtrial.go | *_managedtrial_test.go) continue ;;
+	internal/served/* | cmd/managed-trial/* | *_managedtrial.go | *_managedtrial_test.go) continue ;;
 	esac
 	echo "$file" >>"$tmp/untagged.txt"
 done <"$tmp/changed.txt"
@@ -53,7 +53,7 @@ while IFS= read -r file; do
 		echo "  $file: ${first}" >>"$tmp/tag-lines.txt"
 		tag_failed=1
 	fi
-done < <(find internal/managedtrial cmd/managed-trial -type f -name '*.go' | sort)
+done < <(find internal/served cmd/managed-trial -type f -name '*.go' | sort)
 if [ "$tag_failed" -ne 0 ]; then
 	echo "tag-lines: bad"
 	cat "$tmp/tag-lines.txt"
