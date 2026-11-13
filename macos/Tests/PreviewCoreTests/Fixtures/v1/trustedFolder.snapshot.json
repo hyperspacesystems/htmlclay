@@ -1,0 +1,237 @@
+{
+  "v": 1,
+  "rev": 1,
+  "epoch": "00000000000000a1",
+  "host": {
+    "version": "2.0.3",
+    "os": "darwin",
+    "port": 1212,
+    "dashboardURL": "http://htmlclay.localhost:1212/",
+    "service": "off",
+    "stopped": false
+  },
+  "documents": [
+    {
+      "id": "todo",
+      "name": "todo.htmlclay",
+      "place": "~/Documents/Notes",
+      "folderID": "notes",
+      "url": "http://htmlclay1.localhost:1212/todo.htmlclay",
+      "openNow": true,
+      "openedAt": "2026-11-12T14:55:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    },
+    {
+      "id": "budget",
+      "name": "budget.htmlclay",
+      "place": "~/Downloads",
+      "folderID": null,
+      "url": "http://htmlclay2.localhost:1212/budget.htmlclay",
+      "openNow": false,
+      "openedAt": "2026-11-11T16:00:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    }
+  ],
+  "folders": [
+    {
+      "id": "notes",
+      "name": "Notes",
+      "path": "/Users/sam/Documents/Notes",
+      "displayPath": "~/Documents/Notes",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": null,
+      "trusted": true,
+      "served": false,
+      "synced": false,
+      "address": "",
+      "url": "",
+      "state": "ok",
+      "documentCount": 4,
+      "storageBytes": 0,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0
+      },
+      "can": {
+        "serve": true,
+        "stopServing": false,
+        "sync": false,
+        "stopSyncing": false,
+        "stopTrusting": true,
+        "merge": false,
+        "openWorkspace": false
+      },
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
+    },
+    {
+      "id": "journal",
+      "name": "Journal",
+      "path": "/Users/sam/Documents/Notes/Journal",
+      "displayPath": "~/Documents/Notes/Journal",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": "notes",
+      "trusted": true,
+      "served": false,
+      "synced": false,
+      "address": "",
+      "url": "",
+      "state": "ok",
+      "documentCount": 6,
+      "storageBytes": 0,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0
+      },
+      "can": {
+        "serve": true,
+        "stopServing": false,
+        "sync": false,
+        "stopSyncing": false,
+        "stopTrusting": true,
+        "merge": true,
+        "openWorkspace": false
+      },
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
+    },
+    {
+      "id": "clips",
+      "name": "Clips",
+      "path": "/Users/sam/Documents/Notes/Clips",
+      "displayPath": "~/Documents/Notes/Clips",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": "notes",
+      "trusted": true,
+      "served": false,
+      "synced": false,
+      "address": "",
+      "url": "",
+      "state": "ok",
+      "documentCount": 3,
+      "storageBytes": 0,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0
+      },
+      "can": {
+        "serve": true,
+        "stopServing": false,
+        "sync": false,
+        "stopSyncing": false,
+        "stopTrusting": true,
+        "merge": true,
+        "openWorkspace": false
+      },
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "todo-search",
+      "name": "todo-search",
+      "path": "/Users/sam/bin/todo-search",
+      "fileMissing": false,
+      "allowedDocuments": [],
+      "allTrustedFolders": false,
+      "removedDocuments": []
+    }
+  ],
+  "requests": [
+    {
+      "id": "req-todo",
+      "kind": "found",
+      "revision": 1,
+      "documentID": "todo",
+      "document": "todo.htmlclay",
+      "program": "todo-search",
+      "folder": "Notes",
+      "path": "/Users/sam/bin/todo-search",
+      "detail": "",
+      "answers": [
+        "deny",
+        "allow-document",
+        "allow-all-trusted"
+      ]
+    }
+  ],
+  "waiting": [
+    {
+      "id": "w-req-todo",
+      "kind": "programRequest",
+      "pane": "programs",
+      "earnsDot": true,
+      "seen": false,
+      "title": "todo.htmlclay wants to run todo-search",
+      "detail": "Notes",
+      "subjectID": "req-todo"
+    }
+  ],
+  "counts": {
+    "total": 1,
+    "byPane": {
+      "advanced": 0,
+      "folders": 0,
+      "programs": 1,
+      "sync": 0
+    },
+    "dot": true
+  },
+  "sync": {
+    "connected": false,
+    "username": "",
+    "keySuffix": "",
+    "paused": false,
+    "syncingFiles": 0,
+    "offlineChanges": 0,
+    "viewOnlyTeams": 0,
+    "lastFinishedAt": null,
+    "fullName": ""
+  },
+  "update": {
+    "current": "2.0.3",
+    "ready": null,
+    "checkedAt": "2026-11-12T14:12:00Z",
+    "automatic": true,
+    "finishing": false
+  },
+  "preferences": {
+    "openAtLogin": true,
+    "openAtLoginChosen": true,
+    "aiEditing": true,
+    "appearance": "system",
+    "yourName": "",
+    "useName": false
+  },
+  "move": null
+}
