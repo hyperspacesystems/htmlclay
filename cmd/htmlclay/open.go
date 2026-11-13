@@ -41,6 +41,14 @@ func (a *app) openFile(filePath string) {
 		}()
 		return
 	}
+	// A file inside a served folder is opened where it is served, not by a site of
+	// its own: the served host is its only writer.
+	if owner, err := a.ResolveDocument(absPath); err == nil && owner.Kind == OwnerServed {
+		a.rt.logger.Printf("Serving %s at %s", filepath.Base(absPath), owner.URL())
+		a.launchBrowser(owner.URL())
+		return
+	}
+
 	helpers := a.helpersForOpen(absPath, true)
 
 	s, rel, ok := a.route(absPath, session.ViaOsOpen)
@@ -95,7 +103,11 @@ func (a *app) openBackups() {
 
 func (a *app) launchBrowser(targetURL string) {
 	a.rt.logger.Printf("Opening in default browser: %s", targetURL)
-	if err := browser.OpenURL(targetURL); err != nil {
+	open := browser.OpenURL
+	if a.rt.launchBrowser != nil {
+		open = a.rt.launchBrowser
+	}
+	if err := open(targetURL); err != nil {
 		a.rt.logger.Printf("Error opening browser: %v", err)
 	}
 }

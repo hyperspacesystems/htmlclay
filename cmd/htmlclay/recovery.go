@@ -183,6 +183,15 @@ func (a *app) recoveryTargetFor(anchor string, r *http.Request, requireSource bo
 	if err != nil || !session.EqualOrUnder(abs, anchor) || session.HasHiddenComponent(a.rt.home, abs) || session.EqualOrUnder(abs, a.rt.configDir) || a.rt.versions.Contains(abs) {
 		return "", false
 	}
+	// A document that is served now is reached at its served address, however old
+	// the address this navigation named.
+	if owner, err := a.ResolveDocument(abs); err == nil && owner.Kind == OwnerServed {
+		target := owner.URL()
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		return target, true
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.stopping {

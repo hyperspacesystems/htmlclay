@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
 	"os"
@@ -35,6 +36,11 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 	}
 	if name == "localhost" || name == "127.0.0.1" || name == "::1" {
 		if apiPath, ok := scriptAPIPath(r); ok {
+			abs := filepath.Join(a.rt.home, filepath.FromSlash(apiPath))
+			if owner, err := a.ResolveDocument(abs); err == nil && owner.Kind == OwnerServed {
+				writeServedElsewhere(w, owner.URL())
+				return
+			}
 			if s := a.siteServingPath(apiPath); s != nil {
 				a.dispatch(w, r, s, "")
 				return
@@ -154,6 +160,20 @@ func writeNoFolder(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusNotFound)
 	w.Write([]byte(`{"error":"No open folder","message":"No folder HTML Clay is serving right now contains this file. Open the file in HTML Clay first, or send the request to its folder's address, which htmlclay wire where <file> prints."}` + "\n"))
+}
+
+// writeServedElsewhere answers a bare-host data API request for a file a served
+// folder holds: the served host is that file's only writer, so the request has to
+// go to the address the folder answers at.
+func writeServedElsewhere(w http.ResponseWriter, address string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(map[string]string{
+		"error":   "Served elsewhere",
+		"message": "This file's folder is served at its own address. Send the request there.",
+		"address": address,
+	})
 }
 
 func recoveryHeaders(w http.ResponseWriter) {

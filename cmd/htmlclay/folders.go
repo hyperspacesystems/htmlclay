@@ -188,27 +188,17 @@ func (a *app) untrustFolder(dir string) error {
 		return fmt.Errorf("could not save config: %w", err)
 	}
 
-	var dropped, reopen []string
+	var reopen []string
+	var closing []*site
 	if s := a.siteAtLocked(dir); s != nil {
+		closing = append(closing, s)
 		for _, reg := range s.sessions.Registrations() {
-			dropped = append(dropped, reg.Path)
 			if reg.Via.Has(session.ViaOsOpen) {
 				reopen = append(reopen, reg.Path)
 			}
 		}
-		s.close()
-		a.removeSiteLocked(s)
 	}
-	// One "Trust this folder" click on the read prompt sets both the granted and
-	// the trusted flag on a single read root, so clearing trust alone would leave
-	// the granted flag holding the root open and the folder still readable.
-	// Untrusting takes back everything that click gave. A folder the user
-	// explicitly OPENED survives, because that root is what its page is served
-	// from.
-	for _, other := range a.sites {
-		other.sessions.RevokeTrustedRoot(dir)
-		other.sessions.RevokeReadRoot(dir)
-	}
+	dropped := a.closeSitesLocked(closing, dir)
 	a.mu.Unlock()
 
 	for _, p := range dropped {
@@ -220,6 +210,10 @@ func (a *app) untrustFolder(dir string) error {
 		}
 	}
 	for _, p := range reopen {
+		if owner, err := a.ResolveDocument(p); err == nil && owner.Kind == OwnerServed {
+			a.rt.logger.Printf("Leaving %s at its served address %s", p, owner.URL())
+			continue
+		}
 		s, _, ok := a.route(p, session.ViaOsOpen)
 		if !ok {
 			a.rt.logger.Printf("Could not re-home %s after untrusting %s", p, dir)
@@ -239,6 +233,33 @@ func (a *app) untrustFolder(dir string) error {
 	a.refreshHelperDispatchers()
 	a.rt.logger.Printf("Trusted folder removed: %s (%d registrations dropped, %d re-homed)", dir, len(dropped), len(reopen))
 	return nil
+}
+
+// closeSitesLocked closes every site in closing, records the registration paths they
+// held, and takes folder's roots back from every site still live. Caller holds a.mu
+// and has already marked each of them closed if the router must stop dispatching to
+// it. The returned paths are the ones whose live-sync subscribers the caller must
+// drop once it has let go of a.mu.
+func (a *app) closeSitesLocked(closing []*site, folder string) []string {
+	var dropped []string
+	for _, s := range closing {
+		for _, reg := range s.sessions.Registrations() {
+			dropped = append(dropped, reg.Path)
+		}
+		s.close()
+		a.removeSiteLocked(s)
+	}
+	// One "Trust this folder" click on the read prompt sets both the granted and
+	// the trusted flag on a single read root, so clearing trust alone would leave
+	// the granted flag holding the root open and the folder still readable.
+	// Untrusting takes back everything that click gave. A folder the user
+	// explicitly OPENED survives, because that root is what its page is served
+	// from.
+	for _, other := range a.sites {
+		other.sessions.RevokeTrustedRoot(folder)
+		other.sessions.RevokeReadRoot(folder)
+	}
+	return dropped
 }
 
 // removeSiteLocked drops s from the registry. Caller holds a.mu and has already
@@ -355,6 +376,10 @@ func (a *app) trustFromPage(requestingFile string, openedByUser bool) (string, b
 // without this the document reports every declared name as unavailable and a
 // reload cannot change it.
 func (a *app) serveURL(absPath string) (string, bool) {
+	// A served file is reached at its served address; it is not a site's to register.
+	if owner, err := a.ResolveDocument(absPath); err == nil && owner.Kind == OwnerServed {
+		return owner.URL(), true
+	}
 	s, rel, ok := a.route(absPath, session.ViaTrusted)
 	if !ok {
 		return "", false

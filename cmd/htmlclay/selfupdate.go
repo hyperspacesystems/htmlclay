@@ -269,6 +269,21 @@ func (a *app) drainWrites(limit time.Duration) bool {
 	return true
 }
 
+// waitWritesIdle waits up to limit for the writes already admitted to finish. It
+// never closes admission, so unlike drainWrites the app keeps taking writes while
+// it waits: it is for a change that must not run headlong into a save already on
+// its way, not for a restart.
+func (a *app) waitWritesIdle(limit time.Duration) bool {
+	deadline := time.Now().Add(limit)
+	for a.rt.writesInFlight.Load() != 0 {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return true
+}
+
 func (a *app) reopenWrites() {
 	a.rt.writesMu.Lock()
 	a.rt.writesClosed = false

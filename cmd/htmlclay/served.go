@@ -7,10 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/served/assets"
@@ -56,6 +58,106 @@ func (a *app) compileServedTailwind(html string) (string, error) {
 		return "", err
 	}
 	return string(css), nil
+}
+
+// OwnerKind is which host writes a document.
+type OwnerKind int
+
+const (
+	OwnerLoose OwnerKind = iota
+	OwnerTrusted
+	OwnerServed
+)
+
+// Owner is the one host that writes a document, and where a person reaches it.
+type Owner struct {
+	Kind         OwnerKind
+	FolderID     string // served folder id, for OwnerServed
+	FolderPath   string // the served or trusted folder, empty for a loose file
+	RelativePath string // slash-separated path inside FolderPath
+	PublicOrigin string // http://<name>.htmlclay.localhost:<port>, for OwnerServed
+}
+
+// URL is where a person reaches the document this Owner describes. Only a served
+// document has one; a site's address is its own business.
+func (o Owner) URL() string {
+	if o.Kind != OwnerServed {
+		return ""
+	}
+	return fileURL(strings.TrimPrefix(o.PublicOrigin, "http://"), o.RelativePath)
+}
+
+// ResolveDocument answers which host owns absPath. A path inside a folder that is
+// being served (Serving true) is OwnerServed, compared with pathrel.SameOrBelow so a
+// symlink or another letter case reaches the same answer. Otherwise a path under a
+// live trusted folder is OwnerTrusted (a.trustedAnchor), else OwnerLoose.
+//
+// It never takes a.mu: registration asks this question while holding it (see
+// buildSite's served-owner hook), so it reads only the config fact and the
+// filesystem. a.trustedAnchor takes no app lock either, for the same reason.
+func (a *app) ResolveDocument(absPath string) (Owner, error) {
+	abs, err := filepath.Abs(absPath)
+	if err != nil {
+		return Owner{}, err
+	}
+	resolved, err := resolveSymlinks(abs)
+	if err != nil {
+		// The file does not exist yet, which is not a reason to answer wrongly:
+		// resolve the symlinks that are already on disk and keep the rest.
+		if resolved, err = pathrel.RealPath(abs); err != nil {
+			return Owner{}, err
+		}
+	}
+
+	for _, f := range a.rt.cfg.ServedFolderList() {
+		if !f.Serving || !pathrel.SameOrBelow(resolved, f.Path) {
+			continue
+		}
+		rel, _ := relativeWithin(resolved, f.Path)
+		return Owner{
+			Kind:         OwnerServed,
+			FolderID:     f.ID,
+			FolderPath:   f.Path,
+			RelativePath: filepath.ToSlash(rel),
+			PublicOrigin: "http://" + servedHostName(f.Name, a.rt.port),
+		}, nil
+	}
+
+	if folder, ok := a.trustedAnchor(resolved); ok {
+		rel, ok := relativeWithin(resolved, folder)
+		if !ok {
+			return Owner{}, fmt.Errorf("could not name %s under %s", resolved, folder)
+		}
+		return Owner{Kind: OwnerTrusted, FolderPath: folder, RelativePath: filepath.ToSlash(rel)}, nil
+	}
+
+	return Owner{Kind: OwnerLoose}, nil
+}
+
+// relativeWithin names path relative to dir. A plain lexical answer is enough
+// whenever the two share a spelling; when they are the same folder spelled
+// differently, as on a case-insensitive volume or through a link, the ancestor
+// that is the same directory is found by identity instead.
+func relativeWithin(path, dir string) (string, bool) {
+	if rel, err := filepath.Rel(dir, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return rel, true
+	}
+	dirInfo, err := os.Stat(dir)
+	if err != nil {
+		return "", false
+	}
+	for current := path; ; current = filepath.Dir(current) {
+		if info, err := os.Stat(current); err == nil && os.SameFile(info, dirInfo) {
+			rel, err := filepath.Rel(current, path)
+			if err != nil {
+				return "", false
+			}
+			return rel, true
+		}
+		if filepath.Dir(current) == current {
+			return "", false
+		}
+	}
 }
 
 // startServed mounts every folder the config says is being served. A folder
@@ -110,9 +212,9 @@ func (a *app) mountServed(f config.ServedFolder) error {
 }
 
 // serveFolder makes path a served folder under name, unless a rule in
-// appcore.CheckServe refuses it. A live trusted-folder site for the same folder
-// is not closed here: nothing in this build stops one without also untrusting
-// the folder, and a served folder is always trusted.
+// appcore.CheckServe refuses it. Serving is what gives every file inside it its one
+// writer, so the older sites that could write those files are closed first (see
+// closeSitesForServed).
 func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refusal, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -142,12 +244,7 @@ func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refu
 		return config.ServedFolder{}, refusal, nil
 	}
 
-	a.mu.Lock()
-	live := a.siteAtLocked(facts.Path)
-	a.mu.Unlock()
-	if live != nil && live.trusted {
-		return config.ServedFolder{}, nil, fmt.Errorf("a trusted-folder site is open for this folder; serving it waits for step 2.11d")
-	}
+	a.closeSitesForServed(facts.Path)
 
 	entry, err := a.rt.cfg.AddServedFolder(facts.Path, platform.DirIdentity(facts.Path), name)
 	if err != nil {
@@ -161,6 +258,64 @@ func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refu
 		return config.ServedFolder{}, nil, err
 	}
 	return entry, nil, nil
+}
+
+// closeSitesForServed closes every site that could still write a file inside p,
+// before p becomes a served folder and its own host takes over those files.
+//
+// Two kinds qualify: a site whose folder (its key, or its anchor) is p or lies
+// inside it, and a loose-file site whose every registration is inside p. Each is
+// marked closed under a.mu first, so the router stops sending it new requests, and
+// only then are the writes already in progress given a moment to finish: a save
+// half-written while its origin is torn down is the very race this is here to
+// prevent. The served host's own writes are atomic, so a save that outlives the
+// wait leaves a whole file either way.
+func (a *app) closeSitesForServed(p string) {
+	a.mu.Lock()
+	var older []*site
+	for _, s := range a.sites {
+		if s.closed.Load() {
+			continue
+		}
+		if pathrel.SameOrBelow(s.key, p) || pathrel.SameOrBelow(s.anchor, p) {
+			older = append(older, s)
+			continue
+		}
+		regs := s.sessions.Registrations()
+		if len(regs) == 0 {
+			continue
+		}
+		inside := true
+		for _, reg := range regs {
+			if !pathrel.SameOrBelow(reg.Path, p) {
+				inside = false
+				break
+			}
+		}
+		if inside {
+			older = append(older, s)
+		}
+	}
+	for _, s := range older {
+		s.closed.Store(true)
+	}
+	a.mu.Unlock()
+
+	if len(older) == 0 {
+		return
+	}
+
+	if !a.waitWritesIdle(5 * time.Second) {
+		a.rt.logger.Printf("Serving %s while a write to its files was still in progress", p)
+	}
+
+	a.mu.Lock()
+	dropped := a.closeSitesLocked(older, p)
+	a.mu.Unlock()
+	for _, d := range dropped {
+		a.rt.ls.DropSubscribers(d)
+	}
+	a.rt.logger.Printf("Closed %d older site(s) for %s: its files are served at its own address now", len(older), p)
 }
 
 // stopServing stops serving a folder but keeps it trusted and keeps its config

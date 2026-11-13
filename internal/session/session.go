@@ -21,6 +21,11 @@ var ErrOutsideHome = errors.New("path is outside home directory")
 // that has been closed must never serve again, however late a request arrives.
 var ErrRevoked = errors.New("session manager revoked")
 
+// ErrServedPath is returned by Register for a file inside a folder a served host
+// writes. The served address is that file's only writer, so no site may hold a
+// second one.
+var ErrServedPath = errors.New("this file is in a served folder")
+
 // Provenance records how a file's registration came to exist, as independent
 // accumulating flags rather than one value. A file can be more than one thing
 // at once — OS-opened AND covered by a trusted folder — and collapsing that
@@ -297,6 +302,10 @@ type Manager struct {
 	// read root (the config dir and the versions/backup dir). It is injected by
 	// the runtime, which knows those paths; the session manager does not.
 	guard func(dir string) bool
+	// servedOwner, when set, reports paths inside a folder a served host writes.
+	// Such a path is never registered here: that host is its only writer. It is
+	// injected by the runtime, which knows the served folders.
+	servedOwner func(absPath string) bool
 	// revoked is set by RevokeAll and never cleared. Guarded by mu.
 	revoked bool
 }
@@ -334,6 +343,14 @@ func (m *Manager) SetGuard(guard func(dir string) bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.guard = guard
+}
+
+// SetServedOwner installs the check that a path belongs to a served folder. Such a
+// path is never registered: the served host is its only writer.
+func (m *Manager) SetServedOwner(owned func(absPath string) bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.servedOwner = owned
 }
 
 func (m *Manager) HomeDir() string {
@@ -516,6 +533,10 @@ func (m *Manager) register(absPath string, via Provenance, token string) (*File,
 
 	if m.revoked {
 		return nil, ErrRevoked
+	}
+
+	if m.servedOwner != nil && m.servedOwner(cleaned) {
+		return nil, ErrServedPath
 	}
 
 	if m.guard != nil && m.guard(cleaned) {

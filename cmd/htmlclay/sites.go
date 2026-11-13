@@ -164,6 +164,12 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 	a.mu.Unlock()
 	sessions := session.NewManagerWithHome(a.rt.home)
 	sessions.SetGuard(a.rt.guard)
+	// Registration runs under a.mu, so this hook must never take it:
+	// ResolveDocument reads only the config fact (see there).
+	sessions.SetServedOwner(func(p string) bool {
+		o, err := a.ResolveDocument(p)
+		return err == nil && o.Kind == OwnerServed
+	})
 
 	s := &site{
 		anchor:    anchor,
@@ -307,6 +313,13 @@ func (a *app) registerLocked(s *site, absPath string, via session.Provenance) (s
 func (a *app) route(absPath string, via session.Provenance) (*site, string, bool) {
 	a.mu.Lock()
 	if a.stopping {
+		a.mu.Unlock()
+		return nil, "", false
+	}
+	// A served file has exactly one writer, and it is not a site: a second site
+	// would race the served host over the same bytes.
+	if owner, err := a.ResolveDocument(absPath); err == nil && owner.Kind == OwnerServed {
+		a.rt.logger.Printf("Refusing a second site for %s: it is served at %s", absPath, owner.URL())
 		a.mu.Unlock()
 		return nil, "", false
 	}

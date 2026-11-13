@@ -91,6 +91,10 @@ type appRuntime struct {
 	// openProgramsURL overrides how the tray opens the Programs page's one-time
 	// link, so a test can capture it instead of launching a browser.
 	openProgramsURL func(string) error
+	// launchBrowser overrides how openFile launches a document in the default
+	// browser, so a test can capture the address instead of opening a window.
+	// Production leaves it nil and uses the platform browser.
+	launchBrowser func(string) error
 	// chooseHelperProgram and prepareHelperProgram override the file picker and
 	// the executable check behind the helper permission dialog. Production
 	// leaves them nil and uses the platform dialogs; tests inject a cancel and a
