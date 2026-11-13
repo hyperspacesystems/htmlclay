@@ -290,6 +290,9 @@ func TestServiceFiveExitsFails(t *testing.T) {
 	}
 
 	saveServed(t, a, "notes", dir, strings.Replace(servedTestDocument, "<p>first</p>", "<p>second</p>", 1))
+	if got := a.served.UnconfirmedCount(); got != 1 {
+		t.Fatalf("documents waiting for the service after a native save = %d, want 1", got)
+	}
 
 	if _, refusal := a.do(context.Background(), coreAction(t, "restart-1", "service.restart", nil), ChannelTray); refusal != nil {
 		t.Fatalf("service.restart refused: %+v", refusal)
@@ -297,6 +300,15 @@ func TestServiceFiveExitsFails(t *testing.T) {
 	waitForServiceState(t, a, appcore.ServiceRunning, 20*time.Second)
 	if a.served.ServiceDetached() {
 		t.Fatal("the host is still detached after the service restarted")
+	}
+	// The restarted service asks Go which documents changed without it and
+	// reconciles each one, which lets semantic writes through again.
+	deadline := time.Now().Add(15 * time.Second)
+	for a.served.UnconfirmedCount() != 0 {
+		if time.Now().After(deadline) {
+			t.Fatalf("documents still waiting for the restarted service after 15 s: %d", a.served.UnconfirmedCount())
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 

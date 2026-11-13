@@ -205,9 +205,10 @@ func (r *serviceRunner) run(cmd service.Command) {
 		r.a.served.DetachService()
 		r.a.rt.logger.Printf("the live-room service stopped five times in two minutes; documents save directly until it is restarted")
 	case service.Reattach:
+		// Every page document Go saved while detached is already marked
+		// unconfirmed (served commitHost.noteDetachedWrite); the new service
+		// reconciles those before it admits a semantic write to them.
 		r.a.served.AttachService()
-		// 4.8: mark every page document unconfirmed until the service reconciles
-		// it, since Go wrote them natively while the link was detached.
 	}
 }
 

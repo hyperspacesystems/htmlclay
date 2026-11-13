@@ -197,3 +197,56 @@ func TestServicePeerAttached(t *testing.T) {
 		t.Fatalf("the save after ClearServicePeer = %d (%s), want the recoverable 503", status, answer)
 	}
 }
+
+// TestServiceDetachedWriteIsUnconfirmed is a page document Go saved natively
+// while the service was detached: once the service is back, a semantic write to
+// it waits until the service has reconciled it, and only page documents count.
+func TestServiceDetachedWriteIsUnconfirmed(t *testing.T) {
+	script := newConsultScript(func(path string, body map[string]any, call int) any { return nil })
+	peer := consultSavePeer(t, script)
+	host := switchTestHost(t)
+	server, dir := switchTestServer(t, host, "detached")
+	consultWriteFile(t, dir, "style.css", []byte("p{}"))
+
+	host.DetachService()
+	if status, _, answer := consultSavePost(t, server, "page.html", strings.Replace(consultSavePage, "Saved", "Native", 1), nil); status != http.StatusOK {
+		t.Fatalf("the detached save = %d (%s), want the native 200", status, answer)
+	}
+	if got := host.UnconfirmedCount(); got != 1 {
+		t.Fatalf("UnconfirmedCount after a detached page save = %d, want 1", got)
+	}
+
+	host.AttachService()
+	if err := host.SetServicePeer(peer.URL, peer.Secret, peer.Epoch); err != nil {
+		t.Fatalf("SetServicePeer: %v", err)
+	}
+	status, _, answer := consultSavePost(t, server, "page.html", consultSavePage, nil)
+	if status == http.StatusOK {
+		t.Fatalf("a semantic save before reconcile = 200 (%s), want it held", answer)
+	}
+	if disk := consultTestDisk(t, filepath.Join(dir, "page.html")); !strings.Contains(disk, "Native") {
+		t.Fatalf("the held save changed the file: %q", disk)
+	}
+	if calls := script.count("/v1/admit"); calls != 0 {
+		t.Fatalf("admit was called %d times before reconcile, want none", calls)
+	}
+
+	host.cfg.service.unconfirmed.lift(filepath.Join(host.byID["detached"].baseDir, "page.html"))
+	if got := host.UnconfirmedCount(); got != 0 {
+		t.Fatalf("UnconfirmedCount after reconcile = %d, want 0", got)
+	}
+	consultSavePost(t, server, "page.html", consultSavePage, nil)
+	if calls := script.count("/v1/admit"); calls == 0 {
+		t.Fatal("a save after reconcile did not consult the service")
+	}
+}
+
+// TestServiceAttachedWriteIsNotMarked: the hook only fires while detached.
+func TestServiceAttachedWriteIsNotMarked(t *testing.T) {
+	host := switchTestHost(t)
+	server, _ := switchTestServer(t, host, "plain")
+	consultSavePost(t, server, "page.html", consultSavePage, nil)
+	if got := host.UnconfirmedCount(); got != 0 {
+		t.Fatalf("UnconfirmedCount with the service waiting = %d, want 0", got)
+	}
+}

@@ -267,9 +267,21 @@ func (h *commitHost) commitLocked(request *commitRequest, policy commitLane, fil
 	// The bytes the guard must treat as the last ones seen.
 	if result.Outcome == "committed" {
 		h.hooks.NoteSeen(h.baseDir, request.Name, result.Stored)
+		h.noteDetachedWrite(request.Name, filePath)
 	}
 	h.report(request, &result)
 	return result, nil
+}
+
+// noteDetachedWrite marks a page document Go wrote while the service was
+// detached (it failed, and saves ran Go's native lanes). Tabs and the next
+// service still hold the document as it was before, so the next service must
+// reconcile it before it admits a semantic write to it.
+func (h *commitHost) noteDetachedWrite(name, filePath string) {
+	if h.service == nil || h.service.active() != nil || !isDocumentName(name) {
+		return
+	}
+	h.service.markUnconfirmed(filePath, h.rootID, name)
 }
 
 // report appends the commit frame for one write and keeps its opId's outcome,

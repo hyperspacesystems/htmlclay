@@ -225,3 +225,12 @@ func (h *Host) Close() {
 		root.control.watcher.stop()
 	}
 }
+
+// UnconfirmedCount is how many page documents wait for the service to reconcile
+// them, for tests and the snapshot.
+func (h *Host) UnconfirmedCount() int {
+	if h.cfg.service == nil {
+		return 0
+	}
+	return len(h.cfg.service.unconfirmed.list())
+}
