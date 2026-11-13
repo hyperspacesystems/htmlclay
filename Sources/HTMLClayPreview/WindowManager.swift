@@ -67,7 +67,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
             settings = makeWindow(KilnRoot {
                 SettingsView(actions: SettingsActions(
                     openDashboard: { [weak self] in self?.openBundledDashboard() },
-                    showWelcome: { [weak self] in self?.showWelcome() }
+                    showWelcome: { [weak self] in self?.showWelcome() },
+                    answer: { [weak self] item in self?.showRequest(item) }
                 ))
             }.environment(model))
         }

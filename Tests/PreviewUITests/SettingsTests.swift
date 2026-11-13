@@ -61,6 +61,39 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(model.route, .pane(.general))
     }
 
+    func testProgramsPaneWords() async throws {
+        _ = NSApplication.shared
+        let served = SampleData.snapshot(for: .servedFolder)
+        guard let search = served.program("search-sh"),
+              let bluesky = served.program("bluesky-studio"),
+              let claySearch = served.program("clay-search") else { return XCTFail("missing sample programs") }
+        XCTAssertEqual(ProgramRow.subtitle(search), "notes.htmlclay may run it")
+        XCTAssertEqual(ProgramRow.subtitle(bluesky), "All documents in trusted folders")
+        XCTAssertEqual(ProgramRow.fileName(claySearch), "clay-search")
+        XCTAssertEqual(Strings.Programs.fileMissing(1), "file missing · 1 document uses it")
+
+        let trusted = SampleData.snapshot(for: .trustedFolder)
+        let waiting = ProgramsPane.waitingRequests(trusted)
+        XCTAssertEqual(waiting.map(\.id), ["w-req-todo"])
+        if let item = waiting.first {
+            XCTAssertEqual(ProgramsPane.waitingTitle(item, snapshot: trusted), "todo.htmlclay wants “todo-search”")
+        }
+        guard let todoSearch = trusted.program("todo-search") else { return XCTFail("missing todo-search") }
+        XCTAssertEqual(ProgramRow.subtitle(todoSearch), "No document may run it until you allow one.")
+
+        XCTAssertTrue(ProgramsPane.waitingRequests(SampleData.snapshot(for: .newPerson)).isEmpty)
+
+        let host = SampleHost(persona: .servedFolder)
+        let model = AppModel(host: host, initial: host.current)
+        _ = try await host.perform(.removeProgramAccess(programID: "search-sh", document: "notes.htmlclay"))
+        XCTAssertEqual(host.current.program("search-sh")?.allowedDocuments, [])
+        XCTAssertEqual(host.current.program("search-sh")?.removedDocuments, ["notes.htmlclay"])
+
+        let hosting = NSHostingView(rootView: KilnRoot { SettingsView(route: .program("search-sh")) }.environment(model))
+        hosting.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 840)
+    }
+
     func testFolderRowShowsEveryActiveLevelPill() {
         let snapshot = SampleData.snapshot(for: .syncedWithTeams)
         guard let panphora = snapshot.folder("panphora") else { return XCTFail("missing panphora") }

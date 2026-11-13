@@ -4,8 +4,9 @@ import PreviewCore
 public struct SettingsActions {
     public var openDashboard: () -> Void
     public var showWelcome: () -> Void
-    public init(openDashboard: @escaping () -> Void = {}, showWelcome: @escaping () -> Void = {}) {
-        self.openDashboard = openDashboard; self.showWelcome = showWelcome
+    public var answer: (WaitingItem) -> Void
+    public init(openDashboard: @escaping () -> Void = {}, showWelcome: @escaping () -> Void = {}, answer: @escaping (WaitingItem) -> Void = { _ in }) {
+        self.openDashboard = openDashboard; self.showWelcome = showWelcome; self.answer = answer
     }
 }
 
@@ -56,6 +57,16 @@ public struct SettingsView: View {
                             FoldersPane()
                         }
                     default: FoldersPane()
+                    }
+                case .programs:
+                    switch activeRoute {
+                    case let .program(id):
+                        if model.snapshot.program(id) != nil {
+                            ProgramPage(programID: id, actions: actions)
+                        } else {
+                            ProgramsPane(actions: actions)
+                        }
+                    default: ProgramsPane(actions: actions)
                     }
                 default: PaneStub(pane: activePane)
                 }

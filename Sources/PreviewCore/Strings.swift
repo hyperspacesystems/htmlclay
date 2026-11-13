@@ -146,6 +146,42 @@ public enum Strings {
         }
         public static func mergeAction(parent: String) -> String { "Merge into \(parent)" }
     }
+    public enum Programs {
+        public static let addProgram = "Add program…"
+        public static let intro = "A document can ask HTML Clay to run a program on this Mac. You answer each request in HTML Clay."
+        public static let waitingForYou = "Waiting for you"
+        public static let programs = "Programs"
+        public static let answer = "Answer…"
+        public static let findIt = "Find it…"
+        public static let allTrusted = "All documents in trusted folders"
+        public static let noneYet = "No document may run it until you allow one."
+        public static let wouldAdd = "Build 1: this would ask you to choose a program file."
+        public static let wouldChooseFile = "Build 1: this would ask you to choose a different file for this program."
+        public static func wants(document: String, program: String) -> String { "\(document) wants “\(program)”" }
+        public static func mayRun(_ document: String) -> String { "\(document) may run it" }
+        public static func mayRunCount(_ count: Int) -> String { "\(count) documents may run it" }
+        public static func fileMissing(_ count: Int) -> String {
+            count == 1 ? "file missing · 1 document uses it" : "file missing · \(count) documents use it"
+        }
+        public static func wouldFind(_ name: String) -> String { "Build 1: this would ask you where \(name) went." }
+    }
+    public enum ProgramPage {
+        public static let runsAsYou = "This program runs as you. It can read and change any file you can."
+        public static let whoMayRun = "Who may run it"
+        public static let allTrustedTitle = "All documents in my trusted folders"
+        public static let allTrustedSub = "Not for team folders. Those documents always ask one at a time."
+        public static let removeAccess = "Remove access"
+        public static let accessRemoved = "Access removed"
+        public static let allowAgain = "Allow again…"
+        public static let chooseAnotherFile = "Choose another file…"
+        public static let removeAllAccess = "Remove all access"
+        public static let showInFinder = Menu.showInFinder
+        public static let wouldChooseFile = "Build 1: this would ask you to choose a different file for this program."
+        public static func pathLine(path: String, ready: Bool, name: String) -> String {
+            "\(path) · \(ready ? "ready" : "file missing") · documents ask for it as “\(name)”"
+        }
+        public static func wouldAllowAgain(_ document: String) -> String { "Build 1: this would ask before \(document) may run it again." }
+    }
     public enum General {
         public static let title = "General"
         public static let openAtLogin = "Open HTML Clay at login"
