@@ -30,6 +30,10 @@ jobs:
       - name: Install the locked packages
         run: npm ci
 
+      - name: Install the live-room service's packages
+        run: npm ci
+        working-directory: service
+
       - name: Test
         run: go test ./... -count=1
         env:
