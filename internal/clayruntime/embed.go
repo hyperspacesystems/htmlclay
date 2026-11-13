@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"regexp"
 )
 
@@ -100,6 +101,16 @@ func loadRelease(version string) (Release, error) {
 		release.Aliases = map[string]string{}
 	}
 	return release, nil
+}
+
+// FS is the vendored releases in their embedded layout: lock.json and
+// <version>/<public path>, the same bytes Asset answers with.
+func FS() fs.FS {
+	sub, err := fs.Sub(assets, "assets")
+	if err != nil {
+		panic(fmt.Sprintf("clayruntime: %v", err))
+	}
+	return sub
 }
 
 // SelectedHas reports whether the selected release's index lists a path.
