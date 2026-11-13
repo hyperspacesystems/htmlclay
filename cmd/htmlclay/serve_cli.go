@@ -217,7 +217,7 @@ func (a *app) handleServeCommand(fields []string) string {
 		a.rt.logger.Printf("serve %s: %s", string(raw), answer)
 		return answer
 	}
-	answer := "served " + entry.Name + " http://" + servedHostName(entry.Name, a.rt.port) + "/"
+	answer := "served " + entry.Name + " " + a.servedAddress(entry) + "/"
 	a.rt.logger.Printf("serve %s: %s", string(raw), answer)
 	return answer
 }

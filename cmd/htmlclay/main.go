@@ -99,6 +99,12 @@ type appRuntime struct {
 	// browser, so a test can capture the address instead of opening a window.
 	// Production leaves it nil and uses the platform browser.
 	launchBrowser func(string) error
+	// selectFolder overrides the native folder picker behind the Served Folders
+	// submenu, so no test can open a real picker.
+	selectFolder func(prompt string) (string, bool, error)
+	// copyText overrides the clipboard, so no test writes to the clipboard the
+	// person is using.
+	copyText func(text string) error
 	// chooseHelperProgram and prepareHelperProgram override the file picker and
 	// the executable check behind the helper permission dialog. Production
 	// leaves them nil and uses the platform dialogs; tests inject a cancel and a
@@ -552,6 +558,12 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 		List:   a.trustedFolderRows,
 		Add:    a.pickAndTrustFolder,
 		Remove: a.removeTrustedFolder,
+	}, &tray.ServedFolderHooks{
+		List:        a.servedFolderRows,
+		Add:         a.pickAndServeFolder,
+		Open:        a.openServedFolder,
+		CopyAddress: a.copyServedAddress,
+		Stop:        a.stopServedFromTray,
 	}, &tray.HelperHooks{
 		Title:     a.helperProgramsTitle,
 		List:      a.helperProgramRows,

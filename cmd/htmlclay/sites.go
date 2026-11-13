@@ -427,7 +427,7 @@ func (a *app) routeTrusted(absPath string) (string, bool) {
 func (a *app) startSites() {
 	for _, tf := range a.rt.cfg.TrustedFolderList() {
 		if f, ok := a.rt.cfg.ServedFolderForPath(tf.Path); ok && f.Serving {
-			a.rt.logger.Printf("Trusted folder %s is served at http://%s; it has no separate site", tf.Path, servedHostName(f.Name, a.rt.port))
+			a.rt.logger.Printf("Trusted folder %s is served at %s; it has no separate site", tf.Path, a.servedAddress(f))
 			continue
 		}
 		if info, err := os.Stat(tf.Path); err != nil || !info.IsDir() {

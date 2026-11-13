@@ -38,6 +38,12 @@ func servedHostName(name string, port int) string {
 	return name + ".htmlclay.localhost:" + strconv.Itoa(port)
 }
 
+// servedAddress is a served folder's address with no trailing slash, the one
+// place it is built so the tray, the command line and the site hook agree.
+func (a *app) servedAddress(f config.ServedFolder) string {
+	return "http://" + servedHostName(f.Name, a.rt.port)
+}
+
 // newServedHost builds the host that owns every served folder's handler. The
 // profile name is the one new versions are authored under, as --person-name is
 // for a site.
@@ -124,7 +130,7 @@ func (a *app) ResolveDocument(absPath string) (Owner, error) {
 			FolderID:     f.ID,
 			FolderPath:   f.Path,
 			RelativePath: filepath.ToSlash(rel),
-			PublicOrigin: "http://" + servedHostName(f.Name, a.rt.port),
+			PublicOrigin: a.servedAddress(f),
 		}, nil
 	}
 
@@ -191,7 +197,7 @@ func (a *app) startServed() {
 			a.rt.logger.Printf("Could not serve folder %s: %v", f.Path, err)
 			continue
 		}
-		a.rt.logger.Printf("Serving folder %s at http://%s", f.Path, servedHostName(f.Name, a.rt.port))
+		a.rt.logger.Printf("Serving folder %s at %s", f.Path, a.servedAddress(f))
 	}
 	a.served.Start()
 }

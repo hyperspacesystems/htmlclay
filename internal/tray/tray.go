@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"fyne.io/systray"
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/browser"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
@@ -58,6 +59,9 @@ type UpdateInfo struct {
 type Row struct {
 	Path  string
 	Label string
+	// Serving marks a row whose submenu holds actions rather than a click of
+	// its own. The tray does not act on it; it is there for the app to read.
+	Serving bool
 }
 
 // TrustedFolderHooks are the app operations the Trusted Folders submenu drives.
@@ -69,6 +73,17 @@ type TrustedFolderHooks struct {
 	List   func() []Row
 	Add    func() []Row
 	Remove func(path string) []Row
+}
+
+// ServedFolderHooks are the app operations the Served Folders submenu drives. Row
+// Path is the served folder's id. Each returns the authoritative list, except Open
+// and CopyAddress, which change nothing.
+type ServedFolderHooks struct {
+	List        func() []Row
+	Add         func() []Row
+	Open        func(id string)
+	CopyAddress func(id string)
+	Stop        func(id string) []Row
 }
 
 // HelperHooks are the app operations the Programs submenu drives. Each returns
@@ -111,6 +126,9 @@ const slotCount = 16
 type slot struct {
 	item *systray.MenuItem
 	path string
+	// children are the per-row actions a served folder offers. They exist only
+	// when the menu was built with actions.
+	children []*systray.MenuItem
 }
 
 type Tray struct {
@@ -126,6 +144,8 @@ type Tray struct {
 
 	trusted             *TrustedFolderHooks
 	trustedMenu         *listMenu
+	served              *ServedFolderHooks
+	servedMenu          *listMenu
 	helpers             *HelperHooks
 	helpersMenu         *listMenu
 	helperDocumentsMenu *listMenu
@@ -136,7 +156,7 @@ type Tray struct {
 	notice string
 }
 
-func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups func(), onQuit func(), updateCh <-chan UpdateInfo, trusted *TrustedFolderHooks, helpers *HelperHooks, export *ExportHooks, notice string) {
+func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups func(), onQuit func(), updateCh <-chan UpdateInfo, trusted *TrustedFolderHooks, served *ServedFolderHooks, helpers *HelperHooks, export *ExportHooks, notice string) {
 	t := &Tray{
 		cfg:           cfg,
 		version:       version,
@@ -145,6 +165,7 @@ func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups
 		onQuit:        onQuit,
 		updateCh:      updateCh,
 		trusted:       trusted,
+		served:        served,
 		helpers:       helpers,
 		export:        export,
 		notice:        notice,
@@ -248,17 +269,28 @@ type listMenu struct {
 	slots []*slot
 	// onRow is set by watch, after the slots exist, and read at click time rather
 	// than captured, so a slot grown later behaves exactly like one built up front.
-	onRow      func(string) []Row
+	onRow func(string) []Row
+	// onAction and actions belong to a menu built by newActionListMenu: each row
+	// is a parent of one child per action, and the child click reports which.
+	onAction   func(action int, path string) []Row
+	actions    []string
 	rowTooltip string
 }
 
 func newListMenu(title, tooltip, emptyText, addTitle, addTooltip string) (*listMenu, *systray.MenuItem) {
+	return newActionListMenu(title, tooltip, emptyText, addTitle, addTooltip, nil)
+}
+
+// newActionListMenu is newListMenu for rows that each do one of several things.
+// actions must be set before the first slot is created: the pool's children are
+// built with the slots, so every slot grown later has them too.
+func newActionListMenu(title, tooltip, emptyText, addTitle, addTooltip string, actions []string) (*listMenu, *systray.MenuItem) {
 	menu := systray.AddMenuItem(title, tooltip)
 	var addItem *systray.MenuItem
 	if addTitle != "" {
 		addItem = menu.AddSubMenuItem(addTitle, addTooltip)
 	}
-	lm := &listMenu{menu: menu}
+	lm := &listMenu{menu: menu, actions: actions}
 	lm.empty = menu.AddSubMenuItem(emptyText, "")
 	lm.empty.Disable()
 	lm.mu.Lock()
@@ -280,6 +312,31 @@ func (lm *listMenu) addSlotLocked() *slot {
 	s := &slot{item: lm.menu.AddSubMenuItem("", "")}
 	s.item.Hide()
 	lm.slots = append(lm.slots, s)
+	if len(lm.actions) > 0 {
+		for action, title := range lm.actions {
+			child := s.item.AddSubMenuItem(title, "")
+			child.Hide()
+			s.children = append(s.children, child)
+			go func(action int) {
+				for range child.ClickedCh {
+					lm.mu.Lock()
+					path, onAction := s.path, lm.onAction
+					lm.mu.Unlock()
+					if path == "" || onAction == nil {
+						continue
+					}
+					go func() {
+						if rows := onAction(action, path); rows != nil {
+							lm.render(rows)
+						}
+					}()
+				}
+			}(action)
+		}
+		// The parent's own click does nothing: for an action row the parent is
+		// only the place the actions hang from.
+		return s
+	}
 	go func() {
 		for range s.item.ClickedCh {
 			lm.mu.Lock()
@@ -340,6 +397,9 @@ func (lm *listMenu) render(rows []Row) {
 		}
 		s.path = ""
 		s.item.Hide()
+		for _, child := range s.children {
+			child.Hide()
+		}
 	}
 	// Place new entries into the lowest free slot, adding one when the pool is
 	// full. Every entry therefore has a clickable row, which is what makes every
@@ -353,6 +413,9 @@ func (lm *listMenu) render(rows []Row) {
 		s.item.SetTitle(r.Label)
 		s.item.SetTooltip(lm.rowTooltip)
 		s.item.Show()
+		for _, child := range s.children {
+			child.Show()
+		}
 		assigned[r.Path] = true
 	}
 	if len(assigned) == 0 {
@@ -370,15 +433,30 @@ func (lm *listMenu) watch(onRow func(string) []Row, poll func() []Row) {
 	lm.mu.Lock()
 	lm.onRow = onRow
 	lm.mu.Unlock()
-	if poll != nil {
-		go func() {
-			ticker := time.NewTicker(listPollInterval)
-			defer ticker.Stop()
-			for range ticker.C {
-				lm.render(poll())
-			}
-		}()
+	lm.poll(poll)
+}
+
+// watchActions is watch for a menu whose rows each offer several actions.
+func (lm *listMenu) watchActions(onAction func(int, string) []Row, poll func() []Row) {
+	lm.mu.Lock()
+	lm.onAction = onAction
+	lm.mu.Unlock()
+	lm.poll(poll)
+}
+
+// poll re-renders from the authoritative list on a ticker, for lists that change
+// with no handle to the tray.
+func (lm *listMenu) poll(poll func() []Row) {
+	if poll == nil {
+		return
 	}
+	go func() {
+		ticker := time.NewTicker(listPollInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			lm.render(poll())
+		}
+	}()
 }
 
 func (t *Tray) onReady() {
@@ -415,6 +493,8 @@ func (t *Tray) onReady() {
 	}
 	systray.AddSeparator()
 
+	addServedItem := t.buildServedMenu()
+	systray.AddSeparator()
 	addTrustedItem := t.buildTrustedMenu()
 	systray.AddSeparator()
 	addHelperItem := t.buildHelpersMenu()
@@ -466,6 +546,7 @@ func (t *Tray) onReady() {
 		}
 	}()
 
+	t.watchServedMenu(addServedItem)
 	t.watchTrustedMenu(addTrustedItem)
 	t.watchHelpersMenu(addHelperItem)
 }
@@ -485,6 +566,80 @@ func (t *Tray) addNotice() *systray.MenuItem {
 	item.Disable()
 	systray.AddSeparator()
 	return item
+}
+
+// servedActions are the Served Folders submenu's child rows, in menu order. The
+// index is what the tray hands back to servedAction.
+var servedActions = []string{appcore.TextOpenServed, appcore.TextCopyAddress, appcore.TextStopServing}
+
+const (
+	servedActionOpen = iota
+	servedActionCopyAddress
+	servedActionStop
+)
+
+// buildServedMenu adds the Served Folders submenu: an add row, and one parent row
+// per served folder whose children open it, copy its address, or stop serving it.
+// Polled, because a folder can be served from the command line with no handle to
+// the tray.
+func (t *Tray) buildServedMenu() *systray.MenuItem {
+	if t.served == nil {
+		return nil
+	}
+	lm, addItem := newActionListMenu(
+		appcore.TextServedFolders,
+		"Folders served at their own addresses",
+		appcore.TextNoServedFolders,
+		appcore.TextServeAFolder,
+		"",
+		servedActions,
+	)
+	t.servedMenu = lm
+	if t.served.List != nil {
+		lm.render(t.served.List())
+	}
+	return addItem
+}
+
+// watchServedMenu wires the add flow (in its own goroutine, because the folder
+// picker blocks until the user answers) and the action/poll machinery.
+func (t *Tray) watchServedMenu(addItem *systray.MenuItem) {
+	if t.served == nil || t.servedMenu == nil {
+		return
+	}
+	if addItem != nil && t.served.Add != nil {
+		go func() {
+			for range addItem.ClickedCh {
+				go func() {
+					if rows := t.served.Add(); rows != nil {
+						t.servedMenu.render(rows)
+					}
+				}()
+			}
+		}()
+	}
+	t.servedMenu.watchActions(t.servedAction, t.served.List)
+}
+
+// servedAction runs one child row's operation. Only Stop changes the list, so it
+// is the only one whose rows are rendered; a stale id after a poll is simply a
+// no-op.
+func (t *Tray) servedAction(action int, id string) []Row {
+	switch action {
+	case servedActionOpen:
+		if t.served.Open != nil {
+			t.served.Open(id)
+		}
+	case servedActionCopyAddress:
+		if t.served.CopyAddress != nil {
+			t.served.CopyAddress(id)
+		}
+	case servedActionStop:
+		if t.served.Stop != nil {
+			return t.served.Stop(id)
+		}
+	}
+	return nil
 }
 
 // buildTrustedMenu adds the Trusted Folders submenu: an add row, and rows that

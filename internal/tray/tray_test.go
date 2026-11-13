@@ -505,3 +505,94 @@ func TestClickingAStagedUpdateCallsApply(t *testing.T) {
 		t.Fatal("the apply hook was never called")
 	}
 }
+
+type actionClick struct {
+	action int
+	path   string
+}
+
+// A served folder's row offers several actions, so its children each have to
+// reach the hook as the action that was clicked and the entry it hangs from --
+// not as the row's index, and not as the wrong action's neighbor.
+func TestActionRowsRouteEachChildToItsAction(t *testing.T) {
+	lm, _ := newActionListMenu("Served Folders", "", "No folders yet", "", "", []string{"Open", "Copy", "Stop"})
+
+	const count = slotCount + 5
+	rows := make([]Row, count)
+	for i := range rows {
+		rows[i] = Row{Path: fmt.Sprintf("/home/me/served-%02d", i), Label: fmt.Sprintf("served-%02d", i), Serving: true}
+	}
+
+	clicked := make(chan actionClick, 1)
+	lm.watchActions(func(action int, path string) []Row {
+		clicked <- actionClick{action: action, path: path}
+		return nil
+	}, nil)
+	lm.render(rows)
+
+	last := rows[count-1]
+	lm.mu.Lock()
+	var lastSlot *slot
+	for _, s := range lm.slots {
+		if s.path == last.Path {
+			lastSlot = s
+		}
+	}
+	lm.mu.Unlock()
+	if lastSlot == nil {
+		t.Fatalf("the last row %q got no slot", last.Path)
+	}
+	if len(lastSlot.children) != 3 {
+		t.Fatalf("the last row has %d children, want one per action (3)", len(lastSlot.children))
+	}
+
+	lastSlot.children[2].ClickedCh <- struct{}{}
+	got := testutil.Receive(t, 10*time.Second, "a child click to reach the action hook", clicked)
+	if got.action != 2 || got.path != last.Path {
+		t.Fatalf("clicking the third child reported action %d of %q, want action 2 of %q", got.action, got.path, last.Path)
+	}
+}
+
+// An action row that is already placed must keep its place when a row before it
+// goes away, for the same reason a plain row must: a queued click on a child has
+// to land on the folder that was in that row.
+func TestActionRowsKeepPlacesAcrossRenders(t *testing.T) {
+	lm, _ := newActionListMenu("Served Folders", "", "No folders yet", "", "", []string{"Open", "Copy", "Stop"})
+	rows := []Row{
+		{Path: "/home/me/first", Label: "first", Serving: true},
+		{Path: "/home/me/second", Label: "second", Serving: true},
+		{Path: "/home/me/third", Label: "third", Serving: true},
+	}
+	lm.render(rows)
+
+	lm.mu.Lock()
+	before := make(map[string]int, len(rows))
+	for i, s := range lm.slots {
+		if s.path != "" {
+			before[s.path] = i
+		}
+	}
+	lm.mu.Unlock()
+
+	lm.render([]Row{rows[0], rows[2]})
+
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	for _, r := range []Row{rows[0], rows[2]} {
+		index := -1
+		for i, s := range lm.slots {
+			if s.path == r.Path {
+				index = i
+			}
+			if s.path == rows[1].Path {
+				t.Fatalf("the removed row %q still holds slot %d", rows[1].Path, i)
+			}
+		}
+		if index != before[r.Path] {
+			t.Errorf("%q moved from slot %d to %d; a queued click would land on the wrong folder", r.Path, before[r.Path], index)
+		}
+		if got := len(lm.slots[index].children); got != 3 {
+			t.Errorf("%q has %d actions after a render, want 3", r.Path, got)
+		}
+	}
+}
