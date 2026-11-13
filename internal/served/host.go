@@ -38,6 +38,9 @@ type Host struct {
 	byID  map[string]*rootServer
 	// stopSweep stops the snapshot sweep Start began.
 	stopSweep func()
+	// started is whether Start has begun the roots' watchers, so a root added
+	// afterwards starts its own.
+	started bool
 }
 
 func NewHost(o Options) *Host {
@@ -69,7 +72,33 @@ func (h *Host) AddRoot(spec RootSpec) (http.Handler, error) {
 	}
 	h.roots = append(h.roots, server)
 	h.byID[spec.ID] = server
+	if h.started {
+		server.control.watcher.start()
+	}
 	return server, nil
+}
+
+// RemoveRoot stops serving one root: its watcher stops and Handler no longer finds it.
+// Requests already inside its handler finish on their own; the caller ends long-lived
+// ones (live streams) by cancelling the contexts it handed them.
+func (h *Host) RemoveRoot(id string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	server, ok := h.byID[id]
+	if !ok {
+		return false
+	}
+	delete(h.byID, id)
+	for i, root := range h.roots {
+		if root == server {
+			h.roots = append(h.roots[:i], h.roots[i+1:]...)
+			break
+		}
+	}
+	if h.started {
+		server.control.watcher.stop()
+	}
+	return true
 }
 
 func (h *Host) Handler(id string) (http.Handler, bool) {
@@ -103,19 +132,26 @@ func (h *Host) Epoch() string {
 // Start starts every root's watcher, so outside edits reach the guard and the
 // event stream, and the sweep that drops snapshot entries nobody uploaded.
 func (h *Host) Start() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	for _, root := range h.roots {
 		root.control.watcher.start()
 	}
+	h.started = true
 	h.stopSweep = startSnapshotSweep()
 }
 
 // Close stops the sweep and then the watchers, in the order the trial has always
 // stopped them.
 func (h *Host) Close() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if h.stopSweep != nil {
 		h.stopSweep()
+		h.stopSweep = nil
 	}
-	for _, root := range h.roots {
+	roots := append([]*rootServer(nil), h.roots...)
+	for _, root := range roots {
 		root.control.watcher.stop()
 	}
 }

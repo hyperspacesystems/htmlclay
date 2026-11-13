@@ -1039,6 +1039,10 @@ func (c *Config) UpdateProfile(next Profile) error {
 }
 
 func defaultConfigDir() (string, error) {
+	// HTMLCLAY_CONFIG_BASE replaces the OS config folder, so tests and seeded profiles never touch the real config. The app's own folder is still <base>/htmlclay.
+	if base := os.Getenv("HTMLCLAY_CONFIG_BASE"); base != "" {
+		return filepath.Abs(base)
+	}
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("cannot determine config directory: %w", err)

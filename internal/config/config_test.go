@@ -148,6 +148,18 @@ func TestEnsureDir(t *testing.T) {
 	}
 }
 
+func TestConfigBaseOverride(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HTMLCLAY_CONFIG_BASE", dir)
+	got, err := Dir()
+	if err != nil {
+		t.Fatalf("Dir: %v", err)
+	}
+	if want := filepath.Join(dir, "htmlclay"); got != want {
+		t.Fatalf("Dir() = %q, want %q", got, want)
+	}
+}
+
 func TestTrustedFolderAddRemoveRoundTrip(t *testing.T) {
 	baseDir := t.TempDir()
 	cfg, _, _ := LoadFrom(baseDir, noIdentity)
