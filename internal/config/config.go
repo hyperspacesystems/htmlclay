@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -72,9 +73,15 @@ type Config struct {
 	// TrustedFolders once on Load and cleared on the next Save, which is the
 	// completion marker. Distinct Go field, distinct JSON key, distinct type, so
 	// the decoder never sees a shape it does not expect.
-	LegacyTrusted   []string         `json:"trustedFolders,omitempty"`
-	HelperPrograms  []HelperProgram  `json:"helperPrograms,omitempty"`
-	HelperDecisions []HelperDecision `json:"helperDecisions,omitempty"`
+	LegacyTrusted []string `json:"trustedFolders,omitempty"`
+	// ServedFolders are folders served whole at http://<name>.htmlclay.localhost:<port>/.
+	// A served folder is always also a trusted folder.
+	ServedFolders []ServedFolder `json:"servedFolders,omitempty"`
+	// RetiredServedNames are names once given to a served folder that was then removed.
+	// A name is never given out again, so an old address never reaches a different folder.
+	RetiredServedNames []string         `json:"retiredServedNames,omitempty"`
+	HelperPrograms     []HelperProgram  `json:"helperPrograms,omitempty"`
+	HelperDecisions    []HelperDecision `json:"helperDecisions,omitempty"`
 	// AIEdit is the built-in AI editing helper's setting. Nil, or a nil Enabled,
 	// reads as on: AI editing is on unless the person turned it off.
 	AIEdit *AIEditSettings `json:"aiEdit,omitempty"`
@@ -97,6 +104,31 @@ type TrustedFolder struct {
 	Path     string `json:"path"`
 	Identity string `json:"identity,omitempty"`
 }
+
+// ServedFolder is one folder HTML Clay serves whole. ID is 16 lowercase hex, made once;
+// it is the folder's root id on the control API. Serving is false while the person has
+// stopped serving it but kept it in the list.
+type ServedFolder struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	Identity string `json:"identity,omitempty"`
+	Serving  bool   `json:"serving"`
+}
+
+var (
+	ErrServedNameInvalid = errors.New("served-name-invalid")
+	ErrServedNameTaken   = errors.New("served-name-taken")
+	ErrServedNameRetired = errors.New("served-name-retired")
+	ErrAlreadyServed     = errors.New("already-served")
+)
+
+// reservedServedNames can never name a served folder: they are, or could become, the
+// app's own addresses.
+var reservedServedNames = map[string]bool{"dashboard": true, "hyperclay": true, "htmlclay": true, "localhost": true, "www": true, "api": true}
+
+var servedNamePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$`)
+var servedIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
 // AIEditSettings mirrors Hyperclay Local's settings.aiEdit. Default names the engine
 // used when a request names none ("" means claude). Engines are user-defined agents:
@@ -123,6 +155,11 @@ const sitePortCap = 32
 func (c *Config) AddTrustedFolder(dir, identity string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return c.addTrustedFolderLocked(dir, identity)
+}
+
+// addTrustedFolderLocked records dir unless it is already there. The caller holds c.mu.
+func (c *Config) addTrustedFolderLocked(dir, identity string) bool {
 	for _, w := range c.TrustedFolders {
 		if w.Path == dir {
 			return false
@@ -177,6 +214,164 @@ func (c *Config) TrustedFolderList() []TrustedFolder {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]TrustedFolder(nil), c.TrustedFolders...)
+}
+
+// ValidServedName reports whether name may name a served folder at all, before
+// uniqueness: ErrServedNameInvalid for the wrong shape or a reserved name, else nil.
+func ValidServedName(name string) error {
+	if !servedNamePattern.MatchString(name) || reservedServedNames[name] {
+		return ErrServedNameInvalid
+	}
+	return nil
+}
+
+// ServedFolderList returns a copy of the served folders so callers can read the
+// list without touching the field under the lock.
+func (c *Config) ServedFolderList() []ServedFolder {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]ServedFolder(nil), c.ServedFolders...)
+}
+
+// ServedFolderByID returns the served folder with that id.
+func (c *Config) ServedFolderByID(id string) (ServedFolder, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, f := range c.ServedFolders {
+		if f.ID == id {
+			return f, true
+		}
+	}
+	return ServedFolder{}, false
+}
+
+// ServedFolderByName returns the served folder served under that name.
+func (c *Config) ServedFolderByName(name string) (ServedFolder, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, f := range c.ServedFolders {
+		if f.Name == name {
+			return f, true
+		}
+	}
+	return ServedFolder{}, false
+}
+
+// ServedFolderForPath returns the served folder rooted at path. path must already be
+// canonical, as for trusted folders.
+func (c *Config) ServedFolderForPath(path string) (ServedFolder, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, f := range c.ServedFolders {
+		if f.Path == path {
+			return f, true
+		}
+	}
+	return ServedFolder{}, false
+}
+
+// ServedNameAvailable reports whether name may be given to a served folder now:
+// well formed, not in use, and never given out before.
+func (c *Config) ServedNameAvailable(name string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.servedNameAvailableLocked(name)
+}
+
+func (c *Config) servedNameAvailableLocked(name string) error {
+	if err := ValidServedName(name); err != nil {
+		return err
+	}
+	for _, f := range c.ServedFolders {
+		if f.Name == name {
+			return ErrServedNameTaken
+		}
+	}
+	for _, retired := range c.RetiredServedNames {
+		if retired == name {
+			return ErrServedNameRetired
+		}
+	}
+	return nil
+}
+
+// AddServedFolder records path as served under name and, under the same lock, as a
+// trusted folder: a served folder is always also trusted. path must already be
+// canonical; the caller validates before adding.
+func (c *Config) AddServedFolder(path, identity, name string) (ServedFolder, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.servedNameAvailableLocked(name); err != nil {
+		return ServedFolder{}, err
+	}
+	for _, f := range c.ServedFolders {
+		if f.Path == path {
+			return ServedFolder{}, ErrAlreadyServed
+		}
+	}
+	var raw [8]byte
+	var id string
+	for {
+		if _, err := rand.Read(raw[:]); err != nil {
+			return ServedFolder{}, fmt.Errorf("cannot generate served folder id: %w", err)
+		}
+		id = hex.EncodeToString(raw[:])
+		taken := false
+		for _, f := range c.ServedFolders {
+			if f.ID == id {
+				taken = true
+				break
+			}
+		}
+		if !taken {
+			break
+		}
+	}
+	entry := ServedFolder{ID: id, Name: name, Path: path, Identity: identity, Serving: true}
+	c.ServedFolders = append(c.ServedFolders, entry)
+	c.addTrustedFolderLocked(path, identity)
+	return entry, nil
+}
+
+// SetServing turns serving on or off for a served folder, returning false if there
+// is no entry with that id.
+func (c *Config) SetServing(id string, serving bool) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, f := range c.ServedFolders {
+		if f.ID == id {
+			c.ServedFolders[i].Serving = serving
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveServedFolder drops the entry and retires its name, so an old address never
+// reaches a different folder. The trusted folder stays: stopping serving a folder
+// is not the same as no longer trusting it.
+func (c *Config) RemoveServedFolder(id string) (ServedFolder, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, f := range c.ServedFolders {
+		if f.ID == id {
+			c.ServedFolders = append(c.ServedFolders[:i], c.ServedFolders[i+1:]...)
+			c.retireServedNameLocked(f.Name)
+			return f, true
+		}
+	}
+	return ServedFolder{}, false
+}
+
+// retireServedNameLocked appends name to RetiredServedNames once. Like RetiredSlugs
+// the list is never trimmed: a name that left it could be handed out again.
+func (c *Config) retireServedNameLocked(name string) {
+	for _, retired := range c.RetiredServedNames {
+		if retired == name {
+			return
+		}
+	}
+	c.RetiredServedNames = append(c.RetiredServedNames, name)
 }
 
 // promoteLegacyTrusted turns 1.2.0's read-only trusted folders into ordinary
@@ -293,6 +488,45 @@ func (c *Config) dedupeTrustedFolders() {
 		keptInfo = append(keptInfo, seen{path: w.Path, info: info})
 	}
 	c.TrustedFolders = kept
+}
+
+// sanitizeServedFolders drops served entries that could not have been written by
+// AddServedFolder and duplicates of entries an earlier one already holds, first
+// wins. Every kept entry's path becomes a trusted folder if it is not one already,
+// because a served folder is always trusted. It reports nothing, the way the
+// trusted-folder dedupe next to it reports nothing: the caller saves the config on
+// its own schedule and the cleanup is re-derived on every load.
+func (c *Config) sanitizeServedFolders() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var kept []ServedFolder
+	ids := make(map[string]bool, len(c.ServedFolders))
+	names := make(map[string]bool, len(c.ServedFolders))
+	paths := make(map[string]bool, len(c.ServedFolders))
+	for _, f := range c.ServedFolders {
+		if !servedIDPattern.MatchString(f.ID) || ValidServedName(f.Name) != nil || f.Path == "" {
+			continue
+		}
+		if ids[f.ID] || names[f.Name] || paths[f.Path] {
+			continue
+		}
+		ids[f.ID] = true
+		names[f.Name] = true
+		paths[f.Path] = true
+		kept = append(kept, f)
+		c.addTrustedFolderLocked(f.Path, f.Identity)
+	}
+	c.ServedFolders = kept
+	var retired []string
+	retiredNames := make(map[string]bool, len(c.RetiredServedNames))
+	for _, name := range c.RetiredServedNames {
+		if ValidServedName(name) != nil || retiredNames[name] {
+			continue
+		}
+		retiredNames[name] = true
+		retired = append(retired, name)
+	}
+	c.RetiredServedNames = retired
 }
 
 // SitePort returns the port previously used for an anchor, or 0 if there is none.
@@ -910,6 +1144,10 @@ func LoadFrom(baseDir string, identity func(string) string) (*Config, Result, er
 	// After the promotion, which appends straight to the list with a byte-exact
 	// dedupe of its own and so can add an alias of an entry already there.
 	cfg.dedupeTrustedFolders()
+	// After the dedupe, which settles the trusted list, and before the pin backfill,
+	// so a trusted folder added here for a served entry without a pin gets one on
+	// this load rather than the next.
+	cfg.sanitizeServedFolders()
 	// After the dedupe, so a pin is never derived for an entry that is about to
 	// be dropped as an alias of one already kept.
 	res.PinnedIdentities = cfg.backfillIdentities(identity)
