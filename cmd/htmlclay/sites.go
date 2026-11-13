@@ -499,6 +499,11 @@ func (a *app) shutdown() {
 	if a.served != nil {
 		a.served.Close()
 	}
+	for _, m := range mounts {
+		if m.lock != nil {
+			m.lock.Release()
+		}
+	}
 	// RevokeAll closes the read-root capability handles, so it runs only once no request
 	// can still be reading through one.
 	for _, s := range sites {

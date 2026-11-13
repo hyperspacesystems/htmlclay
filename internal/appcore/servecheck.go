@@ -29,6 +29,10 @@ const (
 	RefuseNameInvalid      = "name-invalid"
 	RefuseNameTaken        = "name-taken"
 	RefuseNameRetired      = "name-retired"
+	// RefuseServedElsewhere is another HTML Clay process (another profile or build)
+	// holding the folder's lock. CheckServe does not return it: the lock is taken
+	// after the check. It is listed here so every door knows the code.
+	RefuseServedElsewhere = "served-elsewhere"
 )
 
 // OtherFolder is a folder that matters to the check: how the asked-for folder stands

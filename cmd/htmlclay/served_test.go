@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/session"
 )
 
@@ -579,5 +580,108 @@ func TestServedClosesOlderSites(t *testing.T) {
 	}
 	if body := served.Body.String(); !strings.Contains(body, "first") {
 		t.Fatalf("GET on the served address = %q, want the document", body)
+	}
+}
+
+func TestServedLockRefusesASecondProfile(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+
+	first := newServedTestApp(t, home, t.TempDir())
+	entry, refusal, err := first.serveFolder(dir, "notes")
+	if err != nil || refusal != nil {
+		t.Fatalf("first serveFolder: refusal=%+v err=%v", refusal, err)
+	}
+
+	second := newServedTestApp(t, home, t.TempDir())
+	second.rt.folderLockDir = first.rt.folderLockDir
+
+	_, refusal, err = second.serveFolder(dir, "notes")
+	if err != nil {
+		t.Fatalf("second serveFolder: %v", err)
+	}
+	if refusal == nil || refusal.Code != appcore.RefuseServedElsewhere {
+		t.Fatalf("second serveFolder refusal = %+v, want served-elsewhere", refusal)
+	}
+	if refusal != nil && refusal.OtherPath != dir {
+		t.Fatalf("refusal OtherPath = %q, want %q", refusal.OtherPath, dir)
+	}
+	if served := second.rt.cfg.ServedFolderList(); len(served) != 0 {
+		t.Fatalf("second config has served folder(s) %+v, want none", served)
+	}
+
+	if err := first.stopServing(entry.ID); err != nil {
+		t.Fatalf("stopServing: %v", err)
+	}
+	if _, refusal, err := second.serveFolder(dir, "notes"); err != nil || refusal != nil {
+		t.Fatalf("second serveFolder after the first stopped: refusal=%+v err=%v", refusal, err)
+	}
+}
+
+func TestServedLockSkippedAtStartup(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+	cfgBase := t.TempDir()
+	lockDir := t.TempDir()
+
+	seeded := buildTestApp(t, home, cfgBase)
+	seeded.rt.folderLockDir = lockDir
+	seeded.rt.port = servedTestPort
+	seeded.startServed()
+	t.Cleanup(func() {
+		if seeded.served != nil {
+			seeded.served.Close()
+		}
+	})
+	entry, refusal, err := seeded.serveFolder(dir, "notes")
+	if err != nil || refusal != nil {
+		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+	}
+
+	seeded.servedMu.RLock()
+	mount := seeded.servedByName["notes"]
+	seeded.servedMu.RUnlock()
+	if mount == nil || mount.lock == nil {
+		t.Fatalf("the served folder has no mount holding its lock")
+	}
+	if err := mount.lock.Release(); err != nil {
+		t.Fatalf("releasing the mount's lock: %v", err)
+	}
+
+	held, err := folderlock.Acquire(lockDir, dir)
+	if err != nil {
+		t.Fatalf("holding the folder's lock: %v", err)
+	}
+	t.Cleanup(func() { held.Release() })
+
+	fresh := buildTestApp(t, home, cfgBase)
+	fresh.rt.folderLockDir = lockDir
+	fresh.rt.port = servedTestPort
+	fresh.startServed()
+	t.Cleanup(func() {
+		if fresh.served != nil {
+			fresh.served.Close()
+		}
+	})
+
+	rec := servedRequest(t, fresh, http.MethodGet, servedHostName("notes", servedTestPort), "/index.html", "", nil)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("GET a folder held elsewhere = %d, want 404 (%s)", rec.Code, rec.Body.String())
+	}
+	if body := rec.Body.String(); body != string(recoveryPage) {
+		t.Fatalf("GET a folder held elsewhere body = %q, want the recovery page", body)
+	}
+
+	stored, ok := fresh.rt.cfg.ServedFolderByID(entry.ID)
+	if !ok || !stored.Serving {
+		t.Fatalf("stored entry = %+v (found %v), want it to keep Serving true", stored, ok)
 	}
 }

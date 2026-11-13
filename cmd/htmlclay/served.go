@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/served"
@@ -27,6 +29,9 @@ type servedMount struct {
 	handler http.Handler
 	ctx     context.Context
 	cancel  context.CancelFunc
+	// lock is held for as long as the folder is served: it is what keeps another
+	// HTML Clay process from writing the same files.
+	lock *folderlock.Lock
 }
 
 func servedHostName(name string, port int) string {
@@ -179,6 +184,10 @@ func (a *app) startServed() {
 			continue
 		}
 		if err := a.mountServed(f); err != nil {
+			if errors.Is(err, folderlock.ErrHeld) {
+				a.rt.logger.Printf("Served folder %s is served by another HTML Clay process; it is not served here", f.Path)
+				continue
+			}
 			a.rt.logger.Printf("Could not serve folder %s: %v", f.Path, err)
 			continue
 		}
@@ -187,9 +196,29 @@ func (a *app) startServed() {
 	a.served.Start()
 }
 
-// mountServed adds one folder's handler to the host and records the mount the
-// router looks up. The config entry must already exist.
+// mountServed takes the folder's lock, then adds its handler to the host and
+// records the mount the router looks up. The config entry must already exist.
 func (a *app) mountServed(f config.ServedFolder) error {
+	lock, err := a.servedFolderLock(f.Path)
+	if err != nil {
+		return err
+	}
+	if err := a.mountServedHeld(f, lock); err != nil {
+		lock.Release()
+		return err
+	}
+	return nil
+}
+
+// servedFolderLock is the one place a served folder's lock is taken. An error
+// leaves nothing locked, and ErrHeld means another process is serving the folder.
+func (a *app) servedFolderLock(folder string) (*folderlock.Lock, error) {
+	return folderlock.Acquire(a.rt.folderLockDir, folder)
+}
+
+// mountServedHeld adds one folder's handler to the host and records the mount,
+// with the lock the caller already holds. On error the caller still owns the lock.
+func (a *app) mountServedHeld(f config.ServedFolder, lock *folderlock.Lock) error {
 	host := servedHostName(f.Name, a.rt.port)
 	handler, err := a.served.AddRoot(served.RootSpec{ID: f.ID, Path: f.Path, PublicHost: host})
 	if err != nil {
@@ -206,6 +235,7 @@ func (a *app) mountServed(f config.ServedFolder) error {
 		handler: handler,
 		ctx:     ctx,
 		cancel:  cancel,
+		lock:    lock,
 	}
 	a.servedMu.Unlock()
 	return nil
@@ -244,15 +274,27 @@ func (a *app) serveFolder(path, name string) (config.ServedFolder, *appcore.Refu
 		return config.ServedFolder{}, refusal, nil
 	}
 
+	// The lock comes before anything written: a folder another HTML Clay process
+	// serves is refused while this profile's config is still untouched.
+	lock, err := a.servedFolderLock(facts.Path)
+	if err != nil {
+		if errors.Is(err, folderlock.ErrHeld) {
+			return config.ServedFolder{}, &appcore.Refusal{Code: appcore.RefuseServedElsewhere, OtherPath: facts.Path}, nil
+		}
+		return config.ServedFolder{}, nil, err
+	}
+
 	a.closeSitesForServed(facts.Path)
 
 	entry, err := a.rt.cfg.AddServedFolder(facts.Path, platform.DirIdentity(facts.Path), name)
 	if err != nil {
+		lock.Release()
 		return config.ServedFolder{}, nil, err
 	}
 	a.saveConfig("serve " + name)
 
-	if err := a.mountServed(entry); err != nil {
+	if err := a.mountServedHeld(entry, lock); err != nil {
+		lock.Release()
 		a.rt.cfg.SetServing(entry.ID, false)
 		a.saveConfig("failed serve " + name)
 		return config.ServedFolder{}, nil, err
@@ -338,6 +380,9 @@ func (a *app) stopServing(id string) error {
 			a.served.RemoveRoot(id)
 		}
 		mount.cancel()
+		if mount.lock != nil {
+			mount.lock.Release()
+		}
 	}
 	return nil
 }

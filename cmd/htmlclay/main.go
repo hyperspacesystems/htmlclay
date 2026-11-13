@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/served"
@@ -55,6 +56,9 @@ type appRuntime struct {
 	ls        *server.LiveSync
 	home      string
 	configDir string
+	// folderLockDir is where the per-folder serve locks live. It is shared by every
+	// profile on this account, so two HTML Clay processes never serve one folder.
+	folderLockDir string
 	// port is the one loopback port every site is served on, bound by startListener.
 	port  int
 	bound *boundPort
@@ -399,6 +403,14 @@ func (a *app) startRuntime() {
 	if resolved, rErr := resolveSymlinks(configDir); rErr == nil {
 		a.rt.configDir = resolved
 	}
+
+	// An unresolved lock directory is left empty on purpose: serving then refuses
+	// with that error instead of serving unlocked.
+	lockDir, lockErr := folderlock.DefaultDir()
+	if lockErr != nil {
+		a.rt.logger.Printf("Could not resolve the folder lock directory: %v", lockErr)
+	}
+	a.rt.folderLockDir = lockDir
 
 	a.rt.versions = versions.New(filepath.Join(configDir, "versions"))
 	// Prune once at startup; every later pass is opportunistic after a backup.

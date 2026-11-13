@@ -101,7 +101,11 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 			ls:        ls,
 			home:      home,
 			configDir: configDir,
-			confirm:   denyConfirm,
+			// Each test app gets a lock directory of its own, so a test and the app
+			// it stands in for never share the real one; a test that wants two
+			// processes to contend assigns the same directory to both.
+			folderLockDir: filepath.Join(t.TempDir(), "folder-locks"),
+			confirm:       denyConfirm,
 			// A page's on-use helper prompt is dismissed by default for the same
 			// reason: no test may put a real dialog on the user's screen, and a
 			// dismissed prompt grants nothing and stores nothing.
