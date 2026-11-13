@@ -26,6 +26,21 @@ const (
 	TextServeCLIWindows    = "htmlclay serve runs on macOS and Linux; on Windows use the HTML Clay menu" // TODO-COPY: CLI, on Windows, max 120 chars
 )
 
+// Why texts: the footnote or tooltip beside a control that is off.
+const (
+	TextWhyServeMissing          = "This folder can't be found where it was."           // TODO-COPY: why Serve is off, max 90 chars
+	TextWhyServeIdentityChanged  = "A different folder now sits where this one was."    // TODO-COPY: why Serve is off, max 90 chars
+	TextWhyServeServedByLocal    = "Hyperclay Local is serving this folder now."        // TODO-COPY: why Serve is off, max 90 chars
+	TextWhyServeBoundToLocalSync = "This folder syncs with Hyperclay Local."            // TODO-COPY: why Serve is off, max 90 chars
+	TextWhyNotOnComputer         = "This team folder isn't on this computer yet."       // TODO-COPY: why Serve or Sync is off, max 90 chars
+	TextWhySyncNotFromAccount    = "Only folders from your Hyperclay account can sync." // TODO-COPY: why Sync is off, max 90 chars
+	TextWhySyncConnectFirst      = "Connect your Hyperclay account first."              // TODO-COPY: why Sync is off, max 90 chars
+	TextWhySyncServeFirst        = "Serve this folder first."                           // TODO-COPY: why Sync is off, max 90 chars
+	TextWhySyncViewer            = "You can view this team folder but not change it."   // TODO-COPY: why Sync is off, max 90 chars
+	TextWhySyncMissing           = "This folder can't be found where it was."           // TODO-COPY: why Sync is off, max 90 chars
+	TextWhyStopTrustingServed    = "Stop serving this folder first."                    // TODO-COPY: why Stop Trusting is off, max 90 chars
+)
+
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
 // %s, where present, is the other folder (OtherPath, or OtherName when set).
 var RefusalText = map[string]string{

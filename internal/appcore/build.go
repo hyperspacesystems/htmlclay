@@ -72,6 +72,7 @@ func Build(f Facts) Snapshot {
 			folder.Address = fmt.Sprintf("%s.htmlclay.localhost:%d", ff.ServedName, f.Host.Port)
 			folder.URL = "http://" + folder.Address + "/"
 		}
+		folder.Can, folder.Why = folderRules(f, ff, folder.State)
 		s.Folders = append(s.Folders, folder)
 	}
 	for _, p := range f.Programs {

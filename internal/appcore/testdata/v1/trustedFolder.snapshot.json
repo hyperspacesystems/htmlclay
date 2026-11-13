@@ -60,15 +60,20 @@
         "downloadedToday": 0
       },
       "can": {
-        "serve": false,
+        "serve": true,
         "stopServing": false,
         "sync": false,
         "stopSyncing": false,
-        "stopTrusting": false,
+        "stopTrusting": true,
         "merge": false,
         "openWorkspace": false
       },
-      "why": {}
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
     },
     {
       "id": "journal",
@@ -95,15 +100,20 @@
         "downloadedToday": 0
       },
       "can": {
-        "serve": false,
+        "serve": true,
         "stopServing": false,
         "sync": false,
         "stopSyncing": false,
-        "stopTrusting": false,
-        "merge": false,
+        "stopTrusting": true,
+        "merge": true,
         "openWorkspace": false
       },
-      "why": {}
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
     },
     {
       "id": "clips",
@@ -130,15 +140,20 @@
         "downloadedToday": 0
       },
       "can": {
-        "serve": false,
+        "serve": true,
         "stopServing": false,
         "sync": false,
         "stopSyncing": false,
-        "stopTrusting": false,
-        "merge": false,
+        "stopTrusting": true,
+        "merge": true,
         "openWorkspace": false
       },
-      "why": {}
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
     }
   ],
   "programs": [

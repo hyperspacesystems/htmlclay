@@ -60,15 +60,20 @@
         "downloadedToday": 0
       },
       "can": {
-        "serve": false,
+        "serve": true,
         "stopServing": false,
         "sync": false,
         "stopSyncing": false,
-        "stopTrusting": false,
+        "stopTrusting": true,
         "merge": false,
         "openWorkspace": false
       },
-      "why": {}
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
     },
     {
       "id": "prototypes",
@@ -96,14 +101,23 @@
       },
       "can": {
         "serve": false,
-        "stopServing": false,
+        "stopServing": true,
         "sync": false,
         "stopSyncing": false,
         "stopTrusting": false,
         "merge": false,
-        "openWorkspace": false
+        "openWorkspace": true
       },
-      "why": {}
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        },
+        "stopTrusting": {
+          "code": "stop-serving-first",
+          "text": "Stop serving this folder first."
+        }
+      }
     }
   ],
   "programs": [
