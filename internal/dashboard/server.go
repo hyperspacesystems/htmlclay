@@ -32,7 +32,7 @@ const sessionMaxAge = 86400
 
 // TextHowToOpen is the page a request without a session gets when the person
 // did not start it themselves (another page linked or framed the dashboard).
-const TextHowToOpen = "To open the workspace, choose Open Workspace in the HTML Clay menu." // TODO-COPY: whole page body, one sentence, max 90 chars
+const TextHowToOpen = "To open the workspace, choose Open Workspace in the HTML Clay menu." // copy: whole page body, one sentence, max 90 chars
 
 // pagePath is every address the bundle renders: Local's own list.
 var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new))?$`)
