@@ -11,7 +11,7 @@ final class SettingsControlsTests: XCTestCase {
         "folder.stopServing", "folder.stopTrusting", "folder.merge", "program.removeAccess",
         "sync.disconnect", "folder.trust", "folder.serve", "file.open", "request.answer",
         "program.add", "sync.connect", "folder.setUpTeam", "move.start",
-        "program.setAllTrusted", "folder.setSynced",
+        "program.setAllTrusted", "folder.setSynced", "document.recover",
     ]
 
     private func sampleModel(_ persona: Persona = .fiveDocuments) -> AppModel {

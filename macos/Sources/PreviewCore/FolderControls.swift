@@ -25,6 +25,7 @@ public enum HostActionType {
     public static let documentReveal = "document.reveal"
     public static let documentForget = "document.forget"
     public static let documentExport = "document.export"
+    public static let documentRecover = "document.recover"
     public static let documentVersions = "document.versions"
     public static let updateStart = "update.start"
     public static let syncSetPaused = "sync.setPaused"

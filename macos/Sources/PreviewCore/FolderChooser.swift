@@ -12,11 +12,15 @@ public protocol FolderChooser: AnyObject {
     func chooseFile() async -> String?
     /// The program file the person picks for a request, or nil when they cancel.
     func chooseProgram() async -> String?
+    /// Where a missing document should be recovered, or nil when they cancel.
+    func chooseDestination(suggestedName: String) async -> String?
 }
 
 public extension FolderChooser {
     /// The preview has no program files, so a request's Choose a file… does nothing there.
     func chooseProgram() async -> String? { nil }
+    /// The preview has no save panel, so a recovery there does nothing.
+    func chooseDestination(suggestedName: String) async -> String? { nil }
 }
 
 /// The preview's chooser: cycles SampleData.servePaths, starting at the first one ServeRules accepts.

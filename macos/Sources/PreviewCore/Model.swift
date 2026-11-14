@@ -442,6 +442,7 @@ public enum HostAction: Equatable, Sendable {
     case revealDocument(id: String)
     case forgetDocument(id: String)
     case exportDocument(id: String)
+    case recoverDocument(id: String, destination: String)
     case openVersions(id: String)
     case openFile(path: String)
     case openDashboard(route: String)

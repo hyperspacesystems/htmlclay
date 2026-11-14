@@ -15,6 +15,12 @@ public enum PanelControls {
         isSample || can
     }
 
+    /// Whether a refused recovery means the person should pick another name: only
+    /// the host's destination-exists answer does, and no file is ever removed first.
+    public static func asksAnotherDestination(for code: String) -> Bool {
+        code == "destination-exists"
+    }
+
     /// Install an update, or restart to finish one.
     public static func showsUpdate(can: Bool) -> Bool { can }
 

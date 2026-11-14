@@ -35,6 +35,10 @@ public enum Strings {
             place.hasPrefix(homePrefix) ? String(place.dropFirst(homePrefix.count)) : place
         }
     }
+    public enum Recover {
+        public static let title = "Recover missing file" // TODO-COPY: save panel title, max 40 chars
+        public static let save = "Recover" // TODO-COPY: save panel button, max 20 chars
+    }
     public enum Menu {
         public static let settings = "Settings…"
         public static let checkForUpdates = "Check for updates…"
@@ -43,6 +47,7 @@ public enum Strings {
         public static let versionHistory = "Version history…"
         public static let showInFinder = "Show in Finder"
         public static let exportZip = "Export as zip…"
+        public static let recoverMissing = "Recover missing file…" // TODO-COPY: panel document menu, max 30 chars
         public static let removeFromRecent = "Remove from Recent"
         public static func needsYou(_ count: Int) -> String { "Needs you (\(count))" }
     }
@@ -398,6 +403,7 @@ public enum Strings {
         public static func wouldOpen(_ name: String) -> String { "Build 1: this would open \(name) in your browser." }
         public static func wouldShowInFinder(_ name: String) -> String { "Build 1: this would show \(name) in Finder." }
         public static func wouldExport(_ name: String) -> String { "Build 1: this would export \(name) as a zip file." }
+        public static func wouldRecover(_ name: String) -> String { "Build 1: this would ask where to save a recovered copy of \(name)." }
         public static func wouldRemove(_ name: String) -> String { "Build 1: this would remove \(name) from Recent." }
         public static func persona(_ persona: Persona) -> String {
             switch persona {

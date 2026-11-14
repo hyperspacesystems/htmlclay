@@ -9,6 +9,7 @@ final class HostActionWireTests: XCTestCase {
     private static let goArgumentNames: Set<String> = [
         "id", "ids", "path", "name", "route", "key", "value", "on", "allow", "paused", "force",
         "programID", "documentID", "revision", "answer", "username", "folderIDs", "acknowledged",
+        "destination",
     ]
 
     private static let everyAction: [HostAction] = [
@@ -49,6 +50,7 @@ final class HostActionWireTests: XCTestCase {
         .revealDocument(id: "d1"),
         .forgetDocument(id: "d1"),
         .exportDocument(id: "d1"),
+        .recoverDocument(id: "d1", destination: "/tmp/recovered.html"),
         .openVersions(id: "d1"),
         .openFile(path: "/tmp/file.html"),
         .openDashboard(route: "/folders"),

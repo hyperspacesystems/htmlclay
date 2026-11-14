@@ -236,6 +236,15 @@ public struct PanelView: View {
                         }
                     }
                 }
+                if document.fileMissing, PanelControls.showsDocumentAction(HostActionType.documentRecover, in: snapshot) {
+                    Button(Strings.Menu.recoverMissing) {
+                        if snapshot.isSample {
+                            model.say(Strings.Preview.wouldRecover(document.name))
+                        } else {
+                            model.recoverDocument(document)
+                        }
+                    }
+                }
                 if PanelControls.showsDocumentAction(HostActionType.documentReveal, in: snapshot) {
                     Button(Strings.Menu.showInFinder) {
                         if snapshot.isSample {

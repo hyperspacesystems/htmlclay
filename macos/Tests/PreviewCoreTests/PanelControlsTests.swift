@@ -15,6 +15,8 @@ final class PanelControlsTests: XCTestCase {
         XCTAssertTrue(PanelControls.showsDocumentAction(HostActionType.documentReveal, in: model.snapshot))
         XCTAssertTrue(PanelControls.showsDocumentAction(HostActionType.documentForget, in: model.snapshot))
         XCTAssertTrue(PanelControls.showsExport(isSample: model.isSample))
+        XCTAssertTrue(PanelControls.asksAnotherDestination(for: "destination-exists"))
+        XCTAssertFalse(PanelControls.asksAnotherDestination(for: "failed"))
         XCTAssertTrue(PanelControls.showsUpdate(can: model.can(HostActionType.updateStart)))
         XCTAssertTrue(PanelControls.showsSyncPause(can: model.can(HostActionType.syncSetPaused)))
         XCTAssertTrue(PanelControls.showsAnswer(can: model.can(HostActionType.requestAnswer)))

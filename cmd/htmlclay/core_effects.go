@@ -68,6 +68,9 @@ func (a *app) implemented() []string {
 		if typ == "request.answer" && !a.shell {
 			continue
 		}
+		if typ == "document.recover" && !a.shell {
+			continue
+		}
 		if typ == "document.versions" && !served {
 			continue
 		}

@@ -84,6 +84,28 @@ public final class AppModel {
         }
     }
 
+    /// Asks the real app where a missing document should be recovered, and asks
+    /// again for another name when a file is already there. Nothing is ever
+    /// removed to make room.
+    public func recoverDocument(_ document: RecentDocument) {
+        Task {
+            guard var destination = await folderChooser?.chooseDestination(suggestedName: document.name),
+                  !destination.isEmpty else { return }
+            while true {
+                let outcome = await run(.recoverDocument(id: document.id, destination: destination), announce: true)
+                switch outcome {
+                case .done:
+                    return
+                case let .refused(refusal):
+                    guard PanelControls.asksAnotherDestination(for: refusal.code),
+                          let next = await folderChooser?.chooseDestination(suggestedName: document.name),
+                          !next.isEmpty else { return }
+                    destination = next
+                }
+            }
+        }
+    }
+
     /// The value a control should show while its setting is pending: the newest the person chose.
     public func pending(_ slot: String) -> HostAction? {
         queued[slot] ?? inFlight[slot]
