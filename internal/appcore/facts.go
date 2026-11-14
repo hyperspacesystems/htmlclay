@@ -75,15 +75,16 @@ type FolderFact struct {
 }
 
 type RequestFact struct {
-	ID         string `json:"id"`
-	Kind       string `json:"kind"`
-	Revision   uint64 `json:"revision"`
-	DocumentID string `json:"documentID"`
-	Document   string `json:"document"`
-	Program    string `json:"program"`
-	Folder     string `json:"folder"`
-	Path       string `json:"path"`
-	Detail     string `json:"detail"`
+	ID         string   `json:"id"`
+	Kind       string   `json:"kind"`
+	Revision   uint64   `json:"revision"`
+	DocumentID string   `json:"documentID"`
+	Document   string   `json:"document"`
+	Program    string   `json:"program"`
+	Folder     string   `json:"folder"`
+	Path       string   `json:"path"`
+	Detail     string   `json:"detail"`
+	Answers    []string `json:"answers"`
 }
 
 // EventFact is something that happened and waits for the person, other than what

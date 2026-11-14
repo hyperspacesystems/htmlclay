@@ -103,9 +103,9 @@ var preferenceKeys = map[string]string{
 // requestAnswers is what each request kind offers, the preview's request window
 // (macos/Sources/PreviewUI/Screens/Request/RequestBody.swift).
 var requestAnswers = map[string][]string{
-	RequestFound:           {"deny", "allow-document", "allow-all-trusted"},
+	RequestFound:           {"deny", "allow-document", "allow-all-trusted", "choose-file"},
 	RequestNoFile:          {"deny", "choose-file"},
-	RequestTeamDocument:    {"deny", "allow-document"},
+	RequestTeamDocument:    {"deny", "allow-document", "choose-file"},
 	RequestRiskyFile:       {"deny", "choose-file", "allow-anyway"},
 	RequestFolderRead:      {"deny", "allow-once", "trust-folder"},
 	RequestFolderReadAgain: {"deny", "trust-folder"},
@@ -124,6 +124,7 @@ type Effect struct {
 	ProgramID  string          `json:"programID,omitempty"`
 	DocumentID string          `json:"documentID,omitempty"`
 	RequestID  string          `json:"requestID,omitempty"`
+	Revision   uint64          `json:"revision,omitempty"`
 	Answer     string          `json:"answer,omitempty"`
 	Key        string          `json:"key,omitempty"`
 	Value      json.RawMessage `json:"value,omitempty"`
@@ -316,10 +317,10 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if args.Revision != r.Revision {
 			return nil, &Refusal{Code: RefuseRequestChanged, SubjectID: r.ID}
 		}
-		if !slices.Contains(requestAnswers[r.Kind], args.Answer) {
+		if !slices.Contains(r.Answers, args.Answer) {
 			return nil, &Refusal{Code: RefuseAnswerNotOffered, Field: "answer", SubjectID: r.ID}
 		}
-		return one(Effect{Type: a.Type, RequestID: r.ID, Answer: args.Answer})
+		return one(Effect{Type: a.Type, RequestID: r.ID, Revision: r.Revision, Answer: args.Answer, Path: args.Path})
 	case "program.add":
 		if args.Path == "" {
 			return bad("path")

@@ -3,6 +3,7 @@ package appcore
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -95,6 +96,10 @@ func Build(f Facts) Snapshot {
 		s.Programs = append(s.Programs, program)
 	}
 	for _, r := range f.Requests {
+		answers := AnswersFor(r.Kind)
+		if len(r.Answers) > 0 {
+			answers = slices.Clone(r.Answers)
+		}
 		s.Requests = append(s.Requests, Request{
 			ID:         r.ID,
 			Kind:       r.Kind,
@@ -105,7 +110,7 @@ func Build(f Facts) Snapshot {
 			Folder:     r.Folder,
 			Path:       r.Path,
 			Detail:     r.Detail,
-			Answers:    AnswersFor(r.Kind),
+			Answers:    answers,
 		})
 	}
 	s.Counts = counts(s.Waiting)

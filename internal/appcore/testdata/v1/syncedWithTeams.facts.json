@@ -238,7 +238,12 @@
       "program": "todo-search",
       "folder": "Notes",
       "path": "/Users/sam/bin/todo-search",
-      "detail": ""
+      "detail": "",
+      "answers": [
+        "deny",
+        "allow-document",
+        "allow-all-trusted"
+      ]
     }
   ],
   "events": [

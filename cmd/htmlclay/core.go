@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/trust"
 )
@@ -53,7 +54,8 @@ type coreState struct {
 	answerOrder []string
 	subs        map[int]chan appcore.Snapshot
 	nextSub     int
-	pending     *time.Timer // coalescing timer, nil when idle
+	pending     *time.Timer       // coalescing timer, nil when idle
+	requests    *confirm.Registry // the questions waiting for the person
 
 	watching   bool                 // the facts watcher runs while anyone subscribes
 	lastFacts  [32]byte             // digest of the facts the watcher last saw
@@ -99,6 +101,9 @@ func (a *app) initCore() {
 	if a.core.epoch == "" {
 		a.core.epoch = newEpoch()
 	}
+	if a.core.requests == nil {
+		a.core.requests = confirm.New(a.changed)
+	}
 }
 
 // newEpoch answers 16 lowercase hex characters no other run of the core has.
@@ -135,8 +140,9 @@ func (a *app) facts() appcore.Facts {
 		OS:          runtime.GOOS,
 		Port:        a.rt.port,
 		Service:     a.service.state(),
-		Implemented: implementedActions,
+		Implemented: a.implemented(),
 	}
+	f.Requests = a.requestFacts()
 	f.Folders = a.folderFacts()
 	f.Documents = a.documentFacts()
 	f.Programs = a.programFacts()

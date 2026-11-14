@@ -28,8 +28,24 @@ var implementedActions = []string{
 	"folder.trust",
 	"host.quit",
 	"prefs.set",
+	"request.answer",
 	"service.restart",
 	"waiting.markSeen",
+}
+
+// implemented lists the actions this host runs now: request.answer is answered
+// by the Mac app's window, so only a host the Mac app started offers it.
+func (a *app) implemented() []string {
+	if a.shell {
+		return implementedActions
+	}
+	out := make([]string, 0, len(implementedActions))
+	for _, typ := range implementedActions {
+		if typ != "request.answer" {
+			out = append(out, typ)
+		}
+	}
+	return out
 }
 
 // revealPath shows a folder in the file manager through the runtime seam, so a
@@ -165,6 +181,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
 	case "file.open":
 		return a.openPath(e.Path)
+	case "request.answer":
+		return a.answerRequest(e)
 	}
 	return &appcore.Refusal{Code: appcore.RefuseNotYet}
 }
