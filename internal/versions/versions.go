@@ -1220,6 +1220,257 @@ func (s *Store) Pinned(key, absPath string) ([]string, error) {
 	return m.Pinned, nil
 }
 
+// KeptHistory is one document's kept copies: the history folder that holds them,
+// the document the history is bound to, and the versions the user has not deleted.
+type KeptHistory struct {
+	Folder  string
+	Name    string
+	AbsPath string
+	Entries []Entry
+}
+
+// ErrNotKept is returned when a version is not one of the kept copies.
+var ErrNotKept = errors.New("version is not a kept copy")
+
+// openKept opens the history folder named folder beneath vroot and reads its
+// meta. A folder that is not listed, is a symlink, or is not a directory is
+// refused, so nothing outside the store can be reached through this path.
+func openKept(vroot *os.Root, folder string) (*os.Root, meta, error) {
+	dirents, err := readDirNames(vroot, ".")
+	if err != nil {
+		return nil, meta{}, err
+	}
+	listed := false
+	for _, d := range dirents {
+		if d.IsDir() && d.Name() == folder {
+			listed = true
+			break
+		}
+	}
+	if !listed {
+		return nil, meta{}, ErrNoHistory
+	}
+	hroot, err := openVerifiedChild(vroot, folder, false)
+	if err != nil {
+		return nil, meta{}, err
+	}
+	m, err := readMeta(hroot)
+	if err != nil {
+		hroot.Close()
+		return nil, meta{}, err
+	}
+	return hroot, m, nil
+}
+
+// removeKept deletes the kept copies for which drop returns true. The pin is
+// dropped from meta.json before any file is removed, so a crash between the two
+// leaves an ordinary unpinned version rather than a pin pointing at nothing.
+// Only names in meta.Pinned can be removed.
+func removeKept(hroot *os.Root, m meta, drop func(name string) bool) (int, error) {
+	entries, err := listEntries(hroot)
+	if err != nil {
+		return 0, err
+	}
+	present := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		present[e.Name] = true
+	}
+	var keep, remove []string
+	for _, name := range m.Pinned {
+		switch {
+		case !present[name]:
+		case drop(name):
+			remove = append(remove, name)
+		default:
+			keep = append(keep, name)
+		}
+	}
+	if len(remove) == 0 {
+		return 0, ErrNotKept
+	}
+	m.Pinned = keep
+	if err := publishMeta(hroot, m); err != nil {
+		return 0, err
+	}
+	for _, name := range remove {
+		if err := hroot.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return 0, err
+		}
+	}
+	return len(remove), syncDirRoot(hroot)
+}
+
+// ListKept returns every kept copy in the store, newest version first per
+// document, with the documents sorted by name. A document with nothing kept is
+// omitted, and a pin whose file is gone from disk is not listed.
+func (s *Store) ListKept() ([]KeptHistory, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer vroot.Close()
+
+	dirents, err := readDirNames(vroot, ".")
+	if err != nil {
+		return nil, err
+	}
+	var kept []KeptHistory
+	for _, d := range dirents {
+		if !d.IsDir() {
+			continue
+		}
+		hroot, err := openVerifiedChild(vroot, d.Name(), false)
+		if err != nil {
+			continue
+		}
+		m, mErr := readMeta(hroot)
+		if mErr != nil || len(m.Pinned) == 0 {
+			hroot.Close()
+			continue
+		}
+		entries, err := listEntries(hroot)
+		hroot.Close()
+		if err != nil {
+			continue
+		}
+		pinned := make(map[string]bool, len(m.Pinned))
+		for _, name := range m.Pinned {
+			pinned[name] = true
+		}
+		var history []Entry
+		for i := len(entries) - 1; i >= 0; i-- {
+			if !pinned[entries[i].Name] {
+				continue
+			}
+			entries[i].Pinned = true
+			history = append(history, entries[i])
+		}
+		if len(history) == 0 {
+			continue
+		}
+		kept = append(kept, KeptHistory{
+			Folder:  d.Name(),
+			Name:    m.Name,
+			AbsPath: m.AbsPath,
+			Entries: history,
+		})
+	}
+	sort.Slice(kept, func(i, j int) bool { return kept[i].Name < kept[j].Name })
+	return kept, nil
+}
+
+// DeleteKept removes one kept copy: the pin and the file both go. Other versions
+// of the document are left alone, and a name that is not a kept copy is refused.
+func (s *Store) DeleteKept(folder, name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, _, err := ParseEntryName(name); err != nil {
+		return ErrNotKept
+	}
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return ErrNoHistory
+		}
+		return err
+	}
+	defer vroot.Close()
+
+	hroot, m, err := openKept(vroot, folder)
+	if err != nil {
+		return err
+	}
+	defer hroot.Close()
+	_, err = removeKept(hroot, m, func(n string) bool { return n == name })
+	return err
+}
+
+// DeleteKeptNames removes the named kept copies of one document and reports how
+// many files were deleted. A name that is no longer pinned is skipped, and an
+// unpinned version of that document is untouched.
+func (s *Store) DeleteKeptNames(folder string, names []string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	drop := make(map[string]bool, len(names))
+	for _, name := range names {
+		if _, _, err := ParseEntryName(name); err != nil {
+			return 0, ErrNotKept
+		}
+		drop[name] = true
+	}
+
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return 0, ErrNoHistory
+		}
+		return 0, err
+	}
+	defer vroot.Close()
+
+	hroot, m, err := openKept(vroot, folder)
+	if err != nil {
+		return 0, err
+	}
+	defer hroot.Close()
+	return removeKept(hroot, m, func(name string) bool { return drop[name] })
+}
+
+// KeptPath returns the on-disk path of one kept copy. It answers only for a name
+// that is pinned and still present, so a caller can serve exactly what the user
+// has kept and nothing else.
+func (s *Store) KeptPath(folder, name string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", ErrNotKept
+		}
+		return "", err
+	}
+	defer vroot.Close()
+
+	hroot, m, err := openKept(vroot, folder)
+	if err != nil {
+		if errors.Is(err, ErrNoHistory) || errors.Is(err, fs.ErrNotExist) {
+			return "", ErrNotKept
+		}
+		return "", err
+	}
+	defer hroot.Close()
+
+	listed := false
+	for _, pinned := range m.Pinned {
+		if pinned == name {
+			listed = true
+			break
+		}
+	}
+	if !listed {
+		return "", ErrNotKept
+	}
+	entries, err := listEntries(hroot)
+	if err != nil {
+		return "", err
+	}
+	for _, e := range entries {
+		if e.Name == name {
+			return filepath.Join(s.baseDir, folder, name), nil
+		}
+	}
+	return "", ErrNotKept
+}
+
 // Read returns the bytes of one version. name must be exactly one generated
 // filename; the file is opened beneath the resolved history root through os.Root
 // so a swapped symlink cannot escape, and must be a regular file.

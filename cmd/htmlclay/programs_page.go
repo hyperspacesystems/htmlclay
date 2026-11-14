@@ -122,15 +122,15 @@ func (p *programsAuth) pruneLocked(now time.Time) {
 }
 
 // session returns the CSRF token of the request's live session.
-func (p *programsAuth) session(r *http.Request, now time.Time) (string, bool) {
-	cookie, err := r.Cookie(programsCookie)
-	if err != nil || cookie.Value == "" {
+func (p *programsAuth) session(r *http.Request, cookie string, now time.Time) (string, bool) {
+	ck, err := r.Cookie(cookie)
+	if err != nil || ck.Value == "" {
 		return "", false
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.pruneLocked(now)
-	s, ok := p.sessions[cookie.Value]
+	s, ok := p.sessions[ck.Value]
 	if !ok {
 		return "", false
 	}
@@ -204,7 +204,7 @@ func (a *app) servePrograms(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		csrf, ok := a.programs.session(r, now)
+		csrf, ok := a.programs.session(r, programsCookie, now)
 		if !ok {
 			a.renderProgramsSignIn(w, nonce)
 			return
@@ -215,7 +215,7 @@ func (a *app) servePrograms(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		csrf, ok := a.programs.session(r, now)
+		csrf, ok := a.programs.session(r, programsCookie, now)
 		origin := fmt.Sprintf("http://127.0.0.1:%d", a.rt.port)
 		if !ok || r.Header.Get("Origin") != origin || (r.Header.Get("Sec-Fetch-Site") != "" && r.Header.Get("Sec-Fetch-Site") != "same-origin") {
 			http.Error(w, "Forbidden", http.StatusForbidden)

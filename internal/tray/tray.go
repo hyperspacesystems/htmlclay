@@ -118,6 +118,7 @@ type Tray struct {
 	version       string
 	onOpenExample func()
 	onOpenBackups func()
+	onOpenKept    func()
 	onQuit        func()
 	updateCh      <-chan UpdateInfo
 	updateItem    *systray.MenuItem
@@ -136,12 +137,13 @@ type Tray struct {
 	notice string
 }
 
-func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups func(), onQuit func(), updateCh <-chan UpdateInfo, trusted *TrustedFolderHooks, helpers *HelperHooks, export *ExportHooks, notice string) {
+func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups func(), onOpenKept func(), onQuit func(), updateCh <-chan UpdateInfo, trusted *TrustedFolderHooks, helpers *HelperHooks, export *ExportHooks, notice string) {
 	t := &Tray{
 		cfg:           cfg,
 		version:       version,
 		onOpenExample: onOpenExample,
 		onOpenBackups: onOpenBackups,
+		onOpenKept:    onOpenKept,
 		onQuit:        onQuit,
 		updateCh:      updateCh,
 		trusted:       trusted,
@@ -407,6 +409,7 @@ func (t *Tray) onReady() {
 
 	exampleItem := systray.AddMenuItem("Open Example File", "Create and open a sample self-saving HTML file")
 	backupsItem := systray.AddMenuItem("Backups", "Open the folder holding every saved version of your files")
+	keptItem := systray.AddMenuItem("Kept Copies…", "See and delete the copies HTML Clay kept when a change outside a page removed data")
 	if t.export != nil {
 		em, _ := newListMenu("Export as Zip", "Save an open file and its attachments as one zip in Downloads", "No files open", "", "")
 		em.rowTooltip = "Click to save this file and its attachments as a zip in Downloads"
@@ -444,6 +447,8 @@ func (t *Tray) onReady() {
 				go t.onOpenExample()
 			case <-backupsItem.ClickedCh:
 				go t.onOpenBackups()
+			case <-keptItem.ClickedCh:
+				go t.onOpenKept()
 			case <-loginItem.ClickedCh:
 				t.toggleLoginItem(loginItem)
 			case <-aiEditItem.ClickedCh:

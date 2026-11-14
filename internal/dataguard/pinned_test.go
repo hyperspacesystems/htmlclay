@@ -1,6 +1,8 @@
 package dataguard_test
 
 import (
+	"bytes"
+	"path/filepath"
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/dataguard"
@@ -174,5 +176,121 @@ func TestProvenReaderRemovingDataPinsNothing(t *testing.T) {
 		t.Fatal(err)
 	} else if len(names) != 0 {
 		t.Fatalf("a proven reader's intended change pinned %v", names)
+	}
+}
+
+// keptCopyThenNotice drives one document to the state a user reaches after a kept
+// copy and a pending notice: a silent old loss pins a version, and a later recent
+// loss raises a notice on top of it. It returns the harness, the notice, the bytes
+// the outside writer left on disk, and the history folder name.
+func keptCopyThenNotice(t *testing.T) (*harness, *dataguard.ClientEvent, []byte, string) {
+	t.Helper()
+	untyped := putBackHTML("Board", []string{"red"}, putBackItem{"5", "five", ""}, putBackItem{"6", "six", "six note"})
+	firstTyped := putBackHTML("Board", []string{"red"}, putBackItem{"5", "five", "my note"}, putBackItem{"6", "six", "six note"})
+	secondTyped := putBackHTML("Board", []string{"red"}, putBackItem{"5", "five", "my second note"}, putBackItem{"6", "six", "six note"})
+
+	h := newHarness(t)
+	h.backupForTest(untyped)
+	if event := h.observe(untyped, nil, dataguard.External); event != nil {
+		t.Fatalf("cold seed fired: %+v", event)
+	}
+	h.clock = 1000
+	h.backupForTest(firstTyped)
+	if event := h.observe(firstTyped, untyped, dataguard.UIGestured); event != nil {
+		t.Fatalf("the person's save fired: %+v", event)
+	}
+
+	// An old outside write takes the typed note away. The guard stays silent, so
+	// the version it replaced is kept.
+	h.clock = 1000 + 2*60*60*1000
+	h.backupForTest(untyped)
+	if event := h.observe(untyped, nil, dataguard.External); event != nil {
+		t.Fatalf("an old loss fired: %+v", event)
+	}
+	if len(h.pinnedBodies()) == 0 {
+		t.Fatal("the silent loss kept no copy")
+	}
+
+	// The person types again, and a recent outside write takes that away too.
+	h.clock += 5 * 60 * 1000
+	h.backupForTest(secondTyped)
+	if event := h.observe(secondTyped, untyped, dataguard.UIGestured); event != nil {
+		t.Fatalf("the person's second save fired: %+v", event)
+	}
+
+	h.clock += 5 * 60 * 1000
+	h.backupForTest(untyped)
+	fired := h.observe(untyped, nil, dataguard.External)
+	if fired == nil {
+		t.Fatal("a recent outside loss raised no notice")
+	}
+
+	folder, err := h.v.ExistingFolder(h.key, h.docPath)
+	if err != nil {
+		t.Fatalf("existing folder: %v", err)
+	}
+	return h, fired, untyped, filepath.Base(folder)
+}
+
+// Deleting the copies the guard kept must not disarm an open notice: answering it
+// still needs the guard's own recover data and the versions still on disk, neither
+// of which is a kept copy.
+func TestDeletingAKeptCopyLeavesAnOpenNoticeResolvable(t *testing.T) {
+	h, fired, outside, folder := keptCopyThenNotice(t)
+	if !fired.CanPutBack {
+		t.Fatalf("a typed note on an item that is still there offered no put-back: %+v", fired)
+	}
+	keptNames, err := h.v.Pinned(h.key, h.docPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n, err := h.v.DeleteKeptNames(folder, keptNames); err != nil || n == 0 {
+		t.Fatalf("DeleteKeptNames = %d, %v; want the kept copies gone", n, err)
+	}
+	if names, err := h.v.Pinned(h.key, h.docPath); err != nil {
+		t.Fatal(err)
+	} else if len(names) != 0 {
+		t.Fatalf("pins after deleting the kept copies: %v", names)
+	}
+
+	var written []byte
+	res, err := h.guard.Resolve(h.key, h.docPath, fired.ID, "put-back", outside, h.writeBack(&written))
+	if err != nil {
+		t.Fatalf("put-back after deleting the kept copies: %v", err)
+	}
+	if res.Status != "put-back" {
+		t.Fatalf("status = %q, want put-back", res.Status)
+	}
+	want := putBackHTML("Board", []string{"red"}, putBackItem{"5", "five", "my second note"}, putBackItem{"6", "six", "six note"})
+	if got := islandJSON(t, written); !bytes.Equal(got, islandJSON(t, want)) {
+		t.Fatalf("island after put-back = %s, want %s", got, islandJSON(t, want))
+	}
+}
+
+// Undo the change still has its recover copy after the kept copies are deleted.
+func TestDeletingAKeptCopyLeavesRevertAvailable(t *testing.T) {
+	h, fired, outside, folder := keptCopyThenNotice(t)
+	if !fired.Restorable {
+		t.Fatalf("a page with rows to fill offered no restore: %+v", fired)
+	}
+	keptNames, err := h.v.Pinned(h.key, h.docPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n, err := h.v.DeleteKeptNames(folder, keptNames); err != nil || n == 0 {
+		t.Fatalf("DeleteKeptNames = %d, %v; want the kept copies gone", n, err)
+	}
+
+	var written []byte
+	res, err := h.guard.Resolve(h.key, h.docPath, fired.ID, "revert", outside, h.writeBack(&written))
+	if err != nil {
+		t.Fatalf("revert after deleting the kept copies: %v", err)
+	}
+	if res.Status != "reverted" {
+		t.Fatalf("status = %q, want reverted", res.Status)
+	}
+	want := h.recoverCopy()
+	if !bytes.Equal(islandJSON(t, written), islandJSON(t, want)) {
+		t.Fatalf("island after revert = %s, want the recover copy %s", islandJSON(t, written), islandJSON(t, want))
 	}
 }

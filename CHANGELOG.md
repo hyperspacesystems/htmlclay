@@ -10,6 +10,7 @@ Releases before 1.9.0 are recorded in the ecosystem changelog at
 - A bar at the top of a document whose programs are not set up starts setup, and so does the page's own button. The bar names only the programs the document declares.
 - A new optional `data-program-file` attribute on a helper declaration names the program's file when it differs from the name the document uses.
 - The Programs page, opened from **Programs → Manage Programs…**, lists every program and which documents may run it, and removes access. A program whose file has moved can be pointed at its new place, from the page or the tray, and keeps every document that was allowed to use it.
+- **Kept Copies…** in the HTML Clay menu opens a page listing every copy HTML Clay kept because a change made outside a page removed data, with each copy's date and size. Each copy can be shown in Finder (or the file manager) or deleted, one at a time or all copies of a document at once.
 
 ### Fixed
 - On Windows, the program file picker opens in front of the browser instead of behind it.
