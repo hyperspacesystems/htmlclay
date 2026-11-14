@@ -21,7 +21,7 @@ func (a *app) selectFolder(prompt string) (string, bool, error) {
 	if a.rt.selectFolder != nil {
 		return a.rt.selectFolder(prompt)
 	}
-	return platform.SelectFolder(prompt)
+	return a.dialogs().selectFolder(prompt)
 }
 
 // copyText puts text on the clipboard through the runtime seam, so a test reads

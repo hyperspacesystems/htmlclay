@@ -54,23 +54,23 @@ type helperDecisionUndo struct {
 func (a *app) systemHelperApprovalDialogs() helperApprovalDialogs {
 	setup := a.rt.chooseHelperSetup
 	if setup == nil {
-		setup = platform.Choose
+		setup = a.dialogs().choose
 	}
 	choose := a.rt.chooseHelperProgram
 	if choose == nil {
-		choose = platform.SelectFile
+		choose = a.dialogs().selectFile
 	}
 	prepare := a.rt.prepareHelperProgram
 	if prepare == nil {
 		prepare = func(path string) (bool, error) {
-			return prepareHelperProgram(path, platform.ConfirmWithButtons)
+			return prepareHelperProgram(path, a.dialogs().confirmWithButtons)
 		}
 	}
 	return helperApprovalDialogs{
 		setup:   setup,
 		choose:  choose,
 		prepare: prepare,
-		confirm: platform.ConfirmWithButtons,
+		confirm: a.dialogs().confirmWithButtons,
 	}
 }
 

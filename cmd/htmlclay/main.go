@@ -100,6 +100,10 @@ type appRuntime struct {
 	// that auto-approves read grants must not silently auto-approve the
 	// write-granting dialog too.
 	confirmTrust func(title, message, affirmative string) (bool, error)
+	// dialogAttempt, when set, stands in for showing a real dialog: the dialog
+	// seam refuses instead and reports which one was asked for, so a test fails
+	// rather than opening a window on the machine. Production leaves it nil.
+	dialogAttempt func(name string)
 	// chooseHelperSetup overrides the dialog that connects a program to a
 	// document. Production leaves it nil and uses platform.Choose.
 	chooseHelperSetup func(title, message, refuse, middle, affirm string) (platform.Choice, error)

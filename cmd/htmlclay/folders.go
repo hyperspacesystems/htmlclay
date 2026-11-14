@@ -420,7 +420,7 @@ func (a *app) confirmTrustRequest(title, message, affirmative string) (bool, err
 	if a.rt.confirmTrust != nil {
 		return a.rt.confirmTrust(title, message, affirmative)
 	}
-	return platform.ConfirmWithButtons(title, message, affirmative)
+	return a.dialogs().confirmWithButtons(title, message, affirmative)
 }
 
 // confirmTrayChange is confirmTrustRequest for a change the user started from
@@ -430,7 +430,7 @@ func (a *app) confirmTrayChange(title, message, affirmative string) (bool, error
 	if a.rt.confirmTrust != nil {
 		return a.rt.confirmTrust(title, message, affirmative)
 	}
-	return platform.ConfirmChange(title, message, affirmative)
+	return a.dialogs().confirmChange(title, message, affirmative)
 }
 
 // reportTrustRefused tells the user why a folder was not remembered. Staying
@@ -514,7 +514,7 @@ func (a *app) shadowedBy(dir string) (string, bool) {
 // once for a personal folder, because picking ~/Documents by accident from a
 // file dialog is easy and the consequence is the whole tree.
 func (a *app) pickAndTrustFolder() []tray.Row {
-	dir, ok, err := platform.SelectFolder("Choose a folder to trust. Every HTML Clay file inside it (including files added later) opens editable with no prompts, and any file in it can change any other.")
+	dir, ok, err := a.dialogs().selectFolder("Choose a folder to trust. Every HTML Clay file inside it (including files added later) opens editable with no prompts, and any file in it can change any other.")
 	if err != nil {
 		a.rt.logger.Printf("Folder picker failed: %v", err)
 		return a.trustedFolderRows()

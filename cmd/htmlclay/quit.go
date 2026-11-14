@@ -54,7 +54,7 @@ func (a *app) unsavedLine(doc unsavedDoc) string {
 // and otherwise asks, as Hyperclay Local does, until the edits save, the person
 // cancels, or they choose to quit anyway.
 func (a *app) confirmQuit() bool {
-	confirm := platform.Confirm
+	confirm := a.dialogs().confirm
 	if a.rt.confirmQuit != nil {
 		confirm = a.rt.confirmQuit
 	}

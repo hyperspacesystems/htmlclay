@@ -19,11 +19,77 @@ const readChoiceTrustFolder = "trust-folder"
 // is the seam a test drives instead of the real dialog.
 type dialogConfirm func(title, message string, allowTrust bool) (platform.ConfirmChoice, error)
 
+// platformDialogs is the one seam every native dialog in this package goes
+// through. Under the Mac app there is no window a dialog could appear in, and a
+// question nobody sees is a grant nobody gave, so a call there is refused: it
+// logs one line and answers deny. A test hook stands in for showing the dialog,
+// so a call that would open one fails the test instead of the machine.
+type platformDialogs struct {
+	app *app
+}
+
+func (a *app) dialogs() platformDialogs { return platformDialogs{app: a} }
+
+// attempt reports whether this call is refused instead of shown.
+func (d platformDialogs) attempt(name string) bool {
+	if d.app.shell {
+		d.app.rt.logger.Printf("No %s dialog when the Mac app runs this host; the answer is no", name)
+		return true
+	}
+	if d.app.rt.dialogAttempt != nil {
+		d.app.rt.dialogAttempt(name)
+		return true
+	}
+	return false
+}
+
+func (d platformDialogs) confirm(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error) {
+	if d.attempt("confirm") {
+		return platform.ConfirmDeny, nil
+	}
+	return platform.Confirm(title, message, labels)
+}
+
+func (d platformDialogs) confirmWithButtons(title, message, allowLabel string) (bool, error) {
+	if d.attempt("confirm") {
+		return false, nil
+	}
+	return platform.ConfirmWithButtons(title, message, allowLabel)
+}
+
+func (d platformDialogs) confirmChange(title, message, actionLabel string) (bool, error) {
+	if d.attempt("confirm-change") {
+		return false, nil
+	}
+	return platform.ConfirmChange(title, message, actionLabel)
+}
+
+func (d platformDialogs) choose(title, message, refuse, middle, affirm string) (platform.Choice, error) {
+	if d.attempt("choose") {
+		return platform.ChoiceRefuse, nil
+	}
+	return platform.Choose(title, message, refuse, middle, affirm)
+}
+
+func (d platformDialogs) selectFile(prompt, dir string) (string, bool, error) {
+	if d.attempt("select-file") {
+		return "", false, nil
+	}
+	return platform.SelectFile(prompt, dir)
+}
+
+func (d platformDialogs) selectFolder(prompt string) (string, bool, error) {
+	if d.attempt("select-folder") {
+		return "", false, nil
+	}
+	return platform.SelectFolder(prompt)
+}
+
 // readConfirmer is how a page's read question reaches the person: the registry
 // when the Mac app runs this host, so the question shows in the request window,
 // and the native dialog otherwise.
 func (a *app) readConfirmer() confirm.Confirmer {
-	return a.presenter(readDialog{confirm: a.rt.confirm})
+	return a.presenter(readDialog{app: a, confirm: a.rt.confirm})
 }
 
 // trustConfirmer is readConfirmer for a page's request to trust its own folder.
@@ -130,13 +196,14 @@ func (a *app) isMainFolder(dir string) bool {
 
 // readDialog presents the read question with today's native dialog.
 type readDialog struct {
+	app     *app
 	confirm dialogConfirm
 }
 
 func (d readDialog) Ask(_ context.Context, ask confirm.Ask) (confirm.Reply, error) {
 	show := d.confirm
 	if show == nil {
-		show = defaultReadDialog
+		show = d.app.readPrompt
 	}
 	allowTrust := slices.Contains(ask.Answers, readChoiceTrustFolder)
 	title, message := server.ReadDialogText(ask)
@@ -146,17 +213,16 @@ func (d readDialog) Ask(_ context.Context, ask confirm.Ask) (confirm.Reply, erro
 
 func (readDialog) Close(string) {}
 
-// defaultReadDialog is the real dialog the app shows when no test seam is
-// installed. Its labels are this prompt's own: its wider grant really is
-// trusting a folder.
-func defaultReadDialog(title, message string, allowTrust bool) (platform.ConfirmChoice, error) {
+// readPrompt is the real dialog the app shows when no test seam is installed.
+// Its labels are this prompt's own: its wider grant really is trusting a folder.
+func (a *app) readPrompt(title, message string, allowTrust bool) (platform.ConfirmChoice, error) {
 	if allowTrust {
-		return platform.Confirm(title, message, platform.ConfirmLabels{
+		return a.dialogs().confirm(title, message, platform.ConfirmLabels{
 			Allow:  "Allow Once",
 			Always: "Trust This Folder",
 		})
 	}
-	ok, err := platform.ConfirmWithButtons(title, message, "Allow")
+	ok, err := a.dialogs().confirmWithButtons(title, message, "Allow")
 	if err != nil || !ok {
 		return platform.ConfirmDeny, err
 	}
