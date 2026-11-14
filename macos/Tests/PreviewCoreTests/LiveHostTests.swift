@@ -419,8 +419,15 @@ final class LiveHostTests: XCTestCase {
         let model = AppModel(host: host.client, initial: opened)
         XCTAssertFalse(model.isSample)
         XCTAssertTrue(PanelControls.showsDocumentAction(HostActionType.documentOpen, in: model.snapshot))
-        XCTAssertFalse(PanelControls.showsDocumentAction(HostActionType.documentReveal, in: model.snapshot))
+        XCTAssertTrue(PanelControls.showsDocumentAction(HostActionType.documentReveal, in: model.snapshot))
         XCTAssertFalse(PanelControls.showsExport(isSample: model.isSample))
+
+        _ = try done(await host.client.perform(.revealDocument(id: document.id)),
+                     "showing the document in Finder was refused")
+        let revealed = file.resolvingSymlinksInPath().path
+        await waitUntil("the open log never got a reveal line for a.htmlclay") {
+            openLog(log).contains { $0 == "reveal " + revealed || ($0.hasPrefix("reveal ") && $0.hasSuffix("/notes/a.htmlclay")) }
+        }
 
         _ = try done(await host.client.perform(.openDocument(id: document.id)),
                      "opening the document was refused")

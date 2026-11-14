@@ -17,6 +17,7 @@ import (
 var implementedActions = []string{
 	"dashboard.open",
 	"document.open",
+	"document.reveal",
 	"file.open",
 	"folder.copyAddress",
 	"folder.reveal",
@@ -146,6 +147,18 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 				return &appcore.Refusal{Code: appcore.RefuseNotYet, SubjectID: doc.ID}
 			}
 			a.launchBrowser(doc.URL)
+			return nil
+		}
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
+	case "document.reveal":
+		for _, doc := range a.facts().Documents {
+			if doc.ID != e.DocumentID {
+				continue
+			}
+			if err := a.revealPath(doc.Path); err != nil {
+				a.rt.logger.Printf("Could not show document %s: %v", doc.Path, err)
+				return &appcore.Refusal{Code: appcore.RefuseFailed}
+			}
 			return nil
 		}
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
