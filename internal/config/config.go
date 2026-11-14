@@ -104,6 +104,10 @@ type Config struct {
 // since declaration is refused under the old name instead of granting write
 // over whatever tree the link now points at.
 type TrustedFolder struct {
+	// ID is the folder's own id, 16 lowercase hex, made once when the folder is
+	// first trusted and kept for as long as the entry lives. Serving the folder
+	// does not change it, so every holder follows the folder by id, not by path.
+	ID       string `json:"id,omitempty"`
 	Path     string `json:"path"`
 	Identity string `json:"identity,omitempty"`
 }
@@ -161,15 +165,68 @@ func (c *Config) AddTrustedFolder(dir, identity string) bool {
 	return c.addTrustedFolderLocked(dir, identity)
 }
 
-// addTrustedFolderLocked records dir unless it is already there. The caller holds c.mu.
+// addTrustedFolderLocked records dir unless it is already there, with the one id
+// the entry keeps for life. The caller holds c.mu.
 func (c *Config) addTrustedFolderLocked(dir, identity string) bool {
 	for _, w := range c.TrustedFolders {
 		if w.Path == dir {
 			return false
 		}
 	}
-	c.TrustedFolders = append(c.TrustedFolders, TrustedFolder{Path: dir, Identity: identity})
+	id, _ := c.newFolderIDLocked()
+	c.TrustedFolders = append(c.TrustedFolders, TrustedFolder{ID: id, Path: dir, Identity: identity})
 	return true
+}
+
+// newFolderIDLocked mints a folder id: 16 lowercase hex, the shape served folders
+// have always used, never one any folder in the config already holds. The caller
+// holds c.mu.
+func (c *Config) newFolderIDLocked() (string, error) {
+	for {
+		var raw [8]byte
+		if _, err := rand.Read(raw[:]); err != nil {
+			return "", fmt.Errorf("cannot generate folder id: %w", err)
+		}
+		id := hex.EncodeToString(raw[:])
+		taken := false
+		for _, f := range c.ServedFolders {
+			if f.ID == id {
+				taken = true
+				break
+			}
+		}
+		if !taken {
+			for _, w := range c.TrustedFolders {
+				if w.ID == id {
+					taken = true
+					break
+				}
+			}
+		}
+		if !taken {
+			return id, nil
+		}
+	}
+}
+
+// trustedFolderIDLocked answers the id the trusted entry at path keeps, giving an
+// entry that has none the one id it will hold from now on. The caller holds c.mu
+// and has already made sure the entry exists.
+func (c *Config) trustedFolderIDLocked(path string) (string, bool, error) {
+	for i := range c.TrustedFolders {
+		if c.TrustedFolders[i].Path != path {
+			continue
+		}
+		if c.TrustedFolders[i].ID == "" {
+			id, err := c.newFolderIDLocked()
+			if err != nil {
+				return "", true, err
+			}
+			c.TrustedFolders[i].ID = id
+		}
+		return c.TrustedFolders[i].ID, true, nil
+	}
+	return "", false, nil
 }
 
 // RemoveTrustedFolder drops dir from the list, returning the entry it removed
@@ -312,27 +369,18 @@ func (c *Config) AddServedFolder(path, identity, name string) (ServedFolder, err
 			return ServedFolder{}, ErrAlreadyServed
 		}
 	}
-	var raw [8]byte
-	var id string
-	for {
-		if _, err := rand.Read(raw[:]); err != nil {
-			return ServedFolder{}, fmt.Errorf("cannot generate served folder id: %w", err)
-		}
-		id = hex.EncodeToString(raw[:])
-		taken := false
-		for _, f := range c.ServedFolders {
-			if f.ID == id {
-				taken = true
-				break
-			}
-		}
-		if !taken {
-			break
-		}
+	// Serving a folder does not give it a new identity: the id belongs to the
+	// trusted entry and serving borrows it for as long as the folder is served.
+	c.addTrustedFolderLocked(path, identity)
+	id, found, err := c.trustedFolderIDLocked(path)
+	if err != nil {
+		return ServedFolder{}, fmt.Errorf("cannot generate served folder id: %w", err)
+	}
+	if !found {
+		return ServedFolder{}, fmt.Errorf("cannot generate served folder id: no trusted entry for %s", path)
 	}
 	entry := ServedFolder{ID: id, Name: name, Path: path, Identity: identity, Serving: true}
 	c.ServedFolders = append(c.ServedFolders, entry)
-	c.addTrustedFolderLocked(path, identity)
 	return entry, nil
 }
 
@@ -530,6 +578,42 @@ func (c *Config) sanitizeServedFolders() {
 		retired = append(retired, name)
 	}
 	c.RetiredServedNames = retired
+}
+
+// assignFolderIDs settles the id every trusted folder keeps. A served entry's id
+// is the folder's id, so it is copied onto the trusted entry at the same path; an
+// entry without one, or with an id that could not have been made by this build,
+// gets a fresh id. Nothing here reuses another folder's id, so a folder removed and
+// trusted again at the same path comes back as a new folder with a new id. It
+// reports whether anything changed, and writes nothing: Load reports the change
+// through its Result and the caller saves once.
+func (c *Config) assignFolderIDs() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	changed := false
+	for i := range c.TrustedFolders {
+		path := c.TrustedFolders[i].Path
+		servedID := ""
+		for _, f := range c.ServedFolders {
+			if f.Path == path {
+				servedID = f.ID
+				break
+			}
+		}
+		switch {
+		case servedID != "" && servedID != c.TrustedFolders[i].ID:
+			c.TrustedFolders[i].ID = servedID
+			changed = true
+		case servedID == "" && !servedIDPattern.MatchString(c.TrustedFolders[i].ID):
+			id, err := c.newFolderIDLocked()
+			if err != nil {
+				continue
+			}
+			c.TrustedFolders[i].ID = id
+			changed = true
+		}
+	}
+	return changed
 }
 
 // SitePort returns the port previously used for an anchor, or 0 if there is none.
@@ -1112,6 +1196,10 @@ type Result struct {
 	// gained one, which is what a config written by a Windows build from before
 	// DirIdentity answered there looks like.
 	PinnedIdentities bool
+	// AssignedFolderIDs is true when trusted folders that had no id gained the
+	// one they keep, which is what every config written before ids existed, and
+	// every config whose served folders predate them, looks like.
+	AssignedFolderIDs bool
 	// DroppedHelperPrograms and DroppedHelperDecisions report malformed,
 	// duplicate, dangling, or over-cap helper records removed during Load.
 	DroppedHelperPrograms  int
@@ -1173,6 +1261,9 @@ func LoadFrom(baseDir string, identity func(string) string) (*Config, Result, er
 	// so a trusted folder added here for a served entry without a pin gets one on
 	// this load rather than the next.
 	cfg.sanitizeServedFolders()
+	// After the sanitize, which is what makes every served entry also a trusted
+	// one, so a served folder's id lands on its trusted entry on this load.
+	res.AssignedFolderIDs = cfg.assignFolderIDs()
 	// After the dedupe, so a pin is never derived for an entry that is about to
 	// be dropped as an alias of one already kept.
 	res.PinnedIdentities = cfg.backfillIdentities(identity)

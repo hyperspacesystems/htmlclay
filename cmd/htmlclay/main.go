@@ -619,7 +619,7 @@ func (a *app) finishUpgrade() {
 		a.rt.logger.Printf("Helper config normalization dropped records: programs=%d decisions=%d", a.loaded.DroppedHelperPrograms, a.loaded.DroppedHelperDecisions)
 	}
 	repinned := a.repinTrustedFolders()
-	if a.loaded.PromotedLegacy || a.loaded.PinnedIdentities || repinned {
+	if a.loaded.PromotedLegacy || a.loaded.PinnedIdentities || a.loaded.AssignedFolderIDs || repinned {
 		if err := a.rt.cfg.Save(); err != nil {
 			a.rt.logger.Printf("Could not persist the upgraded config: %v", err)
 		}
@@ -629,6 +629,9 @@ func (a *app) finishUpgrade() {
 	}
 	if a.loaded.PinnedIdentities {
 		a.rt.logger.Printf("Pinned trusted folders that were recorded without an identity fingerprint")
+	}
+	if a.loaded.AssignedFolderIDs {
+		a.rt.logger.Printf("Gave trusted folders the id each one keeps")
 	}
 	if !a.loaded.HadAppMode {
 		return

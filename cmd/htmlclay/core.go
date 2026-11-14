@@ -176,7 +176,7 @@ func (a *app) folderFacts() []appcore.FolderFact {
 	servedSeen := make(map[string]bool, len(trusted))
 	for _, tf := range trusted {
 		ff := appcore.FolderFact{
-			ID:             "t" + shortHash(tf.Path),
+			ID:             tf.ID,
 			Name:           filepath.Base(tf.Path),
 			Path:           tf.Path,
 			Origin:         appcore.Origin{Kind: appcore.OriginLocal},
@@ -185,7 +185,6 @@ func (a *app) folderFacts() []appcore.FolderFact {
 		}
 		identity := tf.Identity
 		if entry, ok := a.rt.cfg.ServedFolderForPath(tf.Path); ok {
-			ff.ID = entry.ID
 			ff.Served = entry.Serving
 			ff.ServedName = entry.Name
 			identity = entry.Identity

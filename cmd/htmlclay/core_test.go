@@ -105,8 +105,16 @@ func TestCoreFactsListServedAndTrusted(t *testing.T) {
 	}
 
 	trusted := snapshotFolderAt(t, snapshot, trustedDir)
-	if want := "t" + shortHash(trustedDir); trusted.ID != want {
-		t.Errorf("trusted folder id = %q, want %q", trusted.ID, want)
+	// The id is the one the folder keeps for life, minted when it was trusted, not
+	// one derived from its path.
+	wantID := ""
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if tf.Path == trustedDir {
+			wantID = tf.ID
+		}
+	}
+	if wantID == "" || trusted.ID != wantID {
+		t.Errorf("trusted folder id = %q, want the folder's own id %q", trusted.ID, wantID)
 	}
 	if trusted.Served {
 		t.Error("trusted folder is served")
