@@ -108,6 +108,21 @@ func TestM3AgentReplay(t *testing.T) {
 		}
 	})
 
+	t.Run("an answer of 500 or more is not kept: the same key runs again", func(t *testing.T) {
+		p, _ := newReplay()
+		var writes atomic.Int32
+		p.Do("doc:s1", "f1", write(&writes, 503))
+		p.Do("doc:s1", "f1", write(&writes, 503))
+		if writes.Load() != 2 {
+			t.Fatalf("writes = %d, want 2, because a 503 is not kept", writes.Load())
+		}
+		p.Do("doc:s1", "f1", write(&writes, 200))
+		p.Do("doc:s1", "f1", write(&writes, 200))
+		if writes.Load() != 3 {
+			t.Fatalf("writes = %d, want 3, because a 200 is kept", writes.Load())
+		}
+	})
+
 	t.Run("an answer is forgotten after ten minutes", func(t *testing.T) {
 		p, clock := newReplay()
 		var writes atomic.Int32

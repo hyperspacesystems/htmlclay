@@ -9,16 +9,27 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/panphora/htmlclay/internal/agentlane"
 )
 
-// agentLane is the read-only lane a local program reads documents through, on
+// agentLane is the lane a local program reads and writes documents through, on
 // the bare loopback host. It lists what this app may reach and reaches one
 // document through the one document access lane, which reads and registers
 // nothing.
 func (a *app) agentLane() http.Handler {
-	return agentlane.Handler(agentHost{a: a}, a.rt.port)
+	a.lane.once.Do(func() {
+		a.lane.handler = agentlane.Handler(agentHost{a: a}, a.rt.port)
+	})
+	return a.lane.handler
+}
+
+// agentLaneHandler is the lane's one handler, built on the first request so the
+// replay store that answers a retried write lives as long as the app.
+type agentLaneHandler struct {
+	once    sync.Once
+	handler http.Handler
 }
 
 // agentHost is the app as the lane's Host.
@@ -248,8 +259,7 @@ func (a *app) agentDocument(absPath string) agentlane.Document {
 	return doc
 }
 
-// agentAccess adapts one document's own access lane to the reads this lane
-// offers.
+// agentAccess adapts one document's own access lane to what this lane offers.
 type agentAccess struct{ access DocumentAccess }
 
 func (d agentAccess) Read(ctx context.Context) ([]byte, string, error) {
@@ -281,14 +291,32 @@ func (d agentAccess) Version(ctx context.Context, id string) ([]byte, error) {
 	return html, agentError(err)
 }
 
-// agentError is a document lane's error as this lane names it: a document nothing
-// may reach, and a file or a version that is not there.
+func (d agentAccess) Save(ctx context.Context, html []byte, ifMatch, saveID string) (agentlane.WriteResult, error) {
+	result, err := d.access.Save(ctx, Save{HTML: html, IfMatch: ifMatch, SaveID: saveID})
+	return agentlane.WriteResult{ETag: result.ETag, Changed: result.Changed, UndoVersion: result.UndoVersion}, agentError(err)
+}
+
+func (d agentAccess) Restore(ctx context.Context, versionID, ifMatch, saveID string) (agentlane.WriteResult, error) {
+	result, err := d.access.Restore(ctx, versionID, ifMatch, saveID)
+	return agentlane.WriteResult{ETag: result.ETag, Changed: result.Changed, UndoVersion: result.UndoVersion}, agentError(err)
+}
+
+// agentError is a document lane's error as this lane names it.
 func agentError(err error) error {
+	var stale ErrStale
 	switch {
 	case err == nil:
 		return nil
+	case errors.As(err, &stale):
+		return &agentlane.StaleError{ETag: stale.ETag, SaveID: stale.SaveID}
 	case errors.Is(err, ErrNotReachable):
 		return agentlane.ErrNotReachable
+	case errors.Is(err, ErrBackup):
+		return agentlane.ErrBackup
+	case errors.Is(err, ErrTooLarge):
+		return agentlane.ErrTooLarge
+	case errors.Is(err, ErrNotDocument):
+		return agentlane.ErrNotDocument
 	case errors.Is(err, fs.ErrNotExist):
 		return agentlane.ErrNotFound
 	}

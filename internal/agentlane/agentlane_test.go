@@ -51,6 +51,14 @@ func (f fakeAccess) Versions(ctx context.Context, before string, limit int) ([]V
 	return page.rows, page.next, nil
 }
 
+func (f fakeAccess) Save(ctx context.Context, html []byte, ifMatch, saveID string) (WriteResult, error) {
+	return WriteResult{}, ErrNotReachable
+}
+
+func (f fakeAccess) Restore(ctx context.Context, versionID, ifMatch, saveID string) (WriteResult, error) {
+	return WriteResult{}, ErrNotReachable
+}
+
 func (f fakeAccess) Version(ctx context.Context, id string) ([]byte, error) {
 	html, ok := f.version[id]
 	if !ok {
@@ -185,7 +193,7 @@ func agentRefusal(t *testing.T, rec *httptest.ResponseRecorder) string {
 // TestM3AgentReads is step 7.37: the read-only lane's routes, its envelope, its
 // admission and its ids, over a fake Host.
 func TestM3AgentReads(t *testing.T) {
-	t.Run("whoami names the product, its version and the reads it offers", func(t *testing.T) {
+	t.Run("whoami names the product, its version and what it offers", func(t *testing.T) {
 		host := agentTestHostWith()
 		rec := agentCall(t, Handler(host, agentTestPort), http.MethodGet, "/_/agent/v1/whoami", nil)
 		if rec.Code != http.StatusOK {
@@ -195,8 +203,8 @@ func TestM3AgentReads(t *testing.T) {
 		if body.Host != "htmlclay" || body.Version != "9.9.9" {
 			t.Fatalf("whoami = %+v", body)
 		}
-		if strings.Join(body.Capabilities, ",") != "read,versions" {
-			t.Fatalf("whoami capabilities = %v, want read and versions only", body.Capabilities)
+		if strings.Join(body.Capabilities, ",") != "read,save,versions,restore" {
+			t.Fatalf("whoami capabilities = %v, want read, save, versions and restore", body.Capabilities)
 		}
 	})
 
@@ -297,10 +305,20 @@ func TestM3AgentReads(t *testing.T) {
 			"/_/agent/v1/documents/" + id + "/versions/v1",
 		} {
 			for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
+				if method == http.MethodPut && target == "/_/agent/v1/documents/"+id {
+					continue // a PUT on a document is a save (7.41a)
+				}
 				rec := agentCall(t, Handler(host, agentTestPort), method, target, nil)
 				if rec.Code != http.StatusMethodNotAllowed || agentRefusal(t, rec) != "method-not-allowed" {
 					t.Fatalf("%s %s = %d %s", method, target, rec.Code, rec.Body.String())
 				}
+			}
+		}
+		restore := "/_/agent/v1/documents/" + id + "/versions/v1/restore"
+		for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodDelete} {
+			rec := agentCall(t, Handler(host, agentTestPort), method, restore, nil)
+			if rec.Code != http.StatusMethodNotAllowed || agentRefusal(t, rec) != "method-not-allowed" {
+				t.Fatalf("%s %s = %d %s", method, restore, rec.Code, rec.Body.String())
 			}
 		}
 	})

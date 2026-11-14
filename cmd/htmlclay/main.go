@@ -244,6 +244,9 @@ type app struct {
 	// core is the app core's own state: revision, epoch, seen waiting ids,
 	// recent action answers, subscribers. See core.go.
 	core coreState
+	// lane is the agent lane's one handler, so its replay store outlives one
+	// request. See agent.go.
+	lane agentLaneHandler
 }
 
 func migrateConfigDir() {

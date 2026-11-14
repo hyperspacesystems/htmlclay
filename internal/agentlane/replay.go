@@ -51,7 +51,9 @@ func NewReplay(now func() time.Time) *Replay {
 // Do runs the write named by key once. The same key and fingerprint answers what
 // the first call answered, waiting for it if it is still running, also after a
 // later write to the document. The same key with another fingerprint is
-// ErrOperationReused and runs nothing.
+// ErrOperationReused and runs nothing. An answer of 500 or more is not kept: every
+// write carries If-Match, so running it again cannot write twice, and a write that
+// kept nothing deserves a real retry.
 func (p *Replay) Do(key, fingerprint string, run func() Answer) (Answer, error) {
 	p.mu.Lock()
 	p.pruneLocked()
@@ -74,9 +76,27 @@ func (p *Replay) Do(key, fingerprint string, run func() Answer) (Answer, error) 
 	e.answer = answer
 	e.finished = p.now()
 	close(e.done)
+	if answer.Status >= http.StatusInternalServerError {
+		p.forgetLocked(key, e)
+	}
 	p.pruneLocked()
 	p.mu.Unlock()
 	return answer, nil
+}
+
+// forgetLocked drops e, so the next call with its key runs again. Callers already
+// waiting on e still get its answer.
+func (p *Replay) forgetLocked(key string, e *replayEntry) {
+	if p.entries[key] != e {
+		return
+	}
+	delete(p.entries, key)
+	for i, k := range p.order {
+		if k == key {
+			p.order = append(p.order[:i], p.order[i+1:]...)
+			return
+		}
+	}
 }
 
 // pruneLocked drops finished answers older than replayTTL, then the oldest
