@@ -303,6 +303,28 @@ func TestM3HistoryReads(t *testing.T) {
 		}
 	})
 
+	t.Run("a document that carries no id reads the history bound to its path", func(t *testing.T) {
+		fx := newHistoryFixture(t)
+		clay := filepath.Join(fx.home, "docs", "note.htmlclay")
+		writeTestFile(t, clay, "<!doctype html>\n<html><body><p>note</p></body></html>\n")
+		// A save keeps its versions under the id minted when the file was opened,
+		// and a program's save never writes that id into the file.
+		id, _, err := fx.app.rt.versions.ResolveIdentity(clay, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		kept := "<!doctype html>\n<html><body><p>older note</p></body></html>\n"
+		if _, err := fx.app.rt.versions.Backup("id:"+id, clay, []byte(kept)); err != nil {
+			t.Fatal(err)
+		}
+
+		loose := readLoose(t, fx, clay, "")
+		if len(loose) != 1 {
+			t.Fatalf("a document with no id on disk answered %d rows, want 1: %+v", len(loose), loose)
+		}
+		checkHistoryItem(t, loose[0], int64(len(kept)), "saved", true)
+	})
+
 	t.Run("equal times, two pages", func(t *testing.T) {
 		fx := newHistoryFixture(t)
 		const rows = 60

@@ -18,6 +18,29 @@ ln -sf ~/.local/go/bin/go ~/.local/go/bin/gofmt ~/.local/bin/
 npm ci --no-audit --no-fund
 (cd service && npm ci --ignore-scripts --no-audit --no-fund)
 bash scripts/served-golden-local.sh ~/served-golden-local'
+# scripts/agent-contract.mjs drives the real clay-agent against the host built here. The Mac packs
+# the clay-agent source, CLAY_AGENT_SRC or the sibling ../clay-agent, as npm would publish it. The
+# pack ships beside the checkout, and setup unpacks it into ~/clay-agent and installs what it needs
+# to run. TESTBOX_CLAY_AGENT is set in ~/.profile because the login shell is the one environment the
+# configured command and a `--command` run share. With no CLAY_AGENT_SRC and no sibling, none of
+# this happens. The pack has one path for each source, so an unchanged source ships the same bytes
+# from the same place. Nothing here may print to stdout, which testbox reads.
+clay_agent_src=${CLAY_AGENT_SRC:-}
+[ -n "$clay_agent_src" ] || [ ! -f "$CONFIG_DIR/../clay-agent/bin/clay-agent.js" ] || clay_agent_src=$CONFIG_DIR/../clay-agent
+if [ -n "$clay_agent_src" ]; then
+  clay_agent_src=$(cd "$clay_agent_src" 2>/dev/null && pwd -P) && [ -f "$clay_agent_src/bin/clay-agent.js" ] \
+    || { echo ".testbox: CLAY_AGENT_SRC names no clay-agent source: ${CLAY_AGENT_SRC:-}" >&2; return 2; }
+  clay_agent_pack=${TMPDIR:-/tmp}
+  clay_agent_pack=${clay_agent_pack%/}/testbox-clay-agent-$(printf %s "$clay_agent_src" | cksum | cut -d" " -f1)
+  mkdir -p "$clay_agent_pack"
+  clay_agent_pack=$clay_agent_pack/$(cd "$clay_agent_src" && npm pack --silent --ignore-scripts --pack-destination "$clay_agent_pack" 2>/dev/null | tail -1)
+  [ -f "$clay_agent_pack" ] || { echo ".testbox: npm pack failed in $clay_agent_src" >&2; return 2; }
+  TESTBOX_EXTRA_FILES+=("$clay_agent_pack")
+  TESTBOX_SETUP+="
+rm -rf ~/clay-agent && mkdir -p ~/clay-agent && tar -xzf $(printf %q "$clay_agent_pack") -C ~/clay-agent
+(cd ~/clay-agent/package && npm install --omit=dev --no-audit --no-fund)
+grep -qs TESTBOX_CLAY_AGENT= ~/.profile || echo 'export TESTBOX_CLAY_AGENT=\$HOME/clay-agent/package' >> ~/.profile"
+fi
 # CI's Linux job runs `go test ./...`. The managed trial's tests sit behind a build tag CI does not
 # set, so they run here as a second step. MANAGED_TRIAL_LOCAL_SOURCE points the served host's golden
 # tests at the Hyperclay Local commit they were recorded from (scripts/served-golden-local.sh), so

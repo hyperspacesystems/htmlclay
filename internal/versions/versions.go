@@ -1227,9 +1227,12 @@ func (o versionOrder) newerThan(other versionOrder) bool {
 // starting after the before cursor.
 //
 // data is the document's bytes while it is on disk, and nil once it is gone. A
-// document that is gone is found through the history already bound to its path,
-// so its versions stay readable; nothing here creates the document, a history
-// folder, a version or a pin, and no stored format changes.
+// document that is gone, or whose bytes name no history of their own, is found
+// through the history already bound to its path, so its versions stay readable:
+// a .htmlclay file a program saved before its page did carries no id on disk,
+// and its versions are kept under the id minted when it was opened. Nothing
+// here creates the document, a history folder, a version or a pin, and no stored
+// format changes.
 //
 // An empty before starts at the newest version. Any other value names one
 // version, and a version's name carries its whole ordering key, so the next
@@ -1265,7 +1268,7 @@ func (s *Store) Page(absPath string, data []byte, before string, limit int) ([]E
 	if err != nil {
 		return nil, err
 	}
-	if len(entries) == 0 && data == nil {
+	if len(entries) == 0 {
 		if bound, ok := s.keyBoundTo(absPath); ok && bound != key {
 			if entries, err = s.pageEntries(vroot, bound); err != nil {
 				return nil, err
