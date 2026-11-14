@@ -44,6 +44,8 @@ type rootSpec struct {
 	// publicHost is the served folder's own address, "<name>.htmlclay.localhost:<port>".
 	// Empty in the trial binary, where each root has its own port.
 	publicHost string
+	// allowFraming is the folder's starting choice, from its config entry.
+	allowFraming bool
 }
 
 type readyRoot struct {

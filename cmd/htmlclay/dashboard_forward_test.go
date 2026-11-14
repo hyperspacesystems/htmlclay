@@ -214,8 +214,9 @@ func TestDashboardFramedDocument(t *testing.T) {
 	if res.StatusCode != http.StatusOK || !strings.Contains(page, "data-hyperclay-bridge") {
 		t.Fatalf("the framed load = %d, bridged %v", res.StatusCode, strings.Contains(page, "data-hyperclay-bridge"))
 	}
-	if csp := res.Header.Get("Content-Security-Policy"); csp != "frame-ancestors "+a.dashboardOrigin() {
-		t.Fatalf("the framed load's frame header = %q", csp)
+	csp := res.Header.Values("Content-Security-Policy")
+	if len(csp) != 2 || csp[0] != "frame-ancestors 'self' "+a.dashboardOrigin() || csp[1] != "frame-ancestors "+a.dashboardOrigin() {
+		t.Fatalf("the framed load's frame headers = %q", csp)
 	}
 	res, page = load(fmt.Sprintf("/index.html?workspace-frame=%d", doc.WireID+100))
 	if res.StatusCode != http.StatusOK || strings.Contains(page, "data-hyperclay-bridge") {

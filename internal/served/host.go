@@ -34,9 +34,10 @@ type Options struct {
 
 // RootSpec is one served folder.
 type RootSpec struct {
-	ID         string
-	Path       string
-	PublicHost string
+	ID           string
+	Path         string
+	PublicHost   string
+	AllowFraming bool
 }
 
 // Host owns every served folder's handler, the shared event ring, the watchers and the
@@ -82,7 +83,7 @@ func (h *Host) AddRoot(spec RootSpec) (http.Handler, error) {
 	if _, taken := h.byID[spec.ID]; taken {
 		return nil, fmt.Errorf("root %q is served twice", spec.ID)
 	}
-	server, err := newRootServer(rootSpec{id: spec.ID, path: spec.Path, publicHost: spec.PublicHost}, h.cfg)
+	server, err := newRootServer(rootSpec{id: spec.ID, path: spec.Path, publicHost: spec.PublicHost, allowFraming: spec.AllowFraming}, h.cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +93,18 @@ func (h *Host) AddRoot(spec RootSpec) (http.Handler, error) {
 		server.control.watcher.start()
 	}
 	return server, nil
+}
+
+// SetAllowFraming flips whether one root's answers may be framed by another site
+// (step 7.14). An unknown id changes nothing.
+func (h *Host) SetAllowFraming(rootID string, allow bool) {
+	h.mu.Lock()
+	server, ok := h.byID[rootID]
+	h.mu.Unlock()
+	if !ok {
+		return
+	}
+	server.allowFraming.Store(allow)
 }
 
 // RemoveRoot stops serving one root: its watcher stops and Handler no longer finds it.

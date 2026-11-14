@@ -89,7 +89,7 @@ func (s *rootServer) serveDataLossPost(w http.ResponseWriter, r *http.Request, i
 		return err
 	}
 	if tooLarge {
-		w.Header().Set("Content-Security-Policy", "default-src 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		sendText(w, r, http.StatusRequestEntityTooLarge, payloadTooLargePage)
 		return nil

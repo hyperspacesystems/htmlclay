@@ -93,10 +93,11 @@ type goldenOptions struct {
 }
 
 var serveDroppedHeaders = map[string]bool{
-	"date":              true,
-	"connection":        true,
-	"keep-alive":        true,
-	"transfer-encoding": true,
+	"date":                    true,
+	"connection":              true,
+	"keep-alive":              true,
+	"transfer-encoding":       true,
+	"content-security-policy": true,
 }
 
 const serveGoldenMtime = "2020-01-02T03:04:05Z"

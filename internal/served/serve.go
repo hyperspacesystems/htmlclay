@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 
 	"github.com/panphora/htmlclay/internal/clayruntime"
 )
@@ -46,6 +47,12 @@ type rootServer struct {
 	tailwind *tailwindHost
 	// control is this root as the control listener and the watcher see it.
 	control *controlRoot
+	// allowFraming is the folder's choice (step 7.14): while it is false, every
+	// answer of this folder carries framePolicy.
+	allowFraming atomic.Bool
+	// framePolicy is the one frame rule this folder's answers carry: its own
+	// pages and the dashboard, never another site.
+	framePolicy string
 }
 
 // htmlRoutePattern is Local's SPA-aware route: the document names an .html or
@@ -91,6 +98,10 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	framePolicy := "frame-ancestors 'self'"
+	if cfg.dashboard != "" {
+		framePolicy = "frame-ancestors 'self' " + cfg.dashboard
+	}
 	server := &rootServer{
 		id:             root.id,
 		workspaceEntry: cfg.workspaceEntry,
@@ -107,7 +118,9 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		syncWorker:     worker,
 		syncDataWorker: dataWorker,
 		control:        newControlRoot(root.id, baseDir, registry, host, cfg.events),
+		framePolicy:    framePolicy,
 	}
+	server.allowFraming.Store(root.allowFraming)
 	if cfg.service != nil {
 		server.service = cfg.service
 		server.serviceProxy = newServiceProxy(cfg.service, root.id, cfg.dashboard)
@@ -130,6 +143,9 @@ func (s *rootServer) policy(r *http.Request) originPolicy {
 }
 
 func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !s.allowFraming.Load() {
+		w.Header().Set("Content-Security-Policy", s.framePolicy)
+	}
 	urlPath, marked, ok := gate(w, r, s.policy(r))
 	if !ok {
 		return

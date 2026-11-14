@@ -53,8 +53,10 @@ func TestFrameForward(t *testing.T) {
 	if res.StatusCode != http.StatusOK || body != "<!doctype html><p>bridged</p>" {
 		t.Fatalf("a framed load = %d %q", res.StatusCode, body)
 	}
-	if csp := res.Header.Get("Content-Security-Policy"); csp != "frame-ancestors http://dashboard.htmlclay.localhost:1212" {
-		t.Fatalf("a framed load's frame header = %q", csp)
+	if csp := res.Header.Values("Content-Security-Policy"); len(csp) != 2 ||
+		csp[0] != "frame-ancestors 'self' http://dashboard.htmlclay.localhost:1212" ||
+		csp[1] != "frame-ancestors http://dashboard.htmlclay.localhost:1212" {
+		t.Fatalf("a framed load's frame headers = %q", csp)
 	}
 	if res.Header.Get("X-Frame-Options") != "" {
 		t.Fatal("a framed load kept X-Frame-Options, which would refuse the dashboard")
@@ -66,7 +68,7 @@ func TestFrameForward(t *testing.T) {
 	mu.Unlock()
 
 	res, body = get("/page.html")
-	if res.StatusCode != http.StatusOK || !strings.Contains(body, "Saved") || strings.Contains(res.Header.Get("Content-Security-Policy"), "htmlclay.localhost") {
+	if res.StatusCode != http.StatusOK || !strings.Contains(body, "Saved") || res.Header.Get("Content-Security-Policy") != "frame-ancestors 'self' http://dashboard.htmlclay.localhost:1212" {
 		t.Fatalf("a load with no id = %d, CSP %q, body %q", res.StatusCode, res.Header.Get("Content-Security-Policy"), body)
 	}
 	if res, _ := get("/style.css?workspace-frame=3"); res.StatusCode == http.StatusOK && res.Header.Get("Content-Security-Policy") != "" {
