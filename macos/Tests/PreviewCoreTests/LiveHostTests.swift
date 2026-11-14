@@ -2,15 +2,6 @@ import XCTest
 @testable import PreviewCore
 import Darwin
 
-private struct HostReady: Decodable {
-    var v: Int
-    var shell: String
-    var port: Int
-    var epoch: String
-    var pid: Int
-    var version: String
-}
-
 private enum LiveHostFailure: Error, CustomStringConvertible {
     case start(String)
 
@@ -21,66 +12,17 @@ private enum LiveHostFailure: Error, CustomStringConvertible {
     }
 }
 
-private final class PipeReader {
-    private let handle: FileHandle
-    private let lock = NSLock()
-    private var buffer = Data()
-    private var atEnd = false
-
-    init(_ handle: FileHandle) {
-        self.handle = handle
-        DispatchQueue.global().async { [self] in drain() }
-    }
-
-    private func drain() {
-        let descriptor = handle.fileDescriptor
-        var chunk = [UInt8](repeating: 0, count: 65536)
-        while true {
-            let count = read(descriptor, &chunk, chunk.count)
-            guard count > 0 else {
-                lock.lock()
-                atEnd = true
-                lock.unlock()
-                return
-            }
-            lock.lock()
-            buffer.append(contentsOf: chunk[0 ..< count])
-            lock.unlock()
-        }
-    }
-
-    var text: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return String(decoding: buffer, as: UTF8.self)
-    }
-
-    var lines: [String] {
-        text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-    }
-
-    var finished: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return atEnd
-    }
-}
-
 @MainActor
 private final class LiveHost {
     let home: URL
     let base: URL
     let ready: HostReady
-    let secret: String
     let client: LoopbackHostClient
     let shellPort: Int
-
-    private let process: Process
-    private let stdinPipe: Pipe
-    private let stderrReader: PipeReader
-    private var stdinClosed = false
+    let process: HostProcess
 
     private static let requireVariable = "HTMLCLAY_REQUIRE_LIVE_HOST"
+    private static var running: [LiveHost] = []
 
     static var binary: URL {
         URL(fileURLWithPath: #filePath)
@@ -90,7 +32,7 @@ private final class LiveHost {
             .appendingPathComponent(".build/host-for-tests/htmlclay")
     }
 
-    static func start() throws -> LiveHost {
+    static func start() async throws -> LiveHost {
         let binary = Self.binary
         guard FileManager.default.isExecutableFile(atPath: binary.path) else {
             if ProcessInfo.processInfo.environment[Self.requireVariable] == "1" {
@@ -98,10 +40,7 @@ private final class LiveHost {
             }
             throw XCTSkip("run scripts/build-host-for-tests.sh to build \(binary.path)")
         }
-        return try LiveHost(binary: binary)
-    }
 
-    private init(binary: URL) throws {
         let homePath = try Self.makeHome()
         let basePath = homePath + "/c"
         let configDir = basePath + "/htmlclay"
@@ -109,111 +48,58 @@ private final class LiveHost {
         let port = try Self.freeLoopbackPort()
         let config = "{\"startOnLogin\": false, \"port\": \(port), \"updates\": \"off\"}\n"
         try Data(config.utf8).write(to: URL(fileURLWithPath: configDir + "/config.json"))
-        let secret = Self.randomSecret()
 
-        let process = Process()
-        let stdinPipe = Pipe()
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.executableURL = binary
-        process.arguments = ["--shell-stdin"]
-        var environment = ProcessInfo.processInfo.environment
-        environment["HOME"] = homePath
-        environment["HTMLCLAY_CONFIG_BASE"] = basePath
-        process.environment = environment
-        process.standardInput = stdinPipe
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
+        let process = HostProcess(launch: HostLaunch(binary: binary, environment: [
+            "HOME": homePath,
+            "HTMLCLAY_CONFIG_BASE": basePath,
+        ]))
+        var handed: (ready: HostReady, client: LoopbackHostClient)?
+        process.onReady = { ready, client in handed = (ready, client) }
 
-        do {
-            try process.run()
-        } catch {
+        let state = await process.start()
+        guard case let .running(ready) = state, let handed else {
+            _ = await process.stop(timeout: 5)
             try? FileManager.default.removeItem(atPath: homePath)
-            throw LiveHostFailure.start("could not start \(binary.path): \(error)")
+            throw LiveHostFailure.start("no READY line from \(binary.path): \(state); stderr:\n\(process.stderrTail)")
+        }
+        guard let shellPort = URL(string: ready.shell)?.port else {
+            _ = await process.stop(timeout: 5)
+            try? FileManager.default.removeItem(atPath: homePath)
+            throw LiveHostFailure.start("READY = \(ready.shell), wanted a shell on 127.0.0.1")
         }
 
-        let stdoutReader = PipeReader(stdoutPipe.fileHandleForReading)
-        let stderrReader = PipeReader(stderrPipe.fileHandleForReading)
-        do {
-            try stdinPipe.fileHandleForWriting.write(contentsOf: Data("{\"v\":1,\"secret\":\"\(secret)\"}\n".utf8))
-        } catch {
-            process.terminate()
-            try? FileManager.default.removeItem(atPath: homePath)
-            throw LiveHostFailure.start("could not write the bootstrap line: \(error)")
-        }
+        let host = LiveHost(home: URL(fileURLWithPath: homePath),
+                            base: URL(fileURLWithPath: basePath),
+                            ready: ready,
+                            client: handed.client,
+                            shellPort: shellPort,
+                            process: process)
+        running.append(host)
+        return host
+    }
 
-        guard let ready = Self.readReady(stdout: stdoutReader, timeout: 30) else {
-            let errors = stderrReader.text
-            try? stdinPipe.fileHandleForWriting.close()
-            Self.wait(until: { !process.isRunning }, timeout: 5)
-            if process.isRunning { process.terminate() }
-            try? FileManager.default.removeItem(atPath: homePath)
-            throw LiveHostFailure.start("no READY line within 30s; stderr:\n\(errors)")
-        }
-        guard ready.v == 1, let shellURL = URL(string: ready.shell), shellURL.host == "127.0.0.1",
-              let shellPort = shellURL.port else {
-            process.terminate()
-            try? FileManager.default.removeItem(atPath: homePath)
-            throw LiveHostFailure.start("READY = \(ready.shell), wanted v1 with a shell on 127.0.0.1")
-        }
-
-        self.home = URL(fileURLWithPath: homePath)
-        self.base = URL(fileURLWithPath: basePath)
+    private init(home: URL, base: URL, ready: HostReady, client: LoopbackHostClient, shellPort: Int, process: HostProcess) {
+        self.home = home
+        self.base = base
         self.ready = ready
-        self.secret = secret
+        self.client = client
         self.shellPort = shellPort
-        self.client = LoopbackHostClient(port: shellPort, secret: secret)
         self.process = process
-        self.stdinPipe = stdinPipe
-        self.stderrReader = stderrReader
     }
 
-    var stderr: String { stderrReader.text }
+    var secret: String { process.currentSecret ?? "" }
 
-    func closeStdin() {
-        guard !stdinClosed else { return }
-        stdinClosed = true
-        try? stdinPipe.fileHandleForWriting.close()
-    }
-
-    func waitForExit(timeout: TimeInterval) async -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if !process.isRunning { return true }
-            try? await Task.sleep(nanoseconds: 50_000_000)
-        }
-        return !process.isRunning
-    }
-
-    func stop() {
-        closeStdin()
-        if !Self.wait(until: { !self.process.isRunning }, timeout: 10) {
-            process.terminate()
-            _ = Self.wait(until: { !self.process.isRunning }, timeout: 5)
-        }
+    @discardableResult
+    func stop() async -> Bool {
+        let exited = await process.stop(timeout: 10)
         try? FileManager.default.removeItem(at: home)
+        return exited
     }
 
-    private static func wait(until check: () -> Bool, timeout: TimeInterval) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if check() { return true }
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-        return check()
-    }
-
-    private static func readReady(stdout: PipeReader, timeout: TimeInterval) -> HostReady? {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            for line in stdout.lines where line.hasPrefix("READY ") {
-                let payload = String(line.dropFirst("READY ".count))
-                return try? JSONDecoder().decode(HostReady.self, from: Data(payload.utf8))
-            }
-            if stdout.finished { return nil }
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-        return nil
+    static func stopAll() async {
+        let hosts = running
+        running = []
+        for host in hosts { await host.stop() }
     }
 
     private static func makeHome() throws -> String {
@@ -229,11 +115,6 @@ private final class LiveHost {
         }
         defer { free(resolved) }
         return String(cString: resolved)
-    }
-
-    private static func randomSecret() -> String {
-        var generator = SystemRandomNumberGenerator()
-        return (0 ..< 32).map { _ in String(format: "%02x", UInt8.random(in: 0 ... 255, using: &generator)) }.joined()
     }
 
     private static func freeLoopbackPort() throws -> Int {
@@ -265,6 +146,10 @@ private final class LiveHost {
 
 @MainActor
 final class LiveHostTests: XCTestCase {
+    override func tearDown() async throws {
+        await LiveHost.stopAll()
+    }
+
     private func makeFolder(_ url: URL) throws {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         try Data("<!doctype html><title>\(url.lastPathComponent)</title><p>hello".utf8)
@@ -300,8 +185,7 @@ final class LiveHostTests: XCTestCase {
     }
 
     func testLoadShowsTheRealHost() async throws {
-        let host = try LiveHost.start()
-        defer { host.stop() }
+        let host = try await LiveHost.start()
 
         let snapshot = try await host.client.load()
         XCTAssertEqual(snapshot.epoch, host.ready.epoch)
@@ -310,8 +194,7 @@ final class LiveHostTests: XCTestCase {
     }
 
     func testTrustServeAndStopThroughTheStream() async throws {
-        let host = try LiveHost.start()
-        defer { host.stop() }
+        let host = try await LiveHost.start()
         let notes = host.home.appendingPathComponent("notes")
         try makeFolder(notes)
 
@@ -344,8 +227,7 @@ final class LiveHostTests: XCTestCase {
     }
 
     func testRefusalComesBackTyped() async throws {
-        let host = try LiveHost.start()
-        defer { host.stop() }
+        let host = try await LiveHost.start()
         let notes = host.home.appendingPathComponent("notes")
         let blog = host.home.appendingPathComponent("blog")
         try makeFolder(notes)
@@ -363,8 +245,7 @@ final class LiveHostTests: XCTestCase {
     }
 
     func testCheckAnswersTheTrustSheet() async throws {
-        let host = try LiveHost.start()
-        defer { host.stop() }
+        let host = try await LiveHost.start()
         let notes = host.home.appendingPathComponent("notes")
         try makeFolder(notes)
 
@@ -382,8 +263,7 @@ final class LiveHostTests: XCTestCase {
     }
 
     func testWrongSecretIsRefused() async throws {
-        let host = try LiveHost.start()
-        defer { host.stop() }
+        let host = try await LiveHost.start()
         let stranger = LoopbackHostClient(port: host.shellPort, secret: String(repeating: "0", count: 64))
 
         guard case let .refused(refusal) = await stranger.perform(.setAIEditing(false)) else {
@@ -397,8 +277,7 @@ final class LiveHostTests: XCTestCase {
     }
 
     func testClosingStdinEndsTheStream() async throws {
-        let host = try LiveHost.start()
-        defer { host.stop() }
+        let host = try await LiveHost.start()
 
         var endings: [String] = []
         var seen = 0
@@ -407,11 +286,10 @@ final class LiveHostTests: XCTestCase {
         defer { subscription.cancel() }
 
         await waitUntil("the stream never delivered a snapshot after load") { seen > 0 }
-        host.closeStdin()
+        let exited = await host.stop()
 
         await waitUntil("onEnded never heard quit", timeout: 10) { !endings.isEmpty }
         XCTAssertEqual(endings.first, "quit")
-        let exited = await host.waitForExit(timeout: 10)
         XCTAssertTrue(exited, "the host did not exit after stdin closed")
     }
 
@@ -420,8 +298,7 @@ final class LiveHostTests: XCTestCase {
             .appendingPathComponent("Library/Application Support/htmlclay/config.json")
         let before = try fileState(real)
 
-        let host = try LiveHost.start()
-        defer { host.stop() }
+        let host = try await LiveHost.start()
         let notes = host.home.appendingPathComponent("notes")
         try makeFolder(notes)
 
