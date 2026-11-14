@@ -425,9 +425,10 @@ func TestKeptRevealCallsThePlatformOpener(t *testing.T) {
 
 func TestKeptPageEscapesADocumentName(t *testing.T) {
 	a := newKeptApp(t)
-	// A name with a slash in it can never be a file on disk, so this history
-	// stands for a document bound to a path this machine does not hold.
-	path := filepath.Join(t.TempDir(), "<b>x</b>.html")
+	// The file is never written, so this history stands for a document bound
+	// to a path this machine does not hold. The name has no slash, which
+	// Windows would read as a folder separator.
+	path := filepath.Join(t.TempDir(), "<b>x<i>.html")
 	body := []byte("<html>bold</html>")
 	key := versions.Key(path, nil)
 	if _, err := a.rt.versions.Backup(key, path, body); err != nil {
@@ -442,10 +443,10 @@ func TestKeptPageEscapesADocumentName(t *testing.T) {
 	}
 	c := openKeptForTest(t, a)
 	page := c.do("GET", "/kept", nil, nil).Body.String()
-	if !strings.Contains(page, "&lt;b&gt;x&lt;/b&gt;.html") {
+	if !strings.Contains(page, "&lt;b&gt;x&lt;i&gt;.html") {
 		t.Fatal("the document name is not escaped")
 	}
-	if strings.Contains(page, "<b>x</b>") {
+	if strings.Contains(page, "<b>x<i>") {
 		t.Fatal("the page carried a raw document name")
 	}
 }
