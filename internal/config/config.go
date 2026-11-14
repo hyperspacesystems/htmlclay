@@ -95,7 +95,12 @@ type Config struct {
 	// anything, for machines whose software is managed some other way. The tray
 	// still links to the download page. Anything else, or nothing, leaves it on.
 	Updates string `json:"updates,omitempty"`
-	baseDir string
+	// TeamRecord is true once team-folders.json has had its first entry. It is the
+	// only trace of the team record in config.json, so that a record that has gone
+	// missing reads as unknown -- nothing may be granted broadly -- rather than as a
+	// machine that never had a team folder. Written by MarkTeamFolder alone.
+	TeamRecord bool `json:"teamRecord,omitempty"`
+	baseDir    string
 }
 
 // TrustedFolder is one declared folder. Identity is the folder's device+inode

@@ -48,6 +48,10 @@ type HelperDecision struct {
 	Allowed   bool   `json:"allowed"`
 	Revoked   bool   `json:"revoked,omitempty"`
 	DecidedAt int64  `json:"decidedAt"`
+	// Scope is what the document was decided about: one folder on this machine, one
+	// team, or an unknown machine. An empty Scope is a decision stored before scopes
+	// existed and reads as local.
+	Scope Scope `json:"scope,omitzero"`
 }
 
 // HelperResolution is what one name in one document resolves to. Program is
