@@ -2,6 +2,27 @@ import Foundation
 
 public enum Persona: String, CaseIterable, Codable, Sendable {
     case newPerson, fiveDocuments, trustedFolder, servedFolder, syncedWithTeams, localUser
+
+    /// True when the host can make this persona for real on a throwaway home.
+    public var isReal: Bool {
+        switch self {
+        case .newPerson, .trustedFolder, .servedFolder: return true
+        case .fiveDocuments, .syncedWithTeams, .localUser: return false
+        }
+    }
+
+    /// The milestone that makes this persona real, or nil when it already is.
+    public var milestone: Int? {
+        switch self {
+        case .newPerson, .trustedFolder, .servedFolder: return nil
+        case .fiveDocuments: return 3
+        case .syncedWithTeams: return 4
+        case .localUser: return 5
+        }
+    }
+
+    /// The personas that are still hand-written sample data, in declaration order.
+    public static var sampleOnly: [Persona] { allCases.filter { !$0.isReal } }
 }
 
 public enum SettingsPane: String, CaseIterable, Codable, Sendable {
