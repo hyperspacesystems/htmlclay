@@ -34,8 +34,10 @@ const sessionMaxAge = 86400
 // did not start it themselves (another page linked or framed the dashboard).
 const TextHowToOpen = "To open the workspace, choose Open Workspace in the HTML Clay menu." // copy: whole page body, one sentence, max 90 chars
 
-// pagePath is every address the bundle renders: Local's own list.
-var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new))?$`)
+// pagePath is every address the bundle renders: Local's own list, plus the
+// pages the dashboard's own Go routes read for a recent document, a waiting
+// request, or a trusted folder's files.
+var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new)|recent|needs-you|recent/[^/]+/versions|trusted/[^/]+/files)?$`)
 
 // appAPIPrefix is the API the app answers in Go rather than through the service.
 // It is let in by the session the entry page set, never by the token alone.

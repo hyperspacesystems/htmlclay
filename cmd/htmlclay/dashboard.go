@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -14,7 +15,12 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/recents"
+	"github.com/panphora/htmlclay/internal/server"
+	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/specwire"
 	"github.com/panphora/htmlclay/internal/trust"
+	"github.com/panphora/htmlclay/internal/versions"
 )
 
 const (
@@ -27,9 +33,23 @@ const (
 	// so a folder browses while the live-room service is stopped.
 	dashboardFolderPrefix = dashboardAPIPrefix + "folders/"
 
+	// dashboardDocumentPrefix is the version routes for one recent document: its
+	// kept versions, one version's bytes, and the restore that puts one back.
+	dashboardDocumentPrefix = dashboardAPIPrefix + "documents/"
+
 	// whyNeedsApp is the reason a flag reads false on the dashboard: the action
 	// needs the Mac app's consent, which a browser can never give.
 	whyNeedsApp = "needs-app"
+
+	// The refusal codes and sentences a version route answers with, in the shape
+	// the dashboard reads.
+	dashboardRefuseStale         = "stale"
+	dashboardRefuseEtagRequired  = "etag-required"
+	dashboardRefuseNotRestorable = "not-restorable"
+
+	textVersionStale         = "This document changed since you looked, so nothing was restored."                        // TODO-COPY: dashboard, refused restore, max 90 chars
+	textVersionEtagRequired  = "This restore didn't say which version of the document it read, so nothing was restored." // TODO-COPY: dashboard, refused restore, max 120 chars
+	textVersionNotRestorable = "This document isn't open and isn't in a trusted folder, so its versions aren't here."    // TODO-COPY: dashboard, refused restore or version route, max 140 chars
 
 	// dashboardPingEvery is how often the event stream sends a comment line, so a
 	// quiet stream is not closed for looking idle.
@@ -71,6 +91,10 @@ func (d *dashboardApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if strings.HasPrefix(r.URL.Path, dashboardFolderPrefix) {
 		d.folder(w, r)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, dashboardDocumentPrefix) {
+		d.document(w, r)
 		return
 	}
 	switch r.URL.Path {
@@ -336,6 +360,238 @@ func dashboardFolderPath(rel string) string {
 		segments[i] = url.PathEscape(segment)
 	}
 	return strings.Join(segments, "/")
+}
+
+// dashboardRecentDocument is one recent document the dashboard reads versions
+// for: its path from the record and nowhere else, the key its history is filed
+// under, and the bytes on disk its current etag stamps. A served document is not
+// the loose host's to read or write, so it resolves to served and no bytes.
+type dashboardRecentDocument struct {
+	entry   recents.Entry
+	path    string
+	key     string
+	data    []byte
+	present bool
+	served  bool
+}
+
+// document answers the version routes of one recent document: one page of its
+// kept versions, one version's bytes, and the restore that puts one back.
+func (d *dashboardApp) document(w http.ResponseWriter, r *http.Request) {
+	id, tail, ok := strings.Cut(strings.TrimPrefix(r.URL.Path, dashboardDocumentPrefix), "/")
+	if !ok || id == "" {
+		dashboardMissing(w)
+		return
+	}
+	segments := strings.Split(tail, "/")
+	switch {
+	case len(segments) == 1 && segments[0] == "versions":
+		if r.Method != http.MethodGet {
+			dashboardUnsupported(w)
+			return
+		}
+		d.versions(w, r, id)
+	case len(segments) == 2 && segments[0] == "versions" && segments[1] != "":
+		if r.Method != http.MethodGet {
+			dashboardUnsupported(w)
+			return
+		}
+		d.version(w, r, id, segments[1])
+	case len(segments) == 3 && segments[0] == "versions" && segments[1] != "" && segments[2] == "restore":
+		if r.Method != http.MethodPost {
+			dashboardUnsupported(w)
+			return
+		}
+		d.restore(w, r, id, segments[1])
+	default:
+		dashboardMissing(w)
+	}
+}
+
+// dashboardRecent resolves one recent id to the loose document it names.
+func (a *app) dashboardRecent(id string) (*dashboardRecentDocument, bool) {
+	store := a.recentsStore()
+	if store == nil || id == "" {
+		return nil, false
+	}
+	entry, ok := store.Find(id)
+	if !ok || entry.Path == "" {
+		return nil, false
+	}
+	doc := &dashboardRecentDocument{entry: entry, path: entry.Path}
+	if owner, err := a.ResolveDocument(entry.Path); err == nil && owner.Kind == OwnerServed {
+		doc.served = true
+		return doc, true
+	}
+	if data, err := os.ReadFile(entry.Path); err == nil {
+		doc.data, doc.present = data, true
+	}
+	doc.key = a.looseHistoryKey(doc)
+	return doc, true
+}
+
+// looseHistoryKey is the key a loose document's history is filed under: the one
+// its live registration resolved, else the one its current bytes name, which is
+// what the loose host itself falls back to.
+func (a *app) looseHistoryKey(doc *dashboardRecentDocument) string {
+	if _, f, ok := a.registeredFile(doc.path); ok {
+		f.Lock()
+		key := f.HistoryKey()
+		f.Unlock()
+		if key != "" {
+			return key
+		}
+	}
+	return versions.Key(doc.path, doc.data)
+}
+
+// registeredFile is the live registration of one path, with the site that holds
+// it, so a version of that document routes to the host that owns it.
+func (a *app) registeredFile(absPath string) (*site, *session.File, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for _, s := range a.sites {
+		if s.closed.Load() {
+			continue
+		}
+		if f, ok := s.sessions.LookupByPath(absPath); ok {
+			return s, f, true
+		}
+	}
+	return nil, nil, false
+}
+
+// looseWriter is the site and registration a restore writes through: one that is
+// open, or one under a live trusted folder, whose registration the loose host's
+// own open makes. Anything else is not restorable from the dashboard.
+func (a *app) looseWriter(absPath string) (*site, *session.File, bool) {
+	if s, f, ok := a.registeredFile(absPath); ok {
+		return s, f, true
+	}
+	if !a.trustedLive(absPath) {
+		return nil, nil, false
+	}
+	if _, ok := a.serveURL(absPath); !ok {
+		return nil, nil, false
+	}
+	return a.registeredFile(absPath)
+}
+
+// versions answers one page of a recent document's kept versions, with the
+// document's current etag so a restore can name the bytes the person looked at.
+func (d *dashboardApp) versions(w http.ResponseWriter, r *http.Request, id string) {
+	doc, ok := d.a.dashboardRecent(id)
+	if !ok {
+		dashboardMissing(w)
+		return
+	}
+	if doc.served {
+		refuseDashboard(w, http.StatusConflict, dashboardRefuseNotRestorable, textVersionNotRestorable)
+		return
+	}
+	items, err := d.a.readHistoryPage(historyDocument{Path: doc.path}, r.URL.Query().Get("before"), historyPageSize+1)
+	if err != nil {
+		writeDashboardJSON(w, http.StatusInternalServerError, map[string]string{"error": http.StatusText(http.StatusInternalServerError), "reason": "list"})
+		return
+	}
+	var next any
+	if len(items) > historyPageSize {
+		items = items[:historyPageSize]
+		next = items[len(items)-1].ID
+	}
+	var etag any
+	if doc.present {
+		etag = specwire.Etag(doc.data)
+	}
+	writeDashboardJSON(w, http.StatusOK, map[string]any{"items": items, "next": next, "etag": etag})
+}
+
+// version answers one kept version's bytes as plain text, never as a page: a
+// version is a document, and one carrying a script tag must not run here.
+func (d *dashboardApp) version(w http.ResponseWriter, r *http.Request, id, name string) {
+	doc, ok := d.a.dashboardRecent(id)
+	if !ok {
+		dashboardMissing(w)
+		return
+	}
+	if doc.served {
+		refuseDashboard(w, http.StatusConflict, dashboardRefuseNotRestorable, textVersionNotRestorable)
+		return
+	}
+	if d.a.rt.versions == nil {
+		dashboardMissing(w)
+		return
+	}
+	data, err := d.a.rt.versions.Read(doc.key, doc.path, name)
+	if err != nil {
+		dashboardMissing(w)
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "text/plain; charset=utf-8")
+	h.Set("Content-Security-Policy", "sandbox")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Cache-Control", "no-store")
+	w.Write(data)
+}
+
+// restore puts one kept version back through the loose host's own restore, so
+// the bytes it replaces are kept first. Nothing is written unless the etag names
+// the bytes on disk: a save that landed since the person looked is never lost.
+func (d *dashboardApp) restore(w http.ResponseWriter, r *http.Request, id, name string) {
+	doc, ok := d.a.dashboardRecent(id)
+	if !ok {
+		dashboardMissing(w)
+		return
+	}
+	if doc.served {
+		refuseDashboard(w, http.StatusConflict, dashboardRefuseNotRestorable, textVersionNotRestorable)
+		return
+	}
+	ifMatch := r.Header.Get("If-Match")
+	if strings.TrimSpace(ifMatch) == "" {
+		refuseDashboard(w, http.StatusPreconditionRequired, dashboardRefuseEtagRequired, textVersionEtagRequired)
+		return
+	}
+	if !doc.present || !specwire.IfMatchSatisfied(ifMatch, doc.data) {
+		refuseDashboard(w, http.StatusPreconditionFailed, dashboardRefuseStale, textVersionStale)
+		return
+	}
+	s, f, ok := d.a.looseWriter(doc.path)
+	if !ok {
+		refuseDashboard(w, http.StatusConflict, dashboardRefuseNotRestorable, textVersionNotRestorable)
+		return
+	}
+	if err := s.srv.RestoreVersion(f, s.host, name); err != nil {
+		var refusal *server.RestoreRefusal
+		if errors.As(err, &refusal) && refusal.Status == http.StatusNotFound {
+			dashboardMissing(w)
+			return
+		}
+		refuseDashboard(w, http.StatusConflict, dashboardRefuseNotRestorable, textVersionNotRestorable)
+		return
+	}
+	var etag any
+	if data, err := os.ReadFile(doc.path); err == nil {
+		etag = specwire.Etag(data)
+	}
+	writeDashboardJSON(w, http.StatusOK, map[string]any{"etag": etag})
+}
+
+// refuseDashboard answers one refusal in the shape the dashboard reads: the code
+// that says which rule refused, and the sentence to show.
+func refuseDashboard(w http.ResponseWriter, status int, code, text string) {
+	writeDashboardJSON(w, status, map[string]any{"refusal": map[string]any{"code": code, "field": "", "text": text}})
+}
+
+// dashboardMissing is the answer to an address or an id that names nothing.
+func dashboardMissing(w http.ResponseWriter) {
+	writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+}
+
+// dashboardUnsupported is the answer to a method one route does not serve.
+func dashboardUnsupported(w http.ResponseWriter) {
+	writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
 }
 
 // act runs one action as the dashboard channel, so the class check refuses every
