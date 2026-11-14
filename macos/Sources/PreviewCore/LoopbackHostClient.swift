@@ -2,7 +2,7 @@ import Foundation
 
 enum LoopbackText {
     // TODO-COPY
-    static let notYet = "This isn't available yet."
+    static let unavailable = "This isn't available yet."
     // TODO-COPY
     static let interrupted = "HTML Clay didn't get that. Try again."
     // TODO-COPY
@@ -151,7 +151,7 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
 
     public func perform(_ action: HostAction) async -> HostOutcome {
         guard let wire = HostActionWire.wire(action) else {
-            return .refused(refusal(code: "not-yet", text: LoopbackText.notYet))
+            return .refused(refusal(code: "not-yet", text: LoopbackText.unavailable))
         }
         let id = makeID()
         guard let body = try? HostActionWire.body(id: id, wire) else {
@@ -179,7 +179,7 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
 
     public func check(_ action: HostAction) async -> Result<HostCheckAnswer, HostRefusal> {
         guard let wire = HostActionWire.wire(action) else {
-            return .failure(refusal(code: "not-yet", text: LoopbackText.notYet))
+            return .failure(refusal(code: "not-yet", text: LoopbackText.unavailable))
         }
         let id = makeID()
         guard let body = try? HostActionWire.body(id: id, wire) else {

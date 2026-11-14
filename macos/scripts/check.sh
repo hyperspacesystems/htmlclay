@@ -15,6 +15,8 @@ fi
 node "$ROOT/scripts/gen-tokens.mjs" "$ROOT/Design/kiln-styles.css" "$ROOT/Sources/PreviewUI/KilnPalette.generated.swift" --check || fail=1
 xcrun swift build --package-path "$ROOT" --scratch-path "$BUILD" 2>&1 | tail -25
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
+"$(dirname "$0")/../../scripts/build-host-for-tests.sh" >/dev/null || fail=1
+export HTMLCLAY_REQUIRE_LIVE_HOST=1
 xcrun swift test --package-path "$ROOT" --scratch-path "$BUILD" 2>&1 | /usr/bin/grep -E 'error:|failed|Executed|Fatal error' | tail -15
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 
