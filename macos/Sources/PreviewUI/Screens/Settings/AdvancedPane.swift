@@ -11,30 +11,33 @@ struct AdvancedPane: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
                 .padding(.bottom, 12)
+            let service = SettingsControls.serviceStatus(model.snapshot.host.service)
             KilnCard {
                 KilnRow(title: Strings.Advanced.port, subtitle: Strings.Advanced.portSub) {
-                    Text(Strings.Advanced.portNumber)
+                    Text(SettingsControls.port(isSample: model.isSample, port: model.snapshot.host.port))
                         .font(.system(size: 13, design: .monospaced))
                         .foregroundStyle(kiln.ink2)
                 }
                 KilnRowDivider()
                 KilnRow(title: Strings.Advanced.liveService, subtitle: Strings.Advanced.liveServiceSub) {
                     HStack(spacing: 6) {
-                        StatusDot(.green)
-                        Text(Strings.Advanced.running)
+                        StatusDot(model.isSample ? .green : service.dot)
+                        Text(model.isSample ? Strings.Advanced.running : service.text)
                             .font(.system(size: 13))
                             .foregroundStyle(kiln.ink2)
                     }
                 }
             }
-            KilnGroupTitle(Strings.Advanced.storage)
-            KilnCard {
-                KilnRow(title: Strings.Advanced.versions) {
-                    folderTrailing(Strings.Advanced.versionsSize, note: Strings.Advanced.wouldShowVersions)
-                }
-                KilnRowDivider()
-                KilnRow(title: Strings.Advanced.uploads) {
-                    folderTrailing(Strings.Advanced.uploadsSize, note: Strings.Advanced.wouldShowUploads)
+            if SettingsControls.showsStorageTotals(isSample: model.isSample) {
+                KilnGroupTitle(Strings.Advanced.storage)
+                KilnCard {
+                    KilnRow(title: Strings.Advanced.versions) {
+                        folderTrailing(Strings.Advanced.versionsSize, note: Strings.Advanced.wouldShowVersions)
+                    }
+                    KilnRowDivider()
+                    KilnRow(title: Strings.Advanced.uploads) {
+                        folderTrailing(Strings.Advanced.uploadsSize, note: Strings.Advanced.wouldShowUploads)
+                    }
                 }
             }
             if SettingsControls.showsTroubleshooting(isSample: model.isSample) {

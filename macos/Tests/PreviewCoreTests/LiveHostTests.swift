@@ -165,8 +165,9 @@ final class LiveHostTests: XCTestCase {
 
         let first = ServeSheetModel(folderID: nil, model: model)
         XCTAssertEqual(first.path, notes.path)
-        XCTAssertEqual(first.name, "notes")
+        XCTAssertEqual(first.name, "")
         await first.check()
+        XCTAssertEqual(first.name, "notes")
         XCTAssertTrue(first.address.contains("notes.htmlclay.localhost"), "address = \(first.address)")
         XCTAssertNil(first.pathProblem)
         XCTAssertNil(first.nameProblem)
@@ -178,7 +179,7 @@ final class LiveHostTests: XCTestCase {
         model.folderChooser = FixedFolderChooser(blog.path)
         let second = ServeSheetModel(folderID: nil, model: model)
         XCTAssertEqual(second.path, blog.path)
-        second.name = "notes"
+        second.setName("notes")
         await second.check()
         XCTAssertNotNil(second.nameProblem, "the host said nothing about the taken name")
         XCTAssertNil(second.pathProblem)
@@ -578,5 +579,60 @@ final class LiveHostTests: XCTestCase {
         XCTAssertTrue(quit, "Quit with nothing unsaved was refused")
         XCTAssertEqual(quiet.asked, [], "the person was asked with nothing unsaved")
         XCTAssertNil(fresh.process.pid, "quit() answered true while the host was still running")
+    }
+
+    func testTurningOnTheNameThroughThePaneModelAsksForItFirst() async throws {
+        let host = try await LiveHost.start()
+        let snapshot = try await host.client.load()
+        XCTAssertEqual(snapshot.preferences.yourName, "", "a fresh home already has a name")
+        XCTAssertFalse(snapshot.preferences.useName)
+
+        let model = AppModel(host: host.client, initial: snapshot)
+        let name = YourNameModel(model: model)
+
+        name.setUseName(true)
+        await waitUntil("the pane never asked for a name") { name.settingUp }
+        XCTAssertEqual(name.mode, .local)
+
+        name.setDraft("Ada")
+        await waitUntil("sharing never turned on") { !name.settingUp }
+
+        XCTAssertNil(name.problem)
+        XCTAssertEqual(model.snapshot.preferences.yourName, "Ada")
+        XCTAssertTrue(model.snapshot.preferences.useName)
+
+        let reloaded = try await host.client.load()
+        XCTAssertEqual(reloaded.preferences.yourName, "Ada")
+        XCTAssertTrue(reloaded.preferences.useName)
+    }
+
+    func testTheSettingsShowTheRealPortAndDashboardAddress() async throws {
+        let host = try await LiveHost.start()
+        let snapshot = try await host.client.load()
+
+        XCTAssertEqual(snapshot.host.port, host.ready.port)
+        XCTAssertEqual(SettingsControls.port(isSample: false, port: snapshot.host.port), String(host.ready.port))
+        let address = SettingsControls.dashboardAddress(snapshot.host.dashboardURL)
+        XCTAssertTrue(address.hasSuffix(":\(host.ready.port)"), "address = \(address), READY port = \(host.ready.port)")
+    }
+
+    func testANewServeSheetGetsTheHostsNameForADifficultFolder() async throws {
+        let host = try await LiveHost.start()
+        let notes = host.home.appendingPathComponent("Client Notes (2024)")
+        try makeFolder(notes)
+
+        let model = AppModel(host: host.client, initial: try await host.client.load())
+        model.folderChooser = FixedFolderChooser(notes.path)
+        let sheet = ServeSheetModel(folderID: nil, model: model)
+        XCTAssertEqual(sheet.path, notes.path)
+        XCTAssertEqual(sheet.name, "")
+
+        await sheet.check()
+
+        XCTAssertEqual(sheet.name, "client-notes-2024")
+        XCTAssertNil(sheet.nameProblem)
+        XCTAssertNil(sheet.pathProblem)
+        let served = await sheet.serve()
+        XCTAssertTrue(served)
     }
 }

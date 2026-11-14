@@ -1,5 +1,11 @@
 import Foundation
 
+/// The dot kinds a status row offers: green for good, amber for in between,
+/// red for stopped, blue for working, muted for off.
+public enum StatusDotKind: CaseIterable {
+    case green, amber, blue, red, muted
+}
+
 /// The settings window's decisions, away from the views: sample data shows every
 /// pane and control, and the real host shows the ones it says it can run.
 public enum SettingsControls {
@@ -29,6 +35,35 @@ public enum SettingsControls {
 
     /// The logs, the file-type removal and Show in Finder have no host action yet.
     public static func showsTroubleshooting(isSample: Bool) -> Bool { isSample }
+
+    /// The port every address on this Mac uses: sample data shows the designed one.
+    public static func port(isSample: Bool, port: Int) -> String {
+        isSample ? Strings.Advanced.portNumber : String(port)
+    }
+
+    /// The live service row's dot and text, from the host's `host.service`.
+    public static func serviceStatus(_ service: String) -> (dot: StatusDotKind, text: String) {
+        switch service {
+        case "running": return (.green, Strings.Advanced.running)
+        case "starting", "restarting": return (.amber, Strings.Advanced.starting)
+        case "failed": return (.red, Strings.Advanced.stopped)
+        default: return (.muted, Strings.Advanced.off)
+        }
+    }
+
+    /// The dashboard address without its scheme and trailing slash.
+    public static func dashboardAddress(_ url: String) -> String {
+        var address = url
+        for prefix in ["http://", "https://"] where address.hasPrefix(prefix) {
+            address.removeFirst(prefix.count)
+            break
+        }
+        while address.hasSuffix("/") { address.removeLast() }
+        return address
+    }
+
+    /// The storage totals: the host does not send them yet, so only sample data shows them.
+    public static func showsStorageTotals(isSample: Bool) -> Bool { isSample }
 
     /// Restarting the live service.
     public static func showsServiceRestart(can: Bool) -> Bool { can }

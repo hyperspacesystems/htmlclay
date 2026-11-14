@@ -87,7 +87,7 @@ public struct SettingsView: View {
                     default: ProgramsPane(actions: actions)
                     }
                 case .sync: SyncPane(actions: actions)
-                case .yourName: YourNamePane()
+                case .yourName: YourNamePane(model: model)
                 case .updates: UpdatesPane()
                 case .advanced: AdvancedPane()
                 }

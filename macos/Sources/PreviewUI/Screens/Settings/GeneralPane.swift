@@ -71,7 +71,7 @@ struct GeneralPane: View {
                 Text(Strings.General.dashboard)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(kiln.ink)
-                Text(Strings.General.dashboardAddress)
+                Text(SettingsControls.dashboardAddress(model.isSample ? Strings.General.dashboardAddress : model.snapshot.host.dashboardURL))
                     .font(.system(size: 12.5, design: .monospaced))
                     .foregroundStyle(kiln.muted)
                     .padding(.top, 2)

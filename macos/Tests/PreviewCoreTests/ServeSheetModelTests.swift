@@ -30,25 +30,43 @@ final class ServeSheetModelTests: XCTestCase {
         return (host, model)
     }
 
-    func testANewSheetStartsAtTheFirstSamplePathWithItsDefaultName() {
+    func testANewSheetStartsEmptyAndTheCheckFillsTheDefaultName() async {
         let (host, model) = sample()
         let sheet = ServeSheetModel(folderID: nil, model: model)
 
         let expected = ServeRules.path(folderID: nil, pick: ServeRules.firstPick(in: host.current), in: host.current)
         XCTAssertEqual(sheet.path, expected)
         XCTAssertEqual(sheet.path, SampleData.servePaths[1])
-        XCTAssertEqual(sheet.name, "apps")
+        XCTAssertEqual(sheet.name, "")
+        XCTAssertFalse(sheet.nameEdited)
         XCTAssertTrue(sheet.nameEditable)
         XCTAssertNil(sheet.pathProblem)
         XCTAssertNil(sheet.nameProblem)
         XCTAssertNil(sheet.otherProblem)
         XCTAssertTrue(sheet.ready)
+
+        await sheet.check()
+
+        XCTAssertEqual(sheet.name, "apps")
+        XCTAssertFalse(sheet.nameEdited)
+        XCTAssertTrue(sheet.address.contains("apps.htmlclay.localhost"))
+    }
+
+    func testATypedNameSurvivesTheCheck() async {
+        let (_, model) = sample()
+        let sheet = ServeSheetModel(folderID: nil, model: model)
+
+        sheet.setName("my-site")
+        await sheet.check()
+
+        XCTAssertEqual(sheet.name, "my-site")
+        XCTAssertTrue(sheet.nameEdited)
     }
 
     func testATakenNameIsTheNameProblem() async {
         let (_, model) = sample()
         let sheet = ServeSheetModel(folderID: nil, model: model)
-        sheet.name = "prototypes"
+        sheet.setName("prototypes")
 
         await sheet.check()
 
@@ -58,14 +76,19 @@ final class ServeSheetModelTests: XCTestCase {
         XCTAssertFalse(sheet.ready)
     }
 
-    func testChooseMovesToTheNextSamplePathAndResetsTheName() async {
+    func testChooseMovesToTheNextSamplePathAndClearsTheName() async {
         let (_, model) = sample()
         let sheet = ServeSheetModel(folderID: nil, model: model)
-        sheet.name = "something-else"
+        sheet.setName("something-else")
 
         await sheet.choose()
 
         XCTAssertEqual(sheet.path, SampleData.servePaths[2])
+        XCTAssertEqual(sheet.name, "")
+        XCTAssertFalse(sheet.nameEdited)
+
+        await sheet.check()
+
         XCTAssertEqual(sheet.name, ServeRules.defaultName(for: SampleData.servePaths[2]))
         XCTAssertEqual(sheet.name, "blog")
     }

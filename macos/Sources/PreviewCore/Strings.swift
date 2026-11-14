@@ -252,6 +252,9 @@ public enum Strings {
         public static let liveService = "Live service"
         public static let liveServiceSub = "Runs served and synced folders"
         public static let running = "Running"
+        public static let starting = "Starting" // TODO-COPY: the live service is starting or restarting
+        public static let stopped = "Stopped" // TODO-COPY: the live service failed
+        public static let off = "Not running" // TODO-COPY: the live service is off
         public static let storage = "Storage"
         public static let versions = "Versions of documents outside served folders"
         public static let versionsSize = "240 MB"

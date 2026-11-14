@@ -37,7 +37,7 @@ struct ServeSheet: View {
             }
             KilnField(Strings.ServeSheet.name) {
                 if sheet.nameEditable {
-                    KilnInput(text: Bindable(sheet).name, placeholder: Strings.ServeSheet.name, mono: true)
+                    KilnInput(text: Binding(get: { sheet.name }, set: { sheet.setName($0) }), placeholder: Strings.ServeSheet.name, mono: true)
                 } else {
                     KilnInputBox(sheet.name)
                 }

@@ -198,10 +198,11 @@ public final class SampleHost: HostClient {
             if let problem = ServeRules.pathProblem(path, folderID: nil, in: current) {
                 return .failure(HostRefusal(code: "path", text: problem, field: "path"))
             }
-            if let problem = ServeRules.nameProblem(name, folderID: nil, in: current) {
+            let wanted = name.isEmpty ? ServeRules.defaultName(for: path) : name
+            if let problem = ServeRules.nameProblem(wanted, folderID: nil, in: current) {
                 return .failure(HostRefusal(code: "name-taken", text: problem, field: "name"))
             }
-            return .success(HostCheckAnswer(address: ServeRules.address(for: name), name: name))
+            return .success(HostCheckAnswer(address: ServeRules.address(for: wanted), name: wanted))
         case let .setServed(folderID, on) where on:
             let name = ServeRules.startName(folderID: folderID, in: current)
             return .success(HostCheckAnswer(address: ServeRules.address(for: name), name: name))

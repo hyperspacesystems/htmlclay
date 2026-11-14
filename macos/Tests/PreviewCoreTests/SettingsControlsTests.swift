@@ -95,4 +95,42 @@ final class SettingsControlsTests: XCTestCase {
         snapshot.host.can = can
         XCTAssertTrue(SettingsControls.showsPane(.sync, in: snapshot))
     }
+
+    func testTheLiveServiceRowFollowsTheHostsServiceState() {
+        let running = SettingsControls.serviceStatus("running")
+        XCTAssertEqual(running.dot, .green)
+        XCTAssertEqual(running.text, Strings.Advanced.running)
+
+        for state in ["starting", "restarting"] {
+            let row = SettingsControls.serviceStatus(state)
+            XCTAssertEqual(row.dot, .amber, state)
+            XCTAssertEqual(row.text, Strings.Advanced.starting, state)
+        }
+
+        let failed = SettingsControls.serviceStatus("failed")
+        XCTAssertEqual(failed.dot, .red)
+        XCTAssertEqual(failed.text, Strings.Advanced.stopped)
+
+        let off = SettingsControls.serviceStatus("off")
+        XCTAssertEqual(off.dot, .muted)
+        XCTAssertEqual(off.text, Strings.Advanced.off)
+    }
+
+    func testTheDashboardAddressDropsTheSchemeAndTrailingSlash() {
+        XCTAssertEqual(SettingsControls.dashboardAddress("http://dashboard.htmlclay.localhost:1212/"),
+                       "dashboard.htmlclay.localhost:1212")
+        XCTAssertEqual(SettingsControls.dashboardAddress("https://example.test:4000"),
+                       "example.test:4000")
+        XCTAssertEqual(SettingsControls.dashboardAddress(""), "")
+    }
+
+    func testThePortShowsTheSnapshotOnTheRealHostAndTheDesignedOneInThePreview() {
+        XCTAssertEqual(SettingsControls.port(isSample: true, port: 4040), Strings.Advanced.portNumber)
+        XCTAssertEqual(SettingsControls.port(isSample: false, port: 4040), "4040")
+    }
+
+    func testStorageTotalsAreHiddenOnTheRealHost() {
+        XCTAssertTrue(SettingsControls.showsStorageTotals(isSample: true))
+        XCTAssertFalse(SettingsControls.showsStorageTotals(isSample: false))
+    }
 }

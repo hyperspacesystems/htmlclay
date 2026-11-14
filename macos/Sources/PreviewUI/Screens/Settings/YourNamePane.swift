@@ -2,18 +2,16 @@ import SwiftUI
 import PreviewCore
 
 struct YourNamePane: View {
-    enum Mode: Equatable { case off, local, account }
+    typealias Mode = YourNameModel.Mode
 
-    @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
-    @State private var draft = String()
+    @State private var name: YourNameModel
 
-    static func mode(_ snapshot: HostSnapshot) -> Mode {
-        guard snapshot.preferences.useName else { return .off }
-        return snapshot.sync.connected && !snapshot.sync.fullName.isEmpty ? .account : .local
+    init(model: AppModel) {
+        _name = State(initialValue: YourNameModel(model: model))
     }
 
-    private var mode: Mode { YourNamePane.mode(model.snapshot) }
+    static func mode(_ snapshot: HostSnapshot) -> Mode { YourNameModel.mode(snapshot) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -24,30 +22,41 @@ struct YourNamePane: View {
             KilnCard {
                 KilnRow(title: Strings.YourName.useName) {
                     Toggle(isOn: Binding(
-                        get: { model.snapshot.preferences.useName },
-                        set: { model.send(.setUseName($0)) }
+                        get: { name.isOn },
+                        set: { name.setUseName($0) }
                     )) {
                         EmptyView()
                     }
                     .toggleStyle(KilnSwitchStyle())
                 }
-                switch mode {
+                switch name.mode {
                 case .local:
                     KilnRowDivider()
                     KilnRow(title: Strings.YourName.name) {
-                        KilnInput(text: $draft, placeholder: Strings.Settings.title(.yourName))
-                            .frame(width: 220)
+                        VStack(alignment: .leading, spacing: 4) {
+                            KilnInput(text: Binding(
+                                get: { name.draft },
+                                set: { name.setDraft($0) }
+                            ), placeholder: Strings.Settings.title(.yourName))
+                            if let problem = name.problem {
+                                Text(problem)
+                                    .font(.system(size: 12.5))
+                                    .foregroundStyle(kiln.danger)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(width: 220, alignment: .leading)
                     }
                 case .account:
                     KilnRowDivider()
-                    if SettingsControls.showsAccountChange(isSample: model.isSample) {
-                        KilnRow(title: model.snapshot.sync.fullName, subtitle: Strings.YourName.accountSub) {
+                    if SettingsControls.showsAccountChange(isSample: name.isSample) {
+                        KilnRow(title: name.accountName, subtitle: Strings.YourName.accountSub) {
                             KilnLink(Strings.YourName.change) {
-                                model.say(Strings.YourName.wouldChange)
+                                name.sayChange()
                             }
                         }
                     } else {
-                        KilnRow(title: model.snapshot.sync.fullName, subtitle: Strings.YourName.accountSub) {
+                        KilnRow(title: name.accountName, subtitle: Strings.YourName.accountSub) {
                             EmptyView()
                         }
                     }
@@ -55,17 +64,11 @@ struct YourNamePane: View {
                     EmptyView()
                 }
             }
-            Text(mode == .off ? Strings.YourName.offSub : Strings.YourName.note)
+            Text(name.mode == .off ? Strings.YourName.offSub : Strings.YourName.note)
                 .font(.system(size: 12.5))
                 .foregroundStyle(kiln.muted)
                 .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear { draft = model.snapshot.preferences.yourName }
-        .onChange(of: draft) { _, new in
-            if new != model.snapshot.preferences.yourName {
-                model.send(.setYourName(new))
-            }
-        }
     }
 }

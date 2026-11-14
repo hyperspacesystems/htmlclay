@@ -8,7 +8,8 @@ import Observation
 public final class ServeSheetModel {
     public let folderID: String?
     public private(set) var path: String
-    public var name: String
+    public private(set) var name: String
+    public private(set) var nameEdited = false
     public let nameEditable: Bool
     public private(set) var address = ""
     public private(set) var pathProblem: String?
@@ -18,7 +19,7 @@ public final class ServeSheetModel {
     public private(set) var checking = false
     public private(set) var serving = false
     public var ready: Bool {
-        !path.isEmpty && !(nameEditable && name.isEmpty) && pathProblem == nil && nameProblem == nil && blocked && !checking && !serving
+        !path.isEmpty && !(nameEditable && nameEdited && name.isEmpty) && pathProblem == nil && nameProblem == nil && blocked && !checking && !serving
     }
 
     private var blocked: Bool { otherProblem == nil || problemIsRetryable }
@@ -38,9 +39,8 @@ public final class ServeSheetModel {
             name = current.isEmpty ? ServeRules.defaultName(for: known) : current
             nameEditable = false
         } else {
-            let first = model.folderChooser?.first(in: snapshot) ?? ""
-            path = first
-            name = first.isEmpty ? "" : ServeRules.defaultName(for: first)
+            path = model.folderChooser?.first(in: snapshot) ?? ""
+            name = ""
             nameEditable = true
         }
     }
@@ -64,6 +64,7 @@ public final class ServeSheetModel {
         checking = false
         switch answer {
         case let .success(check):
+            if nameEditable, !nameEdited { name = check.name }
             address = check.address
             pathProblem = nil
             nameProblem = nil
@@ -75,16 +76,23 @@ public final class ServeSheetModel {
         }
     }
 
-    /// Lets the person pick another folder; a new folder's name becomes its default name (lowercased last component, spaces to hyphens).
+    /// Lets the person pick another folder; the host fills in the new folder's name.
     public func choose() async {
         guard let next = await model.folderChooser?.choose(after: path.isEmpty ? nil : path, in: model.snapshot) else { return }
         path = next
-        name = ServeRules.defaultName(for: next)
+        name = ""
+        nameEdited = false
         address = ""
         pathProblem = nil
         nameProblem = nil
         otherProblem = nil
         problemIsRetryable = false
+    }
+
+    /// What the person types in the name field; the first edit stops the host's answer from replacing it.
+    public func setName(_ next: String) {
+        nameEdited = true
+        name = next
     }
 
     /// Serves. True when the host did it (the sheet closes); false keeps every field and shows the refusal.
