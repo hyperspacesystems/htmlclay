@@ -562,7 +562,7 @@ func TestM3VersionHistoryOpens(t *testing.T) {
 		}
 	})
 
-	t.Run("the host offers the action only while a folder is served", func(t *testing.T) {
+	t.Run("the host offers the action whether or not a folder is served", func(t *testing.T) {
 		fx := newCountFixture(t)
 		offered := func(a *app) bool {
 			return slices.Contains(a.implemented(), "document.versions")
@@ -577,8 +577,8 @@ func TestM3VersionHistoryOpens(t *testing.T) {
 		if err := fx.app.stopServing(servedID); err != nil {
 			t.Fatalf("stopServing: %v", err)
 		}
-		if offered(fx.app) {
-			t.Fatal("a host serving nothing still offers document.versions")
+		if !offered(fx.app) {
+			t.Fatal("a host serving nothing no longer offers document.versions")
 		}
 	})
 

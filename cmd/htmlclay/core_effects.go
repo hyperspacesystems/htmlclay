@@ -57,24 +57,14 @@ var implementedActions = []string{
 }
 
 // implemented lists the actions this host runs now: request.answer is answered
-// by the Mac app's window, so only a host the Mac app started offers it, and a
-// document's version page is offered while a served document has one to show.
+// by the Mac app's window, so only a host the Mac app started offers it.
 func (a *app) implemented() []string {
-	served := false
-	for _, folder := range a.rt.cfg.ServedFolderList() {
-		if folder.Serving {
-			served = true
-		}
-	}
 	out := make([]string, 0, len(implementedActions))
 	for _, typ := range implementedActions {
 		if typ == "request.answer" && !a.shell {
 			continue
 		}
 		if typ == "document.recover" && !a.shell {
-			continue
-		}
-		if typ == "document.versions" && !served {
 			continue
 		}
 		out = append(out, typ)

@@ -1,11 +1,11 @@
 {
   "version": 1,
   "protocol": 1,
-  "package": "0.9.0",
+  "package": "0.12.0",
   "entry": {
-    "javascript": "main-A4ZMRVSS.js",
+    "javascript": "main-4CLLGJHF.js",
     "css": [
-      "main-53CJPFHJ.css"
+      "main-J5PASYGV.css"
     ]
   },
   "assets": [
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
-      "path": "main-53CJPFHJ.css",
-      "bytes": 384673,
-      "sha256": "0588c14ba4dbfce0e6e0d80346f4fd235f4bb4b63f91e00414092f5ffb3b1d42"
+      "path": "main-4CLLGJHF.js",
+      "bytes": 1733499,
+      "sha256": "a12d9cf2bf9840a8c5e29307b631ee2fe405423e24b8701f8d32c41824009351"
     },
     {
-      "path": "main-A4ZMRVSS.js",
-      "bytes": 1706734,
-      "sha256": "f20c6b13bbf758e758809b7bfaefe2919572d834f051bb3a67fae05d4bc3efd4"
+      "path": "main-J5PASYGV.css",
+      "bytes": 385686,
+      "sha256": "68f06eb3d40843d06f3cab03da4e0ca498c7ca57122b8c7e7575db07346d444d"
     }
   ]
 }
