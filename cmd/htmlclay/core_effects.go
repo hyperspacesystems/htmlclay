@@ -22,6 +22,7 @@ var implementedActions = []string{
 	"document.reveal",
 	"file.open",
 	"folder.copyAddress",
+	"folder.relink",
 	"folder.reveal",
 	"folder.serve",
 	"folder.stopServing",
@@ -80,6 +81,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
 		}
 		return nil
+	case "folder.relink":
+		return a.relinkFolder(e)
 	case "folder.stopTrusting":
 		path := a.folderPath(e.FolderID)
 		if path == "" {

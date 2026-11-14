@@ -80,6 +80,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "program.add", args: ["path": .string(path), "name": .string(name), "acknowledged": .strings(acknowledged)])
         case let .relinkProgram(programID, path, acknowledged):
             return WireActionRequest(type: "program.relink", args: ["programID": .string(programID), "path": .string(path), "acknowledged": .strings(acknowledged)])
+        case let .relinkFolder(folderID, path, acknowledged):
+            return WireActionRequest(type: "folder.relink", args: ["id": .string(folderID), "path": .string(path), "acknowledged": .strings(acknowledged)])
         case let .askProgramAgain(programID, documentID):
             return WireActionRequest(type: "program.askAgain", args: ["programID": .string(programID), "documentID": .string(documentID)])
         case let .removeProgram(programID):

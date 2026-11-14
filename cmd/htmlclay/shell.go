@@ -41,6 +41,9 @@ func (b shellBackend) Check(act appcore.Action) (shellapi.Preview, *appcore.Refu
 	if act.Type == "folder.trust" {
 		return b.trustPreview(effects[0].Path)
 	}
+	if act.Type == "folder.relink" {
+		return b.a.folderRelinkPreview(effects[0].FolderID, effects[0].Path)
+	}
 	if act.Type == "program.add" || act.Type == "program.relink" {
 		return b.programPreview(effects[0])
 	}
@@ -81,24 +84,32 @@ func (b shellBackend) trustPreview(path string) (shellapi.Preview, *appcore.Refu
 	if err != nil {
 		return shellapi.Preview{}, &appcore.Refusal{Code: appcore.RefuseCannotTrust}
 	}
-	preview := shellapi.Preview{Path: canonical, Name: filepath.Base(canonical)}
-	if b.a.rt.policy.IsPersonal(canonical) {
-		preview.Warnings = append(preview.Warnings, shellapi.Warning{Code: "personal-folder", Text: appcore.TextWarnPersonalFolder})
+	return shellapi.Preview{Path: canonical, Name: filepath.Base(canonical), Warnings: b.a.folderWarnings(canonical)}, nil
+}
+
+// folderWarnings is what a person should know before canonical is trusted: a main
+// personal folder, or trusted folders inside it that become part of it. The Trust
+// sheet and the Find it sheet both show these, and the relink effect checks them
+// again.
+func (a *app) folderWarnings(canonical string) []shellapi.Warning {
+	var warnings []shellapi.Warning
+	if a.rt.policy.IsPersonal(canonical) {
+		warnings = append(warnings, shellapi.Warning{Code: "personal-folder", Text: appcore.TextWarnPersonalFolder})
 	}
 	var inside []string
-	for _, tf := range b.a.rt.cfg.TrustedFolderList() {
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
 		if tf.Path != canonical && pathrel.SameOrBelow(tf.Path, canonical) {
 			inside = append(inside, filepath.Base(tf.Path))
 		}
 	}
 	if len(inside) > 0 {
-		preview.Warnings = append(preview.Warnings, shellapi.Warning{
+		warnings = append(warnings, shellapi.Warning{
 			Code:  "contains-trusted",
 			Text:  fmt.Sprintf(appcore.TextWarnContainsTrusted, strings.Join(inside, ", ")),
 			Names: inside,
 		})
 	}
-	return preview, nil
+	return warnings
 }
 
 // programPreview is what the add and relink sheets show: the file as it will be

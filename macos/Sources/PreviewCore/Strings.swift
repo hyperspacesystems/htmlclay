@@ -168,6 +168,8 @@ public enum Strings {
             "\(child)'s \(documents) documents will move to \(parent)'s address, where documents in \(parent) can link to and change each other. Anything those documents saved in the browser stays behind at \(child)'s old address. Your files on disk stay right where they are."
         }
         public static func mergeAction(parent: String) -> String { "Merge into \(parent)" }
+        public static func relinkTitle(_ name: String) -> String { "Find \(name)?" } // TODO-COPY: Find it sheet title, the folder's name, max 40 chars
+        public static let relinkLead = "Choose where this folder went. It keeps its id, name and address." // TODO-COPY: Find it sheet lead, max 120 chars
     }
     public enum Programs {
         public static let addProgram = "Add program…"

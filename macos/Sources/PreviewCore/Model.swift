@@ -57,6 +57,7 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
     case teamSetup(folderID: String)
     case addProgram
     case relinkProgram(programID: String, path: String)
+    case relinkFolder(folderID: String, path: String)
     case moveFromLocal
     case movedFromLocal
 
@@ -69,6 +70,7 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
         case let .teamSetup(folderID): return "team." + folderID
         case .addProgram: return "add-program"
         case let .relinkProgram(programID, _): return "relink." + programID
+        case let .relinkFolder(folderID, _): return "relink-folder." + folderID
         case .moveFromLocal: return "move"
         case .movedFromLocal: return "moved"
         }
@@ -422,6 +424,7 @@ public enum HostAction: Equatable, Sendable {
     case serveFolder(path: String, name: String)
     case addProgram(name: String, path: String, acknowledged: [String] = [String]())
     case relinkProgram(programID: String, path: String, acknowledged: [String] = [String]())
+    case relinkFolder(folderID: String, path: String, acknowledged: [String] = [String]())
     case askProgramAgain(programID: String, documentID: String)
     case removeProgram(programID: String)
     case revealProgram(programID: String)

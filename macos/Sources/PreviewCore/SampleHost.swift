@@ -140,6 +140,10 @@ public enum SampleReducer {
             guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
             next.programs[p].path = path
             next.programs[p].fileMissing = false
+        case let .relinkFolder(folderID, path, _):
+            guard let i = next.folders.firstIndex(where: { $0.id == folderID }) else { return snapshot }
+            next.folders[i].path = path
+            next.folders[i].missingOnDisk = false
         case let .askProgramAgain(programID, documentID):
             guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
             next.programs[p].removedDocuments.removeAll { $0 == documentID }

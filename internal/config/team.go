@@ -221,6 +221,10 @@ func teamScope(f TeamFolder) Scope {
 	return Scope{Kind: ScopeTeam, Key: "team:" + f.Key}
 }
 
+// Scope is what a program decision about this entry's folder is stored as, the same
+// answer ScopeOf gives for a path inside it.
+func (f TeamFolder) Scope() Scope { return teamScope(f) }
+
 // writeTeamFolders replaces the record with folders through a temporary file in the
 // same folder and a rename, the way config.json's own save does.
 func writeTeamFolders(path string, folders []TeamFolder) error {

@@ -17,6 +17,7 @@
       "file.open": true,
       "folder.copyAddress": true,
       "folder.merge": false,
+      "folder.relink": false,
       "folder.reveal": true,
       "folder.serve": true,
       "folder.setSynced": false,

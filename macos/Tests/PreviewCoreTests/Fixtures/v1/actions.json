@@ -30,6 +30,10 @@
       "class": "revoke"
     },
     {
+      "type": "folder.relink",
+      "class": "grant"
+    },
+    {
       "type": "folder.reveal",
       "class": "safe"
     },

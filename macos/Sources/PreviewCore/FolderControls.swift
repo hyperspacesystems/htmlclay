@@ -16,6 +16,7 @@ public struct FolderToggle: Equatable, Sendable {
 
 /// The host action types a page or panel asks about, so no view writes them as text.
 public enum HostActionType {
+    public static let relinkFolder = "folder.relink"
     public static let setSynced = "folder.setSynced"
     public static let merge = "folder.merge"
     public static let reveal = "folder.reveal"
@@ -42,6 +43,11 @@ public enum HostActionType {
 /// whether the host allows the move. A folder with no `can` is sample data, and
 /// every move is allowed there.
 public enum FolderControls {
+    /// Find it… on a missing folder, only where the host can relink one.
+    public static func canRelink(_ snapshot: HostSnapshot) -> Bool {
+        snapshot.hostCan(HostActionType.relinkFolder)
+    }
+
     public static func trusted(folder: Folder) -> FolderToggle {
         let enabled = folder.can?.stopTrusting ?? true
         return FolderToggle(value: folder.onThisMac,

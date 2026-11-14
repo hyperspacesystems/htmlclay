@@ -151,3 +151,48 @@ struct TrustSheet: View {
         }
     }
 }
+
+struct FolderRelinkSheet: View {
+    @Environment(AppModel.self) private var model
+    @State private var sheet: FolderRelinkModel
+
+    init(folderID: String, path: String, model: AppModel) {
+        _sheet = State(initialValue: FolderRelinkModel(folderID: folderID, path: path, model: model))
+    }
+
+    var body: some View {
+        let ready = sheet.ready
+        KilnDialog(Strings.FolderPage.relinkTitle(folderName)) {
+            KilnLead(Text(Strings.FolderPage.relinkLead))
+                .padding(.top, 6)
+            KilnField(Strings.ServeSheet.folder) {
+                KilnInputBox(sheet.path)
+            }
+            .padding(.top, 14)
+            ForEach(sheet.warningLines, id: \.self) { line in
+                KilnNoteRow(line)
+            }
+            if let problem = sheet.problem {
+                KilnFieldNote(Text(problem), error: true)
+            }
+        } buttons: {
+            Button(Strings.Sheets.cancel) {
+                model.sheet = nil
+            }
+            .buttonStyle(KilnButtonStyle(.plain))
+            Button(Strings.Programs.findIt) {
+                Task {
+                    if await sheet.confirm() { model.sheet = nil }
+                }
+            }
+            .buttonStyle(KilnButtonStyle(.primary))
+            .disabled(!ready)
+            .opacity(ready ? 1 : 0.42)
+        }
+        .task { await sheet.check() }
+    }
+
+    private var folderName: String {
+        model.snapshot.folder(sheet.folderID)?.name ?? String()
+    }
+}

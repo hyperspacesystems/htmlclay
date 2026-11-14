@@ -273,6 +273,25 @@ func (c *Config) SetTrustedIdentity(dir, identity string) (previous string, ok b
 	return "", false
 }
 
+// RelinkTrustedFolder points the entry with id at path, keeping its id, and pins it
+// to identity, the folder's fingerprint where it is now. It answers the entry it
+// replaced, so a caller whose save fails can put it back by relinking to the
+// previous path and pin. ok reports whether there was an entry with that id.
+func (c *Config) RelinkTrustedFolder(id, path, identity string) (previous TrustedFolder, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, w := range c.TrustedFolders {
+		if w.ID != id {
+			continue
+		}
+		previous = w
+		c.TrustedFolders[i].Path = path
+		c.TrustedFolders[i].Identity = identity
+		return previous, true
+	}
+	return TrustedFolder{}, false
+}
+
 // TrustedFolderList returns a copy of the trusted folders so callers can read
 // the list without touching the field under the lock.
 func (c *Config) TrustedFolderList() []TrustedFolder {
@@ -401,6 +420,23 @@ func (c *Config) SetServing(id string, serving bool) bool {
 		}
 	}
 	return false
+}
+
+// RelinkServedFolder is RelinkTrustedFolder for a served entry: the path and the pin
+// move, while the id, the name its address is built from and the serving state stay.
+func (c *Config) RelinkServedFolder(id, path, identity string) (previous ServedFolder, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, f := range c.ServedFolders {
+		if f.ID != id {
+			continue
+		}
+		previous = f
+		c.ServedFolders[i].Path = path
+		c.ServedFolders[i].Identity = identity
+		return previous, true
+	}
+	return ServedFolder{}, false
 }
 
 // RemoveServedFolder drops the entry and retires its name, so an old address never

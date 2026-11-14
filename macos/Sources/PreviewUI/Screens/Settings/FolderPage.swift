@@ -104,6 +104,17 @@ struct FolderPage: View {
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
+                } else if FolderControls.canRelink(model.snapshot) {
+                    KilnRowDivider()
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 0)
+                        Button(Strings.Programs.findIt) {
+                            FolderFlow.findIt(folder, model: model)
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
                 }
             }
         case .none:

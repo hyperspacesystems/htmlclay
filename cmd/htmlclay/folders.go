@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/shellapi"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/trust"
 )
@@ -575,4 +578,210 @@ func (a *app) removeTrustedFolder(dir string) []tray.Row {
 		a.rt.logger.Printf("Could not untrust folder %s: %v", dir, err)
 	}
 	return a.trustedFolderRows()
+}
+
+// warnDifferentFolder is the Find it sheet's code for a folder at the new path that
+// is not the one that moved. The person has to acknowledge it before the relink.
+const warnDifferentFolder = "different-folder"
+
+// folderRelinkPreview is the Find it sheet's answer: the folder as it will be
+// stored, and the codes the person has to acknowledge. The effect reads the same
+// warnings, so a folder that changed between the sheet and the click is never
+// relinked on the sheet's word.
+func (a *app) folderRelinkPreview(folderID, path string) (shellapi.Preview, *appcore.Refusal) {
+	entry, ok := trustedFolderByID(a.rt.cfg.TrustedFolderList(), folderID)
+	if !ok {
+		return shellapi.Preview{}, &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: folderID}
+	}
+	canonical, refusal := a.relinkCanonical(path, entry.ID)
+	if refusal != nil {
+		return shellapi.Preview{}, refusal
+	}
+	return shellapi.Preview{
+		Path:     canonical,
+		Name:     filepath.Base(canonical),
+		Warnings: a.relinkWarnings(canonical, a.relinkPin(entry)),
+	}, nil
+}
+
+// relinkFolder runs folder.relink: the entry keeps its id, name, address and frame
+// setting and points at the folder's new path. A folder that moved keeps its
+// identity, so nothing needs acknowledging. A different folder there needs every
+// warning the sheet showed. A team folder stays one: the new path joins the team
+// record first and the config is saved second, so a stop between the two leaves the
+// stricter state.
+func (a *app) relinkFolder(e appcore.Effect) *appcore.Refusal {
+	entry, ok := trustedFolderByID(a.rt.cfg.TrustedFolderList(), e.FolderID)
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+	served, isServed := a.rt.cfg.ServedFolderByID(entry.ID)
+	canonical, refusal := a.relinkCanonical(e.Path, entry.ID)
+	if refusal != nil {
+		return refusal
+	}
+	for _, warning := range a.relinkWarnings(canonical, a.relinkPin(entry)) {
+		if !slices.Contains(e.Acknowledged, warning.Code) {
+			return &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation, SubjectID: entry.ID}
+		}
+	}
+	identity := platform.DirIdentity(canonical)
+	if refusal := a.carryTeamFolder(entry.Path, canonical, entry.ID, identity); refusal != nil {
+		return refusal
+	}
+
+	previousTrusted, ok := a.rt.cfg.RelinkTrustedFolder(entry.ID, canonical, identity)
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: entry.ID}
+	}
+	var previousServed config.ServedFolder
+	if isServed {
+		var servedOK bool
+		previousServed, servedOK = a.rt.cfg.RelinkServedFolder(entry.ID, canonical, identity)
+		if !servedOK {
+			a.rt.cfg.RelinkTrustedFolder(previousTrusted.ID, previousTrusted.Path, previousTrusted.Identity)
+			return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: entry.ID}
+		}
+	}
+	if err := a.rt.cfg.Save(); err != nil {
+		a.rt.cfg.RelinkTrustedFolder(previousTrusted.ID, previousTrusted.Path, previousTrusted.Identity)
+		if isServed {
+			a.rt.cfg.RelinkServedFolder(previousServed.ID, previousServed.Path, previousServed.Identity)
+		}
+		a.rt.logger.Printf("Could not relink the folder %s: %v", entry.Path, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: entry.ID}
+	}
+	a.rt.logger.Printf("Folder relinked: id=%s from=%s to=%s", entry.ID, entry.Path, canonical)
+
+	a.bringLive(canonical)
+	if isServed {
+		served.Path, served.Identity = canonical, identity
+		a.moveRelinkedMount(served)
+	}
+	a.refreshHelperDispatchers()
+	a.changed()
+	return nil
+}
+
+// relinkCanonical is the folder a relink would point an entry at, as it will be
+// stored, or why the path cannot be used: a folder that is not there, or one
+// another entry already holds.
+func (a *app) relinkCanonical(path, folderID string) (string, *appcore.Refusal) {
+	canonical, err := a.rt.policy.Canonical(path)
+	if err != nil {
+		return "", &appcore.Refusal{Code: appcore.RefuseCannotTrust}
+	}
+	info, err := os.Stat(canonical)
+	if err != nil || !info.IsDir() {
+		return "", &appcore.Refusal{Code: appcore.RefuseNotAFolder}
+	}
+	for _, other := range a.rt.cfg.TrustedFolderList() {
+		if other.ID != folderID && other.Path == canonical {
+			return "", &appcore.Refusal{Code: appcore.RefuseNotAllowedNow, SubjectID: folderID, OtherPath: canonical}
+		}
+	}
+	return canonical, nil
+}
+
+// relinkPin is the identity the entry is pinned to. A served entry carries its own
+// copy of the pin and the facts read that one, so it wins when the two disagree.
+func (a *app) relinkPin(entry config.TrustedFolder) string {
+	if served, ok := a.rt.cfg.ServedFolderByID(entry.ID); ok && served.Identity != "" {
+		return served.Identity
+	}
+	return entry.Identity
+}
+
+// relinkWarnings is what a person should know before an entry is pointed at
+// canonical: whether the folder there is the one that moved, then the Trust sheet's
+// own warnings about the new location.
+func (a *app) relinkWarnings(canonical, pin string) []shellapi.Warning {
+	var warnings []shellapi.Warning
+	if pin == "" || !trust.IdentityOK(canonical, pin, a.rt.home) {
+		warnings = append(warnings, shellapi.Warning{Code: warnDifferentFolder, Text: appcore.TextWarnDifferentFolder})
+	}
+	return append(warnings, a.folderWarnings(canonical)...)
+}
+
+// carryTeamFolder keeps a relinked team folder a team folder. A record entry the new
+// folder's identity matches already covers it, wherever the folder has gone.
+// Otherwise the new path joins the team record before the config changes: a stop
+// between the two leaves the old path marked too, which grants no more than before.
+func (a *app) carryTeamFolder(oldPath, canonical, folderID, identity string) *appcore.Refusal {
+	team, ok := a.teamFolderFor(oldPath)
+	if !ok {
+		return nil
+	}
+	for _, candidate := range a.rt.cfg.TeamFolderList() {
+		if candidate.Kind == config.TeamFolderKindTeam && identity != "" && candidate.Identity == identity {
+			return nil
+		}
+	}
+	entry := config.TeamFolder{
+		FolderID: folderID,
+		Path:     canonical,
+		Identity: identity,
+		Kind:     config.TeamFolderKindTeam,
+		Key:      team.Key,
+	}
+	if err := a.rt.cfg.MarkTeamFolder(entry); err != nil {
+		a.rt.logger.Printf("Could not keep folder %s in the team record: %v", canonical, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: folderID}
+	}
+	a.rt.logger.Printf("Team folder relinked: id=%s from=%s to=%s", folderID, team.Path, canonical)
+	return nil
+}
+
+// teamFolderFor answers the team record entry that makes path a team folder, by the
+// same rules program decisions use: the folder whose path holds it, or whose
+// identity it carries.
+func (a *app) teamFolderFor(path string) (config.TeamFolder, bool) {
+	scope := a.scopeOf(path)
+	if scope.Kind != config.ScopeTeam {
+		return config.TeamFolder{}, false
+	}
+	for _, folder := range a.rt.cfg.TeamFolderList() {
+		if folder.Kind == config.TeamFolderKindTeam && folder.Scope() == scope {
+			return folder, true
+		}
+	}
+	return config.TeamFolder{}, false
+}
+
+// moveRelinkedMount moves a served folder's address to its new path, so it answers
+// from the folder that moved rather than from the one that is no longer there. A
+// mount the folder already has is dropped first, because a root is served once: its
+// files moved with the folder, so its copy is taken away the way a stop serving
+// takes it, and the service is asked to let go before that.
+func (a *app) moveRelinkedMount(entry config.ServedFolder) {
+	if a.served == nil || !entry.Serving {
+		return
+	}
+	a.servedMu.Lock()
+	mount := a.servedByName[entry.Name]
+	delete(a.servedByName, entry.Name)
+	a.servedMu.Unlock()
+	if mount != nil {
+		if _, err := a.service.removeRoot(entry.ID); err != nil {
+			a.rt.logger.Printf("The live-room service did not answer while relinking %s: %v", entry.Name, err)
+		}
+		a.served.RemoveRoot(entry.ID)
+		mount.cancel()
+		if mount.lock != nil {
+			mount.lock.Release()
+		}
+	}
+	if err := a.mountServed(entry); err != nil {
+		a.rt.logger.Printf("Could not serve the folder %s at its new path: %v", entry.Path, err)
+	}
+}
+
+// trustedFolderByID answers the trusted entry with id.
+func trustedFolderByID(folders []config.TrustedFolder, id string) (config.TrustedFolder, bool) {
+	for _, folder := range folders {
+		if folder.ID == id {
+			return folder, true
+		}
+	}
+	return config.TrustedFolder{}, false
 }

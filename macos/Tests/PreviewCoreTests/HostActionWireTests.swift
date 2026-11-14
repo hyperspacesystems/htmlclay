@@ -34,6 +34,7 @@ final class HostActionWireTests: XCTestCase {
         .serveFolder(path: "/tmp/folder", name: "folder"),
         .addProgram(name: "Editor", path: "/tmp/Editor.app", acknowledged: ["not-executable"]),
         .relinkProgram(programID: "p1", path: "/tmp/Editor.app", acknowledged: ["just-arrived"]),
+        .relinkFolder(folderID: "f1", path: "/tmp/Moved", acknowledged: ["different-folder"]),
         .askProgramAgain(programID: "p1", documentID: "/tmp/todo.htmlclay"),
         .removeProgram(programID: "p1"),
         .revealProgram(programID: "p1"),

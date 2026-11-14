@@ -66,6 +66,7 @@ var ActionClasses = map[string]Class{
 
 	"folder.trust":     ClassGrant,
 	"folder.serve":     ClassGrant,
+	"folder.relink":    ClassGrant,
 	"file.open":        ClassGrant,
 	"request.answer":   ClassGrant,
 	"program.add":      ClassGrant,
@@ -164,8 +165,8 @@ type actionArgs struct {
 	Answer     string          `json:"answer"`
 	Username   string          `json:"username"`
 	FolderIDs  []string        `json:"folderIDs"`
-	// Acknowledged is the file warnings a sheet showed, for the two actions that
-	// register a program file.
+	// Acknowledged is the warnings a sheet showed, for the two actions that
+	// register a program file and for a folder relink.
 	Acknowledged []string `json:"acknowledged"`
 }
 
@@ -326,6 +327,15 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return bad("path")
 		}
 		return one(Effect{Type: a.Type, Path: args.Path})
+	case "folder.relink":
+		ff, refusal := folderArg(f, args.ID)
+		if refusal != nil {
+			return nil, refusal
+		}
+		if args.Path == "" {
+			return bad("path")
+		}
+		return one(Effect{Type: a.Type, FolderID: ff.ID, Path: args.Path, Acknowledged: args.Acknowledged})
 	case "folder.serve":
 		if args.ID != "" {
 			ff, refusal := folderArg(f, args.ID)
