@@ -10,10 +10,11 @@ import (
 
 const groupSize = 50
 
-// Changed counts the cells written and the rows appended.
+// Changed counts the cells written, rows appended and sheets deleted.
 type Changed struct {
-	Cells int `json:"cells"`
-	Rows  int `json:"rows"`
+	Cells  int `json:"cells"`
+	Rows   int `json:"rows"`
+	Sheets int `json:"sheets,omitempty"`
 }
 
 func randomID() string {

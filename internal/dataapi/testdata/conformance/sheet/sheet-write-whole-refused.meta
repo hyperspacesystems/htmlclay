@@ -2,4 +2,4 @@ tier: 1
 face: write
 token: api
 expect: error
-note: replacing a sheet as a whole value is refused with 409; send patch operations
+note: replacing a sheet as a whole value is refused with 409 even when every tab is kept; send patch operations

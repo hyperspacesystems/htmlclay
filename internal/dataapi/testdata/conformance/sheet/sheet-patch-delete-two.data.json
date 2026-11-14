@@ -1,0 +1,10 @@
+[
+  {
+    "sheet": "Budget",
+    "delete": true
+  },
+  {
+    "sheet": "Archive",
+    "delete": true
+  }
+]

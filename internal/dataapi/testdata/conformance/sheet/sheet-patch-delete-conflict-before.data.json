@@ -1,0 +1,15 @@
+[
+  {
+    "sheet": "Budget",
+    "range": "A1",
+    "values": [
+      [
+        1
+      ]
+    ]
+  },
+  {
+    "sheet": "Budget",
+    "delete": true
+  }
+]

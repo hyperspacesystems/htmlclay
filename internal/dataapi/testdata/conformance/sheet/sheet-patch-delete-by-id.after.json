@@ -1,0 +1,38 @@
+{
+  "sheets": [
+    {
+      "id": "s1",
+      "name": "Budget",
+      "cols": [
+        "c1"
+      ],
+      "rows": [
+        {
+          "id": "r1",
+          "cells": [
+            {
+              "v": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "Archive",
+      "cols": [
+        "c1"
+      ],
+      "rows": [
+        {
+          "id": "r1",
+          "cells": [
+            {
+              "v": 7
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

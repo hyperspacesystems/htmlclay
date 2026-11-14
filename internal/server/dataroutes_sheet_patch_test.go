@@ -3,6 +3,8 @@ package server
 import (
 	"encoding/json"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -60,6 +62,9 @@ func TestSheetPatchAppliesPostsThePatchAndCommitsIt(t *testing.T) {
 	}
 	if !strings.HasPrefix(w.Body.String(), `{"etag":`) {
 		t.Errorf("body does not start with the etag: %s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"sheets":`) {
+		t.Errorf("cell-only patch includes a sheet count: %s", w.Body.String())
 	}
 	var answer sheetPatchAnswer
 	if err := json.Unmarshal(w.Body.Bytes(), &answer); err != nil {
@@ -140,6 +145,78 @@ func TestSheetPatchAcceptsOperationID(t *testing.T) {
 	w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"operationId":"abc","patch":`+string(c.Expect.Data)+`}`, nil)
 	if w.Code != 200 {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSheetPatchDeleteResponseAndStoredTabs(t *testing.T) {
+	for _, name := range []string{"sheet-patch-delete-by-name", "sheet-patch-delete-formula-stale", "sheet-patch-delete-only"} {
+		t.Run(name, func(t *testing.T) {
+			fixture := func(suffix string) string {
+				t.Helper()
+				raw, err := os.ReadFile(filepath.Join("..", "dataapi", "testdata", "conformance", "sheet", name+suffix))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return string(raw)
+			}
+			srv, _, _ := setupHandlerTest(t)
+			path := writeHome(t, srv, "test.htmlclay", fixture(".html"))
+			before := readDoc(t, path)
+			w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"patch":`+fixture(".data.json")+`}`, nil)
+			if name == "sheet-patch-delete-only" {
+				if w.Code != 400 || decodeWriteError(t, w).Code != "last_sheet" {
+					t.Fatalf("last sheet refusal = %d %s", w.Code, w.Body.String())
+				}
+				if readDoc(t, path) != before {
+					t.Fatal("refused delete changed the stored document")
+				}
+				return
+			}
+			if w.Code != 200 {
+				t.Fatalf("delete status = %d: %s", w.Code, w.Body.String())
+			}
+			var answer struct {
+				Etag         string         `json:"etag"`
+				Changed      map[string]int `json:"changed"`
+				Recalculated bool           `json:"recalculated"`
+				Stale        bool           `json:"stale"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &answer); err != nil {
+				t.Fatal(err)
+			}
+			if len(answer.Changed) != 3 || answer.Changed["sheets"] != 1 || answer.Changed["cells"] != 0 || answer.Changed["rows"] != 0 {
+				t.Fatalf("changed = %#v, want only one sheet removed", answer.Changed)
+			}
+			if answer.Recalculated || answer.Stale != (name == "sheet-patch-delete-formula-stale") {
+				t.Fatalf("recalculated=%v stale=%v", answer.Recalculated, answer.Stale)
+			}
+			stored := readDoc(t, path)
+			if answer.Etag != specwire.Etag([]byte(stored)) || w.Header().Get("ETag") != answer.Etag {
+				t.Fatal("response does not identify the stored document")
+			}
+			read := getAPI(t, srv, "test.htmlclay")
+			var got, want any
+			if read.Code != 200 {
+				t.Fatalf("read status = %d: %s", read.Code, read.Body.String())
+			}
+			if err := json.Unmarshal(read.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(fixture(".after.json")), &want); err != nil {
+				t.Fatal(err)
+			}
+			gotJSON, err := json.Marshal(got)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantJSON, err := json.Marshal(want)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(gotJSON) != string(wantJSON) {
+				t.Fatalf("stored tabs = %s, want %s", gotJSON, wantJSON)
+			}
+		})
 	}
 }
 

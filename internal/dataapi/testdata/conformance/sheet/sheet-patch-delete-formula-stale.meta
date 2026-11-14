@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: ok
+note: a surviving table with a formula is marked stale by one inserted attribute

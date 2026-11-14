@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "cannot delete the last sheet; keep at least one tab",
+  "status": 400,
+  "code": "last_sheet"
+}

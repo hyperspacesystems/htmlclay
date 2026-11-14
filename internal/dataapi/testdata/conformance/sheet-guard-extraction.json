@@ -1,0 +1,616 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "name": "pure",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ]
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      },
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "overlap",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\",\"content\":\"body@innerHTML\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ],
+          "content": "<div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid=\"\"><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div>"
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      },
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ],
+        "content": "<div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid=\"\"><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div>"
+      }
+    },
+    {
+      "name": "cell",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\",\"first\":\"td\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ],
+          "first": "Saved cell"
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      },
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ],
+        "first": "Saved cell"
+      }
+    },
+    {
+      "name": "nested-table",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Before <table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table> after</td></tr></tbody></table></section></div></body></html>",
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Before Saved cell after"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  23,
+                  "f6702c9b",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ]
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      }
+    },
+    {
+      "name": "nested-uppercase-table",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><TABLE GRID><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Before <table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table> after</td></tr></tbody></table></section></div></body></html>",
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Before Saved cell after"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  23,
+                  "f6702c9b",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ]
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      }
+    },
+    {
+      "name": "conditional-codec",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\",\"filled\":\"[items=sheets]:has(td)@codec(sheet)\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ],
+        "filled": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ],
+          "filled": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ]
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet",
+            "filled": "sheet"
+          }
+        },
+        "@form": "stored"
+      }
+    },
+    {
+      "name": "cell-codec",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\",\"cell\":\"td@codec(sheet)\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ],
+        "cell": []
+      },
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ],
+          "cell": []
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet",
+            "cell": "sheet"
+          }
+        },
+        "@form": "stored"
+      }
+    },
+    {
+      "name": "row-codec",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\",\"row\":\"[data-id=r1]@codec(sheet)\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ],
+        "row": []
+      },
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ],
+          "row": []
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet",
+            "row": "sheet"
+          }
+        },
+        "@form": "stored"
+      }
+    },
+    {
+      "name": "conditional-ordinary",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\",\"filled\":\"[items=sheets]:has(td)@textContent\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ],
+        "filled": "BudgetSaved cell"
+      },
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ],
+          "filled": "BudgetSaved cell"
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      }
+    },
+    {
+      "name": "ordinary-nested-list",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\",\"cells\":[\"td\",{\"value\":\".\"}]}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "Budget",
+            "cols": [
+              "c1"
+            ],
+            "rows": [
+              {
+                "id": "r1",
+                "cells": [
+                  "Saved cell"
+                ]
+              }
+            ]
+          }
+        ],
+        "cells": [
+          {
+            "value": "Saved cell"
+          }
+        ]
+      },
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "c1"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  1,
+                  10,
+                  "1c5fbd80",
+                  "8829dfd9",
+                  "1"
+                ]
+              ]
+            }
+          ],
+          "cells": [
+            {
+              "value": "Saved cell"
+            }
+          ]
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      }
+    },
+    {
+      "name": "unclosed-heading",
+      "html": "<!doctype html><html><head><script data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script></head><body><div items=\"sheets\"><section item=\"\" data-id=\"s1\"><h2 bind=\"name\">Budget<table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>Saved cell</td></tr></tbody></table></section></div></body></html>",
+      "data": {
+        "sheets": [
+          {
+            "id": "s1",
+            "name": "BudgetSaved cell",
+            "cols": [],
+            "rows": []
+          }
+        ]
+      },
+      "island": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "BudgetSaved cell",
+              "cols": [],
+              "rows": []
+            }
+          ]
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      }
+    }
+  ]
+}

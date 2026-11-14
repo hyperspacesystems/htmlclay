@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "delete must be exactly true",
+  "status": 400,
+  "code": "bad_patch"
+}

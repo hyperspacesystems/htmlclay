@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: error
+note: delete must be exactly true, not a string that looks true
