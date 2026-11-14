@@ -19,9 +19,11 @@ import (
 // reports it as host.can; TestImplementedActionsMatchRunEffect keeps the two equal.
 var implementedActions = []string{
 	"dashboard.open",
+	"document.export",
 	"document.forget",
 	"document.open",
 	"document.reveal",
+	"document.versions",
 	"file.open",
 	"folder.copyAddress",
 	"folder.relink",
@@ -46,16 +48,24 @@ var implementedActions = []string{
 }
 
 // implemented lists the actions this host runs now: request.answer is answered
-// by the Mac app's window, so only a host the Mac app started offers it.
+// by the Mac app's window, so only a host the Mac app started offers it, and a
+// document's version page is offered while a served document has one to show.
 func (a *app) implemented() []string {
-	if a.shell {
-		return implementedActions
+	served := false
+	for _, folder := range a.rt.cfg.ServedFolderList() {
+		if folder.Serving {
+			served = true
+		}
 	}
 	out := make([]string, 0, len(implementedActions))
 	for _, typ := range implementedActions {
-		if typ != "request.answer" {
-			out = append(out, typ)
+		if typ == "request.answer" && !a.shell {
+			continue
 		}
+		if typ == "document.versions" && !served {
+			continue
+		}
+		out = append(out, typ)
 	}
 	return out
 }
@@ -191,6 +201,38 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
 	case "document.forget":
 		return a.forgetRecent(e.DocumentID)
+	case "document.export":
+		for _, doc := range a.facts().Documents {
+			if doc.ID != e.DocumentID {
+				continue
+			}
+			if err := a.exportForPage(doc.Path); err != nil {
+				a.rt.logger.Printf("Could not export %s: %v", doc.Path, err)
+				return &appcore.Refusal{Code: appcore.RefuseFailed}
+			}
+			return nil
+		}
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
+	case "document.versions":
+		for _, doc := range a.facts().Documents {
+			if doc.ID != e.DocumentID {
+				continue
+			}
+			route, refusal := a.versionsRoute(doc)
+			if refusal != nil {
+				return refusal
+			}
+			if a.dashboard == nil {
+				return &appcore.Refusal{Code: appcore.RefuseNotYet}
+			}
+			entry, err := a.dashboard.EntryURL(route)
+			if err != nil {
+				return &appcore.Refusal{Code: appcore.RefuseBadArguments}
+			}
+			a.launchBrowser(entry)
+			return nil
+		}
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
 	case "document.reveal":
 		for _, doc := range a.facts().Documents {
 			if doc.ID != e.DocumentID {

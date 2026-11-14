@@ -6,6 +6,10 @@
       "class": "safe"
     },
     {
+      "type": "document.export",
+      "class": "safe"
+    },
+    {
       "type": "document.forget",
       "class": "safe"
     },
@@ -15,6 +19,10 @@
     },
     {
       "type": "document.reveal",
+      "class": "safe"
+    },
+    {
+      "type": "document.versions",
       "class": "safe"
     },
     {

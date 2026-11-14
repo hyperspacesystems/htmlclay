@@ -11,9 +11,11 @@
     "stopped": false,
     "can": {
       "dashboard.open": true,
+      "document.export": false,
       "document.forget": false,
       "document.open": true,
       "document.reveal": false,
+      "document.versions": false,
       "file.open": true,
       "folder.copyAddress": true,
       "folder.merge": false,

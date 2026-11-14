@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -62,7 +63,11 @@ type coreState struct {
 	watching   bool                // the facts watcher runs while anyone subscribes
 	lastFacts  [32]byte            // digest of the facts the watcher last saw
 	countCache map[string]docCount // folder path -> its document count, refreshed every docCountTTL
-	watchEvery time.Duration       // tests shorten it; 0 means factsWatchEvery
+	// versionsKept remembers how many versions each document has kept, with the
+	// document's stat when it was read: either host keeps a version only while
+	// writing the document, so a document that changed has a count to read again.
+	versionsKept map[string]keptVersions
+	watchEvery   time.Duration // tests shorten it; 0 means factsWatchEvery
 
 	// recents is the record of documents a person opened before: the list is
 	// built from it, joined with the live registrations. forgotten holds the
@@ -80,6 +85,20 @@ type coreState struct {
 type docCount struct {
 	n  int
 	at time.Time
+}
+
+// keptVersions is one document's remembered version count and the stat it was
+// read at.
+type keptVersions struct {
+	count int
+	at    documentStat
+}
+
+// documentStat is a document's size and modification time in nanoseconds, the
+// stamp that drops a remembered version count.
+type documentStat struct {
+	size int64
+	mod  int64
 }
 
 type coreAnswer struct {
@@ -119,6 +138,9 @@ func (a *app) initCore() {
 	}
 	if a.core.countCache == nil {
 		a.core.countCache = map[string]docCount{}
+	}
+	if a.core.versionsKept == nil {
+		a.core.versionsKept = map[string]keptVersions{}
 	}
 	if a.core.epoch == "" {
 		a.core.epoch = newEpoch()
@@ -389,6 +411,7 @@ func (a *app) documentFacts() []appcore.DocumentFact {
 		if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
 			doc.FileMissing = true
 		}
+		doc.VersionsKept = a.versionsKept(path, folders)
 		docs = append(docs, doc)
 	}
 
@@ -400,6 +423,81 @@ func (a *app) documentFacts() []appcore.DocumentFact {
 		add(recentID(reg.path), reg.path, nil)
 	}
 	return docs
+}
+
+// versionsKept answers how many versions a document has kept, remembering the
+// count per document: one read lists a whole history, and the count only moves
+// when a store keeps one, which writes the document first.
+func (a *app) versionsKept(path string, folders []appcore.FolderFact) int {
+	at := documentStat{}
+	if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+		at = documentStat{size: info.Size(), mod: info.ModTime().UnixNano()}
+	}
+	a.initCore()
+	a.core.mu.Lock()
+	kept, ok := a.core.versionsKept[path]
+	a.core.mu.Unlock()
+	if ok && kept.at == at {
+		return kept.count
+	}
+	count, err := a.countHistory(historyDocumentFor(path, folders))
+	if err != nil {
+		a.rt.logger.Printf("Could not read how many versions %s has kept: %v", path, err)
+	}
+	a.core.mu.Lock()
+	a.core.versionsKept[path] = keptVersions{count: count, at: at}
+	a.core.mu.Unlock()
+	return count
+}
+
+// historyDocumentFor names the store a document's versions are kept in: a served
+// document under its folder's id, and every other document by its own path.
+func historyDocumentFor(path string, folders []appcore.FolderFact) historyDocument {
+	if folder, rel, ok := servedFolderAbove(path, folders); ok {
+		return historyDocument{RootID: folder.ID, Path: rel}
+	}
+	return historyDocument{Path: path}
+}
+
+// versionsRoute is the dashboard page that shows one document's versions: the
+// document's own page under its served folder, or the recent row's page, which
+// the dashboard answers once that page exists.
+func (a *app) versionsRoute(doc appcore.DocumentFact) (string, *appcore.Refusal) {
+	for _, folder := range a.folderFacts() {
+		if folder.ID != doc.FolderID || !folder.Served {
+			continue
+		}
+		if !pathrel.SameOrBelow(doc.Path, folder.Path) {
+			continue
+		}
+		rel, err := filepath.Rel(folder.Path, doc.Path)
+		if err != nil {
+			break
+		}
+		return "/roots/" + folder.ID + "/document?path=" + url.QueryEscape(filepath.ToSlash(rel)) + "&panel=versions", nil
+	}
+	return "", &appcore.Refusal{Code: appcore.RefuseNotYet, SubjectID: doc.ID}
+}
+
+// servedFolderAbove answers the closest served folder that holds path, and the
+// path's place under it.
+func servedFolderAbove(path string, folders []appcore.FolderFact) (appcore.FolderFact, string, bool) {
+	found := appcore.FolderFact{}
+	rel := ""
+	for _, folder := range folders {
+		if !folder.Served || !pathrel.SameOrBelow(path, folder.Path) {
+			continue
+		}
+		if found.ID != "" && len(folder.Path) <= len(found.Path) {
+			continue
+		}
+		under, err := filepath.Rel(folder.Path, path)
+		if err != nil {
+			continue
+		}
+		found, rel = folder, filepath.ToSlash(under)
+	}
+	return found, rel, found.ID != ""
 }
 
 // registration is one document a live site holds now, and where it is served.

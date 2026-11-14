@@ -46,6 +46,8 @@ var ActionClasses = map[string]Class{
 	"document.open":      ClassSafe,
 	"document.reveal":    ClassSafe,
 	"document.forget":    ClassSafe,
+	"document.export":    ClassSafe,
+	"document.versions":  ClassSafe,
 	"dashboard.open":     ClassSafe,
 	"folder.reveal":      ClassSafe,
 	"program.reveal":     ClassSafe,
@@ -202,7 +204,7 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 	one := func(e Effect) ([]Effect, *Refusal) { return []Effect{e}, nil }
 
 	switch a.Type {
-	case "document.open", "document.reveal", "document.forget":
+	case "document.open", "document.reveal", "document.forget", "document.export", "document.versions":
 		if args.ID == "" {
 			return bad("id")
 		}

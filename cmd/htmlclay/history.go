@@ -33,16 +33,31 @@ type historyDocument struct {
 // after the before cursor. It only reads: no version, history folder, pin or
 // document is created, and a document that is gone still answers its history.
 func (a *app) readHistory(doc historyDocument, before string) ([]historyItem, error) {
-	if doc.RootID != "" {
-		return a.readServedHistory(doc.RootID, doc.Path, before)
+	return a.readHistoryPage(doc, before, historyPageSize)
+}
+
+// countHistory is how many versions doc has kept across both stores, read the one
+// way readHistory reads them. A negative limit asks for the whole history.
+func (a *app) countHistory(doc historyDocument) (int, error) {
+	items, err := a.readHistoryPage(doc, "", -1)
+	if err != nil {
+		return 0, err
 	}
-	return a.readLooseHistory(doc.Path, before)
+	return len(items), nil
+}
+
+// readHistoryPage is readHistory with the page size a caller wants.
+func (a *app) readHistoryPage(doc historyDocument, before string, limit int) ([]historyItem, error) {
+	if doc.RootID != "" {
+		return a.readServedHistory(doc.RootID, doc.Path, before, limit)
+	}
+	return a.readLooseHistory(doc.Path, before, limit)
 }
 
 // readLooseHistory reads a loose document's history from the version store. The
 // document's bytes only name its history: the store keeps the same one after the
 // file is gone, and a read never writes the file back.
-func (a *app) readLooseHistory(absPath, before string) ([]historyItem, error) {
+func (a *app) readLooseHistory(absPath, before string, limit int) ([]historyItem, error) {
 	if a.rt.versions == nil {
 		return nil, errors.New("no version store")
 	}
@@ -55,7 +70,7 @@ func (a *app) readLooseHistory(absPath, before string) ([]historyItem, error) {
 		present = false
 		data = nil
 	}
-	entries, err := a.rt.versions.Page(absPath, data, before, historyPageSize)
+	entries, err := a.rt.versions.Page(absPath, data, before, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +90,11 @@ func (a *app) readLooseHistory(absPath, before string) ([]historyItem, error) {
 
 // readServedHistory reads a served document's history from the folder's own
 // store, in the same shape readLooseHistory answers.
-func (a *app) readServedHistory(rootID, rel, before string) ([]historyItem, error) {
+func (a *app) readServedHistory(rootID, rel, before string, limit int) ([]historyItem, error) {
 	if a.served == nil {
 		return nil, errors.New("no served folders")
 	}
-	rows, err := a.served.Versions(rootID, rel, before, historyPageSize)
+	rows, err := a.served.Versions(rootID, rel, before, limit)
 	if err != nil {
 		return nil, err
 	}

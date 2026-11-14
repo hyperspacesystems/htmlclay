@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/panphora/htmlclay/internal/appcore"
 )
 
 // The export menu lists documents, not helper bindings: a document that declares
@@ -78,4 +82,98 @@ func TestExportDocumentRefusesAFileThatIsNoLongerOpen(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(home, "Downloads")); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("a refused export must not create the Downloads folder: %v", err)
 	}
+}
+
+// exportHome makes a home with one document and an app whose browser never
+// launches, so a test reads what would have been shown instead of opening Finder.
+func exportHome(t *testing.T) (*app, string, *[]string) {
+	t.Helper()
+	home := evalTempHome(t)
+	file := filepath.Join(home, "notes", "page.htmlclay")
+	writeTestFile(t, file, servedTestDocument)
+	a := newServedTestApp(t, home, t.TempDir())
+	opened := &[]string{}
+	a.rt.launchBrowser = func(target string) error {
+		*opened = append(*opened, target)
+		return nil
+	}
+	return a, file, opened
+}
+
+// zipIn is every zip file in dir.
+func zipIn(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	var zips []string
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".zip") {
+			zips = append(zips, entry.Name())
+		}
+	}
+	return zips
+}
+
+func TestM3ExportAction(t *testing.T) {
+	t.Run("a recent row exports a zip into Downloads", func(t *testing.T) {
+		a, file, opened := exportHome(t)
+		snapshot, refusal := a.do(context.Background(), coreAction(t, "export-open", "file.open", map[string]string{"path": file}), ChannelShell)
+		if refusal != nil {
+			t.Fatalf("file.open refused: %+v", refusal)
+		}
+		id := ""
+		for _, doc := range snapshot.Documents {
+			if doc.Name == "page.htmlclay" {
+				id = doc.ID
+			}
+		}
+		if id == "" {
+			t.Fatalf("file.open did not list page.htmlclay in %+v", snapshot.Documents)
+		}
+
+		_, refusal = a.do(context.Background(), coreAction(t, "export-1", "document.export", map[string]string{"id": id}), ChannelShell)
+		if refusal != nil {
+			t.Fatalf("document.export refused: %+v", refusal)
+		}
+		downloads := filepath.Join(a.rt.home, "Downloads")
+		zips := zipIn(t, downloads)
+		if len(zips) != 1 {
+			t.Fatalf("Downloads holds %v, want one zip", zips)
+		}
+		info, err := os.Stat(filepath.Join(downloads, zips[0]))
+		if err != nil || info.Size() == 0 {
+			t.Fatalf("the zip %s is missing or empty: %v", zips[0], err)
+		}
+		if len(*opened) != 2 || (*opened)[1] != downloads {
+			t.Fatalf("the export showed %q, want the Downloads folder %q after the open", *opened, downloads)
+		}
+	})
+
+	t.Run("a row missing from the list is refused", func(t *testing.T) {
+		a, _, opened := exportHome(t)
+		_, refusal := a.do(context.Background(), coreAction(t, "export-missing", "document.export", map[string]string{"id": "dnowhere"}), ChannelShell)
+		if refusal == nil || refusal.Code != appcore.RefuseNoSuchDocument {
+			t.Fatalf("export of an unknown row = %+v, want %q", refusal, appcore.RefuseNoSuchDocument)
+		}
+		if len(*opened) != 0 {
+			t.Fatalf("the refused export showed %q, want nothing", *opened)
+		}
+	})
+
+	t.Run("the dashboard may export a row", func(t *testing.T) {
+		a, file, _ := exportHome(t)
+		snapshot, refusal := a.do(context.Background(), coreAction(t, "export-open-2", "file.open", map[string]string{"path": file}), ChannelShell)
+		if refusal != nil {
+			t.Fatalf("file.open refused: %+v", refusal)
+		}
+		_, refusal = a.do(context.Background(), coreAction(t, "export-2", "document.export", map[string]string{"id": snapshot.Documents[0].ID}), ChannelDashboard)
+		if refusal != nil {
+			t.Fatalf("a safe action from the dashboard was refused: %+v", refusal)
+		}
+		if zips := zipIn(t, filepath.Join(a.rt.home, "Downloads")); len(zips) != 1 {
+			t.Fatalf("Downloads holds %v, want one zip", zips)
+		}
+	})
 }

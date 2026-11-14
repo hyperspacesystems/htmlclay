@@ -1,19 +1,24 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/versions"
 )
 
@@ -370,6 +375,212 @@ func TestM3HistoryReads(t *testing.T) {
 			if first[len(first)-1].ID <= rest[0].ID {
 				t.Fatalf("%s: page boundary is out of order: %q then %q", store.name, first[len(first)-1].ID, rest[0].ID)
 			}
+		}
+	})
+}
+
+// saveServedDocument posts body through the served folder's own save route, the
+// way a page saves, so the document and the version kept for it are the host's.
+func saveServedDocument(t *testing.T, a *app, name, rel, body string) {
+	t.Helper()
+	host := servedHostName(name, servedTestPort)
+	rec := servedRequest(t, a, http.MethodPost, host, "/_/save", body, map[string]string{
+		"Document-URL": "http://" + host + "/" + rel,
+		"Content-Type": "text/html",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /_/save of %s = %d, want 200 (%s)", rel, rec.Code, rec.Body.String())
+	}
+}
+
+// countFixture is a home with one served folder and one loose document, both
+// opened, so each has a row in the facts.
+type countFixture struct {
+	app  *app
+	home string
+	file string
+}
+
+func newCountFixture(t *testing.T) *countFixture {
+	t.Helper()
+	home := evalTempHome(t)
+	servedDir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(servedDir, "index.html"), servedTestDocument)
+	loosePath := filepath.Join(home, "docs", "page.htmlclay")
+	writeTestFile(t, loosePath, servedTestDocument)
+
+	a := newServedTestApp(t, home, t.TempDir())
+	if _, refusal, err := a.serveFolder(servedDir, "notes"); err != nil || refusal != nil {
+		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+	}
+	a.noteOpen(filepath.Join(servedDir, "index.html"), recents.HowServed, true)
+	a.noteOpen(loosePath, recents.HowFile, true)
+	return &countFixture{app: a, home: home, file: loosePath}
+}
+
+// documentRow is one document's row in the facts, which is where the count shows.
+func documentRow(t *testing.T, a *app, path string) appcore.DocumentFact {
+	t.Helper()
+	for _, doc := range a.facts().Documents {
+		if doc.Path == path {
+			return doc
+		}
+	}
+	t.Fatalf("no recent row for %s", path)
+	return appcore.DocumentFact{}
+}
+
+func TestM3VersionCounts(t *testing.T) {
+	indexPath := func(fx *countFixture) string { return filepath.Join(fx.home, "notes", "index.html") }
+
+	t.Run("a served document counts what the folder kept", func(t *testing.T) {
+		fx := newCountFixture(t)
+		saveServedDocument(t, fx.app, "notes", "index.html", servedTestDocument)
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 1 {
+			t.Fatalf("versions kept after one save = %d, want 1", got)
+		}
+		saveServedDocument(t, fx.app, "notes", "index.html", strings.Replace(servedTestDocument, "first", "second", 1))
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 2 {
+			t.Fatalf("versions kept after two saves = %d, want 2", got)
+		}
+	})
+
+	t.Run("a loose document counts its versions", func(t *testing.T) {
+		fx := newCountFixture(t)
+		keepLooseVersion(t, fx.app, fx.file, "<!doctype html>\n<html><body><p>one</p></body></html>\n")
+		keepLooseVersion(t, fx.app, fx.file, "<!doctype html>\n<html><body><p>two</p></body></html>\n")
+		want := len(looseVersionFiles(t, fx.app, fx.file))
+		row := documentRow(t, fx.app, fx.file)
+		if row.VersionsKept != want || want == 0 {
+			t.Fatalf("a loose document reports %d versions kept, want the %d in its store", row.VersionsKept, want)
+		}
+	})
+
+	t.Run("the count rises after a save", func(t *testing.T) {
+		fx := newCountFixture(t)
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 0 {
+			t.Fatalf("a document with no history reports %d versions kept, want 0", got)
+		}
+		saveServedDocument(t, fx.app, "notes", "index.html", servedTestDocument)
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 1 {
+			t.Fatalf("the count stayed at %d after a save, want 1", got)
+		}
+		saveServedDocument(t, fx.app, "notes", "index.html", strings.Replace(servedTestDocument, "first", "third", 1))
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 2 {
+			t.Fatalf("the count stayed at %d after a second save, want 2", got)
+		}
+	})
+
+	t.Run("a remembered count is read again only once the document changes", func(t *testing.T) {
+		fx := newCountFixture(t)
+		saveServedDocument(t, fx.app, "notes", "index.html", servedTestDocument)
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 1 {
+			t.Fatalf("versions kept after one save = %d, want 1", got)
+		}
+
+		// A version removed behind the app's back leaves the document itself
+		// untouched, so the remembered count stands rather than being re-read.
+		dir := servedHistoryDir(filepath.Join(fx.home, "notes"), "index.html", "versions")
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("read the served history: %v", err)
+		}
+		for _, entry := range entries {
+			if err := os.Remove(filepath.Join(dir, entry.Name())); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 1 {
+			t.Fatalf("the count was read again with the document unchanged: %d, want the remembered 1", got)
+		}
+
+		saveServedDocument(t, fx.app, "notes", "index.html", strings.Replace(servedTestDocument, "first", "fourth", 1))
+		row := documentRow(t, fx.app, indexPath(fx))
+		want, err := fx.app.countHistory(historyDocument{RootID: row.FolderID, Path: "index.html"})
+		if err != nil {
+			t.Fatalf("read the served history: %v", err)
+		}
+		if row.VersionsKept != want {
+			t.Fatalf("versions kept after the store moved = %d, want the store's %d", row.VersionsKept, want)
+		}
+		if row.VersionsKept == 1 {
+			t.Fatalf("the count after a save is still the remembered 1, want the store's %d", want)
+		}
+	})
+
+	t.Run("a missing file keeps its versions counted", func(t *testing.T) {
+		fx := newCountFixture(t)
+		saveServedDocument(t, fx.app, "notes", "index.html", servedTestDocument)
+		saveServedDocument(t, fx.app, "notes", "index.html", strings.Replace(servedTestDocument, "first", "fifth", 1))
+		if err := os.Remove(indexPath(fx)); err != nil {
+			t.Fatal(err)
+		}
+		row := documentRow(t, fx.app, indexPath(fx))
+		if !row.FileMissing {
+			t.Fatalf("a removed document is not listed as missing: %+v", row)
+		}
+		if row.VersionsKept != 2 {
+			t.Fatalf("a missing document reports %d versions kept, want 2", row.VersionsKept)
+		}
+	})
+}
+
+func TestM3VersionHistoryOpens(t *testing.T) {
+	t.Run("a served document opens its own version page", func(t *testing.T) {
+		fx := newCountFixture(t)
+		row := documentRow(t, fx.app, filepath.Join(fx.home, "notes", "index.html"))
+		route, refusal := fx.app.versionsRoute(row)
+		if refusal != nil {
+			t.Fatalf("a served document's version page was refused: %+v", refusal)
+		}
+		want := "/roots/" + row.FolderID + "/document?path=index.html&panel=versions"
+		if route != want {
+			t.Fatalf("version route = %q, want %q", route, want)
+		}
+	})
+
+	t.Run("a loose document has no version page yet", func(t *testing.T) {
+		fx := newCountFixture(t)
+		row := documentRow(t, fx.app, fx.file)
+		if _, refusal := fx.app.versionsRoute(row); refusal == nil || refusal.Code != appcore.RefuseNotYet {
+			t.Fatalf("a loose document's version page = %+v, want %q", refusal, appcore.RefuseNotYet)
+		}
+	})
+
+	t.Run("the host offers the action only while a folder is served", func(t *testing.T) {
+		fx := newCountFixture(t)
+		offered := func(a *app) bool {
+			return slices.Contains(a.implemented(), "document.versions")
+		}
+		if !offered(fx.app) {
+			t.Fatal("a host serving a folder does not offer document.versions")
+		}
+		servedID := ""
+		for _, folder := range fx.app.rt.cfg.ServedFolderList() {
+			servedID = folder.ID
+		}
+		if err := fx.app.stopServing(servedID); err != nil {
+			t.Fatalf("stopServing: %v", err)
+		}
+		if offered(fx.app) {
+			t.Fatal("a host serving nothing still offers document.versions")
+		}
+	})
+
+	t.Run("the served row's page is the dashboard it launches", func(t *testing.T) {
+		fx := newCountFixture(t)
+		var launched []string
+		fx.app.rt.launchBrowser = func(target string) error {
+			launched = append(launched, target)
+			return nil
+		}
+		row := documentRow(t, fx.app, filepath.Join(fx.home, "notes", "index.html"))
+		_, refusal := fx.app.do(context.Background(), coreAction(t, "versions-1", "document.versions", map[string]string{"id": row.ID}), ChannelShell)
+		if refusal != nil {
+			t.Fatalf("document.versions refused: %+v", refusal)
+		}
+		if len(launched) != 1 || !strings.Contains(launched[0], "/enter?ticket=") {
+			t.Fatalf("document.versions launched %q, want one dashboard entry", launched)
 		}
 	})
 }
