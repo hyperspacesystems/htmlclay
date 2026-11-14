@@ -17,6 +17,7 @@ struct SettingsSheetView: View {
             case .addProgram: AddProgramSheet(kind: .add, model: model)
             case let .relinkProgram(programID, path): AddProgramSheet(kind: .relink(programID: programID), path: path, model: model)
             case let .relinkFolder(folderID, path): FolderRelinkSheet(folderID: folderID, path: path, model: model)
+            case let .merge(childID): MergeSheet(childID: childID, model: model)
             case .moveFromLocal: MoveSheet()
             case .movedFromLocal: MovedSheet(actions: actions)
             }

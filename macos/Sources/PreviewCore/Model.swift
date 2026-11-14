@@ -57,6 +57,7 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
     case addProgram
     case relinkProgram(programID: String, path: String)
     case relinkFolder(folderID: String, path: String)
+    case merge(childID: String)
     case moveFromLocal
     case movedFromLocal
 
@@ -70,6 +71,7 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
         case .addProgram: return "add-program"
         case let .relinkProgram(programID, _): return "relink." + programID
         case let .relinkFolder(folderID, _): return "relink-folder." + folderID
+        case let .merge(childID): return "merge." + childID
         case .moveFromLocal: return "move"
         case .movedFromLocal: return "moved"
         }

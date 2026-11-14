@@ -188,7 +188,7 @@ struct FolderPage: View {
                     if FolderControls.showsMerge(child: child,
                                                  hostCan: model.can(HostActionType.merge)) {
                         Button(Strings.FolderPage.mergeButton(parent: folder.name)) {
-                            alert = FolderAlert(kind: .merge(childID: child.id))
+                            MergeFlow.open(childID: child.id, model: model)
                         }
                         .buttonStyle(KilnButtonStyle(.plain))
                     }

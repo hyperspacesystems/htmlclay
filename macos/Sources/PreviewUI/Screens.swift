@@ -45,6 +45,10 @@ public enum ScreenCatalog {
             let sheet = PreviewSheet.teamSetup(folderID: team.id)
             screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
         }
+        if let child = model.snapshot.folders.first(where: { $0.parentID != nil }) {
+            let sheet = PreviewSheet.merge(childID: child.id)
+            screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
+        }
         for sheet in [PreviewSheet.moveFromLocal, PreviewSheet.movedFromLocal] {
             screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
         }

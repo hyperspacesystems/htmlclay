@@ -152,6 +152,44 @@ struct TrustSheet: View {
     }
 }
 
+struct MergeSheet: View {
+    @Environment(AppModel.self) private var model
+    @State private var sheet: MergeSheetModel
+
+    init(childID: String, model: AppModel) {
+        _sheet = State(initialValue: MergeSheetModel(childID: childID, model: model))
+    }
+
+    var body: some View {
+        let ready = sheet.ready
+        KilnDialog(Strings.FolderPage.mergeTitle(child: childName, parent: parentName)) {
+            KilnLead(Text(Strings.FolderPage.mergeMessage(child: childName,
+                                                          parent: parentName,
+                                                          documents: childDocumentCount)))
+                .padding(.top, 6)
+            if let problem = sheet.problem {
+                KilnFieldNote(Text(problem), error: true)
+            }
+        } buttons: {
+            Button(Strings.Sheets.cancel) {
+                model.sheet = nil
+            }
+            .buttonStyle(KilnButtonStyle(.plain))
+            Button(Strings.FolderPage.mergeAction(parent: parentName)) {
+                Task { await sheet.confirm() }
+            }
+            .buttonStyle(KilnButtonStyle(.primary))
+            .disabled(!ready)
+            .opacity(ready ? 1 : 0.42)
+        }
+    }
+
+    private var child: Folder? { model.snapshot.folder(sheet.childID) }
+    private var childName: String { child?.name ?? String() }
+    private var parentName: String { child?.parentID.flatMap(model.snapshot.folder)?.name ?? String() }
+    private var childDocumentCount: Int { child?.documentCount ?? 0 }
+}
+
 struct FolderRelinkSheet: View {
     @Environment(AppModel.self) private var model
     @State private var sheet: FolderRelinkModel

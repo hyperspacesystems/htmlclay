@@ -2,7 +2,7 @@ import SwiftUI
 import PreviewCore
 
 enum FolderAlertKind: Equatable {
-    case stopTrusting, stopServing, disconnect, merge(childID: String)
+    case stopTrusting, stopServing, disconnect
 }
 
 struct FolderAlert: Equatable {
@@ -48,17 +48,6 @@ struct FolderConfirmations: ViewModifier {
             } message: {
                 Text(Strings.FolderPage.disconnectMessage(folder.name, team: isTeam))
             }
-            .alert(Strings.FolderPage.mergeTitle(child: childName, parent: folder.name),
-                   isPresented: presenting(.merge(childID: childID))) {
-                Button(Strings.FolderPage.cancel, role: .cancel) {}
-                Button(Strings.FolderPage.mergeAction(parent: folder.name)) {
-                    model.send(.mergeIntoParent(folderID: childID))
-                }
-            } message: {
-                Text(Strings.FolderPage.mergeMessage(child: childName,
-                                                     parent: folder.name,
-                                                     documents: childDocumentCount))
-            }
     }
 
     private func presenting(_ kind: FolderAlertKind) -> Binding<Bool> {
@@ -68,19 +57,6 @@ struct FolderConfirmations: ViewModifier {
                 if !shown { alert = nil }
             }
         )
-    }
-
-    private var childID: String {
-        guard case let .merge(id)? = alert?.kind else { return folder.id }
-        return id
-    }
-
-    private var childName: String {
-        model.snapshot.folder(childID)?.name ?? folder.name
-    }
-
-    private var childDocumentCount: Int {
-        model.snapshot.folder(childID)?.documentCount ?? 0
     }
 
     private var isTeam: Bool {
