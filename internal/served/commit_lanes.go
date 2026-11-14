@@ -221,7 +221,7 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 
 	// The bytes already on disk, read once. Local keeps them only on the first
 	// save, so bytes another program wrote were replaced with no copy anywhere.
-	existingContent, kept := h.keepReplaced(request.Name, filePath)
+	existingContent, replaced, kept := h.keepReplacedVersion(request.Name, filePath)
 	if !kept {
 		if consult != nil {
 			consult.end(errReplacedNotKept)
@@ -254,9 +254,11 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 				return nil
 			}
 			currentFile, _ := splitPage(current)
-			if CreateBackup(h.baseDir, backupName, []byte(currentFile), nil) == nil {
+			outside := CreateBackup(h.baseDir, backupName, []byte(currentFile), nil)
+			if outside == nil {
 				return errReplacedNotKept
 			}
+			replaced = outside.Filename
 			lastSeen = &current
 		}
 		return nil
@@ -369,12 +371,13 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 	h.store.setSnapshot(request.Name, entry)
 
 	return commitResult{
-		Outcome: "committed",
-		Etag:    specwire.Etag([]byte(content)),
-		Stored:  stored,
-		Content: content,
-		File:    fileContent,
-		HasFile: true,
+		Outcome:  "committed",
+		Etag:     specwire.Etag([]byte(content)),
+		Stored:   stored,
+		Content:  content,
+		File:     fileContent,
+		HasFile:  true,
+		Replaced: replaced,
 	}, nil
 }
 
@@ -476,16 +479,25 @@ var errReplacedNotKept = errors.New("the bytes this write replaces could not be 
 // they already are the newest one, and answers the bytes it read. kept is false
 // when they needed keeping and could not be: the write must not replace them.
 func (h *commitHost) keepReplaced(name, filePath string) (existing *string, kept bool) {
+	existing, _, kept = h.keepReplacedVersion(name, filePath)
+	return existing, kept
+}
+
+// keepReplacedVersion is keepReplaced, and it also names the version that holds
+// the replaced bytes: the one it kept, or the recent one that already held them.
+func (h *commitHost) keepReplacedVersion(name, filePath string) (existing *string, version string, kept bool) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, errors.Is(err, fs.ErrNotExist)
+		return nil, "", errors.Is(err, fs.ErrNotExist)
 	}
 	text := string(data)
 	file, _ := splitPage(text)
-	if !recentVersionsHold(upathJoin(h.baseDir, versionsDirName, backupSiteName(name)), file) {
-		if CreateBackup(h.baseDir, backupSiteName(name), []byte(file), nil) == nil {
-			return &text, false
-		}
+	if held := recentVersionHolding(upathJoin(h.baseDir, versionsDirName, backupSiteName(name)), file); held != "" {
+		return &text, held, true
 	}
-	return &text, true
+	published := CreateBackup(h.baseDir, backupSiteName(name), []byte(file), nil)
+	if published == nil {
+		return &text, "", false
+	}
+	return &text, published.Filename, true
 }

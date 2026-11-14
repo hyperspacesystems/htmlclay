@@ -118,6 +118,9 @@ type commitResult struct {
 	// Cursor is the event stream position of the frame that reported this write.
 	Cursor  string
 	Refusal *serviceRefusal // a refusal answered to the client as it was decided
+	// Replaced names the kept version that holds the bytes the save lane's write
+	// replaced. It is empty when there was no file to replace.
+	Replaced string
 }
 
 // errCheckpointTargetChanged is Local's `moved-or-deleted` from a checkpoint's

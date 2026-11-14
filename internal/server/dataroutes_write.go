@@ -530,9 +530,15 @@ const recentVersionsChecked = 3
 // recentVersionsHold reports whether one of the newest few versions holds exactly
 // content, so bytes already kept need no second copy.
 func (s *Server) recentVersionsHold(key, absPath string, content []byte) bool {
+	return s.recentVersionHolding(key, absPath, content) != ""
+}
+
+// recentVersionHolding is the name of the newest of those few versions that
+// holds exactly content, or "" when none does.
+func (s *Server) recentVersionHolding(key, absPath string, content []byte) string {
 	entries, err := s.versions.List(key, absPath)
 	if err != nil {
-		return false
+		return ""
 	}
 	if len(entries) > recentVersionsChecked {
 		entries = entries[:recentVersionsChecked]
@@ -544,10 +550,26 @@ func (s *Server) recentVersionsHold(key, absPath string, content []byte) bool {
 			continue
 		}
 		if versions.Hash(body) == want {
-			return true
+			return entry.Name
 		}
 	}
-	return false
+	return ""
+}
+
+// keepVersion makes sure content is a kept version of the document and answers
+// the name of the version that holds it: a recent one that already does, or the
+// one it stores now.
+func (s *Server) keepVersion(key, absPath string, content []byte) (string, error) {
+	if name := s.recentVersionHolding(key, absPath, content); name != "" {
+		return name, nil
+	}
+	if err := s.backupVersion(key, absPath, content); err != nil {
+		return "", err
+	}
+	if name := s.recentVersionHolding(key, absPath, content); name != "" {
+		return name, nil
+	}
+	return "", errors.New("no version of " + absPath + " holds the kept bytes")
 }
 
 // mapWriteError gives the write engine's refusals the bodies hyperclay-local sends, and defers to

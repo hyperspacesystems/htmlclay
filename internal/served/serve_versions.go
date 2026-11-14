@@ -478,52 +478,9 @@ func (s *rootServer) restoreVersion(r *http.Request, rel, versionName, filePath 
 		}, "", nil
 	}
 
-	versionPath, err := versionFilePath(s.baseDir, rel, versionName)
-	if err != nil {
-		return &versionRefusal{Status: http.StatusNotFound, Message: "version not found"}, "", nil
-	}
-	data, err := os.ReadFile(versionPath)
-	if err != nil {
-		return &versionRefusal{Status: http.StatusNotFound, Message: "version not found"}, "", nil
-	}
-	if int64(len(data)) > saveMaxBytes {
-		return &versionRefusal{Status: http.StatusRequestEntityTooLarge, Message: "version is too large to restore"}, "", nil
-	}
-
-	// Stripped rather than trusted: a restore must never write a save token to
-	// disk, wherever the version's bytes came from.
-	html := stripSaveToken(string(data))
-	// Without rooms: Local stamps the stored page record's revision onto these
-	// bytes so open tabs merge the restore onto the page they hold, and keeps the
-	// blockeditor-format floor the live document had established.
-	state, err := readPageState(s.baseDir, rel, PageStateReadOptions{})
-	if err != nil {
-		return nil, "", err
-	}
-	// A restore is a person's explicit choice, so it is never refused; it only
-	// keeps the floor the document already established.
-	storedFloor := pageadmission.PageFormatFloor(string(currentBytes))
-	stamped := ""
-	if state != nil {
-		if _, versionState := splitPage(html); versionState == nil {
-			floor := storedFloor
-			if carried := pageadmission.PageFormatFloor(html); carried > floor {
-				floor = carried
-			}
-			stamped, _ = stampPageRev(html, state.Rev, floor)
-		}
-	}
-	edit := stamped != ""
-	if edit {
-		html = stamped
-	} else {
-		html = pageadmission.WithPageFormatFloor(html, storedFloor)
-	}
-	if !hasHTMLRoot(html) {
-		return &versionRefusal{
-			Status:  http.StatusUnprocessableEntity,
-			Message: "version is not a complete HTML document",
-		}, "", nil
+	html, edit, refusal, err := s.restorableVersion(rel, versionName, currentBytes)
+	if err != nil || refusal != nil {
+		return refusal, "", err
 	}
 
 	published, err := s.publishHostWrite(rel, filePath, html, edit, true, "restore")
@@ -554,6 +511,60 @@ func (s *rootServer) restoreVersion(r *http.Request, rel, versionName, filePath 
 	// Without live sync there is no edit-mode tab to announce the restore to;
 	// the saved-lane broadcast the replace lane makes is the whole of it.
 	return nil, specwire.Etag([]byte(content)), nil
+}
+
+// restorableVersion reads one kept version and answers the bytes a restore of it
+// writes over currentBytes, or the refusal. edit says the bytes are a page an open
+// tab can merge onto the page it holds.
+func (s *rootServer) restorableVersion(rel, versionName string, currentBytes []byte) (string, bool, *versionRefusal, error) {
+	versionPath, err := versionFilePath(s.baseDir, rel, versionName)
+	if err != nil {
+		return "", false, &versionRefusal{Status: http.StatusNotFound, Message: "version not found"}, nil
+	}
+	data, err := os.ReadFile(versionPath)
+	if err != nil {
+		return "", false, &versionRefusal{Status: http.StatusNotFound, Message: "version not found"}, nil
+	}
+	if int64(len(data)) > saveMaxBytes {
+		return "", false, &versionRefusal{Status: http.StatusRequestEntityTooLarge, Message: "version is too large to restore"}, nil
+	}
+
+	// Stripped rather than trusted: a restore must never write a save token to
+	// disk, wherever the version's bytes came from.
+	html := stripSaveToken(string(data))
+	// Without rooms: Local stamps the stored page record's revision onto these
+	// bytes so open tabs merge the restore onto the page they hold, and keeps the
+	// blockeditor-format floor the live document had established.
+	state, err := readPageState(s.baseDir, rel, PageStateReadOptions{})
+	if err != nil {
+		return "", false, nil, err
+	}
+	// A restore is a person's explicit choice, so it is never refused; it only
+	// keeps the floor the document already established.
+	storedFloor := pageadmission.PageFormatFloor(string(currentBytes))
+	stamped := ""
+	if state != nil {
+		if _, versionState := splitPage(html); versionState == nil {
+			floor := storedFloor
+			if carried := pageadmission.PageFormatFloor(html); carried > floor {
+				floor = carried
+			}
+			stamped, _ = stampPageRev(html, state.Rev, floor)
+		}
+	}
+	edit := stamped != ""
+	if edit {
+		html = stamped
+	} else {
+		html = pageadmission.WithPageFormatFloor(html, storedFloor)
+	}
+	if !hasHTMLRoot(html) {
+		return "", false, &versionRefusal{
+			Status:  http.StatusUnprocessableEntity,
+			Message: "version is not a complete HTML document",
+		}, nil
+	}
+	return html, edit, nil, nil
 }
 
 // versionErrorStatus is Local's `error.status || 404` for a refused document.

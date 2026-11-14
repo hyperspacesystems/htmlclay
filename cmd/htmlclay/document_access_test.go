@@ -346,17 +346,4 @@ func TestM3DocumentAccessReads(t *testing.T) {
 			t.Fatalf("the file the link names is reachable: %v", err)
 		}
 	})
-
-	t.Run("a save and a restore are not built yet", func(t *testing.T) {
-		fx := newDocumentAccessFixture(t)
-		for _, target := range fx.targets() {
-			access := documentAccessOf(t, fx.app, target.path)
-			if _, err := access.Save(context.Background(), Save{HTML: []byte(servedTestDocument)}); !errors.Is(err, ErrNotBuilt) {
-				t.Fatalf("%s: Save = %v, want ErrNotBuilt", target.name, err)
-			}
-			if _, err := access.Restore(context.Background(), "", "", ""); !errors.Is(err, ErrNotBuilt) {
-				t.Fatalf("%s: Restore = %v, want ErrNotBuilt", target.name, err)
-			}
-		}
-	})
 }

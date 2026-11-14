@@ -1,12 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/panphora/htmlclay/internal/wire"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"os"
@@ -18,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/panphora/htmlclay/internal/clayruntime"
+	"github.com/panphora/htmlclay/internal/dataguard"
 	"github.com/panphora/htmlclay/internal/helper"
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/pageadmission"
@@ -1100,56 +1103,6 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body = htmlutil.StripToken(body)
-	// A banner that reached a token-holding tab (live-sync can push one into an
-	// edit-mode page) must never autosave itself into the file.
-	body = htmlutil.StripBanner(body)
-
-	// A client that saves what it was served would write this host's /_/clayjs/
-	// URLs and their descriptor into the document, and the file would then load
-	// only here. ClayJS turns its own snapshot back first; a host cannot rely on
-	// every client doing it (an older ClayJS, a hand-written save, a restored
-	// copy), so the bytes that become the document are canonicalized here.
-	body = canonicalForWrite(r.Host, body)
-
-	// A valid save is always a full document (the browser serializes
-	// documentElement.outerHTML). Reject anything without an <html> tag so a
-	// stray request cannot overwrite the file with a fragment or junk.
-	if !htmlutil.HasHTMLTag(body) {
-		s.writeError(w, http.StatusBadRequest, "body is not an HTML document")
-		return
-	}
-
-	// A tab still running the block editor from before ClayJS 1.24.0 is refused
-	// first, before If-Match and every other write check, so its client shows
-	// "copy your text, then reload" rather than a conflict it cannot resolve.
-	if pageadmission.OldBlockeditorFormat(string(body)) {
-		s.Logger.Printf("Refusing a save of %s: it carries the block editor format from before ClayJS 1.24.0", f.RelPath)
-		writeOldFormatRefusal(w)
-		return
-	}
-
-	f.Lock()
-	current, readErr := s.readRegisteredFile(f.AbsPath)
-	// A registered path that now resolves into protected state (a swapped-in symlink
-	// to the config/versions tree, or out of home) must not be read into a backup or
-	// written over; refuse the whole save rather than proceed. A plain not-found is
-	// left to the normal first-save path below.
-	if errors.Is(readErr, errRefusedInternal) {
-		f.Unlock()
-		s.Logger.Printf("Refusing to save %s: resolves to a protected location", f.AbsPath)
-		s.writeError(w, http.StatusNotFound, "not found")
-		return
-	}
-
-	// Spec §6's `conditional` capability, and the first thing checked after the
-	// read, because a refusal here must write NOTHING: not the file, not a backup,
-	// not even the identity claim ensureHistoryKeyLocked would make below.
-	//
-	// Only a request that carries If-Match is judged. A save without the header is
-	// the core last-write-wins save and is left exactly as it was, which is why
-	// announcing `conditional` changes nothing for a client that never asks.
-	//
 	// §6's receipt id. Opaque, never a credential, never minted here: this host
 	// only ever echoes what a client sent. Length-capped because it is remembered
 	// per open file and an unbounded header would be free memory to hand away.
@@ -1163,7 +1116,177 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	// wrong, and dropping it back to last-write-wins would silently remove the
 	// protection it asked for. hyperclay and hyperclay-local both refuse it, and a
 	// document that saves against all three must get the same answer from each.
-	if ifMatch, sent := listHeader(r, "If-Match"); sent {
+	ifMatch, ifMatchSent := listHeader(r, "If-Match")
+	conversion, conversionSent := listHeader(r, "Blockeditor-Conversion")
+
+	saved, refusal := s.saveDocument(f, documentSave{
+		host:             r.Host,
+		body:             body,
+		ifMatch:          ifMatch,
+		ifMatchSent:      ifMatchSent,
+		saveID:           saveID,
+		conversion:       conversion,
+		conversionSent:   conversionSent,
+		blockeditorWrite: strings.TrimSpace(r.Header.Get("Blockeditor-Write")),
+		formatCapability: pageadmission.FormatCapability(r.Header.Get(pageadmission.PageFormatHeader)),
+		provenance:       provenanceFromRequest(r),
+	})
+	if refusal != nil {
+		refusal.answer(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+
+	// Every save answers with the stamp of what was just stored (§6). Both exits
+	// carry it, and that is not tidiness: a client learns its stamp only from a
+	// save response or from /_/meta, and it CLEARS the one it holds when a response
+	// arrives without one. A success that omitted the stamp would leave the tab
+	// unprotected until its next discovery call, silently, right after the moment
+	// it was most sure it was in sync.
+	//
+	// The id is echoed straight back rather than re-read from the file: this
+	// response is about the save that just happened, and a client matches it
+	// against the id it sent. An id-less save echoes nothing, which omits the field.
+	if saved.stale {
+		stalePayload := map[string]interface{}{
+			"ok":      true,
+			"msg":     f.Name + " had been changed outside this tab. Your version was saved; the previous one is in Backups.",
+			"msgType": "warning",
+			"etag":    saved.etag,
+		}
+		if saveID != "" {
+			stalePayload["saveId"] = saveID
+		}
+		json.NewEncoder(w).Encode(stalePayload)
+		return
+	}
+	okPayload := map[string]interface{}{
+		"ok": true, "msg": "Saved", "msgType": "success", "etag": saved.etag,
+	}
+	if saveID != "" {
+		okPayload["saveId"] = saveID
+	}
+	json.NewEncoder(w).Encode(okPayload)
+}
+
+// documentSave is one whole-document save as the lane behind /_/save takes it: a
+// page's request, or a program's save through SaveDocument.
+type documentSave struct {
+	// host names this host's own runtime URLs, which are turned back into the
+	// public ones before the body becomes the document.
+	host             string
+	body             []byte
+	ifMatch          string
+	ifMatchSent      bool
+	saveID           string
+	conversion       string
+	conversionSent   bool
+	blockeditorWrite string
+	formatCapability int
+	provenance       dataguard.Provenance
+
+	// program is a save with no tab behind it. The lane is the same and stricter
+	// in three places: the bytes it replaces are kept as a version first and the
+	// save is refused when they cannot be, tabs that are editing the document are
+	// told as they are told of a data API write, and the guard judges it as a
+	// write by a reader that named the version it replaced.
+	program bool
+	// owned is asked once the file's lock is held. False refuses the save: the
+	// document stopped being this host's to write while the save waited.
+	owned func() bool
+}
+
+// documentSaved is what the lane answers a save it stored.
+type documentSaved struct {
+	etag string
+	// stale says the bytes this save replaced had changed outside this host
+	// since it last wrote them.
+	stale   bool
+	changed bool
+	// replaced names the kept version that holds the bytes a program's save
+	// replaced.
+	replaced string
+}
+
+// saveRefusal is a save the lane did not store. Nothing was written. answer
+// writes the answer /_/save gives a page, and err is what a program is told.
+type saveRefusal struct {
+	err    error
+	answer func(w http.ResponseWriter)
+}
+
+// saveDocument is the lane behind /_/save: the one function that turns a body
+// into the document's bytes on disk, with their version, their page state and
+// their announcement.
+func (s *Server) saveDocument(f *session.File, in documentSave) (documentSaved, *saveRefusal) {
+	refuse := func(err error, answer func(w http.ResponseWriter)) (documentSaved, *saveRefusal) {
+		return documentSaved{}, &saveRefusal{err: err, answer: answer}
+	}
+	refuseWith := func(err error, status int, message string) (documentSaved, *saveRefusal) {
+		return refuse(err, func(w http.ResponseWriter) { s.writeError(w, status, message) })
+	}
+
+	body := htmlutil.StripToken(in.body)
+	// A banner that reached a token-holding tab (live-sync can push one into an
+	// edit-mode page) must never autosave itself into the file.
+	body = htmlutil.StripBanner(body)
+
+	// A client that saves what it was served would write this host's /_/clayjs/
+	// URLs and their descriptor into the document, and the file would then load
+	// only here. ClayJS turns its own snapshot back first; a host cannot rely on
+	// every client doing it (an older ClayJS, a hand-written save, a restored
+	// copy), so the bytes that become the document are canonicalized here.
+	body = canonicalForWrite(in.host, body)
+
+	// A valid save is always a full document (the browser serializes
+	// documentElement.outerHTML). Reject anything without an <html> tag so a
+	// stray request cannot overwrite the file with a fragment or junk.
+	if !htmlutil.HasHTMLTag(body) {
+		return refuseWith(ErrNotDocument, http.StatusBadRequest, "body is not an HTML document")
+	}
+
+	// A tab still running the block editor from before ClayJS 1.24.0 is refused
+	// first, before If-Match and every other write check, so its client shows
+	// "copy your text, then reload" rather than a conflict it cannot resolve.
+	if pageadmission.OldBlockeditorFormat(string(body)) {
+		s.Logger.Printf("Refusing a save of %s: it carries the block editor format from before ClayJS 1.24.0", f.RelPath)
+		return refuse(errors.New(pageadmission.OldFormatMessage), writeOldFormatRefusal)
+	}
+
+	f.Lock()
+	// The owner is resolved again here: the file may have been closed, its folder
+	// untrusted or the folder served while this save waited for the lock.
+	if in.owned != nil && !in.owned() {
+		f.Unlock()
+		return refuseWith(ErrNotOwned, http.StatusNotFound, "not found")
+	}
+	current, readErr := s.readRegisteredFile(f.AbsPath)
+	// A registered path that now resolves into protected state (a swapped-in symlink
+	// to the config/versions tree, or out of home) must not be read into a backup or
+	// written over; refuse the whole save rather than proceed. A plain not-found is
+	// left to the normal first-save path below.
+	if errors.Is(readErr, errRefusedInternal) {
+		f.Unlock()
+		s.Logger.Printf("Refusing to save %s: resolves to a protected location", f.AbsPath)
+		return refuseWith(fs.ErrNotExist, http.StatusNotFound, "not found")
+	}
+	// A program saves over the version it read, so there is no first save for it
+	// to make: a document that is not there is not created.
+	if in.program && readErr != nil {
+		f.Unlock()
+		return refuseWith(readErr, http.StatusInternalServerError, "cannot read the stored document")
+	}
+
+	// Spec §6's `conditional` capability, and the first thing checked after the
+	// read, because a refusal here must write NOTHING: not the file, not a backup,
+	// not even the identity claim ensureHistoryKeyLocked would make below.
+	//
+	// Only a request that carries If-Match is judged. A save without the header is
+	// the core last-write-wins save and is left exactly as it was, which is why
+	// announcing `conditional` changes nothing for a client that never asks.
+	if in.ifMatchSent {
 		// A read that failed for any reason other than "there is no file yet" means
 		// this host cannot say what the stored bytes ARE, and `current` is nil only
 		// because the read gave up. Judging the stamp against those nil bytes turns
@@ -1176,48 +1299,45 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
 			f.Unlock()
 			s.Logger.Printf("Cannot judge a conditional save of %s: %v", f.RelPath, readErr)
-			s.writeError(w, http.StatusInternalServerError, "cannot read the stored document")
-			return
+			return refuseWith(readErr, http.StatusInternalServerError, "cannot read the stored document")
 		}
-		if !specwire.IfMatchSatisfied(ifMatch, current) {
+		if !specwire.IfMatchSatisfied(in.ifMatch, current) {
 			changedBy := conflictAttribution(f, current, readErr)
 			currentEtag := specwire.Etag(current)
 			receipt := f.SaveReceiptFor(currentEtag)
 			f.Unlock()
 			s.Logger.Printf("Refusing a conditional save of %s: the stored bytes have moved on", f.RelPath)
-			conflictRefusal(w, f.Name, currentEtag, changedBy, receipt)
-			return
+			return refuse(&StaleError{Etag: currentEtag, SaveID: receipt}, func(w http.ResponseWriter) {
+				conflictRefusal(w, f.Name, currentEtag, changedBy, receipt)
+			})
 		}
 	}
-	conversionHeader, hasConversionHeader := listHeader(r, "Blockeditor-Conversion")
-	if hasConversionHeader && conversionHeader == "" {
-		f.Unlock()
-		writePageAdmissionError(w, &pageadmission.Refusal{Reason: "invalid-header"})
-		return
+	admissionRefusal := func(err error) (documentSaved, *saveRefusal) {
+		return refuse(err, func(w http.ResponseWriter) { writePageAdmissionError(w, err) })
 	}
-	decision, admissionErr := pageadmission.CheckWrite(string(current), string(body), conversionHeader)
+	if in.conversionSent && in.conversion == "" {
+		f.Unlock()
+		return admissionRefusal(&pageadmission.Refusal{Reason: "invalid-header"})
+	}
+	decision, admissionErr := pageadmission.CheckWrite(string(current), string(body), in.conversion)
 	if admissionErr == nil && decision != pageadmission.Ordinary {
-		ifMatch, sent := listHeader(r, "If-Match")
-		if !sent || strings.TrimSpace(ifMatch) == "*" || strings.Contains(ifMatch, ",") ||
-			!specwire.IfMatchSatisfied(ifMatch, current) {
+		if !in.ifMatchSent || strings.TrimSpace(in.ifMatch) == "*" || strings.Contains(in.ifMatch, ",") ||
+			!specwire.IfMatchSatisfied(in.ifMatch, current) {
 			admissionErr = &pageadmission.Refusal{Reason: "file-changed"}
 		}
 	}
 	if admissionErr != nil {
 		f.Unlock()
-		writePageAdmissionError(w, admissionErr)
-		return
+		return admissionRefusal(admissionErr)
 	}
-	formatted, formatErr := pageadmission.CheckPageFormat(string(current), string(body),
-		pageadmission.FormatCapability(r.Header.Get(pageadmission.PageFormatHeader)))
+	formatted, formatErr := pageadmission.CheckPageFormat(string(current), string(body), in.formatCapability)
 	var formatRefusal *pageadmission.FormatRefusal
 	if errors.As(formatErr, &formatRefusal) {
 		f.Unlock()
-		writeFormatRefusal(w, formatRefusal)
-		return
+		return refuse(formatRefusal, func(w http.ResponseWriter) { writeFormatRefusal(w, formatRefusal) })
 	}
 	body = []byte(formatted)
-	if decision == pageadmission.Ordinary && strings.TrimSpace(r.Header.Get("Blockeditor-Write")) == "v1" &&
+	if decision == pageadmission.Ordinary && in.blockeditorWrite == "v1" &&
 		pageadmission.NothingToWrite(string(current), string(body)) {
 		if tag, ok := pageadmission.PageTag(string(body)); ok {
 			key, _ := s.ensureHistoryKeyLocked(f, current)
@@ -1225,18 +1345,27 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 			if err := s.versions.PreparePageState(key, f.AbsPath, diskHash,
 				versions.NewPageStateRecord(diskHash, s.blockeditorGeneration(key, f.AbsPath, diskHash, decision), tag)); err != nil {
 				f.Unlock()
-				s.refusePageState(w, f, err)
-				return
+				return refuse(err, func(w http.ResponseWriter) { s.refusePageState(w, f, err) })
 			}
 		}
 		currentEtag := specwire.Etag(current)
 		f.Unlock()
-		w.Header().Set("ETag", currentEtag)
-		writePageAdmissionError(w, &pageadmission.Refusal{Reason: "nothing-to-write"})
-		return
+		nothing := &pageadmission.Refusal{Reason: "nothing-to-write"}
+		return refuse(nothing, func(w http.ResponseWriter) {
+			w.Header().Set("ETag", currentEtag)
+			writePageAdmissionError(w, nothing)
+		})
 	}
 	tag, hasTag := pageadmission.PageTag(string(body))
 	body = []byte(pageadmission.StripPageTag(string(body)))
+
+	// A program that saves the bytes already stored has nothing to write, and
+	// telling the tabs of a change that is none would only alarm them.
+	if in.program && bytes.Equal(body, current) {
+		etag := specwire.Etag(current)
+		f.Unlock()
+		return documentSaved{etag: etag}, nil
+	}
 
 	// The backup identity comes from the key resolved at first serve, never from
 	// the bytes on disk or in the body. Deriving it from disk meant that on a first
@@ -1275,9 +1404,22 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	if readErr == nil && stale && len(current) == 0 && s.watcher.emptyPending(f.AbsPath) {
 		f.Unlock()
 		s.Logger.Printf("Refusing to save over a truncation in progress: %s", f.RelPath)
-		s.writeError(w, http.StatusConflict,
+		return refuseWith(errors.New("the file was just emptied on disk"), http.StatusConflict,
 			"the file was just emptied on disk; retry once that change reaches the page")
-		return
+	}
+
+	// A program's save replaces bytes no tab is holding, so they are kept before
+	// anything else of this save is stored, and a save whose replaced bytes cannot
+	// be kept does not happen. The version that holds them is the save's undo.
+	replaced := ""
+	if in.program {
+		name, keepErr := s.keepVersion(key, f.AbsPath, current)
+		if keepErr != nil {
+			f.Unlock()
+			s.Logger.Printf("Could not keep the current version of %s: %v", f.RelPath, keepErr)
+			return refuseWith(ErrVersionNotKept, http.StatusServiceUnavailable, "could not keep the current version")
+		}
+		replaced = name
 	}
 
 	// The page state is stored before anything else of this save is: a sidecar
@@ -1290,8 +1432,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		record := versions.NewPageStateRecord(versions.Hash(body), s.blockeditorGeneration(key, f.AbsPath, diskHash, decision), tag)
 		if pErr := s.versions.PreparePageState(key, f.AbsPath, diskHash, record); pErr != nil {
 			f.Unlock()
-			s.refusePageState(w, f, pErr)
-			return
+			return refuse(pErr, func(w http.ResponseWriter) { s.refusePageState(w, f, pErr) })
 		}
 	}
 
@@ -1305,7 +1446,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	// first: that content came from outside, so nothing else has ever recorded it,
 	// and this save is about to clobber it. Backups are the actual safety net
 	// behind the warning.
-	if readErr == nil && (stale || !s.versions.HasHistory(key, f.AbsPath)) {
+	if !in.program && readErr == nil && (stale || !s.versions.HasHistory(key, f.AbsPath)) {
 		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
 			s.Logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
 		}
@@ -1315,7 +1456,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		s.Logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
 	}
 
-	err = atomicWriteFile(f.AbsPath, body)
+	err := atomicWriteFile(f.AbsPath, body)
 	if err == nil {
 		if sErr := s.versions.SettlePageState(key, f.AbsPath, body); sErr != nil {
 			s.Logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
@@ -1326,72 +1467,56 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		// host knows both which request's body it stored and what those stored
 		// bytes stamp to. saveID is "" for a client that sent none, which still
 		// replaces the pair so a remembered id cannot outlive its own bytes.
-		f.RecordSaveReceipt(saveID, specwire.Etag(body))
+		f.RecordSaveReceipt(in.saveID, specwire.Etag(body))
 		// This save makes the history durable. The backup above already defaulted
 		// the meta to non-provisional, but a save that only deduplicated skips that
 		// write, so clear the flag explicitly.
 		if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
 			s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 		}
+		if in.program {
+			f.NoteWriteFromOutsideTabs()
+		}
 		s.coord.acceptServerReplacement(f)
-		s.broadcastDiskHTML(f, body, key)
+		if in.program {
+			// No tab relays this save to the others, so tabs that are editing the
+			// document hear of it on the live lane, as they do of a data API write.
+			s.coord.publishExternalChange(f, f.Name+" was updated through the data API", forBrowser(body, key, s.documentURLFor(f)), specwire.Etag(body))
+		} else {
+			s.broadcastDiskHTML(f, body, key)
+		}
 	}
 	f.Unlock()
 
 	if err == nil {
-		s.observeWrite(f, key, current, body, provenanceFromRequest(r))
+		if in.program {
+			s.observeWrite(f, key, current, body, dataguard.External, writeProof{IfMatched: true, ProvenReader: true})
+		} else {
+			s.observeWrite(f, key, current, body, in.provenance)
+		}
 	}
 
 	if err != nil {
 		s.Logger.Printf("Error saving %s: %v", f.AbsPath, err)
-		s.writeError(w, http.StatusInternalServerError, "write error")
-		return
+		return refuseWith(err, http.StatusInternalServerError, "write error")
 	}
 
 	// Bulk pruning runs on the store lock only, never inside f.Lock().
 	s.versions.MaybePrune(key, f.AbsPath)
 
 	s.Logger.Printf("Saved %s (%d bytes)", f.RelPath, len(body))
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-
-	// Every save answers with the stamp of what was just stored (§6). Both exits
-	// carry it, and that is not tidiness: a client learns its stamp only from a
-	// save response or from /_/meta, and it CLEARS the one it holds when a response
-	// arrives without one. A success that omitted the stamp would leave the tab
-	// unprotected until its next discovery call, silently, right after the moment
-	// it was most sure it was in sync.
-	//
-	// `body` and not the bytes read back: it is what atomicWriteFile stored, and
-	// re-reading would stamp whatever landed in between rather than this save.
-	etag := specwire.Etag(body)
-
-	// Echoed straight back rather than re-read from the file: this response is
-	// about the save that just happened, and a client matches it against the id it
-	// sent. An id-less save echoes nothing, which omits the field.
-	saveIDEcho := saveID
-
 	if stale {
 		s.Logger.Printf("Stale write: %s changed on disk since this server last wrote it", f.RelPath)
-		stalePayload := map[string]interface{}{
-			"ok":      true,
-			"msg":     f.Name + " had been changed outside this tab. Your version was saved; the previous one is in Backups.",
-			"msgType": "warning",
-			"etag":    etag,
-		}
-		if saveIDEcho != "" {
-			stalePayload["saveId"] = saveIDEcho
-		}
-		json.NewEncoder(w).Encode(stalePayload)
-		return
 	}
-	okPayload := map[string]interface{}{
-		"ok": true, "msg": "Saved", "msgType": "success", "etag": etag,
-	}
-	if saveIDEcho != "" {
-		okPayload["saveId"] = saveIDEcho
-	}
-	json.NewEncoder(w).Encode(okPayload)
+
+	// `body` and not the bytes read back: it is what atomicWriteFile stored, and
+	// re-reading would stamp whatever landed in between rather than this save.
+	return documentSaved{
+		etag:     specwire.Etag(body),
+		stale:    stale,
+		changed:  !bytes.Equal(body, current),
+		replaced: replaced,
+	}, nil
 }
 
 // isJSONContentType reports whether a Content-Type declares JSON, including the

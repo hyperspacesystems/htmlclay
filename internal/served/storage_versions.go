@@ -907,9 +907,15 @@ func randomHex() string {
 // named alike (notes.html, notes.htmlclay) share a versions folder, and a write
 // caught mid-save lands after the save's own version.
 func recentVersionsHold(dir, content string) bool {
+	return recentVersionHolding(dir, content) != ""
+}
+
+// recentVersionHolding is the name of the newest of those few versions that
+// holds exactly content, or "" when none does.
+func recentVersionHolding(dir, content string) string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return false
+		return ""
 	}
 	var candidates []VersionEntry
 	for _, entry := range entries {
@@ -930,10 +936,10 @@ func recentVersionsHold(dir, content string) bool {
 	sort.Slice(candidates, func(i, j int) bool { return CompareNewestFirst(candidates[i], candidates[j]) < 0 })
 	for i := 0; i < len(candidates) && i < recentVersionsChecked; i++ {
 		if data, err := os.ReadFile(candidates[i].Full); err == nil && string(data) == content {
-			return true
+			return candidates[i].Name
 		}
 	}
-	return false
+	return ""
 }
 
 const recentVersionsChecked = 3
