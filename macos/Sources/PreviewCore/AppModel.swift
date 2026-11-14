@@ -61,7 +61,15 @@ public final class AppModel {
     public func pendingSynced(_ folderID: String) -> HostAction? { pending("folder.synced." + folderID) }
 
     /// True for the preview's sample data: only sample data carries no host can list.
-    public var isSample: Bool { snapshot.host.can.isEmpty }
+    public var isSample: Bool { snapshot.isSample }
+
+    /// Asks the real app's chooser for one file, then asks the host to open it.
+    public func chooseAFile() {
+        Task {
+            guard let path = await folderChooser?.chooseFile(), !path.isEmpty else { return }
+            send(.openFile(path: path))
+        }
+    }
 
     /// The value a control should show while its setting is pending: the newest the person chose.
     public func pending(_ slot: String) -> HostAction? {

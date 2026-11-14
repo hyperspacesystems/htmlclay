@@ -23,6 +23,8 @@ private final class FixedFolderChooser: FolderChooser {
     func choose(after current: String?, in snapshot: HostSnapshot) async -> String? { path }
 
     func chooseToTrust(after current: String?, in snapshot: HostSnapshot) async -> String? { path }
+
+    func chooseFile() async -> String? { path }
 }
 
 @MainActor
@@ -177,6 +179,11 @@ final class LiveHostTests: XCTestCase {
             try? await Task.sleep(nanoseconds: 20_000_000)
         }
         XCTAssertTrue(check(), message)
+    }
+
+    private func openLog(_ url: URL) -> [String] {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+        return text.split(separator: "\n").map(String.init)
     }
 
     private func done(_ outcome: HostOutcome, _ message: String) throws -> HostSnapshot {
@@ -389,6 +396,55 @@ final class LiveHostTests: XCTestCase {
             guard let text = try? String(contentsOf: log, encoding: .utf8) else { return false }
             return text.contains("reveal ") && text.contains("copy http")
         }
+    }
+
+    func testThePanelOpensFilesDocumentsAndTheDashboardOnTheRealHost() async throws {
+        let host = try await LiveHost.start()
+        let notes = host.home.appendingPathComponent("notes")
+        try FileManager.default.createDirectory(at: notes, withIntermediateDirectories: true)
+        let file = notes.appendingPathComponent("a.htmlclay")
+        try Data("<!doctype html><title>a</title><p>hello".utf8).write(to: file)
+
+        let opened = try done(await host.client.perform(.openFile(path: file.path)),
+                              "opening a.htmlclay was refused")
+        let document = try XCTUnwrap(opened.documents.first { $0.name == "a.htmlclay" },
+                                     "the snapshot does not list a.htmlclay")
+
+        let log = host.home.appendingPathComponent("open.log")
+        await waitUntil("the open log never got a URL naming a.htmlclay") {
+            openLog(log).contains { $0.contains("a.htmlclay") }
+        }
+
+        // The panel shows Open on the real host and hides what it cannot do.
+        let model = AppModel(host: host.client, initial: opened)
+        XCTAssertFalse(model.isSample)
+        XCTAssertTrue(PanelControls.showsDocumentAction(HostActionType.documentOpen, in: model.snapshot))
+        XCTAssertFalse(PanelControls.showsDocumentAction(HostActionType.documentReveal, in: model.snapshot))
+        XCTAssertFalse(PanelControls.showsExport(isSample: model.isSample))
+
+        _ = try done(await host.client.perform(.openDocument(id: document.id)),
+                     "opening the document was refused")
+        await waitUntil("the open log did not get a second URL naming a.htmlclay") {
+            openLog(log).filter { $0.contains("a.htmlclay") }.count >= 2
+        }
+
+        _ = try done(await host.client.perform(.openDashboard(route: String())),
+                     "opening the dashboard was refused")
+        await waitUntil("the open log never got the dashboard") {
+            openLog(log).contains { $0.contains("dashboard.htmlclay.localhost") }
+        }
+
+        // Forgetting has no host effect yet, so the host says not-yet and the panel
+        // hides Remove from Recent there.
+        guard case let .refused(forgetRefusal) = await host.client.perform(.forgetDocument(id: document.id)) else {
+            return XCTFail("the host forgot the document without an effect for it")
+        }
+        XCTAssertEqual(forgetRefusal.code, "not-yet")
+        XCTAssertFalse(model.can(HostActionType.documentForget))
+        let next = try done(await host.client.perform(.setAIEditing(false)),
+                            "asking the host for a fresh snapshot was refused")
+        XCTAssertTrue(next.documents.contains { $0.id == document.id },
+                      "the document left Recent with no effect to forget it")
     }
 
     func testAFolderInsideAServedFolderFollowsTheHostsSwitch() async throws {

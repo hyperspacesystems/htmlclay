@@ -24,7 +24,7 @@ public struct PanelView: View {
                 KilnGroupTitle(Strings.Panel.recentDocuments)
                 documentsCard
             }
-            if model.snapshot.hostStopped {
+            if model.snapshot.hostStopped, PanelControls.showsAppLog(isSample: model.isSample) {
                 KilnLink(Strings.Panel.showLogs) {
                     model.say(Strings.Advanced.wouldShowAppLog)
                 }
@@ -42,7 +42,9 @@ public struct PanelView: View {
         var sections: [PanelSection] = [s.hostStopped ? .hostStopped : .openDashboard]
         let refused = s.waiting.contains { $0.kind == .syncKeyRefused }
         if refused { sections.append(.keyRefused) }
-        if s.update.ready != nil { sections.append(s.update.finishing ? .finishing : .update) }
+        if s.update.ready != nil, PanelControls.showsUpdate(can: s.hostCan(HostActionType.updateStart)) {
+            sections.append(s.update.finishing ? .finishing : .update)
+        }
         if s.waiting.contains(where: { $0.earnsDot && $0.kind != .syncKeyRefused }) { sections.append(.waiting) }
         if s.sync.connected && !refused { sections.append(s.sync.offlineChanges > 0 ? .offline : .syncLine) }
         return sections
@@ -151,8 +153,10 @@ public struct PanelView: View {
         for item in waitingItems where item.kind == .programRequest {
             rows.append(AnyView(
                 KilnRow(title: Strings.Panel.wantsProgram(document: documentName(for: item))) {
-                    Button(Strings.Panel.answer) { actions.answer(item) }
-                        .buttonStyle(KilnButtonStyle(.plain))
+                    if PanelControls.showsAnswer(can: model.can(HostActionType.requestAnswer)) {
+                        Button(Strings.Panel.answer) { actions.answer(item) }
+                            .buttonStyle(KilnButtonStyle(.plain))
+                    }
                 }
             ))
         }
@@ -207,18 +211,45 @@ public struct PanelView: View {
     }
 
     private func documentRow(_ document: RecentDocument) -> some View {
-        KilnRow(title: document.name, subtitle: subtitle(for: document)) {
+        let snapshot = model.snapshot
+        return KilnRow(title: document.name, subtitle: subtitle(for: document)) {
             Image(systemName: Symbols.doc)
                 .font(.system(size: 15))
                 .foregroundStyle(document.fileMissing ? kiln.warnFg : kiln.muted)
         } trailing: {
             Menu {
-                Button(Strings.Menu.rowOpen) { model.say(Strings.Preview.wouldOpen(document.name)) }
+                if PanelControls.showsDocumentAction(HostActionType.documentOpen, in: snapshot) {
+                    Button(Strings.Menu.rowOpen) {
+                        if snapshot.isSample {
+                            model.say(Strings.Preview.wouldOpen(document.name))
+                        } else {
+                            model.send(.openDocument(id: document.id))
+                        }
+                    }
+                }
                 Button(Strings.Menu.versionHistory, action: actions.openDashboard)
-                Button(Strings.Menu.showInFinder) { model.say(Strings.Preview.wouldShowInFinder(document.name)) }
-                Button(Strings.Menu.exportZip) { model.say(Strings.Preview.wouldExport(document.name)) }
-                Divider()
-                Button(Strings.Menu.removeFromRecent) { model.say(Strings.Preview.wouldRemove(document.name)) }
+                if PanelControls.showsDocumentAction(HostActionType.documentReveal, in: snapshot) {
+                    Button(Strings.Menu.showInFinder) {
+                        if snapshot.isSample {
+                            model.say(Strings.Preview.wouldShowInFinder(document.name))
+                        } else {
+                            model.send(.revealDocument(id: document.id))
+                        }
+                    }
+                }
+                if PanelControls.showsExport(isSample: snapshot.isSample) {
+                    Button(Strings.Menu.exportZip) { model.say(Strings.Preview.wouldExport(document.name)) }
+                }
+                if PanelControls.showsDocumentAction(HostActionType.documentForget, in: snapshot) {
+                    Divider()
+                    Button(Strings.Menu.removeFromRecent) {
+                        if snapshot.isSample {
+                            model.say(Strings.Preview.wouldRemove(document.name))
+                        } else {
+                            model.send(.forgetDocument(id: document.id))
+                        }
+                    }
+                }
             } label: {
                 Image(systemName: Symbols.more)
             }
@@ -236,13 +267,20 @@ public struct PanelView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button(Strings.Panel.openAFile) { model.say(Strings.Preview.wouldOpenFile) }
-                .buttonStyle(KilnButtonStyle(.plain))
+            Button(Strings.Panel.openAFile) {
+                if model.isSample {
+                    model.say(Strings.Preview.wouldOpenFile)
+                } else {
+                    model.chooseAFile()
+                }
+            }
+            .buttonStyle(KilnButtonStyle(.plain))
             if model.snapshot.documents.isEmpty {
                 KilnLink(Strings.Panel.startFromTemplate, action: actions.openDashboard)
             }
             Spacer()
-            if model.snapshot.sync.connected {
+            if model.snapshot.sync.connected,
+               PanelControls.showsSyncPause(can: model.can(HostActionType.syncSetPaused)) {
                 Button(model.snapshot.sync.paused ? Strings.Panel.resumeSyncing : Strings.Panel.pauseSyncing) {
                     model.send(.setSyncPaused(!model.snapshot.sync.paused))
                 }

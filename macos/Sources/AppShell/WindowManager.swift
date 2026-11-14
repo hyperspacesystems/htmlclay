@@ -39,7 +39,11 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     func openBundledDashboard() {
-        if !Browser.openBundledPage("dashboard-preview") { model.say(Strings.Preview.dashboardMissing) }
+        if model.isSample {
+            if !Browser.openBundledPage("dashboard-preview") { model.say(Strings.Preview.dashboardMissing) }
+        } else {
+            model.send(.openDashboard(route: String()))
+        }
     }
 
     func applyAppearance(_ appearance: Appearance) {
@@ -99,6 +103,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     public func showRequest(_ item: WaitingItem) {
+        guard PanelControls.showsAnswer(can: model.can(HostActionType.requestAnswer)) else { return }
         let hosting = NSHostingView(rootView: KilnRoot {
             RequestView(itemID: item.id, actions: RequestActions(
                 answer: { [weak self] answered, allow in self?.answer(answered, allow: allow) },

@@ -124,7 +124,7 @@ struct FolderPage: View {
                 actions.openDashboard()
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            if model.isSample || model.can(FolderActionType.reveal) {
+            if model.isSample || model.can(HostActionType.reveal) {
                 Button(Strings.Menu.showInFinder) {
                     if model.isSample {
                         model.say(Strings.Preview.wouldShowInFinder(folder.path))
@@ -175,7 +175,7 @@ struct FolderPage: View {
                     }
                 } trailing: {
                     if FolderControls.showsMerge(child: child,
-                                                 hostCan: model.can(FolderActionType.merge)) {
+                                                 hostCan: model.can(HostActionType.merge)) {
                         Button(Strings.FolderPage.mergeButton(parent: folder.name)) {
                             alert = FolderAlert(kind: .merge(childID: child.id))
                         }
@@ -262,7 +262,7 @@ struct FolderPage: View {
     private func syncCard(_ folder: Folder) -> some View {
         let synced = FolderControls.synced(folder: folder,
                                            pending: model.pendingSynced(folder.id),
-                                           hostCan: model.can(FolderActionType.setSynced))
+                                           hostCan: model.can(HostActionType.setSynced))
         return NestCard(level: .inner, on: synced.value) {
             VStack(alignment: .leading, spacing: 0) {
                 FolderPageCardHeader(title: Strings.FolderPage.sync, subtitle: Strings.FolderPage.syncSub) {
@@ -297,7 +297,7 @@ struct FolderPage: View {
                     }
                 } else if case let .team(name) = folder.origin,
                           Self.problem(for: folder) == .none,
-                          model.can(FolderActionType.setSynced) {
+                          model.can(HostActionType.setSynced) {
                     NestRows {
                         KilnRow(title: Strings.FolderPage.wasTeam(name), subtitle: Strings.FolderPage.wasTeamSub) {
                             StatusDot(.muted)
@@ -383,7 +383,7 @@ struct FolderPage: View {
             get: {
                 guard let folder = model.snapshot.folder(folderID) else { return false }
                 return FolderControls.synced(folder: folder, pending: model.pendingSynced(folderID),
-                                             hostCan: model.can(FolderActionType.setSynced)).value
+                                             hostCan: model.can(HostActionType.setSynced)).value
             },
             set: { on in
                 if on {

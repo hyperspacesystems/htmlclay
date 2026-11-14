@@ -341,6 +341,8 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public func count(in pane: SettingsPane) -> Int { hostCounts?.byPane[pane.rawValue] ?? waiting.filter { $0.pane == pane }.count }
     public var totalCount: Int { hostCounts?.total ?? waiting.count }
     public func hostCan(_ type: String) -> Bool { host.can[type] ?? true }
+    /// True for the preview's sample data: only sample data carries no host can list.
+    public var isSample: Bool { host.can.isEmpty }
 
     public func folder(_ id: String) -> Folder? { folders.first { $0.id == id } }
     public func program(_ id: String) -> Program? { programs.first { $0.id == id } }

@@ -14,11 +14,17 @@ public struct FolderToggle: Equatable, Sendable {
     }
 }
 
-/// The host action types a folder page asks about, so no view writes them as text.
-public enum FolderActionType {
+/// The host action types a page or panel asks about, so no view writes them as text.
+public enum HostActionType {
     public static let setSynced = "folder.setSynced"
     public static let merge = "folder.merge"
     public static let reveal = "folder.reveal"
+    public static let documentOpen = "document.open"
+    public static let documentReveal = "document.reveal"
+    public static let documentForget = "document.forget"
+    public static let updateStart = "update.start"
+    public static let syncSetPaused = "sync.setPaused"
+    public static let requestAnswer = "request.answer"
 }
 
 /// The folder page's decisions, away from the views: what each switch shows and

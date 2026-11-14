@@ -70,6 +70,24 @@ final class ProblemStateTests: XCTestCase {
         XCTAssertEqual(offline.line, "Offline, 8 changes waiting")
     }
 
+    func testThePanelRendersTheRealHostsSnapshot() throws {
+        _ = NSApplication.shared
+        let fixture = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("PreviewCoreTests/Fixtures/v1/servedFolder.snapshot.json")
+        let wire = try HostWireCoding.decoder().decode(WireSnapshot.self, from: Data(contentsOf: fixture))
+        let snapshot = HostSnapshotAdapter.snapshot(from: wire)
+        let model = AppModel(host: SampleHost(persona: .servedFolder), initial: snapshot)
+        XCTAssertFalse(model.isSample)
+        XCTAssertFalse(snapshot.documents.isEmpty, "the fixture lists no recent documents")
+
+        let panel = NSHostingView(rootView: KilnRoot { PanelView() }.environment(model))
+        panel.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThanOrEqual(panel.fittingSize.width, 382)
+        XCTAssertGreaterThan(panel.fittingSize.height, 120)
+    }
+
     func testHistoryRoute() {
         _ = NSApplication.shared
         XCTAssertEqual(FolderHistoryPage.symbol(.uploaded), Symbols.uploaded)

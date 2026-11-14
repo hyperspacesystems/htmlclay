@@ -8,6 +8,8 @@ public protocol FolderChooser: AnyObject {
     func choose(after current: String?, in snapshot: HostSnapshot) async -> String?
     /// The next folder the Trust sheet offers, or nil when they cancel.
     func chooseToTrust(after current: String?, in snapshot: HostSnapshot) async -> String?
+    /// The file the person picks to open, or nil when they cancel.
+    func chooseFile() async -> String?
 }
 
 /// The preview's chooser: cycles SampleData.servePaths, starting at the first one ServeRules accepts.
@@ -29,4 +31,6 @@ public final class SampleFolderChooser: FolderChooser {
         guard let current else { return TrustRules.firstPick(in: snapshot)?.path }
         return TrustRules.pick(after: current, in: snapshot)?.path
     }
+
+    public func chooseFile() async -> String? { nil }
 }

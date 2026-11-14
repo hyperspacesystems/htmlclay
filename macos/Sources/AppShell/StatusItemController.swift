@@ -63,7 +63,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
             for document in model.snapshot.documents.prefix(8) {
                 let entry = NSMenuItem(title: document.name, action: #selector(openRecent(_:)), keyEquivalent: "")
                 entry.target = self
-                entry.representedObject = document.name
+                entry.representedObject = document.id
                 recent.addItem(entry)
             }
             let parent = NSMenuItem(title: Strings.Panel.recentDocuments, action: nil, keyEquivalent: "")
@@ -88,7 +88,9 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
             let status = NSMenuItem(title: Strings.Panel.syncLine(model.snapshot.sync), action: nil, keyEquivalent: "")
             status.isEnabled = false
             menu.addItem(status)
-            add(model.snapshot.sync.paused ? Strings.Panel.resumeSyncing : Strings.Panel.pauseSyncing, #selector(toggleSync), to: menu)
+            if PanelControls.showsSyncPause(can: model.can(HostActionType.syncSetPaused)) {
+                add(model.snapshot.sync.paused ? Strings.Panel.resumeSyncing : Strings.Panel.pauseSyncing, #selector(toggleSync), to: menu)
+            }
         }
         menu.addItem(.separator())
         add(Strings.Menu.settings, #selector(openSettings), to: menu, key: ",")
@@ -111,13 +113,22 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
 
     @objc private func openAFile() {
         closePanel()
-        model.say(Strings.Preview.wouldOpenFile)
+        if model.isSample {
+            model.say(Strings.Preview.wouldOpenFile)
+        } else {
+            model.chooseAFile()
+        }
     }
 
     @objc private func openRecent(_ sender: NSMenuItem) {
-        guard let name = sender.representedObject as? String else { return }
+        guard let id = sender.representedObject as? String,
+              let document = model.snapshot.documents.first(where: { $0.id == id }) else { return }
         closePanel()
-        model.say(Strings.Preview.wouldOpen(name))
+        if model.isSample {
+            model.say(Strings.Preview.wouldOpen(document.name))
+        } else {
+            model.send(.openDocument(id: document.id))
+        }
     }
 
     @objc private func openWaitingItem(_ sender: NSMenuItem) {
