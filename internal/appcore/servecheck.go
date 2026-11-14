@@ -22,6 +22,9 @@ type Refusal struct {
 	// Documents names the documents a refusal is about, as "<served name>/<file>"
 	// (quit-unsaved: the edits the live-room service could not save).
 	Documents []string
+	// Text is the sentence to show instead of the one copy.go gives Code, for a
+	// refusal made from a folder rule's reason.
+	Text string
 }
 
 const (

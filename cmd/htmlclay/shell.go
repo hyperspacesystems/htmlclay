@@ -48,12 +48,21 @@ func (b shellBackend) Check(act appcore.Action) (shellapi.Preview, *appcore.Refu
 		if effect.Type != "folder.serve" {
 			continue
 		}
+		path, name := effect.Path, effect.Name
 		if effect.FolderID != "" {
 			// Serving a stopped folder again resumes its entry and keeps its name
 			// (serveFolder), so a name typed for a known folder is not used.
-			return b.preview(servedNameOf(facts, effect.FolderID)), nil
+			if served := servedNameOf(facts, effect.FolderID); served != "" {
+				return b.preview(served), nil
+			}
+			// A folder never served is served as any other folder: the name the
+			// runner would give it, checked by the same rules.
+			path = folderPathOf(facts, effect.FolderID)
 		}
-		entry, refusal := b.a.checkServe(effect.Path, effect.Name)
+		if name == "" {
+			name = appcore.DefaultServedName(filepath.Base(path), b.a.rt.cfg.ServedNameAvailable)
+		}
+		entry, refusal := b.a.checkServe(path, name)
 		if refusal != nil {
 			return shellapi.Preview{}, refusal
 		}
@@ -112,17 +121,23 @@ func (b shellBackend) preview(name string) shellapi.Preview {
 	return shellapi.Preview{Name: name, Address: servedHostName(name, b.a.rt.port)}
 }
 
-// servedNameOf is the name the facts give folder id: the served name it has, or its
-// folder name when it has never been served.
+// servedNameOf is the served name the facts give folder id, or "" when the folder
+// has never been served.
 func servedNameOf(facts appcore.Facts, id string) string {
 	for _, folder := range facts.Folders {
-		if folder.ID != id {
-			continue
-		}
-		if folder.ServedName != "" {
+		if folder.ID == id {
 			return folder.ServedName
 		}
-		return folder.Name
+	}
+	return ""
+}
+
+// folderPathOf is the path the facts give folder id, or "" when they do not list it.
+func folderPathOf(facts appcore.Facts, id string) string {
+	for _, folder := range facts.Folders {
+		if folder.ID == id {
+			return folder.Path
+		}
 	}
 	return ""
 }

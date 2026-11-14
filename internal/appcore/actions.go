@@ -368,7 +368,7 @@ func refusedBecause(why *Reason, subject string) *Refusal {
 	if why == nil {
 		return &Refusal{Code: RefuseNotAllowedNow, SubjectID: subject}
 	}
-	return &Refusal{Code: why.Code, SubjectID: subject}
+	return &Refusal{Code: why.Code, SubjectID: subject, Text: why.Text}
 }
 
 func hasDocument(f Facts, id string) bool {

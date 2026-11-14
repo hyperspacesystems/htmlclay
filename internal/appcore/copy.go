@@ -117,6 +117,9 @@ func RefusalMessage(r *Refusal) string {
 	if r == nil {
 		return ""
 	}
+	if r.Text != "" {
+		return r.Text
+	}
 	text, ok := RefusalText[r.Code]
 	if !ok {
 		return r.Code

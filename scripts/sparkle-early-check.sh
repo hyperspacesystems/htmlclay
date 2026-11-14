@@ -174,7 +174,7 @@ cleanup() {
 
   now_state
   if [ "${NOW[3]}" != "${BEFORE[3]}" ] && [ -n "${BEFORE[3]}" ]; then
-    swift "$BIN/restore-handler.swift" "$BEFORE[3]" "$PROBE" >>"$LOGS/cleanup.log" 2>&1 || true
+    swift "$BIN/restore-handler.swift" "${BEFORE[3]}" "$PROBE" >>"$LOGS/cleanup.log" 2>&1 || true
     say "put the .htmlclay handler back to ${BEFORE[3]}"
     now_state
   fi

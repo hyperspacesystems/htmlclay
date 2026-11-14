@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -213,5 +214,23 @@ func TestPlanRequestAnswersMatchTheSnapshot(t *testing.T) {
 		if AnswersFor(kind)[0] != "deny" {
 			t.Errorf("%s does not offer deny first", kind)
 		}
+	}
+}
+
+// TestPlanRefusalFromAFolderReasonCarriesItsText serves a folder inside a served one:
+// the refusal is the rule's own sentence, naming the served folder, not a sentence
+// filled in with an empty name.
+func TestPlanRefusalFromAFolderReasonCarriesItsText(t *testing.T) {
+	f := Facts{Folders: []FolderFact{
+		{ID: "work", Name: "work", Path: "/Users/sam/Work", Origin: Origin{Kind: OriginLocal}, Trusted: true, Served: true, ServedName: "work", OnThisComputer: true},
+		{ID: "inner", Name: "inner", Path: "/Users/sam/Work/inner", Origin: Origin{Kind: OriginLocal}, Trusted: true, OnThisComputer: true},
+	}}
+	_, refusal := Plan(f, Action{ID: "a1", Type: "folder.serve", Args: json.RawMessage(`{"id":"inner"}`)})
+	if refusal == nil || refusal.Code != RefuseOverlapsServed {
+		t.Fatalf("Plan = %+v, want an %s refusal", refusal, RefuseOverlapsServed)
+	}
+	msg := RefusalMessage(refusal)
+	if !strings.Contains(msg, "work") || strings.Contains(msg, "overlaps ,") {
+		t.Errorf("RefusalMessage = %q, want the reason's sentence naming work", msg)
 	}
 }

@@ -284,6 +284,198 @@ func TestShellCheckServeKnownFolderKeepsName(t *testing.T) {
 	}
 }
 
+// factFolderID is the id the facts give the folder at path.
+func factFolderID(t *testing.T, a *app, path string) string {
+	t.Helper()
+	for _, folder := range a.facts().Folders {
+		if folder.Path == path {
+			return folder.ID
+		}
+	}
+	t.Fatalf("no folder at %s in the facts", path)
+	return ""
+}
+
+// TestShellCheckServeNeverServedFolderMatchesServe serves a trusted folder that was
+// never served: the check answers the name and address the serve then gives it.
+func TestShellCheckServeNeverServedFolderMatchesServe(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	notes := filepath.Join(home, "My Notes")
+	writeTestFile(t, filepath.Join(notes, "index.html"), servedTestDocument)
+
+	a := buildTestApp(t, home, t.TempDir())
+	a.rt.port = servedTestPort
+	a.startServed()
+	t.Cleanup(func() {
+		if a.served != nil {
+			a.served.Close()
+		}
+	})
+	if err := a.trustFolder(notes); err != nil {
+		t.Fatalf("trustFolder: %v", err)
+	}
+	backend := shellBackend{a}
+	id := factFolderID(t, a, notes)
+
+	preview, refusal := backend.Check(appcore.Action{
+		ID:   "c1",
+		Type: "folder.serve",
+		Args: json.RawMessage(fmt.Sprintf(`{"id":%q}`, id)),
+	})
+	if refusal != nil {
+		t.Fatalf("Check refused: %+v", refusal)
+	}
+	if preview.Name != "my-notes" || !strings.HasPrefix(preview.Address, "my-notes.htmlclay.localhost") {
+		t.Fatalf("preview = %+v, want my-notes at its own address", preview)
+	}
+
+	snapshot, refusal := a.do(context.Background(), appcore.Action{
+		ID:   "serve-my-notes",
+		Type: "folder.serve",
+		Args: json.RawMessage(fmt.Sprintf(`{"id":%q}`, id)),
+	}, ChannelShell)
+	if refusal != nil {
+		t.Fatalf("serving the folder refused: %+v", refusal)
+	}
+	if got := snapshotFolderAt(t, snapshot, notes); !got.Served || got.Address != preview.Address {
+		t.Fatalf("served at %q (served %v), want the address check gave, %q", got.Address, got.Served, preview.Address)
+	}
+}
+
+// TestShellCheckServeFreeFolderNumberMatchesServe serves a trusted folder whose own
+// name is taken by another served folder: the check answers the free name the serve
+// then lands at.
+func TestShellCheckServeFreeFolderNumberMatchesServe(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := filepath.Join(home, "Work", "notes")
+	writeTestFile(t, filepath.Join(work, "index.html"), servedTestDocument)
+	personal := filepath.Join(home, "Personal", "notes")
+	writeTestFile(t, filepath.Join(personal, "index.html"), servedTestDocument)
+
+	a := buildTestApp(t, home, t.TempDir())
+	a.rt.port = servedTestPort
+	a.startServed()
+	t.Cleanup(func() {
+		if a.served != nil {
+			a.served.Close()
+		}
+	})
+	if _, refusal, err := a.serveFolder(work, "notes"); err != nil || refusal != nil {
+		t.Fatalf("serveFolder(Work/notes): refusal=%+v err=%v", refusal, err)
+	}
+	if err := a.trustFolder(personal); err != nil {
+		t.Fatalf("trustFolder: %v", err)
+	}
+	backend := shellBackend{a}
+	id := factFolderID(t, a, personal)
+
+	preview, refusal := backend.Check(appcore.Action{
+		ID:   "c1",
+		Type: "folder.serve",
+		Args: json.RawMessage(fmt.Sprintf(`{"id":%q}`, id)),
+	})
+	if refusal != nil {
+		t.Fatalf("Check refused: %+v", refusal)
+	}
+	if want := servedHostName("notes-2", servedTestPort); preview.Name != "notes-2" || preview.Address != want {
+		t.Fatalf("preview = %+v, want notes-2 at %s", preview, want)
+	}
+
+	snapshot, refusal := a.do(context.Background(), appcore.Action{
+		ID:   "serve-personal",
+		Type: "folder.serve",
+		Args: json.RawMessage(fmt.Sprintf(`{"id":%q}`, id)),
+	}, ChannelShell)
+	if refusal != nil {
+		t.Fatalf("serving the folder refused: %+v", refusal)
+	}
+	if got := snapshotFolderAt(t, snapshot, personal); !got.Served || got.Address != preview.Address {
+		t.Fatalf("served at %q (served %v), want the address check gave, %q", got.Address, got.Served, preview.Address)
+	}
+}
+
+// TestShellCheckServeFolderInsideServedIsRefused asks about a trusted folder inside a
+// served one: the check refuses it as the serve would, naming the served folder.
+func TestShellCheckServeFolderInsideServedIsRefused(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := filepath.Join(home, "Work")
+	writeTestFile(t, filepath.Join(work, "index.html"), servedTestDocument)
+	inner := filepath.Join(work, "inner")
+	writeTestFile(t, filepath.Join(inner, "index.html"), servedTestDocument)
+
+	a := buildTestApp(t, home, t.TempDir())
+	a.rt.port = servedTestPort
+	a.startServed()
+	t.Cleanup(func() {
+		if a.served != nil {
+			a.served.Close()
+		}
+	})
+	if _, refusal, err := a.serveFolder(work, "work"); err != nil || refusal != nil {
+		t.Fatalf("serveFolder(Work): refusal=%+v err=%v", refusal, err)
+	}
+	if err := a.trustFolder(inner); err != nil {
+		t.Fatalf("trustFolder: %v", err)
+	}
+	backend := shellBackend{a}
+	id := factFolderID(t, a, inner)
+
+	_, refusal := backend.Check(appcore.Action{
+		ID:   "c1",
+		Type: "folder.serve",
+		Args: json.RawMessage(fmt.Sprintf(`{"id":%q}`, id)),
+	})
+	if refusal == nil || refusal.Code != appcore.RefuseOverlapsServed {
+		t.Fatalf("Check = %+v, want an %s refusal", refusal, appcore.RefuseOverlapsServed)
+	}
+	msg := appcore.RefusalMessage(refusal)
+	if !strings.Contains(msg, "work") || strings.Contains(msg, "overlaps ,") {
+		t.Fatalf("refusal text = %q, want the reason's sentence naming work", msg)
+	}
+}
+
+// TestShellCheckServePathWithoutNameUsesDefault asks to serve a path with no name: the
+// check answers the name the host would give it.
+func TestShellCheckServePathWithoutNameUsesDefault(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	blog := filepath.Join(home, "blog")
+	writeTestFile(t, filepath.Join(blog, "index.html"), servedTestDocument)
+
+	a := buildTestApp(t, home, t.TempDir())
+	a.rt.port = servedTestPort
+	a.startServed()
+	t.Cleanup(func() {
+		if a.served != nil {
+			a.served.Close()
+		}
+	})
+	backend := shellBackend{a}
+
+	preview, refusal := backend.Check(appcore.Action{
+		ID:   "c1",
+		Type: "folder.serve",
+		Args: json.RawMessage(fmt.Sprintf(`{"path":%q}`, blog)),
+	})
+	if refusal != nil {
+		t.Fatalf("Check refused: %+v", refusal)
+	}
+	if want := servedHostName("blog", servedTestPort); preview.Name != "blog" || preview.Address != want {
+		t.Fatalf("preview = %+v, want blog at %s", preview, want)
+	}
+}
+
 // freeLoopbackPort answers a port free on both loopback stacks, the way the app
 // asks for it: a launch finds the port held on one stack and asks the person.
 func freeLoopbackPort(t *testing.T) int {
