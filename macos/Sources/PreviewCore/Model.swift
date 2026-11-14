@@ -6,16 +6,15 @@ public enum Persona: String, CaseIterable, Codable, Sendable {
     /// True when the host can make this persona for real on a throwaway home.
     public var isReal: Bool {
         switch self {
-        case .newPerson, .trustedFolder, .servedFolder: return true
-        case .fiveDocuments, .syncedWithTeams, .localUser: return false
+        case .newPerson, .fiveDocuments, .trustedFolder, .servedFolder: return true
+        case .syncedWithTeams, .localUser: return false
         }
     }
 
     /// The milestone that makes this persona real, or nil when it already is.
     public var milestone: Int? {
         switch self {
-        case .newPerson, .trustedFolder, .servedFolder: return nil
-        case .fiveDocuments: return 3
+        case .newPerson, .fiveDocuments, .trustedFolder, .servedFolder: return nil
         case .syncedWithTeams: return 4
         case .localUser: return 5
         }
@@ -442,6 +441,8 @@ public enum HostAction: Equatable, Sendable {
     case openDocument(id: String)
     case revealDocument(id: String)
     case forgetDocument(id: String)
+    case exportDocument(id: String)
+    case openVersions(id: String)
     case openFile(path: String)
     case openDashboard(route: String)
     case revealFolder(id: String)

@@ -17,7 +17,7 @@ xcrun swift build --package-path "$ROOT" --scratch-path "$BUILD" 2>&1 | tail -25
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 "$(dirname "$0")/../../scripts/build-host-for-tests.sh" >/dev/null || fail=1
 export HTMLCLAY_REQUIRE_LIVE_HOST=1
-SAMPLE_ONLY_PERSONAS="fiveDocuments syncedWithTeams localUser"
+SAMPLE_ONLY_PERSONAS="syncedWithTeams localUser"
 export SAMPLE_ONLY_PERSONAS
 xcrun swift test --package-path "$ROOT" --scratch-path "$BUILD" 2>&1 | /usr/bin/grep -E 'error:|failed|Executed|Fatal error' | tail -15
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1

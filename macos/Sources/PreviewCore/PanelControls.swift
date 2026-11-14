@@ -9,8 +9,11 @@ public enum PanelControls {
         snapshot.isSample || snapshot.hostCan(type)
     }
 
-    /// Exporting as a zip has no host action yet, so only sample data offers it.
-    public static func showsExport(isSample: Bool) -> Bool { isSample }
+    /// Exporting as a zip: sample data offers it, and so does a real host whose
+    /// can list runs document.export.
+    public static func showsExport(isSample: Bool, can: Bool = false) -> Bool {
+        isSample || can
+    }
 
     /// Install an update, or restart to finish one.
     public static func showsUpdate(can: Bool) -> Bool { can }

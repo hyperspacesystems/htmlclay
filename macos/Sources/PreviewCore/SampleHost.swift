@@ -157,7 +157,8 @@ public enum SampleReducer {
             guard next.program(programID) != nil else { return snapshot }
             next.programs.removeAll { $0.id == programID }
         case .openDocument, .revealDocument, .forgetDocument, .openFile, .openDashboard,
-             .revealFolder, .copyAddress, .connect, .quit, .revealProgram:
+             .revealFolder, .copyAddress, .connect, .quit, .revealProgram,
+             .exportDocument, .openVersions:
             return snapshot
         }
         return next

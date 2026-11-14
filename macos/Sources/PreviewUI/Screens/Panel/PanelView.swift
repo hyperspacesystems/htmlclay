@@ -227,7 +227,15 @@ public struct PanelView: View {
                         }
                     }
                 }
-                Button(Strings.Menu.versionHistory, action: actions.openDashboard)
+                if PanelControls.showsDocumentAction(HostActionType.documentVersions, in: snapshot) {
+                    Button(Strings.Menu.versionHistory) {
+                        if snapshot.isSample {
+                            actions.openDashboard()
+                        } else {
+                            model.send(.openVersions(id: document.id))
+                        }
+                    }
+                }
                 if PanelControls.showsDocumentAction(HostActionType.documentReveal, in: snapshot) {
                     Button(Strings.Menu.showInFinder) {
                         if snapshot.isSample {
@@ -237,8 +245,14 @@ public struct PanelView: View {
                         }
                     }
                 }
-                if PanelControls.showsExport(isSample: snapshot.isSample) {
-                    Button(Strings.Menu.exportZip) { model.say(Strings.Preview.wouldExport(document.name)) }
+                if PanelControls.showsExport(isSample: snapshot.isSample, can: model.can(HostActionType.documentExport)) {
+                    Button(Strings.Menu.exportZip) {
+                        if snapshot.isSample {
+                            model.say(Strings.Preview.wouldExport(document.name))
+                        } else {
+                            model.send(.exportDocument(id: document.id))
+                        }
+                    }
                 }
                 if PanelControls.showsDocumentAction(HostActionType.documentForget, in: snapshot) {
                     Divider()

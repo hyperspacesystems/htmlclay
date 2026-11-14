@@ -47,6 +47,21 @@ final class SeededProfileTests: XCTestCase {
         XCTAssertEqual(folder.documentCount, created, "the folder holds the \(created) documents the seed wrote")
     }
 
+    func testFiveDocumentsSeedsFiveRealOpens() async throws {
+        let host = try await LiveHost.start()
+        try await ProfileSeeder.seed(.fiveDocuments, home: host.home, host: host.client)
+
+        let snapshot = try await host.client.load()
+        XCTAssertEqual(snapshot.documents.count, 5,
+                       "the seed left \(snapshot.documents.map(\.name)) in Recent")
+        let names = Set(snapshot.documents.map(\.name))
+        let sample = SampleData.snapshot(for: .fiveDocuments)
+        XCTAssertEqual(names, Set(sample.documents.map(\.name)),
+                       "the seed opened \(names), not the sample\u{2019}s five documents")
+        XCTAssertEqual(snapshot.documents.filter(\.fileMissing).count, 1,
+                       "the one sample document whose file is gone is not shown as gone")
+    }
+
     func testASampleOnlyPersonaNamesItsMilestone() async throws {
         let host = try await LiveHost.start()
         for persona in Persona.sampleOnly {

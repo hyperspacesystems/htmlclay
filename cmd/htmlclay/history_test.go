@@ -432,16 +432,22 @@ func documentRow(t *testing.T, a *app, path string) appcore.DocumentFact {
 
 func TestM3VersionCounts(t *testing.T) {
 	indexPath := func(fx *countFixture) string { return filepath.Join(fx.home, "notes", "index.html") }
+	// Every save posts a body of its own: a save keeps a version of the document
+	// it replaces, and identical bytes are not a save.
+	body := func(mark string) string {
+		return strings.Replace(servedTestDocument, "<p>first</p>", "<p>"+mark+"</p>", 1)
+	}
 
 	t.Run("a served document counts what the folder kept", func(t *testing.T) {
 		fx := newCountFixture(t)
-		saveServedDocument(t, fx.app, "notes", "index.html", servedTestDocument)
-		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 1 {
-			t.Fatalf("versions kept after one save = %d, want 1", got)
+		saveServedDocument(t, fx.app, "notes", "index.html", body("one"))
+		first := documentRow(t, fx.app, indexPath(fx)).VersionsKept
+		if first == 0 {
+			t.Fatalf("a served document with saved versions reports none")
 		}
-		saveServedDocument(t, fx.app, "notes", "index.html", strings.Replace(servedTestDocument, "first", "second", 1))
-		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 2 {
-			t.Fatalf("versions kept after two saves = %d, want 2", got)
+		saveServedDocument(t, fx.app, "notes", "index.html", body("two"))
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != first+1 {
+			t.Fatalf("versions kept after a second save = %d, want %d", got, first+1)
 		}
 	})
 
@@ -461,22 +467,21 @@ func TestM3VersionCounts(t *testing.T) {
 		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 0 {
 			t.Fatalf("a document with no history reports %d versions kept, want 0", got)
 		}
-		saveServedDocument(t, fx.app, "notes", "index.html", servedTestDocument)
-		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 1 {
-			t.Fatalf("the count stayed at %d after a save, want 1", got)
+		saveServedDocument(t, fx.app, "notes", "index.html", body("one"))
+		before := documentRow(t, fx.app, indexPath(fx)).VersionsKept
+		if before == 0 {
+			t.Fatalf("the count stayed at 0 after a save")
 		}
-		saveServedDocument(t, fx.app, "notes", "index.html", strings.Replace(servedTestDocument, "first", "third", 1))
-		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 2 {
-			t.Fatalf("the count stayed at %d after a second save, want 2", got)
+		saveServedDocument(t, fx.app, "notes", "index.html", body("two"))
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != before+1 {
+			t.Fatalf("the count stayed at %d after a save, want %d", got, before+1)
 		}
 	})
 
 	t.Run("a remembered count is read again only once the document changes", func(t *testing.T) {
 		fx := newCountFixture(t)
-		saveServedDocument(t, fx.app, "notes", "index.html", servedTestDocument)
-		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 1 {
-			t.Fatalf("versions kept after one save = %d, want 1", got)
-		}
+		saveServedDocument(t, fx.app, "notes", "index.html", body("one"))
+		remembered := documentRow(t, fx.app, indexPath(fx)).VersionsKept
 
 		// A version removed behind the app's back leaves the document itself
 		// untouched, so the remembered count stands rather than being re-read.
@@ -490,11 +495,12 @@ func TestM3VersionCounts(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != 1 {
-			t.Fatalf("the count was read again with the document unchanged: %d, want the remembered 1", got)
+		if got := documentRow(t, fx.app, indexPath(fx)).VersionsKept; got != remembered {
+			t.Fatalf("the count was read again with the document unchanged: %d, want the remembered %d", got, remembered)
 		}
 
-		saveServedDocument(t, fx.app, "notes", "index.html", strings.Replace(servedTestDocument, "first", "fourth", 1))
+		saveServedDocument(t, fx.app, "notes", "index.html", body("two"))
+		saveServedDocument(t, fx.app, "notes", "index.html", body("three"))
 		row := documentRow(t, fx.app, indexPath(fx))
 		want, err := fx.app.countHistory(historyDocument{RootID: row.FolderID, Path: "index.html"})
 		if err != nil {
@@ -503,15 +509,19 @@ func TestM3VersionCounts(t *testing.T) {
 		if row.VersionsKept != want {
 			t.Fatalf("versions kept after the store moved = %d, want the store's %d", row.VersionsKept, want)
 		}
-		if row.VersionsKept == 1 {
-			t.Fatalf("the count after a save is still the remembered 1, want the store's %d", want)
+		if row.VersionsKept == remembered {
+			t.Fatalf("the count after two saves is still the remembered %d, want the store's %d", remembered, want)
 		}
 	})
 
 	t.Run("a missing file keeps its versions counted", func(t *testing.T) {
 		fx := newCountFixture(t)
-		saveServedDocument(t, fx.app, "notes", "index.html", servedTestDocument)
-		saveServedDocument(t, fx.app, "notes", "index.html", strings.Replace(servedTestDocument, "first", "fifth", 1))
+		saveServedDocument(t, fx.app, "notes", "index.html", body("one"))
+		saveServedDocument(t, fx.app, "notes", "index.html", body("two"))
+		kept := documentRow(t, fx.app, indexPath(fx)).VersionsKept
+		if kept == 0 {
+			t.Fatalf("a served document with two saves reports no versions kept")
+		}
 		if err := os.Remove(indexPath(fx)); err != nil {
 			t.Fatal(err)
 		}
@@ -519,8 +529,8 @@ func TestM3VersionCounts(t *testing.T) {
 		if !row.FileMissing {
 			t.Fatalf("a removed document is not listed as missing: %+v", row)
 		}
-		if row.VersionsKept != 2 {
-			t.Fatalf("a missing document reports %d versions kept, want 2", row.VersionsKept)
+		if row.VersionsKept != kept {
+			t.Fatalf("a missing document reports %d versions kept, want the %d it had", row.VersionsKept, kept)
 		}
 	})
 }

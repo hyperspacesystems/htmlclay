@@ -28,7 +28,9 @@ public enum ProfileSeeder {
         switch persona {
         case .newPerson:
             return
-        case .fiveDocuments, .syncedWithTeams, .localUser:
+        case .fiveDocuments:
+            try await seedFiveDocuments(home: home, host: host)
+        case .syncedWithTeams, .localUser:
             throw Refusal.sampleOnly(persona: persona, milestone: persona.milestone ?? 0)
         case .trustedFolder, .servedFolder:
             let sample = SampleData.snapshot(for: persona)
@@ -38,6 +40,23 @@ public enum ProfileSeeder {
             try await send(.trustFolder(name: folder.name, path: path.path), as: "folder.trust", to: host)
             guard persona == .servedFolder else { return }
             try await send(.serveFolder(path: path.path, name: servedName(folder)), as: "folder.serve", to: host)
+        }
+    }
+
+    /// Five real opens: one file where each sample document says it lives, opened
+    /// through the host. The file the sample says is gone is opened and then
+    /// removed, so its row stays with nothing on disk.
+    private static func seedFiveDocuments(home: URL, host: HostClient) async throws {
+        let sample = SampleData.snapshot(for: .fiveDocuments)
+        for document in sample.documents {
+            guard document.place.hasPrefix("~/") else { throw Refusal.outsideHome(path: document.place) }
+            let directory = home.appendingPathComponent(String(document.place.dropFirst(2)), isDirectory: true)
+            try write([document.name], to: directory)
+            let path = directory.appendingPathComponent(document.name)
+            try await send(.openFile(path: path.path), as: "file.open", to: host)
+            if document.fileMissing {
+                try FileManager.default.removeItem(at: path)
+            }
         }
     }
 

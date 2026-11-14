@@ -48,6 +48,10 @@ public enum HostActionWire {
             return WireActionRequest(type: "document.reveal", args: ["id": .string(id)])
         case let .forgetDocument(id):
             return WireActionRequest(type: "document.forget", args: ["id": .string(id)])
+        case let .exportDocument(id):
+            return WireActionRequest(type: "document.export", args: ["id": .string(id)])
+        case let .openVersions(id):
+            return WireActionRequest(type: "document.versions", args: ["id": .string(id)])
         case let .openFile(path):
             return WireActionRequest(type: "file.open", args: ["path": .string(path)])
         case let .openDashboard(route):
