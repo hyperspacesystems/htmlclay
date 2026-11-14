@@ -318,7 +318,7 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite) int {
 		}
 	}
 	for _, document := range restored {
-		a.applyHelperPlan(s, document, a.helpersForNavigation(document))
+		a.applyHelperPlan(s.srv.Core, document, a.helpersForNavigation(document))
 	}
 	return n
 }

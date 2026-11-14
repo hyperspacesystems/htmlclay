@@ -620,7 +620,7 @@ func TestRefreshingOpenDispatchersAppliesRevocationWithoutPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 	s, _ := a.openForTest(t, document)
-	a.applyHelperPlan(s, document, a.helpersForOpenWith(document, false, false, helperApprovalDialogs{}))
+	a.applyHelperPlan(s.srv.Core, document, a.helpersForOpenWith(document, false, false, helperApprovalDialogs{}))
 	before := s.srv.HelperGeneration(document)
 	if before == 0 || !s.srv.HelpersBound(document) {
 		t.Fatal("allowed helper did not attach")

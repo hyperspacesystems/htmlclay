@@ -13,6 +13,7 @@ import (
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/wire"
 )
 
 const helperDeclarationReadLimit = 512 << 10
@@ -96,11 +97,8 @@ func (a *app) helpersForNavigation(document string) helperOpenPlan {
 // now allowed.
 func (a *app) askHelperForUse(document, name string) bool {
 	plan := a.helpersForUseWith(document, name, a.systemHelperApprovalDialogs())
-	a.mu.Lock()
-	s, _, ok := a.lookupLocked(document)
-	a.mu.Unlock()
-	if ok && s.srv != nil {
-		a.applyHelperPlan(s, document, plan)
+	if core, ok := a.wireCoreFor(document); ok {
+		a.applyHelperPlan(core, document, plan)
 	}
 	_, allowed := plan.allowed[name]
 	return allowed
@@ -214,12 +212,61 @@ func (a *app) scopeOf(document string) config.Scope {
 	return a.rt.cfg.ScopeOf(document, platform.DirIdentity)
 }
 
+// programTrusted is whether document's folder may run programs at all: a folder
+// the person trusts, or a folder this app serves. Which program, and whether
+// it asks, is still the decision for document in its scope.
+func (a *app) programTrusted(document string) bool {
+	if a.trustedLive(document) {
+		return true
+	}
+	owner, err := a.ResolveDocument(document)
+	return err == nil && owner.Kind == OwnerServed
+}
+
+// wireCoreFor answers the wire core that serves document: its served folder's
+// root, or the loose site that has it registered.
+func (a *app) wireCoreFor(document string) (*wire.Core, bool) {
+	if owner, err := a.ResolveDocument(document); err == nil && owner.Kind == OwnerServed {
+		if a.served == nil {
+			return nil, false
+		}
+		return a.served.Wire(owner.FolderID)
+	}
+	a.mu.Lock()
+	s, _, ok := a.lookupLocked(document)
+	a.mu.Unlock()
+	if !ok || s.srv == nil {
+		return nil, false
+	}
+	return s.srv.Core, true
+}
+
+// servedWireCores answers the wire core of every folder being served now.
+func (a *app) servedWireCores() []*wire.Core {
+	if a.served == nil {
+		return nil
+	}
+	a.servedMu.Lock()
+	ids := make([]string, 0, len(a.servedByName))
+	for _, m := range a.servedByName {
+		ids = append(ids, m.folder.ID)
+	}
+	a.servedMu.Unlock()
+	var cores []*wire.Core
+	for _, id := range ids {
+		if core, ok := a.served.Wire(id); ok {
+			cores = append(cores, core)
+		}
+	}
+	return cores
+}
+
 // helperGranted is the server's last question before a program's process starts:
 // may name run programID for file right now? It reads the scope at this moment
 // rather than anything cached when the dispatcher attached, so a folder that
 // became a team folder, or an access the person removed, stops the process.
 func (a *app) helperGranted(file, name, programID string) bool {
-	resolution, _ := a.rt.cfg.ResolveHelper(file, name, a.trustedLive(file), a.scopeOf(file))
+	resolution, _ := a.rt.cfg.ResolveHelper(file, name, a.programTrusted(file), a.scopeOf(file))
 	return resolution.Decided && resolution.Allowed && resolution.Program.ID == programID
 }
 
@@ -236,7 +283,7 @@ func (a *app) resolvedHelpersLocked(document string, names []string) (map[string
 	var denied []string
 	scope := a.scopeOf(document)
 	for _, name := range names {
-		resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document), scope)
+		resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.programTrusted(document), scope)
 		switch {
 		case !resolution.Decided:
 		case resolution.Allowed:
@@ -420,15 +467,15 @@ func registeredAtPath(programs []config.HelperProgram, path string) (config.Help
 	return config.HelperProgram{}, false
 }
 
-func (a *app) applyHelperPlan(s *site, document string, plan helperOpenPlan) {
+func (a *app) applyHelperPlan(core *wire.Core, document string, plan helperOpenPlan) {
 	a.helperStateMu.Lock()
 	defer a.helperStateMu.Unlock()
 	if len(plan.names) == 0 {
-		s.srv.DetachHelpers(document)
+		core.DetachHelpers(document)
 		return
 	}
 	allowed, denied := a.resolvedHelpersLocked(document, plan.names)
-	if err := s.srv.AttachHelpers(document, allowed, denied); err != nil {
+	if err := core.AttachHelpers(document, allowed, denied); err != nil {
 		a.rt.logger.Printf("Could not attach helpers for %s: %v", document, err)
 	}
 }
@@ -447,7 +494,12 @@ func (a *app) refreshHelperDispatchers() {
 	}
 	a.mu.Unlock()
 	for _, document := range documents {
-		a.applyHelperPlan(document.site, document.path, a.helpersForNavigation(document.path))
+		a.applyHelperPlan(document.site.srv.Core, document.path, a.helpersForNavigation(document.path))
+	}
+	for _, core := range a.servedWireCores() {
+		for _, path := range core.BoundFiles() {
+			a.applyHelperPlan(core, path, a.helpersForNavigation(path))
+		}
 	}
 }
 
@@ -461,6 +513,9 @@ func (a *app) cancelAIEdits() {
 		if s.srv != nil {
 			s.srv.CancelAIEdits()
 		}
+	}
+	for _, core := range a.servedWireCores() {
+		core.CancelAIEdits()
 	}
 }
 

@@ -263,7 +263,7 @@ func (a *app) untrustFolder(dir string) error {
 			a.rt.logger.Printf("Could not re-home %s after untrusting %s", p, dir)
 			continue
 		}
-		a.applyHelperPlan(s, p, a.helpersForOpen(p, false))
+		a.applyHelperPlan(s.srv.Core, p, a.helpersForOpen(p, false))
 	}
 	// A legacy per-folder port for this folder, if one is still bound, keeps answering the
 	// recovery page for the rest of this run instead of redirecting: its folder is no longer
@@ -351,7 +351,7 @@ func (a *app) mergeFolder(e appcore.Effect) *appcore.Refusal {
 			a.rt.logger.Printf("Could not route %s again after merging %s", reg.Path, childPath)
 			continue
 		}
-		a.applyHelperPlan(s, reg.Path, a.helpersForOpen(reg.Path, false))
+		a.applyHelperPlan(s.srv.Core, reg.Path, a.helpersForOpen(reg.Path, false))
 	}
 	a.refreshHelperDispatchers()
 	a.rt.logger.Printf("Merged trusted folder %s into %s (%d documents routed again)", childPath, parentPath, len(reopen))
@@ -531,7 +531,7 @@ func (a *app) serveURL(absPath string) (string, bool) {
 	}
 	// Browser navigation restores stored permissions; only an explicit file
 	// open should ask the user to approve a new program.
-	a.applyHelperPlan(s, absPath, a.helpersForNavigation(absPath))
+	a.applyHelperPlan(s.srv.Core, absPath, a.helpersForNavigation(absPath))
 	return s.url(rel), true
 }
 

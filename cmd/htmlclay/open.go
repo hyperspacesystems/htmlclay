@@ -60,6 +60,10 @@ func (a *app) openPath(filePath string) *appcore.Refusal {
 	if owner, err := a.ResolveDocument(absPath); err == nil && owner.Kind == OwnerServed {
 		a.rt.logger.Printf("Serving %s at %s", filepath.Base(absPath), owner.URL())
 		a.noteOpen(absPath, recents.HowServed, true)
+		document := filepath.Join(owner.FolderPath, filepath.FromSlash(owner.RelativePath))
+		if core, ok := a.served.Wire(owner.FolderID); ok {
+			a.applyHelperPlan(core, document, a.helpersForOpen(document, true))
+		}
 		a.launchBrowser(owner.URL())
 		return nil
 	}
@@ -70,7 +74,7 @@ func (a *app) openPath(filePath string) *appcore.Refusal {
 	if !ok {
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
-	a.applyHelperPlan(s, absPath, helpers)
+	a.applyHelperPlan(s.srv.Core, absPath, helpers)
 	a.noteOpen(absPath, recents.HowFile, true)
 
 	target := s.url(rel)

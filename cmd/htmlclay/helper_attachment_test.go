@@ -201,10 +201,10 @@ func TestHelperAttachmentUsesCurrentPermissions(t *testing.T) {
 				a.refreshHelperDispatchers()
 				if kind == "new denial" {
 					denied := a.helpersForUseWith(document, "search", allowDocumentDialogs(oldPath, platform.ConfirmDeny, nil))
-					a.applyHelperPlan(s, document, denied)
+					a.applyHelperPlan(s.srv.Core, document, denied)
 				}
 			}
-			a.applyHelperPlan(s, document, stale)
+			a.applyHelperPlan(s.srv.Core, document, stale)
 			registered, ok := s.sessions.LookupByPath(document)
 			if !ok {
 				t.Fatal("document registration disappeared")

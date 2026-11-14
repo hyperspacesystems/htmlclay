@@ -325,7 +325,7 @@ func newHelperUpdateFixture(t *testing.T) helperUpdateFixture {
 		t.Fatal(err)
 	}
 	s, _ := first.openForTest(t, fx.document)
-	first.applyHelperPlan(s, fx.document, first.helpersForNavigation(fx.document))
+	first.applyHelperPlan(s.srv.Core, fx.document, first.helpersForNavigation(fx.document))
 	fx.token, fx.host, fx.port = tokenFor(t, s, fx.document), s.host, first.rt.port
 	if err := first.writeUpdateHandoff(fx.handoff, version); err != nil {
 		t.Fatalf("write handoff: %v", err)

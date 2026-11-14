@@ -70,7 +70,7 @@ func TestADenialLastsForTheRestOfThatOpen(t *testing.T) {
 				t.Fatalf("initial plan %+v, calls %d", plan, calls)
 			}
 			s, rel := a.openForTest(t, document)
-			a.applyHelperPlan(s, document, plan)
+			a.applyHelperPlan(s.srv.Core, document, plan)
 			if state := helperDiscoveryState(t, s, document); state != "denied" {
 				t.Fatalf("initial state %q", state)
 			}

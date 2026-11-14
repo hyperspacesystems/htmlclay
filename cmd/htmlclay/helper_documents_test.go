@@ -251,7 +251,7 @@ func TestHelperDocumentConfigureMakesTheOpenDispatcherRunTheProgram(t *testing.T
 		t.Fatal(err)
 	}
 	s, _ := a.openForTest(t, document)
-	a.applyHelperPlan(s, document, a.helpersForOpen(document, false))
+	a.applyHelperPlan(s.srv.Core, document, a.helpersForOpen(document, false))
 	if !s.srv.HelpersBound(document) {
 		t.Fatal("the open document has no dispatcher to refresh")
 	}
@@ -524,7 +524,7 @@ func TestHelperDocumentStatusReportsRemovedAndDuplicateRegistrations(t *testing.
 			t.Fatal("the registration was not removed")
 		}
 		s, _ := a.openForTest(t, document)
-		a.applyHelperPlan(s, document, a.helpersForOpen(document, false))
+		a.applyHelperPlan(s.srv.Core, document, a.helpersForOpen(document, false))
 
 		if got := a.helperBindingStatus(document, "search"); got != "previous program was removed" {
 			t.Fatalf("status = %q", got)
@@ -555,7 +555,7 @@ func TestHelperDocumentStatusReportsRemovedAndDuplicateRegistrations(t *testing.
 			}
 		}
 		s, _ := a.openForTest(t, document)
-		a.applyHelperPlan(s, document, a.helpersForOpen(document, false))
+		a.applyHelperPlan(s.srv.Core, document, a.helpersForOpen(document, false))
 
 		if got := a.helperBindingStatus(document, "search"); got != "choose between registered programs" {
 			t.Fatalf("status = %q", got)

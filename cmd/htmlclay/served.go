@@ -64,6 +64,7 @@ func (a *app) newServedHost() *served.Host {
 		Dashboard:       a.dashboardOrigin(),
 		WorkspaceEntry:  a.workspaceEntry,
 		OnPageLoad:      a.noteServedPageLoad,
+		BeforePage:      a.bindServedPage,
 		OnStructure:     a.noteServedStructure,
 		InternalDir:     a.rt.configDir,
 	})
@@ -91,6 +92,19 @@ func (a *app) noteServedStructure(rootID, from, to string, isDir bool) {
 		return
 	}
 	fromPath := filepath.Join(folder.Path, filepath.FromSlash(from))
+	if a.served != nil {
+		if core, ok := a.served.Wire(rootID); ok {
+			if isDir {
+				for _, p := range core.BoundFiles() {
+					if pathrel.SameOrBelow(p, fromPath) {
+						core.Forget(p)
+					}
+				}
+			} else {
+				core.Forget(fromPath)
+			}
+		}
+	}
 	toPath := filepath.Join(folder.Path, filepath.FromSlash(to))
 	if err := store.Rebind(fromPath, toPath); err != nil {
 		a.rt.logger.Printf("Could not follow the rename of %s to %s: %v", fromPath, toPath, err)
