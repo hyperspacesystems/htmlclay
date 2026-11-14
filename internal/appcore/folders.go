@@ -19,6 +19,8 @@ const (
 	WhyViewer           = "viewer"
 	WhyStopServingFirst = "stop-serving-first"
 	WhyOverlapsServed   = "overlaps-served"
+	WhyNotOwnAddress    = "not-own-address"
+	WhyNotLocal         = "not-local"
 )
 
 // folderRules is the whole rule set of a folder's levels (trusted, served, synced),
@@ -84,9 +86,36 @@ func folderRules(f Facts, ff FolderFact, state string) (FolderCan, FolderWhy) {
 		}
 	}
 
-	can.Merge = ff.ParentID != "" && hasFolder(f, ff.ParentID) && !ff.Served && !ff.Synced
+	can.Merge, why.Merge = mergeRule(f, ff)
 	can.OpenWorkspace = ff.Served && state == FolderOK
 	return can, why
+}
+
+// mergeRule answers whether ff may merge into the trusted folder around it. Only
+// a folder that already answers at an address of its own can give that address
+// up, only a folder on this computer that belongs to no team can take it, and a
+// served folder has to stop serving first.
+func mergeRule(f Facts, ff FolderFact) (bool, *Reason) {
+	parent, ok := folderFact(f.Folders, ff.ParentID)
+	if ff.ParentID == "" || !ok {
+		return false, nil
+	}
+	if !localScope(ff) || !localScope(parent) {
+		return false, reason(WhyNotLocal, TextWhyMergeNotLocal)
+	}
+	if ff.Served {
+		return false, reason(WhyStopServingFirst, TextWhyStopTrustingServed)
+	}
+	if !ff.OwnAddress {
+		return false, reason(WhyNotOwnAddress, TextWhyMergeNotOwnAddress)
+	}
+	return true, nil
+}
+
+// localScope reports whether a folder belongs to this computer alone: not part of
+// a team and not from the account.
+func localScope(ff FolderFact) bool {
+	return ff.Origin.Kind == OriginLocal && !ff.Team && !ff.Synced
 }
 
 // servedAround finds a served folder, other than ff itself, whose path is ff's or

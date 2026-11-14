@@ -126,9 +126,14 @@ func TestCoreFactsListServedAndTrusted(t *testing.T) {
 		t.Errorf("outer trusted folder parent = %q, want none", *trusted.ParentID)
 	}
 
+	// A folder trusted inside a trusted folder has no address of its own (7.33),
+	// so it is part of its parent and has no parent to merge into.
 	inner := snapshotFolderAt(t, snapshot, innerDir)
-	if inner.ParentID == nil || *inner.ParentID != trusted.ID {
-		t.Errorf("inner trusted folder parent = %v, want %q", inner.ParentID, trusted.ID)
+	if inner.ParentID != nil {
+		t.Errorf("inner trusted folder without its own address has parent %q, want none", *inner.ParentID)
+	}
+	if inner.Can.Merge {
+		t.Error("inner trusted folder without its own address can merge")
 	}
 }
 

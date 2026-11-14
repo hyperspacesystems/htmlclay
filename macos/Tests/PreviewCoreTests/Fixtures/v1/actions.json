@@ -43,7 +43,7 @@
     },
     {
       "type": "folder.merge",
-      "class": "revoke"
+      "class": "grant"
     },
     {
       "type": "folder.relink",

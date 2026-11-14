@@ -56,6 +56,10 @@ type FolderFact struct {
 	Path     string `json:"path"`
 	Origin   Origin `json:"origin"`
 	ParentID string `json:"parentID"`
+	// OwnAddress is set on a trusted folder that keeps the address it already
+	// answers at when a folder around it is trusted: only such a folder has an
+	// address of its own to give up, so only it may merge into its parent.
+	OwnAddress bool `json:"ownAddress"`
 
 	Trusted    bool   `json:"trusted"`
 	Served     bool   `json:"served"`

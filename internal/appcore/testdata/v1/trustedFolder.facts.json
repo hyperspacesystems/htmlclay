@@ -79,7 +79,7 @@
       }
     },
     {
-      "id": "journal",
+      "id": "journal", "ownAddress": true,
       "name": "Journal",
       "path": "/Users/sam/Documents/Notes/Journal",
       "origin": {

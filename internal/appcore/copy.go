@@ -40,18 +40,20 @@ const (
 
 // Why texts: the footnote or tooltip beside a control that is off.
 const (
-	TextWhyServeMissing          = "This folder can't be found where it was."           // copy: why Serve is off, max 90 chars
-	TextWhyServeIdentityChanged  = "A different folder now sits where this one was."    // copy: why Serve is off, max 90 chars
-	TextWhyServeServedByLocal    = "Hyperclay Local is serving this folder now."        // copy: why Serve is off, max 90 chars
-	TextWhyServeOverlaps         = "Inside or around %s, which is already served."      // copy: why Serve is off, max 90 chars TODO-COPY
-	TextWhyServeBoundToLocalSync = "This folder syncs with Hyperclay Local."            // copy: why Serve is off, max 90 chars
-	TextWhyNotOnComputer         = "This team folder isn't on this computer yet."       // copy: why Serve or Sync is off, max 90 chars
-	TextWhySyncNotFromAccount    = "Only folders from your Hyperclay account can sync." // copy: why Sync is off, max 90 chars
-	TextWhySyncConnectFirst      = "Connect your Hyperclay account first."              // copy: why Sync is off, max 90 chars
-	TextWhySyncServeFirst        = "Serve this folder first."                           // copy: why Sync is off, max 90 chars
-	TextWhySyncViewer            = "You can view this team folder but not change it."   // copy: why Sync is off, max 90 chars
-	TextWhySyncMissing           = "This folder can't be found where it was."           // copy: why Sync is off, max 90 chars
-	TextWhyStopTrustingServed    = "Stop serving this folder first."                    // copy: why Stop Trusting is off, max 90 chars
+	TextWhyServeMissing          = "This folder can't be found where it was."                        // copy: why Serve is off, max 90 chars
+	TextWhyServeIdentityChanged  = "A different folder now sits where this one was."                 // copy: why Serve is off, max 90 chars
+	TextWhyServeServedByLocal    = "Hyperclay Local is serving this folder now."                     // copy: why Serve is off, max 90 chars
+	TextWhyServeOverlaps         = "Inside or around %s, which is already served."                   // copy: why Serve is off, max 90 chars TODO-COPY
+	TextWhyServeBoundToLocalSync = "This folder syncs with Hyperclay Local."                         // copy: why Serve is off, max 90 chars
+	TextWhyNotOnComputer         = "This team folder isn't on this computer yet."                    // copy: why Serve or Sync is off, max 90 chars
+	TextWhySyncNotFromAccount    = "Only folders from your Hyperclay account can sync."              // copy: why Sync is off, max 90 chars
+	TextWhySyncConnectFirst      = "Connect your Hyperclay account first."                           // copy: why Sync is off, max 90 chars
+	TextWhySyncServeFirst        = "Serve this folder first."                                        // copy: why Sync is off, max 90 chars
+	TextWhySyncViewer            = "You can view this team folder but not change it."                // copy: why Sync is off, max 90 chars
+	TextWhySyncMissing           = "This folder can't be found where it was."                        // copy: why Sync is off, max 90 chars
+	TextWhyStopTrustingServed    = "Stop serving this folder first."                                 // copy: why Stop Trusting is off, max 90 chars
+	TextWhyMergeNotOwnAddress    = "This folder already uses the address of the folder around it."   // copy: why Merge is off, max 90 chars TODO-COPY
+	TextWhyMergeNotLocal         = "Only folders on this computer that belong to no team can merge." // copy: why Merge is off, max 90 chars TODO-COPY
 )
 
 // Waiting items: the title, and where a %s appears the subject's name.
@@ -111,6 +113,8 @@ var RefusalText = map[string]string{
 	WhyServeFirst:         TextWhySyncServeFirst,
 	WhyViewer:             TextWhySyncViewer,
 	WhyStopServingFirst:   TextWhyStopTrustingServed,
+	WhyNotOwnAddress:      TextWhyMergeNotOwnAddress,
+	WhyNotLocal:           TextWhyMergeNotLocal,
 	RefuseServedElsewhere: "Another copy of HTML Clay is serving this folder. Stop it there first.",      // copy: refusal, max 140 chars
 	RefuseUnsavedEdits:    "Some edits in this folder haven't been saved yet. Try again in a moment.",    // copy: refusal, max 140 chars
 	RefuseQuitUnsaved:     "Some edits haven't been saved yet. Try again, or quit anyway and lose them.", // copy: refusal, max 140 chars

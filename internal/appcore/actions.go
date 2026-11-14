@@ -63,13 +63,13 @@ var ActionClasses = map[string]Class{
 
 	"folder.stopServing":   ClassRevoke,
 	"folder.stopTrusting":  ClassRevoke,
-	"folder.merge":         ClassRevoke,
 	"program.removeAccess": ClassRevoke,
 	"program.remove":       ClassRevoke,
 	"sync.disconnect":      ClassRevoke,
 
 	"folder.trust":     ClassGrant,
 	"folder.serve":     ClassGrant,
+	"folder.merge":     ClassGrant,
 	"folder.relink":    ClassGrant,
 	"file.open":        ClassGrant,
 	"document.recover": ClassGrant,
@@ -140,6 +140,7 @@ func AnswersFor(kind string) []string { return slices.Clone(requestAnswers[kind]
 type Effect struct {
 	Type       string          `json:"type"`
 	FolderID   string          `json:"folderID,omitempty"`
+	ParentID   string          `json:"parentID,omitempty"`
 	Path       string          `json:"path,omitempty"`
 	Name       string          `json:"name,omitempty"`
 	ProgramID  string          `json:"programID,omitempty"`
@@ -277,23 +278,30 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 	case "host.quit":
 		return one(Effect{Type: a.Type, Force: args.Force})
 
-	case "folder.stopServing", "folder.stopTrusting", "folder.merge":
+	case "folder.stopServing", "folder.stopTrusting":
 		ff, refusal := folderArg(f, args.ID)
 		if refusal != nil {
 			return nil, refusal
 		}
 		can, why := folderRules(f, ff, folderState(ff))
 		allowed, because := can.StopServing, (*Reason)(nil)
-		switch a.Type {
-		case "folder.stopTrusting":
+		if a.Type == "folder.stopTrusting" {
 			allowed, because = can.StopTrusting, why.StopTrusting
-		case "folder.merge":
-			allowed, because = can.Merge, why.Merge
 		}
 		if !allowed {
 			return nil, refusedBecause(because, ff.ID)
 		}
 		return one(Effect{Type: a.Type, FolderID: ff.ID})
+	case "folder.merge":
+		ff, refusal := folderArg(f, args.ID)
+		if refusal != nil {
+			return nil, refusal
+		}
+		can, why := folderRules(f, ff, folderState(ff))
+		if !can.Merge {
+			return nil, refusedBecause(why.Merge, ff.ID)
+		}
+		return one(Effect{Type: a.Type, FolderID: ff.ID, ParentID: ff.ParentID})
 	case "folder.setSynced":
 		ff, refusal := folderArg(f, args.ID)
 		if refusal != nil {

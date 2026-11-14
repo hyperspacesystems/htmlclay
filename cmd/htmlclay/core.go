@@ -227,6 +227,7 @@ func (a *app) folderFacts() []appcore.FolderFact {
 			Origin:         appcore.Origin{Kind: appcore.OriginLocal},
 			Trusted:        true,
 			OnThisComputer: true,
+			OwnAddress:     tf.OwnAddress,
 		}
 		identity := tf.Identity
 		if entry, ok := a.rt.cfg.ServedFolderForPath(tf.Path); ok {
@@ -260,7 +261,12 @@ func (a *app) folderFacts() []appcore.FolderFact {
 		folders = append(folders, ff)
 	}
 	for i := range folders {
-		folders[i].ParentID = nearestFolderAbove(folders[i].Path, folders)
+		// Only a folder that keeps its own address inside another trusted folder
+		// is nested in it: one that does not answers at the enclosing folder's
+		// address and is part of it already.
+		if folders[i].OwnAddress {
+			folders[i].ParentID = nearestFolderAbove(folders[i].Path, folders)
+		}
 		_, folders[i].Team = a.teamFolderFor(folders[i].Path)
 	}
 	for i := range folders {

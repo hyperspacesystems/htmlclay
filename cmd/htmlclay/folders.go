@@ -279,6 +279,95 @@ func (a *app) untrustFolder(dir string) error {
 	return nil
 }
 
+// mergeFolder runs folder.merge: the child stops keeping its own address and its
+// documents answer at the parent's address, after every open page has saved.
+//
+// Nothing in the folder moves and nothing in it is rewritten, and what the
+// browser stored at the child's address stays there. The child's slug stays in
+// the config as the label its old address answers with: serveRetired sends a
+// navigation from it to the site that owns the file now, which is the parent.
+func (a *app) mergeFolder(e appcore.Effect) *appcore.Refusal {
+	childPath := a.folderPath(e.FolderID)
+	parentPath := a.folderPath(e.ParentID)
+	if childPath == "" || parentPath == "" {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+
+	// Both folders are checked again: either can have been replaced, re-pinned or
+	// untrusted since the plan, and the child can have stopped keeping its address.
+	child, ok := a.trustedEntry(childPath)
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+	parent, ok := a.trustedEntry(parentPath)
+	if !ok || !child.OwnAddress || childPath == parentPath || !session.EqualOrUnder(childPath, parentPath) {
+		return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow, SubjectID: e.FolderID}
+	}
+	for _, entry := range []config.TrustedFolder{child, parent} {
+		info, err := os.Stat(entry.Path)
+		if err != nil || !info.IsDir() || !trust.IdentityOK(entry.Path, entry.Identity, a.rt.home) {
+			return &appcore.Refusal{Code: appcore.WhyIdentityChanged, SubjectID: e.FolderID, Text: appcore.TextWhyServeIdentityChanged}
+		}
+	}
+
+	// The flush host.quit uses: a page that still holds edits stops the merge, and
+	// then nothing at all has changed.
+	if names, answered := a.unsavedDocuments(); !answered || len(names) > 0 {
+		return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: e.FolderID, Documents: names}
+	}
+
+	a.mu.Lock()
+	previousOwn, _ := a.rt.cfg.SetTrustedOwnAddress(childPath, false)
+	// The port a site of the child's was parked on goes in the same write, or the
+	// old address would answer from a listener the fold has no site for.
+	forgottenPort := a.rt.cfg.ForgetSitePort(childPath)
+	if err := a.rt.cfg.Save(); err != nil {
+		a.rt.cfg.SetTrustedOwnAddress(childPath, previousOwn)
+		if forgottenPort != 0 {
+			a.rt.cfg.RememberSitePort(childPath, forgottenPort)
+		}
+		a.mu.Unlock()
+		return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: e.FolderID}
+	}
+	var reopen []session.RegistrationInfo
+	var closing []*site
+	if s := a.siteAtLocked(childPath); s != nil {
+		reopen = s.sessions.Registrations()
+		closing = append(closing, s)
+	}
+	dropped := a.closeSitesLocked(closing, childPath)
+	a.mu.Unlock()
+
+	for _, p := range dropped {
+		a.rt.ls.DropSubscribers(p)
+	}
+	for _, reg := range reopen {
+		if owner, err := a.ResolveDocument(reg.Path); err == nil && owner.Kind == OwnerServed {
+			a.rt.logger.Printf("Leaving %s at its served address %s", reg.Path, owner.URL())
+			continue
+		}
+		s, _, ok := a.route(reg.Path, reg.Via)
+		if !ok {
+			a.rt.logger.Printf("Could not route %s again after merging %s", reg.Path, childPath)
+			continue
+		}
+		a.applyHelperPlan(s, reg.Path, a.helpersForOpen(reg.Path, false))
+	}
+	a.refreshHelperDispatchers()
+	a.rt.logger.Printf("Merged trusted folder %s into %s (%d documents routed again)", childPath, parentPath, len(reopen))
+	return nil
+}
+
+// trustedEntry answers the trusted folder at path, if there is one.
+func (a *app) trustedEntry(path string) (config.TrustedFolder, bool) {
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if tf.Path == path {
+			return tf, true
+		}
+	}
+	return config.TrustedFolder{}, false
+}
+
 // closeSitesLocked closes every site in closing, records the registration paths they
 // held, and takes folder's roots back from every site still live. Caller holds a.mu
 // and has already marked each of them closed if the router must stop dispatching to
