@@ -1,6 +1,7 @@
 import AppKit
 import UserNotifications
 import PreviewCore
+import AppShell
 
 @MainActor
 final class SampleNotifier: NSObject, UNUserNotificationCenterDelegate {

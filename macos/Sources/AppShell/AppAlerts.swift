@@ -2,12 +2,12 @@ import AppKit
 import PreviewCore
 
 @MainActor
-final class AppAlerts {
+public final class AppAlerts {
     private let model: AppModel
 
-    init(model: AppModel) { self.model = model }
+    public init(model: AppModel) { self.model = model }
 
-    func finishingUp(files: Int) -> Bool {
+    public func finishingUp(files: Int) -> Bool {
         let alert = make(Strings.Quit.finishingTitle, Strings.Quit.uploading(files), buttons: [Strings.Quit.quitNow])
         let timer = Timer(timeInterval: 4, repeats: false) { _ in MainActor.assumeIsolated { NSApp.abortModal() } }
         RunLoop.main.add(timer, forMode: .modalPanel)
@@ -16,7 +16,7 @@ final class AppAlerts {
         return response == .alertFirstButtonReturn
     }
 
-    func cantSave() {
+    public func cantSave() {
         let document = SampleData.cantSaveDocument
         let alert = make(Strings.Quit.cantSaveTitle(document), Strings.Quit.cantSaveMessage,
                          buttons: [Strings.Quit.quitAnyway, Strings.Quit.retry, Strings.Quit.showDocument])
@@ -28,7 +28,7 @@ final class AppAlerts {
         }
     }
 
-    func portTaken() {
+    public func portTaken() {
         let process = SampleData.portProcess
         let alert = make(Strings.Quit.portTitle(Strings.Advanced.portNumber, process: process), Strings.Quit.portMessage,
                          buttons: [Strings.Quit.usePort(SampleData.freePort), Strings.Quit.quitProcess(process), Strings.Menu.quit])

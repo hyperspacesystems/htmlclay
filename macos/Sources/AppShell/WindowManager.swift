@@ -9,21 +9,21 @@ final class RequestPanel: NSPanel {
 }
 
 @MainActor
-final class WindowManager: NSObject, NSWindowDelegate {
+public final class WindowManager: NSObject, NSWindowDelegate {
     private let model: AppModel
     private var settings: NSWindow?
     private var welcome: NSWindow?
     private var request: RequestPanel?
     private var notice: NSPanel?
 
-    init(model: AppModel) {
+    public init(model: AppModel) {
         self.model = model
         super.init()
         applyAppearance(model.snapshot.preferences.appearance)
         observeAppearance()
     }
 
-    static let welcomeDoneKey = "welcomeDone"
+    public static let welcomeDoneKey = "welcomeDone"
 
     static func menuBarIcon() -> NSImage? {
         guard let url = Bundle.main.url(forResource: "tray-icon@2x", withExtension: "png"),
@@ -33,7 +33,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
         return image
     }
 
-    static func film() -> String? {
+    public static func film() -> String? {
         guard let url = Bundle.main.url(forResource: "icon-film", withExtension: "html") else { return nil }
         return try? String(contentsOf: url, encoding: .utf8)
     }
@@ -62,7 +62,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
         }
     }
 
-    func showSettings(_ pane: SettingsPane) {
+    public func showSettings(_ pane: SettingsPane) {
         showSettings(route: .pane(pane))
     }
 
@@ -84,7 +84,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
         present(settings)
     }
 
-    func showWelcome() {
+    public func showWelcome() {
         welcome?.close()
         welcome = makeWindow(KilnRoot {
             WelcomeView(film: Self.film(),
@@ -98,7 +98,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
         present(welcome)
     }
 
-    func showRequest(_ item: WaitingItem) {
+    public func showRequest(_ item: WaitingItem) {
         let hosting = NSHostingView(rootView: KilnRoot {
             RequestView(itemID: item.id, actions: RequestActions(
                 answer: { [weak self] answered, allow in self?.answer(answered, allow: allow) },
@@ -134,7 +134,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
         if let next { showRequest(next) } else { request?.close() }
     }
 
-    func showNotificationFallback(_ note: SampleNotification) {
+    public func showNotificationFallback(_ note: SampleNotification) {
         let hosting = NSHostingView(rootView: KilnRoot { NotificationCard(note: note) }
             .environment(model)
             .clipShape(RoundedRectangle(cornerRadius: 13)))
@@ -186,7 +186,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
         window?.makeKeyAndOrderFront(nil)
     }
 
-    func windowWillClose(_ notification: Notification) {
+    public func windowWillClose(_ notification: Notification) {
         let closing = notification.object as? NSWindow
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }

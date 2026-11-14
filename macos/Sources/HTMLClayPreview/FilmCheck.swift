@@ -1,5 +1,6 @@
 import AppKit
 import WebKit
+import AppShell
 
 @MainActor
 enum FilmCheck {

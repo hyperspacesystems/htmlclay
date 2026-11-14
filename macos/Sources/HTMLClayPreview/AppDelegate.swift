@@ -1,6 +1,7 @@
 import AppKit
 import PreviewCore
 import PreviewUI
+import AppShell
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {

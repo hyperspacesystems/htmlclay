@@ -7,7 +7,8 @@ let package = Package(
     targets: [
         .target(name: "PreviewCore"),
         .target(name: "PreviewUI", dependencies: ["PreviewCore"]),
-        .executableTarget(name: "HTMLClayPreview", dependencies: ["PreviewCore", "PreviewUI"]),
+        .target(name: "AppShell", dependencies: ["PreviewCore", "PreviewUI"]),
+        .executableTarget(name: "HTMLClayPreview", dependencies: ["PreviewCore", "PreviewUI", "AppShell"]),
         .testTarget(name: "PreviewCoreTests", dependencies: ["PreviewCore"]),
         .testTarget(name: "PreviewUITests", dependencies: ["PreviewCore", "PreviewUI"]),
     ]
