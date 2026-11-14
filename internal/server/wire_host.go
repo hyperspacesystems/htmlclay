@@ -1,0 +1,246 @@
+package server
+
+import (
+	"errors"
+	"io/fs"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/versions"
+)
+
+// handleHelperSetup is the page asking HTML Clay to connect one program it
+// declares. The page names only the program; HTML Clay finds the file, shows
+// the native dialog, and answers with a coarse state. A page can call this
+// without a click, so what keeps it in check is the dialog itself (no default
+// button, the real file first), one dialog per name at a time, a minute of
+// quiet after a dialog that granted nothing, and Deny lasting until the person
+// opens the document again.
+func (s *Server) handleHelperSetup(w http.ResponseWriter, r *http.Request) {
+	f, ok := s.actionDocument(w, r)
+	if !ok {
+		return
+	}
+	s.handleSetup(w, r, wireDocument{Path: f.AbsPath, Name: f.RelPath, Ref: f})
+}
+
+// wireCaller classifies who is asking and whether the origin gate admits them.
+//
+// A browser attests at least one of Sec-Fetch-Site or Origin on every fetch and
+// every EventSource and cannot forge either; a local process attests neither.
+// That remains sufficient for a plain wire. A helper-bound channel adds the
+// target document's save token after target resolution, including for callers
+// classified as local processes.
+//
+// Origin is checked only WHEN PRESENT, never required. Chrome omits it on
+// same-origin GETs, including EventSource's stream GET, and requiring it is what
+// silently 403'd every live-sync stream from v1.3.0 until v1.5.0. The subscribe
+// route below is the same kind of GET and would break identically.
+//
+// same-site is rejected rather than admitted: htmlclay serves one loopback origin
+// per project tree and every one of them is same-site with every other, so
+// admitting it would let one project's page drive another project's wire.
+//
+// The isBrowser answer is RETURNED rather than discarded, because it is what
+// makes the handler role safe. See handleWireSubscribe.
+func wireCaller(r *http.Request) (isBrowser, ok bool) {
+	site := r.Header.Get("Sec-Fetch-Site")
+	origin := r.Header.Get("Origin")
+	if site == "" && origin == "" {
+		return false, true
+	}
+	if site != "" && site != "same-origin" {
+		return true, false
+	}
+	if origin != "" && origin != "http://"+r.Host {
+		return true, false
+	}
+	return true, true
+}
+
+// wireTarget resolves which file this request is about.
+//
+// The two callers are not symmetric and must not be merged. A browser NEVER names
+// a path: its file comes from the page's own URL, through the same funnel
+// handleLiveSyncSave uses, and any supplied file field is discarded. A local
+// process has no page, so it names an absolute path, which is then validated.
+//
+// Note that origin-wide trust is inherited here, not introduced: on an unbound
+// channel resolvePageURL already lets one served page name another registered
+// path on the same origin (livesync.go). A helper-bound channel adds the target's
+// save token after this function returns. "One wire per file" is addressing,
+// not isolation.
+func (s *Server) wireTarget(r *http.Request, isBrowser bool, supplied string) (*session.File, bool) {
+	if isBrowser {
+		// Document-URL first, Page-URL after it, and the query last. §3 names the
+		// first spelling and §11's channel addresses a document the same way the save
+		// route does, so a client written against the spec sends only that one and was
+		// getting no target at all here. The older spelling stays because a document
+		// that opened a wire before the rename hardcoded it in its own inline script.
+		pageURL := r.Header.Get("Document-URL")
+		if pageURL == "" {
+			pageURL = r.Header.Get("Page-URL")
+		}
+		if pageURL == "" {
+			pageURL = r.URL.Query().Get("document-url")
+		}
+		if pageURL == "" {
+			pageURL = r.URL.Query().Get("page-url")
+		}
+		return s.resolvePageURL(r, pageURL)
+	}
+	return s.resolveWireFile(supplied)
+}
+
+// resolveWireFile admits an absolute path from a local process.
+//
+// ValidatePath cannot be called on it directly: that helper takes a URL-relative
+// path and rejects anything starting with "/", so the address is made relative to
+// the home directory first and then runs the same containment it does.
+//
+// Ordering is the serve path's discipline: containment and internal/hidden
+// refusal are string and memory work and happen FIRST, so an out-of-scope path is
+// refused identically whether or not anything exists at it. Only a path already
+// registered in this site is admitted. Admitting an unregistered path under a
+// live trusted anchor is the subscribe-before-open case; it needs the site's own
+// anchor to compare against (answering "is it under ANY trusted folder" would let
+// one project's origin open a wire into another's) and is deliberately not built
+// here yet.
+func (s *Server) resolveWireFile(raw string) (*session.File, bool) {
+	if raw == "" || !filepath.IsAbs(raw) || strings.Contains(raw, "\x00") {
+		return nil, false
+	}
+	home := s.sessions.HomeDir()
+	canonical, ok := session.ContainWithinHome(home, filepath.Clean(raw))
+	if !ok || s.isInternal(canonical) || session.HasHiddenComponent(home, canonical) {
+		return nil, false
+	}
+	return s.sessions.LookupByPath(canonical)
+}
+
+// openHistoryForHandler turns version history on for a file an agent is about to
+// start editing, and tells the watcher what is already there.
+//
+// The history key is resolved HERE rather than in the watcher, through the same
+// seam serving uses. versions.Backup needs a key, a key is only ever set by
+// serving or saving, and the handler lease exists precisely to watch files no tab
+// has served, where the key is still empty. Attaching an agent therefore becomes
+// the act that turns version history on for a file nobody has opened, with a
+// baseline backup of what was there first, so the agent's own first write is not
+// the earliest state history remembers. A freshly minted identity is marked
+// provisional exactly as a first-open snapshot is, so attaching an agent to a file
+// that then never changes does not permanently claim an id for it.
+//
+// Only lastStableObservation is seeded, and only when nothing has observed the
+// file yet. Marking the file OBSERVED here would let a wire subscription do what
+// the watcher is structurally forbidden from doing (session.go derives Observed
+// from lastServerWrite for that reason), and the file's first real GET would then
+// skip both its first-open snapshot and the seeding that makes its first save
+// comparable. Overwriting an existing observation would suppress a change already
+// waiting to be published.
+//
+// It runs BEFORE the lease is raised, so the watcher's first poll never sees a
+// file with no observation on record and reports its existing content as a change.
+func (s *Server) openHistoryForHandler(f *session.File) error {
+	// Bulk pruning takes the store lock, and the lock order is file lock before
+	// store lock, so it runs only once the seeding has released f.Lock.
+	key, err := s.seedHandlerHistory(f)
+	if key != "" {
+		s.versions.MaybePrune(key, f.AbsPath)
+	}
+	return err
+}
+
+func (s *Server) seedHandlerHistory(f *session.File) (string, error) {
+	f.Lock()
+	defer f.Unlock()
+
+	data, err := os.ReadFile(f.AbsPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		// A registered file can be gone by now, and the agent may be about to put it
+		// back. There are no bytes to seed an observation from and no embedded id to
+		// adopt, so the identity resolves from the path alone. Doing that here is
+		// what lets the watcher version the agent's very first write.
+		s.ensureHistoryKeyLocked(f, nil)
+		return "", nil
+	}
+	if err != nil {
+		// An existing file this server cannot read is a refusal, not a degraded
+		// attach. Its bytes may carry an id a later serve should adopt, so minting
+		// one now would fork its history, and leaving the key unresolved would mean
+		// versioning nothing the agent writes.
+		return "", err
+	}
+	key, provisional := s.ensureHistoryKeyLocked(f, data)
+	if f.LastStableObservation() == "" {
+		f.RecordStableObservation(versions.Hash(data))
+	}
+	if _, bErr := s.versions.Backup(key, f.AbsPath, data); bErr != nil {
+		s.logger.Printf("Baseline backup for wire handler on %s failed: %v", f.RelPath, bErr)
+	} else if provisional {
+		if pErr := s.versions.SetProvisional(key, f.AbsPath, true); pErr != nil {
+			s.logger.Printf("Could not mark provisional history for %s: %v", f.RelPath, pErr)
+		}
+	}
+	return key, nil
+}
+
+// looseWire is the loose host's side of the wire: the documents this server
+// serves and the decisions its hooks make. Every method is one line over what the
+// wire called before the seam existed.
+type looseWire struct{ s *Server }
+
+func (l looseWire) caller(r *http.Request) (isBrowser, ok bool) { return wireCaller(r) }
+
+func (l looseWire) target(r *http.Request, isBrowser bool, supplied string) (wireDocument, bool) {
+	f, ok := l.s.wireTarget(r, isBrowser, supplied)
+	if !ok {
+		return wireDocument{}, false
+	}
+	return wireDocument{Path: f.AbsPath, Name: f.RelPath, Ref: f}, true
+}
+
+func (l looseWire) at(path string) (wireDocument, bool) {
+	f, ok := l.s.sessions.LookupByPath(path)
+	if !ok {
+		return wireDocument{}, false
+	}
+	return wireDocument{Path: f.AbsPath, Name: f.RelPath, Ref: f}, true
+}
+
+func (l looseWire) mayUsePrograms(doc wireDocument, isBrowser bool, presented string) bool {
+	return presented == doc.Ref.(*session.File).Token
+}
+
+func (l looseWire) openHistory(doc wireDocument) error {
+	return l.s.openHistoryForHandler(doc.Ref.(*session.File))
+}
+
+func (l looseWire) lease(doc wireDocument)   { l.s.coord.lease(doc.Ref.(*session.File)) }
+func (l looseWire) unlease(doc wireDocument) { l.s.coord.unlease(doc.Ref.(*session.File)) }
+func (l looseWire) poke(doc wireDocument)    { l.s.coord.pokeWatcher(doc.Ref.(*session.File)) }
+
+func (l looseWire) internal(absPath string) bool { return l.s.isInternal(absPath) }
+
+func (l looseWire) canAskProgram() bool { return l.s.hooks.AskHelper != nil }
+
+func (l looseWire) askProgram(file, name string) bool { return l.s.hooks.AskHelper(file, name) }
+
+func (l looseWire) programGranted(file, name, programID string) bool {
+	granted := l.s.hooks.HelperGranted
+	return granted == nil || granted(file, name, programID)
+}
+
+func (l looseWire) aiEditOffered() bool { return l.s.hooks.AIEditEnabled != nil }
+
+func (l looseWire) aiEditEnabled() bool { return l.s.hooks.AIEditEnabled() }
+
+func (l looseWire) aiEditEngines() (string, map[string][]string) {
+	if l.s.hooks.AIEditEngines == nil {
+		return "", nil
+	}
+	return l.s.hooks.AIEditEngines()
+}

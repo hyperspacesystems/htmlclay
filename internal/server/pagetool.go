@@ -11,7 +11,6 @@ import (
 
 	"github.com/panphora/htmlclay/internal/aiedit"
 	"github.com/panphora/htmlclay/internal/clayruntime"
-	"github.com/panphora/htmlclay/internal/session"
 )
 
 // The built-in blockeditor-tool helper. ClayJS sends a named request with helper
@@ -50,7 +49,7 @@ func readPageToolPrompts() (string, bool) {
 
 // pageToolOffered reports whether this server can answer blockeditor-tool at all: the
 // AI Editing hook, and the prompt files it needs.
-func (s *Server) pageToolOffered() bool {
+func (s *wireCore) pageToolOffered() bool {
 	if !s.aiEditOffered() {
 		return false
 	}
@@ -60,12 +59,12 @@ func (s *Server) pageToolOffered() bool {
 
 // pageToolMeta is the discovery entry for a document, when this server offers
 // the blockeditor-tool helper for it.
-func (s *Server) pageToolMeta(file string) (helperMeta, bool) {
+func (s *wireCore) pageToolMeta(file string) (helperMeta, bool) {
 	if !s.pageToolOffered() || !aiedit.IsDocument(file) {
 		return helperMeta{}, false
 	}
 	state := "unavailable"
-	if s.hooks.AIEditEnabled() {
+	if s.policy.aiEditEnabled() {
 		state = "ready"
 	}
 	return helperMeta{Name: aiedit.PageToolHelperName, State: state}, true
@@ -80,8 +79,8 @@ type pageToolDone struct {
 
 // startPageTool registers the request and runs it in the background. The caller
 // has already checked the document's token.
-func (s *Server) startPageTool(f *session.File, request wireEnvelope) {
-	if !s.hooks.AIEditEnabled() {
+func (s *wireCore) startPageTool(doc wireDocument, request wireEnvelope) {
+	if !s.policy.aiEditEnabled() {
 		s.refuseAIEdit(request, "host", "helper_not_granted", pageToolOffText)
 		return
 	}
@@ -105,7 +104,7 @@ func (s *Server) startPageTool(f *session.File, request wireEnvelope) {
 	if s.aiEdit.running == nil {
 		s.aiEdit.running = make(map[string]aiEditRun)
 	}
-	if run, busy := s.aiEdit.running[f.AbsPath]; busy {
+	if run, busy := s.aiEdit.running[doc.Path]; busy {
 		s.aiEdit.mu.Unlock()
 		cancel()
 		if run.id == request.ID {
@@ -116,16 +115,16 @@ func (s *Server) startPageTool(f *session.File, request wireEnvelope) {
 		}
 		return
 	}
-	s.aiEdit.running[f.AbsPath] = aiEditRun{id: request.ID, cancel: cancel}
+	s.aiEdit.running[doc.Path] = aiEditRun{id: request.ID, cancel: cancel}
 	s.aiEdit.mu.Unlock()
 	s.wire.forgetTerminal(request.File, request.ID)
 
 	s.publishAIEdit(request, "wire/ack", "", map[string]any{"mode": "jsonl", "budgetMs": pageToolBudget.Milliseconds()})
 	s.publishAIEdit(request, "wire/status", "Making your tool…", nil)
-	go s.runPageTool(ctx, cancel, f.AbsPath, request, toolRequest, systemPrompt)
+	go s.runPageTool(ctx, cancel, doc.Path, request, toolRequest, systemPrompt)
 }
 
-func (s *Server) runPageTool(ctx context.Context, cancel context.CancelFunc, file string, request wireEnvelope, toolRequest aiedit.ToolRequest, systemPrompt string) {
+func (s *wireCore) runPageTool(ctx context.Context, cancel context.CancelFunc, file string, request wireEnvelope, toolRequest aiedit.ToolRequest, systemPrompt string) {
 	release := func() {
 		cancel()
 		s.aiEdit.mu.Lock()
@@ -137,9 +136,7 @@ func (s *Server) runPageTool(ctx context.Context, cancel context.CancelFunc, fil
 
 	var def string
 	var engines map[string][]string
-	if s.hooks.AIEditEngines != nil {
-		def, engines = s.hooks.AIEditEngines()
-	}
+	def, engines = s.policy.aiEditEngines()
 	opts := aiedit.ToolOptions{
 		BaseDir:      filepath.Dir(file),
 		Default:      def,

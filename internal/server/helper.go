@@ -21,7 +21,6 @@ import (
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/helper"
 	"github.com/panphora/htmlclay/internal/htmlutil"
-	"github.com/panphora/htmlclay/internal/session"
 )
 
 const (
@@ -41,7 +40,7 @@ type helperMeta struct {
 }
 
 type helperDispatcher struct {
-	server     *Server
+	core       *wireCore
 	file       string
 	names      []string
 	declared   map[string]bool
@@ -68,7 +67,7 @@ type liveHelperRun struct {
 // complement of allowed: a name the user was never asked about, or whose
 // program has since been unregistered, is in neither, and discovery has to be
 // able to tell those apart from a refusal.
-func (s *Server) AttachHelpers(file string, allowed map[string]config.HelperProgram, denied []string) error {
+func (s *wireCore) AttachHelpers(file string, allowed map[string]config.HelperProgram, denied []string) error {
 	if err := s.attachHelpers(file, allowed, denied); err != nil {
 		return err
 	}
@@ -80,7 +79,7 @@ func (s *Server) AttachHelpers(file string, allowed map[string]config.HelperProg
 // made outside the setup endpoint has since decided, such as the tray or the
 // Programs page: an allowed name starts, a refused name fails. Names with a
 // setup dialog still open are left to finishHelperAsk.
-func (s *Server) resumeParkedHelpers(file string) {
+func (s *wireCore) resumeParkedHelpers(file string) {
 	type answer struct {
 		p    parkedHelperRequest
 		name string
@@ -122,7 +121,7 @@ func (s *Server) resumeParkedHelpers(file string) {
 	}
 }
 
-func (s *Server) attachHelpers(file string, allowed map[string]config.HelperProgram, denied []string) error {
+func (s *wireCore) attachHelpers(file string, allowed map[string]config.HelperProgram, denied []string) error {
 	names, err := readDeclaredHelpers(file)
 	if err != nil {
 		return fmt.Errorf("read helper declarations for %s: %w", file, err)
@@ -167,7 +166,7 @@ func (s *Server) attachHelpers(file string, allowed map[string]config.HelperProg
 
 	ctx, cancel := context.WithCancel(context.Background())
 	d := &helperDispatcher{
-		server:   s,
+		core:     s,
 		file:     file,
 		names:    append([]string(nil), names...),
 		declared: declared,
@@ -206,7 +205,7 @@ func (s *Server) attachHelpers(file string, allowed map[string]config.HelperProg
 }
 
 // DetachHelpers revokes file's dispatcher and cancels all accepted work.
-func (s *Server) DetachHelpers(file string) {
+func (s *wireCore) DetachHelpers(file string) {
 	s.helperMu.Lock()
 	defer s.helperMu.Unlock()
 	delete(s.helperOffline, file)
@@ -243,7 +242,7 @@ func (d *helperDispatcher) regrantLocked(allowed map[string]config.HelperProgram
 	}
 }
 
-func (s *Server) detachHelperLocked(d *helperDispatcher, unavailable bool) {
+func (s *wireCore) detachHelperLocked(d *helperDispatcher, unavailable bool) {
 	if s.helpers[d.file] != d {
 		return
 	}
@@ -287,23 +286,23 @@ func (d *helperDispatcher) stop() {
 
 func (d *helperDispatcher) loop() {
 	defer func() {
-		d.server.helperMu.Lock()
-		d.server.detachHelperLocked(d, true)
-		d.server.helperMu.Unlock()
-		d.server.wire.remove(d.sub)
+		d.core.helperMu.Lock()
+		d.core.detachHelperLocked(d, true)
+		d.core.helperMu.Unlock()
+		d.core.wire.remove(d.sub)
 	}()
 	for {
 		select {
 		case <-d.ctx.Done():
 			return
-		case <-d.server.wire.closing:
+		case <-d.core.wire.closing:
 			return
 		case <-d.sub.done:
 			return
 		case raw := <-d.sub.ch:
 			env, err := decodeWireEnvelope(raw)
 			if err != nil {
-				d.server.logger.Printf("helper dispatcher for %s received an invalid frame: %v", d.file, err)
+				d.core.logger.Printf("helper dispatcher for %s received an invalid frame: %v", d.file, err)
 				continue
 			}
 			switch env.Type {
@@ -357,12 +356,12 @@ func (d *helperDispatcher) start(env wireEnvelope, framed []byte) {
 		d.reject(env, "invalid_document", `document must be "edit" or "none"`)
 		return
 	}
-	d.server.helperMu.Lock()
+	d.core.helperMu.Lock()
 	program, ok := d.allowed[env.Helper]
 	refused := d.denied[env.Helper]
-	d.server.helperMu.Unlock()
+	d.core.helperMu.Unlock()
 	if !ok {
-		if env.Type == "wire/request" && !refused && d.server.hooks.AskHelper != nil {
+		if env.Type == "wire/request" && !refused && d.core.policy.canAskProgram() {
 			d.askThenStart(env, framed)
 			return
 		}
@@ -370,15 +369,15 @@ func (d *helperDispatcher) start(env wireEnvelope, framed []byte) {
 		return
 	}
 
-	d.server.helperMu.Lock()
-	if !d.server.helperCurrentLocked(d) {
-		d.server.helperMu.Unlock()
+	d.core.helperMu.Lock()
+	if !d.core.helperCurrentLocked(d) {
+		d.core.helperMu.Unlock()
 		return
 	}
 	// A regrant can land between the read above and this registration, and it
 	// keeps the generation, so the grant itself is checked again here and in Start.
 	if !d.grantedLocked(env.Helper, program.ID) {
-		d.server.helperMu.Unlock()
+		d.core.helperMu.Unlock()
 		d.reject(env, "helper_not_granted", "this document was not granted that helper")
 		return
 	}
@@ -387,7 +386,7 @@ func (d *helperDispatcher) start(env wireEnvelope, framed []byte) {
 	d.mu.Lock()
 	if _, exists := d.live[env.ID]; exists {
 		d.mu.Unlock()
-		d.server.helperMu.Unlock()
+		d.core.helperMu.Unlock()
 		cancel()
 		d.reject(env, "duplicate_request", "a request with this id is already running")
 		// This refusal is about the second request, not about the outcome of the
@@ -395,20 +394,20 @@ func (d *helperDispatcher) start(env wireEnvelope, framed []byte) {
 		// retained it would win the id's one remembered outcome under the
 		// first-terminal-wins rule, and a subscriber that reconnects after the
 		// real answer landed would replay this error instead.
-		d.server.wire.forgetTerminal(d.file, env.ID)
+		d.core.wire.forgetTerminal(d.file, env.ID)
 		return
 	}
 	if len(d.live) >= helperServeMax {
 		d.mu.Unlock()
-		d.server.helperMu.Unlock()
+		d.core.helperMu.Unlock()
 		cancel()
 		d.reject(env, "helper_busy", fmt.Sprintf("this handler is already running %d requests", helperServeMax))
 		return
 	}
 	d.live[env.ID] = liveHelperRun{cancel: cancel, helper: env.Helper, program: program.ID}
 	d.mu.Unlock()
-	d.server.wire.forgetTerminal(d.file, env.ID)
-	d.server.helperMu.Unlock()
+	d.core.wire.forgetTerminal(d.file, env.ID)
+	d.core.helperMu.Unlock()
 
 	ack := wireEnvelope{
 		V:      1,
@@ -459,7 +458,7 @@ func helperAskKey(file, name string) string { return file + "\x00" + name }
 // wait, and a status saying what it waits on. A request still parked after
 // helperParkLimit fails.
 func (d *helperDispatcher) askThenStart(env wireEnvelope, framed []byte) {
-	s := d.server
+	s := d.core
 	key := helperAskKey(d.file, env.Helper)
 	s.helperMu.Lock()
 	if !s.helperCurrentLocked(d) {
@@ -503,7 +502,7 @@ func (d *helperDispatcher) askThenStart(env wireEnvelope, framed []byte) {
 
 // expireParkedHelpers fails the requests for file and name that have waited
 // helperParkLimit, and checks again later for any that arrived after the first.
-func (s *Server) expireParkedHelpers(file, name string) {
+func (s *wireCore) expireParkedHelpers(file, name string) {
 	key := helperAskKey(file, name)
 	now := time.Now()
 	s.helperMu.Lock()
@@ -528,7 +527,7 @@ func (s *Server) expireParkedHelpers(file, name string) {
 	}
 }
 
-func (s *Server) rejectParkedHelper(current *helperDispatcher, file string, p parkedHelperRequest, code, message string) {
+func (s *wireCore) rejectParkedHelper(current *helperDispatcher, file string, p parkedHelperRequest, code, message string) {
 	if current == nil {
 		s.wire.publish(file, helperEventEnvelope(p.env, helper.Event{Kind: "error", Text: message, Code: code, Source: "host"}, helper.MaxTerminalRecord))
 		return
@@ -541,8 +540,8 @@ func (s *Server) rejectParkedHelper(current *helperDispatcher, file string, p pa
 // one. It refuses rather than re-dispatching when the current dispatcher does
 // not hold the helper, so a failed reattach can never loop back into another
 // dialog. It reports whether name is now granted.
-func (s *Server) finishHelperAsk(file, name string) bool {
-	allowed := s.hooks.AskHelper(file, name)
+func (s *wireCore) finishHelperAsk(file, name string) bool {
+	allowed := s.policy.askProgram(file, name)
 	key := helperAskKey(file, name)
 	s.helperMu.Lock()
 	parked := s.helperAsking[key]
@@ -570,7 +569,7 @@ func (s *Server) finishHelperAsk(file, name string) bool {
 	return allowed && granted
 }
 
-func (s *Server) helperCurrentLocked(d *helperDispatcher) bool {
+func (s *wireCore) helperCurrentLocked(d *helperDispatcher) bool {
 	return s.helpers[d.file] == d && s.HelperGeneration(d.file) == d.generation
 }
 
@@ -579,7 +578,7 @@ func (d *helperDispatcher) reject(env wireEnvelope, code, message string) {
 }
 
 func (d *helperDispatcher) cancelRequest(id string) {
-	s := d.server
+	s := d.core
 	s.helperMu.Lock()
 	prefix := d.file + "\x00"
 	for key, parked := range s.helperAsking {
@@ -605,20 +604,20 @@ func (d *helperDispatcher) run(ctx context.Context, cancel context.CancelFunc, e
 		d.mu.Unlock()
 	}()
 
-	var file *session.File
+	var doc wireDocument
 	if document == "edit" {
 		var ok bool
-		file, ok = d.server.sessions.LookupByPath(d.file)
+		doc, ok = d.core.docs.at(d.file)
 		if !ok {
 			d.reject(env, "helper_start_failed", "the document is no longer registered")
 			return
 		}
-		if err := d.server.openHistoryForHandler(file); err != nil {
+		if err := d.core.docs.openHistory(doc); err != nil {
 			d.reject(env, "helper_start_failed", "could not prepare document history: "+err.Error())
 			return
 		}
-		d.server.coord.lease(file)
-		defer d.server.coord.unlease(file)
+		d.core.docs.lease(doc)
+		defer d.core.docs.unlease(doc)
 	}
 
 	input, err := helper.StampProtocol(wireData(framed), document)
@@ -626,7 +625,7 @@ func (d *helperDispatcher) run(ctx context.Context, cancel context.CancelFunc, e
 		d.publishEvent(env, helper.Event{Kind: "error", Text: "cannot prepare the helper request", Code: "helper_bad_output", Source: "host"}, document == "edit", resultLimit)
 		return
 	}
-	stderr := &helperLogWriter{server: d.server, id: env.ID, name: env.Helper}
+	stderr := &helperLogWriter{server: d.core, id: env.ID, name: env.Helper}
 	helper.Run(ctx, helper.Spec{
 		Argv:       []string{program.Path},
 		Dir:        filepath.Dir(d.file),
@@ -638,12 +637,12 @@ func (d *helperDispatcher) run(ctx context.Context, cancel context.CancelFunc, e
 		Start: func(cmd *exec.Cmd) error {
 			// The scope is read here, at the moment of starting, not when the
 			// dispatcher attached: the folder may have become a team folder since.
-			if granted := d.server.hooks.HelperGranted; granted != nil && !granted(d.file, env.Helper, program.ID) {
+			if !d.core.policy.programGranted(d.file, env.Helper, program.ID) {
 				return errHelperNotGranted
 			}
-			d.server.helperMu.Lock()
-			defer d.server.helperMu.Unlock()
-			if !d.server.helperCurrentLocked(d) || !d.grantedLocked(env.Helper, program.ID) {
+			d.core.helperMu.Lock()
+			defer d.core.helperMu.Unlock()
+			if !d.core.helperCurrentLocked(d) || !d.grantedLocked(env.Helper, program.ID) {
 				return context.Canceled
 			}
 			return cmd.Start()
@@ -684,18 +683,18 @@ func (d *helperDispatcher) publishEvent(request wireEnvelope, event helper.Event
 }
 
 func (d *helperDispatcher) publish(env wireEnvelope, poke bool) {
-	d.server.helperMu.Lock()
-	defer d.server.helperMu.Unlock()
-	if !d.server.helperCurrentLocked(d) {
+	d.core.helperMu.Lock()
+	defer d.core.helperMu.Unlock()
+	if !d.core.helperCurrentLocked(d) {
 		return
 	}
-	_, _, published := d.server.wire.publishFromHandler(d.file, d.sub, env)
+	_, _, published := d.core.wire.publishFromHandler(d.file, d.sub, env)
 	if !published {
 		return
 	}
 	if poke {
-		if file, ok := d.server.sessions.LookupByPath(d.file); ok {
-			d.server.coord.pokeWatcher(file)
+		if doc, ok := d.core.docs.at(d.file); ok {
+			d.core.docs.poke(doc)
 		}
 	}
 }
@@ -747,7 +746,7 @@ func encodedHelperEnvelopeSize(env wireEnvelope) int {
 
 // helperDiscovery is the document's declared helpers, then the built-in helpers
 // this server offers: ai-edit, and blockeditor-tool when its prompt files are vendored.
-func (s *Server) helperDiscovery(file string) (string, []helperMeta) {
+func (s *wireCore) helperDiscovery(file string) (string, []helperMeta) {
 	mode, meta := s.declaredHelperDiscovery(file)
 	if entry, ok := s.aiEditMeta(file); ok {
 		meta = append(meta, entry)
@@ -758,7 +757,7 @@ func (s *Server) helperDiscovery(file string) (string, []helperMeta) {
 	return mode, meta
 }
 
-func (s *Server) declaredHelperDiscovery(file string) (string, []helperMeta) {
+func (s *wireCore) declaredHelperDiscovery(file string) (string, []helperMeta) {
 	s.helperMu.Lock()
 	var names []string
 	var allowed map[string]config.HelperProgram
@@ -817,7 +816,7 @@ func helperProgramAvailable(path string) bool {
 }
 
 type helperLogWriter struct {
-	server *Server
+	server *wireCore
 	id     string
 	name   string
 }

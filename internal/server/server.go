@@ -29,7 +29,6 @@ type Server struct {
 	hosts    []string
 	port     int
 	sessions *session.Manager
-	logger   *logging.Logger
 	versions *versions.Store
 	// runtimeNoticeMu guards runtimeNotices, the (path, detail) pairs already logged for a
 	// document served with public runtime URLs.
@@ -60,24 +59,10 @@ type Server struct {
 	hub          *hub
 	watcher      *watcher
 	coord        *streamCoordinator
-	// wire is per-server, unlike the shared live-sync runtime above: a site is
-	// the lifetime boundary for an instruction channel, so untrusting a folder
-	// (which closes the site) cannot leave a live wire into it.
-	wire           *wireHub
-	helperBindings helperBindingRegistry
-	helperMu       sync.Mutex
-	helpers        map[string]*helperDispatcher
-	helperOffline  map[string][]string
-	// helperAsking parks requests for a helper the person has not answered,
-	// keyed by helperAskKey, while one dialog asks about it.
-	helperAsking map[string][]parkedHelperRequest
-	// helperSetting marks, by helperAskKey, a setup dialog that is running, so a
-	// second setup request for the same name waits its turn instead of stacking.
-	helperSetting map[string]bool
-	// helperAskQuiet holds, per file, when a page may next raise the dialog
-	// after one that granted nothing.
-	helperAskQuiet map[string]time.Time
-	aiEdit         aiEditRegistry
+	// The wire core is per-server, unlike the shared live-sync runtime above: a
+	// site is the lifetime boundary for an instruction channel, so untrusting a
+	// folder (which closes the site) cannot leave a live wire into it.
+	*wireCore
 	// guard judges every write to a document against the baseline HTML Clay last
 	// wrote, so a save or an outside edit that destroys data can raise a notice.
 	// guardQueue serializes its observations and resolves per history key, and
@@ -215,14 +200,12 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	s := &Server{
 		sessions: sessions,
 		hosts:    hosts,
-		logger:   logger,
 		versions: store,
 		broker:   newBroker(sessions, logger, defaultConfirm),
 		ls:       ls,
 		hub:      ls.hub,
 		watcher:  ls.watcher,
 		coord:    ls.coord,
-		wire:     newWireHub(),
 
 		guard:      guard,
 		guardQueue: guardQueue,
@@ -231,6 +214,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 
 		tailwindLogged: map[string]bool{},
 	}
+	s.wireCore = newWireCore(looseWire{s: s}, looseWire{s: s}, logger, s.writeError)
 	s.tailwindCompile = s.compileTailwind
 	// The watcher is shared by every site, so an external change is offered to each
 	// site's guard and judged by the one that owns the document's key.

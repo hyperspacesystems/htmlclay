@@ -14,18 +14,7 @@ import (
 // dialog gives up after two minutes and the file picker after five.
 const helperSetupWait = 8 * time.Minute
 
-// handleHelperSetup is the page asking HTML Clay to connect one program it
-// declares. The page names only the program; HTML Clay finds the file, shows
-// the native dialog, and answers with a coarse state. A page can call this
-// without a click, so what keeps it in check is the dialog itself (no default
-// button, the real file first), one dialog per name at a time, a minute of
-// quiet after a dialog that granted nothing, and Deny lasting until the person
-// opens the document again.
-func (s *Server) handleHelperSetup(w http.ResponseWriter, r *http.Request) {
-	f, ok := s.actionDocument(w, r)
-	if !ok {
-		return
-	}
+func (s *wireCore) handleSetup(w http.ResponseWriter, r *http.Request, doc wireDocument) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
 	var payload struct {
 		Name string `json:"name"`
@@ -35,10 +24,10 @@ func (s *Server) handleHelperSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.helperMu.Lock()
-	d := s.helpers[f.AbsPath]
+	d := s.helpers[doc.Path]
 	declared := d != nil && d.declared[payload.Name]
 	allowed := declared && d.allowed[payload.Name].ID != ""
-	quiet := time.Now().Before(s.helperAskQuiet[f.AbsPath])
+	quiet := time.Now().Before(s.helperAskQuiet[doc.Path])
 	s.helperMu.Unlock()
 	switch {
 	case !declared:
@@ -50,12 +39,12 @@ func (s *Server) handleHelperSetup(w http.ResponseWriter, r *http.Request) {
 	case quiet:
 		writeHelperSetupState(w, "retry")
 		return
-	case s.hooks.AskHelper == nil:
+	case !s.policy.canAskProgram():
 		writeHelperSetupState(w, "unavailable")
 		return
 	}
 	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(helperSetupWait))
-	granted, ran := s.setUpHelper(f.AbsPath, payload.Name)
+	granted, ran := s.setUpHelper(doc.Path, payload.Name)
 	switch {
 	case !ran:
 		writeHelperSetupState(w, "busy")
@@ -74,7 +63,7 @@ func writeHelperSetupState(w http.ResponseWriter, state string) {
 // setUpHelper runs the setup dialog for one file and name unless one is already
 // running, then starts or refuses the requests that were waiting for it. ran is
 // false when another setup for the same name was already in progress.
-func (s *Server) setUpHelper(file, name string) (granted, ran bool) {
+func (s *wireCore) setUpHelper(file, name string) (granted, ran bool) {
 	key := helperAskKey(file, name)
 	s.helperMu.Lock()
 	if s.helperSetting[key] {
@@ -96,7 +85,7 @@ func (s *Server) setUpHelper(file, name string) (granted, ran bool) {
 
 // setupBarNames lists, in declaration order, the programs file declares that
 // are neither allowed nor refused, which are the ones the setup bar offers.
-func (s *Server) setupBarNames(file string) []string {
+func (s *wireCore) setupBarNames(file string) []string {
 	s.helperMu.Lock()
 	defer s.helperMu.Unlock()
 	d := s.helpers[file]

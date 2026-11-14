@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/aiedit"
-	"github.com/panphora/htmlclay/internal/session"
 )
 
 // The built-in ai-edit helper. ClayJS sends a named request with helper
@@ -36,24 +35,24 @@ type aiEditRegistry struct {
 	running map[string]aiEditRun // document path -> its one request in flight
 }
 
-func (s *Server) aiEditOffered() bool {
-	return s.hooks.AIEditEnabled != nil
+func (s *wireCore) aiEditOffered() bool {
+	return s.policy.aiEditOffered()
 }
 
 // aiEditMeta is the discovery entry for a document, when this server offers AI
 // editing for it.
-func (s *Server) aiEditMeta(file string) (helperMeta, bool) {
+func (s *wireCore) aiEditMeta(file string) (helperMeta, bool) {
 	if !s.aiEditOffered() || !aiedit.IsDocument(file) {
 		return helperMeta{}, false
 	}
 	state := "unavailable"
-	if s.hooks.AIEditEnabled() {
+	if s.policy.aiEditEnabled() {
 		state = "ready"
 	}
 	return helperMeta{Name: aiedit.HelperName, State: state}, true
 }
 
-func (s *Server) publishAIEdit(request wireEnvelope, typ, text string, payload any) {
+func (s *wireCore) publishAIEdit(request wireEnvelope, typ, text string, payload any) {
 	env := wireEnvelope{
 		V:      1,
 		Type:   typ,
@@ -74,14 +73,14 @@ func (s *Server) publishAIEdit(request wireEnvelope, typ, text string, payload a
 	s.wire.publish(request.File, env)
 }
 
-func (s *Server) refuseAIEdit(request wireEnvelope, source, code, text string) {
+func (s *wireCore) refuseAIEdit(request wireEnvelope, source, code, text string) {
 	s.publishAIEdit(request, "wire/error", text, map[string]string{"source": source, "code": code})
 }
 
 // startAIEdit registers the request and runs it in the background. The caller
 // has already checked the document's token.
-func (s *Server) startAIEdit(f *session.File, request wireEnvelope) {
-	if !s.hooks.AIEditEnabled() {
+func (s *wireCore) startAIEdit(doc wireDocument, request wireEnvelope) {
+	if !s.policy.aiEditEnabled() {
 		s.refuseAIEdit(request, "host", "helper_not_granted", aiEditOffText)
 		return
 	}
@@ -100,7 +99,7 @@ func (s *Server) startAIEdit(f *session.File, request wireEnvelope) {
 	if s.aiEdit.running == nil {
 		s.aiEdit.running = make(map[string]aiEditRun)
 	}
-	if run, busy := s.aiEdit.running[f.AbsPath]; busy {
+	if run, busy := s.aiEdit.running[doc.Path]; busy {
 		s.aiEdit.mu.Unlock()
 		cancel()
 		if run.id == request.ID {
@@ -114,16 +113,16 @@ func (s *Server) startAIEdit(f *session.File, request wireEnvelope) {
 		}
 		return
 	}
-	s.aiEdit.running[f.AbsPath] = aiEditRun{id: request.ID, cancel: cancel}
+	s.aiEdit.running[doc.Path] = aiEditRun{id: request.ID, cancel: cancel}
 	s.aiEdit.mu.Unlock()
 	// An accepted request starts with no stale outcome under its id.
 	s.wire.forgetTerminal(request.File, request.ID)
 
 	s.publishAIEdit(request, "wire/ack", "", map[string]any{"mode": "jsonl", "budgetMs": aiEditBudget.Milliseconds()})
-	go s.runAIEdit(ctx, cancel, f.AbsPath, request, payload)
+	go s.runAIEdit(ctx, cancel, doc.Path, request, payload)
 }
 
-func (s *Server) runAIEdit(ctx context.Context, cancel context.CancelFunc, file string, request wireEnvelope, payload aiedit.Payload) {
+func (s *wireCore) runAIEdit(ctx context.Context, cancel context.CancelFunc, file string, request wireEnvelope, payload aiedit.Payload) {
 	// The slot is released before the terminal frame goes out, so a page that
 	// sends its next request on seeing that frame is never refused as busy.
 	release := func() {
@@ -137,15 +136,13 @@ func (s *Server) runAIEdit(ctx context.Context, cancel context.CancelFunc, file 
 
 	var def string
 	var engines map[string][]string
-	if s.hooks.AIEditEngines != nil {
-		def, engines = s.hooks.AIEditEngines()
-	}
+	def, engines = s.policy.aiEditEngines()
 	opts := aiedit.Options{
 		File:     file,
 		BaseDir:  filepath.Dir(file),
 		Default:  def,
 		Engines:  engines,
-		Internal: s.isInternal,
+		Internal: s.docs.internal,
 		Mock:     os.Getenv("MOCK_MODEL") == "1",
 		Status: func(text string) {
 			s.publishAIEdit(request, "wire/status", text, nil)
@@ -190,7 +187,7 @@ func (s *Server) runAIEdit(ctx context.Context, cancel context.CancelFunc, file 
 
 // cancelAIEdit cancels the running AI edit on a document when its id matches,
 // and reports whether it did.
-func (s *Server) cancelAIEdit(file, id string) bool {
+func (s *wireCore) cancelAIEdit(file, id string) bool {
 	s.aiEdit.mu.Lock()
 	defer s.aiEdit.mu.Unlock()
 	run, ok := s.aiEdit.running[file]
@@ -203,7 +200,7 @@ func (s *Server) cancelAIEdit(file, id string) bool {
 
 // CancelAIEdits cancels every running AI edit: the switch was turned off, or the
 // server is shutting down.
-func (s *Server) CancelAIEdits() {
+func (s *wireCore) CancelAIEdits() {
 	s.aiEdit.mu.Lock()
 	defer s.aiEdit.mu.Unlock()
 	for _, run := range s.aiEdit.running {

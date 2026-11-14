@@ -4,24 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/fs"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/aiedit"
-	"github.com/panphora/htmlclay/internal/session"
-	"github.com/panphora/htmlclay/internal/versions"
 )
 
 // builtinHelpers is the helpers this server answers itself: the name a page asks
 // for and the run it starts. Both share one per-document slot and one token bar.
-var builtinHelpers = map[string]func(*Server, *session.File, wireEnvelope){
-	aiedit.HelperName:         (*Server).startAIEdit,
-	aiedit.PageToolHelperName: (*Server).startPageTool,
+var builtinHelpers = map[string]func(*wireCore, wireDocument, wireEnvelope){
+	aiedit.HelperName:         (*wireCore).startAIEdit,
+	aiedit.PageToolHelperName: (*wireCore).startPageTool,
 }
 
 // The wire is a per-file control channel between a page and a local process. A
@@ -34,7 +29,7 @@ var builtinHelpers = map[string]func(*Server, *session.File, wireEnvelope){
 //
 // Everything here is bounded. The wire hub's lock is a LEAF: nothing is called
 // while it is held except channel sends with a default case, so it joins the
-// documented order (session.File, coordinator, watcher, hub) without adding a
+// documented order (document, coordinator, watcher, hub) without adding a
 // cycle. Network writes always happen on the connection's own goroutine, never
 // under the hub lock, exactly as the live-sync hub does it.
 const (
@@ -137,7 +132,7 @@ type helperBindingRegistry struct {
 }
 
 // HelpersBound reports whether file currently has an in-process helper handler.
-func (s *Server) HelpersBound(file string) bool {
+func (s *wireCore) HelpersBound(file string) bool {
 	s.helperBindings.mu.RLock()
 	defer s.helperBindings.mu.RUnlock()
 	return s.helperBindings.byFile[file].bound
@@ -145,7 +140,7 @@ func (s *Server) HelpersBound(file string) bool {
 
 // HelperGeneration identifies file's current binding lifetime. It changes once
 // per real bind or unbind transition and stays stable across idempotent calls.
-func (s *Server) HelperGeneration(file string) uint64 {
+func (s *wireCore) HelperGeneration(file string) uint64 {
 	s.helperBindings.mu.RLock()
 	defer s.helperBindings.mu.RUnlock()
 	return s.helperBindings.byFile[file].generation
@@ -154,7 +149,7 @@ func (s *Server) HelperGeneration(file string) uint64 {
 // BindHelpers activates helper-channel admission after the dispatcher has won
 // the handler slot. The existing handler stays, while pre-bind observer queues
 // and retained outcomes are removed in the same locked transition.
-func (s *Server) BindHelpers(file string) uint64 {
+func (s *wireCore) BindHelpers(file string) uint64 {
 	s.helperBindings.mu.Lock()
 	state := s.helperBindings.byFile[file]
 	if state.bound {
@@ -175,7 +170,7 @@ func (s *Server) BindHelpers(file string) uint64 {
 
 // UnbindHelpers revokes the helper channel, disconnects every subscriber and
 // removes retained outcomes before tokenless plain-wire admission resumes.
-func (s *Server) UnbindHelpers(file string) uint64 {
+func (s *wireCore) UnbindHelpers(file string) uint64 {
 	s.helperBindings.mu.Lock()
 	state := s.helperBindings.byFile[file]
 	if !state.bound {
@@ -624,40 +619,6 @@ func (wh *wireHub) shutdown() {
 	}
 }
 
-// wireCaller classifies who is asking and whether the origin gate admits them.
-//
-// A browser attests at least one of Sec-Fetch-Site or Origin on every fetch and
-// every EventSource and cannot forge either; a local process attests neither.
-// That remains sufficient for a plain wire. A helper-bound channel adds the
-// target document's save token after target resolution, including for callers
-// classified as local processes.
-//
-// Origin is checked only WHEN PRESENT, never required. Chrome omits it on
-// same-origin GETs, including EventSource's stream GET, and requiring it is what
-// silently 403'd every live-sync stream from v1.3.0 until v1.5.0. The subscribe
-// route below is the same kind of GET and would break identically.
-//
-// same-site is rejected rather than admitted: htmlclay serves one loopback origin
-// per project tree and every one of them is same-site with every other, so
-// admitting it would let one project's page drive another project's wire.
-//
-// The isBrowser answer is RETURNED rather than discarded, because it is what
-// makes the handler role safe. See handleWireSubscribe.
-func wireCaller(r *http.Request) (isBrowser, ok bool) {
-	site := r.Header.Get("Sec-Fetch-Site")
-	origin := r.Header.Get("Origin")
-	if site == "" && origin == "" {
-		return false, true
-	}
-	if site != "" && site != "same-origin" {
-		return true, false
-	}
-	if origin != "" && origin != "http://"+r.Host {
-		return true, false
-	}
-	return true, true
-}
-
 func wireGuard(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := wireCaller(r); !ok {
@@ -672,142 +633,15 @@ func wireGuard(h http.Handler) http.Handler {
 // be added to the wire without the guard in front of it. The alternative
 // considered was giving every /_/ route a declared reach; that rewrites route
 // registrations the wire does not touch, for a property only the wire needs.
-func (s *Server) wireMux() http.Handler {
+func (s *wireCore) wireMux() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /_/wire/subscribe", s.handleWireSubscribe)
 	mux.HandleFunc("POST /_/wire/send", s.handleWireSend)
 	return wireGuard(mux)
 }
 
-// wireTarget resolves which file this request is about.
-//
-// The two callers are not symmetric and must not be merged. A browser NEVER names
-// a path: its file comes from the page's own URL, through the same funnel
-// handleLiveSyncSave uses, and any supplied file field is discarded. A local
-// process has no page, so it names an absolute path, which is then validated.
-//
-// Note that origin-wide trust is inherited here, not introduced: on an unbound
-// channel resolvePageURL already lets one served page name another registered
-// path on the same origin (livesync.go). A helper-bound channel adds the target's
-// save token after this function returns. "One wire per file" is addressing,
-// not isolation.
-func (s *Server) wireTarget(r *http.Request, isBrowser bool, supplied string) (*session.File, bool) {
-	if isBrowser {
-		// Document-URL first, Page-URL after it, and the query last. §3 names the
-		// first spelling and §11's channel addresses a document the same way the save
-		// route does, so a client written against the spec sends only that one and was
-		// getting no target at all here. The older spelling stays because a document
-		// that opened a wire before the rename hardcoded it in its own inline script.
-		pageURL := r.Header.Get("Document-URL")
-		if pageURL == "" {
-			pageURL = r.Header.Get("Page-URL")
-		}
-		if pageURL == "" {
-			pageURL = r.URL.Query().Get("document-url")
-		}
-		if pageURL == "" {
-			pageURL = r.URL.Query().Get("page-url")
-		}
-		return s.resolvePageURL(r, pageURL)
-	}
-	return s.resolveWireFile(supplied)
-}
-
-// resolveWireFile admits an absolute path from a local process.
-//
-// ValidatePath cannot be called on it directly: that helper takes a URL-relative
-// path and rejects anything starting with "/", so the address is made relative to
-// the home directory first and then runs the same containment it does.
-//
-// Ordering is the serve path's discipline: containment and internal/hidden
-// refusal are string and memory work and happen FIRST, so an out-of-scope path is
-// refused identically whether or not anything exists at it. Only a path already
-// registered in this site is admitted. Admitting an unregistered path under a
-// live trusted anchor is the subscribe-before-open case; it needs the site's own
-// anchor to compare against (answering "is it under ANY trusted folder" would let
-// one project's origin open a wire into another's) and is deliberately not built
-// here yet.
-func (s *Server) resolveWireFile(raw string) (*session.File, bool) {
-	if raw == "" || !filepath.IsAbs(raw) || strings.Contains(raw, "\x00") {
-		return nil, false
-	}
-	home := s.sessions.HomeDir()
-	canonical, ok := session.ContainWithinHome(home, filepath.Clean(raw))
-	if !ok || s.isInternal(canonical) || session.HasHiddenComponent(home, canonical) {
-		return nil, false
-	}
-	return s.sessions.LookupByPath(canonical)
-}
-
-// openHistoryForHandler turns version history on for a file an agent is about to
-// start editing, and tells the watcher what is already there.
-//
-// The history key is resolved HERE rather than in the watcher, through the same
-// seam serving uses. versions.Backup needs a key, a key is only ever set by
-// serving or saving, and the handler lease exists precisely to watch files no tab
-// has served, where the key is still empty. Attaching an agent therefore becomes
-// the act that turns version history on for a file nobody has opened, with a
-// baseline backup of what was there first, so the agent's own first write is not
-// the earliest state history remembers. A freshly minted identity is marked
-// provisional exactly as a first-open snapshot is, so attaching an agent to a file
-// that then never changes does not permanently claim an id for it.
-//
-// Only lastStableObservation is seeded, and only when nothing has observed the
-// file yet. Marking the file OBSERVED here would let a wire subscription do what
-// the watcher is structurally forbidden from doing (session.go derives Observed
-// from lastServerWrite for that reason), and the file's first real GET would then
-// skip both its first-open snapshot and the seeding that makes its first save
-// comparable. Overwriting an existing observation would suppress a change already
-// waiting to be published.
-//
-// It runs BEFORE the lease is raised, so the watcher's first poll never sees a
-// file with no observation on record and reports its existing content as a change.
-func (s *Server) openHistoryForHandler(f *session.File) error {
-	// Bulk pruning takes the store lock, and the lock order is file lock before
-	// store lock, so it runs only once the seeding has released f.Lock.
-	key, err := s.seedHandlerHistory(f)
-	if key != "" {
-		s.versions.MaybePrune(key, f.AbsPath)
-	}
-	return err
-}
-
-func (s *Server) seedHandlerHistory(f *session.File) (string, error) {
-	f.Lock()
-	defer f.Unlock()
-
-	data, err := os.ReadFile(f.AbsPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		// A registered file can be gone by now, and the agent may be about to put it
-		// back. There are no bytes to seed an observation from and no embedded id to
-		// adopt, so the identity resolves from the path alone. Doing that here is
-		// what lets the watcher version the agent's very first write.
-		s.ensureHistoryKeyLocked(f, nil)
-		return "", nil
-	}
-	if err != nil {
-		// An existing file this server cannot read is a refusal, not a degraded
-		// attach. Its bytes may carry an id a later serve should adopt, so minting
-		// one now would fork its history, and leaving the key unresolved would mean
-		// versioning nothing the agent writes.
-		return "", err
-	}
-	key, provisional := s.ensureHistoryKeyLocked(f, data)
-	if f.LastStableObservation() == "" {
-		f.RecordStableObservation(versions.Hash(data))
-	}
-	if _, bErr := s.versions.Backup(key, f.AbsPath, data); bErr != nil {
-		s.logger.Printf("Baseline backup for wire handler on %s failed: %v", f.RelPath, bErr)
-	} else if provisional {
-		if pErr := s.versions.SetProvisional(key, f.AbsPath, true); pErr != nil {
-			s.logger.Printf("Could not mark provisional history for %s: %v", f.RelPath, pErr)
-		}
-	}
-	return key, nil
-}
-
-func (s *Server) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
-	isBrowser, _ := wireCaller(r)
+func (s *wireCore) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
+	isBrowser, _ := s.docs.caller(r)
 
 	// Pages send; processes handle. A page allowed to hold the exclusive slot could
 	// take it away from the user's agent, receive every request on this file
@@ -845,14 +679,14 @@ func (s *Server) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	f, ok := s.wireTarget(r, isBrowser, r.URL.Query().Get("file"))
+	doc, ok := s.docs.target(r, isBrowser, r.URL.Query().Get("file"))
 	if !ok {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
 
 	sub := &wireSub{
-		key:     f.AbsPath,
+		key:     doc.Path,
 		handler: wantHandler,
 		mode:    mode,
 		ch:      make(chan []byte, wireQueueSize),
@@ -860,7 +694,7 @@ func (s *Server) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.helperBindings.mu.RLock()
-	if s.helperBindings.byFile[f.AbsPath].bound && r.URL.Query().Get(helperTokenQuery) != f.Token {
+	if s.helperBindings.byFile[doc.Path].bound && !s.docs.mayUsePrograms(doc, isBrowser, r.URL.Query().Get(helperTokenQuery)) {
 		s.helperBindings.mu.RUnlock()
 		s.writeError(w, http.StatusForbidden, "invalid token")
 		return
@@ -903,13 +737,13 @@ func (s *Server) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
 		// an agent whose every write goes unversioned until someone happens to open
 		// the file in a browser, and the one state worth keeping is the one that
 		// existed before the agent touched it.
-		if err := s.openHistoryForHandler(f); err != nil {
-			s.logger.Printf("wire: cannot open history for %s: %v", f.RelPath, err)
+		if err := s.docs.openHistory(doc); err != nil {
+			s.logger.Printf("wire: cannot open history for %s: %v", doc.Name, err)
 			http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		s.coord.lease(f)
-		defer s.coord.unlease(f)
+		s.docs.lease(doc)
+		defer s.docs.unlease(doc)
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -966,8 +800,8 @@ func (s *Server) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
-	isBrowser, _ := wireCaller(r)
+func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
+	isBrowser, _ := s.docs.caller(r)
 
 	// application/json is load-bearing rather than hygiene: it is not a
 	// CORS-simple content type, so a cross-origin POST is forced into a preflight
@@ -1014,14 +848,14 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 		env.Text = env.Text[:maxWireText]
 	}
 
-	f, ok := s.wireTarget(r, isBrowser, env.File)
+	doc, ok := s.docs.target(r, isBrowser, env.File)
 	if !ok {
 		s.writeError(w, http.StatusNotFound, "unknown file")
 		return
 	}
 
 	s.helperBindings.mu.RLock()
-	if s.helperBindings.byFile[f.AbsPath].bound && r.Header.Get(helperTokenHeader) != f.Token {
+	if s.helperBindings.byFile[doc.Path].bound && !s.docs.mayUsePrograms(doc, isBrowser, r.Header.Get(helperTokenHeader)) {
 		s.helperBindings.mu.RUnlock()
 		s.writeError(w, http.StatusForbidden, "invalid token")
 		return
@@ -1033,7 +867,7 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	// honest: a value the sender chose is a value a hostile sender can choose to
 	// be someone else's.
 	env.V = 1
-	env.File = f.AbsPath
+	env.File = doc.Path
 	env.From = "process"
 	if isBrowser {
 		env.From = "page"
@@ -1042,23 +876,23 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	// handler sees the request: they need no declaration and never take the
 	// file's handler slot, and they share one per-document run slot. They always
 	// require the document's token, bound helpers or not.
-	if s.aiEditOffered() && aiedit.IsDocument(f.AbsPath) {
+	if s.aiEditOffered() && aiedit.IsDocument(doc.Path) {
 		start := builtinHelpers[env.Helper]
 		builtin := start != nil && (env.Type == "wire/request" || env.Type == "wire/describe")
 		if builtin || env.Type == "wire/cancel" {
-			tokenOK := r.Header.Get(helperTokenHeader) == f.Token
+			tokenOK := s.docs.mayUsePrograms(doc, isBrowser, r.Header.Get(helperTokenHeader))
 			if builtin {
 				s.helperBindings.mu.RUnlock()
 				if !tokenOK {
 					s.writeError(w, http.StatusForbidden, "invalid token")
 					return
 				}
-				start(s, f, env)
+				start(s, doc, env)
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]any{"ok": true, "delivered": 1, "observers": 0})
 				return
 			}
-			if tokenOK && s.cancelAIEdit(f.AbsPath, env.ID) {
+			if tokenOK && s.cancelAIEdit(doc.Path, env.ID) {
 				s.helperBindings.mu.RUnlock()
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]any{"ok": true, "delivered": 1, "observers": 0})
@@ -1068,7 +902,7 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if env.Helper != "" && (env.Type == "wire/request" || env.Type == "wire/describe") {
-		if rejected, observers := s.wire.rejectNamedForRawHandler(f.AbsPath, env); rejected {
+		if rejected, observers := s.wire.rejectNamedForRawHandler(doc.Path, env); rejected {
 			s.helperBindings.mu.RUnlock()
 			w.Header().Set("Content-Type", "application/json")
 			// The refusal rides the POST reply as well as the stream. They are two
@@ -1099,14 +933,14 @@ func (s *Server) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	// terminal frame is the one thing it could send to claim so. An error is
 	// terminal too, and a handler that gave up has also stopped writing.
 	if env.isTerminal() && !isBrowser {
-		s.coord.pokeWatcher(f)
+		s.docs.poke(doc)
 	}
 
-	handlers, observers := s.wire.publish(f.AbsPath, env)
+	handlers, observers := s.wire.publish(doc.Path, env)
 	s.helperBindings.mu.RUnlock()
 	if handlers == 0 && (env.Type == "wire/request" || env.Type == "wire/describe") {
-		mode, _ := s.wire.handlerMode(f.AbsPath)
-		s.logger.Printf("Wire request undelivered: file=%s helper=%q type=%q id=%q document=%q helpers_bound=%t handler_mode=%q", f.AbsPath, env.Helper, env.Type, env.ID, env.Document, s.HelpersBound(f.AbsPath), mode)
+		mode, _ := s.wire.handlerMode(doc.Path)
+		s.logger.Printf("Wire request undelivered: file=%s helper=%q type=%q id=%q document=%q helpers_bound=%t handler_mode=%q", doc.Path, env.Helper, env.Type, env.ID, env.Document, s.HelpersBound(doc.Path), mode)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
