@@ -271,9 +271,9 @@ func TestKeptActionNeedsCSRFAndOrigin(t *testing.T) {
 }
 
 func TestKeptPageListsConfirmsAndDeletes(t *testing.T) {
-	local := time.Local
-	time.Local = time.FixedZone("CET", 3600)
-	t.Cleanup(func() { time.Local = local })
+	zone := keptZone
+	keptZone = time.FixedZone("CET", 3600)
+	t.Cleanup(func() { keptZone = zone })
 
 	a := newKeptApp(t)
 	dirA, dirB := t.TempDir(), t.TempDir()

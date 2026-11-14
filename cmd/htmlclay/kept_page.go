@@ -77,8 +77,13 @@ func keptSize(n int64) string {
 	return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
 }
 
+// keptZone is the time zone the Kept Copies page shows times in. Tests set it
+// instead of time.Local, which the app's other goroutines read through
+// time.Now.
+var keptZone = time.Local
+
 func keptWhen(t time.Time) string {
-	return t.Local().Format("Jan 2, 2006, 3:04 PM")
+	return t.In(keptZone).Format("Jan 2, 2006, 3:04 PM")
 }
 
 func keptRevealLabel() string {
