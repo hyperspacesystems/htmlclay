@@ -430,6 +430,114 @@ func PublishRecoveredCopy(baseDir, rel, html string) (PublishedVersion, error) {
 	return PublishVersion(dir, ".html", []byte(html))
 }
 
+// moveDocumentHistory carries one renamed document's kept versions and recovered
+// entries to its new name.
+func moveDocumentHistory(baseDir, fromName, toName string) error {
+	for _, store := range []string{versionsDirName, recoveredDirName} {
+		if err := moveHistoryPath(baseDir, store, documentBase(fromName), documentBase(toName), false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// moveFolderHistory carries every document's history inside a renamed folder. The
+// history tree mirrors the folder tree, so each history directory below the old
+// name moves with it; the version files directly under it belong to a document
+// named after the folder (notes.html beside notes/), which did not move.
+func moveFolderHistory(baseDir, fromName, toName string) error {
+	for _, store := range []string{versionsDirName, recoveredDirName} {
+		if err := moveHistoryPath(baseDir, store, documentBase(fromName), documentBase(toName), true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// moveHistoryPath moves one history directory inside one store. A destination that
+// already holds history is set aside under a dated sibling name first, so the
+// leftover is never deleted and never mixed with the renamed document's own.
+func moveHistoryPath(baseDir, store, fromBase, toBase string, isDir bool) error {
+	root := filepath.Join(baseDir, filepath.FromSlash(store))
+	from, err := historyContainedPath(root, fromBase)
+	if err != nil {
+		return err
+	}
+	to, err := historyContainedPath(root, toBase)
+	if err != nil {
+		return err
+	}
+	if !pageStateExists(from) {
+		return nil
+	}
+	if !isDir {
+		return moveHistoryDir(from, to)
+	}
+	children, err := os.ReadDir(from)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	for _, child := range children {
+		if !child.IsDir() {
+			continue
+		}
+		if err := moveHistoryDir(filepath.Join(from, child.Name()), filepath.Join(to, child.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// moveHistoryDir renames one history directory into place, setting aside whatever
+// the destination already held.
+func moveHistoryDir(from, to string) error {
+	if pageStateExists(to) {
+		if err := setAsideHistory(to); err != nil {
+			return err
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(to), 0o777); err != nil {
+		return err
+	}
+	if err := os.Rename(from, to); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+// setAsideHistory keeps history a rename would land on, under a dated sibling
+// name: nothing is deleted, and the renamed document's history never shares a
+// directory with it.
+func setAsideHistory(dir string) error {
+	base := dir + "-" + clockTime().Format("2006-01-02-15-04-05")
+	for attempt := 0; ; attempt++ {
+		candidate := base
+		if attempt > 0 {
+			candidate = fmt.Sprintf("%s-%03d", base, attempt)
+		}
+		_, err := os.Lstat(candidate)
+		if errors.Is(err, fs.ErrNotExist) {
+			return os.Rename(dir, candidate)
+		}
+		if err != nil {
+			return err
+		}
+	}
+}
+
+// historyContainedPath resolves a history path and refuses one that escapes the
+// store's directory.
+func historyContainedPath(root, name string) (string, error) {
+	abs := upathResolve(upathJoin(root, name))
+	if !strings.HasPrefix(abs, upathResolve(root)+"/") {
+		return "", errors.New("History path escapes base directory")
+	}
+	return abs, nil
+}
+
 // AssertVersionsChain requires the directory chain from the served folder down
 // to the versions directory to be symlink-free before a backup writes, or a
 // planted directory symlink could redirect the write out of tree (a recursive

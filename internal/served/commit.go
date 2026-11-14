@@ -186,6 +186,9 @@ type commitHost struct {
 	releases map[string]clayruntime.Release
 	// service is the JS service this root's writes consult, or nil.
 	service *serviceLink
+	// onStructure hears about each completed structure step that moved a name
+	// (Options.OnStructure). Nil hears nothing.
+	onStructure func(rootID, from, to string, isDir bool)
 }
 
 // newCommitHost builds the commit core for one served folder.

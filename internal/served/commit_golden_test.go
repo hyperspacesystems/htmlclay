@@ -276,12 +276,17 @@ func runCommitGoldenScenario(t *testing.T, scenario commitGoldenScenario) {
 }
 
 // runCommitGoldenStructure replays one recorded workspace step: the route
-// resolves both names and hands the host the canonical pair.
+// resolves both names and hands the host the canonical pair and the names they
+// were resolved from (control_api.go's serveRestructure). The names matter:
+// a rename carries the document's history with it (07 step 7.18), which is why
+// restructure-move's expected tree diverges from Local's recording.
 func runCommitGoldenStructure(t *testing.T, host *commitHost, root string, step commitGoldenStructure) structureResult {
 	t.Helper()
 	entry := structureEntry{
 		FromPath: filepath.Join(root, step.From),
 		ToPath:   filepath.Join(root, step.To),
+		FromName: step.From,
+		ToName:   step.To,
 	}
 	if info, err := os.Stat(entry.FromPath); err == nil {
 		entry.IsDir = info.IsDir()

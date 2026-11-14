@@ -90,6 +90,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	hooks.tailwind = tailwind
 	host := newCommitHost(baseDir, root.id, registry, hooks, runtime.Releases)
 	host.service = cfg.service
+	host.onStructure = cfg.onStructure
 	if cfg.service != nil {
 		cfg.service.setRoot(root.id, baseDir)
 	}

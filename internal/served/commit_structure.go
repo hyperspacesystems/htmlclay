@@ -59,6 +59,9 @@ type structureResult struct {
 	Reason       string
 	Err          error
 	PageStateErr error
+	// HistoryErr is the first kept history a completed step could not carry to
+	// its new name; both sets stay on disk where they were.
+	HistoryErr error
 	// Refusal is a refusal answered to the client as it was decided.
 	Refusal *serviceRefusal
 }
@@ -173,6 +176,7 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 			defer consult.link.abortStructureSettle(consult.ID, completed, copiedSteps)
 		}
 	}
+	var historyErr error
 	for _, entry := range entries[:completed] {
 		var err error
 		switch {
@@ -188,10 +192,32 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 		if err != nil {
 			result := structureAnswer(completed, failure)
 			result.PageStateErr = err
+			result.HistoryErr = historyErr
 			return result, nil
 		}
+		// A rename carries the document's history with it. A trash move does not:
+		// the document's kept versions read at the name it had, which is where a
+		// restore puts it back.
+		if policy.retire {
+			continue
+		}
+		if entry.IsDir {
+			err = moveFolderHistory(h.baseDir, entry.FromName, entry.ToName)
+		} else {
+			err = moveDocumentHistory(h.baseDir, entry.FromName, entry.ToName)
+		}
+		if err != nil {
+			// Both sets stay on disk where they are; the move itself completed.
+			log.Printf("structure %s: the history of %s did not move: %v", kind, entry.FromName, err)
+			historyErr = err
+		}
+		if h.onStructure != nil && entry.FromName != "" && entry.ToName != "" {
+			h.onStructure(h.rootID, entry.FromName, entry.ToName, entry.IsDir)
+		}
 	}
-	return structureAnswer(completed, failure), nil
+	result := structureAnswer(completed, failure)
+	result.HistoryErr = historyErr
+	return result, nil
 }
 
 // structureSteps is what the service plans from: each step's root-relative

@@ -2145,6 +2145,7 @@
     },
     {
       "name": "restructure-move",
+      "divergesFromLocal": "history follows a renamed document (07 step 7.18)",
       "seed": [
         {
           "path": "a.html",
@@ -2202,7 +2203,7 @@
           "b64": "eyJ2IjoxfQ=="
         },
         {
-          "path": ".hyperclay/versions/a/2026-09-01-00-00-00-000+0000.html",
+          "path": ".hyperclay/versions/new/a/2026-09-01-00-00-00-000+0000.html",
           "b64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkRvYzwvdGl0bGU+CjwvaGVhZD4KPGJvZHk+CjxoMT5PbmU8L2gxPgo8L2JvZHk+CjwvaHRtbD4K"
         },
         {

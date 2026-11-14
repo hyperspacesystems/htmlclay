@@ -63,6 +63,7 @@ func (a *app) newServedHost() *served.Host {
 		Dashboard:       a.dashboardOrigin(),
 		WorkspaceEntry:  a.workspaceEntry,
 		OnPageLoad:      a.noteServedPageLoad,
+		OnStructure:     a.noteServedStructure,
 	})
 }
 
@@ -74,6 +75,24 @@ func (a *app) noteServedPageLoad(rootID, rel string) {
 		return
 	}
 	a.noteOpen(filepath.Join(folder.Path, filepath.FromSlash(rel)), recents.HowServed, false)
+}
+
+// noteServedStructure makes a recent-documents row follow a document or folder
+// renamed inside a served folder, so the row still names it where it is.
+func (a *app) noteServedStructure(rootID, from, to string, isDir bool) {
+	folder, ok := a.rt.cfg.ServedFolderByID(rootID)
+	if !ok {
+		return
+	}
+	store := a.recentsStore()
+	if store == nil {
+		return
+	}
+	fromPath := filepath.Join(folder.Path, filepath.FromSlash(from))
+	toPath := filepath.Join(folder.Path, filepath.FromSlash(to))
+	if err := store.Rebind(fromPath, toPath); err != nil {
+		a.rt.logger.Printf("Could not follow the rename of %s to %s: %v", fromPath, toPath, err)
+	}
 }
 
 // workspaceEntry answers the address that opens a served folder in the

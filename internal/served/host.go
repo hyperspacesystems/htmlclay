@@ -34,6 +34,10 @@ type Options struct {
 	// load, which is a page a person asked the browser for. An asset, an API read
 	// and a watcher event never reach it. Nil hears nothing.
 	OnPageLoad func(rootID, rel string)
+	// OnStructure hears about each structure step that moved a name, so a
+	// record that follows a document by its path can follow the move. Nil hears
+	// nothing.
+	OnStructure func(rootID, from, to string, isDir bool)
 }
 
 // RootSpec is one served folder.
@@ -67,6 +71,7 @@ func NewHost(o Options) *Host {
 		dashboard:       o.Dashboard,
 		workspaceEntry:  o.WorkspaceEntry,
 		onPageLoad:      o.OnPageLoad,
+		onStructure:     o.OnStructure,
 		events:          newEventRing(),
 	}
 	if o.Service {
