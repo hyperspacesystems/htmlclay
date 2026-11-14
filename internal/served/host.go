@@ -37,6 +37,11 @@ type Options struct {
 	// load, which is a page a person asked the browser for. An asset, an API read
 	// and a watcher event never reach it. Nil hears nothing.
 	OnPageLoad func(rootID, rel string)
+	// BeforePage hears about a top-level page load of a served document before
+	// any of the page is written, with the document's absolute path, so the app
+	// can bind the document's programs before the page's first request. Nil
+	// hears nothing.
+	BeforePage func(rootID, absPath string)
 	// OnStructure hears about each structure step that moved a name, so a
 	// record that follows a document by its path can follow the move. Nil hears
 	// nothing.
@@ -84,6 +89,7 @@ func NewHost(o Options) *Host {
 		dashboard:       o.Dashboard,
 		workspaceEntry:  o.WorkspaceEntry,
 		onPageLoad:      o.OnPageLoad,
+		beforePage:      o.BeforePage,
 		onStructure:     o.OnStructure,
 		internalDir:     o.InternalDir,
 		events:          newEventRing(),
@@ -111,6 +117,8 @@ func (h *Host) AddRoot(spec RootSpec) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	server.wirePolicy = spec.WirePolicy
+	server.internalDir = h.cfg.internalDir
 	if spec.WirePolicy != nil {
 		logger := spec.WireLogger
 		if logger == nil {
@@ -120,7 +128,7 @@ func (h *Host) AddRoot(spec RootSpec) (http.Handler, error) {
 		if writeError == nil {
 			writeError = func(w http.ResponseWriter, status int, message string) { http.Error(w, message, status) }
 		}
-		server.wire = wire.NewCore(&wireDocuments{root: server, internalDir: h.cfg.internalDir}, spec.WirePolicy, logger, writeError)
+		server.wire = wire.NewCore(&wireDocuments{root: server, internalDir: server.internalDir}, spec.WirePolicy, logger, writeError)
 		server.wireMux = server.wire.WireMux()
 	}
 	h.roots = append(h.roots, server)

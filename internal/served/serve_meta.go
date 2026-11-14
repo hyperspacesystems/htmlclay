@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/panphora/htmlclay/internal/helper"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
 
@@ -270,6 +271,16 @@ func (s *rootServer) metaDocument(href string) *orderedObject {
 	// whose outcome it never learned.
 	if receipt := s.commit.store.saveReceipt(filePath, specwire.Etag(logical)); receipt != "" {
 		document = append(document, kv{Key: "saveId", Value: receipt})
+	}
+	if s.wire != nil {
+		mode, helpers := s.wire.HelperDiscovery(realOrSame(filePath))
+		if mode != "" {
+			document = append(document, kv{Key: "wireMode", Value: mode})
+		}
+		document = append(document, kv{Key: "wireBudgetMs", Value: helper.StructuredDeadline})
+		if len(helpers) > 0 {
+			document = append(document, kv{Key: "helpers", Value: helpers})
+		}
 	}
 	return &document
 }

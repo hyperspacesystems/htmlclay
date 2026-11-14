@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/panphora/htmlclay/internal/clayruntime"
+	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
 
@@ -40,6 +41,9 @@ func (s *rootServer) serveHtml(w http.ResponseWriter, r *http.Request, filePath,
 	served := html
 	if r.Header.Get("Clay-Source") != "1" {
 		served = s.projectServed(w, r, html)
+	}
+	if bar := s.setupBar(r, realOrSame(filePath)); bar != nil {
+		served = htmlutil.InjectBanner(served, bar)
 	}
 	w.Header().Set("Content-Type", withCharset("text/html", "utf-8"))
 	w.Header().Set("Vary", "Clay-Source")

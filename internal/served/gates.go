@@ -14,6 +14,7 @@ var systemRoutes = map[string]bool{
 	"live-sync":         true,
 	"sync":              true,
 	"wire":              true,
+	"helper-setup":      true,
 	"data-loss":         true,
 	"api":               true,
 	"meta":              true,

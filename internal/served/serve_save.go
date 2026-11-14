@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
 
@@ -185,7 +186,8 @@ func (s *rootServer) serveSave(w http.ResponseWriter, r *http.Request) error {
 
 	// §9, and it has to happen HERE, before the etag is computed: the stamp
 	// must describe the bytes that reach disk.
-	content = s.commit.canonicalForWrite(stripSaveToken(content))
+	content = string(htmlutil.StripBanner([]byte(stripSaveToken(content))))
+	content = s.commit.canonicalForWrite(content)
 	userDriven, userDrivenSet := userDrivenFromHeader(r)
 	saveID := saveIDHeader(r)
 

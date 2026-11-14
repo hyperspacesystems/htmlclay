@@ -35,6 +35,8 @@ type config struct {
 	workspaceEntry func(rootID string) string
 	// onPageLoad hears about a document that answered a top-level page load.
 	onPageLoad func(rootID, rel string)
+	// beforePage hears about a top-level page load before the page is written.
+	beforePage func(rootID, absPath string)
 	// onStructure hears about a completed structure step that moved a name.
 	onStructure func(rootID, from, to string, isDir bool)
 	// internalDir is the app's own data folder (Options.InternalDir).

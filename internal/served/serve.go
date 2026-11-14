@@ -24,6 +24,9 @@ type rootServer struct {
 	// onPageLoad hears about a document that answered a top-level page load
 	// (Options.OnPageLoad). Nil hears nothing.
 	onPageLoad func(rootID, rel string)
+	// beforePage hears about a top-level page load before any of the page is
+	// written (Options.BeforePage). Nil hears nothing.
+	beforePage func(rootID, absPath string)
 	baseDir    string
 	// publicHost is the served folder's address; empty in the trial binary.
 	publicHost string
@@ -61,6 +64,10 @@ type rootServer struct {
 	// its handler.
 	wire    *wire.Core
 	wireMux http.Handler
+	// wirePolicy is what this root's wire may grant; nil with no wire.
+	wirePolicy wire.Policy
+	// internalDir is the app's own data folder, the one nothing under it may name.
+	internalDir string
 }
 
 // htmlRoutePattern is Local's SPA-aware route: the document names an .html or
@@ -115,6 +122,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		id:             root.id,
 		workspaceEntry: cfg.workspaceEntry,
 		onPageLoad:     cfg.onPageLoad,
+		beforePage:     cfg.beforePage,
 		baseDir:        baseDir,
 		publicHost:     root.publicHost,
 		registry:       registry,
@@ -162,6 +170,10 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if marked && s.wireMux != nil && (urlPath == "/wire/subscribe" || urlPath == "/wire/send") {
 		s.wireMux.ServeHTTP(w, r)
+		return
+	}
+	if marked && r.Method == http.MethodPost && urlPath == "/helper-setup" {
+		s.serveHelperSetup(w, r)
 		return
 	}
 	if s.service.active() != nil {
@@ -311,6 +323,9 @@ func (s *rootServer) serve(w http.ResponseWriter, r *http.Request, marked bool) 
 	// immediate parent counts, compared without case.
 	uploaded := refusedUploadPath(realPath) && inUploadsFolder(realPath)
 	if match != nil && !uploaded {
+		if pageLoad(r) && s.beforePage != nil && r.Header.Get("Clay-Source") != "1" {
+			s.beforePage(s.id, realPath)
+		}
 		err := s.serveHtml(w, r, realPath, match[1])
 		// A page a person asked for is a document they opened. Everything else
 		// this root answers is the page's own business.
