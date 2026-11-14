@@ -313,6 +313,104 @@ func TestM3CoreWithFakeHost(t *testing.T) {
 	})
 }
 
+func TestM3AIEditAsks(t *testing.T) {
+	asked := func(policy *fakePolicy) []string {
+		policy.mu.Lock()
+		defer policy.mu.Unlock()
+		return append([]string(nil), policy.asked...)
+	}
+
+	t.Run("on runs the edit", func(t *testing.T) {
+		t.Setenv("MOCK_MODEL", "1")
+		core, _, policy, file := newFakeCore(t)
+		policy.aiOffered = true
+		policy.aiOn = true
+		srv := httptest.NewServer(core.WireMux())
+		t.Cleanup(srv.Close)
+
+		sub := observer(t, core, file)
+		body := fmt.Sprintf(`{"type":"wire/request","id":"e1","helper":%q,"payload":{"elementHTML":"<p>Old</p>","tag":"p","comment":"make it [mock:end_turn]","editId":"p"}}`, aiedit.HelperName)
+		if resp := sendFrame(t, srv, body, "doc.htmlclay"); resp.StatusCode != http.StatusOK {
+			t.Fatalf("page request refused: %d", resp.StatusCode)
+		}
+		receiveHelperType(t, sub, "wire/ack", "e1")
+		if got := asked(policy); len(got) != 0 {
+			t.Fatalf("asked = %v, want nothing", got)
+		}
+	})
+
+	t.Run("off refuses with the off text and asks nothing", func(t *testing.T) {
+		core, _, policy, file := newFakeCore(t)
+		policy.aiOffered = true
+		srv := httptest.NewServer(core.WireMux())
+		t.Cleanup(srv.Close)
+
+		sub := observer(t, core, file)
+		body := fmt.Sprintf(`{"type":"wire/request","id":"e1","helper":%q,"payload":{}}`, aiedit.HelperName)
+		if resp := sendFrame(t, srv, body, "doc.htmlclay"); resp.StatusCode != http.StatusOK {
+			t.Fatalf("page request refused: %d", resp.StatusCode)
+		}
+		refusal := receiveHelperType(t, sub, "wire/error", "e1")
+		if code := helperErrorCode(t, refusal); code != "helper_not_granted" {
+			t.Fatalf("refusal code = %q, want helper_not_granted", code)
+		}
+		if refusal.Text != aiEditOffText {
+			t.Fatalf("refusal text = %q, want the off text", refusal.Text)
+		}
+		if got := asked(policy); len(got) != 0 {
+			t.Fatalf("asked = %v, want nothing", got)
+		}
+	})
+
+	t.Run("ask refuses with the ask text and asks once per request", func(t *testing.T) {
+		core, _, policy, file := newFakeCore(t)
+		policy.aiOffered = true
+		policy.aiAsk = true
+		srv := httptest.NewServer(core.WireMux())
+		t.Cleanup(srv.Close)
+
+		sub := observer(t, core, file)
+		body := fmt.Sprintf(`{"type":"wire/request","id":"e1","helper":%q,"payload":{}}`, aiedit.HelperName)
+		if resp := sendFrame(t, srv, body, "doc.htmlclay"); resp.StatusCode != http.StatusOK {
+			t.Fatalf("page request refused: %d", resp.StatusCode)
+		}
+		refusal := receiveHelperType(t, sub, "wire/error", "e1")
+		if code := helperErrorCode(t, refusal); code != "helper_not_granted" {
+			t.Fatalf("refusal code = %q, want helper_not_granted", code)
+		}
+		if refusal.Text != aiEditAskText {
+			t.Fatalf("refusal text = %q, want the ask text", refusal.Text)
+		}
+		if got := asked(policy); len(got) != 1 || got[0] != file {
+			t.Fatalf("asked = %v, want [%s]", got, file)
+		}
+	})
+
+	t.Run("the page tool asks the same way", func(t *testing.T) {
+		core, _, policy, file := newFakeCore(t)
+		policy.aiOffered = true
+		policy.aiAsk = true
+		srv := httptest.NewServer(core.WireMux())
+		t.Cleanup(srv.Close)
+
+		sub := observer(t, core, file)
+		body := fmt.Sprintf(`{"type":"wire/request","id":"e1","helper":%q,"payload":{}}`, aiedit.PageToolHelperName)
+		if resp := sendFrame(t, srv, body, "doc.htmlclay"); resp.StatusCode != http.StatusOK {
+			t.Fatalf("page request refused: %d", resp.StatusCode)
+		}
+		refusal := receiveHelperType(t, sub, "wire/error", "e1")
+		if code := helperErrorCode(t, refusal); code != "helper_not_granted" {
+			t.Fatalf("refusal code = %q, want helper_not_granted", code)
+		}
+		if refusal.Text != aiEditAskText {
+			t.Fatalf("refusal text = %q, want the ask text", refusal.Text)
+		}
+		if got := asked(policy); len(got) != 1 || got[0] != file {
+			t.Fatalf("asked = %v, want [%s]", got, file)
+		}
+	})
+}
+
 func TestM3WireForgetAndBound(t *testing.T) {
 	t.Run("BoundFiles lists bound documents", func(t *testing.T) {
 		core, _, _, file := newFakeCore(t)

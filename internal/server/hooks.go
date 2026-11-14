@@ -74,10 +74,13 @@ type Hooks struct {
 	// reached by a link, and the dialog says so on its first line.
 	TrustRequest func(requestingFile string, openedByUser bool) (url string, ok bool)
 
-	// AIEditEnabled reports the AI Editing switch. Nil means this server offers no
-	// AI editing at all: no discovery entry and no built-in answer, which is what a
+	// AIEditFor answers whether document may use AI editing now (on) and, when
+	// not, whether to ask the person (ask). Nil means this server offers no AI
+	// editing at all: no discovery entry and no built-in answer, which is what a
 	// standalone server (every server test) wants.
-	AIEditEnabled func() bool
+	AIEditFor func(document string) (on, ask bool)
+	// AskAIEdit raises the AI editing question for document. Nil asks nothing.
+	AskAIEdit func(document string)
 
 	// AIEditEngines returns the default engine name ("" for claude) and the
 	// user-defined engines. Nil means the built-ins only.

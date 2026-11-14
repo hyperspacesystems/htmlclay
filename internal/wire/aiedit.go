@@ -23,6 +23,8 @@ const (
 	aiEditProgressEvery = 250 * time.Millisecond
 	maxAIEditEnvelope   = 1 << 20
 	aiEditOffText       = "AI Editing is off. Turn it on in HTML Clay's menu."
+	// TODO-COPY: refusal when HTML Clay is asking the person whether this document may use AI editing (under 80 characters)
+	aiEditAskText = "HTML Clay is asking whether this document may use AI editing."
 )
 
 type AIEditRun struct {
@@ -46,7 +48,7 @@ func (s *Core) aiEditMeta(file string) (HelperMeta, bool) {
 		return HelperMeta{}, false
 	}
 	state := "unavailable"
-	if s.policy.AIEditEnabled() {
+	if on, _ := s.policy.AIEditFor(file); on {
 		state = "ready"
 	}
 	return HelperMeta{Name: aiedit.HelperName, State: state}, true
@@ -80,7 +82,12 @@ func (s *Core) refuseAIEdit(request Envelope, source, code, text string) {
 // startAIEdit registers the request and runs it in the background. The caller
 // has already checked the document's token.
 func (s *Core) startAIEdit(doc Document, request Envelope) {
-	if !s.policy.AIEditEnabled() {
+	if on, ask := s.policy.AIEditFor(doc.Path); !on {
+		if ask {
+			s.policy.AskAIEdit(doc.Path)
+			s.refuseAIEdit(request, "host", "helper_not_granted", aiEditAskText)
+			return
+		}
 		s.refuseAIEdit(request, "host", "helper_not_granted", aiEditOffText)
 		return
 	}

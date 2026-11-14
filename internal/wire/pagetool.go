@@ -64,7 +64,7 @@ func (s *Core) pageToolMeta(file string) (HelperMeta, bool) {
 		return HelperMeta{}, false
 	}
 	state := "unavailable"
-	if s.policy.AIEditEnabled() {
+	if on, _ := s.policy.AIEditFor(file); on {
 		state = "ready"
 	}
 	return HelperMeta{Name: aiedit.PageToolHelperName, State: state}, true
@@ -80,7 +80,12 @@ type pageToolDone struct {
 // startPageTool registers the request and runs it in the background. The caller
 // has already checked the document's token.
 func (s *Core) startPageTool(doc Document, request Envelope) {
-	if !s.policy.AIEditEnabled() {
+	if on, ask := s.policy.AIEditFor(doc.Path); !on {
+		if ask {
+			s.policy.AskAIEdit(doc.Path)
+			s.refuseAIEdit(request, "host", "helper_not_granted", aiEditAskText)
+			return
+		}
 		s.refuseAIEdit(request, "host", "helper_not_granted", pageToolOffText)
 		return
 	}

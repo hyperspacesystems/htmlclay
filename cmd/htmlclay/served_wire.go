@@ -10,7 +10,8 @@ func (p servedWirePolicy) ProgramGranted(file, name, id string) bool {
 	return p.a.helperGranted(file, name, id)
 }
 func (servedWirePolicy) AIEditOffered() bool                          { return false }
-func (servedWirePolicy) AIEditEnabled() bool                          { return false }
+func (servedWirePolicy) AIEditFor(string) (bool, bool)                { return false, false }
+func (servedWirePolicy) AskAIEdit(string)                             {}
 func (servedWirePolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
 
 // bindServedPage binds a served document's programs before its page loads,

@@ -220,9 +220,15 @@ func (l looseWire) ProgramGranted(file, name, programID string) bool {
 	return granted == nil || granted(file, name, programID)
 }
 
-func (l looseWire) AIEditOffered() bool { return l.s.hooks.AIEditEnabled != nil }
+func (l looseWire) AIEditOffered() bool { return l.s.hooks.AIEditFor != nil }
 
-func (l looseWire) AIEditEnabled() bool { return l.s.hooks.AIEditEnabled() }
+func (l looseWire) AIEditFor(document string) (on, ask bool) { return l.s.hooks.AIEditFor(document) }
+
+func (l looseWire) AskAIEdit(document string) {
+	if l.s.hooks.AskAIEdit != nil {
+		l.s.hooks.AskAIEdit(document)
+	}
+}
 
 func (l looseWire) AIEditEngines() (string, map[string][]string) {
 	if l.s.hooks.AIEditEngines == nil {

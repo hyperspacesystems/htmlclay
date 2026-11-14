@@ -66,7 +66,7 @@ func aiEditEnvelopeType(t *testing.T, sub *wire.Sub, id string, frames int) wire
 }
 
 func aiEditSwitch(on *atomic.Bool) Hooks {
-	return Hooks{AIEditEnabled: func() bool { return on.Load() }}
+	return Hooks{AIEditFor: func(string) (bool, bool) { return on.Load(), false }}
 }
 
 func aiEditDiscoveryMeta(t *testing.T, srv *Server, file string) []wire.HelperMeta {

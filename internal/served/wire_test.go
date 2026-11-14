@@ -27,7 +27,8 @@ func (framesOnly) CanAskProgram() bool                          { return false }
 func (framesOnly) AskProgram(file, name string) bool            { return false }
 func (framesOnly) ProgramGranted(file, name, id string) bool    { return false }
 func (framesOnly) AIEditOffered() bool                          { return false }
-func (framesOnly) AIEditEnabled() bool                          { return false }
+func (framesOnly) AIEditFor(string) (bool, bool)                { return false, false }
+func (framesOnly) AskAIEdit(string)                             {}
 func (framesOnly) AIEditEngines() (string, map[string][]string) { return "", nil }
 
 const (

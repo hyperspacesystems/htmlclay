@@ -237,7 +237,7 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		MayTrustFolder: a.mayTrustFromPrompt,
 		TrustFolder:    a.trustFromPrompt,
 		TrustRequest:   a.trustFromPage,
-		AIEditEnabled:  a.rt.cfg.AIEditEnabled,
+		AIEditFor:      func(string) (bool, bool) { return a.rt.cfg.AIEditEnabled(), false },
 		AIEditEngines:  a.rt.cfg.AIEditEngines,
 		Profile:        a.rt.cfg.SharedPerson,
 		AskHelper:      a.askHelperForUse,

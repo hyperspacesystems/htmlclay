@@ -23,7 +23,8 @@ func (askingPolicy) CanAskProgram() bool                          { return true 
 func (askingPolicy) AskProgram(file, name string) bool            { return false }
 func (askingPolicy) ProgramGranted(file, name, id string) bool    { return false }
 func (askingPolicy) AIEditOffered() bool                          { return false }
-func (askingPolicy) AIEditEnabled() bool                          { return false }
+func (askingPolicy) AIEditFor(string) (bool, bool)                { return false, false }
+func (askingPolicy) AskAIEdit(string)                             {}
 func (askingPolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
 
 const (

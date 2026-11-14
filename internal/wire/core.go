@@ -31,7 +31,12 @@ type Policy interface {
 	AskProgram(file, name string) bool
 	ProgramGranted(file, name, programID string) bool
 	AIEditOffered() bool
-	AIEditEnabled() bool
+	// AIEditFor answers whether document may use AI editing now (on), and when
+	// it may not, whether the person should be asked (ask).
+	AIEditFor(document string) (on, ask bool)
+	// AskAIEdit raises the question for document. It answers at once; the
+	// person decides later.
+	AskAIEdit(document string)
 	AIEditEngines() (string, map[string][]string)
 }
 

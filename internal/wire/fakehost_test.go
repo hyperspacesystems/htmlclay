@@ -182,8 +182,12 @@ func (f *fakeDocs) Poke(doc Document)              { f.mu.Lock(); f.pokes++; f.m
 func (f *fakeDocs) Internal(absPath string) bool   { return false }
 
 type fakePolicy struct {
-	mu      sync.Mutex
-	granted bool
+	mu        sync.Mutex
+	granted   bool
+	aiOffered bool
+	aiOn      bool
+	aiAsk     bool
+	asked     []string
 }
 
 func (p *fakePolicy) CanAskProgram() bool               { return false }
@@ -193,8 +197,13 @@ func (p *fakePolicy) ProgramGranted(file, name, id string) bool {
 	defer p.mu.Unlock()
 	return p.granted
 }
-func (p *fakePolicy) AIEditOffered() bool                          { return false }
-func (p *fakePolicy) AIEditEnabled() bool                          { return false }
+func (p *fakePolicy) AIEditOffered() bool           { return p.aiOffered }
+func (p *fakePolicy) AIEditFor(string) (bool, bool) { return p.aiOn, p.aiAsk }
+func (p *fakePolicy) AskAIEdit(document string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.asked = append(p.asked, document)
+}
 func (p *fakePolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
 
 func newFakeCore(t *testing.T) (*Core, *fakeDocs, *fakePolicy, string) {
