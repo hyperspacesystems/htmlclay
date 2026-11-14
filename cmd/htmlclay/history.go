@@ -39,11 +39,22 @@ func (a *app) readHistory(doc historyDocument, before string) ([]historyItem, er
 // countHistory is how many versions doc has kept across both stores, read the one
 // way readHistory reads them. A negative limit asks for the whole history.
 func (a *app) countHistory(doc historyDocument) (int, error) {
+	count, _, err := a.countHistoryNewest(doc)
+	return count, err
+}
+
+// countHistoryNewest is countHistory and the id of the newest version it counted:
+// the history's own state, which a remembered count is checked against.
+func (a *app) countHistoryNewest(doc historyDocument) (int, string, error) {
 	items, err := a.readHistoryPage(doc, "", -1)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	return len(items), nil
+	newest := ""
+	if len(items) > 0 {
+		newest = items[0].ID
+	}
+	return len(items), newest, nil
 }
 
 // readHistoryPage is readHistory with the page size a caller wants.

@@ -549,11 +549,16 @@ func TestM3VersionHistoryOpens(t *testing.T) {
 		}
 	})
 
-	t.Run("a loose document has no version page yet", func(t *testing.T) {
+	t.Run("a loose document opens the dashboard's versions page", func(t *testing.T) {
 		fx := newCountFixture(t)
 		row := documentRow(t, fx.app, fx.file)
-		if _, refusal := fx.app.versionsRoute(row); refusal == nil || refusal.Code != appcore.RefuseNotYet {
-			t.Fatalf("a loose document's version page = %+v, want %q", refusal, appcore.RefuseNotYet)
+		route, refusal := fx.app.versionsRoute(row)
+		if refusal != nil {
+			t.Fatalf("a loose document's version page was refused: %+v", refusal)
+		}
+		want := "/recent/" + row.ID + "/versions"
+		if route != want {
+			t.Fatalf("version route = %q, want %q", route, want)
 		}
 	})
 

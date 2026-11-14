@@ -87,11 +87,12 @@ type docCount struct {
 	at time.Time
 }
 
-// keptVersions is one document's remembered version count and the stat it was
-// read at.
+// keptVersions is one document's remembered version count, the stat it was read
+// at, and the newest version the store held then.
 type keptVersions struct {
-	count int
-	at    documentStat
+	count  int
+	at     documentStat
+	newest string
 }
 
 // documentStat is a document's size and modification time in nanoseconds, the
@@ -427,27 +428,44 @@ func (a *app) documentFacts() []appcore.DocumentFact {
 
 // versionsKept answers how many versions a document has kept, remembering the
 // count per document: one read lists a whole history, and the count only moves
-// when a store keeps one, which writes the document first.
+// when a store keeps one. A kept version does not always move the document, so
+// the count is remembered with the newest version the store held, and read again
+// once the history holds a version the count was not read with.
 func (a *app) versionsKept(path string, folders []appcore.FolderFact) int {
 	at := documentStat{}
 	if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
 		at = documentStat{size: info.Size(), mod: info.ModTime().UnixNano()}
 	}
+	doc := historyDocumentFor(path, folders)
 	a.initCore()
 	a.core.mu.Lock()
 	kept, ok := a.core.versionsKept[path]
 	a.core.mu.Unlock()
-	if ok && kept.at == at {
+	if ok && kept.at == at && a.historyUnchanged(doc, kept.newest) {
 		return kept.count
 	}
-	count, err := a.countHistory(historyDocumentFor(path, folders))
+	count, newest, err := a.countHistoryNewest(doc)
 	if err != nil {
 		a.rt.logger.Printf("Could not read how many versions %s has kept: %v", path, err)
+		if ok {
+			return kept.count
+		}
 	}
 	a.core.mu.Lock()
-	a.core.versionsKept[path] = keptVersions{count: count, at: at}
+	a.core.versionsKept[path] = keptVersions{count: count, at: at, newest: newest}
 	a.core.mu.Unlock()
 	return count
+}
+
+// historyUnchanged answers whether doc's history still holds the newest version a
+// remembered count was read with: the same version is still the newest, or
+// nothing is kept at all, which keeps no version and leaves the count alone.
+func (a *app) historyUnchanged(doc historyDocument, newest string) bool {
+	items, err := a.readHistoryPage(doc, "", 1)
+	if err != nil {
+		return false
+	}
+	return len(items) == 0 || items[0].ID == newest
 }
 
 // historyDocumentFor names the store a document's versions are kept in: a served
@@ -460,8 +478,8 @@ func historyDocumentFor(path string, folders []appcore.FolderFact) historyDocume
 }
 
 // versionsRoute is the dashboard page that shows one document's versions: the
-// document's own page under its served folder, or the recent row's page, which
-// the dashboard answers once that page exists.
+// document's own page under its served folder, or the recent document's own
+// versions page.
 func (a *app) versionsRoute(doc appcore.DocumentFact) (string, *appcore.Refusal) {
 	for _, folder := range a.folderFacts() {
 		if folder.ID != doc.FolderID || !folder.Served {
@@ -476,7 +494,7 @@ func (a *app) versionsRoute(doc appcore.DocumentFact) (string, *appcore.Refusal)
 		}
 		return "/roots/" + folder.ID + "/document?path=" + url.QueryEscape(filepath.ToSlash(rel)) + "&panel=versions", nil
 	}
-	return "", &appcore.Refusal{Code: appcore.RefuseNotYet, SubjectID: doc.ID}
+	return "/recent/" + url.PathEscape(doc.ID) + "/versions", nil
 }
 
 // servedFolderAbove answers the closest served folder that holds path, and the
