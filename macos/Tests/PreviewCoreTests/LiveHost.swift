@@ -2,6 +2,16 @@ import XCTest
 @testable import PreviewCore
 import Darwin
 
+enum LiveHostFailure: Error, CustomStringConvertible {
+    case start(String)
+
+    var description: String {
+        switch self {
+        case let .start(message): return message
+        }
+    }
+}
+
 @MainActor
 final class LiveHost {
     let home: URL

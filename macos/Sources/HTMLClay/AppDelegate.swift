@@ -16,6 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var quitting = false
     private var home: URL?
     private var opener: FileOpener!
+    private var profile: Persona?
+    private var seedStarted = false
+    private var seeded = false
+    private var seedError: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let home: URL
@@ -27,6 +31,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             exit(1)
         }
         self.home = home
+
+        do {
+            profile = try CandidateHome.profile(CommandLine.arguments)
+            if profile != nil { try CandidateHome.requireFresh(home) }
+        } catch {
+            FileHandle.standardError.write(Data("HTML Clay Candidate: \(error)\n".utf8))
+            exit(2)
+        }
 
         relay = RelayHostClient()
         model = AppModel(host: relay, initial: relay.last)
@@ -44,7 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         relay.onRestartRequested = { [weak self] in self?.startHost() }
 
         let welcomeDone = UserDefaults.standard.bool(forKey: WindowManager.welcomeDoneKey)
-        if !welcomeDone, !CommandLine.arguments.contains("--no-welcome") { windows.showWelcome() }
+        if profile == nil, !welcomeDone, !CommandLine.arguments.contains("--no-welcome") { windows.showWelcome() }
 
         startHost()
     }
@@ -61,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 await self.relay.attach(client)
                 self.opener.hostReady()
                 self.writeState()
+                await self.seedProfile()
             }
         }
         process.onState = { [weak self] state in
@@ -80,6 +93,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         writeState()
         Task { _ = await process.start() }
+    }
+
+    /// Runs the persona's real actions over the relay once, on the first ready host.
+    private func seedProfile() async {
+        guard let profile, let home, !seedStarted else { return }
+        seedStarted = true
+        do {
+            try await ProfileSeeder.seed(profile, home: home, host: relay)
+            seeded = true
+        } catch {
+            seedError = "\(error)"
+        }
+        writeState()
     }
 
     private static func hostBinary() -> URL {
@@ -128,13 +154,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         var failure = ""
         if case let .failed(reason)? = process?.state { failure = reason.code }
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "state": state,
             "epoch": relay?.last.epoch ?? "",
             "rev": relay?.last.rev ?? 0,
             "folders": relay?.last.folders.count ?? 0,
             "failure": failure,
         ]
+        if let profile {
+            body["profile"] = profile.rawValue
+            body["seeded"] = seeded
+            if let seedError { body["seedError"] = seedError }
+        }
         guard let data = try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys]) else { return }
         try? data.write(to: home.appendingPathComponent("candidate-state.json"), options: .atomic)
     }

@@ -1,4 +1,5 @@
 import Foundation
+import PreviewCore
 import Darwin
 
 // Until milestone 7 the candidate always runs on a throwaway home, so it cannot
@@ -30,6 +31,62 @@ enum CandidateHome {
         guard !FileManager.default.fileExists(atPath: file.path) else { return }
         let body = "{\"startOnLogin\": false, \"port\": \(try freeLoopbackPort()), \"updates\": \"off\"}\n"
         try body.write(to: file, atomically: true, encoding: .utf8)
+    }
+
+    /// The persona --profile names, or nil when the app was launched without one.
+    static func profile(_ arguments: [String]) throws -> Persona? {
+        guard let index = arguments.firstIndex(of: "--profile") else { return nil }
+        guard index + 1 < arguments.count else {
+            throw CandidateHomeFailure(description: "--profile needs a persona name")
+        }
+        let name = arguments[index + 1]
+        guard let persona = Persona(rawValue: name) else {
+            throw CandidateHomeFailure(description: "--profile \(name) is not a persona")
+        }
+        guard persona.isReal else {
+            throw CandidateHomeFailure(description: "--profile \(name) is sample only until milestone \(persona.milestone ?? 0)")
+        }
+        return persona
+    }
+
+    /// Throws unless a persona can seed this home: nothing trusts a folder here yet, and a
+    /// home given by HTMLCLAY_CANDIDATE_HOME holds nothing prepare did not write.
+    static func requireFresh(_ home: URL) throws {
+        for key in ["workspaceFolders", "trustedFolders"] {
+            guard let folders = trustedFolders(home, key) else { continue }
+            guard folders.isEmpty else {
+                throw CandidateHomeFailure(description: "\(home.path) already trusts \(folders.count) folder(s)")
+            }
+        }
+        guard let given = ProcessInfo.processInfo.environment["HTMLCLAY_CANDIDATE_HOME"], given.hasPrefix("/") else { return }
+        let allowed: Set<String> = ["c", "c/htmlclay", "c/htmlclay/config.json"]
+        for path in try relativePaths(under: home) where !allowed.contains(path) {
+            throw CandidateHomeFailure(description: "\(home.path) already holds \(path), so a profile has nothing fresh to seed")
+        }
+    }
+
+    private static func trustedFolders(_ home: URL, _ key: String) -> [Any]? {
+        let file = home.appendingPathComponent("c/htmlclay/config.json")
+        guard let data = try? Data(contentsOf: file),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return json[key] as? [Any]
+    }
+
+    private static func relativePaths(under home: URL) throws -> [String] {
+        var found: [String] = []
+        func walk(_ directory: URL, _ prefix: String) throws {
+            for name in try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted() {
+                let relative = prefix.isEmpty ? name : prefix + "/" + name
+                found.append(relative)
+                var isDirectory: ObjCBool = false
+                let child = directory.appendingPathComponent(name)
+                if FileManager.default.fileExists(atPath: child.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                    try walk(child, relative)
+                }
+            }
+        }
+        try walk(home, "")
+        return found
     }
 
     static func environment(_ home: URL) -> [String: String] {

@@ -3,7 +3,8 @@
 # real Go host without touching the installed HTML Clay: it starts and reports a
 # real snapshot, a file opened with the app reaches the host's file.open (logged,
 # never opened in a browser), Quit stops the app and its host, and the installed
-# app's login item, config and running process are unchanged.
+# app's login item, config and running process are unchanged. A second run launches
+# with --profile servedFolder on a fresh home and waits until the host has seeded it.
 set -euo pipefail
 
 APP="${1:-$HOME/scratch/htmlclay-mac-candidate/HTML Clay Candidate.app}"
@@ -31,12 +32,14 @@ home="$(mktemp -d /tmp/hc-XXXXXXXX)"
 home="$(cd "$home" && pwd -P)"
 opened="$home/opened.log"
 state="$home/candidate-state.json"
+seededhome=""
 mkdir -p "$home/notes"
 printf '<!doctype html><title>a</title><p>a</p>\n' > "$home/notes/a.htmlclay"
 cleanup() {
   osascript -e "tell application id \"$ID\" to quit" >/dev/null 2>&1 || true
   pkill -f "$APP/Contents/MacOS/htmlclay" >/dev/null 2>&1 || true
   rm -rf "$home"
+  [ -z "$seededhome" ] || rm -rf "$seededhome"
 }
 trap cleanup EXIT
 
@@ -65,4 +68,21 @@ echo "quit: app and host exited"
 [ "$(fingerprint "$CONFIG")" = "$config_before" ] || fail "the installed app's config changed"
 [ "$(pgrep -f '/Applications/HTMLClay.app/Contents/MacOS/htmlclay' | sort | tr '\n' ' ')" = "$installed_before" ] || fail "the installed app's process changed"
 echo "installed app: login item, config and process unchanged"
+
+seededhome="$(mktemp -d /tmp/hc-XXXXXXXX)"
+seededhome="$(cd "$seededhome" && pwd -P)"
+seededstate="$seededhome/candidate-state.json"
+open -n --env "HTMLCLAY_CANDIDATE_HOME=$seededhome" "$APP" --args --profile servedFolder
+seeded() { [ -f "$seededstate" ] && grep -q '"seeded" *: *true' "$seededstate"; }
+wait_for 60 seeded || fail "--profile servedFolder never seeded the home: $(cat "$seededstate" 2>/dev/null || echo 'no state file')"
+echo "seeded: $(cat "$seededstate")"
+
+osascript -e "tell application id \"$ID\" to quit" >/dev/null
+wait_for 15 gone || fail "the candidate or its host is still running 15 s after the seeded run's Quit"
+echo "quit: app and host exited after seeding"
+
+[ "$(fingerprint "$LOGIN_ITEM")" = "$login_before" ] || fail "the installed app's login item changed"
+[ "$(fingerprint "$CONFIG")" = "$config_before" ] || fail "the installed app's config changed"
+[ "$(pgrep -f '/Applications/HTMLClay.app/Contents/MacOS/htmlclay' | sort | tr '\n' ' ')" = "$installed_before" ] || fail "the installed app's process changed"
+echo "installed app: login item, config and process still unchanged after seeding"
 echo "PROOF OK"
