@@ -22,7 +22,7 @@ private struct LoopbackRefusalBody: Decodable {
 
 private struct LoopbackWarningBody: Decodable {
     var code: String
-    var text: String
+    var text: String?
     var names: [String]?
 }
 
@@ -197,7 +197,7 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
                 name: preview.name ?? "",
                 path: preview.path ?? "",
                 warnings: (preview.warnings ?? []).map {
-                    HostWarning(code: $0.code, text: $0.text, names: $0.names ?? [])
+                    HostWarning(code: $0.code, text: $0.text ?? String(), names: $0.names ?? [])
                 }
             ))
         case 409:

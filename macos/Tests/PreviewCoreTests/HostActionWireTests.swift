@@ -8,7 +8,7 @@ final class HostActionWireTests: XCTestCase {
 
     private static let goArgumentNames: Set<String> = [
         "id", "ids", "path", "name", "route", "key", "value", "on", "paused", "force",
-        "programID", "documentID", "revision", "answer", "username", "folderIDs",
+        "programID", "documentID", "revision", "answer", "username", "folderIDs", "acknowledged",
     ]
 
     private static let everyAction: [HostAction] = [
@@ -32,7 +32,11 @@ final class HostActionWireTests: XCTestCase {
         .setAutoUpdate(false),
         .trustFolder(name: "Folder", path: "/tmp/folder"),
         .serveFolder(path: "/tmp/folder", name: "folder"),
-        .addProgram(name: "Editor", path: "/tmp/Editor.app"),
+        .addProgram(name: "Editor", path: "/tmp/Editor.app", acknowledged: ["not-executable"]),
+        .relinkProgram(programID: "p1", path: "/tmp/Editor.app", acknowledged: ["just-arrived"]),
+        .askProgramAgain(programID: "p1", documentID: "/tmp/todo.htmlclay"),
+        .removeProgram(programID: "p1"),
+        .revealProgram(programID: "p1"),
         .startUpdate,
         .finishUpdate,
         .restartHost,

@@ -76,8 +76,16 @@ public enum HostActionWire {
             return WireActionRequest(type: "program.removeAccess", args: ["programID": .string(programID), "documentID": .string(document)])
         case let .setProgramAllTrusted(programID, on):
             return WireActionRequest(type: "program.setAllTrusted", args: ["programID": .string(programID), "on": .bool(on)])
-        case let .addProgram(name, path):
-            return WireActionRequest(type: "program.add", args: ["path": .string(path), "name": .string(name)])
+        case let .addProgram(name, path, acknowledged):
+            return WireActionRequest(type: "program.add", args: ["path": .string(path), "name": .string(name), "acknowledged": .strings(acknowledged)])
+        case let .relinkProgram(programID, path, acknowledged):
+            return WireActionRequest(type: "program.relink", args: ["programID": .string(programID), "path": .string(path), "acknowledged": .strings(acknowledged)])
+        case let .askProgramAgain(programID, documentID):
+            return WireActionRequest(type: "program.askAgain", args: ["programID": .string(programID), "documentID": .string(documentID)])
+        case let .removeProgram(programID):
+            return WireActionRequest(type: "program.remove", args: ["programID": .string(programID)])
+        case let .revealProgram(programID):
+            return WireActionRequest(type: "program.reveal", args: ["programID": .string(programID)])
         case .startUpdate:
             return WireActionRequest(type: "update.start", args: [:])
         // The app restarts the Go process itself, so this sends nothing.

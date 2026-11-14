@@ -4,45 +4,81 @@ import PreviewCore
 struct AddProgramSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
-    @State private var pick = 0
-    @State private var name = ProgramRules.defaultName(for: SampleData.programFiles[0])
+    @State private var sheet: ProgramSheetModel
+
+    init(kind: ProgramSheetModel.Kind, path: String = String(), model: AppModel) {
+        _sheet = State(initialValue: ProgramSheetModel(kind: kind, model: model, path: path))
+    }
 
     var body: some View {
-        let path = SampleData.programFiles[pick % SampleData.programFiles.count]
-        let problem = ProgramRules.nameProblem(name, in: model.snapshot)
-        KilnDialog(Strings.AddProgram.title) {
-            KilnLead(Text(Strings.AddProgram.lead))
+        let ready = sheet.ready
+        KilnDialog(sheet.isAdding ? Strings.AddProgram.title : Strings.AddProgram.relinkTitle) {
+            KilnLead(Text(sheet.isAdding ? Strings.AddProgram.lead : Strings.AddProgram.relinkLead))
                 .padding(.top, 6)
             KilnField(Strings.AddProgram.file) {
-                KilnInputBox(path)
+                if sheet.path.isEmpty {
+                    KilnInput(text: .constant(String()), placeholder: Strings.Sheets.choose)
+                } else {
+                    KilnInputBox(sheet.path)
+                }
                 Button(Strings.Sheets.choose) {
-                    pick += 1
-                    name = ProgramRules.defaultName(for: SampleData.programFiles[pick % SampleData.programFiles.count])
+                    Task { _ = await sheet.chooseAnother() }
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
             }
             .padding(.top, 14)
-            KilnField(Strings.ServeSheet.name) {
-                KilnInput(text: $name, placeholder: Strings.ServeSheet.name, mono: true)
+            if let problem = sheet.problem {
+                KilnFieldNote(Text(problem), error: true)
             }
-            .padding(.top, 10)
-            if problem == .taken {
-                KilnFieldNote(Text(Strings.Sheets.taken(name)), error: true)
-            } else {
-                KilnFieldNote(Text(Strings.AddProgram.nameHint), error: problem == .invalid)
+            if sheet.isAdding {
+                KilnField(Strings.ServeSheet.name) {
+                    KilnInput(text: Binding(get: { sheet.name }, set: { sheet.setName($0) }), placeholder: Strings.ServeSheet.name, mono: true)
+                }
+                .padding(.top, 10)
+                if sheet.nameProblem == .taken {
+                    KilnFieldNote(Text(Strings.Sheets.taken(sheet.name)), error: true)
+                } else {
+                    KilnFieldNote(Text(Strings.AddProgram.nameHint), error: sheet.nameProblem == .invalid)
+                }
             }
+            warnings
         } buttons: {
             Button(Strings.Sheets.cancel) {
                 model.sheet = nil
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            Button(Strings.AddProgram.add) {
-                model.send(.addProgram(name: name, path: path))
-                model.sheet = nil
+            Button(sheet.isAdding ? Strings.AddProgram.add : Strings.AddProgram.useFile) {
+                Task {
+                    if await sheet.confirm() { model.sheet = nil }
+                }
             }
             .buttonStyle(KilnButtonStyle(.primary))
-            .disabled(problem != nil)
-            .opacity(problem == nil ? 1 : 0.42)
+            .disabled(!ready)
+            .opacity(ready ? 1 : 0.42)
+        }
+        .task(id: sheet.path) {
+            await sheet.check()
+        }
+    }
+
+    @ViewBuilder private var warnings: some View {
+        let lines = sheet.warningLines
+        if !lines.isEmpty {
+            KilnGroupTitle(sheet.isAdding ? Strings.AddProgram.beforeYouAdd : Strings.AddProgram.beforeYouUse)
+            KilnCard(kind: .warn) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                    if index > 0 {
+                        KilnRowDivider()
+                    }
+                    KilnRow(title: line, leading: {
+                        Image(systemName: Symbols.warning)
+                            .font(.system(size: 13))
+                            .foregroundStyle(kiln.warnFg)
+                    }, trailing: {
+                        EmptyView()
+                    })
+                }
+            }
         }
     }
 }

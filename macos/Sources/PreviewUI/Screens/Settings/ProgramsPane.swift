@@ -33,10 +33,12 @@ struct ProgramsPane: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
             Spacer(minLength: 0)
-            Button(Strings.Programs.addProgram) {
-                model.sheet = .addProgram
+            if model.isSample || model.can(HostActionType.programAdd) {
+                Button(Strings.Programs.addProgram) {
+                    model.sheet = .addProgram
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
             }
-            .buttonStyle(KilnButtonStyle(.plain))
         }
         .padding(.bottom, 12)
     }
@@ -87,15 +89,14 @@ struct ProgramRow: View {
     @Environment(\.kiln) private var kiln
 
     static func fileName(_ program: Program) -> String {
-        let last = (program.path as NSString).lastPathComponent
-        return last.isEmpty ? program.name : last
+        ProgramControls.fileName(program)
     }
 
     static func subtitle(_ program: Program) -> String {
         if program.allTrustedFolders { return Strings.Programs.allTrusted }
         switch program.allowedDocuments.count {
         case 0: return Strings.Programs.noneYet
-        case 1: return Strings.Programs.mayRun(program.allowedDocuments[0])
+        case 1: return Strings.Programs.mayRun(ProgramControls.documentLabel(program.allowedDocuments[0]))
         default: return Strings.Programs.mayRunCount(program.allowedDocuments.count)
         }
     }
@@ -131,10 +132,16 @@ struct ProgramRow: View {
                     .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button(Strings.Programs.findIt) {
-                model.say(Strings.Programs.wouldFind(Self.fileName(program)))
+            if model.isSample || model.can(HostActionType.programRelink) {
+                Button(Strings.Programs.findIt) {
+                    if model.isSample {
+                        model.say(Strings.Programs.wouldFind(Self.fileName(program)))
+                    } else {
+                        ProgramFlow.chooseFile(program, model: model)
+                    }
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
             }
-            .buttonStyle(KilnButtonStyle(.plain))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

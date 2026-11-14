@@ -225,7 +225,8 @@ final class SettingsTests: XCTestCase {
         for persona in [Persona.newPerson, Persona.syncedWithTeams] {
             let host = SampleHost(persona: persona)
             let model = AppModel(host: host, initial: host.current)
-            var sheets: [PreviewSheet] = [.connect, .accountFolder(username: "panphora"), .addProgram]
+            var sheets: [PreviewSheet] = [.connect, .accountFolder(username: "panphora"), .addProgram,
+                                          .relinkProgram(programID: "search-sh", path: "~/bin/search.sh")]
             if persona == .syncedWithTeams {
                 sheets.append(.teamSetup(folderID: "marketing"))
             }

@@ -14,7 +14,8 @@ struct SettingsSheetView: View {
             case .connect: ConnectSheet()
             case let .accountFolder(username): AccountFolderSheet(username: username)
             case let .teamSetup(folderID): TeamSetupSheet(folderID: folderID)
-            case .addProgram: AddProgramSheet()
+            case .addProgram: AddProgramSheet(kind: .add, model: model)
+            case let .relinkProgram(programID, path): AddProgramSheet(kind: .relink(programID: programID), path: path, model: model)
             case .moveFromLocal: MoveSheet()
             case .movedFromLocal: MovedSheet(actions: actions)
             }

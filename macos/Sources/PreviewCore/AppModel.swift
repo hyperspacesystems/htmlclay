@@ -44,10 +44,13 @@ public final class AppModel {
         case .setSyncPaused: return "sync.paused"
         case let .setServed(id, _): return "folder.served." + id
         case let .setSynced(id, _): return "folder.synced." + id
-        case let .setProgramAllTrusted(id, _): return "program.allTrusted." + id
+        case let .setProgramAllTrusted(id, _): return allTrustedSlot(id)
         default: return nil
         }
     }
+
+    /// The slot the all-trusted switch shows while the host decides.
+    public static func allTrustedSlot(_ programID: String) -> String { "program.allTrusted." + programID }
 
     public func send(_ action: HostAction) {
         Task { _ = await self.run(action, announce: true) }

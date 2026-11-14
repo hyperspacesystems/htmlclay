@@ -484,6 +484,11 @@ public enum Strings {
         public static let file = "File"
         public static let nameHint = "The name documents ask for. Lowercase letters, numbers and hyphens."
         public static let add = "Add"
+        public static let relinkTitle = "Find the program file" // TODO-COPY: relink sheet title, max 40 chars
+        public static let relinkLead = "HTML Clay runs the file you choose instead. Nothing else about the program changes." // TODO-COPY: relink sheet lead, max 120 chars
+        public static let useFile = "Use this file" // TODO-COPY: relink sheet button, max 20 chars
+        public static let beforeYouAdd = "Before you add it" // TODO-COPY: add sheet warnings heading, max 30 chars
+        public static let beforeYouUse = "Before you use it" // TODO-COPY: relink sheet warnings heading, max 30 chars
     }
     public enum Move {
         public static let title = "Move your folders from Hyperclay Local"

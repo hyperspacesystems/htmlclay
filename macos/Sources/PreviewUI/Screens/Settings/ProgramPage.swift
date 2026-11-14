@@ -12,7 +12,8 @@ struct ProgramPage: View {
     }
 
     static func place(of document: String, snapshot: HostSnapshot) -> String? {
-        snapshot.documents.first { $0.name == document }?.place
+        let name = ProgramControls.documentLabel(document)
+        return snapshot.documents.first { $0.name == name }?.place
     }
 
     var body: some View {
@@ -49,14 +50,20 @@ struct ProgramPage: View {
             KilnBackButton {
                 model.route = .pane(.programs)
             }
-            Text(ProgramRow.fileName(program))
+            Text(ProgramControls.fileName(program))
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
             Spacer(minLength: 0)
-            Button(Strings.ProgramPage.showInFinder) {
-                model.say(Strings.Preview.wouldShowInFinder(program.path))
+            if model.isSample || model.can(HostActionType.programReveal) {
+                Button(Strings.ProgramPage.showInFinder) {
+                    if model.isSample {
+                        model.say(Strings.Preview.wouldShowInFinder(program.path))
+                    } else {
+                        model.send(.revealProgram(programID: program.id))
+                    }
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
             }
-            .buttonStyle(KilnButtonStyle(.plain))
         }
         .padding(.bottom, 12)
     }
@@ -65,24 +72,27 @@ struct ProgramPage: View {
         KilnCard {
             KilnRow(title: Strings.ProgramPage.allTrustedTitle, subtitle: Strings.ProgramPage.allTrustedSub, trailing: {
                 Toggle(isOn: Binding(
-                    get: { program.allTrustedFolders },
+                    get: { ProgramControls.allTrusted(program, pending: model.pending(AppModel.allTrustedSlot(program.id))) },
                     set: { model.send(.setProgramAllTrusted(programID: program.id, on: $0)) }
                 )) {
                     EmptyView()
                 }
                 .toggleStyle(KilnSwitchStyle())
+                .disabled(!model.can(HostActionType.programSetAllTrusted))
             })
             ForEach(program.allowedDocuments, id: \.self) { document in
                 KilnRowDivider()
-                KilnRow(title: document, subtitle: Self.place(of: document, snapshot: model.snapshot), leading: {
+                KilnRow(title: ProgramControls.documentLabel(document), subtitle: Self.place(of: document, snapshot: model.snapshot), leading: {
                     Image(systemName: Symbols.doc)
                         .font(.system(size: 14))
                         .foregroundStyle(kiln.muted)
                 }, trailing: {
-                    Button(Strings.ProgramPage.removeAccess) {
-                        model.send(.removeProgramAccess(programID: program.id, document: document))
+                    if model.can(HostActionType.programRemoveAccess) {
+                        Button(Strings.ProgramPage.removeAccess) {
+                            model.send(.removeProgramAccess(programID: program.id, document: document))
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
                     }
-                    .buttonStyle(KilnButtonStyle(.plain))
                 })
             }
         }
@@ -96,15 +106,17 @@ struct ProgramPage: View {
                     if index > 0 {
                         KilnRowDivider()
                     }
-                    KilnRow(title: document, subtitle: Self.place(of: document, snapshot: model.snapshot), leading: {
+                    KilnRow(title: ProgramControls.documentLabel(document), subtitle: Self.place(of: document, snapshot: model.snapshot), leading: {
                         Image(systemName: Symbols.doc)
                             .font(.system(size: 14))
                             .foregroundStyle(kiln.muted)
                     }, trailing: {
-                        Button(Strings.ProgramPage.allowAgain) {
-                            model.say(Strings.ProgramPage.wouldAllowAgain(document))
+                        if model.can(HostActionType.programAskAgain) {
+                            Button(Strings.ProgramPage.allowAgain) {
+                                allowAgain(document, program: program)
+                            }
+                            .buttonStyle(KilnButtonStyle(.plain))
                         }
-                        .buttonStyle(KilnButtonStyle(.plain))
                     })
                 }
             }
@@ -113,23 +125,30 @@ struct ProgramPage: View {
 
     private func footer(_ program: Program) -> some View {
         HStack {
-            KilnLink(Strings.ProgramPage.chooseAnotherFile) {
-                model.say(Strings.ProgramPage.wouldChooseFile)
+            if model.isSample || model.can(HostActionType.programRelink) {
+                KilnLink(Strings.ProgramPage.chooseAnotherFile) {
+                    if model.isSample {
+                        model.say(Strings.ProgramPage.wouldChooseFile)
+                    } else {
+                        ProgramFlow.chooseFile(program, model: model)
+                    }
+                }
             }
             Spacer(minLength: 0)
-            KilnLink(Strings.ProgramPage.removeAllAccess, danger: true) {
-                removeAllAccess(program)
+            if model.can(HostActionType.programRemoveAccess) {
+                KilnLink(Strings.ProgramPage.removeAllAccess, danger: true) {
+                    Task { _ = await ProgramFlow.removeAllAccess(program, model: model) }
+                }
             }
         }
         .padding(.top, 14)
     }
 
-    private func removeAllAccess(_ program: Program) {
-        for document in program.allowedDocuments {
-            model.send(.removeProgramAccess(programID: program.id, document: document))
+    private func allowAgain(_ document: String, program: Program) {
+        if model.isSample {
+            model.say(Strings.ProgramPage.wouldAllowAgain(document))
+            return
         }
-        if program.allTrustedFolders {
-            model.send(.setProgramAllTrusted(programID: program.id, on: false))
-        }
+        Task { _ = await ProgramFlow.allowAgain(document, program: program, model: model) }
     }
 }
