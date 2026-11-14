@@ -45,7 +45,14 @@ func openDashboardWithNoService(t *testing.T, home string) *dashboardNoService {
 		t.Errorf("the dashboard sent %s %s to the service, and no service is running", r.Method, r.URL.Path)
 		http.Error(w, "unavailable", http.StatusServiceUnavailable)
 	})
-	host := fmt.Sprintf("%s:%d", appcore.DashboardHost, servedTestPort)
+	return openDashboardOver(t, a, proxy)
+}
+
+// openDashboardOver enters the dashboard of a built app through proxy, the way a
+// person does.
+func openDashboardOver(t *testing.T, a *app, proxy http.Handler) *dashboardNoService {
+	t.Helper()
+	host := fmt.Sprintf("%s:%d", appcore.DashboardHost, a.rt.port)
 	board, err := dashboard.New(dashboard.Options{Host: host, ProductName: "HTML Clay", API: a.dashboardAPI(proxy)})
 	if err != nil {
 		t.Fatal(err)

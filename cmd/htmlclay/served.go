@@ -96,9 +96,10 @@ func (a *app) noteServedStructure(rootID, from, to string, isDir bool) {
 }
 
 // workspaceEntry answers the address that opens a served folder in the
-// workspace, or "" while the workspace cannot list it (no live-room service).
+// workspace, or "" while there is no workspace. A stopped live-room service does
+// not close it: the app lists a folder itself, so the folder still browses.
 func (a *app) workspaceEntry(folderID string) string {
-	if a.dashboard == nil || a.service.state() != appcore.ServiceRunning {
+	if a.dashboard == nil {
 		return ""
 	}
 	entry, err := a.dashboard.EntryURL("/roots/" + url.PathEscape(folderID) + "/files")

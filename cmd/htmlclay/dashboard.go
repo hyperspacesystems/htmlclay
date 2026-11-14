@@ -4,11 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/trust"
 )
 
 const (
@@ -16,6 +22,10 @@ const (
 	// Go. Everything else under /api/ is the live-room service's, through the
 	// served host's proxy.
 	dashboardAPIPrefix = "/api/app/"
+
+	// dashboardFolderPrefix is the read-only folder routes the app answers itself,
+	// so a folder browses while the live-room service is stopped.
+	dashboardFolderPrefix = dashboardAPIPrefix + "folders/"
 
 	// whyNeedsApp is the reason a flag reads false on the dashboard: the action
 	// needs the Mac app's consent, which a browser can never give.
@@ -59,6 +69,10 @@ type dashboardApp struct {
 
 func (d *dashboardApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
+	if strings.HasPrefix(r.URL.Path, dashboardFolderPrefix) {
+		d.folder(w, r)
+		return
+	}
 	switch r.URL.Path {
 	case "/api/app/snapshot":
 		if r.Method != http.MethodGet {
@@ -81,6 +95,247 @@ func (d *dashboardApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
 	}
+}
+
+// folder answers the folder routes: one folder's entries, and the open that
+// registers one of its documents. Both are read from disk, so a trusted folder
+// browses without the live-room service.
+func (d *dashboardApp) folder(w http.ResponseWriter, r *http.Request) {
+	id, what, ok := strings.Cut(strings.TrimPrefix(r.URL.Path, dashboardFolderPrefix), "/")
+	if !ok || id == "" || what == "" || strings.Contains(what, "/") {
+		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
+		return
+	}
+	switch what {
+	case "list":
+		d.list(w, r, id)
+	case "open":
+		d.open(w, r, id)
+	default:
+		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+	}
+}
+
+// dashboardFolder is one folder the dashboard may read: the root that pins it, so
+// no link inside it can lead outside, and whether it is served.
+type dashboardFolder struct {
+	root    *os.Root
+	path    string
+	id      string
+	served  bool
+	address string
+}
+
+func (f *dashboardFolder) close() { _ = f.root.Close() }
+
+// dashboardFolderItem is one entry of a folder list.
+type dashboardFolderItem struct {
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	Kind     string `json:"kind"`
+	Size     int64  `json:"size"`
+	Modified string `json:"modified"`
+	Open     string `json:"open"`
+}
+
+// dashboardFolder finds the live folder the dashboard names by id: the served
+// folder when it is being served, otherwise the trusted folder. Anything else,
+// including a folder that is gone or no longer the one that was trusted, is not
+// there.
+func (a *app) dashboardFolder(id string) (*dashboardFolder, bool) {
+	if id == "" {
+		return nil, false
+	}
+	folder := &dashboardFolder{id: id}
+	identity := ""
+	if entry, ok := a.rt.cfg.ServedFolderByID(id); ok && entry.Serving {
+		folder.path, folder.served, identity = entry.Path, true, entry.Identity
+		folder.address = a.servedAddress(entry)
+	} else {
+		found := false
+		for _, tf := range a.rt.cfg.TrustedFolderList() {
+			if tf.ID == id {
+				folder.path, identity, found = tf.Path, tf.Identity, true
+				break
+			}
+		}
+		if !found {
+			return nil, false
+		}
+	}
+	if info, err := os.Stat(folder.path); err != nil || !info.IsDir() {
+		return nil, false
+	}
+	if !trust.IdentityOK(folder.path, identity, a.rt.home) {
+		return nil, false
+	}
+	root, err := os.OpenRoot(folder.path)
+	if err != nil {
+		return nil, false
+	}
+	folder.root = root
+	return folder, true
+}
+
+// list answers one folder's entries under parent, as a path inside the folder.
+func (d *dashboardApp) list(w http.ResponseWriter, r *http.Request, id string) {
+	folder, ok := d.a.dashboardFolder(id)
+	if !ok {
+		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+		return
+	}
+	defer folder.close()
+	items, err := folder.list(r.URL.Query().Get("parent"))
+	if err != nil {
+		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+		return
+	}
+	writeDashboardJSON(w, http.StatusOK, map[string]any{
+		"items":        items,
+		"capabilities": map[string]bool{"write": false},
+	})
+}
+
+// open answers where one of the folder's documents opens: the document's own
+// address for a served folder, and for a trusted, unserved folder the open that
+// registers the document the way a direct open inside a trusted folder does.
+func (d *dashboardApp) open(w http.ResponseWriter, r *http.Request, id string) {
+	folder, ok := d.a.dashboardFolder(id)
+	if !ok {
+		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+		return
+	}
+	defer folder.close()
+	rel, ok := folder.document(r.URL.Query().Get("path"))
+	if !ok {
+		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+		return
+	}
+	target := ""
+	if folder.served {
+		target = folder.address + "/" + dashboardFolderPath(rel)
+	} else {
+		target, ok = d.a.routeTrusted(filepath.Join(folder.path, filepath.FromSlash(rel)))
+		if !ok {
+			writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+			return
+		}
+	}
+	http.Redirect(w, r, target, http.StatusSeeOther)
+}
+
+// document resolves one path inside the folder to a document file through the
+// root, so a link that leads outside the folder is refused here rather than
+// followed.
+func (f *dashboardFolder) document(name string) (string, bool) {
+	rel, ok := dashboardFolderRel(name)
+	if !ok {
+		return "", false
+	}
+	info, err := f.root.Stat(rel)
+	if err != nil || !info.Mode().IsRegular() || !dashboardFolderDocument(rel) {
+		return "", false
+	}
+	return rel, true
+}
+
+// list answers the folder's entries under parent, in name order.
+func (f *dashboardFolder) list(parent string) ([]dashboardFolderItem, error) {
+	dir, ok := dashboardFolderRel(parent)
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+	entries, err := fs.ReadDir(f.root.FS(), dir)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]dashboardFolderItem, 0, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		rel := path.Join(dir, name)
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.Mode()&fs.ModeSymlink != 0 {
+			info, err = f.root.Stat(rel)
+			if err != nil {
+				continue
+			}
+		}
+		kind := dashboardFolderKind(name, info)
+		if kind == "" {
+			continue
+		}
+		item := dashboardFolderItem{
+			Name:     name,
+			Path:     rel,
+			Kind:     kind,
+			Modified: info.ModTime().UTC().Format(time.RFC3339),
+		}
+		if !info.IsDir() {
+			item.Size = info.Size()
+		}
+		if kind == "document" {
+			if f.served {
+				item.Open = f.address + "/" + dashboardFolderPath(rel)
+			} else {
+				item.Open = dashboardFolderPrefix + url.PathEscape(f.id) + "/open?path=" + url.QueryEscape(rel)
+			}
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+// dashboardFolderRel is a folder path as a name inside the root, refusing one
+// that climbs out of it.
+func dashboardFolderRel(name string) (string, bool) {
+	rel := path.Clean(strings.TrimPrefix(name, "/"))
+	if rel == ".." || strings.HasPrefix(rel, "../") {
+		return "", false
+	}
+	return rel, true
+}
+
+// dashboardFolderKind is which of the three kinds one entry is, or "" for an
+// entry that is none of them.
+func dashboardFolderKind(name string, info fs.FileInfo) string {
+	switch {
+	case info.IsDir():
+		return "folder"
+	case !info.Mode().IsRegular():
+		return ""
+	case dashboardFolderDocument(name):
+		return "document"
+	}
+	return "file"
+}
+
+// dashboardFolderDocument reports whether a name is a document: .html or
+// .htmlclay, any letter case.
+func dashboardFolderDocument(name string) bool {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".html", ".htmlclay":
+		return true
+	}
+	return false
+}
+
+// dashboardFolderPath escapes one folder path for a URL, segment by segment.
+func dashboardFolderPath(rel string) string {
+	segments := strings.Split(rel, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/")
 }
 
 // act runs one action as the dashboard channel, so the class check refuses every
