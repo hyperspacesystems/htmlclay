@@ -17,7 +17,7 @@ struct ServeSheet: View {
                 .padding(.top, 6)
             KilnField(Strings.ServeSheet.folder) {
                 if sheet.path.isEmpty {
-                    KilnInput(text: .constant(""), placeholder: Strings.Sheets.choose)
+                    KilnInput(text: .constant(String()), placeholder: Strings.Sheets.choose)
                 } else {
                     KilnInputBox(sheet.path)
                 }
@@ -64,7 +64,7 @@ struct ServeSheet: View {
             .disabled(!ready)
             .opacity(ready ? 1 : 0.42)
         }
-        .task(id: sheet.path + "\u{0}" + sheet.name) {
+        .task(id: [sheet.path, sheet.name]) {
             try? await Task.sleep(nanoseconds: 250_000_000)
             await sheet.check()
         }
