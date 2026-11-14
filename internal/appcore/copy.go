@@ -40,6 +40,7 @@ const (
 	TextWhyServeMissing          = "This folder can't be found where it was."           // copy: why Serve is off, max 90 chars
 	TextWhyServeIdentityChanged  = "A different folder now sits where this one was."    // copy: why Serve is off, max 90 chars
 	TextWhyServeServedByLocal    = "Hyperclay Local is serving this folder now."        // copy: why Serve is off, max 90 chars
+	TextWhyServeOverlaps         = "Inside or around %s, which is already served."      // copy: why Serve is off, max 90 chars TODO-COPY
 	TextWhyServeBoundToLocalSync = "This folder syncs with Hyperclay Local."            // copy: why Serve is off, max 90 chars
 	TextWhyNotOnComputer         = "This team folder isn't on this computer yet."       // copy: why Serve or Sync is off, max 90 chars
 	TextWhySyncNotFromAccount    = "Only folders from your Hyperclay account can sync." // copy: why Sync is off, max 90 chars

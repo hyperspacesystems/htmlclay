@@ -1,6 +1,9 @@
 package appcore
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestFolderRules(t *testing.T) {
 	account := Origin{Kind: OriginAccount, Username: "sam"}
@@ -15,14 +18,16 @@ func TestFolderRules(t *testing.T) {
 	}
 
 	cases := []struct {
-		name      string
-		connected bool
-		folder    FolderFact
-		parent    bool
-		want      FolderCan
-		serveWhy  string
-		syncWhy   string
-		trustWhy  string
+		name         string
+		connected    bool
+		folder       FolderFact
+		parent       bool
+		others       []FolderFact
+		want         FolderCan
+		serveWhy     string
+		serveWhyText string
+		syncWhy      string
+		trustWhy     string
 	}{
 		{name: "a trusted local folder can be served and stop being trusted",
 			folder: present(FolderFact{Origin: local}),
@@ -72,6 +77,21 @@ func TestFolderRules(t *testing.T) {
 		{name: "a served but missing folder can stop serving and has no workspace",
 			folder: present(FolderFact{Origin: local, Served: true, Missing: true}),
 			want:   FolderCan{StopServing: true}, syncWhy: WhyNotFromAccount, trustWhy: WhyStopServingFirst},
+		{name: "a trusted folder below a served one cannot be served",
+			folder: present(FolderFact{Origin: local, Name: "Journal", Path: "/Users/sam/Documents/Notes/Journal"}),
+			others: []FolderFact{present(FolderFact{ID: "notes", Origin: local, Name: "Notes", Served: true, ServedName: "notes", Path: "/Users/sam/Documents/Notes"})},
+			want:   FolderCan{StopTrusting: true}, serveWhy: WhyOverlapsServed, serveWhyText: "notes", syncWhy: WhyNotFromAccount,
+		},
+		{name: "a trusted folder above a served one cannot be served",
+			folder: present(FolderFact{Origin: local, Name: "Notes", Path: "/Users/sam/Documents/Notes"}),
+			others: []FolderFact{present(FolderFact{ID: "journal", Origin: local, Name: "Journal", Served: true, Path: "/Users/sam/Documents/Notes/Journal"})},
+			want:   FolderCan{StopTrusting: true}, serveWhy: WhyOverlapsServed, serveWhyText: "Journal", syncWhy: WhyNotFromAccount,
+		},
+		{name: "a trusted folder beside a served one can be served",
+			folder: present(FolderFact{Origin: local, Name: "Journal", Path: "/Users/sam/Documents/Notes/Journal"}),
+			others: []FolderFact{present(FolderFact{ID: "clips", Origin: local, Name: "Clips", Served: true, ServedName: "clips", Path: "/Users/sam/Documents/Notes/Clips"})},
+			want:   FolderCan{Serve: true, StopTrusting: true}, syncWhy: WhyNotFromAccount,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -80,12 +100,16 @@ func TestFolderRules(t *testing.T) {
 			if c.parent {
 				f.Folders = append(f.Folders, present(FolderFact{ID: "parent", Origin: local}))
 			}
+			f.Folders = append(f.Folders, c.others...)
 			can, why := folderRules(f, c.folder, folderState(c.folder))
 			if can != c.want {
 				t.Errorf("can = %+v, want %+v", can, c.want)
 			}
 			if got := code(why.Serve); got != c.serveWhy {
 				t.Errorf("why.serve = %q, want %q", got, c.serveWhy)
+			}
+			if c.serveWhyText != "" && (why.Serve == nil || !strings.Contains(why.Serve.Text, c.serveWhyText)) {
+				t.Errorf("why.serve = %+v, want text naming %q", why.Serve, c.serveWhyText)
 			}
 			if got := code(why.Sync); got != c.syncWhy {
 				t.Errorf("why.sync = %q, want %q", got, c.syncWhy)

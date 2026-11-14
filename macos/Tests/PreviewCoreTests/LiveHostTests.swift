@@ -413,6 +413,12 @@ final class LiveHostTests: XCTestCase {
         XCTAssertEqual(toggle.enabled, inside.can?.serve ?? true)
         XCTAssertEqual(toggle.note, (inside.can?.serve ?? true) ? nil : inside.why.serve?.text)
 
+        // The switch already says what serving would be told: it is off, with the reason.
+        XCTAssertFalse(inside.can?.serve ?? true, "the host offered to serve a folder inside a served one")
+        XCTAssertFalse(toggle.enabled)
+        XCTAssertEqual(inside.why.serve?.code, "overlaps-served")
+        XCTAssertFalse((toggle.note ?? "").isEmpty, "the served switch has no note")
+
         // Serving it is still refused when it is asked for.
         guard case let .refused(refusal) = await host.client.perform(.serveFolder(path: inner.path, name: "inner")) else {
             return XCTFail("the host served a folder inside a served folder")

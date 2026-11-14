@@ -1,5 +1,11 @@
 package appcore
 
+import (
+	"fmt"
+
+	"github.com/panphora/htmlclay/internal/pathrel"
+)
+
 // Why codes, stable for programs; the sentences are in copy.go.
 const (
 	WhyMissing          = "missing"
@@ -12,6 +18,7 @@ const (
 	WhyServeFirst       = "serve-first"
 	WhyViewer           = "viewer"
 	WhyStopServingFirst = "stop-serving-first"
+	WhyOverlapsServed   = "overlaps-served"
 )
 
 // folderRules is the whole rule set of a folder's levels (trusted, served, synced),
@@ -28,7 +35,11 @@ func folderRules(f Facts, ff FolderFact, state string) (FolderCan, FolderWhy) {
 	if !ff.Served {
 		switch state {
 		case FolderOK, FolderViewer:
-			can.Serve = true
+			if o, ok := servedAround(f.Folders, ff); ok {
+				why.Serve = reason(WhyOverlapsServed, fmt.Sprintf(TextWhyServeOverlaps, servedDisplayName(o)))
+			} else {
+				can.Serve = true
+			}
 		case FolderNotOnThisComputer:
 			why.Serve = reason(WhyNotOnComputer, TextWhyNotOnComputer)
 		case FolderMissing:
@@ -75,6 +86,29 @@ func folderRules(f Facts, ff FolderFact, state string) (FolderCan, FolderWhy) {
 	can.Merge = ff.ParentID != "" && hasFolder(f, ff.ParentID) && !ff.Served && !ff.Synced
 	can.OpenWorkspace = ff.Served && state == FolderOK
 	return can, why
+}
+
+// servedAround finds a served folder, other than ff itself, whose path is ff's or
+// lies below or above it: the folders CheckServe refuses as overlapping.
+func servedAround(folders []FolderFact, ff FolderFact) (FolderFact, bool) {
+	for _, o := range folders {
+		if !o.Served || o.ID == ff.ID || o.Path == "" || ff.Path == "" {
+			continue
+		}
+		if pathrel.SameOrBelow(ff.Path, o.Path) || pathrel.SameOrBelow(o.Path, ff.Path) {
+			return o, true
+		}
+	}
+	return FolderFact{}, false
+}
+
+// servedDisplayName is the name a served folder goes by: its served name when it
+// has one, else its own name.
+func servedDisplayName(ff FolderFact) string {
+	if ff.ServedName != "" {
+		return ff.ServedName
+	}
+	return ff.Name
 }
 
 func reason(code, text string) *Reason { return &Reason{Code: code, Text: text} }
