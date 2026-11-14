@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController!
     private var alerts: AppAlerts!
     private var process: HostProcess?
+    private var coordinator: TerminationCoordinator?
+    private var quitting = false
     private var home: URL?
     private var opener: FileOpener!
 
@@ -52,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let launch = HostLaunch(binary: Self.hostBinary(), environment: CandidateHome.environment(home))
         let process = HostProcess(launch: launch)
         self.process = process
+        coordinator = TerminationCoordinator(host: relay, process: process, presenter: alerts)
         process.onReady = { [weak self] _, client in
             guard let self else { return }
             Task {
@@ -95,9 +98,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        Task { [process] in
-            _ = await process?.stop(timeout: 10)
+        guard let coordinator else {
             NSApp.reply(toApplicationShouldTerminate: true)
+            return .terminateLater
+        }
+        guard !quitting else { return .terminateCancel }
+        quitting = true
+        Task {
+            let ok = await coordinator.quit()
+            if !ok { quitting = false }
+            NSApp.reply(toApplicationShouldTerminate: ok)
         }
         return .terminateLater
     }

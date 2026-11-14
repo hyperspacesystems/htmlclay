@@ -2,7 +2,7 @@ import AppKit
 import PreviewCore
 
 @MainActor
-public final class AppAlerts {
+public final class AppAlerts: QuitPresenter {
     private let model: AppModel
 
     public init(model: AppModel) { self.model = model }
@@ -46,6 +46,28 @@ public final class AppAlerts {
         case .alertFirstButtonReturn: model.say(Strings.Quit.wouldUsePort(SampleData.freePort))
         case .alertSecondButtonReturn: model.say(Strings.Quit.wouldQuitProcess(process))
         default: model.say(Strings.Quit.wouldQuit)
+        }
+    }
+
+    public func askAboutUnsaved(_ lines: [String]) async -> QuitChoice {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = Strings.Quit.unsavedTitle
+        alert.informativeText = Strings.Quit.unsavedBody(lines)
+        let names = [Strings.Quit.retry, Strings.Quit.quitAnyway, Strings.Quit.cancel]
+        for (index, name) in names.enumerated() {
+            let button = alert.addButton(withTitle: name)
+            switch index {
+            case 0: button.keyEquivalent = "\r"
+            case 2: button.keyEquivalent = "\u{1b}"
+            default: button.keyEquivalent = ""
+            }
+        }
+        alert.buttons[1].hasDestructiveAction = true
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return .retry
+        case .alertSecondButtonReturn: return .quitAnyway
+        default: return .cancel
         }
     }
 

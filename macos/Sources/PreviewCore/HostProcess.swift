@@ -133,7 +133,7 @@ private enum HostBootstrap {
 }
 
 @MainActor
-public final class HostProcess {
+public final class HostProcess: QuitHostProcess {
     private let launch: HostLaunch
     private let restartDelays: [Double]
     private let fastFailureWindow: TimeInterval
@@ -207,9 +207,17 @@ public final class HostProcess {
         return exited
     }
 
-    private var isRunning: Bool {
+    public var isRunning: Bool {
         if case .running = state { return true }
         return false
+    }
+
+    /// Waits up to timeout for a host that is exiting after an accepted host.quit.
+    /// Returns true when it exited. No restart follows.
+    public func waitUntilExited(timeout: TimeInterval) async -> Bool {
+        stopRequested = true
+        guard let child else { return true }
+        return await waitForExit(child, timeout: timeout)
     }
 
     private func supervise() async {

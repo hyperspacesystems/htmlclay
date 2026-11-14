@@ -28,6 +28,19 @@ private final class FixedFolderChooser: FolderChooser {
 }
 
 @MainActor
+private final class ScriptedQuitPresenter: QuitPresenter {
+    private(set) var asked: [[String]] = []
+    private var answers: [QuitChoice]
+
+    init(_ answers: [QuitChoice]) { self.answers = answers }
+
+    func askAboutUnsaved(_ lines: [String]) async -> QuitChoice {
+        asked.append(lines)
+        return answers.isEmpty ? .cancel : answers.removeFirst()
+    }
+}
+
+@MainActor
 private final class LiveHost {
     let home: URL
     let base: URL
@@ -47,7 +60,11 @@ private final class LiveHost {
             .appendingPathComponent(".build/host-for-tests/htmlclay")
     }
 
-    static func start() async throws -> LiveHost {
+    static var stubBinary: URL {
+        binary.deletingLastPathComponent().appendingPathComponent("stubservice")
+    }
+
+    static func start(environment extra: [String: String] = [:]) async throws -> LiveHost {
         let binary = Self.binary
         guard FileManager.default.isExecutableFile(atPath: binary.path) else {
             if ProcessInfo.processInfo.environment[Self.requireVariable] == "1" {
@@ -64,11 +81,13 @@ private final class LiveHost {
         let config = "{\"startOnLogin\": false, \"port\": \(port), \"updates\": \"off\"}\n"
         try Data(config.utf8).write(to: URL(fileURLWithPath: configDir + "/config.json"))
 
-        let process = HostProcess(launch: HostLaunch(binary: binary, environment: [
+        var environment = [
             "HOME": homePath,
             "HTMLCLAY_CONFIG_BASE": basePath,
             "HTMLCLAY_OPEN_LOG": homePath + "/open.log",
-        ]))
+        ]
+        for (key, value) in extra { environment[key] = value }
+        let process = HostProcess(launch: HostLaunch(binary: binary, environment: environment))
         var handed: (ready: HostReady, client: LoopbackHostClient)?
         process.onReady = { ready, client in handed = (ready, client) }
 
@@ -630,5 +649,83 @@ final class LiveHostTests: XCTestCase {
 
         let after = try fileState(real)
         XCTAssertEqual(before, after)
+    }
+
+    private func waitForService(_ host: LiveHost, _ message: String, timeout: TimeInterval = 30) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        var state = ""
+        while Date() < deadline {
+            state = (try? await host.client.load())?.host.service ?? ""
+            if state == "running" { return }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTFail("\(message) (host.service = \(state))")
+    }
+
+    private func stubService() throws -> URL {
+        let stub = LiveHost.stubBinary
+        guard FileManager.default.isExecutableFile(atPath: stub.path) else {
+            if ProcessInfo.processInfo.environment["HTMLCLAY_REQUIRE_LIVE_HOST"] == "1" {
+                throw LiveHostFailure.start("the stub service is missing: run scripts/build-host-for-tests.sh")
+            }
+            throw XCTSkip("run scripts/build-host-for-tests.sh to build \(stub.path)")
+        }
+        return stub
+    }
+
+    private func holdFile() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hc-hold-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        return dir.appendingPathComponent("hold")
+    }
+
+    private func startServingNotes(_ stub: URL, hold: URL) async throws -> LiveHost {
+        let host = try await LiveHost.start(environment: [
+            "HTMLCLAY_SERVICE_CMD": stub.path,
+            "HTMLCLAY_STUB_HOLD": hold.path,
+        ])
+        let notes = host.home.appendingPathComponent("notes")
+        try makeFolder(notes)
+        _ = try done(await host.client.perform(.trustFolder(name: "notes", path: notes.path)),
+                     "trusting notes was refused")
+        _ = try done(await host.client.perform(.serveFolder(path: notes.path, name: "notes")),
+                     "serving notes was refused")
+        await waitForService(host, "the stub service never started")
+        return host
+    }
+
+    func testQuitAsksBeforeLosingEditsInAServedFolder() async throws {
+        let stub = try stubService()
+        let hold = try holdFile()
+        try Data().write(to: hold)
+
+        let host = try await startServingNotes(stub, hold: hold)
+
+        let cancel = ScriptedQuitPresenter([.cancel])
+        let keeper = TerminationCoordinator(host: host.client, process: host.process, presenter: cancel)
+        let kept = await keeper.quit()
+
+        XCTAssertFalse(kept, "Quit was allowed while a served folder had unsaved edits")
+        let named = cancel.asked.first ?? []
+        XCTAssertTrue(named.contains { $0.contains("unsaved.htmlclay") },
+                      "the unsaved-edits dialog did not name the document: \(named)")
+        XCTAssertTrue(host.process.isRunning, "Cancel stopped the host")
+
+        let anyway = ScriptedQuitPresenter([.quitAnyway])
+        let leaver = TerminationCoordinator(host: host.client, process: host.process, presenter: anyway)
+        let left = await leaver.quit()
+
+        XCTAssertTrue(left, "Quit Anyway did not let the app quit")
+        XCTAssertNil(host.process.pid, "quit() answered true while the host was still running")
+
+        let fresh = try await startServingNotes(stub, hold: try holdFile())
+        let quiet = ScriptedQuitPresenter([.cancel])
+        let plain = TerminationCoordinator(host: fresh.client, process: fresh.process, presenter: quiet)
+        let quit = await plain.quit()
+
+        XCTAssertTrue(quit, "Quit with nothing unsaved was refused")
+        XCTAssertEqual(quiet.asked, [], "the person was asked with nothing unsaved")
+        XCTAssertNil(fresh.process.pid, "quit() answered true while the host was still running")
     }
 }
