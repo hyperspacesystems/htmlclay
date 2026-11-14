@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"net/http"
 	"path/filepath"
 
+	"github.com/panphora/htmlclay/internal/dataapi"
 	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/server"
@@ -22,12 +24,24 @@ type Save struct {
 	SaveID  string
 }
 
-// Result is what a save or a restore answers: the stamp the document now has,
-// whether the bytes moved, and the version the write replaced.
+// DataWrite is a write to the data a document publishes through its api rules
+// tag: the JSON to write through the rules or the JSON of a sheet patch's
+// operations, never both, and the stamp the writer last saw.
+type DataWrite struct {
+	Data    []byte
+	Patch   []byte
+	IfMatch string
+}
+
+// Result is what a write answers: the stamp the document now has, whether the
+// bytes moved, and the version the write replaced.
 type Result struct {
 	ETag        string
 	Changed     bool
 	UndoVersion string
+	// Stale is a sheet patch's own answer: its owner cannot recalculate, so the
+	// patched sheets hold formula results from before the patch.
+	Stale bool
 }
 
 // ErrNotReachable is a path no owner may reach: not inside a served folder, not
@@ -52,16 +66,53 @@ var (
 	ErrNotDocument = errors.New("not a complete HTML document")
 )
 
+// What else a data read or write is refused with. Nothing was written.
+var (
+	// ErrNoAPIRules is a document with no api rules tag, so it has no data.
+	ErrNoAPIRules = errors.New("document has no api rules tag")
+	// ErrPatchUnsupported is a patch sent to a served document: a served folder
+	// takes whole data only.
+	ErrPatchUnsupported = errors.New("a served folder takes no data patches")
+)
+
+// ErrReadRequired refuses a program's data write that would remove data when its
+// stamp does not name the exact version it read. It carries the owner's data
+// guard's own answer: its sentence, the stamp to read at and what would go.
+type ErrReadRequired struct {
+	ETag    string
+	Message string
+	Items   int
+	Values  int
+	Paths   []string
+}
+
+func (e ErrReadRequired) Error() string { return "the write would remove data that was not read" }
+
+// ErrDataRefused is a data read or write the document's rules or the data sent
+// do not allow, with the status and the sentence its owner's data route answers
+// and that route's code when it names one. Rules says the document's own api
+// rules tag is at fault, not what was sent.
+type ErrDataRefused struct {
+	Status  int
+	Code    string
+	Rules   bool
+	Message string
+}
+
+func (e ErrDataRefused) Error() string { return e.Message }
+
 // DocumentAccess is the one way to reach a document, whoever owns it. Served
-// calls the served folder's own lane and loose calls the lane behind /_/save, so
-// there is never a second write engine and never a copy of the document's bytes
-// made for reading.
+// calls the served folder's own lanes and loose calls the lanes behind /_/save
+// and /_/api, so there is never a second write engine and never a copy of the
+// document's bytes made for reading.
 type DocumentAccess interface {
 	Read(ctx context.Context) (html []byte, etag string, err error)
 	Versions(ctx context.Context, before string, limit int) (page []Version, next string, err error)
 	Version(ctx context.Context, id string) ([]byte, error)
 	Save(ctx context.Context, req Save) (Result, error)
 	Restore(ctx context.Context, versionID, ifMatch, saveID string) (Result, error)
+	ReadData(ctx context.Context) (data []byte, etag string, err error)
+	WriteData(ctx context.Context, req DataWrite) (Result, error)
 }
 
 // documentAccess picks the one owner of absPath with ResolveDocument and nothing
@@ -126,29 +177,61 @@ func (a *app) historyPage(doc historyDocument, before string, limit int) ([]Vers
 	return items, next, nil
 }
 
-// writeResult is an owner's answer to a save or a restore, in the one shape and
-// with the one set of errors both owners answer.
+// writeResult is an owner's answer to a write, in the one shape and with the one
+// set of errors both owners answer.
 func writeResult(etag string, changed bool, replaced string, err error) (Result, error) {
-	if err == nil {
-		return Result{ETag: etag, Changed: changed, UndoVersion: replaced}, nil
+	if err != nil {
+		return Result{}, ownerError(err)
 	}
+	return Result{ETag: etag, Changed: changed, UndoVersion: replaced}, nil
+}
+
+// ownerError is an owner's refusal as one of the errors both owners answer. An
+// error neither owner names is answered as it is.
+func ownerError(err error) error {
 	var servedStale *served.StaleError
 	var looseStale *server.StaleError
+	var servedRequired *served.ReadRequiredError
+	var looseRequired *server.ReadRequiredError
+	var servedRefused *served.DataRefusedError
+	var looseRefused *server.DataRefusedError
 	switch {
 	case errors.As(err, &servedStale):
-		return Result{}, ErrStale{ETag: servedStale.Etag, SaveID: servedStale.SaveID}
+		return ErrStale{ETag: servedStale.Etag, SaveID: servedStale.SaveID}
 	case errors.As(err, &looseStale):
-		return Result{}, ErrStale{ETag: looseStale.Etag, SaveID: looseStale.SaveID}
+		return ErrStale{ETag: looseStale.Etag, SaveID: looseStale.SaveID}
 	case errors.Is(err, served.ErrVersionNotKept), errors.Is(err, server.ErrVersionNotKept):
-		return Result{}, ErrBackup
+		return ErrBackup
 	case errors.Is(err, served.ErrTooLarge), errors.Is(err, server.ErrTooLarge):
-		return Result{}, ErrTooLarge
+		return ErrTooLarge
 	case errors.Is(err, served.ErrNotDocument), errors.Is(err, server.ErrNotDocument):
-		return Result{}, ErrNotDocument
+		return ErrNotDocument
 	case errors.Is(err, served.ErrNotOwned), errors.Is(err, server.ErrNotOwned):
-		return Result{}, ErrNotReachable
+		return ErrNotReachable
+	case errors.As(err, &servedRequired):
+		return ErrReadRequired{ETag: servedRequired.Etag, Message: servedRequired.Message,
+			Items: servedRequired.Items, Values: servedRequired.Values, Paths: servedRequired.Paths}
+	case errors.As(err, &looseRequired):
+		return ErrReadRequired{ETag: looseRequired.Etag, Message: looseRequired.Message,
+			Items: looseRequired.Items, Values: looseRequired.Values, Paths: looseRequired.Paths}
+	case errors.Is(err, served.ErrNoDataRules), errors.Is(err, server.ErrNoDataRules):
+		return ErrNoAPIRules
+	case errors.As(err, &servedRefused):
+		return ErrDataRefused{Status: http.StatusBadRequest, Rules: rulesAtFault(err), Message: servedRefused.Message}
+	case errors.As(err, &looseRefused):
+		return ErrDataRefused{Status: looseRefused.Status, Code: looseRefused.Code, Rules: rulesAtFault(err), Message: looseRefused.Message}
 	}
-	return Result{}, err
+	return err
+}
+
+// rulesAtFault reports that the data engine refused a read or a write for the
+// document's own api rules tag rather than for what was sent.
+func rulesAtFault(err error) bool {
+	var parse *dataapi.RulesParseError
+	var version *dataapi.UnknownRulesVersion
+	var codec *dataapi.UnknownCodec
+	var selector dataapi.SelectorFailure
+	return errors.As(err, &parse) || errors.As(err, &version) || errors.As(err, &codec) || errors.As(err, &selector)
 }
 
 // servedDocumentAccess is a document in a folder this app serves.
@@ -216,6 +299,37 @@ func (d servedDocumentAccess) Restore(ctx context.Context, versionID, ifMatch, s
 	}
 	saved, err := d.app.served.RestoreDocument(d.rootID, d.rel, versionID, served.DocumentSave{
 		IfMatch: ifMatch, SaveID: saveID, Owned: d.owned,
+	})
+	return writeResult(saved.Etag, saved.Changed, saved.Replaced, err)
+}
+
+func (d servedDocumentAccess) ReadData(ctx context.Context) ([]byte, string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, "", err
+	}
+	if d.app.served == nil {
+		return nil, "", errors.New("no served folders")
+	}
+	data, etag, err := d.app.served.ReadData(d.rootID, d.rel)
+	if err != nil {
+		return nil, "", ownerError(err)
+	}
+	return data, etag, nil
+}
+
+func (d servedDocumentAccess) WriteData(ctx context.Context, req DataWrite) (Result, error) {
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+	if d.app.served == nil {
+		return Result{}, errors.New("no served folders")
+	}
+	// A served folder's data engine applies whole data and has no patch engine.
+	if len(req.Patch) > 0 {
+		return Result{}, ErrPatchUnsupported
+	}
+	saved, err := d.app.served.WriteData(d.rootID, d.rel, served.DataWrite{
+		Data: req.Data, IfMatch: req.IfMatch, Owned: d.owned,
 	})
 	return writeResult(saved.Etag, saved.Changed, saved.Replaced, err)
 }
@@ -304,4 +418,30 @@ func (d looseDocumentAccess) Restore(ctx context.Context, versionID, ifMatch, sa
 		IfMatch: ifMatch, SaveID: saveID, Owned: d.owned,
 	})
 	return writeResult(saved.Etag, saved.Changed, saved.Replaced, err)
+}
+
+func (d looseDocumentAccess) ReadData(ctx context.Context) ([]byte, string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, "", err
+	}
+	data, etag, err := d.server.ReadData(d.path)
+	if err != nil {
+		return nil, "", ownerError(err)
+	}
+	return data, etag, nil
+}
+
+func (d looseDocumentAccess) WriteData(ctx context.Context, req DataWrite) (Result, error) {
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+	if err := d.register(); err != nil {
+		return Result{}, err
+	}
+	written, err := d.server.WriteData(d.path, server.DataWrite{
+		Data: req.Data, Patch: req.Patch, IfMatch: req.IfMatch, Owned: d.owned,
+	})
+	result, err := writeResult(written.Etag, written.Changed, written.Replaced, err)
+	result.Stale = written.Stale
+	return result, err
 }

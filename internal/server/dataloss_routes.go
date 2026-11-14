@@ -104,7 +104,7 @@ func (s *Server) handleDataLossResolve(w http.ResponseWriter, r *http.Request) {
 		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
 			return fmt.Errorf("back up the current document: %w", bErr)
 		}
-		out, _, err := s.commitDataEdit(f, current, html, r.Host, false, false)
+		out, _, _, err := s.commitDataEdit(f, current, html, r.Host, false, false)
 		if err != nil {
 			return err
 		}

@@ -203,8 +203,8 @@ func TestM3AgentReads(t *testing.T) {
 		if body.Host != "htmlclay" || body.Version != "9.9.9" {
 			t.Fatalf("whoami = %+v", body)
 		}
-		if strings.Join(body.Capabilities, ",") != "read,save,versions,restore" {
-			t.Fatalf("whoami capabilities = %v, want read, save, versions and restore", body.Capabilities)
+		if strings.Join(body.Capabilities, ",") != "read,save,data,versions,restore" {
+			t.Fatalf("whoami capabilities = %v, want read, save, data, versions and restore", body.Capabilities)
 		}
 	})
 

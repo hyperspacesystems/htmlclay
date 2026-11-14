@@ -59,6 +59,12 @@ const (
 	codeTooLarge             = "too-large"
 	codeInvalidDocument      = "invalid-document"
 	codeRecoveryUnavailable  = "recovery-unavailable"
+
+	codeReadRequired     = "read-required"
+	codeNoAPIRules       = "no-api-rules"
+	codeBadAPIRules      = "bad-api-rules"
+	codeBadData          = "bad-data"
+	codePatchUnsupported = "patch-unsupported"
 )
 
 // The sentences a refusal carries, so the lane never invents wording at a call
@@ -79,6 +85,10 @@ const (
 	textRecoveryUnavailable  = "The current version could not be stored in history, so nothing was written. Try again."                // contract text, verbatim
 	textBadBody              = "The body must be JSON naming html and operationId, or a Save-ID header must name it."                  // TODO-COPY: agent lane, max 160 chars
 	textWriteFailed          = "That document could not be written."                                                                   // TODO-COPY: agent lane, max 120 chars
+	textBadDataBody          = "The body must be JSON naming data or patch, never both, and operationId or a Save-ID header."          // TODO-COPY: agent lane, max 160 chars
+	textNoAPIRules           = "This document has no api rules tag, so it has no data. Read its HTML and save the whole document."     // TODO-COPY: agent.no-api-rules, max 160 chars
+	textPatchUnsupported     = "This document's folder takes whole data only. Read the data, change it, and send it as data."          // TODO-COPY: agent.patch-unsupported, max 160 chars
+	textDataTooLarge         = "That data is larger than this app writes at once. Send fewer fields, or save the whole document."      // TODO-COPY: agent lane, max 160 chars
 )
 
 // Version is one kept version of a document.
@@ -100,13 +110,24 @@ type Document struct {
 	Open   bool   `json:"open"`
 }
 
-// Access is one document's reads.
+// Access is one document's reads and writes.
 type Access interface {
 	Read(ctx context.Context) (html []byte, etag string, err error)
 	Versions(ctx context.Context, before string, limit int) (page []Version, next string, err error)
 	Version(ctx context.Context, id string) ([]byte, error)
 	Save(ctx context.Context, html []byte, ifMatch, saveID string) (WriteResult, error)
 	Restore(ctx context.Context, versionID, ifMatch, saveID string) (WriteResult, error)
+	ReadData(ctx context.Context) (data []byte, etag string, err error)
+	WriteData(ctx context.Context, write DataWrite) (WriteResult, error)
+}
+
+// DataWrite is a write to the data a document publishes through its api rules
+// tag: the JSON to write through the rules or the JSON of a sheet patch's
+// operations, never both, and the etag the program read.
+type DataWrite struct {
+	Data    []byte
+	Patch   []byte
+	IfMatch string
 }
 
 // Host is the app as this lane sees it.
@@ -124,12 +145,15 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
-// WriteResult is what a save or a restore answers: the stamp the document now has,
-// whether its bytes moved, and the version holding the bytes it replaced.
+// WriteResult is what a write answers: the stamp the document now has, whether its
+// bytes moved, and the version holding the bytes it replaced.
 type WriteResult struct {
 	ETag        string
 	Changed     bool
 	UndoVersion string
+	// Stale is a sheet patch's own answer: the owner cannot recalculate, so the
+	// patched sheets hold formula results from before the patch.
+	Stale bool
 }
 
 // StaleError is a write whose If-Match no longer names the document. It carries the
@@ -151,7 +175,46 @@ var (
 
 	// ErrNotDocument is bytes that are not a whole HTML document.
 	ErrNotDocument = errors.New("not a complete HTML document")
+
+	// ErrNoAPIRules is a document with no api rules tag, so it has no data.
+	ErrNoAPIRules = errors.New("the document has no api rules tag")
+
+	// ErrPatchUnsupported is a patch sent to a document whose owner takes whole
+	// data only.
+	ErrPatchUnsupported = errors.New("the document's owner takes no patches")
 )
+
+// WouldRemove is what a refused write would have taken from the document, as its
+// owner's data guard counts it.
+type WouldRemove struct {
+	Items  int      `json:"items"`
+	Values int      `json:"values"`
+	Paths  []string `json:"paths"`
+}
+
+// ReadRequiredError is a write its owner's data guard refused: it would remove
+// data, and the program has not shown it read the version it would replace. It
+// carries the guard's own sentence, the stamp to read at and what would go.
+type ReadRequiredError struct {
+	ETag        string
+	Message     string
+	WouldRemove WouldRemove
+}
+
+func (e *ReadRequiredError) Error() string { return "the write would remove data that was not read" }
+
+// DataError is a data read or write the document's owner refused, with the status
+// and the sentence its own data route answers and its code when it names one.
+// Rules says the document's api rules tag is at fault, not what the program
+// sent. Nothing was written.
+type DataError struct {
+	Status  int
+	Code    string
+	Rules   bool
+	Message string
+}
+
+func (e *DataError) Error() string { return e.Message }
 
 // browserHeaders are the headers every browser sends and a program does not.
 // One present, even empty, means a page is calling.
@@ -223,6 +286,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case kind == "restore" && r.Method == http.MethodPost:
 		h.restore(w, r, id, versionID)
 		return
+	case kind == "data" && r.Method == http.MethodPost:
+		h.writeData(w, r, id)
+		return
 	case kind == "restore" || r.Method != http.MethodGet:
 		refuse(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, textMethodNotAllowed)
 		return
@@ -234,6 +300,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.list(w, r)
 	case "document":
 		h.read(w, r, id)
+	case "data":
+		h.data(w, r, id)
 	case "versions":
 		h.versions(w, r, id)
 	case "version":
@@ -276,6 +344,8 @@ func route(path string) (kind, id, versionID string) {
 	switch {
 	case len(segments) == 1 && segments[0] != "":
 		return "document", segments[0], ""
+	case len(segments) == 2 && segments[0] != "" && segments[1] == "data":
+		return "data", segments[0], ""
 	case len(segments) == 2 && segments[0] != "" && segments[1] == "versions":
 		return "versions", segments[0], ""
 	case len(segments) == 3 && segments[0] != "" && segments[1] == "versions" && segments[2] != "":
@@ -291,7 +361,7 @@ func (h *handler) whoami(w http.ResponseWriter) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"host":         "htmlclay",
 		"version":      h.host.Version(),
-		"capabilities": []string{"read", "save", "versions", "restore"},
+		"capabilities": []string{"read", "save", "data", "versions", "restore"},
 	})
 }
 
@@ -393,12 +463,53 @@ func (h *handler) version(w http.ResponseWriter, r *http.Request, id, versionID 
 	})
 }
 
-// writeBody is a write's JSON body. A save names html; both may name the
-// operation id, which a Save-ID header may name instead.
-type writeBody struct {
-	HTML        *string `json:"html"`
-	OperationID string  `json:"operationId"`
+// data answers the data a document publishes through its api rules tag, and the
+// stamp its owner's data write compares.
+func (h *handler) data(w http.ResponseWriter, r *http.Request, id string) {
+	path, ok := PathFromID(id)
+	if !ok {
+		refuse(w, http.StatusBadRequest, codeBadRequest, textBadRequest)
+		return
+	}
+	access, _, err := h.host.Access(r.Context(), path)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	data, etag, err := access.ReadData(r.Context())
+	if err != nil {
+		if answer, ok := dataRefusal(err); ok {
+			send(w, answer)
+			return
+		}
+		h.fail(w, err)
+		return
+	}
+	w.Header().Set("ETag", etag)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data": json.RawMessage(data),
+		"etag": etag,
+	})
 }
+
+// writeBody is a write's JSON body. A save names html and a data write names
+// data or patch; each may name the operation id, which a Save-ID header may name
+// instead.
+type writeBody struct {
+	HTML        *string         `json:"html"`
+	Data        json.RawMessage `json:"data"`
+	Patch       json.RawMessage `json:"patch"`
+	OperationID string          `json:"operationId"`
+}
+
+// bodyKind is which write a body belongs to, and so what it must name.
+type bodyKind int
+
+const (
+	restoreBody bodyKind = iota // may be empty
+	saveBody                    // names html
+	dataBody                    // names data or patch, never both
+)
 
 // save replaces one document's bytes through its owner's own save lane.
 func (h *handler) save(w http.ResponseWriter, r *http.Request, id string) {
@@ -411,7 +522,7 @@ func (h *handler) save(w http.ResponseWriter, r *http.Request, id string) {
 	if refused {
 		return
 	}
-	body, key, ok := readWriteBody(w, r, true)
+	body, key, ok := readWriteBody(w, r, saveBody)
 	if !ok {
 		return
 	}
@@ -424,7 +535,7 @@ func (h *handler) save(w http.ResponseWriter, r *http.Request, id string) {
 		if err != nil {
 			return writeRefusal(err)
 		}
-		return writtenAnswer(result, key)
+		return writtenAnswer(result, key, false)
 	})
 }
 
@@ -440,7 +551,7 @@ func (h *handler) restore(w http.ResponseWriter, r *http.Request, id, versionID 
 	if refused {
 		return
 	}
-	_, key, ok := readWriteBody(w, r, false)
+	_, key, ok := readWriteBody(w, r, restoreBody)
 	if !ok {
 		return
 	}
@@ -453,7 +564,45 @@ func (h *handler) restore(w http.ResponseWriter, r *http.Request, id, versionID 
 		if err != nil {
 			return writeRefusal(err)
 		}
-		return writtenAnswer(result, key)
+		return writtenAnswer(result, key, false)
+	})
+}
+
+// writeData changes the data a document publishes through its api rules tag,
+// through its owner's own data write: the whole data the body names, or a sheet
+// patch.
+func (h *handler) writeData(w http.ResponseWriter, r *http.Request, id string) {
+	path, ok := PathFromID(id)
+	if !ok {
+		refuse(w, http.StatusBadRequest, codeBadRequest, textBadRequest)
+		return
+	}
+	tag, refused := strongIfMatch(w, r)
+	if refused {
+		return
+	}
+	body, key, ok := readWriteBody(w, r, dataBody)
+	if !ok {
+		return
+	}
+	patch := named(body.Patch)
+	write, shape, raw := DataWrite{Data: body.Data, IfMatch: tag}, "data", body.Data
+	if patch {
+		write, shape, raw = DataWrite{Patch: body.Patch, IfMatch: tag}, "patch", body.Patch
+	}
+	h.write(w, id+"\x00"+key, fingerprintOf(r.Method, r.URL.Path, tag, shape, string(raw)), func() Answer {
+		access, _, err := h.host.Access(r.Context(), path)
+		if err != nil {
+			return writeRefusal(err)
+		}
+		result, err := access.WriteData(r.Context(), write)
+		if err != nil {
+			if answer, ok := dataRefusal(err); ok {
+				return answer
+			}
+			return writeRefusal(err)
+		}
+		return writtenAnswer(result, key, patch)
 	})
 }
 
@@ -464,6 +613,10 @@ func (h *handler) write(w http.ResponseWriter, key, fingerprint string, run func
 	if errors.Is(err, ErrOperationReused) {
 		answer = refusalAnswer(http.StatusBadRequest, errorBody{Code: codeOperationReused, Message: textOperationReused})
 	}
+	send(w, answer)
+}
+
+func send(w http.ResponseWriter, answer Answer) {
 	for name, values := range answer.Header {
 		w.Header()[name] = values
 	}
@@ -490,18 +643,22 @@ func strongIfMatch(w http.ResponseWriter, r *http.Request) (tag string, refused 
 
 // readWriteBody decodes a write's body and names its operation id: the body's
 // operationId, or the Save-ID header, which must agree when both are sent. A save
-// must name html; a restore may send no body at all. ok false means the answer
-// was sent.
-func readWriteBody(w http.ResponseWriter, r *http.Request, needHTML bool) (body writeBody, key string, ok bool) {
+// must name html, a data write must name data or patch and never both, and a
+// restore may send no body at all. ok false means the answer was sent.
+func readWriteBody(w http.ResponseWriter, r *http.Request, kind bodyKind) (body writeBody, key string, ok bool) {
+	text := textBadBody
+	if kind == dataBody {
+		text = textBadDataBody
+	}
 	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, saveBodyLimit)).Decode(&body)
 	var tooLarge *http.MaxBytesError
 	switch {
 	case errors.As(err, &tooLarge):
 		refuse(w, http.StatusRequestEntityTooLarge, codeTooLarge, textTooLarge)
 		return body, "", false
-	case errors.Is(err, io.EOF) && !needHTML:
+	case errors.Is(err, io.EOF) && kind == restoreBody:
 	case err != nil:
-		refuse(w, http.StatusBadRequest, codeBadRequest, textBadBody)
+		refuse(w, http.StatusBadRequest, codeBadRequest, text)
 		return body, "", false
 	}
 	header := r.Header.Get("Save-ID")
@@ -509,11 +666,24 @@ func readWriteBody(w http.ResponseWriter, r *http.Request, needHTML bool) (body 
 	if key == "" {
 		key = header
 	}
-	if key == "" || len(key) > maxOperationID || (header != "" && header != key) || (needHTML && body.HTML == nil) {
-		refuse(w, http.StatusBadRequest, codeBadRequest, textBadBody)
+	whole := true
+	switch kind {
+	case saveBody:
+		whole = body.HTML != nil
+	case dataBody:
+		whole = named(body.Data) != named(body.Patch)
+	}
+	if key == "" || len(key) > maxOperationID || (header != "" && header != key) || !whole {
+		refuse(w, http.StatusBadRequest, codeBadRequest, text)
 		return body, "", false
 	}
 	return body, key, true
+}
+
+// named reports whether a body named this field with a value: a field left out
+// and a JSON null both name nothing.
+func named(raw json.RawMessage) bool {
+	return len(raw) > 0 && string(raw) != "null"
 }
 
 // fingerprintOf is what makes two writes with one operation id the same write.
@@ -527,20 +697,62 @@ func fingerprintOf(parts ...string) string {
 
 // writtenAnswer is a write's success: the new stamp, whether the bytes moved, the
 // operation id, and the version holding the replaced bytes (null when nothing
-// was replaced).
-func writtenAnswer(result WriteResult, key string) Answer {
+// was replaced). A sheet patch also answers stale.
+func writtenAnswer(result WriteResult, key string, patch bool) Answer {
 	var undo any
 	if result.UndoVersion != "" {
 		undo = result.UndoVersion
 	}
-	answer := jsonAnswer(http.StatusOK, map[string]any{
+	body := map[string]any{
 		"etag":          result.ETag,
 		"changed":       result.Changed,
 		"operationId":   key,
 		"undoVersionId": undo,
-	})
+	}
+	if patch {
+		body["stale"] = result.Stale
+	}
+	answer := jsonAnswer(http.StatusOK, body)
 	answer.Header.Set("ETag", result.ETag)
 	return answer
+}
+
+// dataRefusal is a data route's own error as the lane answers it, and false for
+// an error every write shares. The data guard's refusal keeps the guard's
+// sentence, the stamp to read at and what the write would have removed.
+func dataRefusal(err error) (Answer, bool) {
+	var required *ReadRequiredError
+	var refused *DataError
+	switch {
+	case errors.As(err, &required):
+		answer := refusalAnswer(http.StatusPreconditionRequired, errorBody{
+			Code:        codeReadRequired,
+			Message:     required.Message,
+			ETag:        required.ETag,
+			WouldRemove: required.WouldRemove,
+		})
+		answer.Header.Set("ETag", required.ETag)
+		return answer, true
+	case errors.Is(err, ErrNoAPIRules):
+		return refusalAnswer(http.StatusBadRequest, errorBody{Code: codeNoAPIRules, Message: textNoAPIRules}), true
+	case errors.Is(err, ErrPatchUnsupported):
+		return refusalAnswer(http.StatusBadRequest, errorBody{Code: codePatchUnsupported, Message: textPatchUnsupported}), true
+	case errors.Is(err, ErrTooLarge):
+		return refusalAnswer(http.StatusRequestEntityTooLarge, errorBody{Code: codeTooLarge, Message: textDataTooLarge}), true
+	case errors.As(err, &refused):
+		status, code := refused.Status, refused.Code
+		if status < http.StatusBadRequest || status >= http.StatusInternalServerError {
+			status = http.StatusBadRequest
+		}
+		if code == "" {
+			code = codeBadData
+			if refused.Rules {
+				code = codeBadAPIRules
+			}
+		}
+		return refusalAnswer(status, errorBody{Code: code, Message: refused.Message}), true
+	}
+	return Answer{}, false
 }
 
 // writeRefusal is a write's error as the lane answers it.

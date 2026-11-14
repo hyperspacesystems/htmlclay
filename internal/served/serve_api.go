@@ -2,7 +2,9 @@ package served
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -536,95 +538,24 @@ func (s *rootServer) applySiteData(w http.ResponseWriter, r *http.Request, name,
 	unlock := s.commit.locks.lock(sourcePath)
 	defer unlock()
 
-	stored, err := os.ReadFile(sourcePath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return apiAnswer(w, r, http.StatusNotFound, apiSiteNotFoundBody)
-		}
-		return err
-	}
-	logical, err := logicalBytes(s.baseDir, name, stored)
-	if err != nil {
-		return err
-	}
-	if headerPresent(r, "If-Match") && !specwire.IfMatchSatisfied(r.Header.Get("If-Match"), logical) {
-		w.Header().Set("ETag", specwire.Etag(logical))
-		return apiAnswer(w, r, http.StatusPreconditionFailed, orderedObject{
-			{Key: "error", Value: "Precondition Failed"},
-			{Key: "message", Value: name + " changed since you read it. Nothing was written."},
-		})
-	}
-	previous := string(logical)
-	if !bytes.Equal([]byte(previous), logical) {
-		return apiAnswer(w, r, http.StatusBadRequest, orderedObject{
-			{Key: "error", Value: "Unsupported encoding"},
-			{Key: "message", Value: name + " is not UTF-8, so it cannot be written through the data API without changing bytes outside the edit."},
-		})
-	}
-
-	if supplied {
-		if _, err := apiExtractWithRules(logical, rules); err != nil {
-			if mapped, ok := mapQueryError(err); ok {
-				return apiAnswer(w, r, http.StatusBadRequest, mapped)
-			}
-			return apiAnswer(w, r, http.StatusBadRequest, orderedObject{
-				{Key: "error", Value: "Invalid extraction rules"},
-				{Key: "message", Value: "Could not extract the requested data."},
-				{Key: "details", Value: err.Error()},
-			})
-		}
-	}
-
-	var result *dataapi.WriteResult
-	if supplied {
-		result, err = dataapi.WriteDocumentWithRules(logical, data, rules)
-	} else {
-		result, err = dataapi.WriteDocument(logical, data, apiRulesToken)
-	}
-	if err != nil {
-		if supplied {
-			if mapped, ok := mapQueryError(err); ok {
-				return apiAnswer(w, r, http.StatusBadRequest, mapped)
-			}
-		}
-		if mapped, ok := mapWriteError(err); ok {
-			return apiAnswer(w, r, http.StatusBadRequest, mapped)
-		}
-		return err
-	}
-
-	if supplied {
-		if _, err := apiExtractWithRules(result.HTML, rules); err != nil {
-			if mapped, ok := mapQueryError(err); ok {
-				return apiAnswer(w, r, http.StatusBadRequest, mapped)
-			}
-			return apiAnswer(w, r, http.StatusBadRequest, orderedObject{
-				{Key: "error", Value: "Invalid extraction rules"},
-				{Key: "message", Value: "Could not extract the requested data."},
-				{Key: "details", Value: err.Error()},
-			})
-		}
-	}
-
-	written := []byte(previous)
-	if result.Changed {
-		program := s.publicHost != "" && !admittedAsPage(r)
-		committed, err := s.commitDataAPI(name, sourcePath, result.HTML, previous, r.Header.Get("If-Match"), program)
-		if err != nil {
-			var refused *refusalError
-			if errors.As(err, &refused) {
-				return writeRefusal(w, r, refused.refusal)
-			}
-			return apiAnswer(w, r, http.StatusInternalServerError, apiInternalErrorBody)
-		}
-		written = []byte(committed)
+	written, refusal := s.writeSiteData(name, sourcePath, siteDataWrite{
+		data:        data,
+		rules:       rules,
+		supplied:    supplied,
+		ifMatch:     r.Header.Get("If-Match"),
+		ifMatchSent: headerPresent(r, "If-Match"),
+		program:     s.publicHost != "" && !admittedAsPage(r),
+	})
+	if refusal != nil {
+		return refusal.answer(w, r)
 	}
 
 	var fresh dataapi.Value
+	var err error
 	if supplied {
-		fresh, err = apiExtractWithRules(written, rules)
+		fresh, err = apiExtractWithRules(written.stored, rules)
 	} else {
-		fresh, err = apiExtractViaTag(written)
+		fresh, err = apiExtractViaTag(written.stored)
 	}
 	if err != nil {
 		return apiAnswer(w, r, http.StatusInternalServerError, apiInternalErrorBody)
@@ -635,17 +566,202 @@ func (s *rootServer) applySiteData(w http.ResponseWriter, r *http.Request, name,
 	}
 	return sendAPIResult(w, r, apiResult{
 		Status:  http.StatusOK,
-		Headers: []kv{{Key: "ETag", Value: specwire.Etag(written)}},
+		Headers: []kv{{Key: "ETag", Value: specwire.Etag(written.stored)}},
 		Raw:     encoded,
 		HasRaw:  true,
 	})
+}
+
+// siteDataWrite is one write through a document's rules, whoever asks for it.
+type siteDataWrite struct {
+	data dataapi.Value
+	// rules are a `?data=` caller's own, when supplied; the document's api rules
+	// tag is written through otherwise.
+	rules       dataapi.Value
+	supplied    bool
+	ifMatch     string
+	ifMatchSent bool
+	// program says no page is behind the write, so the lane judges it: a write
+	// that would remove data needs an If-Match naming the exact version read.
+	program bool
+}
+
+// siteDataWritten is what the lane answers a data write it stored.
+type siteDataWritten struct {
+	// stored is the document as the route reads it back: the bytes on disk after
+	// the write, or the document as it stood when the data changed nothing.
+	stored []byte
+	// etag stamps the document as the next write's If-Match is compared.
+	etag    string
+	changed bool
+	// replaced names the kept version that holds the bytes the write replaced.
+	replaced string
+}
+
+// siteDataRefusal is a data write the lane did not store. Nothing was written.
+// answer writes the answer POST /_/api gives, and err is what a program is told.
+type siteDataRefusal struct {
+	err    error
+	answer func(w http.ResponseWriter, r *http.Request) error
+}
+
+// writeSiteData is the lane behind POST /_/api. The caller holds the document's
+// commit lock.
+func (s *rootServer) writeSiteData(name, sourcePath string, in siteDataWrite) (siteDataWritten, *siteDataRefusal) {
+	refuse := func(err error, answer func(w http.ResponseWriter, r *http.Request) error) (siteDataWritten, *siteDataRefusal) {
+		return siteDataWritten{}, &siteDataRefusal{err: err, answer: answer}
+	}
+	fail := func(err error) (siteDataWritten, *siteDataRefusal) {
+		return refuse(err, func(http.ResponseWriter, *http.Request) error { return err })
+	}
+	refuseWith := func(err error, status int, body orderedObject) (siteDataWritten, *siteDataRefusal) {
+		return refuse(err, func(w http.ResponseWriter, r *http.Request) error { return apiAnswer(w, r, status, body) })
+	}
+	unreadable := func(err error) (siteDataWritten, *siteDataRefusal) {
+		if mapped, ok := mapQueryError(err); ok {
+			return refuseWith(err, http.StatusBadRequest, mapped)
+		}
+		return refuseWith(err, http.StatusBadRequest, orderedObject{
+			{Key: "error", Value: "Invalid extraction rules"},
+			{Key: "message", Value: "Could not extract the requested data."},
+			{Key: "details", Value: err.Error()},
+		})
+	}
+
+	stored, err := os.ReadFile(sourcePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return refuseWith(err, http.StatusNotFound, apiSiteNotFoundBody)
+		}
+		return fail(err)
+	}
+	logical, err := logicalBytes(s.baseDir, name, stored)
+	if err != nil {
+		return fail(err)
+	}
+	if in.ifMatchSent && !specwire.IfMatchSatisfied(in.ifMatch, logical) {
+		etag := specwire.Etag(logical)
+		stale := &StaleError{Etag: etag, SaveID: s.commit.store.saveReceipt(sourcePath, etag)}
+		return refuse(stale, func(w http.ResponseWriter, r *http.Request) error {
+			w.Header().Set("ETag", etag)
+			return apiAnswer(w, r, http.StatusPreconditionFailed, orderedObject{
+				{Key: "error", Value: "Precondition Failed"},
+				{Key: "message", Value: name + " changed since you read it. Nothing was written."},
+			})
+		})
+	}
+	previous := string(logical)
+	if !bytes.Equal([]byte(previous), logical) {
+		message := name + " is not UTF-8, so it cannot be written through the data API without changing bytes outside the edit."
+		return refuseWith(&DataRefusedError{Message: message}, http.StatusBadRequest, orderedObject{
+			{Key: "error", Value: "Unsupported encoding"},
+			{Key: "message", Value: message},
+		})
+	}
+
+	if in.supplied {
+		if _, err := apiExtractWithRules(logical, in.rules); err != nil {
+			return unreadable(err)
+		}
+	}
+
+	var result *dataapi.WriteResult
+	if in.supplied {
+		result, err = dataapi.WriteDocumentWithRules(logical, in.data, in.rules)
+	} else {
+		result, err = dataapi.WriteDocument(logical, in.data, apiRulesToken)
+	}
+	if err != nil {
+		if in.supplied {
+			if mapped, ok := mapQueryError(err); ok {
+				return refuseWith(err, http.StatusBadRequest, mapped)
+			}
+		}
+		if mapped, ok := mapWriteError(err); ok {
+			return refuseWith(refusedData(err, mapped), http.StatusBadRequest, mapped)
+		}
+		return fail(err)
+	}
+
+	if in.supplied {
+		if _, err := apiExtractWithRules(result.HTML, in.rules); err != nil {
+			return unreadable(err)
+		}
+	}
+
+	if !result.Changed {
+		return siteDataWritten{stored: []byte(previous), etag: specwire.Etag(logical)}, nil
+	}
+	committed, err := s.commitDataAPI(name, sourcePath, result.HTML, previous, in.ifMatch, in.program)
+	if err != nil {
+		var refused *refusalError
+		if errors.As(err, &refused) {
+			return refuse(refusedCommit(refused.refusal), func(w http.ResponseWriter, r *http.Request) error {
+				return writeRefusal(w, r, refused.refusal)
+			})
+		}
+		return refuseWith(err, http.StatusInternalServerError, apiInternalErrorBody)
+	}
+	return siteDataWritten{
+		stored:   []byte(committed.stored),
+		etag:     committed.etag,
+		changed:  committed.etag != specwire.Etag(logical),
+		replaced: committed.replaced,
+	}, nil
+}
+
+// refusedData is what a program is told of a read or a write the engine refused:
+// the sentence the data route answers, around the engine's own error.
+func refusedData(err error, body orderedObject) error {
+	var noTag *dataapi.NoRulesTag
+	if errors.As(err, &noTag) {
+		return ErrNoDataRules
+	}
+	message := ""
+	for _, field := range body {
+		if text, ok := field.Value.(string); ok && field.Key == "message" {
+			message = text
+		}
+	}
+	return &DataRefusedError{Message: message, Err: err}
+}
+
+// refusedCommit is what a program is told of a write the lane refused: the data
+// guard's own answer read back from the body the route sends, a replaced version
+// that could not be kept, or the refusal's code.
+func refusedCommit(refusal *serviceRefusal) error {
+	switch refusal.Code {
+	case "read-required":
+		var body readRequiredBody
+		if err := json.Unmarshal(refusal.Body, &body); err == nil {
+			return &ReadRequiredError{
+				Etag:    body.Etag,
+				Message: body.Message,
+				Items:   body.WouldRemove.Items,
+				Values:  body.WouldRemove.Values,
+				Paths:   body.WouldRemove.Paths,
+			}
+		}
+	case "backup-failed":
+		return ErrVersionNotKept
+	}
+	return fmt.Errorf("served: the data was not written: %s", refusal.Code)
+}
+
+// dataCommitted is a data API write the lane stored: the bytes on disk, the stamp
+// of the document as its next write is compared, and the kept version that holds
+// the bytes it replaced.
+type dataCommitted struct {
+	stored   string
+	etag     string
+	replaced string
 }
 
 // commitDataAPI hands the engine's bytes to the commit core on the data-api lane,
 // with the document as it stood under the lock as the guard's previous copy.
 // program is how the gate admitted the request; a program's write that would
 // remove data is refused in the lane unless it named the exact version it read.
-func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previous string, ifMatch string, program bool) (string, error) {
+func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previous string, ifMatch string, program bool) (dataCommitted, error) {
 	request := &commitRequest{
 		Kind:         "data-api",
 		Name:         name,
@@ -658,22 +774,22 @@ func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previou
 	}
 	result, err := s.commit.commitLocked(request, commitLane{lane: "save", origin: "api"}, sourcePath)
 	if err != nil {
-		return "", err
+		return dataCommitted{}, err
 	}
 	if result.Refusal != nil {
-		return "", &refusalError{refusal: result.Refusal}
+		return dataCommitted{}, &refusalError{refusal: result.Refusal}
 	}
 	if result.Outcome == "refused" && result.Reason == "backup-failed" {
-		return "", &refusalError{refusal: notKeptRefusal()}
+		return dataCommitted{}, &refusalError{refusal: notKeptRefusal()}
 	}
 	if result.Outcome != "committed" {
-		return "", errors.New("the write did not commit")
+		return dataCommitted{}, errors.New("the write did not commit")
 	}
 	stored, ok := result.Stored.(string)
 	if !ok {
-		return "", errors.New("the write produced no stored bytes")
+		return dataCommitted{}, errors.New("the write produced no stored bytes")
 	}
-	return stored, nil
+	return dataCommitted{stored: stored, etag: result.Etag, replaced: result.Replaced}, nil
 }
 
 // notKeptRefusal answers a data API write whose replaced bytes could not be kept

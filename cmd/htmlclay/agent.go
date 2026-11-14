@@ -293,22 +293,48 @@ func (d agentAccess) Version(ctx context.Context, id string) ([]byte, error) {
 
 func (d agentAccess) Save(ctx context.Context, html []byte, ifMatch, saveID string) (agentlane.WriteResult, error) {
 	result, err := d.access.Save(ctx, Save{HTML: html, IfMatch: ifMatch, SaveID: saveID})
-	return agentlane.WriteResult{ETag: result.ETag, Changed: result.Changed, UndoVersion: result.UndoVersion}, agentError(err)
+	return agentResult(result), agentError(err)
 }
 
 func (d agentAccess) Restore(ctx context.Context, versionID, ifMatch, saveID string) (agentlane.WriteResult, error) {
 	result, err := d.access.Restore(ctx, versionID, ifMatch, saveID)
-	return agentlane.WriteResult{ETag: result.ETag, Changed: result.Changed, UndoVersion: result.UndoVersion}, agentError(err)
+	return agentResult(result), agentError(err)
+}
+
+func (d agentAccess) ReadData(ctx context.Context) ([]byte, string, error) {
+	data, etag, err := d.access.ReadData(ctx)
+	return data, etag, agentError(err)
+}
+
+func (d agentAccess) WriteData(ctx context.Context, write agentlane.DataWrite) (agentlane.WriteResult, error) {
+	result, err := d.access.WriteData(ctx, DataWrite{Data: write.Data, Patch: write.Patch, IfMatch: write.IfMatch})
+	return agentResult(result), agentError(err)
+}
+
+func agentResult(result Result) agentlane.WriteResult {
+	return agentlane.WriteResult{ETag: result.ETag, Changed: result.Changed, UndoVersion: result.UndoVersion, Stale: result.Stale}
 }
 
 // agentError is a document lane's error as this lane names it.
 func agentError(err error) error {
 	var stale ErrStale
+	var required ErrReadRequired
+	var refused ErrDataRefused
 	switch {
 	case err == nil:
 		return nil
 	case errors.As(err, &stale):
 		return &agentlane.StaleError{ETag: stale.ETag, SaveID: stale.SaveID}
+	case errors.As(err, &required):
+		return &agentlane.ReadRequiredError{ETag: required.ETag, Message: required.Message, WouldRemove: agentlane.WouldRemove{
+			Items: required.Items, Values: required.Values, Paths: append([]string{}, required.Paths...),
+		}}
+	case errors.Is(err, ErrNoAPIRules):
+		return agentlane.ErrNoAPIRules
+	case errors.Is(err, ErrPatchUnsupported):
+		return agentlane.ErrPatchUnsupported
+	case errors.As(err, &refused):
+		return &agentlane.DataError{Status: refused.Status, Code: refused.Code, Rules: refused.Rules, Message: refused.Message}
 	case errors.Is(err, ErrNotReachable):
 		return agentlane.ErrNotReachable
 	case errors.Is(err, ErrBackup):

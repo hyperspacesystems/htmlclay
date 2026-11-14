@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/panphora/htmlclay/internal/dataapi"
 	"github.com/panphora/htmlclay/internal/dataguard"
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/specwire"
@@ -167,6 +168,23 @@ func (h *Host) RestoreDocument(rootID, rel, versionID string, save DocumentSave)
 	})
 }
 
+// held resolves a document's owner again once its lock is held: the folder may
+// have stopped being served, or the document may have moved, while the write
+// waited for the lock. A nil answer means the document is still this folder's
+// to write.
+func (h *Host) held(server *rootServer, rootID, rel, filePath string, owned func() bool) error {
+	if now, err := h.rootFor(rootID); err != nil || now != server {
+		return ErrNotOwned
+	}
+	if again, err := resolveWriteTarget(server.registry, rel); err != nil || again != filePath {
+		return ErrNotOwned
+	}
+	if owned != nil && !owned() {
+		return ErrNotOwned
+	}
+	return server.commit.folderGone()
+}
+
 // programWrite is the locked half of a program's save and restore. incoming
 // answers the bytes to write over the document as the save lane compares it.
 func (h *Host) programWrite(server *rootServer, rootID, rel string, save DocumentSave, incoming func(current []byte) (string, error)) (DocumentSaved, error) {
@@ -178,19 +196,8 @@ func (h *Host) programWrite(server *rootServer, rootID, rel string, save Documen
 	unlock := server.commit.locks.lock(filePath)
 	defer unlock()
 
-	// The owner is resolved again here: the folder may have stopped being served,
-	// or the document may have moved, while this write waited for the lock.
-	if now, err := h.rootFor(rootID); err != nil || now != server {
-		return DocumentSaved{}, ErrNotOwned
-	}
-	if again, err := resolveWriteTarget(server.registry, rel); err != nil || again != filePath {
-		return DocumentSaved{}, ErrNotOwned
-	}
-	if save.Owned != nil && !save.Owned() {
-		return DocumentSaved{}, ErrNotOwned
-	}
-	if gone := server.commit.folderGone(); gone != nil {
-		return DocumentSaved{}, gone
+	if err := h.held(server, rootID, rel, filePath, save.Owned); err != nil {
+		return DocumentSaved{}, err
 	}
 
 	data, err := os.ReadFile(filePath)
@@ -259,4 +266,129 @@ func (h *Host) programWrite(server *rootServer, rootID, rel string, save Documen
 		Changed:  result.Etag != specwire.Etag(logical),
 		Replaced: result.Replaced,
 	}, nil
+}
+
+// ErrNoDataRules is a document with no api rules tag: it publishes no data to
+// read or write.
+var ErrNoDataRules = errors.New("served: the document has no api rules tag")
+
+// ReadRequiredError refuses a program's data write that would remove data when
+// its IfMatch does not name the exact version it read. It is the data guard's
+// own answer: its sentence, the stamp to read at and what the write would have
+// removed. Nothing was written.
+type ReadRequiredError struct {
+	Etag    string
+	Message string
+	Items   int
+	Values  int
+	Paths   []string
+}
+
+func (e *ReadRequiredError) Error() string {
+	return "served: the write would remove data that was not read"
+}
+
+// DataRefusedError is a data read or write the document's rules or the data sent
+// do not allow, with the sentence the data route answers. Err is the engine's
+// own error when the engine refused. Nothing was written.
+type DataRefusedError struct {
+	Message string
+	Err     error
+}
+
+func (e *DataRefusedError) Error() string { return "served: " + e.Message }
+
+func (e *DataRefusedError) Unwrap() error { return e.Err }
+
+// ReadData answers the data one served document publishes through its api rules
+// tag, as JSON, and the stamp its data write judges an If-Match against: the
+// logical document's. It reads the document on disk and never the data sidecar
+// GET /_/api may answer from, so the data and the stamp are of the same bytes.
+func (h *Host) ReadData(rootID, rel string) ([]byte, string, error) {
+	server, err := h.rootFor(rootID)
+	if err != nil {
+		return nil, "", err
+	}
+	filePath, err := resolveWriteTarget(server.registry, rel)
+	if err != nil {
+		return nil, "", err
+	}
+	state, err := readFile(filePath)
+	if err != nil {
+		return nil, "", err
+	}
+	if state == nil {
+		return nil, "", fs.ErrNotExist
+	}
+	logical, err := logicalBytes(server.baseDir, rel, state.Bytes)
+	if err != nil {
+		return nil, "", err
+	}
+	data, err := apiExtractViaTag(logical)
+	if err != nil {
+		if mapped, ok := mapAPITagError(err); ok {
+			return nil, "", refusedData(err, mapped)
+		}
+		return nil, "", err
+	}
+	if data == nil {
+		return nil, "", ErrNoDataRules
+	}
+	encoded, err := dataapi.Marshal(data)
+	if err != nil {
+		return nil, "", err
+	}
+	return encoded, specwire.Etag(logical), nil
+}
+
+// DataWrite is a program's write to the data a served document publishes
+// through its api rules tag: the JSON to write through the rules and the stamp
+// the program read. A served folder takes whole data only.
+type DataWrite struct {
+	Data    []byte
+	IfMatch string
+	// Owned is asked once the document's lock is held. False means the document
+	// stopped being this folder's while the write waited, and nothing is written.
+	Owned func() bool
+}
+
+// WriteData writes a served document's data for a program. It runs the function
+// behind POST /_/api under the lock that route holds, as that route's write by a
+// program: the lane judges it, so a write that would remove data is refused with
+// ReadRequiredError unless IfMatch names exactly the document as it is, and the
+// bytes it replaces are kept first or the write is refused. An IfMatch that
+// names another version is StaleError.
+func (h *Host) WriteData(rootID, rel string, write DataWrite) (DocumentSaved, error) {
+	server, err := h.rootFor(rootID)
+	if err != nil {
+		return DocumentSaved{}, ErrNotOwned
+	}
+	if len(write.Data) > apiWriteMaxBytes {
+		return DocumentSaved{}, ErrTooLarge
+	}
+	data, err := dataapi.ParseStrict(string(write.Data))
+	if err != nil {
+		return DocumentSaved{}, refusedData(nil, apiInvalidJSONBody)
+	}
+	filePath, err := resolveWriteTarget(server.registry, rel)
+	if err != nil {
+		return DocumentSaved{}, err
+	}
+
+	unlock := server.commit.locks.lock(filePath)
+	defer unlock()
+
+	if err := h.held(server, rootID, rel, filePath, write.Owned); err != nil {
+		return DocumentSaved{}, err
+	}
+	written, refusal := server.writeSiteData(rel, filePath, siteDataWrite{
+		data:        data,
+		ifMatch:     write.IfMatch,
+		ifMatchSent: write.IfMatch != "",
+		program:     true,
+	})
+	if refusal != nil {
+		return DocumentSaved{}, refusal.err
+	}
+	return DocumentSaved{Etag: written.etag, Changed: written.changed, Replaced: written.replaced}, nil
 }
