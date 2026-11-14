@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/panphora/htmlclay/internal/browser"
+	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
@@ -23,14 +24,14 @@ import (
 //  2. A site's anchor is either a LIVE trusted folder or an ordinary directory,
 //     never both.
 //  3. A site holds at most one trusted read root, and it is the site's own
-//     anchor. Under broadest-wins anchoring no OTHER trusted folder can contain
-//     a site's anchor, because a broader one would have been the anchor. This is
-//     what replaces the three copies of the EqualOrUnder seeding condition that
-//     used to push roots between sites, and the bug family they carried: a
-//     folder declared below an already-open site granted nothing, and one folder
-//     could go live on two ports.
-//  4. A live trusted folder has at most one site, so one project is one origin
-//     at one hostname on the app's port.
+//     anchor. No other trusted folder needs a root installed there: an enclosing
+//     folder has a site of its own, and a folder inside that keeps its own address
+//     (trustedAnchor) has one too. This is what replaces the three copies of the
+//     EqualOrUnder seeding condition that used to push roots between sites, and
+//     the bug family they carried: a folder declared below an already-open site
+//     granted nothing, and one folder could go live on two ports.
+//  4. A live trusted folder has at most one site, so one folder is one origin at
+//     one hostname on the app's port.
 
 // site is one origin: one anchor folder, one hostname on the app's port, one session
 // manager, one hosted server. A trusted folder always has exactly one site. A file
@@ -82,8 +83,8 @@ func (s *site) close() {
 	s.sessions.RevokeAll()
 }
 
-// anchorFor returns the folder that owns absPath's origin: the broadest live
-// trusted folder containing it, else the file's own folder.
+// anchorFor returns the folder that owns absPath's origin: the trusted folder
+// trustedAnchor names, else the file's own folder.
 func (a *app) anchorFor(absPath string) (anchor string, trusted bool) {
 	if folder, ok := a.trustedAnchor(absPath); ok {
 		return folder, true
@@ -91,12 +92,17 @@ func (a *app) anchorFor(absPath string) (anchor string, trusted bool) {
 	return filepath.Dir(absPath), false
 }
 
-// trustedAnchor returns the BROADEST live trusted folder containing absPath.
+// trustedAnchor returns the live trusted folder that owns absPath's origin: the
+// DEEPEST one that keeps its own address or belongs to a team, else the BROADEST
+// of the rest.
 //
-// Broadest, not most specific, so one project is one origin however deeply its
-// files nest and however many folders inside it were declared separately.
-// Untrusting the broad one makes the next call return the nested one, which is
-// the nested folder's fallback with no bookkeeping anywhere.
+// Deepest with an address, because a folder already answering at an address keeps
+// it when a folder around it is trusted (see trustFolder): what the browser stored
+// for its documents lives at that address, and moving the documents would leave it
+// behind. Otherwise broadest, not most specific, so one project is one origin
+// however deeply its files nest and however many folders inside it were declared
+// separately. Untrusting the broad one makes the next call return the nested one,
+// which is the nested folder's fallback with no bookkeeping anywhere.
 //
 // It reads the DECLARED list, never a site's installed roots. A site bound at
 // startup has armed nothing yet, so its roots would answer no and route would
@@ -107,7 +113,7 @@ func (a *app) anchorFor(absPath string) (anchor string, trusted bool) {
 // Ties (two declared folders with the same path length) break lexically so the
 // choice is deterministic regardless of config order.
 func (a *app) trustedAnchor(absPath string) (string, bool) {
-	best := ""
+	broadest, deepest := "", ""
 	for _, tf := range a.rt.cfg.TrustedFolderList() {
 		if !session.EqualOrUnder(absPath, tf.Path) {
 			continue
@@ -116,13 +122,37 @@ func (a *app) trustedAnchor(absPath string) (string, bool) {
 			continue
 		}
 		switch {
-		case best == "",
-			len(tf.Path) < len(best),
-			len(tf.Path) == len(best) && tf.Path < best:
-			best = tf.Path
+		case broadest == "",
+			len(tf.Path) < len(broadest),
+			len(tf.Path) == len(broadest) && tf.Path < broadest:
+			broadest = tf.Path
+		}
+		owns := tf.OwnAddress
+		if !owns && (deepest == "" || len(tf.Path) >= len(deepest)) {
+			// Only a folder that could still win is worth the record read.
+			owns = a.teamFolderScope(tf.Path)
+		}
+		if !owns {
+			continue
+		}
+		switch {
+		case deepest == "",
+			len(tf.Path) > len(deepest),
+			len(tf.Path) == len(deepest) && tf.Path < deepest:
+			deepest = tf.Path
 		}
 	}
-	return best, best != ""
+	if deepest != "" {
+		return deepest, true
+	}
+	return broadest, broadest != ""
+}
+
+// teamFolderScope reports whether path belongs to a team folder. A team's
+// documents answer at the address the team was granted, so a folder newly trusted
+// around one never takes it over.
+func (a *app) teamFolderScope(path string) bool {
+	return a.scopeOf(path).Kind == config.ScopeTeam
 }
 
 // trustedCovers is the server's auto-registration gate: does absPath sit inside

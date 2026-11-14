@@ -38,14 +38,19 @@ func (a *app) trustFolder(dir string) error {
 		// approving it never helping.
 		previous, _ = a.rt.cfg.SetTrustedIdentity(canonical, identity)
 	}
+	owned := a.takeOwnAddress(canonical)
 	if sErr := a.rt.cfg.Save(); sErr != nil {
 		// Put the list back exactly as it was: drop an entry this call added,
-		// restore the old pin on one it only re-pinned. Removing a pre-existing
-		// entry here would revoke a folder the user still holds.
+		// restore the old pin on one it only re-pinned, and drop the addresses
+		// this call handed out. Removing a pre-existing entry here would revoke a
+		// folder the user still holds.
 		if added {
 			a.rt.cfg.RemoveTrustedFolder(canonical)
 		} else {
 			a.rt.cfg.SetTrustedIdentity(canonical, previous)
+		}
+		for _, path := range owned {
+			a.rt.cfg.SetTrustedOwnAddress(path, false)
 		}
 		a.mu.Unlock()
 		return fmt.Errorf("could not save config: %w", sErr)
@@ -60,6 +65,32 @@ func (a *app) trustFolder(dir string) error {
 	a.bringLive(canonical)
 	a.refreshHelperDispatchers()
 	return nil
+}
+
+// takeOwnAddress keeps every trusted folder inside the newly trusted dir at the
+// address its documents already answer at, so trusting a folder around it never
+// moves them: what the browser stored for them is stored at that address.
+//
+// Only a folder with a remembered slug has an address to keep, and a slug in
+// siteSlugs was never retired (retiring drops the entry), so its presence is the
+// whole record. Nothing marks a folder at upgrade, only here, so every
+// configuration written before this existed routes exactly as it did.
+//
+// It returns the folders it changed, for a caller whose save fails to put back.
+func (a *app) takeOwnAddress(dir string) []string {
+	var changed []string
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if tf.Path == dir || tf.OwnAddress || !session.EqualOrUnder(tf.Path, dir) {
+			continue
+		}
+		if a.rt.cfg.SiteSlug(tf.Path) == "" {
+			continue
+		}
+		if _, ok := a.rt.cfg.SetTrustedOwnAddress(tf.Path, true); ok {
+			changed = append(changed, tf.Path)
+		}
+	}
+	return changed
 }
 
 // bringLive gives a newly trusted folder its own origin now rather than at the

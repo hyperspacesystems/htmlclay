@@ -115,6 +115,13 @@ type TrustedFolder struct {
 	ID       string `json:"id,omitempty"`
 	Path     string `json:"path"`
 	Identity string `json:"identity,omitempty"`
+	// OwnAddress is the address this folder keeps when a folder around it is
+	// trusted: its documents already answered there, and what the browser stored
+	// for them (logins, local storage) lives at that address. It is set only when
+	// a broader folder is trusted around a folder that already had an address, so
+	// no configuration written before it existed has it, and every one of those
+	// routes exactly as it always has.
+	OwnAddress bool `json:"ownAddress,omitempty"`
 }
 
 // ServedFolder is one folder HTML Clay serves whole. ID is 16 lowercase hex, made once;
@@ -273,6 +280,21 @@ func (c *Config) SetTrustedIdentity(dir, identity string) (previous string, ok b
 		}
 	}
 	return "", false
+}
+
+// SetTrustedOwnAddress records whether the entry at dir keeps its own address, and
+// returns the value it replaced along with whether there was an entry to change, so
+// a caller whose save fails can put it back.
+func (c *Config) SetTrustedOwnAddress(dir string, own bool) (previous bool, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, w := range c.TrustedFolders {
+		if w.Path == dir {
+			c.TrustedFolders[i].OwnAddress = own
+			return w.OwnAddress, true
+		}
+	}
+	return false, false
 }
 
 // RelinkTrustedFolder points the entry with id at path, keeping its id, and pins it
