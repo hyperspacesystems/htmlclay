@@ -259,6 +259,30 @@ func migrateConfigDir() {
 	}
 }
 
+// openLogOverride returns the replacement for launchBrowser that writes each URL
+// the host would open instead of opening it, or nil when it does not apply.
+//
+// HTMLCLAY_OPEN_LOG is for the Mac app's tests: a host it started writes each URL
+// it would open instead of opening the browser. It only applies to a host started
+// with --shell-stdin, so an ordinary launch can never be told to stop opening the
+// browser, and only to an absolute path, so the host never writes somewhere it
+// guessed.
+func openLogOverride(shell bool, env string) func(string) error {
+	if !shell || !filepath.IsAbs(env) {
+		return nil
+	}
+	logPath := env
+	return func(target string) error {
+		f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		_, err = fmt.Fprintln(f, target)
+		return err
+	}
+}
+
 func main() {
 	// The wire CLI is a client of a running app, so it must return before
 	// anything below: initConfig takes the single-instance lock, and flag.Parse
@@ -318,6 +342,9 @@ func main() {
 	fmt.Fprintln(os.Stderr, "[htmlclay] Starting up...")
 
 	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin, shell: *shellStdin}
+	if openLog := openLogOverride(*shellStdin, os.Getenv("HTMLCLAY_OPEN_LOG")); openLog != nil {
+		a.rt.launchBrowser = openLog
+	}
 	a.initCore()
 	a.initConfig()
 	defer a.rt.si.Unlock()

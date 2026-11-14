@@ -78,7 +78,10 @@ public enum HostActionWire {
             return WireActionRequest(type: "program.add", args: ["path": .string(path), "name": .string(name)])
         case .startUpdate:
             return WireActionRequest(type: "update.start", args: [:])
+        // The app restarts the Go process itself, so this sends nothing.
         case .restartHost:
+            return nil
+        case .restartService:
             return WireActionRequest(type: "service.restart", args: [:])
         case let .moveFromLocal(folderIDs):
             return WireActionRequest(type: "move.start", args: ["folderIDs": .strings(folderIDs)])

@@ -36,6 +36,7 @@ final class HostActionWireTests: XCTestCase {
         .startUpdate,
         .finishUpdate,
         .restartHost,
+        .restartService,
         .moveFromLocal(folderIDs: ["f1", "f2"]),
         .markSeen(waitingIDs: ["w1"]),
         .openDocument(id: "d1"),
@@ -91,5 +92,6 @@ final class HostActionWireTests: XCTestCase {
         XCTAssertNil(HostActionWire.wire(.answerRequest(waitingID: "w1", allow: true)))
         XCTAssertNil(HostActionWire.wire(.connectSample))
         XCTAssertNil(HostActionWire.wire(.finishUpdate))
+        XCTAssertNil(HostActionWire.wire(.restartHost))
     }
 }

@@ -413,12 +413,14 @@ func writeShellConfig(t *testing.T, base, config string) {
 }
 
 // startShellHost starts the host the way the Mac app does: --shell-stdin, a
-// secret on stdin, and every directory under base.
-func startShellHost(t *testing.T, bin, base string) (*exec.Cmd, io.WriteCloser, io.Reader, *strings.Builder) {
+// secret on stdin, and every directory under base. extraEnv adds to the
+// environment the host starts with.
+func startShellHost(t *testing.T, bin, base string, extraEnv ...string) (*exec.Cmd, io.WriteCloser, io.Reader, *strings.Builder) {
 	t.Helper()
 	var stderr strings.Builder
 	cmd := exec.Command(bin, "--shell-stdin")
 	cmd.Env = append(os.Environ(), "HOME="+base, "HTMLCLAY_CONFIG_BASE="+base)
+	cmd.Env = append(cmd.Env, extraEnv...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -819,6 +821,96 @@ func TestShellStdin(t *testing.T) {
 		}
 		if _, err := os.Stat(launchAgents); err == nil {
 			t.Fatalf("%s exists after prefs.set; a host the Mac app started must not write the login item", launchAgents)
+		}
+	})
+}
+
+// TestOpenLog proves the host the Mac app started writes the URL it would open
+// instead of opening a browser, and that only such a host does.
+func TestOpenLog(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("--shell-stdin is the Mac app's way to start the host")
+	}
+	bin := buildShellBinary(t)
+
+	t.Run("the host the app started logs the URL it would open", func(t *testing.T) {
+		base := shellBase(t)
+		writeShellConfig(t, base, fmt.Sprintf(`{"startOnLogin": false, "port": %d, "updates": "off"}`, freeLoopbackPort(t)))
+		document := filepath.Join(base, "notes", "a.htmlclay")
+		writeTestFile(t, document, servedTestDocument)
+		logPath := filepath.Join(base, "opened.log")
+
+		_, stdin, stdout, stderr := startShellHost(t, bin, base, "HTMLCLAY_OPEN_LOG="+logPath)
+		t.Cleanup(func() { _ = stdin.Close() })
+		secret := randomSecret(t)
+		if _, err := fmt.Fprintf(stdin, `{"v":1,"secret":%q}`+"\n", secret); err != nil {
+			t.Fatalf("write the bootstrap line: %v\n%s", err, stderr.String())
+		}
+		ready, ok := readReady(t, stdout, 30*time.Second)
+		if !ok {
+			t.Fatalf("no READY line within 30s; stderr:\n%s", stderr.String())
+		}
+
+		action := shellJSON("open1", "file.open", map[string]string{"path": document})
+		request, err := http.NewRequest(http.MethodPost, ready.Shell+"/shell/v1/actions", strings.NewReader(action))
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set("Authorization", "Bearer "+secret)
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatalf("POST file.open: %v", err)
+		}
+		body, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("file.open = %d %s, want 200\nstderr:\n%s", response.StatusCode, body, stderr.String())
+		}
+
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			logged, err := os.ReadFile(logPath)
+			if err == nil && len(logged) > 0 {
+				lines := strings.Split(strings.TrimRight(string(logged), "\n"), "\n")
+				if len(lines) != 1 || !strings.Contains(lines[0], "a.htmlclay") {
+					t.Fatalf("opened.log = %q, want one line naming a.htmlclay", logged)
+				}
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("opened.log was not written within 5s; read: %v; stderr:\n%s", err, stderr.String())
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	})
+
+	t.Run("only a host the app started logs", func(t *testing.T) {
+		logPath := filepath.Join(t.TempDir(), "opened.log")
+		if open := openLogOverride(false, logPath); open != nil {
+			if err := open("http://127.0.0.1:1/a.htmlclay"); err != nil {
+				t.Fatalf("log the URL: %v", err)
+			}
+			t.Fatalf("an ordinary launch replaced launchBrowser; a launch outside --shell-stdin must open the browser")
+		}
+		if open := openLogOverride(true, filepath.Join("relative", "opened.log")); open != nil {
+			t.Fatal("a relative HTMLCLAY_OPEN_LOG replaced launchBrowser")
+		}
+		open := openLogOverride(true, logPath)
+		if open == nil {
+			t.Fatal("a host the app started did not replace launchBrowser for an absolute HTMLCLAY_OPEN_LOG")
+		}
+		if err := open("http://127.0.0.1:1/a.htmlclay"); err != nil {
+			t.Fatalf("log the URL: %v", err)
+		}
+		logged, err := os.ReadFile(logPath)
+		if err != nil {
+			t.Fatalf("read the log: %v", err)
+		}
+		if string(logged) != "http://127.0.0.1:1/a.htmlclay\n" {
+			t.Fatalf("opened.log = %q, want the URL and a newline", logged)
 		}
 	})
 }

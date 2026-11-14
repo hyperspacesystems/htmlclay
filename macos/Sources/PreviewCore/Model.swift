@@ -373,6 +373,7 @@ public enum HostAction: Equatable, Sendable {
     case startUpdate
     case finishUpdate
     case restartHost
+    case restartService
     case moveFromLocal(folderIDs: [String])
     case markSeen(waitingIDs: [String])
     case openDocument(id: String)
