@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/panphora/htmlclay/internal/agentlane"
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
@@ -25,6 +26,12 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 	if err != nil || port != strconv.Itoa(a.rt.port) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
+	}
+	if name == "127.0.0.1" || name == "localhost" || name == "::1" {
+		if strings.HasPrefix(r.URL.Path, agentlane.Prefix) {
+			a.agentLane().ServeHTTP(w, r)
+			return
+		}
 	}
 	if r.Header.Get("Sec-Fetch-Site") == "cross-site" && !server.EligibleNavigation(r, a.ownsOrigin) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
