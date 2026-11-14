@@ -58,11 +58,18 @@ func aiEditTerminal(t *testing.T, next func() (wire.Envelope, bool), id string) 
 
 func newLooseAIEditStand(t *testing.T) *aiEditStand {
 	t.Helper()
+	return newLooseAIEditStandAs(t, true)
+}
+
+// newLooseAIEditStandAs sets shell before anything can publish, as the app
+// does at start: a later write races the snapshot timer that reads it.
+func newLooseAIEditStandAs(t *testing.T, shell bool) *aiEditStand {
+	t.Helper()
 	t.Setenv("MOCK_MODEL", "1")
 	home := evalTempHome(t)
 	cfgBase := t.TempDir()
 	a := newTestAppWithConfigDir(t, home, cfgBase)
-	a.shell = true
+	a.shell = shell
 	t.Cleanup(a.stopRequests)
 	folder := filepath.Join(home, "docs")
 	document := filepath.Join(folder, "roadmap.htmlclay")
@@ -121,8 +128,7 @@ func newLooseAIEditStand(t *testing.T) *aiEditStand {
 func newServedAIEditStand(t *testing.T) *aiEditStand {
 	t.Helper()
 	t.Setenv("MOCK_MODEL", "1")
-	served := servedWireOpen(t)
-	served.a.shell = true
+	served := servedWireOpenAs(t, true)
 	t.Cleanup(served.a.stopRequests)
 	t.Cleanup(served.a.cancelAIEdits)
 	document := served.file(t)
@@ -472,8 +478,7 @@ func TestM3AIEditTeamDocument(t *testing.T) {
 	})
 
 	t.Run("outside the Mac app one dialog is shown at a time, and Allow stores the allow", func(t *testing.T) {
-		s := newLooseAIEditStand(t)
-		s.a.shell = false
+		s := newLooseAIEditStandAs(t, false)
 		s.markTeam(t, "design")
 		shown := make(chan string, 4)
 		release := make(chan platform.ConfirmChoice)

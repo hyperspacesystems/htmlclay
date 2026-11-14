@@ -99,11 +99,18 @@ type servedWireStand struct {
 
 func servedWireOpen(t *testing.T) *servedWireStand {
 	t.Helper()
+	return servedWireOpenAs(t, false)
+}
+
+// servedWireOpenAs sets shell before serving starts publishing snapshots.
+func servedWireOpenAs(t *testing.T, shell bool) *servedWireStand {
+	t.Helper()
 	home := evalTempHome(t)
 	dir := filepath.Join(home, "notes")
 	writeTestFile(t, filepath.Join(dir, servedWireDocumentName), servedTestDocument)
 
 	a := newServedTestApp(t, home, t.TempDir())
+	a.shell = shell
 	entry, refusal, err := a.serveFolder(dir, "notes")
 	if err != nil {
 		t.Fatalf("serveFolder: %v", err)

@@ -36,11 +36,19 @@ func servedProgramsDocument() string {
 
 func servedProgramsOpen(t *testing.T) *servedProgramsStand {
 	t.Helper()
+	return servedProgramsOpenAs(t, false)
+}
+
+// servedProgramsOpenAs sets shell before serving starts publishing snapshots,
+// as the app does at start.
+func servedProgramsOpenAs(t *testing.T, shell bool) *servedProgramsStand {
+	t.Helper()
 	home := evalTempHome(t)
 	dir := filepath.Join(home, "notes")
 	writeTestFile(t, filepath.Join(dir, servedProgramsDocumentName), servedProgramsDocument())
 
 	a := newServedTestApp(t, home, t.TempDir())
+	a.shell = shell
 	entry, refusal, err := a.serveFolder(dir, "notes")
 	if err != nil {
 		t.Fatalf("serveFolder: %v", err)
@@ -217,7 +225,9 @@ func (s *servedProgramsStand) markTeam(t *testing.T, key, folderID string) {
 // team tests ask and answer them.
 func (s *servedProgramsStand) shellApp(t *testing.T) {
 	t.Helper()
-	s.a.shell = true
+	if !s.a.shell {
+		t.Fatal("fixture: open the stand with servedProgramsOpenAs(t, true)")
+	}
 	t.Cleanup(func() {
 		for _, p := range s.a.registry().Pending() {
 			s.a.registry().Close(p.ID)
@@ -303,7 +313,7 @@ func TestM3ServedPrograms(t *testing.T) {
 	})
 
 	t.Run("a team folder never runs a program allowed for all trusted folders", func(t *testing.T) {
-		stand := servedProgramsOpen(t)
+		stand := servedProgramsOpenAs(t, true)
 		stand.shellApp(t)
 		stand.markTeam(t, "acme", stand.entry.ID)
 		stand.allowForAnyDocument(t)
@@ -342,7 +352,7 @@ func TestM3ServedPrograms(t *testing.T) {
 	})
 
 	t.Run("after the folder stops being served the team rule still holds", func(t *testing.T) {
-		stand := servedProgramsOpen(t)
+		stand := servedProgramsOpenAs(t, true)
 		stand.shellApp(t)
 		stand.markTeam(t, "acme", stand.entry.ID)
 		stand.allowForAnyDocument(t)
