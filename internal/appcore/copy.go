@@ -89,6 +89,7 @@ var RefusalText = map[string]string{
 	RefuseNoSuchDocument:    "That document is no longer listed. Open it again if you still need it.",                      // copy: refusal, max 140 chars
 	RefuseFileMissing:       "That file isn't there anymore. It may have been moved or deleted.",                           // copy: refusal, max 140 chars TODO-COPY
 	RefuseFileOutsideHome:   "HTML Clay only opens files inside your home folder. Move the file there and open it again.",  // copy: refusal, max 140 chars TODO-COPY
+	RefuseDestinationExists: "A file with that name is already there. Choose another name.",                                // copy: refusal, max 140 chars
 	RefuseNoSuchRequest:     "That request has ended. Try again if you still need it.",                                     // copy: refusal, max 140 chars
 	RefuseRequestChanged:    "That request changed while you were answering. Look at it again.",                            // copy: refusal, max 140 chars
 	RefuseAnswerNotOffered:  "That answer isn't one this request offers. Choose one of the options shown.",                 // copy: refusal, max 140 chars

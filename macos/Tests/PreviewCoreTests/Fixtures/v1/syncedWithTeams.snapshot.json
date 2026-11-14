@@ -14,6 +14,7 @@
       "document.export": false,
       "document.forget": false,
       "document.open": true,
+      "document.recover": false,
       "document.reveal": false,
       "document.versions": false,
       "file.open": true,

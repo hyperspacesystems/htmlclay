@@ -46,13 +46,16 @@ const (
 	RefuseServedElsewhere = "served-elsewhere"
 
 	// Action refusals (Plan).
-	RefuseUnknownAction     = "unknown-action"
-	RefuseBadArguments      = "bad-arguments"
-	RefuseNoSuchFolder      = "no-such-folder"
-	RefuseNoSuchProgram     = "no-such-program"
-	RefuseNoSuchDocument    = "no-such-document"
-	RefuseFileMissing       = "file-missing"
-	RefuseFileOutsideHome   = "file-outside-home"
+	RefuseUnknownAction   = "unknown-action"
+	RefuseBadArguments    = "bad-arguments"
+	RefuseNoSuchFolder    = "no-such-folder"
+	RefuseNoSuchProgram   = "no-such-program"
+	RefuseNoSuchDocument  = "no-such-document"
+	RefuseFileMissing     = "file-missing"
+	RefuseFileOutsideHome = "file-outside-home"
+	// RefuseDestinationExists is a recovery destination where a file already is;
+	// that file is never touched.
+	RefuseDestinationExists = "destination-exists"
 	RefuseNoSuchRequest     = "no-such-request"
 	RefuseRequestChanged    = "request-changed"
 	RefuseAnswerNotOffered  = "answer-not-offered"

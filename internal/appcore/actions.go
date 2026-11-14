@@ -70,6 +70,7 @@ var ActionClasses = map[string]Class{
 	"folder.serve":     ClassGrant,
 	"folder.relink":    ClassGrant,
 	"file.open":        ClassGrant,
+	"document.recover": ClassGrant,
 	"request.answer":   ClassGrant,
 	"program.add":      ClassGrant,
 	"program.relink":   ClassGrant,
@@ -160,23 +161,24 @@ type Effect struct {
 // DocumentID is a document's id for the document actions, and the document's path
 // for the program actions, whose decisions are keyed by the path.
 type actionArgs struct {
-	ID         string          `json:"id"`
-	IDs        []string        `json:"ids"`
-	Path       string          `json:"path"`
-	Name       string          `json:"name"`
-	Route      string          `json:"route"`
-	Key        string          `json:"key"`
-	Value      json.RawMessage `json:"value"`
-	On         *bool           `json:"on"`
-	Allow      *bool           `json:"allow"`
-	Paused     *bool           `json:"paused"`
-	Force      bool            `json:"force"`
-	ProgramID  string          `json:"programID"`
-	DocumentID string          `json:"documentID"`
-	Revision   uint64          `json:"revision"`
-	Answer     string          `json:"answer"`
-	Username   string          `json:"username"`
-	FolderIDs  []string        `json:"folderIDs"`
+	ID          string          `json:"id"`
+	IDs         []string        `json:"ids"`
+	Path        string          `json:"path"`
+	Name        string          `json:"name"`
+	Route       string          `json:"route"`
+	Key         string          `json:"key"`
+	Value       json.RawMessage `json:"value"`
+	On          *bool           `json:"on"`
+	Allow       *bool           `json:"allow"`
+	Paused      *bool           `json:"paused"`
+	Force       bool            `json:"force"`
+	ProgramID   string          `json:"programID"`
+	DocumentID  string          `json:"documentID"`
+	Revision    uint64          `json:"revision"`
+	Answer      string          `json:"answer"`
+	Username    string          `json:"username"`
+	FolderIDs   []string        `json:"folderIDs"`
+	Destination string          `json:"destination"`
 	// Acknowledged is the warnings a sheet showed, for the two actions that
 	// register a program file and for a folder relink.
 	Acknowledged []string `json:"acknowledged"`
@@ -217,6 +219,17 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return bad("path")
 		}
 		return one(Effect{Type: a.Type, Path: args.Path})
+	case "document.recover":
+		if args.ID == "" {
+			return bad("id")
+		}
+		if args.Destination == "" {
+			return bad("destination")
+		}
+		if !hasDocument(f, args.ID) {
+			return nil, &Refusal{Code: RefuseNoSuchDocument, SubjectID: args.ID}
+		}
+		return one(Effect{Type: a.Type, DocumentID: args.ID, Path: args.Destination})
 	case "dashboard.open":
 		return one(Effect{Type: a.Type, Route: args.Route})
 	case "folder.reveal", "folder.copyAddress":

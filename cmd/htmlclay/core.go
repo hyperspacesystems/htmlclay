@@ -706,6 +706,12 @@ func (a *app) do(ctx context.Context, action appcore.Action, ch Channel) (appcor
 		a.remember(action.ID, coreAnswer{Snapshot: snapshot, Refusal: refusal})
 		return snapshot, refusal
 	}
+	if ch != ChannelShell && action.Type == "document.recover" {
+		refusal := &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation}
+		snapshot := a.snapshot()
+		a.remember(action.ID, coreAnswer{Snapshot: snapshot, Refusal: refusal})
+		return snapshot, refusal
+	}
 
 	effects, refusal := appcore.Plan(a.facts(), action)
 	if refusal == nil && ch == ChannelDashboard && action.Type == "document.open" && len(effects) == 1 {

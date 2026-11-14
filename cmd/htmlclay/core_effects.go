@@ -5,14 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/browser"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recents"
+	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/versions"
 )
 
 // implementedActions is every action type runEffect has a case for. The snapshot
@@ -22,6 +27,7 @@ var implementedActions = []string{
 	"document.export",
 	"document.forget",
 	"document.open",
+	"document.recover",
 	"document.reveal",
 	"document.versions",
 	"file.open",
@@ -199,6 +205,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 			return nil
 		}
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
+	case "document.recover":
+		return a.recoverDocument(e)
 	case "document.forget":
 		return a.forgetRecent(e.DocumentID)
 	case "document.export":
@@ -263,6 +271,99 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.revealProgram(e)
 	}
 	return &appcore.Refusal{Code: appcore.RefuseNotYet}
+}
+
+// recoverDocument runs document.recover: the newest kept version of a loose
+// document whose file is gone is written to a new file, never over an existing
+// one, and the document's history and record follow it there.
+func (a *app) recoverDocument(e appcore.Effect) *appcore.Refusal {
+	store := a.recentsStore()
+	if store == nil {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
+	}
+	entry, ok := store.Find(e.DocumentID)
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
+	}
+	if info, err := os.Stat(entry.Path); err == nil {
+		if info.Mode().IsRegular() {
+			return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow, SubjectID: e.DocumentID}
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		a.rt.logger.Printf("Could not check the recovered document %s: %v", entry.Path, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	if _, _, served := servedFolderAbove(entry.Path, a.folderFacts()); served {
+		return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow, SubjectID: e.DocumentID}
+	}
+
+	destination := e.Path
+	if !filepath.IsAbs(destination) {
+		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "destination"}
+	}
+	destination = filepath.Clean(destination)
+	switch strings.ToLower(filepath.Ext(destination)) {
+	case ".html", ".htmlclay":
+	default:
+		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "destination"}
+	}
+	dir, err := resolveSymlinks(filepath.Dir(destination))
+	if err != nil {
+		a.rt.logger.Printf("Could not resolve the folder for %s: %v", destination, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	destination, ok = session.ContainWithinHome(a.rt.home, filepath.Join(dir, filepath.Base(destination)))
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseFileOutsideHome, Field: "destination"}
+	}
+
+	key, _, data, err := a.rt.versions.Newest(entry.Path)
+	if err != nil {
+		if errors.Is(err, versions.ErrNoHistory) || errors.Is(err, fs.ErrNotExist) {
+			return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow, SubjectID: e.DocumentID}
+		}
+		a.rt.logger.Printf("Could not read the newest version of %s: %v", entry.Path, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+
+	file, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return &appcore.Refusal{Code: appcore.RefuseDestinationExists, Field: "destination"}
+		}
+		a.rt.logger.Printf("Could not create the recovered file %s: %v", destination, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	_, writeErr := file.Write(data)
+	if writeErr == nil {
+		writeErr = file.Sync()
+	}
+	if closeErr := file.Close(); writeErr == nil {
+		writeErr = closeErr
+	}
+	if writeErr != nil {
+		os.Remove(destination)
+		a.rt.logger.Printf("Could not write the recovered file %s: %v", destination, writeErr)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+
+	if err := a.rt.versions.RebindTo(key, data, destination); err != nil {
+		os.Remove(destination)
+		a.rt.logger.Printf("Could not move the history of %s to %s: %v", entry.Path, destination, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	if err := store.Rebind(entry.Path, destination); err != nil {
+		if moved := versions.Key(destination, data); moved != key {
+			if backErr := a.rt.versions.RebindTo(moved, data, entry.Path); backErr != nil {
+				a.rt.logger.Printf("Could not move the history of %s back: %v", destination, backErr)
+			}
+		}
+		os.Remove(destination)
+		a.rt.logger.Printf("Could not record the recovered document at %s: %v", destination, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+
+	return a.openPath(destination)
 }
 
 // setFolderAllowFraming runs folder.setFraming: the choice is saved first, then the

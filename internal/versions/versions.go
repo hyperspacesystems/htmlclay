@@ -979,6 +979,53 @@ func (s *Store) Rebind(key, absPath string) error {
 	return writeMeta(hroot, key, absPath)
 }
 
+// RebindTo points the history stored under key at absPath, moving the history to
+// the key the file at absPath now has when that differs. A .html file keys by a
+// hash of its absolute path, so a document written to a new path would otherwise
+// leave its versions behind under the old key. data is the file's bytes, which
+// name an id: key for a .htmlclay document. History already at the new key is
+// left alone: the moved history takes a free folder name beside it.
+func (s *Store) RebindTo(key string, data []byte, absPath string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		return err
+	}
+	defer vroot.Close()
+	if err := s.load(vroot); err != nil {
+		return err
+	}
+	h, ok := s.index[key]
+	if !ok {
+		return ErrNoHistory
+	}
+	newKey := Key(absPath, data)
+	if newKey != key {
+		if other, exists := s.index[newKey]; exists && other.folder != "" && other.folder != h.folder {
+			name, err := s.freeFolder(vroot, displayBase(absPath, key))
+			if err != nil {
+				return err
+			}
+			if err := vroot.Rename(h.folder, name); err != nil {
+				return err
+			}
+			h.folder = name
+		}
+		delete(s.index, key)
+		s.index[newKey] = h
+		key = newKey
+	}
+	h.absPath = absPath
+	s.index[key] = h
+	hroot, err := openVerifiedChild(vroot, h.folder, false)
+	if err != nil {
+		return err
+	}
+	defer hroot.Close()
+	return writeMeta(hroot, key, absPath)
+}
+
 // Backup publishes content as a new version of key's history, atomically.
 // It reports whether a new version was actually written: identical content is
 // deduped and reports false with a nil error.
@@ -1242,6 +1289,59 @@ func (s *Store) Page(absPath string, data []byte, before string, limit int) ([]E
 		entries = entries[:limit]
 	}
 	return entries, nil
+}
+
+// Newest returns the key the document at absPath is filed under, its newest
+// kept version and that version's bytes. The document need not exist: a missing
+// file's history is found through the path bound to it. It only reads, so no
+// history folder, version or pin is created.
+func (s *Store) Newest(absPath string) (string, Entry, []byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		return "", Entry{}, nil, err
+	}
+	defer vroot.Close()
+	if err := s.load(vroot); err != nil {
+		return "", Entry{}, nil, err
+	}
+
+	key := Key(absPath, nil)
+	h, ok := s.index[key]
+	if !ok || h.folder == "" {
+		bound, found := s.keyBoundTo(absPath)
+		if !found {
+			return "", Entry{}, nil, ErrNoHistory
+		}
+		key, h, ok = bound, s.index[bound], true
+	}
+	if !ok || h.folder == "" {
+		return "", Entry{}, nil, ErrNoHistory
+	}
+
+	root, err := openVerifiedChild(vroot, h.folder, false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", Entry{}, nil, ErrNoHistory
+		}
+		return "", Entry{}, nil, err
+	}
+	defer root.Close()
+	entries, err := listEntries(root)
+	if err != nil {
+		return "", Entry{}, nil, err
+	}
+	if len(entries) == 0 {
+		return "", Entry{}, nil, ErrNoHistory
+	}
+	newest := entries[len(entries)-1]
+	data, err := readEntry(root, newest.Name)
+	if err != nil {
+		return "", Entry{}, nil, err
+	}
+	return key, newest, data, nil
 }
 
 // pageEntries reads one history as a read leaves it: the versions stay in the
