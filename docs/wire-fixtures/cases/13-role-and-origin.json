@@ -1,0 +1,35 @@
+{
+  "name": "role admission and exact origin",
+  "hosts": [
+    "loose",
+    "served"
+  ],
+  "served": "released",
+  "setup": {
+    "program": "none",
+    "decision": "none"
+  },
+  "steps": [
+    {
+      "do": "subscribe",
+      "as": "page-other-origin",
+      "stream": "p",
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "do": "send",
+      "as": "page-other-origin",
+      "frame": {
+        "type": "wire/request",
+        "id": "r1",
+        "payload": {}
+      },
+      "expect": {
+        "status": 403
+      }
+    }
+  ],
+  "knownDifference": "the served host gate answers with its own JSON refusal text"
+}

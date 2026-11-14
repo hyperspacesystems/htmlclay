@@ -1,0 +1,30 @@
+{
+  "name": "one handler at a time",
+  "hosts": [
+    "loose",
+    "served"
+  ],
+  "served": "released",
+  "setup": {
+    "program": "none",
+    "decision": "none"
+  },
+  "steps": [
+    {
+      "do": "subscribe",
+      "as": "handler",
+      "stream": "h1",
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "do": "subscribe",
+      "as": "handler",
+      "stream": "h2",
+      "expect": {
+        "status": 409
+      }
+    }
+  ]
+}
