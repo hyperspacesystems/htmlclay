@@ -37,6 +37,8 @@ type config struct {
 	onPageLoad func(rootID, rel string)
 	// onStructure hears about a completed structure step that moved a name.
 	onStructure func(rootID, from, to string, isDir bool)
+	// internalDir is the app's own data folder (Options.InternalDir).
+	internalDir string
 	// events is the process's one frame stream: every root's commits and
 	// watcher observations land in it, and the control listener reads it.
 	events *eventRing

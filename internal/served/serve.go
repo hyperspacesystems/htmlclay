@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/panphora/htmlclay/internal/clayruntime"
+	"github.com/panphora/htmlclay/internal/wire"
 )
 
 // rootServer answers one root: Local's static catch-all, its document lane, its
@@ -56,6 +57,10 @@ type rootServer struct {
 	// framePolicy is the one frame rule this folder's answers carry: its own
 	// pages and the dashboard, never another site.
 	framePolicy string
+	// wire is this root's wire core, nil when the root carries none; wireMux is
+	// its handler.
+	wire    *wire.Core
+	wireMux http.Handler
 }
 
 // htmlRoutePattern is Local's SPA-aware route: the document names an .html or
@@ -153,6 +158,10 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	urlPath, marked, ok := gate(w, r, s.policy(r))
 	if !ok {
+		return
+	}
+	if marked && s.wireMux != nil && (urlPath == "/wire/subscribe" || urlPath == "/wire/send") {
+		s.wireMux.ServeHTTP(w, r)
 		return
 	}
 	if s.service.active() != nil {

@@ -6,6 +6,9 @@ import (
 	"io/fs"
 	"net/http"
 	"sync"
+
+	"github.com/panphora/htmlclay/internal/logging"
+	"github.com/panphora/htmlclay/internal/wire"
 )
 
 // Options is what a Host needs from the program that runs it.
@@ -38,6 +41,9 @@ type Options struct {
 	// record that follows a document by its path can follow the move. Nil hears
 	// nothing.
 	OnStructure func(rootID, from, to string, isDir bool)
+	// InternalDir is the app's own data folder. Nothing under it, and nothing
+	// under a dot-prefixed folder of a root, is a wire target.
+	InternalDir string
 }
 
 // RootSpec is one served folder.
@@ -46,6 +52,13 @@ type RootSpec struct {
 	Path         string
 	PublicHost   string
 	AllowFraming bool
+	// WirePolicy turns the wire on for this root and decides what it grants.
+	// Nil leaves /_/wire/ unanswered, as before.
+	WirePolicy wire.Policy
+	// WireError writes the wire's refusals, so they have the loose host's bytes.
+	WireError func(w http.ResponseWriter, status int, message string)
+	// WireLogger receives the wire's log lines. Nil uses logging.NewStdout().
+	WireLogger *logging.Logger
 }
 
 // Host owns every served folder's handler, the shared event ring, the watchers and the
@@ -72,6 +85,7 @@ func NewHost(o Options) *Host {
 		workspaceEntry:  o.WorkspaceEntry,
 		onPageLoad:      o.OnPageLoad,
 		onStructure:     o.OnStructure,
+		internalDir:     o.InternalDir,
 		events:          newEventRing(),
 	}
 	if o.Service {
@@ -96,6 +110,18 @@ func (h *Host) AddRoot(spec RootSpec) (http.Handler, error) {
 	server, err := newRootServer(rootSpec{id: spec.ID, path: spec.Path, publicHost: spec.PublicHost, allowFraming: spec.AllowFraming}, h.cfg)
 	if err != nil {
 		return nil, err
+	}
+	if spec.WirePolicy != nil {
+		logger := spec.WireLogger
+		if logger == nil {
+			logger = logging.NewStdout()
+		}
+		writeError := spec.WireError
+		if writeError == nil {
+			writeError = func(w http.ResponseWriter, status int, message string) { http.Error(w, message, status) }
+		}
+		server.wire = wire.NewCore(&wireDocuments{root: server, internalDir: h.cfg.internalDir}, spec.WirePolicy, logger, writeError)
+		server.wireMux = server.wire.WireMux()
 	}
 	h.roots = append(h.roots, server)
 	h.byID[spec.ID] = server
@@ -151,10 +177,25 @@ func (h *Host) RemoveRoot(id string) bool {
 	if h.started {
 		server.control.watcher.stop()
 	}
+	if server.wire != nil {
+		server.wire.Shutdown()
+	}
 	if h.cfg.service != nil {
 		h.cfg.service.dropRoot(id)
 	}
 	return true
+}
+
+// Wire answers a served root's wire core, or false when the root is not served
+// or carries no wire.
+func (h *Host) Wire(rootID string) (*wire.Core, bool) {
+	h.mu.Lock()
+	server, ok := h.byID[rootID]
+	h.mu.Unlock()
+	if !ok || server.wire == nil {
+		return nil, false
+	}
+	return server.wire, true
 }
 
 func (h *Host) Handler(id string) (http.Handler, bool) {
@@ -269,6 +310,9 @@ func (h *Host) Close() {
 	roots := append([]*rootServer(nil), h.roots...)
 	for _, root := range roots {
 		root.control.watcher.stop()
+		if root.wire != nil {
+			root.wire.Shutdown()
+		}
 	}
 }
 
