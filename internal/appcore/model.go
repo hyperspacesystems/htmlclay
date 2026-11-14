@@ -92,6 +92,7 @@ type Folder struct {
 	ParentID      *string    `json:"parentID"`
 	Trusted       bool       `json:"trusted"`
 	Served        bool       `json:"served"`
+	AllowsFraming bool       `json:"allowsFraming"`
 	Synced        bool       `json:"synced"`
 	Address       string     `json:"address"`
 	URL           string     `json:"url"`
@@ -126,6 +127,7 @@ type FolderSync struct {
 type FolderCan struct {
 	Serve         bool `json:"serve"`
 	StopServing   bool `json:"stopServing"`
+	SetFraming    bool `json:"setFraming"`
 	Sync          bool `json:"sync"`
 	StopSyncing   bool `json:"stopSyncing"`
 	StopTrusting  bool `json:"stopTrusting"`

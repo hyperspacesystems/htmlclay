@@ -69,6 +69,24 @@ final class FolderPageLogicTests: XCTestCase {
                        FolderToggle(value: false, enabled: false, note: "Connect first"))
     }
 
+    func testAFramingSwitchShowsTheChoiceAndWhoMayChangeIt() {
+        let served = folder(can: FolderCan(serve: false, stopServing: true, setFraming: true),
+                            served: true, address: "f.htmlclay.localhost:1212")
+        XCTAssertEqual(FolderControls.framing(folder: served, pending: nil, hostCan: true),
+                       FolderToggle(value: false, enabled: true))
+        XCTAssertEqual(FolderControls.framing(folder: served, pending: .setFraming(folderID: "f", on: true), hostCan: true),
+                       FolderToggle(value: true, enabled: true))
+    }
+
+    func testAFramingSwitchIsDisabledWhenTheHostRefusesItOrTheHostCannot() {
+        let team = folder(can: FolderCan(serve: false, stopServing: true, setFraming: false), served: true)
+        XCTAssertEqual(FolderControls.framing(folder: team, pending: nil, hostCan: true),
+                       FolderToggle(value: false, enabled: false))
+        let served = folder(can: FolderCan(setFraming: true), served: true)
+        XCTAssertEqual(FolderControls.framing(folder: served, pending: nil, hostCan: false),
+                       FolderToggle(value: false, enabled: false))
+    }
+
     func testMergeNeedsBothTheChildAndTheHost() {
         XCTAssertFalse(FolderControls.showsMerge(child: folder(can: FolderCan(merge: false)), hostCan: true))
         XCTAssertFalse(FolderControls.showsMerge(child: folder(can: FolderCan(merge: true)), hostCan: false))

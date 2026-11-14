@@ -223,6 +223,8 @@ struct FolderPage: View {
         NestRows {
             addressRow(folder)
             KilnRowDivider()
+            framingRow(folder)
+            KilnRowDivider()
             KilnRow(title: Strings.FolderPage.versions,
                     subtitle: Strings.FolderPage.versionsSub(size: folder.versionsSize)) {
                 if model.isSample {
@@ -260,6 +262,22 @@ struct FolderPage: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+    }
+
+    private func framingRow(_ folder: Folder) -> some View {
+        let framing = FolderControls.framing(folder: folder,
+                                            pending: model.pendingFraming(folder.id),
+                                            hostCan: model.can(HostActionType.setFraming))
+        return VStack(alignment: .leading, spacing: 0) {
+            KilnRow(title: Strings.FolderPage.framing, subtitle: Strings.FolderPage.framingSub) {
+                Toggle(isOn: framingBinding) {
+                    EmptyView()
+                }
+                .toggleStyle(KilnSwitchStyle())
+                .disabled(!framing.enabled)
+            }
+            KilnNoteRow(Strings.FolderPage.framingNote)
+        }
     }
 
     @ViewBuilder private func innerCard(_ folder: Folder) -> some View {
@@ -385,6 +403,20 @@ struct FolderPage: View {
                 } else {
                     alert = FolderAlert(kind: .stopServing)
                 }
+            }
+        )
+    }
+
+    private var framingBinding: Binding<Bool> {
+        Binding(
+            get: {
+                guard let folder = model.snapshot.folder(folderID) else { return false }
+                return FolderControls.framing(folder: folder,
+                                              pending: model.pendingFraming(folderID),
+                                              hostCan: model.can(HostActionType.setFraming)).value
+            },
+            set: { on in
+                model.send(.setFraming(folderID: folderID, on: on))
             }
         )
     }

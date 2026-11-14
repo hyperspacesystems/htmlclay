@@ -134,6 +134,9 @@ public enum Strings {
         public static let serveSubOn = "Local web address and .html saving enabled."
         public static let serveSubOnlyOnThisMac = " · Only on this Mac"
         public static let address = "Address"
+        public static let framing = "Allow other sites to frame" // TODO-COPY: served folder page switch title, max 32 chars
+        public static let framingSub = "Other websites can show these pages inside their own pages." // TODO-COPY: served folder page switch subtitle, max 80 chars
+        public static let framingNote = "Only turn this on for pages you mean to share with another site. The Mac app is the only place that can turn it back off." // TODO-COPY: served folder page switch note, max 160 chars
         public static let copy = "Copy"
         public static let versions = "Versions and uploads"
         public static let show = "Show"

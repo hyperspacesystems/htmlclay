@@ -126,6 +126,8 @@ type ServedFolder struct {
 	Path     string `json:"path"`
 	Identity string `json:"identity,omitempty"`
 	Serving  bool   `json:"serving"`
+
+	AllowFraming bool `json:"allowFraming,omitempty"`
 }
 
 var (
@@ -416,6 +418,20 @@ func (c *Config) SetServing(id string, serving bool) bool {
 	for i, f := range c.ServedFolders {
 		if f.ID == id {
 			c.ServedFolders[i].Serving = serving
+			return true
+		}
+	}
+	return false
+}
+
+// SetServedAllowFraming turns whether other sites may frame a folder's answers on
+// or off, returning false if there is no entry with that id.
+func (c *Config) SetServedAllowFraming(id string, allow bool) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, f := range c.ServedFolders {
+		if f.ID == id {
+			c.ServedFolders[i].AllowFraming = allow
 			return true
 		}
 	}

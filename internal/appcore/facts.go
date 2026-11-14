@@ -62,6 +62,9 @@ type FolderFact struct {
 	ServedName string `json:"servedName"`
 	Synced     bool   `json:"synced"`
 
+	AllowsFraming bool `json:"allowsFraming"`
+	Team          bool `json:"team"`
+
 	OnThisComputer   bool `json:"onThisComputer"`
 	Missing          bool `json:"missing"`
 	IdentityChanged  bool `json:"identityChanged"`

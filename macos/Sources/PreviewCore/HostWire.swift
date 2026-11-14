@@ -130,6 +130,7 @@ public struct WireFolder: Codable, Equatable, Sendable {
     public var parentID: String?
     public var trusted: Bool
     public var served: Bool
+    public var allowsFraming: Bool?
     public var synced: Bool
     public var address: String
     public var url: String
@@ -141,7 +142,7 @@ public struct WireFolder: Codable, Equatable, Sendable {
     public var why: WireFolderWhy
 
     enum CodingKeys: String, CodingKey {
-        case id, name, path, displayPath, origin, parentID, trusted, served, synced, address, url, state, documentCount, storageBytes, sync, can, why
+        case id, name, path, displayPath, origin, parentID, trusted, served, allowsFraming, synced, address, url, state, documentCount, storageBytes, sync, can, why
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -154,6 +155,7 @@ public struct WireFolder: Codable, Equatable, Sendable {
         try container.encode(parentID, forKey: .parentID)
         try container.encode(trusted, forKey: .trusted)
         try container.encode(served, forKey: .served)
+        try container.encodeIfPresent(allowsFraming, forKey: .allowsFraming)
         try container.encode(synced, forKey: .synced)
         try container.encode(address, forKey: .address)
         try container.encode(url, forKey: .url)
@@ -192,6 +194,7 @@ public struct WireFolderSync: Codable, Equatable, Sendable {
 public struct WireFolderCan: Codable, Equatable, Sendable {
     public var serve: Bool
     public var stopServing: Bool
+    public var setFraming: Bool?
     public var sync: Bool
     public var stopSyncing: Bool
     public var stopTrusting: Bool

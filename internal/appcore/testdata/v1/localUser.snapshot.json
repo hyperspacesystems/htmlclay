@@ -20,6 +20,7 @@
       "folder.relink": false,
       "folder.reveal": true,
       "folder.serve": true,
+      "folder.setFraming": false,
       "folder.setSynced": false,
       "folder.setUpTeam": false,
       "folder.stopServing": true,

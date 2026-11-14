@@ -44,6 +44,7 @@ public final class AppModel {
         case .setSyncPaused: return "sync.paused"
         case let .setServed(id, _): return "folder.served." + id
         case let .setSynced(id, _): return "folder.synced." + id
+        case let .setFraming(id, _): return "folder.framing." + id
         case let .setProgramAllTrusted(id, _): return allTrustedSlot(id)
         default: return nil
         }
@@ -64,6 +65,9 @@ public final class AppModel {
 
     /// The newest synced value a folder's switch is waiting on, if any.
     public func pendingSynced(_ folderID: String) -> HostAction? { pending("folder.synced." + folderID) }
+
+    /// The newest frames value a folder's switch is waiting on, if any.
+    public func pendingFraming(_ folderID: String) -> HostAction? { pending("folder.framing." + folderID) }
 
     /// True for the preview's sample data: only sample data carries no host can list.
     public var isSample: Bool { snapshot.isSample }

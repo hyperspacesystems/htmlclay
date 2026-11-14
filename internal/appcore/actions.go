@@ -76,14 +76,15 @@ var ActionClasses = map[string]Class{
 	"folder.setUpTeam": ClassGrant,
 	"move.start":       ClassGrant,
 
-	// These two are a revoke when "on" is false and a grant when it is true;
-	// ClassOf reads the argument.
+	// These three are a revoke when their switch is false and a grant when it is
+	// true; ClassOf reads the argument.
 	"program.setAllTrusted": ClassGrant,
 	"folder.setSynced":      ClassGrant,
+	"folder.setFraming":     ClassGrant,
 }
 
-// ClassOf is the class of one action, reading "on" for the two types whose class
-// depends on it. An unknown type is 0.
+// ClassOf is the class of one action, reading the switch for the types whose class
+// depends on it: "on" for two, "allow" for folder.setFraming. An unknown type is 0.
 func ClassOf(a Action) Class {
 	class := ActionClasses[a.Type]
 	if a.Type == "program.setAllTrusted" || a.Type == "folder.setSynced" {
@@ -91,6 +92,14 @@ func ClassOf(a Action) Class {
 			On bool `json:"on"`
 		}
 		if json.Unmarshal(a.Args, &args) == nil && !args.On {
+			return ClassRevoke
+		}
+	}
+	if a.Type == "folder.setFraming" {
+		var args struct {
+			Allow bool `json:"allow"`
+		}
+		if json.Unmarshal(a.Args, &args) == nil && !args.Allow {
 			return ClassRevoke
 		}
 	}
@@ -157,6 +166,7 @@ type actionArgs struct {
 	Key        string          `json:"key"`
 	Value      json.RawMessage `json:"value"`
 	On         *bool           `json:"on"`
+	Allow      *bool           `json:"allow"`
 	Paused     *bool           `json:"paused"`
 	Force      bool            `json:"force"`
 	ProgramID  string          `json:"programID"`
@@ -281,6 +291,19 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: ff.ID}
 		}
 		return one(Effect{Type: a.Type, FolderID: ff.ID, On: *args.On})
+	case "folder.setFraming":
+		ff, refusal := folderArg(f, args.ID)
+		if refusal != nil {
+			return nil, refusal
+		}
+		if args.Allow == nil {
+			return bad("allow")
+		}
+		can, _ := folderRules(f, ff, folderState(ff))
+		if *args.Allow && !can.SetFraming {
+			return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: ff.ID}
+		}
+		return one(Effect{Type: a.Type, FolderID: ff.ID, On: *args.Allow})
 	case "program.removeAccess":
 		if _, ok := programByID(f, args.ProgramID); !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}

@@ -53,6 +53,7 @@ func folderRules(f Facts, ff FolderFact, state string) (FolderCan, FolderWhy) {
 		}
 	}
 	can.StopServing = ff.Served
+	can.SetFraming = ff.Served && ff.OnThisComputer && !ff.Team && ff.Origin.Kind != OriginTeam
 
 	if ff.Synced {
 		can.StopSyncing = true

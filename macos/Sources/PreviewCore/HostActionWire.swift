@@ -28,6 +28,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "folder.serve", args: ["path": .string(path), "name": .string(name)])
         case let .setSynced(folderID, on):
             return WireActionRequest(type: "folder.setSynced", args: ["id": .string(folderID), "on": .bool(on)])
+        case let .setFraming(folderID, on):
+            return WireActionRequest(type: "folder.setFraming", args: ["id": .string(folderID), "allow": .bool(on)])
         case let .stopTrusting(folderID):
             return WireActionRequest(type: "folder.stopTrusting", args: ["id": .string(folderID)])
         case let .mergeIntoParent(folderID):

@@ -69,6 +69,7 @@ public enum HostSnapshotAdapter {
             origin: origin,
             parentID: wire.parentID,
             served: wire.served,
+            allowsFraming: wire.allowsFraming ?? false,
             synced: wire.synced,
             address: wire.address,
             documentCount: wire.documentCount,
@@ -84,6 +85,7 @@ public enum HostSnapshotAdapter {
             can: FolderCan(
                 serve: wire.can.serve,
                 stopServing: wire.can.stopServing,
+                setFraming: wire.can.setFraming ?? false,
                 sync: wire.can.sync,
                 stopSyncing: wire.can.stopSyncing,
                 stopTrusting: wire.can.stopTrusting,

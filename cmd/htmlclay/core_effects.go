@@ -25,6 +25,7 @@ var implementedActions = []string{
 	"folder.relink",
 	"folder.reveal",
 	"folder.serve",
+	"folder.setFraming",
 	"folder.stopServing",
 	"folder.stopTrusting",
 	"folder.trust",
@@ -103,6 +104,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
 		}
 		return nil
+	case "folder.setFraming":
+		return a.setFolderAllowFraming(e)
 	case "folder.stopServing":
 		if err := a.stopServing(e.FolderID); err != nil {
 			var unsaved errUnsavedEdits
@@ -208,6 +211,27 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.revealProgram(e)
 	}
 	return &appcore.Refusal{Code: appcore.RefuseNotYet}
+}
+
+// setFolderAllowFraming runs folder.setFraming: the choice is saved first, then the
+// serving host follows it, so a save that failed changes neither.
+func (a *app) setFolderAllowFraming(e appcore.Effect) *appcore.Refusal {
+	previous, ok := a.rt.cfg.ServedFolderByID(e.FolderID)
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+	if !a.rt.cfg.SetServedAllowFraming(e.FolderID, e.On) {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+	if err := a.rt.cfg.Save(); err != nil {
+		a.rt.cfg.SetServedAllowFraming(e.FolderID, previous.AllowFraming)
+		a.rt.logger.Printf("Could not change whether folder %s may be framed: %v", e.FolderID, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	if a.served != nil {
+		a.served.SetAllowFraming(e.FolderID, e.On)
+	}
+	return nil
 }
 
 // programFileWarnings is what a person should know before a program file is

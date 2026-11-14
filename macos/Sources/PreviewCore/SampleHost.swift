@@ -13,6 +13,9 @@ public enum SampleReducer {
                 next.folders[i].address = next.folders[i].name.lowercased().replacingOccurrences(of: " ", with: "-") + addressSuffix
             }
             if !on { next.folders[i].synced = false }
+        case let .setFraming(folderID, on):
+            guard let i = next.folders.firstIndex(where: { $0.id == folderID }), next.folders[i].served else { return snapshot }
+            next.folders[i].allowsFraming = on
         case let .setSynced(folderID, on):
             guard let i = next.folders.firstIndex(where: { $0.id == folderID }) else { return snapshot }
             if on {

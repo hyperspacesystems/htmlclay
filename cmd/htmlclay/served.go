@@ -260,7 +260,7 @@ func (a *app) servedFolderLock(folder string) (*folderlock.Lock, error) {
 // with the lock the caller already holds. On error the caller still owns the lock.
 func (a *app) mountServedHeld(f config.ServedFolder, lock *folderlock.Lock) error {
 	host := servedHostName(f.Name, a.rt.port)
-	handler, err := a.served.AddRoot(served.RootSpec{ID: f.ID, Path: f.Path, PublicHost: host})
+	handler, err := a.served.AddRoot(served.RootSpec{ID: f.ID, Path: f.Path, PublicHost: host, AllowFraming: f.AllowFraming})
 	if err != nil {
 		return err
 	}

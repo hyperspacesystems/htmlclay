@@ -7,7 +7,7 @@ final class HostActionWireTests: XCTestCase {
         .appendingPathComponent("Fixtures/v1")
 
     private static let goArgumentNames: Set<String> = [
-        "id", "ids", "path", "name", "route", "key", "value", "on", "paused", "force",
+        "id", "ids", "path", "name", "route", "key", "value", "on", "allow", "paused", "force",
         "programID", "documentID", "revision", "answer", "username", "folderIDs", "acknowledged",
     ]
 
@@ -15,6 +15,7 @@ final class HostActionWireTests: XCTestCase {
         .setServed(folderID: "f1", on: true),
         .setServed(folderID: "f1", on: false),
         .setSynced(folderID: "f1", on: true),
+        .setFraming(folderID: "f1", on: true),
         .stopTrusting(folderID: "f1"),
         .mergeIntoParent(folderID: "f1"),
         .answer(requestID: "r1", revision: 3, answer: "choose-file", path: "/tmp/resize"),

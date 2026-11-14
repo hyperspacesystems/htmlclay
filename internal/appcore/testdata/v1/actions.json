@@ -42,6 +42,10 @@
       "class": "grant"
     },
     {
+      "type": "folder.setFraming",
+      "class": "grant"
+    },
+    {
       "type": "folder.setSynced",
       "class": "grant"
     },

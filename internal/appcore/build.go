@@ -69,6 +69,7 @@ func Build(f Facts) Snapshot {
 			ParentID:      optionalText(ff.ParentID),
 			Trusted:       ff.Trusted,
 			Served:        ff.Served,
+			AllowsFraming: ff.AllowsFraming,
 			Synced:        ff.Synced,
 			DocumentCount: ff.DocumentCount,
 			StorageBytes:  ff.StorageBytes,

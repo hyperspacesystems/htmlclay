@@ -187,6 +187,7 @@ func (a *app) folderFacts() []appcore.FolderFact {
 		if entry, ok := a.rt.cfg.ServedFolderForPath(tf.Path); ok {
 			ff.Served = entry.Serving
 			ff.ServedName = entry.Name
+			ff.AllowsFraming = entry.AllowFraming
 			identity = entry.Identity
 			servedSeen[entry.ID] = true
 		}
@@ -206,6 +207,7 @@ func (a *app) folderFacts() []appcore.FolderFact {
 			Trusted:        true,
 			Served:         entry.Serving,
 			ServedName:     entry.Name,
+			AllowsFraming:  entry.AllowFraming,
 			OnThisComputer: true,
 		}
 		markFolderOnDisk(&ff, entry.Identity, a.rt.home)
@@ -214,6 +216,7 @@ func (a *app) folderFacts() []appcore.FolderFact {
 	}
 	for i := range folders {
 		folders[i].ParentID = nearestFolderAbove(folders[i].Path, folders)
+		_, folders[i].Team = a.teamFolderFor(folders[i].Path)
 	}
 	for i := range folders {
 		if !folders[i].Missing {

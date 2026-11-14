@@ -98,13 +98,15 @@ public struct RecentDocument: Codable, Equatable, Identifiable, Sendable {
 public struct FolderCan: Codable, Equatable, Sendable {
     public var serve: Bool
     public var stopServing: Bool
+    public var setFraming: Bool
     public var sync: Bool
     public var stopSyncing: Bool
     public var stopTrusting: Bool
     public var merge: Bool
     public var openWorkspace: Bool
-    public init(serve: Bool = false, stopServing: Bool = false, sync: Bool = false, stopSyncing: Bool = false, stopTrusting: Bool = false, merge: Bool = false, openWorkspace: Bool = false) {
-        self.serve = serve; self.stopServing = stopServing; self.sync = sync; self.stopSyncing = stopSyncing
+    public init(serve: Bool = false, stopServing: Bool = false, setFraming: Bool = false, sync: Bool = false, stopSyncing: Bool = false, stopTrusting: Bool = false, merge: Bool = false, openWorkspace: Bool = false) {
+        self.serve = serve; self.stopServing = stopServing; self.setFraming = setFraming; self.sync = sync
+        self.stopSyncing = stopSyncing
         self.stopTrusting = stopTrusting; self.merge = merge; self.openWorkspace = openWorkspace
     }
 }
@@ -142,6 +144,7 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var origin: FolderOrigin
     public var parentID: String?
     public var served: Bool
+    public var allowsFraming: Bool
     public var synced: Bool
     public var address: String
     public var documentCount: Int
@@ -159,9 +162,10 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var why: FolderWhy
     public var storageBytes: Int
 
-    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false, fullPath: String = "", url: String = "", state: String = "ok", can: FolderCan? = nil, why: FolderWhy = FolderWhy(), storageBytes: Int = 0) {
+    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, allowsFraming: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false, fullPath: String = "", url: String = "", state: String = "ok", can: FolderCan? = nil, why: FolderWhy = FolderWhy(), storageBytes: Int = 0) {
         self.id = id; self.name = name; self.path = path; self.origin = origin; self.parentID = parentID
-        self.served = served; self.synced = synced; self.address = address; self.documentCount = documentCount
+        self.served = served; self.allowsFraming = allowsFraming
+        self.synced = synced; self.address = address; self.documentCount = documentCount
         self.status = status; self.onThisMac = onThisMac; self.missingOnDisk = missingOnDisk
         self.versionsSize = versionsSize; self.lastSync = lastSync; self.historySummary = historySummary
         self.becameViewer = becameViewer
@@ -406,6 +410,7 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
 public enum HostAction: Equatable, Sendable {
     case setServed(folderID: String, on: Bool)
     case setSynced(folderID: String, on: Bool)
+    case setFraming(folderID: String, on: Bool)
     case stopTrusting(folderID: String)
     case mergeIntoParent(folderID: String)
     case setSyncPaused(Bool)

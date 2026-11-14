@@ -18,6 +18,7 @@ public struct FolderToggle: Equatable, Sendable {
 public enum HostActionType {
     public static let relinkFolder = "folder.relink"
     public static let setSynced = "folder.setSynced"
+    public static let setFraming = "folder.setFraming"
     public static let merge = "folder.merge"
     public static let reveal = "folder.reveal"
     public static let documentOpen = "document.open"
@@ -71,6 +72,13 @@ public enum FolderControls {
                             note: enabled ? nil : reason(folder.why.sync))
     }
 
+    /// Frames allowed for a served folder: the Mac app's choice, never the dashboard's.
+    public static func framing(folder: Folder, pending: HostAction?, hostCan: Bool) -> FolderToggle {
+        let value = framingValue(folder, pending: pending)
+        let enabled = (folder.can?.setFraming ?? true) && hostCan
+        return FolderToggle(value: value, enabled: enabled)
+    }
+
     public static func showsMerge(child: Folder, hostCan: Bool) -> Bool {
         (child.can?.merge ?? true) && hostCan
     }
@@ -83,6 +91,11 @@ public enum FolderControls {
     private static func syncedValue(_ folder: Folder, pending: HostAction?) -> Bool {
         if case let .setSynced(_, on)? = pending { return on }
         return folder.synced
+    }
+
+    private static func framingValue(_ folder: Folder, pending: HostAction?) -> Bool {
+        if case let .setFraming(_, on)? = pending { return on }
+        return folder.allowsFraming
     }
 
     private static func reason(_ why: HostReason?) -> String? {
