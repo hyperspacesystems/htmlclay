@@ -54,6 +54,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "document.recover", args: ["id": .string(id), "destination": .string(destination)])
         case let .openVersions(id):
             return WireActionRequest(type: "document.versions", args: ["id": .string(id)])
+        case .openKeptPage:
+            return WireActionRequest(type: "app.openKeptPage", args: [:])
         case let .openFile(path):
             return WireActionRequest(type: "file.open", args: ["path": .string(path)])
         case let .openDashboard(route):

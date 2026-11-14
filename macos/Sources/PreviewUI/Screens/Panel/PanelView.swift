@@ -310,6 +310,16 @@ public struct PanelView: View {
                 .buttonStyle(KilnButtonStyle(.plain))
             }
             Menu {
+                if PanelControls.showsKeptCopies(isSample: model.isSample, can: model.can(HostActionType.appOpenKeptPage)) {
+                    Button(Strings.Menu.keptCopies) {
+                        if model.isSample {
+                            model.say(Strings.Preview.wouldOpenKeptCopies)
+                        } else {
+                            model.send(.openKeptPage)
+                        }
+                    }
+                    Divider()
+                }
                 Button(Strings.Menu.settings) { actions.openSettings(.general) }
                 Button(Strings.Menu.checkForUpdates) { actions.openSettings(.updates) }
                 Divider()

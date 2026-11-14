@@ -59,6 +59,20 @@ final class PanelControlsTests: XCTestCase {
         XCTAssertFalse(try JSONDecoder().decode(HostSnapshot.self, from: data).isSample)
     }
 
+    func testKeptCopiesFollowsTheHostsCanList() {
+        let sample = sampleModel()
+        XCTAssertTrue(PanelControls.showsKeptCopies(isSample: sample.isSample, can: sample.can(HostActionType.appOpenKeptPage)))
+
+        var snapshot = SampleData.snapshot(for: .fiveDocuments)
+        snapshot.host.can = [HostActionType.appOpenKeptPage: true]
+        var model = AppModel(host: SampleHost(persona: .fiveDocuments), initial: snapshot)
+        XCTAssertTrue(PanelControls.showsKeptCopies(isSample: model.isSample, can: model.can(HostActionType.appOpenKeptPage)))
+
+        snapshot.host.can = [HostActionType.appOpenKeptPage: false]
+        model = AppModel(host: SampleHost(persona: .fiveDocuments), initial: snapshot)
+        XCTAssertFalse(PanelControls.showsKeptCopies(isSample: model.isSample, can: model.can(HostActionType.appOpenKeptPage)))
+    }
+
     func testTheRealHostHidesADocumentActionItsCanListRefuses() {
         var snapshot = SampleData.snapshot(for: .fiveDocuments)
         snapshot.host.can = [HostActionType.documentOpen: true, HostActionType.documentForget: false]

@@ -10,6 +10,7 @@
     "service": "running",
     "stopped": false,
     "can": {
+      "app.openKeptPage": false,
       "dashboard.open": true,
       "document.export": false,
       "document.forget": false,

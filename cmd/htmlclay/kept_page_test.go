@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -147,6 +148,23 @@ func TestKeptPageNeedsTheTrayLink(t *testing.T) {
 	}
 	if rec := c.do("GET", "/kept/open?t=forged", nil, nil); rec.Code != http.StatusForbidden || len(rec.Result().Cookies()) != 0 {
 		t.Fatalf("a forged ticket = %d with cookies %v", rec.Code, rec.Result().Cookies())
+	}
+}
+
+// TestKeptCopiesMenuAction opens the page through the action the Mac app's menu
+// sends: host.can offers app.openKeptPage, and it opens the one-time link.
+func TestKeptCopiesMenuActionOpensThePage(t *testing.T) {
+	a := newKeptApp(t)
+	if !a.snapshot().Host.Can["app.openKeptPage"] {
+		t.Fatalf("host.can does not offer app.openKeptPage: %v", a.snapshot().Host.Can)
+	}
+	var opened string
+	a.rt.openKeptURL = func(u string) error { opened = u; return nil }
+	if _, refusal := a.do(context.Background(), coreAction(t, "kept-menu-1", "app.openKeptPage", nil), ChannelShell); refusal != nil {
+		t.Fatalf("app.openKeptPage refused: %+v", refusal)
+	}
+	if !strings.HasPrefix(opened, "http://127.0.0.1:24192/kept/open?t=") {
+		t.Fatalf("app.openKeptPage opened %q, want a one-time link on 127.0.0.1:24192", opened)
 	}
 }
 

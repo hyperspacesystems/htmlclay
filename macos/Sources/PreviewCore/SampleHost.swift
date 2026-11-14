@@ -158,7 +158,7 @@ public enum SampleReducer {
             next.programs.removeAll { $0.id == programID }
         case .openDocument, .revealDocument, .forgetDocument, .openFile, .openDashboard,
              .revealFolder, .copyAddress, .connect, .quit, .revealProgram,
-             .exportDocument, .recoverDocument, .openVersions, .showRequest:
+             .exportDocument, .recoverDocument, .openVersions, .openKeptPage, .showRequest:
             return snapshot
         }
         return next

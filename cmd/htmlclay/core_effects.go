@@ -23,6 +23,7 @@ import (
 // implementedActions is every action type runEffect has a case for. The snapshot
 // reports it as host.can; TestImplementedActionsMatchRunEffect keeps the two equal.
 var implementedActions = []string{
+	"app.openKeptPage",
 	"dashboard.open",
 	"document.export",
 	"document.forget",
@@ -180,6 +181,9 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 			a.core.seen[id] = true
 		}
 		a.core.mu.Unlock()
+		return nil
+	case "app.openKeptPage":
+		a.openKeptPage()
 		return nil
 	case "dashboard.open":
 		if a.dashboard == nil {

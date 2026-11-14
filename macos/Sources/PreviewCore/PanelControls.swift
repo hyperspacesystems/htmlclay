@@ -15,6 +15,12 @@ public enum PanelControls {
         isSample || can
     }
 
+    /// Kept Copies… in the panel menu: sample data offers it, and so does a real
+    /// host whose can list runs app.openKeptPage.
+    public static func showsKeptCopies(isSample: Bool, can: Bool = false) -> Bool {
+        isSample || can
+    }
+
     /// Whether a refused recovery means the person should pick another name: only
     /// the host's destination-exists answer does, and no file is ever removed first.
     public static func asksAnotherDestination(for code: String) -> Bool {

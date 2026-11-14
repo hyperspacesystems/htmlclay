@@ -49,6 +49,7 @@ public enum Strings {
         public static let exportZip = "Export as zip…"
         public static let recoverMissing = "Recover missing file…" // TODO-COPY: panel document menu, max 30 chars
         public static let removeFromRecent = "Remove from Recent"
+        public static let keptCopies = "Kept Copies…" // TODO-COPY: panel menu, reuses the tray's words, max 20 chars
         public static func needsYou(_ count: Int) -> String { "Needs you (\(count))" }
     }
     public enum Welcome {
@@ -405,6 +406,7 @@ public enum Strings {
         public static func wouldExport(_ name: String) -> String { "Build 1: this would export \(name) as a zip file." }
         public static func wouldRecover(_ name: String) -> String { "Build 1: this would ask where to save a recovered copy of \(name)." }
         public static func wouldRemove(_ name: String) -> String { "Build 1: this would remove \(name) from Recent." }
+        public static let wouldOpenKeptCopies = "Build 1: this would open Kept Copies in your browser." // TODO-COPY: sample note, max 60 chars
         public static func persona(_ persona: Persona) -> String {
             switch persona {
             case .newPerson: return "A new person"

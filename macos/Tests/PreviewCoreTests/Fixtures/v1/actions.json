@@ -2,6 +2,10 @@
   "v": 1,
   "actions": [
     {
+      "type": "app.openKeptPage",
+      "class": "safe"
+    },
+    {
       "type": "dashboard.open",
       "class": "safe"
     },

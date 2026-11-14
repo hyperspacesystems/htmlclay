@@ -43,6 +43,7 @@ type Action struct {
 // ActionClasses is every action type. An action type missing here is refused, and
 // TestPlanEveryTypeHasAClass fails when Plan knows a type this table does not.
 var ActionClasses = map[string]Class{
+	"app.openKeptPage":   ClassSafe,
 	"document.open":      ClassSafe,
 	"document.reveal":    ClassSafe,
 	"document.forget":    ClassSafe,
@@ -233,6 +234,8 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		return one(Effect{Type: a.Type, DocumentID: args.ID, Path: args.Destination})
 	case "dashboard.open":
 		return one(Effect{Type: a.Type, Route: args.Route})
+	case "app.openKeptPage":
+		return one(Effect{Type: a.Type})
 	case "folder.reveal", "folder.copyAddress":
 		ff, refusal := folderArg(f, args.ID)
 		if refusal != nil {

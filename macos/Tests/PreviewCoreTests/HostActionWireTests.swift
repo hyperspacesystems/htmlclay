@@ -52,6 +52,7 @@ final class HostActionWireTests: XCTestCase {
         .exportDocument(id: "d1"),
         .recoverDocument(id: "d1", destination: "/tmp/recovered.html"),
         .openVersions(id: "d1"),
+        .openKeptPage,
         .openFile(path: "/tmp/file.html"),
         .openDashboard(route: "/folders"),
         .revealFolder(id: "f1"),
