@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/panphora/htmlclay/internal/browser"
+	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/trust"
@@ -408,7 +409,12 @@ func (a *app) routeTrusted(absPath string) (string, bool) {
 	if _, trusted := a.anchorFor(absPath); !trusted {
 		return "", false
 	}
-	return a.serveURL(absPath)
+	target, ok := a.serveURL(absPath)
+	if !ok {
+		return "", false
+	}
+	a.noteOpen(absPath, recents.HowTrusted, false)
+	return target, true
 }
 
 // startSites builds every live trusted folder's site before argv is processed, so a URL

@@ -18,6 +18,8 @@ import (
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/pathrel"
+	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/trust"
 )
 
@@ -57,11 +59,19 @@ type coreState struct {
 	pending     *time.Timer       // coalescing timer, nil when idle
 	requests    *confirm.Registry // the questions waiting for the person
 
-	watching   bool                 // the facts watcher runs while anyone subscribes
-	lastFacts  [32]byte             // digest of the facts the watcher last saw
-	openedAt   map[string]time.Time // document path -> when the core first saw it open
-	countCache map[string]docCount  // folder path -> its document count, refreshed every docCountTTL
-	watchEvery time.Duration        // tests shorten it; 0 means factsWatchEvery
+	watching   bool                // the facts watcher runs while anyone subscribes
+	lastFacts  [32]byte            // digest of the facts the watcher last saw
+	countCache map[string]docCount // folder path -> its document count, refreshed every docCountTTL
+	watchEvery time.Duration       // tests shorten it; 0 means factsWatchEvery
+
+	// recents is the record of documents a person opened before: the list is
+	// built from it, joined with the live registrations. forgotten holds the
+	// documents taken off the list while they were open, which stay off until
+	// their next explicit open. recorded is when each document was last noted,
+	// so a page load or a registration writes at most once a minute.
+	recents   *recents.Store
+	forgotten map[string]bool
+	recorded  map[string]time.Time
 
 	// beforeEffect runs before each effect. Tests only.
 	beforeEffect func(appcore.Effect)
@@ -92,8 +102,20 @@ func (a *app) initCore() {
 	if a.core.subs == nil {
 		a.core.subs = map[int]chan appcore.Snapshot{}
 	}
-	if a.core.openedAt == nil {
-		a.core.openedAt = map[string]time.Time{}
+	if a.core.forgotten == nil {
+		a.core.forgotten = map[string]bool{}
+	}
+	if a.core.recorded == nil {
+		a.core.recorded = map[string]time.Time{}
+	}
+	// A launch that never resolved a config folder has nowhere to keep the
+	// record, and must not write one beside whatever folder it was started in.
+	if a.core.recents == nil && a.rt.configDir != "" {
+		store, err := recents.Open(a.rt.configDir)
+		if err != nil {
+			a.rt.logger.Printf("Could not read the record of recently opened documents: %v", err)
+		}
+		a.core.recents = store
 	}
 	if a.core.countCache == nil {
 		a.core.countCache = map[string]docCount{}
@@ -312,13 +334,14 @@ func servedByLocal(path string, roots []string) bool {
 	return false
 }
 
-// documentFacts lists every document registered in a live site now. Documents a
-// person opened recently and closed again are not tracked yet.
+// documentFacts lists the documents a person opened, from the record of real
+// opens, joined with the registrations live sites hold now so a row says whether
+// its document is open. A row's id is its record's id, so it keeps the same id
+// when its tab closes. A document that is open without a row (one opened under a
+// build that did not record, or whose record could not be written) is still
+// listed, and a document a person took off the list while it was open stays off
+// it.
 func (a *app) documentFacts() []appcore.DocumentFact {
-	type registration struct {
-		path string
-		url  string
-	}
 	var regs []registration
 	a.mu.Lock()
 	for _, s := range a.sites {
@@ -335,45 +358,185 @@ func (a *app) documentFacts() []appcore.DocumentFact {
 	}
 	a.mu.Unlock()
 
-	folders := a.folderFacts()
-	docs := make([]appcore.DocumentFact, 0, len(regs))
-	seen := make(map[string]bool, len(regs))
+	openURLs := make(map[string]string, len(regs))
 	for _, reg := range regs {
-		if seen[reg.path] {
-			continue
+		if _, ok := openURLs[reg.path]; !ok {
+			openURLs[reg.path] = reg.url
 		}
-		seen[reg.path] = true
+	}
+
+	entries := a.recentEntries()
+	folders := a.folderFacts()
+	forgotten := a.forgottenPaths()
+	docs := make([]appcore.DocumentFact, 0, len(entries)+len(openURLs))
+	seen := make(map[string]bool, len(entries)+len(openURLs))
+	add := func(id, path string, openedAt *time.Time) {
+		if seen[path] || forgotten[path] {
+			return
+		}
+		seen[path] = true
 		doc := appcore.DocumentFact{
-			ID:      "d" + shortHash(reg.path),
-			Name:    filepath.Base(reg.path),
-			Path:    reg.path,
-			URL:     reg.url,
-			OpenNow: true,
+			ID:       id,
+			Name:     filepath.Base(path),
+			Path:     path,
+			FolderID: nearestFolderAbove(path, folders),
+			OpenedAt: openedAt,
 		}
-		doc.FolderID = nearestFolderAbove(reg.path, folders)
-		if info, err := os.Stat(reg.path); err != nil || !info.Mode().IsRegular() {
+		if url, open := openURLs[path]; open {
+			doc.URL = url
+			doc.OpenNow = true
+		}
+		if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
 			doc.FileMissing = true
 		}
 		docs = append(docs, doc)
 	}
 
-	a.core.mu.Lock()
-	defer a.core.mu.Unlock()
-	for path := range a.core.openedAt {
-		if !seen[path] {
-			delete(a.core.openedAt, path)
-		}
+	for _, entry := range entries {
+		openedAt := entry.OpenedAt
+		add(entry.ID, entry.Path, &openedAt)
 	}
-	for i := range docs {
-		at, ok := a.core.openedAt[docs[i].Path]
-		if !ok {
-			at = time.Now().UTC()
-			a.core.openedAt[docs[i].Path] = at
-		}
-		opened := at
-		docs[i].OpenedAt = &opened
+	for _, reg := range regs {
+		add(recentID(reg.path), reg.path, nil)
 	}
 	return docs
+}
+
+// registration is one document a live site holds now, and where it is served.
+type registration struct {
+	path string
+	url  string
+}
+
+// recentInterval is how often a page load or a registration may record the same
+// document: a reload is not a new open, and the record is a file on disk.
+const recentInterval = time.Minute
+
+// recentID is the id a document's row starts with: the hash of its path, in the
+// shape the record keeps. A row that already has an id keeps it, so a restart
+// never renames a row.
+func recentID(path string) string {
+	return "d" + shortHash(path)
+}
+
+// recentsStore is the record of documents opened before.
+func (a *app) recentsStore() *recents.Store {
+	a.initCore()
+	a.core.mu.Lock()
+	defer a.core.mu.Unlock()
+	return a.core.recents
+}
+
+// recentEntries is the record, most recently opened first.
+func (a *app) recentEntries() []recents.Entry {
+	store := a.recentsStore()
+	if store == nil {
+		return nil
+	}
+	return store.List()
+}
+
+// forgottenPaths is the documents a person took off the list.
+func (a *app) forgottenPaths() map[string]bool {
+	a.core.mu.Lock()
+	defer a.core.mu.Unlock()
+	forgotten := make(map[string]bool, len(a.core.forgotten))
+	for path := range a.core.forgotten {
+		forgotten[path] = true
+	}
+	return forgotten
+}
+
+// noteOpen records filePath as a document a person opened. An explicit open is a
+// person's own: it always writes the row, and it is the one thing that brings a
+// forgotten document back onto the list. A page load or a registration only notes
+// a document it has not noted in the last minute, and never brings a forgotten
+// one back.
+func (a *app) noteOpen(filePath, how string, explicit bool) {
+	path, err := resolveSymlinks(filePath)
+	if err != nil {
+		path = filePath
+	}
+	store := a.recentsStore()
+
+	a.core.mu.Lock()
+	if explicit {
+		delete(a.core.forgotten, path)
+	} else {
+		_, wasForgotten := a.core.forgotten[path]
+		last := a.core.recorded[path]
+		if wasForgotten || (!last.IsZero() && time.Since(last) < recentInterval) {
+			a.core.mu.Unlock()
+			return
+		}
+		a.core.recorded[path] = time.Now()
+	}
+	a.core.mu.Unlock()
+
+	if store == nil {
+		return
+	}
+	entry := recents.Entry{
+		ID:       recentID(path),
+		Path:     path,
+		Identity: platform.DirIdentity(path),
+		FolderID: nearestFolderAbove(path, a.folderFacts()),
+		How:      how,
+	}
+	// A row keeps the identity it was recorded with: a file replaced since is a
+	// different document, and the record still says which one the person opened.
+	if existing, ok := store.Find(entry.ID); ok && existing.Path == path && existing.Identity != "" {
+		entry.Identity = existing.Identity
+	}
+	if err := store.Touch(entry, time.Now().UTC()); err != nil {
+		a.rt.logger.Printf("Could not record %s as recently opened: %v", path, err)
+	}
+}
+
+// forgetRecent takes a document's row off the list. The document stays off it
+// until its next explicit open: a page load or a registration is not a person
+// asking for it back, and a document that is open keeps its tab without its row.
+func (a *app) forgetRecent(id string) *appcore.Refusal {
+	for _, doc := range a.facts().Documents {
+		if doc.ID != id {
+			continue
+		}
+		store := a.recentsStore()
+		if store == nil {
+			return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: id}
+		}
+		if err := store.Forget(id); err != nil {
+			a.rt.logger.Printf("Could not remove %s from the recently opened documents: %v", doc.Path, err)
+			return &appcore.Refusal{Code: appcore.RefuseFailed}
+		}
+		a.core.mu.Lock()
+		a.core.forgotten[doc.Path] = true
+		a.core.mu.Unlock()
+		return nil
+	}
+	return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: id}
+}
+
+// reopenRefusal refuses a document.open from a page whose file is no longer the
+// one the record holds: an id names what the person opened before, not whatever
+// is at that path now. A missing file is left to the open itself, which answers
+// file-missing.
+func (a *app) reopenRefusal(id string) *appcore.Refusal {
+	store := a.recentsStore()
+	if store == nil {
+		return nil
+	}
+	entry, ok := store.Find(id)
+	if !ok {
+		return nil
+	}
+	if info, err := os.Stat(entry.Path); err != nil || !info.Mode().IsRegular() {
+		return nil
+	}
+	if platform.DirIdentity(entry.Path) != entry.Identity {
+		return &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation, SubjectID: id}
+	}
+	return nil
 }
 
 // programFacts maps the helper programs in config with the documents their
@@ -447,6 +610,9 @@ func (a *app) do(ctx context.Context, action appcore.Action, ch Channel) (appcor
 	}
 
 	effects, refusal := appcore.Plan(a.facts(), action)
+	if refusal == nil && ch == ChannelDashboard && action.Type == "document.open" && len(effects) == 1 {
+		refusal = a.reopenRefusal(effects[0].DocumentID)
+	}
 	if refusal != nil {
 		snapshot := a.snapshot()
 		a.remember(action.ID, coreAnswer{Snapshot: snapshot, Refusal: refusal})

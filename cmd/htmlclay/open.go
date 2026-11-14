@@ -8,6 +8,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/browser"
+	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/session"
 )
 
@@ -58,6 +59,7 @@ func (a *app) openPath(filePath string) *appcore.Refusal {
 	// its own: the served host is its only writer.
 	if owner, err := a.ResolveDocument(absPath); err == nil && owner.Kind == OwnerServed {
 		a.rt.logger.Printf("Serving %s at %s", filepath.Base(absPath), owner.URL())
+		a.noteOpen(absPath, recents.HowServed, true)
 		a.launchBrowser(owner.URL())
 		return nil
 	}
@@ -69,6 +71,7 @@ func (a *app) openPath(filePath string) *appcore.Refusal {
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
 	a.applyHelperPlan(s, absPath, helpers)
+	a.noteOpen(absPath, recents.HowFile, true)
 
 	target := s.url(rel)
 	a.rt.logger.Printf("Serving %s at %s", filepath.Base(absPath), target)

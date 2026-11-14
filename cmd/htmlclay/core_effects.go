@@ -12,12 +12,14 @@ import (
 	"github.com/panphora/htmlclay/internal/browser"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/recents"
 )
 
 // implementedActions is every action type runEffect has a case for. The snapshot
 // reports it as host.can; TestImplementedActionsMatchRunEffect keeps the two equal.
 var implementedActions = []string{
 	"dashboard.open",
+	"document.forget",
 	"document.open",
 	"document.reveal",
 	"file.open",
@@ -174,13 +176,21 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 			if doc.ID != e.DocumentID {
 				continue
 			}
+			if !doc.OpenNow {
+				// A row that is not open resolves its path from the record and
+				// nowhere else, then runs what file.open runs, with its refusals.
+				return a.openPath(doc.Path)
+			}
 			if doc.URL == "" {
 				return &appcore.Refusal{Code: appcore.RefuseNotYet, SubjectID: doc.ID}
 			}
+			a.noteOpen(doc.Path, recents.HowFile, true)
 			a.launchBrowser(doc.URL)
 			return nil
 		}
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchDocument, SubjectID: e.DocumentID}
+	case "document.forget":
+		return a.forgetRecent(e.DocumentID)
 	case "document.reveal":
 		for _, doc := range a.facts().Documents {
 			if doc.ID != e.DocumentID {

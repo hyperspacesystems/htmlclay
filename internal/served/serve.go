@@ -20,7 +20,10 @@ type rootServer struct {
 	id string
 	// workspaceEntry is where a top-level load of "/" goes (Options.WorkspaceEntry).
 	workspaceEntry func(rootID string) string
-	baseDir        string
+	// onPageLoad hears about a document that answered a top-level page load
+	// (Options.OnPageLoad). Nil hears nothing.
+	onPageLoad func(rootID, rel string)
+	baseDir    string
 	// publicHost is the served folder's address; empty in the trial binary.
 	publicHost string
 	registry   *consentRegistry
@@ -105,6 +108,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	server := &rootServer{
 		id:             root.id,
 		workspaceEntry: cfg.workspaceEntry,
+		onPageLoad:     cfg.onPageLoad,
 		baseDir:        baseDir,
 		publicHost:     root.publicHost,
 		registry:       registry,
@@ -297,7 +301,15 @@ func (s *rootServer) serve(w http.ResponseWriter, r *http.Request, marked bool) 
 	// immediate parent counts, compared without case.
 	uploaded := refusedUploadPath(realPath) && inUploadsFolder(realPath)
 	if match != nil && !uploaded {
-		return s.serveHtml(w, r, realPath, match[1])
+		err := s.serveHtml(w, r, realPath, match[1])
+		// A page a person asked for is a document they opened. Everything else
+		// this root answers is the page's own business.
+		if err == nil && pageLoad(r) && s.onPageLoad != nil {
+			if rel, relErr := filepath.Rel(s.baseDir, realPath); relErr == nil {
+				s.onPageLoad(s.id, filepath.ToSlash(rel))
+			}
+		}
+		return err
 	}
 
 	// nosniff on everything: the browser takes the type send sets from the

@@ -18,6 +18,7 @@ import (
 	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/served/assets"
 	"github.com/panphora/htmlclay/internal/tailwind"
@@ -61,7 +62,18 @@ func (a *app) newServedHost() *served.Host {
 		Service:         a.service.enabled(),
 		Dashboard:       a.dashboardOrigin(),
 		WorkspaceEntry:  a.workspaceEntry,
+		OnPageLoad:      a.noteServedPageLoad,
 	})
+}
+
+// noteServedPageLoad records a served document that answered a top-level page
+// load, so a document opened in the browser is on the list after its tab closes.
+func (a *app) noteServedPageLoad(rootID, rel string) {
+	folder, ok := a.rt.cfg.ServedFolderByID(rootID)
+	if !ok {
+		return
+	}
+	a.noteOpen(filepath.Join(folder.Path, filepath.FromSlash(rel)), recents.HowServed, false)
 }
 
 // workspaceEntry answers the address that opens a served folder in the

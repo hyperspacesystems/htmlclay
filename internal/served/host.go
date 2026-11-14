@@ -30,6 +30,10 @@ type Options struct {
 	// "" when the workspace cannot open it now. A top-level page load of a root's
 	// "/" goes there; everything else keeps the folder listing.
 	WorkspaceEntry func(rootID string) string
+	// OnPageLoad hears about a served document that answered a top-level page
+	// load, which is a page a person asked the browser for. An asset, an API read
+	// and a watcher event never reach it. Nil hears nothing.
+	OnPageLoad func(rootID, rel string)
 }
 
 // RootSpec is one served folder.
@@ -62,6 +66,7 @@ func NewHost(o Options) *Host {
 		personName:      o.PersonName,
 		dashboard:       o.Dashboard,
 		workspaceEntry:  o.WorkspaceEntry,
+		onPageLoad:      o.OnPageLoad,
 		events:          newEventRing(),
 	}
 	if o.Service {

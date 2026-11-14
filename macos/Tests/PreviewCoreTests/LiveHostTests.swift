@@ -312,17 +312,15 @@ final class LiveHostTests: XCTestCase {
             openLog(log).contains { $0.contains("dashboard.htmlclay.localhost") }
         }
 
-        // Forgetting has no host effect yet, so the host says not-yet and the panel
-        // hides Remove from Recent there.
-        guard case let .refused(forgetRefusal) = await host.client.perform(.forgetDocument(id: document.id)) else {
-            return XCTFail("the host forgot the document without an effect for it")
-        }
-        XCTAssertEqual(forgetRefusal.code, "not-yet")
-        XCTAssertFalse(model.can(HostActionType.documentForget))
+        XCTAssertTrue(model.can(HostActionType.documentForget))
+        let forgotten = try done(await host.client.perform(.forgetDocument(id: document.id)),
+                                 "removing the document from Recent was refused")
+        XCTAssertFalse(forgotten.documents.contains { $0.id == document.id },
+                       "the document stayed in Recent after Remove from Recent")
         let next = try done(await host.client.perform(.setAIEditing(false)),
                             "asking the host for a fresh snapshot was refused")
-        XCTAssertTrue(next.documents.contains { $0.id == document.id },
-                      "the document left Recent with no effect to forget it")
+        XCTAssertFalse(next.documents.contains { $0.id == document.id },
+                       "the document came back to Recent after Remove from Recent")
     }
 
     func testTheSettingsLandOnTheRealHost() async throws {
