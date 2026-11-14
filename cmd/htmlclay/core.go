@@ -373,18 +373,34 @@ func (a *app) documentFacts() []appcore.DocumentFact {
 	return docs
 }
 
-// programFacts maps the helper programs in config. Allowed documents live in the
-// helper decisions, not in config, so they are left empty here.
+// programFacts maps the helper programs in config with the documents their
+// decisions name. A document is listed by the path its decision is keyed on,
+// which is what program.removeAccess takes back, and a removal is listed under
+// every registration of the name the document was removed from.
 func (a *app) programFacts() []appcore.Program {
 	list := a.rt.cfg.HelperProgramList()
+	decisions := a.rt.cfg.HelperDecisionList()
 	programs := make([]appcore.Program, 0, len(list))
 	for _, program := range list {
+		allowed, removed := []string{}, []string{}
+		for _, decision := range decisions {
+			switch {
+			case decision.Allowed && decision.Program == program.ID:
+				allowed = append(allowed, decision.Document)
+			case decision.Revoked && decision.Name == program.Name:
+				removed = append(removed, decision.Document)
+			}
+		}
+		slices.Sort(allowed)
+		slices.Sort(removed)
 		programs = append(programs, appcore.Program{
 			ID:                program.ID,
 			Name:              program.Name,
 			Path:              program.Path,
 			FileMissing:       helperProgramMissing(program.Path),
+			AllowedDocuments:  allowed,
 			AllTrustedFolders: program.AnyDocument,
+			RemovedDocuments:  removed,
 		})
 	}
 	return programs

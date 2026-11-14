@@ -309,14 +309,23 @@ func (c *Config) ForgetHelperDecision(document, name string) (HelperDecision, bo
 }
 
 // RevokeHelper stores a revocation for one document and name, replacing any
-// allow. It returns the row it replaced so a failed save can restore it.
+// allow. It returns the row it replaced so a failed save can restore it. The
+// document is taken to be in a local folder; a caller that knows the document's
+// scope uses RevokeHelperInScope.
 func (c *Config) RevokeHelper(document, name string) (previous HelperDecision, had bool, err error) {
+	return c.RevokeHelperInScope(document, name, Scope{Kind: ScopeLocal})
+}
+
+// RevokeHelperInScope is RevokeHelper for a document whose folder is scope. A
+// removal in a team folder is stored under the team's key, so ResolveHelper in
+// that scope finds the deny at once instead of asking again.
+func (c *Config) RevokeHelperInScope(document, name string, scope Scope) (previous HelperDecision, had bool, err error) {
 	if !ValidHelperName(name) {
 		return HelperDecision{}, false, ErrHelperNameInvalid
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	row := HelperDecision{Document: document, Name: name, Revoked: true, DecidedAt: time.Now().UnixNano()}
+	row := HelperDecision{Document: document, Name: name, Revoked: true, DecidedAt: time.Now().UnixNano(), Scope: scope}
 	for i, existing := range c.HelperDecisions {
 		if existing.Document == document && existing.Name == name {
 			c.HelperDecisions[i] = row

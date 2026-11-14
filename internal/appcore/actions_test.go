@@ -140,7 +140,7 @@ func TestPlan(t *testing.T) {
 		{"sync with no on", synced, "folder.setSynced", `{"id":"panphora"}`, "", RefuseBadArguments},
 		{"remove a program's access", synced, "program.removeAccess", `{"programID":"todo-search","documentID":"todo"}`, "program.removeAccess", ""},
 		{"remove access for an unknown program", synced, "program.removeAccess", `{"programID":"nope","documentID":"todo"}`, "", RefuseNoSuchProgram},
-		{"remove access with no document", synced, "program.removeAccess", `{"programID":"todo-search"}`, "", RefuseBadArguments},
+		{"remove access for every document", synced, "program.removeAccess", `{"programID":"todo-search"}`, "program.removeAccess", ""},
 		{"turn off all trusted folders for a program", synced, "program.setAllTrusted", `{"programID":"todo-search","on":false}`, "program.setAllTrusted", ""},
 		{"set all trusted for an unknown program", synced, "program.setAllTrusted", `{"programID":"nope","on":true}`, "", RefuseNoSuchProgram},
 		{"disconnect", synced, "sync.disconnect", `{}`, "sync.disconnect", ""},

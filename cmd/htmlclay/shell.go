@@ -41,6 +41,9 @@ func (b shellBackend) Check(act appcore.Action) (shellapi.Preview, *appcore.Refu
 	if act.Type == "folder.trust" {
 		return b.trustPreview(effects[0].Path)
 	}
+	if act.Type == "program.add" || act.Type == "program.relink" {
+		return b.programPreview(effects[0])
+	}
 	if act.Type != "folder.serve" {
 		return shellapi.Preview{}, nil
 	}
@@ -94,6 +97,21 @@ func (b shellBackend) trustPreview(path string) (shellapi.Preview, *appcore.Refu
 			Text:  fmt.Sprintf(appcore.TextWarnContainsTrusted, strings.Join(inside, ", ")),
 			Names: inside,
 		})
+	}
+	return preview, nil
+}
+
+// programPreview is what the add and relink sheets show: the file as it will be
+// stored and the codes the person has to acknowledge, which are the same ones the
+// effect checks again.
+func (b shellBackend) programPreview(effect appcore.Effect) (shellapi.Preview, *appcore.Refusal) {
+	codes, refusal := b.a.programFileWarnings(effect.Path)
+	if refusal != nil {
+		return shellapi.Preview{}, refusal
+	}
+	preview := shellapi.Preview{Path: effect.Path}
+	for _, code := range codes {
+		preview.Warnings = append(preview.Warnings, shellapi.Warning{Code: code})
 	}
 	return preview, nil
 }

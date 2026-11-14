@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"slices"
 	"strings"
+
+	"github.com/panphora/htmlclay/internal/config"
 )
 
 // Class is how an action changes what documents and programs may do. It decides
@@ -46,6 +48,7 @@ var ActionClasses = map[string]Class{
 	"document.forget":    ClassSafe,
 	"dashboard.open":     ClassSafe,
 	"folder.reveal":      ClassSafe,
+	"program.reveal":     ClassSafe,
 	"folder.copyAddress": ClassSafe,
 	"waiting.markSeen":   ClassSafe,
 	"prefs.set":          ClassSafe,
@@ -58,6 +61,7 @@ var ActionClasses = map[string]Class{
 	"folder.stopTrusting":  ClassRevoke,
 	"folder.merge":         ClassRevoke,
 	"program.removeAccess": ClassRevoke,
+	"program.remove":       ClassRevoke,
 	"sync.disconnect":      ClassRevoke,
 
 	"folder.trust":     ClassGrant,
@@ -65,6 +69,8 @@ var ActionClasses = map[string]Class{
 	"file.open":        ClassGrant,
 	"request.answer":   ClassGrant,
 	"program.add":      ClassGrant,
+	"program.relink":   ClassGrant,
+	"program.askAgain": ClassGrant,
 	"sync.connect":     ClassGrant,
 	"folder.setUpTeam": ClassGrant,
 	"move.start":       ClassGrant,
@@ -133,9 +139,14 @@ type Effect struct {
 	Route      string          `json:"route,omitempty"`
 	Username   string          `json:"username,omitempty"`
 	Force      bool            `json:"force,omitempty"`
+	// Acknowledged is what the sheet showed about the file: a code the effect
+	// finds and this list does not hold refuses needs-confirmation.
+	Acknowledged []string `json:"acknowledged,omitempty"`
 }
 
 // actionArgs is every argument any action takes; each action reads its own.
+// DocumentID is a document's id for the document actions, and the document's path
+// for the program actions, whose decisions are keyed by the path.
 type actionArgs struct {
 	ID         string          `json:"id"`
 	IDs        []string        `json:"ids"`
@@ -153,6 +164,9 @@ type actionArgs struct {
 	Answer     string          `json:"answer"`
 	Username   string          `json:"username"`
 	FolderIDs  []string        `json:"folderIDs"`
+	// Acknowledged is the file warnings a sheet showed, for the two actions that
+	// register a program file.
+	Acknowledged []string `json:"acknowledged"`
 }
 
 // Plan decides an action against the facts: the effects to run, or why not. It
@@ -270,10 +284,29 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if _, ok := programByID(f, args.ProgramID); !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
 		}
+		// An empty document takes the program away from every document that has
+		// it. DocumentID is the document's path, which is what a decision is keyed
+		// by, so a document that is not open can be removed too.
+		return one(Effect{Type: a.Type, ProgramID: args.ProgramID, DocumentID: args.DocumentID})
+	case "program.remove":
+		if _, ok := programByID(f, args.ProgramID); !ok {
+			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
+		return one(Effect{Type: a.Type, ProgramID: args.ProgramID})
+	case "program.reveal":
+		if _, ok := programByID(f, args.ProgramID); !ok {
+			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
+		return one(Effect{Type: a.Type, ProgramID: args.ProgramID})
+	case "program.askAgain":
+		program, ok := programByID(f, args.ProgramID)
+		if !ok {
+			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
 		if args.DocumentID == "" {
 			return bad("documentID")
 		}
-		return one(Effect{Type: a.Type, ProgramID: args.ProgramID, DocumentID: args.DocumentID})
+		return one(Effect{Type: a.Type, ProgramID: program.ID, DocumentID: args.DocumentID, Name: program.Name})
 	case "program.setAllTrusted":
 		if _, ok := programByID(f, args.ProgramID); !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
@@ -325,7 +358,18 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if args.Path == "" {
 			return bad("path")
 		}
-		return one(Effect{Type: a.Type, Path: args.Path, Name: args.Name})
+		if !config.ValidHelperName(args.Name) {
+			return bad("name")
+		}
+		return one(Effect{Type: a.Type, Path: args.Path, Name: args.Name, Acknowledged: args.Acknowledged})
+	case "program.relink":
+		if _, ok := programByID(f, args.ProgramID); !ok {
+			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
+		if args.Path == "" {
+			return bad("path")
+		}
+		return one(Effect{Type: a.Type, ProgramID: args.ProgramID, Path: args.Path, Acknowledged: args.Acknowledged})
 	case "sync.connect":
 		if args.Username == "" {
 			return bad("username")

@@ -262,7 +262,7 @@ func (a *app) programsAction(action, programID, document, name string) string {
 			return "failed"
 		}
 		a.helperStateMu.Lock()
-		previous, had, rerr := a.rt.cfg.RevokeHelper(document, name)
+		previous, had, rerr := a.rt.cfg.RevokeHelperInScope(document, name, a.scopeOf(document))
 		if err = rerr; err == nil {
 			if err = a.rt.cfg.Save(); err != nil {
 				a.rt.cfg.ForgetHelperDecision(document, name)
@@ -301,7 +301,7 @@ func (a *app) programsAction(action, programID, document, name string) string {
 		// Each document that lost access remembers it, as a single Remove Access
 		// does, so it stops asking instead of offering setup again.
 		for _, d := range removed {
-			if _, _, err = a.rt.cfg.RevokeHelper(d.Document, d.Name); err != nil {
+			if _, _, err = a.rt.cfg.RevokeHelperInScope(d.Document, d.Name, a.scopeOf(d.Document)); err != nil {
 				break
 			}
 		}
@@ -329,7 +329,7 @@ func (a *app) programsAction(action, programID, document, name string) string {
 		// The documents that used it keep a refusal, so none of them falls
 		// through to another program with the same name without asking.
 		for _, d := range removed {
-			if _, _, err = a.rt.cfg.RevokeHelper(d.Document, d.Name); err != nil {
+			if _, _, err = a.rt.cfg.RevokeHelperInScope(d.Document, d.Name, a.scopeOf(d.Document)); err != nil {
 				break
 			}
 		}

@@ -74,8 +74,24 @@
       "class": "grant"
     },
     {
+      "type": "program.askAgain",
+      "class": "grant"
+    },
+    {
+      "type": "program.relink",
+      "class": "grant"
+    },
+    {
+      "type": "program.remove",
+      "class": "revoke"
+    },
+    {
       "type": "program.removeAccess",
       "class": "revoke"
+    },
+    {
+      "type": "program.reveal",
+      "class": "safe"
     },
     {
       "type": "program.setAllTrusted",
