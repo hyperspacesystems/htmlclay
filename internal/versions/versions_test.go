@@ -2,6 +2,7 @@ package versions
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1253,5 +1254,313 @@ func TestListMarksPinnedEntries(t *testing.T) {
 		if e.Pinned != want {
 			t.Fatalf("List marked %q pinned=%v, want %v", e.Name, e.Pinned, want)
 		}
+	}
+}
+
+// keptHistoryForTest plants two versions in key's history, named oldest first, and
+// returns the history folder's absolute path with those names.
+func keptHistoryForTest(t *testing.T, s *Store, key, absPath string) (string, []string) {
+	t.Helper()
+	dir := historyDirForTest(t, s, key, absPath)
+	base := time.Now().UTC().Add(-2 * time.Hour)
+	names := []string{entryName(base, 0), entryName(base.Add(time.Minute), 0)}
+	for i, name := range names {
+		if err := os.WriteFile(filepath.Join(dir, name), doc(fmt.Sprintf("body %d", i)), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir, names
+}
+
+func TestKeptListReturnsOnlyPinnedVersionsAcrossDocuments(t *testing.T) {
+	s := newStore(t)
+
+	alphaPath, betaPath, gammaPath := "/home/u/alpha.html", "/home/u/beta.html", "/home/u/gamma.html"
+	alphaKey, betaKey, gammaKey := Key(alphaPath, nil), Key(betaPath, nil), Key(gammaPath, nil)
+
+	alphaDir, alpha := keptHistoryForTest(t, s, alphaKey, alphaPath)
+	betaDir, beta := keptHistoryForTest(t, s, betaKey, betaPath)
+	keptHistoryForTest(t, s, gammaKey, gammaPath)
+
+	for _, name := range alpha {
+		if err := s.Pin(alphaKey, alphaPath, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Pin(betaKey, betaPath, beta[1]); err != nil {
+		t.Fatal(err)
+	}
+
+	kept, err := s.ListKept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(kept) != 2 {
+		t.Fatalf("ListKept returned %d documents, want 2 (a document with no kept copy must not appear): %+v", len(kept), kept)
+	}
+	if kept[0].Name != "alpha.html" || kept[0].AbsPath != alphaPath || kept[0].Folder != filepath.Base(alphaDir) {
+		t.Fatalf("first kept document = %+v, want alpha.html bound to %s in %s", kept[0], alphaPath, filepath.Base(alphaDir))
+	}
+	if len(kept[0].Entries) != 2 {
+		t.Fatalf("alpha kept %d versions, want 2: %+v", len(kept[0].Entries), kept[0].Entries)
+	}
+	if kept[0].Entries[0].Name != alpha[1] || kept[0].Entries[1].Name != alpha[0] {
+		t.Fatalf("alpha kept copies = %v, want newest first [%s %s]", kept[0].Entries, alpha[1], alpha[0])
+	}
+	for i, e := range kept[0].Entries {
+		if !e.Pinned {
+			t.Fatalf("kept entry %q not marked pinned", e.Name)
+		}
+		info, sErr := os.Stat(filepath.Join(alphaDir, e.Name))
+		if sErr != nil {
+			t.Fatal(sErr)
+		}
+		if e.Size != info.Size() || e.Size == 0 {
+			t.Fatalf("kept entry %q size = %d, want %d", e.Name, e.Size, info.Size())
+		}
+		if i == 0 && !e.Time.After(kept[0].Entries[1].Time) {
+			t.Fatalf("kept entries are not newest first: %+v", kept[0].Entries)
+		}
+	}
+
+	if kept[1].Name != "beta.html" || kept[1].AbsPath != betaPath || kept[1].Folder != filepath.Base(betaDir) {
+		t.Fatalf("second kept document = %+v, want beta.html bound to %s in %s", kept[1], betaPath, filepath.Base(betaDir))
+	}
+	if len(kept[1].Entries) != 1 || kept[1].Entries[0].Name != beta[1] {
+		t.Fatalf("beta kept copies = %+v, want only %s", kept[1].Entries, beta[1])
+	}
+}
+
+func TestKeptDeleteRemovesTheFileAndThePinAndLeavesTheRest(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/delete-one.html"
+	key := Key(path, nil)
+	dir, names := keptHistoryForTest(t, s, key, path)
+	for _, name := range names {
+		if err := s.Pin(key, path, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := s.DeleteKept(filepath.Base(dir), names[0]); err != nil {
+		t.Fatalf("DeleteKept: %v", err)
+	}
+
+	if _, err := os.Lstat(filepath.Join(dir, names[0])); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the deleted kept copy is still on disk: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, names[1])); err != nil {
+		t.Fatalf("deleting one kept copy removed another version: %v", err)
+	}
+	pinned, err := s.Pinned(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 || pinned[0] != names[1] {
+		t.Fatalf("pins after deleting one kept copy = %v, want [%s]", pinned, names[1])
+	}
+	entries, err := s.List(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name != names[1] {
+		t.Fatalf("versions after deleting one kept copy = %+v, want only %s", entries, names[1])
+	}
+}
+
+func TestKeptDeleteRefusesAVersionThatIsNotKept(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/delete-unpinned.html"
+	key := Key(path, nil)
+	dir, names := keptHistoryForTest(t, s, key, path)
+	if err := s.Pin(key, path, names[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.DeleteKept(filepath.Base(dir), names[1]); !errors.Is(err, ErrNotKept) {
+		t.Fatalf("DeleteKept of an unpinned version = %v, want ErrNotKept", err)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, names[1])); err != nil {
+		t.Fatalf("a refused delete removed the version: %v", err)
+	}
+	if err := s.DeleteKept(filepath.Base(dir), "not-a-version.html"); !errors.Is(err, ErrNotKept) {
+		t.Fatalf("DeleteKept of a name that is not a version = %v, want ErrNotKept", err)
+	}
+	pinned, err := s.Pinned(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 || pinned[0] != names[0] {
+		t.Fatalf("a refused delete changed the pins: %v", pinned)
+	}
+}
+
+func TestKeptDeleteRefusesUnknownEscapingAndSymlinkFolders(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/refuse-folder.html"
+	key := Key(path, nil)
+	dir, names := keptHistoryForTest(t, s, key, path)
+	if err := s.Pin(key, path, names[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	link := filepath.Join(s.BaseDir(), "linked")
+	if err := os.Symlink(dir, link); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, folder := range []string{"missing", "..", "linked"} {
+		if err := s.DeleteKept(folder, names[0]); err == nil {
+			t.Fatalf("DeleteKept(%q) removed a kept copy through a folder it must refuse", folder)
+		}
+		if n, err := s.DeleteKeptNames(folder, []string{names[0]}); err == nil {
+			t.Fatalf("DeleteKeptNames(%q) deleted %d versions through a folder it must refuse", folder, n)
+		}
+		if _, err := os.Lstat(filepath.Join(dir, names[0])); err != nil {
+			t.Fatalf("refusing folder %q still removed the kept file: %v", folder, err)
+		}
+	}
+	pinned, err := s.Pinned(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 || pinned[0] != names[0] {
+		t.Fatalf("a refused folder changed the pins: %v", pinned)
+	}
+}
+
+func TestKeptDeleteAllRemovesOnlyPinnedVersions(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/delete-all.html"
+	key := Key(path, nil)
+	dir, names := keptHistoryForTest(t, s, key, path)
+	third := entryName(time.Now().UTC().Add(-time.Hour), 0)
+	if err := os.WriteFile(filepath.Join(dir, third), doc("third"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{names[0], third} {
+		if err := s.Pin(key, path, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	remove := []string{names[0], third}
+	n, err := s.DeleteKeptNames(filepath.Base(dir), remove)
+	if err != nil {
+		t.Fatalf("DeleteKeptNames: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("DeleteKeptNames deleted %d files, want 2", n)
+	}
+	for _, name := range remove {
+		if _, err := os.Lstat(filepath.Join(dir, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("kept copy %q survived DeleteKeptNames: %v", name, err)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(dir, names[1])); err != nil {
+		t.Fatalf("DeleteKeptNames removed an unpinned version: %v", err)
+	}
+	pinned, err := s.Pinned(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 0 {
+		t.Fatalf("pins after DeleteKeptNames = %v, want none", pinned)
+	}
+	if _, err := s.DeleteKeptNames(filepath.Base(dir), remove); !errors.Is(err, ErrNotKept) {
+		t.Fatalf("DeleteKeptNames with nothing kept = %v, want ErrNotKept", err)
+	}
+}
+
+func TestKeptDeleteNamesSkipsCopiesKeptLater(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/delete-names.html"
+	key := Key(path, nil)
+	dir, names := keptHistoryForTest(t, s, key, path)
+	for _, name := range names {
+		if err := s.Pin(key, path, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.ListKept(); err != nil {
+		t.Fatal(err)
+	}
+	third := entryName(time.Now().UTC().Add(-time.Hour), 0)
+	if err := os.WriteFile(filepath.Join(dir, third), doc("third"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Pin(key, path, third); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := s.DeleteKeptNames(filepath.Base(dir), names)
+	if err != nil {
+		t.Fatalf("DeleteKeptNames: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("DeleteKeptNames deleted %d files, want 2", n)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, third)); err != nil {
+		t.Fatalf("a copy kept after the list was read was removed: %v", err)
+	}
+	pinned, err := s.Pinned(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 || pinned[0] != third {
+		t.Fatalf("pins after DeleteKeptNames = %v, want [%s]", pinned, third)
+	}
+}
+
+func TestKeptListSkipsAPinWhoseFileIsGone(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/gone.html"
+	key := Key(path, nil)
+	dir, names := keptHistoryForTest(t, s, key, path)
+	for _, name := range names {
+		if err := s.Pin(key, path, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Remove(filepath.Join(dir, names[0])); err != nil {
+		t.Fatal(err)
+	}
+
+	kept, err := s.ListKept()
+	if err != nil {
+		t.Fatalf("ListKept: %v", err)
+	}
+	if len(kept) != 1 || len(kept[0].Entries) != 1 {
+		t.Fatalf("ListKept = %+v, want only the pin whose file is still there", kept)
+	}
+	if kept[0].Entries[0].Name != names[1] {
+		t.Fatalf("ListKept listed %q, want %q", kept[0].Entries[0].Name, names[1])
+	}
+}
+
+func TestKeptPathAnswersOnlyForAPinnedVersionOnDisk(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/path.html"
+	key := Key(path, nil)
+	dir, names := keptHistoryForTest(t, s, key, path)
+	if err := s.Pin(key, path, names[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.KeptPath(filepath.Base(dir), names[0])
+	if err != nil {
+		t.Fatalf("KeptPath: %v", err)
+	}
+	if want := filepath.Join(dir, names[0]); got != want {
+		t.Fatalf("KeptPath = %q, want %q", got, want)
+	}
+	if _, err := s.KeptPath(filepath.Base(dir), names[1]); !errors.Is(err, ErrNotKept) {
+		t.Fatalf("KeptPath of an unpinned version = %v, want ErrNotKept", err)
+	}
+	if _, err := s.KeptPath("missing", names[0]); !errors.Is(err, ErrNotKept) {
+		t.Fatalf("KeptPath in an unknown folder = %v, want ErrNotKept", err)
+	}
+	if _, err := s.KeptPath("..", names[0]); !errors.Is(err, ErrNotKept) {
+		t.Fatalf("KeptPath through .. = %v, want ErrNotKept", err)
 	}
 }

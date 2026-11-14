@@ -29,7 +29,7 @@ import (
 	"github.com/panphora/htmlclay/internal/versions"
 )
 
-var version = "1.16.2"
+var version = "1.16.3"
 
 //go:embed example.htmlclay
 var exampleHTML []byte
@@ -123,6 +123,11 @@ type appRuntime struct {
 	// copyText overrides the clipboard, so no test writes to the clipboard the
 	// person is using.
 	copyText func(text string) error
+	// openKeptURL and revealKept override how the Kept Copies page opens its
+	// one-time link and reveals a kept file, so a test can capture both instead
+	// of launching a browser or a Finder window. Production leaves them nil.
+	openKeptURL func(string) error
+	revealKept  func(string) error
 	// chooseHelperProgram and prepareHelperProgram override the file picker and
 	// the executable check behind the helper permission dialog. Production
 	// leaves them nil and uses the platform dialogs; tests inject a cancel and a
@@ -199,6 +204,8 @@ type app struct {
 	helperStateMu sync.Mutex
 	// programs holds the one-time links and sessions of the Programs page.
 	programs programsAuth
+	// kept holds the one-time links and sessions of the Kept Copies page.
+	kept programsAuth
 	// openDenials holds the names refused at a document's last direct open. A
 	// refusal is never stored in config, so every re-resolve during that open
 	// applies it from here; the next direct open clears it and asks again.
@@ -677,7 +684,7 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 		return
 	}
 	a.rt.logger.Printf("Starting system tray...")
-	tray.Run(a.rt.cfg, version, a.openExample, a.openBackups, func() {
+	tray.Run(a.rt.cfg, version, a.openExample, a.openBackups, a.openKeptPage, func() {
 		a.prepareSparkleQuit()
 		a.shutdown()
 	}, updateCh, &tray.TrustedFolderHooks{

@@ -35,6 +35,10 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 		a.servePrograms(w, r)
 		return
 	}
+	if name == "127.0.0.1" && keptPath(r.URL.Path) {
+		a.serveKept(w, r)
+		return
+	}
 	if name == "localhost" || name == "127.0.0.1" || name == "::1" {
 		if apiPath, ok := scriptAPIPath(r); ok {
 			abs := filepath.Join(a.rt.home, filepath.FromSlash(apiPath))
