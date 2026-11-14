@@ -7,4 +7,5 @@ out="$root/macos/.build/host-for-tests"
 mkdir -p "$out"
 cd "$root"
 go build -o "$out/htmlclay" ./cmd/htmlclay
+go build -o "$out/stubservice" ./tools/stubservice
 echo "$out/htmlclay"
