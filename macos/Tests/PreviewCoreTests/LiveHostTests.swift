@@ -543,6 +543,43 @@ final class LiveHostTests: XCTestCase {
         XCTAssertEqual(folder.id, gone.id)
     }
 
+    func testAFileOpenerOpensInHomeAndReportsRefusals() async throws {
+        let host = try await LiveHost.start()
+        let notes = host.home.appendingPathComponent("notes")
+        try makeFolder(notes)
+        let document = notes.appendingPathComponent("a.htmlclay")
+        try Data("<!doctype html><title>a</title><p>hello".utf8).write(to: document)
+        let log = host.home.appendingPathComponent("open.log")
+
+        let model = AppModel(host: host.client, initial: try await host.client.load())
+        let opener = FileOpener(model: model)
+        var refusals: [(String, HostRefusal)] = []
+        opener.onRefused = { refusals.append(($0, $1)) }
+        opener.hostReady()
+
+        opener.open([document.path])
+        await waitUntil("the open log never named a.htmlclay") {
+            self.openLog(log).contains { $0.contains("a.htmlclay") }
+        }
+
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent("hc-outside-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: outside) }
+        let stranger = outside.appendingPathComponent("outside.htmlclay")
+        try Data("<!doctype html><title>outside</title>".utf8).write(to: stranger)
+
+        opener.open([stranger.path])
+        await waitUntil("the file outside home was never refused") { refusals.count == 1 }
+        XCTAssertEqual(refusals.first?.0, "outside.htmlclay")
+        XCTAssertEqual(refusals.first?.1.code, "file-outside-home")
+        XCTAssertFalse(refusals.first?.1.text.isEmpty ?? true, "the refusal to open a file outside home has no text")
+
+        opener.open([notes.appendingPathComponent("missing.htmlclay").path])
+        await waitUntil("the missing file was never refused") { refusals.count == 2 }
+        XCTAssertEqual(refusals.last?.0, "missing.htmlclay")
+        XCTAssertEqual(refusals.last?.1.code, "file-missing")
+    }
+
     func testWrongSecretIsRefused() async throws {
         let host = try await LiveHost.start()
         let stranger = LoopbackHostClient(port: host.shellPort, secret: String(repeating: "0", count: 64))

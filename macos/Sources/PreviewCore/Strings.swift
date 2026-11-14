@@ -491,6 +491,8 @@ public enum Strings {
         public static let retry = "Retry"
         public static let quitAnyway = "Quit anyway"
         public static func portTitle(_ port: String, process: String) -> String { "Port \(port) is in use by “\(process)”" }
+        public static func portTakenTitle(_ port: Int) -> String { "Port \(port) is in use" } // TODO-COPY: alert title when another app holds the host's port
+        public static let portTakenMessage = "Another app is using the port HTML Clay needs. Quit that app, then open HTML Clay again." // TODO-COPY: alert message when another app holds the host's port
         public static let portMessage = "HTML Clay can use another port, but every page's saved browser data starts over at the new address."
         public static func quitProcess(_ process: String) -> String { "Quit \(process) and retry" }
         public static func usePort(_ port: Int) -> String { "Use port \(port)" }
@@ -498,6 +500,11 @@ public enum Strings {
         public static func wouldRetrySave(_ document: String) -> String { "Build 1: this would try saving \(document) again." }
         public static func wouldQuitProcess(_ process: String) -> String { "Build 1: this would quit \(process) and start HTML Clay on port 1212." }
         public static func wouldUsePort(_ port: Int) -> String { "Build 1: this would move every address to port \(port). Saved browser data starts over." }
+    }
+    public enum Open {
+        public static func cantOpenTitle(_ name: String) -> String { "Can't open \"\(name)\"" } // TODO-COPY: alert title when a file open is refused; \(name) is the file's name
+        public static let cantOpenFallback = "Something went wrong. Try opening it again." // TODO-COPY: alert message when the host gives no reason
+        public static let ok = "OK"
     }
     public enum Notify {
         public static func title(_ note: SampleNotification) -> String {

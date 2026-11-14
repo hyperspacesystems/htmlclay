@@ -3,7 +3,8 @@ import PreviewCore
 
 @MainActor
 public enum MainMenu {
-    public static func build(settingsTarget: AnyObject?, settingsAction: Selector) -> NSMenu {
+    public static func build(settingsTarget: AnyObject?, settingsAction: Selector,
+                             openTarget: AnyObject? = nil, openAction: Selector? = nil) -> NSMenu {
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
@@ -14,6 +15,16 @@ public enum MainMenu {
         appMenu.addItem(NSMenuItem(title: Strings.Menu.quit, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         appItem.submenu = appMenu
         main.addItem(appItem)
+
+        if let openAction {
+            let fileItem = NSMenuItem()
+            let file = NSMenu(title: "File")
+            let open = NSMenuItem(title: Strings.Panel.openAFile, action: openAction, keyEquivalent: "o")
+            open.target = openTarget
+            file.addItem(open)
+            fileItem.submenu = file
+            main.addItem(fileItem)
+        }
 
         let editItem = NSMenuItem()
         let edit = NSMenu(title: "Edit")

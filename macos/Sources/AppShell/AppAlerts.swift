@@ -28,6 +28,16 @@ public final class AppAlerts {
         }
     }
 
+    public func cantOpen(name: String, text: String) {
+        let message = text.isEmpty ? Strings.Open.cantOpenFallback : text
+        _ = make(Strings.Open.cantOpenTitle(name), message, buttons: [Strings.Open.ok]).runModal()
+    }
+
+    public func portTaken(port: Int) {
+        let alert = make(Strings.Quit.portTakenTitle(port), Strings.Quit.portTakenMessage, buttons: [Strings.Menu.quit])
+        if alert.runModal() == .alertFirstButtonReturn { NSApp.terminate(nil) }
+    }
+
     public func portTaken() {
         let process = SampleData.portProcess
         let alert = make(Strings.Quit.portTitle(Strings.Advanced.portNumber, process: process), Strings.Quit.portMessage,

@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var alerts: AppAlerts!
     private var process: HostProcess?
     private var home: URL?
-    private var queuedOpens: [URL] = []
+    private var opener: FileOpener!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let home: URL
@@ -30,9 +30,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model = AppModel(host: relay, initial: relay.last)
         model.folderChooser = OpenPanelFolderChooser()
         alerts = AppAlerts(model: model)
+        opener = FileOpener(model: model)
+        opener.onRefused = { [weak self] name, refusal in self?.alerts.cantOpen(name: name, text: refusal.text) }
+        model.fileOpener = opener
         windows = WindowManager(model: model)
         statusItem = StatusItemController(model: model, windows: windows)
-        NSApp.mainMenu = MainMenu.build(settingsTarget: self, settingsAction: #selector(openSettings(_:)))
+        NSApp.mainMenu = MainMenu.build(settingsTarget: self, settingsAction: #selector(openSettings(_:)),
+                                        openTarget: self, openAction: #selector(openAFile(_:)))
         _ = relay.subscribe { [weak self] _ in self?.writeState() }
         relay.onRestart = { [model] in model?.hostRestarted() }
         relay.onRestartRequested = { [weak self] in self?.startHost() }
@@ -52,7 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             Task {
                 await self.relay.attach(client)
-                self.flushQueuedOpens()
+                self.opener.hostReady()
                 self.writeState()
             }
         }
@@ -60,9 +64,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             switch state {
             case let .failed(failure):
-                if failure.code == "port-taken" { self.alerts.portTaken() }
+                if failure.code == "port-taken", let port = failure.port { self.alerts.portTaken(port: port) }
+                self.opener.hostGone()
                 self.relay.hostGone()
             case .stopped:
+                self.opener.hostGone()
                 self.relay.hostGone()
             case .starting, .running:
                 break
@@ -82,22 +88,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/htmlclay-host")
     }
 
-    private func flushQueuedOpens() {
-        guard !queuedOpens.isEmpty else { return }
-        let urls = queuedOpens
-        queuedOpens = []
-        for url in urls { model.send(.openFile(path: url.path)) }
-    }
-
     func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls where url.isFileURL {
-            if model != nil, case .running = process?.state {
-                model.send(.openFile(path: url.path))
-                queuedOpens.removeAll { $0 == url }
-            } else if !queuedOpens.contains(url) {
-                queuedOpens.append(url)
-            }
-        }
+        opener.open(urls.filter(\.isFileURL).map(\.path))
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -111,6 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func openSettings(_ sender: Any?) { windows.showSettings(.general) }
+
+    @objc func openAFile(_ sender: Any?) { model.chooseAFile() }
 
     private func writeState() {
         guard let home else { return }

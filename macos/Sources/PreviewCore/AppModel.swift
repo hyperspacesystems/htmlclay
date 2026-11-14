@@ -12,6 +12,8 @@ public final class AppModel {
     public private(set) var lastRefusal: HostRefusal?
     /// How sheets pick folders: the preview cycles sample folders, the real app opens a folder panel.
     public var folderChooser: FolderChooser?
+    /// The real app opens files through this; the preview sends straight from sample data.
+    public var fileOpener: FileOpener?
     private var noteToken = 0
     private var inFlight: [String: HostAction] = [:]
     private var queued: [String: HostAction] = [:]
@@ -67,7 +69,11 @@ public final class AppModel {
     public func chooseAFile() {
         Task {
             guard let path = await folderChooser?.chooseFile(), !path.isEmpty else { return }
-            send(.openFile(path: path))
+            if let fileOpener = self.fileOpener {
+                fileOpener.open([path])
+            } else {
+                send(.openFile(path: path))
+            }
         }
     }
 
