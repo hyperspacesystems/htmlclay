@@ -311,7 +311,9 @@ func TestProgramsRelinkPickerStartsInAFolderThatExists(t *testing.T) {
 	}
 	var started string
 	dialogs := helperApprovalDialogs{
-		setup: func(string, string, string, string, string) (platform.Choice, error) { return platform.ChoiceAffirm, nil },
+		setup: func(string, string, string, string, string) (platform.Choice, error) {
+			return platform.ChoiceAffirm, nil
+		},
 		choose: func(_, dir string) (string, bool, error) {
 			started = dir
 			return "", false, nil
