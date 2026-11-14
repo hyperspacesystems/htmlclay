@@ -94,6 +94,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		}
 	}
 	hooks := newLiveHooks(liveRoot)
+	hooks.guard.v2 = root.publicHost != ""
 	compile := cfg.compileTailwind
 	if compile == nil && defaultTailwindCompile != nil {
 		compile = defaultTailwindCompile(cfg.localSource)

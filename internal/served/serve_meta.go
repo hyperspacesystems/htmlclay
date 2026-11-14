@@ -199,6 +199,20 @@ func invalidFilePathError() error {
 	return &PathError{Status: 400, Message: "Invalid file path"}
 }
 
+// withDataGuardV2 is a served folder's list: Local's names, and data guard v2
+// after v1, where the sort puts it. A served folder runs the v2 guard with or
+// without the service; the trial's roots run Local's and announce Local's list.
+func withDataGuardV2(extensions []string) []string {
+	out := make([]string, 0, len(extensions)+1)
+	for _, name := range extensions {
+		out = append(out, name)
+		if name == "data-guard-v1" {
+			out = append(out, "data-guard-v2")
+		}
+	}
+	return out
+}
+
 // serveMeta is Local's GET /_/meta: the host's capabilities, and the facts and
 // stamp of the document the request names, withheld by omission on every
 // failure.
@@ -207,6 +221,9 @@ func (s *rootServer) serveMeta(w http.ResponseWriter, r *http.Request) error {
 	extensions := trialMetaExtensions
 	if svc != nil {
 		extensions = managedMetaExtensions
+	}
+	if s.publicHost != "" {
+		extensions = withDataGuardV2(extensions)
 	}
 	body := orderedObject{
 		{Key: "spec", Value: 1},

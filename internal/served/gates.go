@@ -164,6 +164,15 @@ func sameOriginFetch(r *http.Request) bool {
 	return len(sites) == 0 || sites[0] == "same-origin" || sites[0] == "none"
 }
 
+// admittedAsPage is how the gate let a write through. A browser attests Origin
+// on every write and Sec-Fetch-Site where it knows the header, a page script can
+// set or remove neither, and the gate has already held both to this origin; a
+// write it admitted with neither came from a program. It is the classifier the
+// loose host's wire and the router's bare-host data API use.
+func admittedAsPage(r *http.Request) bool {
+	return len(r.Header.Values("Sec-Fetch-Site")) != 0 || len(r.Header.Values("Origin")) != 0
+}
+
 func gate(w http.ResponseWriter, r *http.Request, p originPolicy) (string, bool, bool) {
 	if !p.hostAllowed(r.Host) {
 		sendText(w, r, http.StatusForbidden, "Invalid Host header")

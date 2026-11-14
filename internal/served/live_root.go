@@ -207,6 +207,12 @@ func (l *rootLive) wasBrowserSave(rel string) bool {
 // live lane, where the chip that resolves it is.
 type liveGuard struct {
 	root *rootLive
+	// v2 is set for a served folder, whose guard runs data guard v2.
+	v2 bool
+}
+
+func (g *liveGuard) dataGuardV2() bool {
+	return g.v2
 }
 
 func (g *liveGuard) Notify(name string, message guardNotification) {

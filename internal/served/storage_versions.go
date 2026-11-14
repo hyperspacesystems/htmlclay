@@ -768,6 +768,14 @@ func PruneSiteVersions(baseDir, siteVersionsDir string, now time.Time, obs *Vers
 			keep[entry.Name] = true
 		}
 	}
+	// A pinned version is kept until the person deletes it, however old it is.
+	// Every prune comes through here: the hourly one a backup starts and the
+	// whole-history sweep.
+	for _, entry := range entries {
+		if versionPinned(siteVersionsDir, entry.Name) {
+			keep[entry.Name] = true
+		}
+	}
 
 	deleted := []string{}
 	for _, entry := range entries {
@@ -787,6 +795,40 @@ func PruneSiteVersions(baseDir, siteVersionsDir string, now time.Time, obs *Vers
 	}
 
 	return PruneResult{Kept: len(keep), Deleted: deleted}
+}
+
+// pinSuffix names a pin: an empty marker file beside the kept version, named
+// for it. A marker never matches versionNameRe, so no listing, no restore and no
+// prune takes it for a version, and it moves with the history folder on a rename.
+const pinSuffix = ".pinned"
+
+// PinVersion marks one kept version as kept until the person deletes it.
+func PinVersion(baseDir, siteVersionsDir, name string) error {
+	if !IsVersionName(name) {
+		return fmt.Errorf("not a version name: %s", name)
+	}
+	if err := AssertVersionsChain(baseDir, siteVersionsDir); err != nil {
+		return err
+	}
+	full := filepath.Join(siteVersionsDir, name)
+	info, err := os.Lstat(full)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("not a version file: %s", name)
+	}
+	marker, err := os.OpenFile(full+pinSuffix, os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	return marker.Close()
+}
+
+// versionPinned reports whether a version carries its pin.
+func versionPinned(siteVersionsDir, name string) bool {
+	info, err := os.Lstat(filepath.Join(siteVersionsDir, name+pinSuffix))
+	return err == nil && info.Mode().IsRegular()
 }
 
 func pruneRefused(obs *VersionObserver, dir string, err error) PruneResult {

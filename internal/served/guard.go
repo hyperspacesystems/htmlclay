@@ -2,6 +2,7 @@ package served
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -28,6 +29,10 @@ const (
 	guardEllipsis     = "\u2026"
 	guardItemsLabel   = "items"
 )
+
+// guardNotRestorable is Local's refusal for data that cannot be written back
+// onto the current page.
+const guardNotRestorable = "Data could not be restored onto the current page; use Revert."
 
 // guardNow and guardNewID are Date.now() and crypto.randomUUID(). Tests replace
 // them with counters so a record's stamps and ids are reproducible.
@@ -70,6 +75,19 @@ func liveOf(live guardLive) guardLive {
 	return live
 }
 
+// guardV2Live is the transport of a root that runs data guard v2: its guard
+// keeps a typing record, judges an outside write by it, and pins the version a
+// quiet removal replaced. A served folder's does. The trial's roots answer as
+// Local does, and a transport that says nothing runs the v1 guard.
+type guardV2Live interface {
+	dataGuardV2() bool
+}
+
+func guardV2Of(live guardLive) bool {
+	v2, ok := live.(guardV2Live)
+	return ok && v2.dataGuardV2()
+}
+
 // guardPreviewRow is one "now / yours" line of the recovery panel.
 type guardPreviewRow = dataguard.PreviewRow
 
@@ -86,6 +104,11 @@ type guardClientEvent struct {
 	Restorable       bool                  `json:"restorable"`
 	CanRevert        bool                  `json:"canRevert"`
 	Status           string                `json:"status"`
+	// Reason, Typed and CanPutBack are data guard v2's, beside the v1 fields. An
+	// event that has none of them is the v1 event byte for byte.
+	Reason     string               `json:"reason,omitempty"`
+	Typed      []dataguard.TypedRow `json:"typed,omitempty"`
+	CanPutBack bool                 `json:"canPutBack,omitempty"`
 }
 
 // extractIsland is data-extractor.js's extractViaTag(html, "api"): the island
@@ -271,7 +294,17 @@ type runGuardArgs struct {
 	PrevContent *string
 	Prov        dataguard.Provenance
 	IfMatched   bool
-	Live        guardLive
+	// ProvenReader is a program that named the exact version it read, and
+	// FromPage a browser page's own data API write (dataguard.Observation).
+	ProvenReader bool
+	FromPage     bool
+	Live         guardLive
+}
+
+// outside is dataguard.Observation's outside: a write no page sent and no
+// program proved it read.
+func (a runGuardArgs) outside() bool {
+	return a.Prov == dataguard.External && !a.FromPage && !a.ProvenReader
 }
 
 // runDataLossGuard is one detection pass. It returns the client-safe event when
@@ -279,6 +312,10 @@ type runGuardArgs struct {
 func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 	live := liveOf(args.Live)
 	inc, readable := safeExtractIsland(args.NewHTML)
+	var history dataguard.HistoryReader
+	if guardV2Of(live) {
+		history = servedHistory{baseDir: args.BaseDir, name: args.Name}
+	}
 
 	var raised *guardRecordEvent
 	autoResolvedID := ""
@@ -339,8 +376,15 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 				writeGuard(args.BaseDir, args.Name, guard)
 				return
 			}
-			if dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction, false) {
+			fire, verdict := judgeWrite(args, history != nil, guard, base, inc, destruction)
+			if fire {
 				guard.Event.LastWriteAt = guardNow()
+				if verdict != nil {
+					guard.Event.Typed = dataguard.UnionTyped(guard.Event.Typed, verdict.Gone)
+					if verdict.Reason != "" {
+						guard.Event.Reason = verdict.Reason
+					}
+				}
 			}
 			if args.Prov == dataguard.External {
 				guard.UIWorkPending = false
@@ -350,8 +394,16 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 		}
 
 		destruction := classify(base, inc)
-		if dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction, false) {
-			backup := captureRecoverPath(args.BaseDir, args.Name, args.PrevContent)
+		fire, verdict := judgeWrite(args, history != nil, guard, base, inc, destruction)
+		// An outside write that removed data without firing is one the guard
+		// judged intended. Silence is not permission to lose the copy, so the
+		// version it replaced is pinned; when no copy can be kept, the guard
+		// cannot stay silent.
+		if !fire && history != nil && args.outside() && (destruction.AnyDestruction || len(dataguard.DropGone(guard.Typed, inc)) < len(guard.Typed)) {
+			fire = !pinReplaced(args, history)
+		}
+		if fire {
+			backup := captureRecoverPath(args, history)
 			guard.Event = &guardRecordEvent{
 				ID:                    guardNewID(),
 				RecoverableData:       guard.Baseline.Data,
@@ -360,6 +412,10 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 				LastWriteAt:           guardNow(),
 				LossSummary:           dataguard.LossSummaryOf(args.Prov, destruction),
 				Status:                "pending",
+			}
+			if verdict != nil {
+				guard.Event.Reason = verdict.Reason
+				guard.Event.Typed = verdict.Gone
 			}
 			guard.Status = "pending"
 			if args.Prov == dataguard.External {
@@ -371,10 +427,20 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 		}
 
 		if args.Prov == dataguard.UIGestured {
-			guard.Baseline = newGuardBaseline(inc, guardNow())
+			now := guardNow()
+			if history != nil {
+				guard.Typed = dataguard.UpdateTyped(typedBefore(args, base), inc, guard.Typed, now)
+			}
+			guard.Baseline = newGuardBaseline(inc, now)
 			guard.UIWorkPending = true
 		} else if args.Prov == dataguard.External {
 			guard.UIWorkPending = false
+			if history != nil && (args.outside() || args.ProvenReader) {
+				guard.Typed = dataguard.DropGone(guard.Typed, inc)
+				if inc != nil && !dataguard.IsEmptyIsland(inc) {
+					guard.Baseline = newGuardBaseline(inc, guardNow())
+				}
+			}
 		}
 		writeGuard(args.BaseDir, args.Name, guard)
 	})
@@ -391,6 +457,117 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 	return nil
 }
 
+// judgeWrite is the fire decision for one write, the one dataguard.Guard.Observe
+// makes. A root that runs data guard v2 judges an outside write by what a person
+// typed (dataguard.JudgeOutside) and answers the verdict; every other write, and
+// every write to a root that runs v1, is ShouldFire's.
+func judgeWrite(args runGuardArgs, v2 bool, guard *guardRecord, base, inc dataapi.Value, destruction *dataguard.Destruction) (bool, *dataguard.OutsideVerdict) {
+	fire := dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction, args.ProvenReader)
+	if !v2 || !args.outside() || dataguard.IsSheet(base) || dataguard.IsSheet(inc) {
+		return fire, nil
+	}
+	verdict := dataguard.JudgeOutside(base, inc, destruction, guard.Typed, guardNow())
+	return verdict.Fire, &verdict
+}
+
+// typedBefore is the data a gestured save started from: the page's previous
+// bytes when the lane has them, else the baseline.
+func typedBefore(args runGuardArgs, base dataapi.Value) dataapi.Value {
+	if args.PrevContent != nil {
+		if previous, ok := safeExtractIsland(*args.PrevContent); ok && previous != nil {
+			return previous
+		}
+	}
+	return base
+}
+
+// servedHistory is a served document's kept versions as the guard reads them
+// (dataguard.HistoryReader): the copy an outside write replaced, and the pin
+// that keeps it.
+type servedHistory struct {
+	baseDir string
+	name    string
+}
+
+func (h servedHistory) dir() string {
+	return versionsDirFor(h.baseDir, h.name)
+}
+
+func (h servedHistory) read(versionName string) ([]byte, bool) {
+	full, err := versionFilePath(h.baseDir, h.name, versionName)
+	if err != nil {
+		return nil, false
+	}
+	data, err := os.ReadFile(full)
+	return data, err == nil
+}
+
+// NewestDifferingFrom is the newest kept version that is not the bytes named by
+// hash, the digest servedHistoryHash gives the bytes just written.
+func (h servedHistory) NewestDifferingFrom(hash string) ([]byte, bool) {
+	for _, entry := range listVersionEntries(h.dir(), false) {
+		if data, ok := h.read(entry.Name); ok && guardSHA256(data) != hash {
+			return data, true
+		}
+	}
+	return nil, false
+}
+
+// Keep answers the version that holds exactly content, storing one when none does.
+func (h servedHistory) Keep(content []byte) (string, error) {
+	file, _ := splitPage(string(content))
+	for _, entry := range listVersionEntries(h.dir(), false) {
+		if entry.Size != int64(len(file)) {
+			continue
+		}
+		if data, ok := h.read(entry.Name); ok && string(data) == file {
+			return entry.Name, nil
+		}
+	}
+	published := CreateBackup(h.baseDir, backupSiteName(h.name), []byte(file), nil)
+	if published == nil {
+		return "", errors.New("the version could not be kept")
+	}
+	return published.Filename, nil
+}
+
+func (h servedHistory) Pin(name string) error {
+	return PinVersion(h.baseDir, h.dir(), name)
+}
+
+// servedHistoryHash is the digest of a document as its versions hold it: the
+// file part, without the page state a version never carries.
+func servedHistoryHash(html string) string {
+	file, _ := splitPage(html)
+	return guardSHA256([]byte(file))
+}
+
+// pinReplaced pins the version an outside write replaced, so the one copy of
+// the data the guard stayed silent about is kept until the person deletes it.
+// It reports whether that copy is now kept and pinned.
+func pinReplaced(args runGuardArgs, history dataguard.HistoryReader) bool {
+	var body []byte
+	if args.PrevContent != nil {
+		body = []byte(*args.PrevContent)
+	} else {
+		found, ok := history.NewestDifferingFrom(servedHistoryHash(args.NewHTML))
+		if !ok {
+			return false
+		}
+		body = found
+	}
+	name, err := history.Keep(body)
+	if err != nil {
+		log.Printf("[data-guard] could not keep the version %s replaced: %v", args.Name, err)
+		return false
+	}
+	if err := history.Pin(name); err != nil {
+		log.Printf("[data-guard] could not pin version %s of %s: %v", name, args.Name, err)
+		return false
+	}
+	return true
+}
+
 // seedBlind records the island just written as the baseline, for content nobody
 // vouched for.
 func seedBlind(guard *guardRecord, island dataapi.Value) {
@@ -402,11 +579,19 @@ func seedBlind(guard *guardRecord, island dataapi.Value) {
 
 // captureRecoverPath is the whole last-good file for Revert, always copied into
 // the guard's own storage so the retention pruner can never delete what an event
-// pins. It prefers the pre-write body, else the newest version entry.
-func captureRecoverPath(baseDir, name string, prevContent *string) *string {
+// pins. It prefers the pre-write body, else the newest version entry; a root
+// that runs data guard v2 passes over a version that is the bytes just written.
+func captureRecoverPath(args runGuardArgs, history dataguard.HistoryReader) *string {
+	baseDir, name := args.BaseDir, args.Name
 	var body []byte
-	if prevContent != nil {
-		body = []byte(*prevContent)
+	if args.PrevContent != nil {
+		body = []byte(*args.PrevContent)
+	} else if history != nil {
+		found, ok := history.NewestDifferingFrom(servedHistoryHash(args.NewHTML))
+		if !ok {
+			return nil
+		}
+		body = found
 	} else {
 		versionPath := newestVersionPath(baseDir, name)
 		if versionPath == "" {
@@ -526,6 +711,9 @@ func toClientEvent(event *guardRecordEvent, currentHTML string) *guardClientEven
 		Restorable:       restorable,
 		CanRevert:        event.RecoverableHTMLBackup != nil,
 		Status:           status,
+		Reason:           event.Reason,
+		Typed:            dataguard.TypedRows(event.Typed),
+		CanPutBack:       dataguard.CanPutBack(event.Typed, currentIsland, recoverable),
 	}
 }
 
@@ -659,8 +847,9 @@ func guardRefusal(statusCode int, message string) guardResolveResult {
 	return guardResolveResult{StatusCode: statusCode, Error: message}
 }
 
-// resolveGuard is dismiss, revert or restore. writeBack performs the actual save
-// through the caller's backup-then-write helper, so a resolution is versioned.
+// resolveGuard is dismiss, revert, restore or put-back. writeBack performs the
+// actual save through the caller's backup-then-write helper, so a resolution is
+// versioned.
 func resolveGuard(args resolveGuardArgs) guardResolveResult {
 	live := liveOf(args.Live)
 	guard, err := readGuard(args.BaseDir, args.Name)
@@ -694,11 +883,11 @@ func resolveGuard(args resolveGuardArgs) guardResolveResult {
 	case "restore":
 		merged, ok := restoreDataOntoHTML(args.CurrentHTML, event.RecoverableData)
 		if !ok {
-			return guardRefusal(422, "Data could not be restored onto the current page; use Revert.")
+			return guardRefusal(422, guardNotRestorable)
 		}
 		if args.WriteBack != nil {
 			if err := args.WriteBack(merged); err != nil {
-				return guardRefusal(422, "Data could not be restored onto the current page; use Revert.")
+				return guardRefusal(422, guardNotRestorable)
 			}
 		}
 		after, afterOK := safeExtractIsland(merged)
@@ -709,6 +898,32 @@ func resolveGuard(args resolveGuardArgs) guardResolveResult {
 		clearEvent(args.BaseDir, args.Name, kept, "restored", false)
 		notifyResolved(args.Name, event.ID, live)
 		return guardResolveResult{OK: true, Choice: args.Choice, Status: "restored"}
+
+	case "put-back":
+		// The typed values the loss took go back into the places the current
+		// page still has, so every other change the writer made stays.
+		current, _ := safeExtractIsland(args.CurrentHTML)
+		if len(event.Typed) == 0 || current == nil || event.RecoverableData == nil || args.WriteBack == nil {
+			return guardRefusal(422, guardNotRestorable)
+		}
+		merged, placed := dataguard.PutBack(current, event.Typed, event.RecoverableData)
+		if placed == 0 {
+			return guardRefusal(422, guardNotRestorable)
+		}
+		html, ok := restoreDataOntoHTML(args.CurrentHTML, merged)
+		if !ok {
+			return guardRefusal(422, guardNotRestorable)
+		}
+		if err := args.WriteBack(html); err != nil {
+			return guardRefusal(422, guardNotRestorable)
+		}
+		kept := merged
+		if after, afterOK := safeExtractIsland(html); afterOK && after != nil {
+			kept = after
+		}
+		clearEvent(args.BaseDir, args.Name, kept, "put-back", false)
+		notifyResolved(args.Name, event.ID, live)
+		return guardResolveResult{OK: true, Choice: args.Choice, Status: "put-back"}
 
 	case "revert":
 		if event.RecoverableHTMLBackup == nil {
@@ -751,6 +966,11 @@ func clearEventLocked(baseDir, name string, keptIsland dataapi.Value, status str
 	guard.Event = nil
 	guard.Status = status
 	guard.UIWorkPending = false
+	// The typing record describes the data the person has accepted, so it follows
+	// the island the resolution leaves behind.
+	if len(guard.Typed) > 0 {
+		guard.Typed = dataguard.DropGone(guard.Typed, keptIsland)
+	}
 	if forceBaseline {
 		guard.Baseline = nil
 		if keptIsland != nil {
@@ -841,13 +1061,15 @@ func (h *guardHooks) MarkPending(baseDir, name string, stored any) {
 
 func (h *guardHooks) RunDataLossGuard(args dataLossGuardArgs) {
 	runDataLossGuard(runGuardArgs{
-		BaseDir:     args.BaseDir,
-		Name:        args.Name,
-		NewHTML:     args.NewHTML,
-		PrevContent: args.PrevContent,
-		Prov:        dataguard.Provenance(args.Prov),
-		IfMatched:   args.IfMatched != nil && *args.IfMatched,
-		Live:        h.live,
+		BaseDir:      args.BaseDir,
+		Name:         args.Name,
+		NewHTML:      args.NewHTML,
+		PrevContent:  args.PrevContent,
+		Prov:         dataguard.Provenance(args.Prov),
+		IfMatched:    args.IfMatched != nil && *args.IfMatched,
+		ProvenReader: args.ProvenReader,
+		FromPage:     args.FromPage,
+		Live:         h.live,
 	})
 }
 

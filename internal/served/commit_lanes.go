@@ -1,13 +1,16 @@
 package served
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/dataguard"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
 
@@ -205,6 +208,17 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 		content = logical
 	}
 
+	// A program's write that would remove data is refused unless it named the
+	// exact version it read. It is judged on the bytes about to be written, after
+	// the lane or the service has normalized them and before anything is kept or
+	// placed. A page is never refused.
+	if refusal := readRequired(request, content); refusal != nil {
+		if consult != nil {
+			consult.link.abort(consult.ID, "refused")
+		}
+		return refusedBy(*refusal), nil
+	}
+
 	// The bytes already on disk, read once. Local keeps them only on the first
 	// save, so bytes another program wrote were replaced with no copy anywhere.
 	existingContent, kept := h.keepReplaced(request.Name, filePath)
@@ -328,12 +342,14 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 	}
 	ifMatched := policy.origin == "api" && request.IfMatched
 	h.hooks.RunDataLossGuard(dataLossGuardArgs{
-		BaseDir:     h.baseDir,
-		Name:        request.Name,
-		NewHTML:     content,
-		PrevContent: request.DataLossPrev,
-		Prov:        prov,
-		IfMatched:   &ifMatched,
+		BaseDir:      h.baseDir,
+		Name:         request.Name,
+		NewHTML:      content,
+		PrevContent:  request.DataLossPrev,
+		Prov:         prov,
+		IfMatched:    &ifMatched,
+		ProvenReader: request.Program && ifMatched,
+		FromPage:     policy.origin == "api" && !request.Program,
 	})
 
 	// Generate the site's Tailwind CSS when it uses one. Non-fatal, for the same
@@ -360,6 +376,58 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 		File:    fileContent,
 		HasFile: true,
 	}, nil
+}
+
+// readRequiredBody is the 428 a program gets for a write that would remove data
+// it has not shown it read: the code, the etag to send as If-Match, and what the
+// write would have taken.
+type readRequiredBody struct {
+	Error       string          `json:"error"`
+	Message     string          `json:"message"`
+	Code        string          `json:"code"`
+	Etag        string          `json:"etag"`
+	WouldRemove wouldRemoveBody `json:"wouldRemove"`
+}
+
+type wouldRemoveBody struct {
+	Items  int      `json:"items"`
+	Values int      `json:"values"`
+	Paths  []string `json:"paths"`
+}
+
+// readRequired judges a program's data API write against the document as it
+// stood under the lock, with the extraction and classification the guard uses.
+// It answers the refusal, or nil when the write is a page's, names the exact
+// version it read, or removes nothing.
+func readRequired(request *commitRequest, written string) *serviceRefusal {
+	if !request.Program || request.IfMatched || request.DataLossPrev == nil {
+		return nil
+	}
+	current := *request.DataLossPrev
+	base, ok := safeExtractIsland(current)
+	if !ok || dataguard.IsEmptyIsland(base) {
+		return nil
+	}
+	inc, readable := safeExtractIsland(written)
+	destruction := dataguard.ClassifyDestruction(base, inc)
+	if readable && !destruction.AnyDestruction {
+		return nil
+	}
+	body, err := json.Marshal(readRequiredBody{
+		Error:   "Read first",
+		Message: "This write would remove data. Read the document first and send its etag as If-Match.",
+		Code:    "read-required",
+		Etag:    specwire.Etag([]byte(current)),
+		WouldRemove: wouldRemoveBody{
+			Items:  destruction.RemovedItems,
+			Values: destruction.DestroyedLeaves,
+			Paths:  append([]string{}, destruction.Paths...),
+		},
+	})
+	if err != nil {
+		return nil
+	}
+	return &serviceRefusal{Status: http.StatusPreconditionRequired, Code: "read-required", Body: body}
 }
 
 // saveSender is who a save lane write is from, as its broadcast names it.

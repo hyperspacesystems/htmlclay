@@ -81,8 +81,8 @@ func (s *rootServer) serveDataLossGet(w http.ResponseWriter, r *http.Request) er
 }
 
 // serveDataLossPost is Local's app.post(/^\/data-loss(?:\/(.+))?$/): dismiss,
-// revert or restore the pending event, with the write-back published through the
-// guard-restore lane.
+// revert, restore or put back the pending event, with the write-back published
+// through the guard-restore lane.
 func (s *rootServer) serveDataLossPost(w http.ResponseWriter, r *http.Request, id string) error {
 	body, tooLarge, err := readDataLossBody(r)
 	if err != nil {
@@ -106,9 +106,10 @@ func (s *rootServer) serveDataLossPost(w http.ResponseWriter, r *http.Request, i
 		}
 	}
 	choice, _ := object["choice"].(string)
-	if choice != "dismiss" && choice != "revert" && choice != "restore" {
+	if choice != "dismiss" && choice != "revert" && choice != "restore" && choice != "put-back" {
+		// TODO-COPY: Local's message with the fourth choice added; at most 60 characters.
 		return dataLossAnswer(w, r, http.StatusBadRequest, orderedObject{
-			{Key: "error", Value: "choice must be dismiss | revert | restore"},
+			{Key: "error", Value: "choice must be dismiss | revert | restore | put-back"},
 		})
 	}
 

@@ -608,7 +608,8 @@ func (s *rootServer) applySiteData(w http.ResponseWriter, r *http.Request, name,
 
 	written := []byte(previous)
 	if result.Changed {
-		committed, err := s.commitDataAPI(name, sourcePath, result.HTML, previous, r.Header.Get("If-Match"))
+		program := s.publicHost != "" && !admittedAsPage(r)
+		committed, err := s.commitDataAPI(name, sourcePath, result.HTML, previous, r.Header.Get("If-Match"), program)
 		if err != nil {
 			var refused *refusalError
 			if errors.As(err, &refused) {
@@ -642,7 +643,9 @@ func (s *rootServer) applySiteData(w http.ResponseWriter, r *http.Request, name,
 
 // commitDataAPI hands the engine's bytes to the commit core on the data-api lane,
 // with the document as it stood under the lock as the guard's previous copy.
-func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previous string, ifMatch string) (string, error) {
+// program is how the gate admitted the request; a program's write that would
+// remove data is refused in the lane unless it named the exact version it read.
+func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previous string, ifMatch string, program bool) (string, error) {
 	request := &commitRequest{
 		Kind:         "data-api",
 		Name:         name,
@@ -651,6 +654,7 @@ func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previou
 		DataLossPrev: &previous,
 		Headers:      map[string]string{"if-match": ifMatch},
 		IfMatched:    dataguard.NamesExactVersion(ifMatch),
+		Program:      program,
 	}
 	result, err := s.commit.commitLocked(request, commitLane{lane: "save", origin: "api"}, sourcePath)
 	if err != nil {
@@ -658,6 +662,9 @@ func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previou
 	}
 	if result.Refusal != nil {
 		return "", &refusalError{refusal: result.Refusal}
+	}
+	if result.Outcome == "refused" && result.Reason == "backup-failed" {
+		return "", &refusalError{refusal: notKeptRefusal()}
 	}
 	if result.Outcome != "committed" {
 		return "", errors.New("the write did not commit")
@@ -667,6 +674,18 @@ func (s *rootServer) commitDataAPI(name, sourcePath string, html []byte, previou
 		return "", errors.New("the write produced no stored bytes")
 	}
 	return stored, nil
+}
+
+// notKeptRefusal answers a data API write whose replaced bytes could not be kept
+// as a version, so the lane wrote nothing: the save route's 409 backup-failed,
+// in this route's error shape.
+func notKeptRefusal() *serviceRefusal {
+	body, _ := jsonStringify(orderedObject{
+		{Key: "error", Value: "Could not keep the current version"},
+		{Key: "message", Value: "The current version could not be stored in history, so nothing was written. Try again."},
+		{Key: "code", Value: "backup-failed"},
+	})
+	return &serviceRefusal{Status: http.StatusConflict, Code: "backup-failed", Body: body}
 }
 
 // servePlainDataGet is Local's `GET <name>.html?data={...}`: the query-driven

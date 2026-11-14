@@ -42,6 +42,10 @@ type guardRecordEvent struct {
 	LastWriteAt           int64                 `json:"lastWriteAt"`
 	LossSummary           dataguard.LossSummary `json:"lossSummary"`
 	Status                string                `json:"status"`
+	// Reason and Typed are data guard v2's: why an outside write fired, and the
+	// typed values it took. A v1 event has neither, and its bytes are unchanged.
+	Reason string                 `json:"reason,omitempty"`
+	Typed  []dataguard.TypedValue `json:"typed,omitempty"`
 }
 
 // guardRecord is the whole file. Field order is Local's insertion order, because
@@ -52,6 +56,9 @@ type guardRecord struct {
 	Event         *guardRecordEvent `json:"event"`
 	Status        string            `json:"status"`
 	LastSeen      *string           `json:"lastSeen,omitempty"`
+	// Typed is the values a person typed that are still in the document, kept
+	// only by a served folder's guard.
+	Typed []dataguard.TypedValue `json:"typed,omitempty"`
 }
 
 func (b *guardBaseline) UnmarshalJSON(data []byte) error {
@@ -74,13 +81,15 @@ func (b *guardBaseline) UnmarshalJSON(data []byte) error {
 
 func (e *guardRecordEvent) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		ID                    string                `json:"id"`
-		RecoverableData       json.RawMessage       `json:"recoverableData"`
-		RecoverableHTMLBackup *string               `json:"recoverableHtmlBackup"`
-		FirstDetectedAt       int64                 `json:"firstDetectedAt"`
-		LastWriteAt           int64                 `json:"lastWriteAt"`
-		LossSummary           dataguard.LossSummary `json:"lossSummary"`
-		Status                string                `json:"status"`
+		ID                    string                 `json:"id"`
+		RecoverableData       json.RawMessage        `json:"recoverableData"`
+		RecoverableHTMLBackup *string                `json:"recoverableHtmlBackup"`
+		FirstDetectedAt       int64                  `json:"firstDetectedAt"`
+		LastWriteAt           int64                  `json:"lastWriteAt"`
+		LossSummary           dataguard.LossSummary  `json:"lossSummary"`
+		Status                string                 `json:"status"`
+		Reason                string                 `json:"reason"`
+		Typed                 []dataguard.TypedValue `json:"typed"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -97,6 +106,8 @@ func (e *guardRecordEvent) UnmarshalJSON(data []byte) error {
 	e.LastWriteAt = raw.LastWriteAt
 	e.LossSummary = raw.LossSummary
 	e.Status = raw.Status
+	e.Reason = raw.Reason
+	e.Typed = raw.Typed
 	return nil
 }
 

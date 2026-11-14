@@ -66,12 +66,16 @@ type commitRequest struct {
 	UserDrivenSet bool
 	IfMatch       string
 	IfMatched     bool
-	SaveID        string
-	DataLossPrev  *string
-	Expected      *commitExpectation
-	ModifiedAt    *int64
-	PageRecord    *PageRecord
-	Hooks         bool
+	// Program is a data API write the gate of a served folder admitted from a
+	// program, not a page (admittedAsPage). Only the route that saw the request
+	// sets it, so a write the service relays is never taken for one.
+	Program      bool
+	SaveID       string
+	DataLossPrev *string
+	Expected     *commitExpectation
+	ModifiedAt   *int64
+	PageRecord   *PageRecord
+	Hooks        bool
 	// OpID names the write in the event stream and in GET /v1/op. The control
 	// API passes the caller's; a write that arrives over HTTP gets a new one.
 	OpID string

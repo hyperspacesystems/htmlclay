@@ -112,7 +112,15 @@ type versionHistoryEntry struct {
 	Seq       int64
 	Size      int64
 	Recovered bool
+	// Pinned is a version the guard kept because the next change removed data.
+	Pinned bool
 }
+
+// The two labels of a pinned version, as the hosted history words them.
+const (
+	pinnedVersionLabel  = "Before an outside change"
+	pinnedVersionDetail = "Kept because the next change removed data."
+)
 
 // answer is the entry as the panel reads it.
 func (e versionHistoryEntry) answer() orderedObject {
@@ -124,6 +132,13 @@ func (e versionHistoryEntry) answer() orderedObject {
 	}
 	if e.Recovered {
 		row = append(row, kv{Key: "kind", Value: "recovered"})
+	}
+	if e.Pinned {
+		row = append(row,
+			kv{Key: "pinned", Value: true},
+			kv{Key: "label", Value: pinnedVersionLabel},
+			kv{Key: "detail", Value: pinnedVersionDetail},
+		)
 	}
 	return row
 }
@@ -168,6 +183,7 @@ func listVersionEntries(dir string, recovered bool) []versionHistoryEntry {
 			Seq:       CollisionSuffix(name),
 			Size:      info.Size(),
 			Recovered: recovered,
+			Pinned:    !recovered && versionPinned(dir, name),
 		}
 		listed.Time = isoTimestamp(listed.Order)
 		if recovered {
@@ -259,6 +275,7 @@ func (s *rootServer) versions(rel, before string, limit int) ([]VersionRow, erro
 					CreatedAt:  time.UnixMilli(entry.Order).UTC(),
 					Size:       entry.Size,
 					Kind:       kind,
+					Pinned:     entry.Pinned,
 					Restorable: restorable,
 				},
 				order: servedVersionOrder{instant: entry.Order, seq: entry.Seq, id: entry.Name},

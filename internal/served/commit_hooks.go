@@ -14,6 +14,10 @@ type dataLossGuardArgs struct {
 	PrevContent *string
 	Prov        string
 	IfMatched   *bool
+	// ProvenReader and FromPage are the data API's write proof: a program that
+	// named the exact version it read, and a page's own write.
+	ProvenReader bool
+	FromPage     bool
 }
 
 // liveMessage is the payload of a saved-lane broadcast.
