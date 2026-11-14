@@ -31,6 +31,7 @@ type helperApprovalDialogs struct {
 	setup   func(title, message, refuse, middle, affirm string) (platform.Choice, error)
 	choose  func(prompt, dir string) (string, bool, error)
 	prepare func(path string) (bool, error)
+	confirm func(title, message, affirmative string) (bool, error)
 }
 
 // helperCandidate is one undecided name. program is set when exactly one
@@ -69,6 +70,7 @@ func (a *app) systemHelperApprovalDialogs() helperApprovalDialogs {
 		setup:   setup,
 		choose:  choose,
 		prepare: prepare,
+		confirm: platform.ConfirmWithButtons,
 	}
 }
 

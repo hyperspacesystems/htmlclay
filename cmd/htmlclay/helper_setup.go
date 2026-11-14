@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/platform"
 )
 
@@ -20,18 +22,40 @@ const (
 	helperSetupCancel      = "Cancel"
 	helperSetupChooseOther = "Choose Another File…"
 	helperSetupTrusted     = "Allow in Trusted Folders"
+	helperSetupAllowAnyway = "Allow Anyway"
 )
+
+const (
+	helperAnswerDeny            = "deny"
+	helperAnswerAllowDocument   = "allow-document"
+	helperAnswerAllowAllTrusted = "allow-all-trusted"
+	helperAnswerChooseFile      = "choose-file"
+	helperAnswerAllowAnyway     = "allow-anyway"
+)
+
+// helperTeamDocumentSentence is the app's team copy, shown beside a document a
+// team shares so the person knows why it asks one at a time.
+const helperTeamDocumentSentence = "This document is in a folder a team shares. Its editors can change it later, so a program is allowed for this document only." // TODO-COPY: helper setup dialog sentence for a team document, max 160 chars
+
+// helperSetupPresenter is the one setup flow's view of who answers: the
+// request window under the Mac app, today's dialogs otherwise. widePick is the
+// dialog presenter's no-suggestion widening, which the request window never
+// offers.
+type helperSetupPresenter struct {
+	confirm.Confirmer
+	widePick bool
+}
 
 // helperSuggestNow is the clock the setup dialog judges file ages by. Tests
 // move it forward so files they just wrote count as settled.
 var helperSuggestNow = time.Now
 
-// askHelperSetup is the one dialog that connects a program to a document. The
+// askHelperSetup is the one question that connects a program to a document. The
 // person started it, from the setup bar, the page's own button or the tray. It
-// leads with the real file HTML Clay found and quotes the name the page uses,
-// so the page cannot dress the request up. No button is the keyboard default.
-// Allow binds this document only; More Options can widen to every document in
-// a trusted folder. Caller holds helperMu.
+// leads with the real file HTML Clay found and quotes the name the page uses, so
+// the page cannot dress the request up. The person answers through the presenter:
+// the request window under the Mac app, today's dialogs otherwise. Caller holds
+// helperMu; it is released while the person decides.
 func (a *app) askHelperSetup(document string, names []string, plan helperOpenPlan, name string, dialogs helperApprovalDialogs, notify bool) helperOpenPlan {
 	before := plan.allowed
 	defer func() {
@@ -55,85 +79,111 @@ func (a *app) askHelperSetup(document string, names []string, plan helperOpenPla
 		}
 	}
 
-	suggestion := a.suggestHelperProgram(document, name, helperSuggestNow())
-	affirm := helperSetupChooseFile
-	if suggestion.path != "" {
-		affirm = helperAllowLabel(suggestion.path)
+	if !a.reserveHelperSetup(document, name) {
+		a.rt.logger.Printf("A program question for %s in %s is already open; not asking again", name, document)
+		return plan
 	}
-	// What the dialog shows is this exact file. Saving checks it is still the
-	// same file, so a swap or a retargeted link while the dialog is open never
+	defer a.releaseHelperSetup(document, name)
+
+	suggestion := a.suggestHelperProgram(document, name, helperSuggestNow())
+	// What the question shows is this exact file. Saving checks it is still the
+	// same file, so a swap or a retargeted link while the question is open never
 	// gets the permission the person gave the file they saw.
 	var shown os.FileInfo
 	if suggestion.path != "" {
 		shown = helperFileSnapshot(suggestion.path)
 	}
-	choice, err := dialogs.setup(
-		"Allow a program for "+filepath.Base(document)+"?",
-		a.helperSetupMessage(document, name, suggestion),
-		helperSetupDeny, helperSetupMoreOptions, affirm,
-	)
+	presenter := a.setupConfirmer(dialogs, suggestion)
+	ask := a.helperSetupAsk(document, name, suggestion, a.scopeOf(document), presenter.widePick)
+
+	// The person can take minutes. helperMu stays free so another document's
+	// setup, and Remove Access, still run; everything is checked again below.
+	a.helperMu.Unlock()
+	defer a.helperMu.Lock()
+	ctx := context.Background()
+	reply, err := presenter.Ask(ctx, ask)
 	if err != nil {
 		report(fmt.Errorf("could not show the program dialog: %w", err))
 		return plan
 	}
+	defer func() { presenter.Close(reply.ID) }()
+
 	scope := platform.ConfirmAllowOnce
-	switch choice {
-	case platform.ChoiceNone:
-		a.rt.logger.Printf("Program dialog for %s in %s closed without an answer", name, document)
-		return plan
-	case platform.ChoiceRefuse:
+	switch reply.Choice {
+	case helperAnswerDeny:
 		a.addOpenDenials(document, []string{name})
 		a.rt.logger.Printf("Program %s denied for this open of %s; the next direct open can ask again", name, document)
 		plan.allowed, plan.denied = a.resolvedHelpers(document, names)
 		return plan
-	case platform.ChoiceMiddle:
-		choice, err = dialogs.setup(
-			"More options for “"+name+"”",
-			a.helperTrustedFoldersMessage(name, suggestion),
-			helperSetupCancel, helperSetupChooseOther, helperSetupTrusted,
-		)
-		if err != nil {
-			report(fmt.Errorf("could not show the program dialog: %w", err))
-			return plan
-		}
-		switch choice {
-		case platform.ChoiceMiddle:
-			suggestion = helperSuggestion{}
-		case platform.ChoiceAffirm:
-			scope = platform.ConfirmAllowAlways
-		default:
-			return plan
-		}
-	case platform.ChoiceAffirm:
+	case helperAnswerAllowDocument, helperAnswerChooseFile:
+		scope = platform.ConfirmAllowOnce
+	case helperAnswerAllowAllTrusted:
+		scope = platform.ConfirmAllowAlways
 	default:
-		report(errors.New("the program dialog returned an invalid choice"))
+		a.rt.logger.Printf("Program dialog for %s in %s closed without an answer", name, document)
 		return plan
 	}
 
 	path, program := suggestion.path, suggestion.program
-	if path == "" {
-		picked, ok, err := a.chooseHelperFile(dialogs, document, "Choose the program for “"+name+"” in "+filepath.Base(document), a.helperPickerFolder(document, name))
-		if err != nil {
-			report(fmt.Errorf("could not choose %s: %w", name, err))
-			return plan
+	if path == "" || reply.Choice == helperAnswerChooseFile {
+		if presenter.widePick {
+			picked, ok, err := a.chooseHelperFile(dialogs, document, "Choose the program for “"+name+"” in "+filepath.Base(document), a.helperPickerFolder(document, name))
+			if err != nil {
+				report(fmt.Errorf("could not choose %s: %w", name, err))
+				return plan
+			}
+			if !ok {
+				a.rt.logger.Printf("Program picker for %s in %s was cancelled; nothing was saved", name, document)
+				return plan
+			}
+			path, program = picked, config.HelperProgram{}
+			if ok, err := dialogs.prepare(path); err != nil {
+				report(fmt.Errorf("could not prepare %s: %w", name, err))
+				return plan
+			} else if !ok {
+				return plan
+			}
+		} else {
+			picked, ok, err := a.helperRegistryFile(ctx, presenter, ask, reply.ID, document, name, reply.Path, true)
+			if err != nil {
+				report(fmt.Errorf("could not choose %s: %w", name, err))
+				return plan
+			}
+			if !ok {
+				a.rt.logger.Printf("Program picker for %s in %s was cancelled; nothing was saved", name, document)
+				return plan
+			}
+			path, program = picked, config.HelperProgram{}
+			// A file the person picked is one document only, whatever the
+			// question before it offered.
+			scope = platform.ConfirmAllowOnce
 		}
-		if !ok {
-			a.rt.logger.Printf("Program picker for %s in %s was cancelled; nothing was saved", name, document)
-			return plan
-		}
-		path, program = picked, config.HelperProgram{}
 	} else if again := a.suggestHelperProgram(document, name, helperSuggestNow()); again.path != path || again.program.ID != program.ID || !sameFileAsShown(path, shown) {
 		report(fmt.Errorf("the program for %s changed while the dialog was open; nothing was saved", name))
 		return plan
-	}
-	if ok, err := dialogs.prepare(path); err != nil {
-		report(fmt.Errorf("could not prepare %s: %w", name, err))
-		return plan
-	} else if !ok {
-		return plan
+	} else if presenter.widePick {
+		if ok, err := dialogs.prepare(path); err != nil {
+			report(fmt.Errorf("could not prepare %s: %w", name, err))
+			return plan
+		} else if !ok {
+			return plan
+		}
+	} else {
+		checked, ok, err := a.helperRegistryFile(ctx, presenter, ask, reply.ID, document, name, path, false)
+		if err != nil {
+			report(fmt.Errorf("could not prepare %s: %w", name, err))
+			return plan
+		}
+		if !ok {
+			return plan
+		}
+		if checked != path {
+			path, program = checked, config.HelperProgram{}
+			scope = platform.ConfirmAllowOnce
+		}
 	}
 
-	// The dialog and the picker can take minutes. Store nothing for a document
+	// The question and the picker can take minutes. Store nothing for a document
 	// that stopped declaring the program meanwhile.
 	if current, err := readDocumentHelperNames(document); err != nil || !slices.Contains(current, name) {
 		report(fmt.Errorf("%s no longer declares %s; nothing was saved", filepath.Base(document), name))
@@ -158,6 +208,122 @@ func (a *app) askHelperSetup(document string, names []string, plan helperOpenPla
 	}
 	plan.allowed, plan.denied = a.resolvedHelpers(document, names)
 	return plan
+}
+
+// helperSetupAsk is the question the flow puts to the person: the file HTML Clay
+// found, if any, and the answers this document's scope may offer.
+func (a *app) helperSetupAsk(document, name string, suggestion helperSuggestion, scope config.Scope, widePick bool) confirm.Ask {
+	ask := confirm.Ask{
+		Document: document,
+		Program:  name,
+		Identity: platform.DirIdentity(document),
+	}
+	if suggestion.path == "" {
+		ask.Kind = appcore.RequestNoFile
+		ask.Answers = []string{helperAnswerDeny, helperAnswerChooseFile}
+		if widePick {
+			ask.Answers = []string{helperAnswerDeny, helperAnswerAllowAllTrusted, helperAnswerChooseFile}
+		}
+		return ask
+	}
+	ask.Kind = appcore.RequestFound
+	ask.Path = suggestion.path
+	ask.Answers = []string{helperAnswerDeny, helperAnswerAllowDocument}
+	switch scope.Kind {
+	case config.ScopeTeam:
+		ask.Kind = appcore.RequestTeamDocument
+		ask.Folder = filepath.Base(filepath.Dir(document))
+	case config.ScopeUnknown:
+		ask.Detail = helperDetailScopeUnknown
+	default:
+		ask.Answers = append(ask.Answers, helperAnswerAllowAllTrusted)
+	}
+	ask.Answers = append(ask.Answers, helperAnswerChooseFile)
+	return ask
+}
+
+// helperRegistryFile checks a file the request window's presenter will grant,
+// asking again on the same request about a risky file or one without its
+// executable bit. It returns the file to grant, which may be one the person
+// chose instead, and ok=false when nothing was decided.
+func (a *app) helperRegistryFile(ctx context.Context, presenter helperSetupPresenter, ask confirm.Ask, id, document, name, path string, risky bool) (string, bool, error) {
+	for {
+		info, err := os.Stat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			return "", false, fmt.Errorf("%s is not a file", path)
+		}
+		if risky {
+			if detail := a.helperFileRiskDetail(document, path, helperSuggestNow()); detail != "" {
+				reply, err := presenter.Ask(ctx, a.helperRiskyAsk(ask, id, path, detail))
+				if err != nil {
+					return "", false, err
+				}
+				switch reply.Choice {
+				case helperAnswerAllowAnyway:
+					risky = false
+				case helperAnswerChooseFile:
+					path = reply.Path
+					continue
+				default:
+					return "", false, nil
+				}
+			}
+		}
+		needs, err := helperProgramNeedsExecutable(path)
+		if err != nil {
+			return "", false, err
+		}
+		if needs {
+			reply, err := presenter.Ask(ctx, a.helperRiskyAsk(ask, id, path, helperDetailNotExecutable))
+			if err != nil {
+				return "", false, err
+			}
+			switch reply.Choice {
+			case helperAnswerAllowAnyway:
+				if ok, err := makeHelperProgramExecutable(path); err != nil || !ok {
+					return "", false, err
+				}
+			case helperAnswerChooseFile:
+				path = reply.Path
+				continue
+			default:
+				return "", false, nil
+			}
+		}
+		return path, true, nil
+	}
+}
+
+// helperRiskyAsk is the same request, asked again about one file.
+func (a *app) helperRiskyAsk(ask confirm.Ask, id, path, detail string) confirm.Ask {
+	ask.ID = id
+	ask.Kind = appcore.RequestRiskyFile
+	ask.Detail = detail
+	ask.Path = path
+	ask.Answers = []string{helperAnswerDeny, helperAnswerChooseFile, helperAnswerAllowAnyway}
+	return ask
+}
+
+// reserveHelperSetup stops a second question about the same program in the same
+// document while the first waits for a person. Caller holds helperMu.
+func (a *app) reserveHelperSetup(document, name string) bool {
+	a.helperStateMu.Lock()
+	defer a.helperStateMu.Unlock()
+	key := document + "\x00" + name
+	if a.helperSetupOpen[key] {
+		return false
+	}
+	if a.helperSetupOpen == nil {
+		a.helperSetupOpen = make(map[string]bool)
+	}
+	a.helperSetupOpen[key] = true
+	return true
+}
+
+func (a *app) releaseHelperSetup(document, name string) {
+	a.helperStateMu.Lock()
+	defer a.helperStateMu.Unlock()
+	delete(a.helperSetupOpen, document+"\x00"+name)
 }
 
 // sameFileAsShown reports whether path is still the file a dialog showed: the
@@ -195,7 +361,7 @@ func (a *app) chooseHelperFile(dialogs helperApprovalDialogs, document, prompt, 
 			return picked, true, nil
 		}
 		message := fmt.Sprintf("%s %s.\n\nAllow it only if you know where it came from. It runs as you and can read or change any file your account can access.", a.tildePath(picked), reason)
-		choice, err := dialogs.setup("Use this file?", message, helperSetupCancel, helperSetupChooseOther, "Allow Anyway")
+		choice, err := dialogs.setup("Use this file?", message, helperSetupCancel, helperSetupChooseOther, helperSetupAllowAnyway)
 		if err != nil {
 			return "", false, err
 		}
@@ -264,4 +430,12 @@ func (a *app) helperTrustedFoldersMessage(name string, suggestion helperSuggesti
 	return fmt.Sprintf("Allow %s for every document in your trusted folders that asks for “%s”?\n\n"+
 		"Those documents will run it with their own input, without asking you. Documents outside your trusted folders still ask, one at a time.\n\n"+
 		"Choose Another File allows a different file for this document only.", target, name)
+}
+
+func (a *app) helperChooseAnotherMessage(name string, suggestion helperSuggestion) string {
+	target := "the program you choose next"
+	if suggestion.path != "" {
+		target = a.tildePath(suggestion.path)
+	}
+	return fmt.Sprintf("Choose a different file for “%s” in this document?\n\n%s is allowed for this document only.", name, target)
 }

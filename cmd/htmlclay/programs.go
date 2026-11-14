@@ -106,6 +106,28 @@ func prepareHelperProgramOn(goos, path string, confirm func(title, message, affi
 	return true, nil
 }
 
+// helperProgramNeedsExecutable reports whether path is a regular program file
+// that still lacks every executable bit, which is the one case the request
+// window asks about as not-executable. A file the platform refuses for another
+// reason comes back as an error.
+func helperProgramNeedsExecutable(path string) (bool, error) {
+	ok, err := prepareHelperProgramOn(runtime.GOOS, path, func(string, string, string) (bool, error) {
+		return false, nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return !ok, nil
+}
+
+// makeHelperProgramExecutable runs the chmod prepareHelperProgram asks to do,
+// once the person answered allow-anyway.
+func makeHelperProgramExecutable(path string) (bool, error) {
+	return prepareHelperProgramOn(runtime.GOOS, path, func(string, string, string) (bool, error) {
+		return true, nil
+	})
+}
+
 func windowsHelperProgramExtension(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".exe", ".bat", ".cmd":

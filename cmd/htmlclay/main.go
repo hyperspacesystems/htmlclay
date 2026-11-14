@@ -203,6 +203,10 @@ type app struct {
 	// pageAskQuiet holds, per document, when a page may next raise the helper
 	// dialog after one that granted nothing. Guarded by helperStateMu.
 	pageAskQuiet map[string]time.Time
+	// helperSetupOpen holds the document and program a setup question is
+	// waiting on, so a second ask about the same one does not stack another
+	// question. Guarded by helperStateMu.
+	helperSetupOpen map[string]bool
 	// dialogAdvice is non-empty when this machine cannot raise a permission
 	// dialog at all. It is read once at startup and shown in two places, so it
 	// is held rather than asked for again: platform.MissingDialogAdvice runs
