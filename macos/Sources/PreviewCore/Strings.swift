@@ -197,10 +197,14 @@ public enum Strings {
             count == 1 ? "file missing · 1 document uses it" : "file missing · \(count) documents use it"
         }
         public static func wouldFind(_ name: String) -> String { "Build 1: this would ask you where \(name) went." }
+        public static func aiEditAllowedFor(_ document: String) -> String { "Allowed for \(document)" }
+        public static func aiEditAllowedCount(_ count: Int) -> String { "Allowed for \(count) documents" }
+        public static func aiEditWaiting(document: String) -> String { "Allow AI editing for \(document)?" }
     }
     public enum ProgramPage {
         public static let runsAsYou = "This program runs as you. It can read and change any file you can."
         public static let whoMayRun = "Who may run it"
+        public static let aiEditNote = "An AI agent on this computer rewrites selected text when you press ⌘J. Turn AI editing on or off in HTML Clay's settings."
         public static let allTrustedTitle = "All documents in my trusted folders"
         public static let allTrustedSub = "Not for team folders. Those documents always ask one at a time."
         public static let removeAccess = "Remove access"
@@ -298,6 +302,8 @@ public enum Strings {
         public static func only(_ document: String) -> String { "Only \(document)" }
         public static func allowFile(_ name: String) -> String { "Allow \(name)" }
         public static func runNamed(document: String, program: String) -> String { "Let \(document) run “\(program)”?" }
+        public static func useAIEditing(document: String) -> String { "Let \(document) use AI editing?" }
+        public static func aiEditTeamLead(_ folder: String) -> String { "This document is in \(folder), a team folder where others can edit documents later." }
         public static let noFileLead = "HTML Clay didn't find this program on your Mac. The document should come with instructions. If you're not sure, choose Don't allow: the document still opens and saves."
         public static let chooseAFile = "Choose a file…"
         public static func fromTeam(_ folder: String) -> String { "From \(folder). Its editors can change this document later." }

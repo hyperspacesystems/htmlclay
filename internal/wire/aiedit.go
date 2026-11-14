@@ -23,8 +23,7 @@ const (
 	aiEditProgressEvery = 250 * time.Millisecond
 	maxAIEditEnvelope   = 1 << 20
 	aiEditOffText       = "AI Editing is off. Turn it on in HTML Clay's menu."
-	// TODO-COPY: refusal when HTML Clay is asking the person whether this document may use AI editing (under 80 characters)
-	aiEditAskText = "HTML Clay is asking whether this document may use AI editing."
+	aiEditAskText       = "AI editing cannot be used until you allow this document in HTML Clay."
 )
 
 type AIEditRun struct {

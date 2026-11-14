@@ -11,6 +11,8 @@ struct ProgramPage: View {
         Strings.ProgramPage.pathLine(path: program.path, ready: !program.fileMissing, name: program.name)
     }
 
+    static func showsFileControls(_ program: Program) -> Bool { !ProgramControls.isAIEditing(program) }
+
     static func place(of document: String, snapshot: HostSnapshot) -> String? {
         let name = ProgramControls.documentLabel(document)
         return snapshot.documents.first { $0.name == name }?.place
@@ -27,12 +29,16 @@ struct ProgramPage: View {
     private func page(_ program: Program) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             header(program)
-            KilnPath(Self.pathLine(program))
+            if Self.showsFileControls(program) {
+                KilnPath(Self.pathLine(program))
+            }
             KilnCard {
-                KilnRow(title: Strings.ProgramPage.runsAsYou, leading: {
-                    Image(systemName: Symbols.warning)
-                        .font(.system(size: 13))
-                        .foregroundStyle(KilnFixed.statusAmber)
+                KilnRow(title: Self.showsFileControls(program) ? Strings.ProgramPage.runsAsYou : Strings.ProgramPage.aiEditNote, leading: {
+                    if Self.showsFileControls(program) {
+                        Image(systemName: Symbols.warning)
+                            .font(.system(size: 13))
+                            .foregroundStyle(KilnFixed.statusAmber)
+                    }
                 }, trailing: {
                     EmptyView()
                 })
@@ -54,7 +60,7 @@ struct ProgramPage: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
             Spacer(minLength: 0)
-            if model.isSample || model.can(HostActionType.programReveal) {
+            if Self.showsFileControls(program), model.isSample || model.can(HostActionType.programReveal) {
                 Button(Strings.ProgramPage.showInFinder) {
                     if model.isSample {
                         model.say(Strings.Preview.wouldShowInFinder(program.path))
@@ -70,16 +76,18 @@ struct ProgramPage: View {
 
     private func whoMayRunCard(_ program: Program) -> some View {
         KilnCard {
-            KilnRow(title: Strings.ProgramPage.allTrustedTitle, subtitle: Strings.ProgramPage.allTrustedSub, trailing: {
-                Toggle(isOn: Binding(
-                    get: { ProgramControls.allTrusted(program, pending: model.pending(AppModel.allTrustedSlot(program.id))) },
-                    set: { model.send(.setProgramAllTrusted(programID: program.id, on: $0)) }
-                )) {
-                    EmptyView()
-                }
-                .toggleStyle(KilnSwitchStyle())
-                .disabled(!model.can(HostActionType.programSetAllTrusted))
-            })
+            if Self.showsFileControls(program) {
+                KilnRow(title: Strings.ProgramPage.allTrustedTitle, subtitle: Strings.ProgramPage.allTrustedSub, trailing: {
+                    Toggle(isOn: Binding(
+                        get: { ProgramControls.allTrusted(program, pending: model.pending(AppModel.allTrustedSlot(program.id))) },
+                        set: { model.send(.setProgramAllTrusted(programID: program.id, on: $0)) }
+                    )) {
+                        EmptyView()
+                    }
+                    .toggleStyle(KilnSwitchStyle())
+                    .disabled(!model.can(HostActionType.programSetAllTrusted))
+                })
+            }
             ForEach(program.allowedDocuments, id: \.self) { document in
                 KilnRowDivider()
                 KilnRow(title: ProgramControls.documentLabel(document), subtitle: Self.place(of: document, snapshot: model.snapshot), leading: {
@@ -125,7 +133,7 @@ struct ProgramPage: View {
 
     private func footer(_ program: Program) -> some View {
         HStack {
-            if model.isSample || model.can(HostActionType.programRelink) {
+            if Self.showsFileControls(program), model.isSample || model.can(HostActionType.programRelink) {
                 KilnLink(Strings.ProgramPage.chooseAnotherFile) {
                     if model.isSample {
                         model.say(Strings.ProgramPage.wouldChooseFile)

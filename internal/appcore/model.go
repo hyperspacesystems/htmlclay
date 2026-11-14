@@ -170,6 +170,8 @@ const (
 	RequestFolderReadAgain = "folderReadAgain"
 )
 
+const AIEditProgram = "ai-edit" // the program name the built-in AI editing asks under
+
 // Request is one question waiting for the person. Attention counts how many
 // times somebody asked for it to be shown: the Mac app raises its window when
 // the count goes up, and nothing else about the request changes.

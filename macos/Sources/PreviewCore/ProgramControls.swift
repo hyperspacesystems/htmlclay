@@ -57,8 +57,14 @@ public enum ProgramControls {
         warnings.compactMap(warningLine)
     }
 
+    /// The id the built-in AI editing goes by wherever a program would appear.
+    public static let aiEditID = "ai-edit"
+
+    public static func isAIEditing(_ program: Program) -> Bool { program.id == aiEditID }
+
     /// The file a program runs, shown by its name.
     public static func fileName(_ program: Program) -> String {
+        if isAIEditing(program) { return Strings.General.aiTitle }
         let last = (program.path as NSString).lastPathComponent
         return last.isEmpty ? program.name : last
     }

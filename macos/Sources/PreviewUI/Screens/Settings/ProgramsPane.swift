@@ -12,6 +12,7 @@ struct ProgramsPane: View {
 
     static func waitingTitle(_ item: WaitingItem, snapshot: HostSnapshot) -> String {
         guard let request = snapshot.requests.first(where: { $0.id == item.subjectID }), !request.program.isEmpty else { return item.title }
+        if request.program == ProgramControls.aiEditID { return Strings.Programs.aiEditWaiting(document: request.document) }
         return Strings.Programs.wants(document: request.document, program: request.program)
     }
 
@@ -93,6 +94,11 @@ struct ProgramRow: View {
     }
 
     static func subtitle(_ program: Program) -> String {
+        if ProgramControls.isAIEditing(program) {
+            return program.allowedDocuments.count == 1
+                ? Strings.Programs.aiEditAllowedFor(ProgramControls.documentLabel(program.allowedDocuments[0]))
+                : Strings.Programs.aiEditAllowedCount(program.allowedDocuments.count)
+        }
         if program.allTrustedFolders { return Strings.Programs.allTrusted }
         switch program.allowedDocuments.count {
         case 0: return Strings.Programs.noneYet

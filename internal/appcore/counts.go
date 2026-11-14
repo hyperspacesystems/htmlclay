@@ -76,6 +76,9 @@ func waiting(f Facts) []WaitingItem {
 	}
 	for _, r := range f.Requests {
 		title := fmt.Sprintf(TextWaitingProgramRequest, r.Document, r.Program)
+		if r.Program == AIEditProgram {
+			title = fmt.Sprintf(TextWaitingAIEditRequest, r.Document)
+		}
 		switch r.Kind {
 		case RequestFolderRead:
 			title = fmt.Sprintf(TextWaitingFolderRead, r.Document, r.Folder)

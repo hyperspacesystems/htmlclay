@@ -92,10 +92,12 @@ struct RequestBody: View {
 
     private var teamDocumentContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            titleLine(Strings.Request.runNamed(document: request.document, program: request.program))
-            leadLine(Strings.Request.fromTeam(request.folder))
-            card(warn: false) {
-                RequestFileRow(color: .amber, symbol: Symbols.program, title: fileName, path: request.path, extra: nil, warn: false)
+            titleLine(Self.teamTitle(request))
+            leadLine(Self.teamLead(request))
+            if !Self.isAIEditing(request) {
+                card(warn: false) {
+                    RequestFileRow(color: .amber, symbol: Symbols.program, title: fileName, path: request.path, extra: nil, warn: false)
+                }
             }
             noteLine(Strings.Request.teamAsksEachTime)
             buttonsRow {
@@ -292,6 +294,18 @@ struct RequestBody: View {
 
     static func fileName(_ request: ProgramRequest) -> String {
         RequestControls.fileName(request)
+    }
+
+    static func isAIEditing(_ request: ProgramRequest) -> Bool { request.program == ProgramControls.aiEditID }
+
+    static func teamTitle(_ request: ProgramRequest) -> String {
+        isAIEditing(request)
+            ? Strings.Request.useAIEditing(document: request.document)
+            : Strings.Request.runNamed(document: request.document, program: request.program)
+    }
+
+    static func teamLead(_ request: ProgramRequest) -> String {
+        isAIEditing(request) ? Strings.Request.aiEditTeamLead(request.folder) : Strings.Request.fromTeam(request.folder)
     }
 }
 

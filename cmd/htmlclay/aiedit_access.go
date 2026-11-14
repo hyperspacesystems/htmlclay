@@ -7,7 +7,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/panphora/htmlclay/internal/aiedit"
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/confirm"
@@ -17,11 +16,11 @@ import (
 // aiEditProgramID is the id the built-in AI editing goes by wherever a program
 // id is expected: the team question, the Programs list, and Remove Access. A
 // registered program's id is 32 hex digits, so the two never meet.
-const aiEditProgramID = aiedit.HelperName
+const aiEditProgramID = appcore.AIEditProgram
 
 const (
-	aiEditDialogTitle   = "Allow AI editing for %s?"                                                                                                                                                               // TODO-COPY: dialog title outside the Mac app, the document's file name, max 60 chars
-	aiEditDialogMessage = "This document is in a folder a team shares. Its editors can change it later, so AI editing is allowed for this document only. It sends what you select to an AI tool on this computer." // TODO-COPY: dialog message outside the Mac app, max 200 chars
+	aiEditDialogTitle   = "Let %s use AI editing?"
+	aiEditDialogMessage = "Other people can edit documents in this team folder later. Allowing applies to this document only, never the whole folder. After allowing, go back to the page and send your request again."
 )
 
 // aiEditFor is both hosts' answer to whether document may use AI editing now.

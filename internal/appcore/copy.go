@@ -59,6 +59,7 @@ const (
 // Waiting items: the title, and where a %s appears the subject's name.
 const (
 	TextWaitingProgramRequest  = "%s wants to run %s"                // copy: waiting item title, document then program, max 70 chars
+	TextWaitingAIEditRequest   = "Allow AI editing for %s?"          // copy: waiting item title for AI editing, the document's name, max 70 chars
 	TextWaitingFolderRead      = "%s wants to read %s"               // copy: waiting item title, document then folder, max 70 chars
 	TextWaitingFolderReadAgain = "%s wants you to trust %s"          // copy: waiting item title, document then folder, max 70 chars
 	TextWaitingProgramMissing  = "%s can't be found"                 // copy: waiting item title, the program's name, max 70 chars

@@ -1,6 +1,7 @@
 package appcore
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -98,5 +99,19 @@ func TestCountsFolderReadTitles(t *testing.T) {
 	s := Build(f)
 	if !strings.Contains(s.Waiting[0].Title, "Receipts") || !strings.Contains(s.Waiting[1].Title, "Trips") {
 		t.Errorf("folder request titles = %q, %q", s.Waiting[0].Title, s.Waiting[1].Title)
+	}
+}
+
+func TestCountsAIEditTitles(t *testing.T) {
+	f := Facts{Requests: []RequestFact{
+		{ID: "a", Kind: RequestTeamDocument, Document: "roadmap.htmlclay", Program: AIEditProgram, Folder: "Design"},
+		{ID: "b", Kind: RequestTeamDocument, Document: "roadmap.htmlclay", Program: "todo-search", Folder: "Design"},
+	}}
+	s := Build(f)
+	if want := fmt.Sprintf(TextWaitingAIEditRequest, "roadmap.htmlclay"); s.Waiting[0].Title != want {
+		t.Errorf("AI editing request title = %q, want %q", s.Waiting[0].Title, want)
+	}
+	if want := fmt.Sprintf(TextWaitingProgramRequest, "roadmap.htmlclay", "todo-search"); s.Waiting[1].Title != want {
+		t.Errorf("program request title = %q, want %q", s.Waiting[1].Title, want)
 	}
 }

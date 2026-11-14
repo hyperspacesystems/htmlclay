@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/aiedit"
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/confirm"
@@ -19,7 +20,7 @@ import (
 	"github.com/panphora/htmlclay/internal/wire"
 )
 
-const aiEditAskRefusal = "HTML Clay is asking whether this document may use AI editing."
+const aiEditAskRefusal = "AI editing cannot be used until you allow this document in HTML Clay."
 
 // aiEditStand is one host with a document and its neighbor in one folder, and
 // the two things a row needs from it: send the page's ai-edit request and read
@@ -549,4 +550,10 @@ func TestM3AIEditTeamDocument(t *testing.T) {
 			t.Fatalf("config.json has no aiEditDocuments: %s", data)
 		}
 	})
+}
+
+func TestAIEditProgramNameMatchesTheHelper(t *testing.T) {
+	if appcore.AIEditProgram != aiedit.HelperName {
+		t.Fatalf("appcore.AIEditProgram = %q, helper name = %q", appcore.AIEditProgram, aiedit.HelperName)
+	}
 }
