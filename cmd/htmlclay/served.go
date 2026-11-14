@@ -21,6 +21,7 @@ import (
 	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/served/assets"
+	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/tailwind"
 	"github.com/panphora/htmlclay/internal/trust"
 )
@@ -64,6 +65,7 @@ func (a *app) newServedHost() *served.Host {
 		WorkspaceEntry:  a.workspaceEntry,
 		OnPageLoad:      a.noteServedPageLoad,
 		OnStructure:     a.noteServedStructure,
+		InternalDir:     a.rt.configDir,
 	})
 }
 
@@ -292,7 +294,15 @@ func (a *app) servedFolderLock(folder string) (*folderlock.Lock, error) {
 // with the lock the caller already holds. On error the caller still owns the lock.
 func (a *app) mountServedHeld(f config.ServedFolder, lock *folderlock.Lock) error {
 	host := servedHostName(f.Name, a.rt.port)
-	handler, err := a.served.AddRoot(served.RootSpec{ID: f.ID, Path: f.Path, PublicHost: host, AllowFraming: f.AllowFraming})
+	handler, err := a.served.AddRoot(served.RootSpec{
+		ID:           f.ID,
+		Path:         f.Path,
+		PublicHost:   host,
+		AllowFraming: f.AllowFraming,
+		WirePolicy:   servedWirePolicy{a},
+		WireError:    server.WriteError,
+		WireLogger:   a.rt.logger,
+	})
 	if err != nil {
 		return err
 	}
