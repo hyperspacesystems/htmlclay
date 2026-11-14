@@ -6,6 +6,7 @@ import (
 	"github.com/panphora/htmlclay/internal/sse"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -185,6 +186,38 @@ func (s *Core) UnbindHelpers(file string) uint64 {
 	s.HelperBindings.mu.Unlock()
 	stopWireSubs(evicted)
 	return state.generation
+}
+
+// BoundFiles lists the documents whose program channel is bound now, sorted.
+func (s *Core) BoundFiles() []string {
+	s.HelperBindings.mu.RLock()
+	defer s.HelperBindings.mu.RUnlock()
+	var files []string
+	for file, state := range s.HelperBindings.byFile {
+		if state.bound {
+			files = append(files, file)
+		}
+	}
+	sort.Strings(files)
+	return files
+}
+
+// Forget ends everything the wire holds for path: its programs are detached,
+// its channel is unbound, and every stream on it is closed. The binding's
+// generation keeps counting, so a dispatcher from before cannot match a later
+// binding of the same path. A renamed or removed document is forgotten under
+// its old path.
+func (s *Core) Forget(path string) {
+	s.DetachHelpers(path)
+	s.HelperBindings.mu.Lock()
+	if state, ok := s.HelperBindings.byFile[path]; ok && state.bound {
+		state.bound = false
+		state.generation++
+		s.HelperBindings.byFile[path] = state
+	}
+	evicted := s.Hub.closeChannel(path)
+	s.HelperBindings.mu.Unlock()
+	stopWireSubs(evicted)
 }
 
 type Terminal struct {
@@ -368,6 +401,27 @@ func (wh *Hub) transitionBinding(key string, bound bool) []*Sub {
 		delete(wh.Chans, key)
 	}
 	return evicted
+}
+
+// closeChannel removes key's channel with its retained outcomes and answers its
+// subscribers, marked removed, for the caller to stop outside the lock.
+func (wh *Hub) closeChannel(key string) []*Sub {
+	wh.Mu.Lock()
+	defer wh.Mu.Unlock()
+	c, ok := wh.Chans[key]
+	if !ok {
+		return nil
+	}
+	for id := range c.Terminal {
+		wh.dropTerminalLocked(c, id)
+	}
+	subs := make([]*Sub, 0, len(c.subs))
+	for sub := range c.subs {
+		sub.Removed = true
+		subs = append(subs, sub)
+	}
+	delete(wh.Chans, key)
+	return subs
 }
 
 func stopWireSubs(subs []*Sub) {

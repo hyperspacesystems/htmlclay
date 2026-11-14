@@ -639,7 +639,7 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	if dest := r.Header.Get("Sec-Fetch-Dest"); dest == "" || dest == "document" {
 		served = htmlutil.InjectToken(served, f.Token)
 		if names := s.SetupBarNames(f.AbsPath); len(names) > 0 && s.hooks.AskHelper != nil && r.Header.Get("Clay-Source") != "1" {
-			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(wire.SetupBarHTML(names)))
+			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(wire.SetupBarHTML(names, true)))
 		}
 		// The notice a ClayJS page draws needs a runtime that carries the module,
 		// so a document pinned to an older one, or using no ClayJS at all, would

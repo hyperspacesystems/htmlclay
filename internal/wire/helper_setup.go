@@ -111,8 +111,16 @@ func (s *Core) SetupBarNames(file string) []string {
 // The page's own action triggers setup too: ClayJS announces each request on
 // clay:wire-state, and when that happens during a click the bar starts setup
 // for that program, so pressing the page's Search button is enough.
-func SetupBarHTML(names []string) []byte {
+//
+// withToken posts to the loose host's token address, built from the page's
+// savetoken; without it the bar posts to /_/helper-setup on the page's own
+// origin, as a served folder does.
+func SetupBarHTML(names []string, withToken bool) []byte {
 	var b strings.Builder
+	post := "fetch('/_/helper-setup/'+encodeURIComponent(document.documentElement.getAttribute('savetoken')||''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})})"
+	if !withToken {
+		post = "fetch('/_/helper-setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})})"
+	}
 	b.WriteString(`<div clay="no-save no-snapshot no-watch" data-htmlclay-setup style="position:fixed;top:0;left:0;right:0;z-index:2147483647;font:13px/1.4 -apple-system,system-ui,sans-serif">`)
 	for _, name := range names {
 		b.WriteString(`<div data-name="` + name + `" style="display:flex;align-items:center;gap:12px;padding:8px 16px;background:#f6ead0;color:#3b2f17;border-bottom:1px solid #e2cf9f">`)
@@ -124,7 +132,7 @@ func SetupBarHTML(names []string) []byte {
 	b.WriteString(`<script>(function(){` +
 		`var bar=document.currentScript.parentNode,busy={};` +
 		`function setUp(row){var name=row.getAttribute('data-name');if(busy[name])return;busy[name]=1;var label=row.firstChild;label.textContent='Waiting for you in HTML Clay…';` +
-		`fetch('/_/helper-setup/'+encodeURIComponent(document.documentElement.getAttribute('savetoken')||''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})})` +
+		post +
 		`.then(function(r){return r.json()}).then(function(d){busy[name]=0;var s=d&&d.state;` +
 		`if(s==='ready'){row.remove();if(!bar.querySelector('[data-name]'))bar.remove();return}` +
 		`label.textContent=s==='retry'?'Try again in a minute.':s==='busy'?'HTML Clay is already asking about “'+name+'”.':'“'+name+'” is not set up.'})` +

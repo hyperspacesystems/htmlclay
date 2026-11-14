@@ -312,3 +312,71 @@ func TestM3CoreWithFakeHost(t *testing.T) {
 		}
 	})
 }
+
+func TestM3WireForgetAndBound(t *testing.T) {
+	t.Run("BoundFiles lists bound documents", func(t *testing.T) {
+		core, _, _, file := newFakeCore(t)
+		writeHelperDocument(t, filepath.Join(filepath.Dir(file), "other.htmlclay"), "marker")
+		if got := core.BoundFiles(); len(got) != 0 {
+			t.Fatalf("BoundFiles before any bind = %v, want empty", got)
+		}
+
+		core.BindHelpers(file)
+		got := core.BoundFiles()
+		if len(got) != 1 || got[0] != file {
+			t.Fatalf("BoundFiles = %v, want [%s]", got, file)
+		}
+
+		core.UnbindHelpers(file)
+		if got := core.BoundFiles(); len(got) != 0 {
+			t.Fatalf("BoundFiles after unbind = %v, want empty", got)
+		}
+	})
+
+	t.Run("Forget closes the streams and unbinds", func(t *testing.T) {
+		core, _, _, file := newFakeCore(t)
+		core.BindHelpers(file)
+		before := core.HelperGeneration(file)
+		srv := httptest.NewServer(core.WireMux())
+		t.Cleanup(srv.Close)
+
+		q := url.Values{"role": {"handler"}, "file": {file}}
+		resp, err := http.Get(srv.URL + "/_/wire/subscribe?" + q.Encode())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { resp.Body.Close() })
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("handler subscription refused: %d", resp.StatusCode)
+		}
+		waitSubscribers(t, core, file, 1)
+
+		core.Forget(file)
+		waitEOF(t, resp)
+
+		if got := core.BoundFiles(); len(got) != 0 {
+			t.Fatalf("BoundFiles after Forget = %v, want empty", got)
+		}
+		if after := core.HelperGeneration(file); after <= before {
+			t.Fatalf("HelperGeneration after Forget = %d, want greater than %d", after, before)
+		}
+	})
+
+	t.Run("Forget on an unknown path is harmless", func(t *testing.T) {
+		core, _, _, file := newFakeCore(t)
+		core.BindHelpers(file)
+		before := core.BoundFiles()
+
+		core.Forget("/nowhere.htmlclay")
+
+		after := core.BoundFiles()
+		if len(after) != len(before) {
+			t.Fatalf("BoundFiles after Forget = %v, want %v", after, before)
+		}
+		for i := range before {
+			if after[i] != before[i] {
+				t.Fatalf("BoundFiles after Forget = %v, want %v", after, before)
+			}
+		}
+	})
+}
