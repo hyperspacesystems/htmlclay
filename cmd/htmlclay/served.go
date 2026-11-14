@@ -232,7 +232,7 @@ func relativeWithin(path, dir string) (string, bool) {
 func (a *app) startServed() {
 	a.served = a.newServedHost()
 	board, err := dashboard.New(dashboard.Options{
-		Host: fmt.Sprintf("%s:%d", appcore.DashboardHost, a.rt.port), ProductName: "HTML Clay", API: a.served.DashboardAPI(),
+		Host: fmt.Sprintf("%s:%d", appcore.DashboardHost, a.rt.port), ProductName: "HTML Clay", API: a.dashboardAPI(a.served.DashboardAPI()),
 	})
 	if err != nil {
 		a.rt.logger.Printf("The workspace is unavailable: %v", err)

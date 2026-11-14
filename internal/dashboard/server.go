@@ -37,6 +37,10 @@ const TextHowToOpen = "To open the workspace, choose Open Workspace in the HTML 
 // pagePath is every address the bundle renders: Local's own list.
 var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new))?$`)
 
+// appAPIPrefix is the API the app answers in Go rather than through the service.
+// It is let in by the session the entry page set, never by the token alone.
+const appAPIPrefix = "/api/app/"
+
 // Options configures one dashboard.
 type Options struct {
 	// Host is the exact Host header the dashboard answers, such as
@@ -44,8 +48,10 @@ type Options struct {
 	Host string
 	// ProductName names the app in the bundle (meta workspace-product).
 	ProductName string
-	// API receives every admitted /api/ request. Nil answers 503 with
-	// Retry-After: 1, which the bundle shows as not answering.
+	// API receives every admitted /api/ request. The app's own prefix
+	// (appAPIPrefix) is admitted by the session cookie; the rest by the entry
+	// page's token. Nil answers 503 with Retry-After: 1, which the bundle shows as
+	// not answering.
 	API http.Handler
 	// Now is the clock; nil uses time.Now.
 	Now func() time.Time
@@ -166,6 +172,18 @@ func (s *Server) apiAdmitted(r *http.Request) bool {
 		(site == "" || site == "same-origin")
 }
 
+// appAdmitted is who may reach the app's own routes: the person's own browser on
+// the dashboard's origin, holding the session the entry page set. The entry page's
+// token is not enough there, and neither is the shell's bearer.
+func (s *Server) appAdmitted(r *http.Request) bool {
+	if !s.hasSession(r) {
+		return false
+	}
+	origin := r.Header.Get("Origin")
+	site := r.Header.Get("Sec-Fetch-Site")
+	return (origin == "" || origin == s.origin) && (site == "" || site == "same-origin")
+}
+
 func (s *Server) hasSession(r *http.Request) bool {
 	c, err := r.Cookie(s.cookie)
 	return err == nil && equal(c.Value, s.session)
@@ -189,7 +207,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	p := r.URL.Path
 	if strings.HasPrefix(p, "/api/") {
-		if !s.apiAdmitted(r) {
+		admitted := s.apiAdmitted(r)
+		if strings.HasPrefix(p, appAPIPrefix) {
+			admitted = s.appAdmitted(r)
+		}
+		if !admitted {
 			refuse(w, http.StatusForbidden, "forbidden")
 			return
 		}
