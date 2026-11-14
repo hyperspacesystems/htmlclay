@@ -22,7 +22,6 @@ type documentAccessFixture struct {
 	app     *app
 	home    string
 	served  string
-	rootID  string
 	trusted string
 	loose   string
 }
@@ -38,7 +37,7 @@ func newDocumentAccessFixture(t *testing.T) *documentAccessFixture {
 	writeTestFile(t, loosePath, documentAccessDocument)
 
 	a := newServedTestApp(t, home, t.TempDir())
-	entry, refusal, err := a.serveFolder(servedDir, "notes")
+	_, refusal, err := a.serveFolder(servedDir, "notes")
 	if err != nil {
 		t.Fatalf("serveFolder: %v", err)
 	}
@@ -53,7 +52,6 @@ func newDocumentAccessFixture(t *testing.T) *documentAccessFixture {
 		app:     a,
 		home:    home,
 		served:  servedDir,
-		rootID:  entry.ID,
 		trusted: trustedDir,
 		loose:   loosePath,
 	}
@@ -97,8 +95,8 @@ func registrationFingerprint(t *testing.T, a *app) string {
 	return strings.Join(lines, "\n")
 }
 
-// documentAccessKinds is every document the fixture reaches, with the path its
-// owner reads and the owner's own name for the failure messages.
+// documentAccessTarget is one document the fixture reaches, with the name its
+// owner goes by in a failure message.
 type documentAccessTarget struct {
 	name string
 	path string
