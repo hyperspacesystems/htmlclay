@@ -59,8 +59,11 @@ struct FoldersPane: View {
             Spacer(minLength: 0)
             Menu {
                 Button(Strings.Folders.trustMenu) {
-                    if let first = TrustRules.firstPick(in: model.snapshot) {
-                        model.sheet = .trustFolder(name: first.name, path: first.path)
+                    Task {
+                        if let path = await model.folderChooser?.chooseToTrust(after: nil, in: model.snapshot) {
+                            let sample = SampleData.trustCandidates.first { $0.path == path }
+                            model.sheet = .trustFolder(name: sample?.name ?? (path as NSString).lastPathComponent, path: path)
+                        }
                     }
                 }
                 Button(Strings.Folders.serveMenu) {

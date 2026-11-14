@@ -74,51 +74,53 @@ struct ServeSheet: View {
 struct TrustSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
-    private let name: String
-    private let path: String
+    @State private var sheet: TrustSheetModel
 
-    init(name: String, path: String) {
-        self.name = name
-        self.path = path
+    init(name: String, path: String, model: AppModel) {
+        _sheet = State(initialValue: TrustSheetModel(name: name, path: path, model: model))
     }
 
     var body: some View {
-        if TrustRules.isMainFolder(path) {
-            mainFolder
-        } else {
-            confirm
+        Group {
+            if sheet.isMainFolder {
+                mainFolder
+            } else {
+                confirm
+            }
         }
+        .task { await sheet.check() }
     }
 
     private var mainFolder: some View {
-        KilnAlertBox(title: Strings.TrustSheet.mainTitle(name),
-                     message: Text(Strings.TrustSheet.mainStart(name)) + Text(Strings.TrustSheet.htmlclay).monospaced() + Text(Strings.TrustSheet.mainEnd)) {
+        KilnAlertBox(title: Strings.TrustSheet.mainTitle(sheet.name),
+                     message: Text(Strings.TrustSheet.mainStart(sheet.name)) + Text(Strings.TrustSheet.htmlclay).monospaced() + Text(Strings.TrustSheet.mainEnd)) {
             EmptyView()
         } buttons: {
             Button(Strings.TrustSheet.chooseAnother) {
-                if let next = TrustRules.pick(after: path, in: model.snapshot) {
-                    model.sheet = .trustFolder(name: next.name, path: next.path)
-                } else {
-                    model.sheet = nil
+                Task {
+                    if !(await sheet.chooseAnother()) { model.sheet = nil }
                 }
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            Button(Strings.Request.trustNamed(name)) {
-                trust()
+            Button(Strings.Request.trustNamed(sheet.name)) {
+                Task {
+                    if await sheet.trust() { model.sheet = nil }
+                }
             }
             .buttonStyle(KilnButtonStyle(.plain))
+            .disabled(!sheet.ready)
+            .opacity(sheet.ready ? 1 : 0.42)
         }
     }
 
     private var confirm: some View {
-        let inside = TrustRules.trustedInside(path, in: model.snapshot)
-        return KilnAlertBox(title: Strings.TrustSheet.title(name),
-                            message: Text(Strings.TrustSheet.every) + Text(Strings.TrustSheet.htmlclay).monospaced() + Text(Strings.TrustSheet.fileIn) + Text(path).monospaced() + Text(Strings.TrustSheet.willSave) + Text(name).monospaced() + Text(Strings.TrustSheet.canChange)) {
-            if inside > 0 {
+        KilnAlertBox(title: Strings.TrustSheet.title(sheet.name),
+                     message: Text(Strings.TrustSheet.every) + Text(Strings.TrustSheet.htmlclay).monospaced() + Text(Strings.TrustSheet.fileIn) + Text(sheet.path).monospaced() + Text(Strings.TrustSheet.willSave) + Text(sheet.name).monospaced() + Text(Strings.TrustSheet.canChange)) {
+            if !sheet.insideNames.isEmpty {
                 KilnCard {
                     HStack(spacing: 11) {
                         Squircle(.sky, symbol: Symbols.folder)
-                        Text(Strings.TrustSheet.inside(name, count: inside))
+                        Text(Strings.TrustSheet.inside(sheet.name, count: sheet.insideNames.count))
                             .font(.system(size: 13))
                             .foregroundStyle(kiln.muted)
                             .multilineTextAlignment(.leading)
@@ -130,20 +132,22 @@ struct TrustSheet: View {
                 }
                 .padding(.top, 14)
             }
+            if let problem = sheet.problem {
+                KilnFieldNote(Text(problem), error: true)
+            }
         } buttons: {
             Button(Strings.Sheets.cancel) {
                 model.sheet = nil
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            Button(Strings.Request.trustNamed(name)) {
-                trust()
+            Button(Strings.Request.trustNamed(sheet.name)) {
+                Task {
+                    if await sheet.trust() { model.sheet = nil }
+                }
             }
             .buttonStyle(KilnButtonStyle(.primary))
+            .disabled(!sheet.ready)
+            .opacity(sheet.ready ? 1 : 0.42)
         }
-    }
-
-    private func trust() {
-        model.send(.trustFolder(name: name, path: path))
-        model.sheet = nil
     }
 }

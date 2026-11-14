@@ -21,6 +21,8 @@ private final class FixedFolderChooser: FolderChooser {
     func first(in snapshot: HostSnapshot) -> String? { path }
 
     func choose(after current: String?, in snapshot: HostSnapshot) async -> String? { path }
+
+    func chooseToTrust(after current: String?, in snapshot: HostSnapshot) async -> String? { path }
 }
 
 @MainActor
@@ -320,6 +322,50 @@ final class LiveHostTests: XCTestCase {
         XCTAssertTrue(resumed.served)
         XCTAssertEqual(resumed.address, served.address)
         XCTAssertTrue(resumed.address.contains("notes.htmlclay.localhost"), "address = \(resumed.address)")
+    }
+
+    func testTheTrustSheetRefusesTheHomeFolder() async throws {
+        let host = try await LiveHost.start()
+        let model = AppModel(host: host.client, initial: try await host.client.load())
+
+        let sheet = TrustSheetModel(name: host.home.lastPathComponent, path: host.home.path, model: model)
+        await sheet.check()
+
+        XCTAssertNotNil(sheet.problem)
+        XCTAssertFalse(sheet.ready)
+        let trusted = await sheet.trust()
+        XCTAssertFalse(trusted)
+        XCTAssertTrue(model.snapshot.folders.isEmpty, "the home folder was trusted anyway")
+    }
+
+    func testTheTrustSheetKnowsAPersonalFolderAndWhatIsInsideIt() async throws {
+        let host = try await LiveHost.start()
+        let documents = host.home.appendingPathComponent("Documents")
+        let outer = host.home.appendingPathComponent("outer")
+        let inner = outer.appendingPathComponent("inner")
+        try makeFolder(documents)
+        try makeFolder(inner)
+
+        let model = AppModel(host: host.client, initial: try await host.client.load())
+        model.folderChooser = FixedFolderChooser(inner.path)
+
+        let personal = TrustSheetModel(name: "Documents", path: documents.path, model: model)
+        await personal.check()
+        XCTAssertTrue(personal.isMainFolder, "the host did not call Documents a personal folder")
+        XCTAssertNil(personal.problem)
+
+        _ = try done(await model.submit(.trustFolder(name: "inner", path: inner.path)),
+                     "trusting inner was refused")
+
+        let sheet = TrustSheetModel(name: "outer", path: outer.path, model: model)
+        await sheet.check()
+        XCTAssertEqual(sheet.insideNames, ["inner"])
+        XCTAssertFalse(sheet.isMainFolder)
+
+        let trusted = await sheet.trust()
+        XCTAssertTrue(trusted)
+        let trustedOuter = try XCTUnwrap(model.snapshot.folders.first { $0.fullPath == outer.path })
+        XCTAssertEqual(trustedOuter.name, "outer")
     }
 
     func testWrongSecretIsRefused() async throws {

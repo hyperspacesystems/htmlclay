@@ -8,7 +8,11 @@ public final class OpenPanelFolderChooser: FolderChooser {
 
     public func first(in snapshot: HostSnapshot) -> String? { nil }
 
-    public func choose(after current: String?, in snapshot: HostSnapshot) async -> String? {
+    public func choose(after current: String?, in snapshot: HostSnapshot) async -> String? { pickFolder() }
+
+    public func chooseToTrust(after current: String?, in snapshot: HostSnapshot) async -> String? { pickFolder() }
+
+    private func pickFolder() -> String? {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false

@@ -10,7 +10,7 @@ struct SettingsSheetView: View {
         Group {
             switch sheet {
             case let .serveFolder(folderID): ServeSheet(folderID: folderID, model: model)
-            case let .trustFolder(name, path): TrustSheet(name: name, path: path)
+            case let .trustFolder(name, path): TrustSheet(name: name, path: path, model: model)
             case .connect: ConnectSheet()
             case let .accountFolder(username): AccountFolderSheet(username: username)
             case let .teamSetup(folderID): TeamSetupSheet(folderID: folderID)

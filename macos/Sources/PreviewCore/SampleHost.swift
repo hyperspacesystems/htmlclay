@@ -199,7 +199,17 @@ public final class SampleHost: HostClient {
             let name = ServeRules.startName(folderID: folderID, in: current)
             return .success(HostCheckAnswer(address: ServeRules.address(for: name), name: name))
         case let .trustFolder(name, path):
-            return .success(HostCheckAnswer(name: name, path: path))
+            var warnings: [HostWarning] = []
+            if TrustRules.isMainFolder(path) {
+                warnings.append(HostWarning(code: "personal-folder", text: ""))
+            }
+            let inside = current.localFolders
+                .filter { $0.path.hasPrefix(path + "/") }
+                .map(\.name)
+            if !inside.isEmpty {
+                warnings.append(HostWarning(code: "contains-trusted", text: "", names: inside))
+            }
+            return .success(HostCheckAnswer(name: name, path: path, warnings: warnings))
         default:
             return .success(HostCheckAnswer())
         }
