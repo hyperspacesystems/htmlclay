@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"github.com/panphora/htmlclay/internal/wire"
 	"io"
 	"net/http"
 	"os"
@@ -125,7 +126,7 @@ func (s *Server) handleDataAPIWrite(w http.ResponseWriter, r *http.Request) {
 		if absPath, ok := s.resolveWriteTarget(relPath); ok {
 			f, _ = s.sessions.LookupByPath(absPath)
 		}
-		if f == nil || subtle.ConstantTimeCompare([]byte(r.Header.Get(helperTokenHeader)), []byte(f.Token)) != 1 {
+		if f == nil || subtle.ConstantTimeCompare([]byte(r.Header.Get(wire.TokenHeader)), []byte(f.Token)) != 1 {
 			writeWriteError(w, http.StatusForbidden, writeErrorBody{
 				Error:   "Save-Token required",
 				Message: "A page writes JSON only with the target file's Save-Token header.",
@@ -240,7 +241,7 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 			writeWriteError(w, http.StatusNotFound, writeErrorBody{Error: "Site content not found", Message: "The document has no content on disk."})
 			return
 		}
-		s.logger.Printf("Data write could not read %s: %v", f.RelPath, readErr)
+		s.Logger.Printf("Data write could not read %s: %v", f.RelPath, readErr)
 		writeWriteError(w, http.StatusInternalServerError, writeErrorBody{Error: "Write failed", Message: "Could not read the stored document."})
 		return
 	}
@@ -288,7 +289,7 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		}
 		status, body := mapWriteError(err)
 		if status == http.StatusInternalServerError {
-			s.logger.Printf("Data write of %s failed: %v", f.RelPath, err)
+			s.Logger.Printf("Data write of %s failed: %v", f.RelPath, err)
 		}
 		writeWriteError(w, status, body)
 		return
@@ -326,7 +327,7 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		}
 		f.NoteWriteFromOutsideTabs()
 		if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-			s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+			s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 		}
 		s.coord.acceptServerReplacement(f)
 		// Announced as an external change, not a save: no tab relays this write to the others,
@@ -341,7 +342,7 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		exact := dataguard.NamesExactVersion(ifMatch)
 		s.observeWrite(f, key, current, written, dataguard.External, writeProof{IfMatched: exact, ProvenReader: exact && !isBrowser, FromPage: isBrowser})
 		s.versions.MaybePrune(key, f.AbsPath)
-		s.logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), res.Spliced)
+		s.Logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), res.Spliced)
 	}
 	s.writeExtracted(w, written, mode)
 }
@@ -354,7 +355,7 @@ func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session
 		f.Unlock()
 		status, errBody := mapWriteError(err)
 		if status == http.StatusInternalServerError {
-			s.logger.Printf("Sheet patch of %s failed: %v", f.RelPath, err)
+			s.Logger.Printf("Sheet patch of %s failed: %v", f.RelPath, err)
 		}
 		writeWriteError(w, status, errBody)
 		return
@@ -374,7 +375,7 @@ func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session
 	}
 	f.NoteWriteFromOutsideTabs()
 	if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-		s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+		s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 	}
 	s.coord.acceptServerReplacement(f)
 	s.coord.publishExternalChange(f, f.Name+" was updated through the data API", forBrowser(written, key, s.documentURLFor(f)), specwire.Etag(written))
@@ -383,7 +384,7 @@ func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session
 	exact := dataguard.NamesExactVersion(ifMatch)
 	s.observeWrite(f, key, current, written, dataguard.External, writeProof{IfMatched: exact, ProvenReader: exact && !isBrowser, FromPage: isBrowser})
 	s.versions.MaybePrune(key, f.AbsPath)
-	s.logger.Printf("Patched sheet cells in %s (%d cells, %d rows)", f.RelPath, res.Changed.Cells, res.Changed.Rows)
+	s.Logger.Printf("Patched sheet cells in %s (%d cells, %d rows)", f.RelPath, res.Changed.Cells, res.Changed.Rows)
 
 	etag := specwire.Etag(written)
 	var buf bytes.Buffer
@@ -464,7 +465,7 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 	// to be kept first: if they cannot be, the write does not happen at all.
 	if provenReader && !s.recentVersionsHold(key, f.AbsPath, current) {
 		if bErr := s.backupVersion(key, f.AbsPath, current); bErr != nil {
-			s.logger.Printf("Could not keep the current version of %s: %v", f.RelPath, bErr)
+			s.Logger.Printf("Could not keep the current version of %s: %v", f.RelPath, bErr)
 			return nil, "", &dataEditError{status: http.StatusServiceUnavailable, body: writeErrorBody{
 				Code:    "recovery-unavailable",
 				Error:   "Could not keep the current version",
@@ -474,18 +475,18 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 	}
 	if !s.versions.HasHistory(key, f.AbsPath) {
 		if bErr := s.backupVersion(key, f.AbsPath, current); bErr != nil {
-			s.logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
+			s.Logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
 		}
 	}
 	if bErr := s.backupVersion(key, f.AbsPath, written); bErr != nil {
-		s.logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
+		s.Logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
 	}
 	if err := atomicWriteFile(f.AbsPath, written); err != nil {
-		s.logger.Printf("Error writing %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error writing %s: %v", f.AbsPath, err)
 		return nil, "", err
 	}
 	if sErr := s.versions.SettlePageState(key, f.AbsPath, written); sErr != nil {
-		s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
+		s.Logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
 	}
 	f.RecordServerWrite(versions.Hash(written))
 	f.NoteWriteByThisHost()

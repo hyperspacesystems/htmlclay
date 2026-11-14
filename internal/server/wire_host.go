@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/panphora/htmlclay/internal/wire"
 	"io/fs"
 	"net/http"
 	"os"
@@ -24,7 +25,7 @@ func (s *Server) handleHelperSetup(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	s.handleSetup(w, r, wireDocument{Path: f.AbsPath, Name: f.RelPath, Ref: f})
+	s.HandleSetup(w, r, wire.Document{Path: f.AbsPath, Name: f.RelPath, Ref: f})
 }
 
 // wireCaller classifies who is asking and whether the origin gate admits them.
@@ -75,22 +76,7 @@ func wireCaller(r *http.Request) (isBrowser, ok bool) {
 // not isolation.
 func (s *Server) wireTarget(r *http.Request, isBrowser bool, supplied string) (*session.File, bool) {
 	if isBrowser {
-		// Document-URL first, Page-URL after it, and the query last. §3 names the
-		// first spelling and §11's channel addresses a document the same way the save
-		// route does, so a client written against the spec sends only that one and was
-		// getting no target at all here. The older spelling stays because a document
-		// that opened a wire before the rename hardcoded it in its own inline script.
-		pageURL := r.Header.Get("Document-URL")
-		if pageURL == "" {
-			pageURL = r.Header.Get("Page-URL")
-		}
-		if pageURL == "" {
-			pageURL = r.URL.Query().Get("document-url")
-		}
-		if pageURL == "" {
-			pageURL = r.URL.Query().Get("page-url")
-		}
-		return s.resolvePageURL(r, pageURL)
+		return s.resolvePageURL(r, wire.PageURL(r))
 	}
 	return s.resolveWireFile(supplied)
 }
@@ -179,10 +165,10 @@ func (s *Server) seedHandlerHistory(f *session.File) (string, error) {
 		f.RecordStableObservation(versions.Hash(data))
 	}
 	if _, bErr := s.versions.Backup(key, f.AbsPath, data); bErr != nil {
-		s.logger.Printf("Baseline backup for wire handler on %s failed: %v", f.RelPath, bErr)
+		s.Logger.Printf("Baseline backup for wire handler on %s failed: %v", f.RelPath, bErr)
 	} else if provisional {
 		if pErr := s.versions.SetProvisional(key, f.AbsPath, true); pErr != nil {
-			s.logger.Printf("Could not mark provisional history for %s: %v", f.RelPath, pErr)
+			s.Logger.Printf("Could not mark provisional history for %s: %v", f.RelPath, pErr)
 		}
 	}
 	return key, nil
@@ -193,52 +179,52 @@ func (s *Server) seedHandlerHistory(f *session.File) (string, error) {
 // wire called before the seam existed.
 type looseWire struct{ s *Server }
 
-func (l looseWire) caller(r *http.Request) (isBrowser, ok bool) { return wireCaller(r) }
+func (l looseWire) Caller(r *http.Request) (isBrowser, ok bool) { return wireCaller(r) }
 
-func (l looseWire) target(r *http.Request, isBrowser bool, supplied string) (wireDocument, bool) {
+func (l looseWire) Target(r *http.Request, isBrowser bool, supplied string) (wire.Document, bool) {
 	f, ok := l.s.wireTarget(r, isBrowser, supplied)
 	if !ok {
-		return wireDocument{}, false
+		return wire.Document{}, false
 	}
-	return wireDocument{Path: f.AbsPath, Name: f.RelPath, Ref: f}, true
+	return wire.Document{Path: f.AbsPath, Name: f.RelPath, Ref: f}, true
 }
 
-func (l looseWire) at(path string) (wireDocument, bool) {
+func (l looseWire) At(path string) (wire.Document, bool) {
 	f, ok := l.s.sessions.LookupByPath(path)
 	if !ok {
-		return wireDocument{}, false
+		return wire.Document{}, false
 	}
-	return wireDocument{Path: f.AbsPath, Name: f.RelPath, Ref: f}, true
+	return wire.Document{Path: f.AbsPath, Name: f.RelPath, Ref: f}, true
 }
 
-func (l looseWire) mayUsePrograms(doc wireDocument, isBrowser bool, presented string) bool {
+func (l looseWire) MayUsePrograms(doc wire.Document, isBrowser bool, presented string) bool {
 	return presented == doc.Ref.(*session.File).Token
 }
 
-func (l looseWire) openHistory(doc wireDocument) error {
+func (l looseWire) OpenHistory(doc wire.Document) error {
 	return l.s.openHistoryForHandler(doc.Ref.(*session.File))
 }
 
-func (l looseWire) lease(doc wireDocument)   { l.s.coord.lease(doc.Ref.(*session.File)) }
-func (l looseWire) unlease(doc wireDocument) { l.s.coord.unlease(doc.Ref.(*session.File)) }
-func (l looseWire) poke(doc wireDocument)    { l.s.coord.pokeWatcher(doc.Ref.(*session.File)) }
+func (l looseWire) Lease(doc wire.Document)   { l.s.coord.lease(doc.Ref.(*session.File)) }
+func (l looseWire) Unlease(doc wire.Document) { l.s.coord.unlease(doc.Ref.(*session.File)) }
+func (l looseWire) Poke(doc wire.Document)    { l.s.coord.pokeWatcher(doc.Ref.(*session.File)) }
 
-func (l looseWire) internal(absPath string) bool { return l.s.isInternal(absPath) }
+func (l looseWire) Internal(absPath string) bool { return l.s.isInternal(absPath) }
 
-func (l looseWire) canAskProgram() bool { return l.s.hooks.AskHelper != nil }
+func (l looseWire) CanAskProgram() bool { return l.s.hooks.AskHelper != nil }
 
-func (l looseWire) askProgram(file, name string) bool { return l.s.hooks.AskHelper(file, name) }
+func (l looseWire) AskProgram(file, name string) bool { return l.s.hooks.AskHelper(file, name) }
 
-func (l looseWire) programGranted(file, name, programID string) bool {
+func (l looseWire) ProgramGranted(file, name, programID string) bool {
 	granted := l.s.hooks.HelperGranted
 	return granted == nil || granted(file, name, programID)
 }
 
-func (l looseWire) aiEditOffered() bool { return l.s.hooks.AIEditEnabled != nil }
+func (l looseWire) AIEditOffered() bool { return l.s.hooks.AIEditEnabled != nil }
 
-func (l looseWire) aiEditEnabled() bool { return l.s.hooks.AIEditEnabled() }
+func (l looseWire) AIEditEnabled() bool { return l.s.hooks.AIEditEnabled() }
 
-func (l looseWire) aiEditEngines() (string, map[string][]string) {
+func (l looseWire) AIEditEngines() (string, map[string][]string) {
 	if l.s.hooks.AIEditEngines == nil {
 		return "", nil
 	}

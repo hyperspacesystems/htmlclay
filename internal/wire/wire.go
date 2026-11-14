@@ -1,8 +1,9 @@
-package server
+package wire
 
 import (
 	"encoding/json"
 	"errors"
+	"github.com/panphora/htmlclay/internal/sse"
 	"io"
 	"net/http"
 	"strings"
@@ -14,9 +15,9 @@ import (
 
 // builtinHelpers is the helpers this server answers itself: the name a page asks
 // for and the run it starts. Both share one per-document slot and one token bar.
-var builtinHelpers = map[string]func(*wireCore, wireDocument, wireEnvelope){
-	aiedit.HelperName:         (*wireCore).startAIEdit,
-	aiedit.PageToolHelperName: (*wireCore).startPageTool,
+var builtinHelpers = map[string]func(*Core, Document, Envelope){
+	aiedit.HelperName:         (*Core).startAIEdit,
+	aiedit.PageToolHelperName: (*Core).startPageTool,
 }
 
 // The wire is a per-file control channel between a page and a local process. A
@@ -48,29 +49,29 @@ const (
 	// wrong and growing memory is not the answer. The live-sync hub has no
 	// equivalent cap to inherit: its bounds are per-stream queue size, the
 	// subscriptions one shared stream may carry, and the replay caps.
-	maxWireSubs = 8
+	MaxWireSubs = 8
 	// Retained terminal frames per file. See wireChannel.terminal.
-	maxWireTerminals = 32
-	wireTerminalTTL  = 5 * time.Minute
-	wireQueueSize    = 32
+	MaxWireTerminals = 32
+	WireTerminalTTL  = 5 * time.Minute
+	WireQueueSize    = 32
 
 	// The per-file caps bound one channel; this bounds all of them together. A
 	// page may send on any registered path on its origin, so without a global
 	// ceiling a loop over a trusted tree pins maxWireTerminals frames per file for
 	// the whole TTL, and the per-file limits never fire. Oldest-first eviction,
 	// like the live-sync replay cache.
-	wireGlobalMaxTerminalBytes = 8 << 20
-	helperTokenHeader          = "Save-Token"
-	helperTokenQuery           = "token"
+	WireGlobalMaxTerminalBytes = 8 << 20
+	TokenHeader                = "Save-Token"
+	TokenQuery                 = "token"
 )
 
 var (
-	errWireHandlerTaken = errors.New("a handler is already attached")
-	errWireBusy         = errors.New("too many wire subscribers")
+	ErrWireHandlerTaken = errors.New("a handler is already attached")
+	ErrWireBusy         = errors.New("too many wire subscribers")
 	errWireClosed       = errors.New("shutting down")
 )
 
-// wireEnvelope is the whole protocol. The router validates the routing fields
+// Envelope is the whole protocol. The router validates the routing fields
 // and treats Payload as opaque JSON.
 //
 // File and From are stamped by the SERVER and any client-supplied value is
@@ -78,7 +79,7 @@ var (
 // write through the agent's OS authority into a file the page can never touch.
 // From, because it identifies a connection, and a value the sender chooses is a
 // value a hostile sender can choose to be someone else's.
-type wireEnvelope struct {
+type Envelope struct {
 	V        int             `json:"v"`
 	Type     string          `json:"type"`
 	ID       string          `json:"id"`
@@ -90,26 +91,26 @@ type wireEnvelope struct {
 	Payload  json.RawMessage `json:"payload,omitempty"`
 }
 
-// isTerminal reports whether this frame ends a request. Only terminal frames are
+// IsTerminal reports whether this frame ends a request. Only terminal frames are
 // retained, because a lost status frame is repaired by the next one and a lost
 // terminal frame is repaired by nothing.
-func (e wireEnvelope) isTerminal() bool {
+func (e Envelope) IsTerminal() bool {
 	return e.Type == "wire/done" || e.Type == "wire/error"
 }
 
-type wireSub struct {
-	key     string
-	handler bool
-	mode    string
-	ch      chan []byte
-	done    chan struct{}
+type Sub struct {
+	Key     string
+	Handler bool
+	Mode    string
+	Ch      chan []byte
+	Done    chan struct{}
 	once    sync.Once
-	// removed makes removal idempotent, so an eviction and the handler's own
+	// Removed makes removal idempotent, so an eviction and the handler's own
 	// defer cannot both tear down one subscriber. Guarded by wireHub.mu.
-	removed bool
+	Removed bool
 }
 
-func wireHandlerMode(mode string) (string, bool) {
+func WireHandlerMode(mode string) (string, bool) {
 	if mode == "" {
 		return "raw", true
 	}
@@ -119,7 +120,7 @@ func wireHandlerMode(mode string) (string, bool) {
 	return "", false
 }
 
-func (sub *wireSub) stop() { sub.once.Do(func() { close(sub.done) }) }
+func (sub *Sub) stop() { sub.once.Do(func() { close(sub.Done) }) }
 
 type helperBinding struct {
 	bound      bool
@@ -132,101 +133,101 @@ type helperBindingRegistry struct {
 }
 
 // HelpersBound reports whether file currently has an in-process helper handler.
-func (s *wireCore) HelpersBound(file string) bool {
-	s.helperBindings.mu.RLock()
-	defer s.helperBindings.mu.RUnlock()
-	return s.helperBindings.byFile[file].bound
+func (s *Core) HelpersBound(file string) bool {
+	s.HelperBindings.mu.RLock()
+	defer s.HelperBindings.mu.RUnlock()
+	return s.HelperBindings.byFile[file].bound
 }
 
 // HelperGeneration identifies file's current binding lifetime. It changes once
 // per real bind or unbind transition and stays stable across idempotent calls.
-func (s *wireCore) HelperGeneration(file string) uint64 {
-	s.helperBindings.mu.RLock()
-	defer s.helperBindings.mu.RUnlock()
-	return s.helperBindings.byFile[file].generation
+func (s *Core) HelperGeneration(file string) uint64 {
+	s.HelperBindings.mu.RLock()
+	defer s.HelperBindings.mu.RUnlock()
+	return s.HelperBindings.byFile[file].generation
 }
 
 // BindHelpers activates helper-channel admission after the dispatcher has won
 // the handler slot. The existing handler stays, while pre-bind observer queues
 // and retained outcomes are removed in the same locked transition.
-func (s *wireCore) BindHelpers(file string) uint64 {
-	s.helperBindings.mu.Lock()
-	state := s.helperBindings.byFile[file]
+func (s *Core) BindHelpers(file string) uint64 {
+	s.HelperBindings.mu.Lock()
+	state := s.HelperBindings.byFile[file]
 	if state.bound {
-		s.helperBindings.mu.Unlock()
+		s.HelperBindings.mu.Unlock()
 		return state.generation
 	}
-	if s.helperBindings.byFile == nil {
-		s.helperBindings.byFile = make(map[string]helperBinding)
+	if s.HelperBindings.byFile == nil {
+		s.HelperBindings.byFile = make(map[string]helperBinding)
 	}
 	state.bound = true
 	state.generation++
-	s.helperBindings.byFile[file] = state
-	evicted := s.wire.transitionBinding(file, true)
-	s.helperBindings.mu.Unlock()
+	s.HelperBindings.byFile[file] = state
+	evicted := s.Hub.transitionBinding(file, true)
+	s.HelperBindings.mu.Unlock()
 	stopWireSubs(evicted)
 	return state.generation
 }
 
 // UnbindHelpers revokes the helper channel, disconnects every subscriber and
 // removes retained outcomes before tokenless plain-wire admission resumes.
-func (s *wireCore) UnbindHelpers(file string) uint64 {
-	s.helperBindings.mu.Lock()
-	state := s.helperBindings.byFile[file]
+func (s *Core) UnbindHelpers(file string) uint64 {
+	s.HelperBindings.mu.Lock()
+	state := s.HelperBindings.byFile[file]
 	if !state.bound {
-		s.helperBindings.mu.Unlock()
+		s.HelperBindings.mu.Unlock()
 		return state.generation
 	}
 	state.bound = false
 	state.generation++
-	s.helperBindings.byFile[file] = state
-	evicted := s.wire.transitionBinding(file, false)
-	s.helperBindings.mu.Unlock()
+	s.HelperBindings.byFile[file] = state
+	evicted := s.Hub.transitionBinding(file, false)
+	s.HelperBindings.mu.Unlock()
 	stopWireSubs(evicted)
 	return state.generation
 }
 
-type wireTerminal struct {
+type Terminal struct {
 	seq   int64
-	frame []byte
-	at    time.Time
+	Frame []byte
+	At    time.Time
 }
 
-// wireChannel is one file's wire: at most one handler, capped observers, and the
+// Channel is one file's wire: at most one handler, capped observers, and the
 // terminal frame of each recent request.
 //
 // Retention is keyed by request id rather than kept as an anonymous ring so that
 // a reconnecting subscriber recovers the OUTCOME of its requests, which is the
 // only question it ever asks, and so a request that terminates twice keeps the
 // first answer rather than the last.
-type wireChannel struct {
-	subs     map[*wireSub]struct{}
-	handler  *wireSub
-	terminal map[string]wireTerminal
+type Channel struct {
+	subs     map[*Sub]struct{}
+	handler  *Sub
+	Terminal map[string]Terminal
 }
 
-// wireHub lives on the Server, not on the process-wide runtime, because a site is
+// Hub lives on the Server, not on the process-wide runtime, because a site is
 // the security and lifetime boundary for an instruction channel. untrustFolder
 // already calls s.close() on the site and drops it (cmd/htmlclay/folders.go), so an untrusted
 // folder cannot keep a live wire into itself, and graceful shutdown closes these
 // streams before the HTTP drain instead of holding it to ShutdownBudget. A
 // process-wide hub would need a new bookkeeping call at both sites, and the one
 // that gets forgotten is the one that matters.
-type wireHub struct {
-	mu      sync.Mutex
-	chans   map[string]*wireChannel
+type Hub struct {
+	Mu      sync.Mutex
+	Chans   map[string]*Channel
 	seq     int64
 	closing chan struct{}
 	closed  bool
 
-	// terminalBytes is the running total across every channel, so the global cap
+	// TerminalBytes is the running total across every channel, so the global cap
 	// costs no walk to check. Every path that adds or drops a retained terminal
 	// goes through retainTerminalLocked / dropTerminalLocked to keep it honest.
-	terminalBytes int
+	TerminalBytes int
 }
 
-func newWireHub() *wireHub {
-	return &wireHub{chans: make(map[string]*wireChannel), closing: make(chan struct{})}
+func NewHub() *Hub {
+	return &Hub{Chans: make(map[string]*Channel), closing: make(chan struct{})}
 }
 
 // nextSeq hands out a monotonic id used as the SSE id, so a reconnecting
@@ -239,7 +240,7 @@ func newWireHub() *wireHub {
 // nothing across a restart to be resumed into: the floor alone is sufficient, and
 // borrowing live-sync's counter would mean taking its lock from inside this one.
 // Caller holds wireHub.mu.
-func (wh *wireHub) nextSeqLocked() int64 {
+func (wh *Hub) nextSeqLocked() int64 {
 	if now := time.Now().UnixMilli(); now > wh.seq {
 		wh.seq = now
 	} else {
@@ -248,41 +249,41 @@ func (wh *wireHub) nextSeqLocked() int64 {
 	return wh.seq
 }
 
-func (wh *wireHub) ensureLocked(key string) *wireChannel {
-	c, ok := wh.chans[key]
+func (wh *Hub) ensureLocked(key string) *Channel {
+	c, ok := wh.Chans[key]
 	if !ok {
-		c = &wireChannel{
-			subs:     make(map[*wireSub]struct{}),
-			terminal: make(map[string]wireTerminal),
+		c = &Channel{
+			subs:     make(map[*Sub]struct{}),
+			Terminal: make(map[string]Terminal),
 		}
-		wh.chans[key] = c
+		wh.Chans[key] = c
 	}
 	return c
 }
 
-// add installs a subscriber and returns the position it resumes from with the
+// Add installs a subscriber and returns the position it resumes from with the
 // terminal frames retained past that position. The handler slot is decided under
 // the SAME lock as membership, so two processes can never both believe they hold
 // it. The position is chosen under that lock too, so it is never above a frame
 // the subscriber is still owed: a page that reconnects from the cursor it was
 // handed is replayed everything after it.
-func (wh *wireHub) add(sub *wireSub, lastEventID int64) (int64, [][]byte, error) {
-	wh.mu.Lock()
-	defer wh.mu.Unlock()
+func (wh *Hub) Add(sub *Sub, lastEventID int64) (int64, [][]byte, error) {
+	wh.Mu.Lock()
+	defer wh.Mu.Unlock()
 	if wh.closed {
 		return 0, nil, errWireClosed
 	}
 	wh.sweepLocked()
-	c := wh.ensureLocked(sub.key)
+	c := wh.ensureLocked(sub.Key)
 	// The cap counts observers only, so the exclusive slot is reserved rather than
 	// competed for: eight tails on a file must not be able to lock the user's own
 	// agent out of a slot that is free.
-	if !sub.handler && len(c.subs) >= maxWireSubs {
-		return 0, nil, errWireBusy
+	if !sub.Handler && len(c.subs) >= MaxWireSubs {
+		return 0, nil, ErrWireBusy
 	}
-	if sub.handler {
+	if sub.Handler {
 		if c.handler != nil {
-			return 0, nil, errWireHandlerTaken
+			return 0, nil, ErrWireHandlerTaken
 		}
 		c.handler = sub
 	}
@@ -298,65 +299,65 @@ func (wh *wireHub) add(sub *wireSub, lastEventID int64) (int64, [][]byte, error)
 		return wh.nextSeqLocked(), nil, nil
 	}
 	var replay [][]byte
-	for _, t := range c.terminal {
+	for _, t := range c.Terminal {
 		if t.seq > lastEventID {
-			replay = append(replay, t.frame)
+			replay = append(replay, t.Frame)
 		}
 	}
 	return lastEventID, replay, nil
 }
 
-func (wh *wireHub) remove(sub *wireSub) {
-	wh.mu.Lock()
-	if sub.removed {
-		wh.mu.Unlock()
+func (wh *Hub) Remove(sub *Sub) {
+	wh.Mu.Lock()
+	if sub.Removed {
+		wh.Mu.Unlock()
 		return
 	}
-	sub.removed = true
-	if c, ok := wh.chans[sub.key]; ok {
-		wh.removeFromChannelLocked(c, sub.key, sub)
+	sub.Removed = true
+	if c, ok := wh.Chans[sub.Key]; ok {
+		wh.removeFromChannelLocked(c, sub.Key, sub)
 	}
 	wh.sweepLocked()
-	wh.mu.Unlock()
+	wh.Mu.Unlock()
 	sub.stop()
 }
 
-func (wh *wireHub) removeFromChannelLocked(c *wireChannel, key string, sub *wireSub) {
+func (wh *Hub) removeFromChannelLocked(c *Channel, key string, sub *Sub) {
 	delete(c.subs, sub)
 	if c.handler == sub {
 		c.handler = nil
 	}
 	// A channel with no subscribers and no retained outcomes is not a channel.
 	// Dropping it keeps the map bounded by live use rather than by history.
-	if len(c.subs) == 0 && len(c.terminal) == 0 {
-		delete(wh.chans, key)
+	if len(c.subs) == 0 && len(c.Terminal) == 0 {
+		delete(wh.Chans, key)
 	}
 }
 
-func (wh *wireHub) transitionBinding(key string, bound bool) []*wireSub {
-	wh.mu.Lock()
-	defer wh.mu.Unlock()
-	c, ok := wh.chans[key]
+func (wh *Hub) transitionBinding(key string, bound bool) []*Sub {
+	wh.Mu.Lock()
+	defer wh.Mu.Unlock()
+	c, ok := wh.Chans[key]
 	if !ok {
 		return nil
 	}
-	for id := range c.terminal {
+	for id := range c.Terminal {
 		wh.dropTerminalLocked(c, id)
 	}
-	var evicted []*wireSub
+	var evicted []*Sub
 	for sub := range c.subs {
 		for {
 			select {
-			case <-sub.ch:
+			case <-sub.Ch:
 				continue
 			default:
 			}
 			break
 		}
-		if bound && sub.handler {
+		if bound && sub.Handler {
 			continue
 		}
-		sub.removed = true
+		sub.Removed = true
 		delete(c.subs, sub)
 		if c.handler == sub {
 			c.handler = nil
@@ -364,12 +365,12 @@ func (wh *wireHub) transitionBinding(key string, bound bool) []*wireSub {
 		evicted = append(evicted, sub)
 	}
 	if len(c.subs) == 0 {
-		delete(wh.chans, key)
+		delete(wh.Chans, key)
 	}
 	return evicted
 }
 
-func stopWireSubs(subs []*wireSub) {
+func stopWireSubs(subs []*Sub) {
 	for _, sub := range subs {
 		sub.stop()
 	}
@@ -377,39 +378,39 @@ func stopWireSubs(subs []*wireSub) {
 
 // retainTerminalLocked records one request's outcome and enforces both the
 // channel's own count cap and the hub-wide byte cap.
-func (wh *wireHub) retainTerminalLocked(c *wireChannel, id string, t wireTerminal) {
-	c.terminal[id] = t
-	wh.terminalBytes += len(t.frame)
+func (wh *Hub) retainTerminalLocked(c *Channel, id string, t Terminal) {
+	c.Terminal[id] = t
+	wh.TerminalBytes += len(t.Frame)
 	wh.expireLocked(c)
 	wh.enforceTerminalBytesLocked()
 }
 
-func (wh *wireHub) dropTerminalLocked(c *wireChannel, id string) {
-	if t, ok := c.terminal[id]; ok {
-		wh.terminalBytes -= len(t.frame)
-		delete(c.terminal, id)
+func (wh *Hub) dropTerminalLocked(c *Channel, id string) {
+	if t, ok := c.Terminal[id]; ok {
+		wh.TerminalBytes -= len(t.Frame)
+		delete(c.Terminal, id)
 	}
 }
 
-func (wh *wireHub) forgetTerminal(key, id string) {
-	wh.mu.Lock()
-	defer wh.mu.Unlock()
-	if c := wh.chans[key]; c != nil {
+func (wh *Hub) forgetTerminal(key, id string) {
+	wh.Mu.Lock()
+	defer wh.Mu.Unlock()
+	if c := wh.Chans[key]; c != nil {
 		wh.dropTerminalLocked(c, id)
 	}
 }
 
 // enforceTerminalBytesLocked drops the oldest retained outcome anywhere in the hub
 // until the total is back under the ceiling.
-func (wh *wireHub) enforceTerminalBytesLocked() {
-	for wh.terminalBytes > wireGlobalMaxTerminalBytes {
-		var victim *wireChannel
+func (wh *Hub) enforceTerminalBytesLocked() {
+	for wh.TerminalBytes > WireGlobalMaxTerminalBytes {
+		var victim *Channel
 		var victimKey, oldestID string
 		var oldest time.Time
-		for key, c := range wh.chans {
-			for id, t := range c.terminal {
-				if oldestID == "" || t.at.Before(oldest) {
-					victim, victimKey, oldestID, oldest = c, key, id, t.at
+		for key, c := range wh.Chans {
+			for id, t := range c.Terminal {
+				if oldestID == "" || t.At.Before(oldest) {
+					victim, victimKey, oldestID, oldest = c, key, id, t.At
 				}
 			}
 		}
@@ -417,8 +418,8 @@ func (wh *wireHub) enforceTerminalBytesLocked() {
 			return
 		}
 		wh.dropTerminalLocked(victim, oldestID)
-		if len(victim.subs) == 0 && len(victim.terminal) == 0 {
-			delete(wh.chans, victimKey)
+		if len(victim.subs) == 0 && len(victim.Terminal) == 0 {
+			delete(wh.Chans, victimKey)
 		}
 	}
 }
@@ -432,73 +433,73 @@ func (wh *wireHub) enforceTerminalBytesLocked() {
 // site. There is no janitor goroutine because there is nothing to do between
 // operations: sweeping on subscribe and unsubscribe is O(channels), and the
 // channel count is bounded by the files a user has actually pointed an agent at.
-func (wh *wireHub) sweepLocked() {
-	for key, c := range wh.chans {
+func (wh *Hub) sweepLocked() {
+	for key, c := range wh.Chans {
 		wh.expireLocked(c)
-		if len(c.subs) == 0 && len(c.terminal) == 0 {
-			delete(wh.chans, key)
+		if len(c.subs) == 0 && len(c.Terminal) == 0 {
+			delete(wh.Chans, key)
 		}
 	}
 	wh.enforceTerminalBytesLocked()
 }
 
-func (wh *wireHub) expireLocked(c *wireChannel) {
-	cutoff := time.Now().Add(-wireTerminalTTL)
-	for id, t := range c.terminal {
-		if t.at.Before(cutoff) {
+func (wh *Hub) expireLocked(c *Channel) {
+	cutoff := time.Now().Add(-WireTerminalTTL)
+	for id, t := range c.Terminal {
+		if t.At.Before(cutoff) {
 			wh.dropTerminalLocked(c, id)
 		}
 	}
 	// TTL alone permits an unbounded burst inside one window, so the count cap is
 	// enforced too, dropping the oldest first.
-	for len(c.terminal) > maxWireTerminals {
+	for len(c.Terminal) > MaxWireTerminals {
 		var oldestID string
 		var oldest time.Time
-		for id, t := range c.terminal {
-			if oldestID == "" || t.at.Before(oldest) {
-				oldestID, oldest = id, t.at
+		for id, t := range c.Terminal {
+			if oldestID == "" || t.At.Before(oldest) {
+				oldestID, oldest = id, t.At
 			}
 		}
 		wh.dropTerminalLocked(c, oldestID)
 	}
 }
 
-// publish fans one envelope out and reports how many HANDLER queues took it.
+// Publish fans one envelope out and reports how many HANDLER queues took it.
 //
 // The handler count is what the page actually asked: "is an agent there". A count
 // of successful subscriber writes would answer yes because the page's own
 // observer stream took a copy of its own request, which is precisely the bug the
 // Node router shipped.
-func (wh *wireHub) publish(key string, env wireEnvelope) (handlers int, observers int) {
+func (wh *Hub) Publish(key string, env Envelope) (handlers int, observers int) {
 	handlers, observers, _ = wh.publishFrom(key, nil, env)
 	return handlers, observers
 }
 
-func (wh *wireHub) publishFromHandler(key string, owner *wireSub, env wireEnvelope) (handlers int, observers int, published bool) {
+func (wh *Hub) PublishFromHandler(key string, owner *Sub, env Envelope) (handlers int, observers int, published bool) {
 	return wh.publishFrom(key, owner, env)
 }
 
-func (wh *wireHub) publishFrom(key string, owner *wireSub, env wireEnvelope) (handlers int, observers int, published bool) {
-	wh.mu.Lock()
-	c, ok := wh.chans[key]
+func (wh *Hub) publishFrom(key string, owner *Sub, env Envelope) (handlers int, observers int, published bool) {
+	wh.Mu.Lock()
+	c, ok := wh.Chans[key]
 	if !ok || wh.closed || owner != nil && c.handler != owner {
-		wh.mu.Unlock()
+		wh.Mu.Unlock()
 		return 0, 0, false
 	}
 	seq := wh.nextSeqLocked()
-	f := frame(seq, env)
+	f := sse.Frame(seq, env)
 	if f == nil {
-		wh.mu.Unlock()
+		wh.Mu.Unlock()
 		return 0, 0, false
 	}
-	if env.isTerminal() && env.ID != "" {
+	if env.IsTerminal() && env.ID != "" {
 		// First terminal wins: a handler that reports done and then errors for one
 		// request does not get to rewrite the outcome a subscriber already saw.
-		if _, seen := c.terminal[env.ID]; !seen {
-			wh.retainTerminalLocked(c, env.ID, wireTerminal{seq: seq, frame: f, at: time.Now()})
+		if _, seen := c.Terminal[env.ID]; !seen {
+			wh.retainTerminalLocked(c, env.ID, Terminal{seq: seq, Frame: f, At: time.Now()})
 		}
 	}
-	var evicted []*wireSub
+	var evicted []*Sub
 	for sub := range c.subs {
 		// A handler never receives its own output. Its queue is there for the
 		// requests it exists to answer, and echoing its own frames into it means a
@@ -510,8 +511,8 @@ func (wh *wireHub) publishFrom(key string, owner *wireSub, env wireEnvelope) (ha
 			continue
 		}
 		select {
-		case sub.ch <- f:
-			if sub.handler {
+		case sub.Ch <- f:
+			if sub.Handler {
 				handlers++
 			} else {
 				observers++
@@ -521,10 +522,10 @@ func (wh *wireHub) publishFrom(key string, owner *wireSub, env wireEnvelope) (ha
 		}
 	}
 	for _, sub := range evicted {
-		sub.removed = true
+		sub.Removed = true
 		wh.removeFromChannelLocked(c, key, sub)
 	}
-	wh.mu.Unlock()
+	wh.Mu.Unlock()
 
 	// Unblocking the writers happens outside the lock, so a stuck connection
 	// cannot hold up the next publish.
@@ -534,28 +535,28 @@ func (wh *wireHub) publishFrom(key string, owner *wireSub, env wireEnvelope) (ha
 	return handlers, observers, true
 }
 
-func (wh *wireHub) handlerMode(key string) (string, bool) {
-	wh.mu.Lock()
-	defer wh.mu.Unlock()
-	c, ok := wh.chans[key]
+func (wh *Hub) handlerMode(key string) (string, bool) {
+	wh.Mu.Lock()
+	defer wh.Mu.Unlock()
+	c, ok := wh.Chans[key]
 	if !ok || c.handler == nil {
 		return "", false
 	}
-	mode := c.handler.mode
+	mode := c.handler.Mode
 	if mode == "" {
 		mode = "raw"
 	}
 	return mode, true
 }
 
-func (wh *wireHub) rejectNamedForRawHandler(key string, request wireEnvelope) (bool, int) {
-	wh.mu.Lock()
-	c, ok := wh.chans[key]
-	if !ok || c.handler == nil || (c.handler.mode != "" && c.handler.mode != "raw") || wh.closed {
-		wh.mu.Unlock()
+func (wh *Hub) rejectNamedForRawHandler(key string, request Envelope) (bool, int) {
+	wh.Mu.Lock()
+	c, ok := wh.Chans[key]
+	if !ok || c.handler == nil || (c.handler.Mode != "" && c.handler.Mode != "raw") || wh.closed {
+		wh.Mu.Unlock()
 		return false, 0
 	}
-	env := wireEnvelope{
+	env := Envelope{
 		V:       1,
 		Type:    "wire/error",
 		ID:      request.ID,
@@ -566,62 +567,62 @@ func (wh *wireHub) rejectNamedForRawHandler(key string, request wireEnvelope) (b
 		Payload: json.RawMessage(`{"source":"host","code":"helper_protocol_unsupported"}`),
 	}
 	seq := wh.nextSeqLocked()
-	fr := frame(seq, env)
+	fr := sse.Frame(seq, env)
 	if fr == nil {
-		wh.mu.Unlock()
+		wh.Mu.Unlock()
 		return true, 0
 	}
-	if _, seen := c.terminal[env.ID]; !seen {
-		wh.retainTerminalLocked(c, env.ID, wireTerminal{seq: seq, frame: fr, at: time.Now()})
+	if _, seen := c.Terminal[env.ID]; !seen {
+		wh.retainTerminalLocked(c, env.ID, Terminal{seq: seq, Frame: fr, At: time.Now()})
 	}
-	var evicted []*wireSub
+	var evicted []*Sub
 	observers := 0
 	for sub := range c.subs {
-		if sub.handler {
+		if sub.Handler {
 			continue
 		}
 		select {
-		case sub.ch <- fr:
+		case sub.Ch <- fr:
 			observers++
 		default:
 			evicted = append(evicted, sub)
 		}
 	}
 	for _, sub := range evicted {
-		sub.removed = true
+		sub.Removed = true
 		wh.removeFromChannelLocked(c, key, sub)
 	}
-	wh.mu.Unlock()
+	wh.Mu.Unlock()
 	stopWireSubs(evicted)
 	return true, observers
 }
 
-func (wh *wireHub) shutdown() {
-	wh.mu.Lock()
+func (wh *Hub) Shutdown() {
+	wh.Mu.Lock()
 	if wh.closed {
-		wh.mu.Unlock()
+		wh.Mu.Unlock()
 		return
 	}
 	wh.closed = true
 	close(wh.closing)
-	subs := make([]*wireSub, 0, len(wh.chans))
-	for _, c := range wh.chans {
+	subs := make([]*Sub, 0, len(wh.Chans))
+	for _, c := range wh.Chans {
 		for sub := range c.subs {
-			sub.removed = true
+			sub.Removed = true
 			subs = append(subs, sub)
 		}
 	}
-	wh.chans = make(map[string]*wireChannel)
-	wh.terminalBytes = 0
-	wh.mu.Unlock()
+	wh.Chans = make(map[string]*Channel)
+	wh.TerminalBytes = 0
+	wh.Mu.Unlock()
 	for _, sub := range subs {
 		sub.stop()
 	}
 }
 
-func wireGuard(h http.Handler) http.Handler {
+func wireGuard(caller func(*http.Request) (isBrowser, ok bool), h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := wireCaller(r); !ok {
+		if _, ok := caller(r); !ok {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
@@ -629,19 +630,19 @@ func wireGuard(h http.Handler) http.Handler {
 	})
 }
 
-// wireMux mounts both routes as one subtree behind one guard, so a route cannot
+// WireMux mounts both routes as one subtree behind one guard, so a route cannot
 // be added to the wire without the guard in front of it. The alternative
 // considered was giving every /_/ route a declared reach; that rewrites route
 // registrations the wire does not touch, for a property only the wire needs.
-func (s *wireCore) wireMux() http.Handler {
+func (s *Core) WireMux() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /_/wire/subscribe", s.handleWireSubscribe)
 	mux.HandleFunc("POST /_/wire/send", s.handleWireSend)
-	return wireGuard(mux)
+	return wireGuard(s.docs.Caller, mux)
 }
 
-func (s *wireCore) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
-	isBrowser, _ := s.docs.caller(r)
+func (s *Core) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
+	isBrowser, _ := s.docs.Caller(r)
 
 	// Pages send; processes handle. A page allowed to hold the exclusive slot could
 	// take it away from the user's agent, receive every request on this file
@@ -672,53 +673,53 @@ func (s *wireCore) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
 	mode := ""
 	if wantHandler {
 		var valid bool
-		mode, valid = wireHandlerMode(r.URL.Query().Get("mode"))
+		mode, valid = WireHandlerMode(r.URL.Query().Get("mode"))
 		if !valid {
 			s.writeError(w, http.StatusBadRequest, "invalid handler mode")
 			return
 		}
 	}
 
-	doc, ok := s.docs.target(r, isBrowser, r.URL.Query().Get("file"))
+	doc, ok := s.docs.Target(r, isBrowser, r.URL.Query().Get("file"))
 	if !ok {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
 
-	sub := &wireSub{
-		key:     doc.Path,
-		handler: wantHandler,
-		mode:    mode,
-		ch:      make(chan []byte, wireQueueSize),
-		done:    make(chan struct{}),
+	sub := &Sub{
+		Key:     doc.Path,
+		Handler: wantHandler,
+		Mode:    mode,
+		Ch:      make(chan []byte, WireQueueSize),
+		Done:    make(chan struct{}),
 	}
 
-	s.helperBindings.mu.RLock()
-	if s.helperBindings.byFile[doc.Path].bound && !s.docs.mayUsePrograms(doc, isBrowser, r.URL.Query().Get(helperTokenQuery)) {
-		s.helperBindings.mu.RUnlock()
+	s.HelperBindings.mu.RLock()
+	if s.HelperBindings.byFile[doc.Path].bound && !s.docs.MayUsePrograms(doc, isBrowser, r.URL.Query().Get(TokenQuery)) {
+		s.HelperBindings.mu.RUnlock()
 		s.writeError(w, http.StatusForbidden, "invalid token")
 		return
 	}
-	cursor, replay, err := s.wire.add(sub, parseLastEventID(r))
-	s.helperBindings.mu.RUnlock()
+	cursor, replay, err := s.Hub.Add(sub, sse.ParseLastEventID(r))
+	s.HelperBindings.mu.RUnlock()
 	if err != nil {
 		switch {
-		case errors.Is(err, errWireHandlerTaken):
+		case errors.Is(err, ErrWireHandlerTaken):
 			http.Error(w, "Conflict", http.StatusConflict)
-		case errors.Is(err, errWireBusy):
+		case errors.Is(err, ErrWireBusy):
 			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		default:
 			http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
 		}
 		return
 	}
-	defer s.wire.remove(sub)
+	defer s.Hub.Remove(sub)
 
 	rc := http.NewResponseController(w)
 	// Clear the write deadline for this connection only; zeroing the server-wide
 	// WriteTimeout would remove the bound from every other request.
 	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
-		s.logger.Printf("wire: cannot clear write deadline: %v", err)
+		s.Logger.Printf("wire: cannot clear write deadline: %v", err)
 		http.Error(w, "Not Implemented", http.StatusNotImplemented)
 		return
 	}
@@ -737,13 +738,13 @@ func (s *wireCore) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
 		// an agent whose every write goes unversioned until someone happens to open
 		// the file in a browser, and the one state worth keeping is the one that
 		// existed before the agent touched it.
-		if err := s.docs.openHistory(doc); err != nil {
-			s.logger.Printf("wire: cannot open history for %s: %v", doc.Name, err)
+		if err := s.docs.OpenHistory(doc); err != nil {
+			s.Logger.Printf("wire: cannot open history for %s: %v", doc.Name, err)
 			http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		s.docs.lease(doc)
-		defer s.docs.unlease(doc)
+		s.docs.Lease(doc)
+		defer s.docs.Unlease(doc)
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -762,18 +763,18 @@ func (s *wireCore) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
 	// owed. Pages only, because a process tailing the wire parses every data line
 	// as a wire frame and has no use for a position it never presents.
 	if isBrowser && !wantHandler {
-		if !writeSSE(rc, w, cursorFrame(cursor, false)) {
+		if !sse.Write(rc, w, sse.CursorFrame(cursor, false)) {
 			return
 		}
 	}
 
 	for _, fr := range replay {
-		if !writeSSE(rc, w, fr) {
+		if !sse.Write(rc, w, fr) {
 			return
 		}
 	}
 
-	ticker := time.NewTicker(keepaliveInterval)
+	ticker := time.NewTicker(sse.KeepaliveInterval)
 	defer ticker.Stop()
 
 	// This goroutine is the single writer for this connection, so keepalives and
@@ -784,24 +785,24 @@ func (s *wireCore) handleWireSubscribe(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
-		case <-s.wire.closing:
+		case <-s.Hub.closing:
 			return
-		case <-sub.done:
+		case <-sub.Done:
 			return
-		case msg := <-sub.ch:
-			if !writeSSE(rc, w, msg) {
+		case msg := <-sub.Ch:
+			if !sse.Write(rc, w, msg) {
 				return
 			}
 		case <-ticker.C:
-			if !writeSSE(rc, w, []byte(": keepalive\n\n")) {
+			if !sse.Write(rc, w, []byte(": keepalive\n\n")) {
 				return
 			}
 		}
 	}
 }
 
-func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
-	isBrowser, _ := s.docs.caller(r)
+func (s *Core) handleWireSend(w http.ResponseWriter, r *http.Request) {
+	isBrowser, _ := s.docs.Caller(r)
 
 	// application/json is load-bearing rather than hygiene: it is not a
 	// CORS-simple content type, so a cross-origin POST is forced into a preflight
@@ -809,7 +810,7 @@ func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	// also accepts the `+json` suffix, which costs nothing here: the three simple
 	// content types are form-urlencoded, multipart, and text/plain, so every type it
 	// accepts is still preflighted.
-	if !isJSONContentType(r.Header.Get("Content-Type")) {
+	if !IsJSONContentType(r.Header.Get("Content-Type")) {
 		s.writeError(w, http.StatusUnsupportedMediaType, "expected application/json")
 		return
 	}
@@ -826,7 +827,7 @@ func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var env wireEnvelope
+	var env Envelope
 	if err := json.Unmarshal(body, &env); err != nil {
 		s.writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
@@ -848,15 +849,15 @@ func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
 		env.Text = env.Text[:maxWireText]
 	}
 
-	doc, ok := s.docs.target(r, isBrowser, env.File)
+	doc, ok := s.docs.Target(r, isBrowser, env.File)
 	if !ok {
 		s.writeError(w, http.StatusNotFound, "unknown file")
 		return
 	}
 
-	s.helperBindings.mu.RLock()
-	if s.helperBindings.byFile[doc.Path].bound && !s.docs.mayUsePrograms(doc, isBrowser, r.Header.Get(helperTokenHeader)) {
-		s.helperBindings.mu.RUnlock()
+	s.HelperBindings.mu.RLock()
+	if s.HelperBindings.byFile[doc.Path].bound && !s.docs.MayUsePrograms(doc, isBrowser, r.Header.Get(TokenHeader)) {
+		s.HelperBindings.mu.RUnlock()
 		s.writeError(w, http.StatusForbidden, "invalid token")
 		return
 	}
@@ -880,9 +881,9 @@ func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
 		start := builtinHelpers[env.Helper]
 		builtin := start != nil && (env.Type == "wire/request" || env.Type == "wire/describe")
 		if builtin || env.Type == "wire/cancel" {
-			tokenOK := s.docs.mayUsePrograms(doc, isBrowser, r.Header.Get(helperTokenHeader))
+			tokenOK := s.docs.MayUsePrograms(doc, isBrowser, r.Header.Get(TokenHeader))
 			if builtin {
-				s.helperBindings.mu.RUnlock()
+				s.HelperBindings.mu.RUnlock()
 				if !tokenOK {
 					s.writeError(w, http.StatusForbidden, "invalid token")
 					return
@@ -893,7 +894,7 @@ func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if tokenOK && s.cancelAIEdit(doc.Path, env.ID) {
-				s.helperBindings.mu.RUnlock()
+				s.HelperBindings.mu.RUnlock()
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]any{"ok": true, "delivered": 1, "observers": 0})
 				return
@@ -902,8 +903,8 @@ func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if env.Helper != "" && (env.Type == "wire/request" || env.Type == "wire/describe") {
-		if rejected, observers := s.wire.rejectNamedForRawHandler(doc.Path, env); rejected {
-			s.helperBindings.mu.RUnlock()
+		if rejected, observers := s.Hub.rejectNamedForRawHandler(doc.Path, env); rejected {
+			s.HelperBindings.mu.RUnlock()
 			w.Header().Set("Content-Type", "application/json")
 			// The refusal rides the POST reply as well as the stream. They are two
 			// connections with no ordering between them, and "delivered":0 on its own
@@ -932,15 +933,15 @@ func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	// Only from a process: a page has no way to know a write finished, and a
 	// terminal frame is the one thing it could send to claim so. An error is
 	// terminal too, and a handler that gave up has also stopped writing.
-	if env.isTerminal() && !isBrowser {
-		s.docs.poke(doc)
+	if env.IsTerminal() && !isBrowser {
+		s.docs.Poke(doc)
 	}
 
-	handlers, observers := s.wire.publish(doc.Path, env)
-	s.helperBindings.mu.RUnlock()
+	handlers, observers := s.Hub.Publish(doc.Path, env)
+	s.HelperBindings.mu.RUnlock()
 	if handlers == 0 && (env.Type == "wire/request" || env.Type == "wire/describe") {
-		mode, _ := s.wire.handlerMode(doc.Path)
-		s.logger.Printf("Wire request undelivered: file=%s helper=%q type=%q id=%q document=%q helpers_bound=%t handler_mode=%q", doc.Path, env.Helper, env.Type, env.ID, env.Document, s.HelpersBound(doc.Path), mode)
+		mode, _ := s.Hub.handlerMode(doc.Path)
+		s.Logger.Printf("Wire request undelivered: file=%s helper=%q type=%q id=%q document=%q helpers_bound=%t handler_mode=%q", doc.Path, env.Helper, env.Type, env.ID, env.Document, s.HelpersBound(doc.Path), mode)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
@@ -948,4 +949,17 @@ func (s *wireCore) handleWireSend(w http.ResponseWriter, r *http.Request) {
 		"delivered": handlers,
 		"observers": observers,
 	})
+}
+
+// WhileUnbound runs fn while path has no helper binding, holding the binding
+// registry's read lock for the whole of fn, so no binding can begin in the
+// middle of it. It answers false, without running fn, when path is bound.
+func (s *Core) WhileUnbound(path string, fn func()) bool {
+	s.HelperBindings.mu.RLock()
+	defer s.HelperBindings.mu.RUnlock()
+	if s.HelperBindings.byFile[path].bound {
+		return false
+	}
+	fn()
+	return true
 }

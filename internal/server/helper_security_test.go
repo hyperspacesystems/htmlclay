@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -76,7 +77,7 @@ func TestUnboundRelayAliasesAndLanesKeepTheirExistingBehavior(t *testing.T) {
 
 func TestHelperSubscriptionsRequireTheDocumentToken(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	srv.BindHelpers(f.AbsPath)
 
 	cases := []struct {
@@ -102,7 +103,7 @@ func TestHelperSubscriptionsRequireTheDocumentToken(t *testing.T) {
 				req = sameOriginHeaders(req)
 			}
 			w := httptest.NewRecorder()
-			srv.wireMux().ServeHTTP(w, req)
+			srv.WireMux().ServeHTTP(w, req)
 			if w.Code != http.StatusForbidden {
 				t.Fatalf("status %d, want 403: %s", w.Code, w.Body.String())
 			}
@@ -112,14 +113,14 @@ func TestHelperSubscriptionsRequireTheDocumentToken(t *testing.T) {
 
 func TestHelperSubscriptionAcceptsTheDocumentTokenInTheQuery(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	srv.BindHelpers(f.AbsPath)
-	ts := httptest.NewServer(srv.wireMux())
+	ts := httptest.NewServer(srv.WireMux())
 	t.Cleanup(ts.Close)
 
 	q := url.Values{
-		"document-url":   {ts.URL + "/page.htmlclay"},
-		helperTokenQuery: {f.Token},
+		"document-url":  {ts.URL + "/page.htmlclay"},
+		wire.TokenQuery: {f.Token},
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	req, err := http.NewRequestWithContext(ctx, "GET", ts.URL+"/_/wire/subscribe?"+q.Encode(), nil)
@@ -142,7 +143,7 @@ func TestHelperSubscriptionAcceptsTheDocumentTokenInTheQuery(t *testing.T) {
 
 func TestHelperSendsRequireTheDocumentToken(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	srv.BindHelpers(f.AbsPath)
 
 	cases := []struct {
@@ -171,10 +172,10 @@ func TestHelperSendsRequireTheDocumentToken(t *testing.T) {
 					req.Header.Set("Document-URL", helperPageURL(srv))
 				}
 				if token != "" {
-					req.Header.Set(helperTokenHeader, token)
+					req.Header.Set(wire.TokenHeader, token)
 				}
 				w := httptest.NewRecorder()
-				srv.wireMux().ServeHTTP(w, req)
+				srv.WireMux().ServeHTTP(w, req)
 				return w
 			}
 
@@ -190,7 +191,7 @@ func TestHelperSendsRequireTheDocumentToken(t *testing.T) {
 
 func TestHelperBindingTransitionsAdvanceGenerationAndAreIdempotent(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	if srv.HelpersBound(f.AbsPath) || srv.HelperGeneration(f.AbsPath) != 0 {
 		t.Fatal("a new server started with a helper binding")
@@ -213,54 +214,54 @@ func TestHelperBindingTransitionsAdvanceGenerationAndAreIdempotent(t *testing.T)
 
 func TestHelperBindingTransitionsEvictQueuesAndDropReplay(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
-	handler := &wireSub{key: f.AbsPath, handler: true, ch: make(chan []byte, 4), done: make(chan struct{})}
-	observer := &wireSub{key: f.AbsPath, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := srv.wire.add(handler, 0); err != nil {
+	handler := &wire.Sub{Key: f.AbsPath, Handler: true, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	observer := &wire.Sub{Key: f.AbsPath, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := srv.Hub.Add(handler, 0); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := srv.wire.add(observer, 0); err != nil {
+	if _, _, err := srv.Hub.Add(observer, 0); err != nil {
 		t.Fatal(err)
 	}
-	srv.wire.publish(f.AbsPath, wireEnvelope{Type: "wire/done", ID: "before-bind", Text: "secret"})
+	srv.Hub.Publish(f.AbsPath, wire.Envelope{Type: "wire/done", ID: "before-bind", Text: "secret"})
 
 	srv.BindHelpers(f.AbsPath)
 	select {
-	case <-observer.done:
+	case <-observer.Done:
 	default:
 		t.Fatal("binding left a pre-bind observer attached")
 	}
 	select {
-	case frame := <-handler.ch:
+	case frame := <-handler.Ch:
 		t.Fatalf("binding left a pre-bind request queued: %q", frame)
 	default:
 	}
 	select {
-	case <-handler.done:
+	case <-handler.Done:
 		t.Fatal("binding displaced the handler whose slot the dispatcher won")
 	default:
 	}
 
-	srv.wire.publish(f.AbsPath, wireEnvelope{Type: "wire/done", ID: "bound", Text: "secret"})
+	srv.Hub.Publish(f.AbsPath, wire.Envelope{Type: "wire/done", ID: "bound", Text: "secret"})
 	srv.UnbindHelpers(f.AbsPath)
 	select {
-	case <-handler.done:
+	case <-handler.Done:
 	default:
 		t.Fatal("unbinding left the helper handler attached")
 	}
 
-	resumed := &wireSub{key: f.AbsPath, ch: make(chan []byte, 4), done: make(chan struct{})}
-	_, replay, err := srv.wire.add(resumed, 1)
+	resumed := &wire.Sub{Key: f.AbsPath, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	_, replay, err := srv.Hub.Add(resumed, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(replay) != 0 {
 		t.Fatalf("revocation replayed %d retained helper frames", len(replay))
 	}
-	srv.wire.mu.Lock()
-	retainedBytes := srv.wire.terminalBytes
-	srv.wire.mu.Unlock()
+	srv.Hub.Mu.Lock()
+	retainedBytes := srv.Hub.TerminalBytes
+	srv.Hub.Mu.Unlock()
 	if retainedBytes != 0 {
 		t.Fatalf("revocation retained %d helper frame bytes", retainedBytes)
 	}
@@ -273,12 +274,12 @@ func TestHelperSubscriptionTokenDoesNotReachTheAccessLog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv.logger = logger
+	srv.Logger = logger
 
 	h := srv.loggingMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	req := httptest.NewRequest("GET", "/_/wire/subscribe?"+helperTokenQuery+"="+url.QueryEscape(f.Token), nil)
+	req := httptest.NewRequest("GET", "/_/wire/subscribe?"+wire.TokenQuery+"="+url.QueryEscape(f.Token), nil)
 	h.ServeHTTP(httptest.NewRecorder(), req)
 	logger.Close()
 

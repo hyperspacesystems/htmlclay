@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"io"
 	"mime"
 	"net/http"
@@ -208,9 +209,9 @@ type documentMeta struct {
 	// a person before a save is refused instead of learning the size only from a
 	// refusal. It is per-document because it lives in the block §5 reserves for that,
 	// and there is no top-level duplicate.
-	MaxBytes int64        `json:"maxBytes"`
-	Versions bool         `json:"versions,omitempty"`
-	Helpers  []helperMeta `json:"helpers,omitempty"`
+	MaxBytes int64             `json:"maxBytes"`
+	Versions bool              `json:"versions,omitempty"`
+	Helpers  []wire.HelperMeta `json:"helpers,omitempty"`
 	// §6's receipt: which save produced the bytes this etag stamps. Reported only
 	// when the pair still verifies against those bytes, so a client that sees its
 	// own id here has been TOLD what it stores came from a body that client sent,
@@ -411,7 +412,7 @@ func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, rawPath strin
 
 	absPath, err := ValidatePath(relPath, s.sessions.HomeDir())
 	if err != nil {
-		s.logger.Printf("Invalid path %q: %v", relPath, err)
+		s.Logger.Printf("Invalid path %q: %v", relPath, err)
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
@@ -425,7 +426,7 @@ func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, rawPath strin
 	// for a registered one. Keep it lexical: isInternal is pure string work, so the
 	// refusal reads the same whether or not anything is at that path.
 	if s.isInternal(absPath) {
-		s.logger.Printf("Denying request for internal path %s", absPath)
+		s.Logger.Printf("Denying request for internal path %s", absPath)
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
@@ -499,7 +500,7 @@ func (s *Server) ensureHistoryKeyLocked(f *session.File, data []byte) (key strin
 	}
 	id, prov, err := s.versions.ResolveIdentity(f.AbsPath, htmlutil.ReadHTMLClayID(data))
 	if err != nil {
-		s.logger.Printf("Could not resolve identity for %s: %v", f.RelPath, err)
+		s.Logger.Printf("Could not resolve identity for %s: %v", f.RelPath, err)
 		f.SetHistoryKey(versions.Key(f.AbsPath, data))
 		return f.HistoryKey(), false
 	}
@@ -515,11 +516,11 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	if err != nil {
 		f.Unlock()
 		if errors.Is(err, errRefusedInternal) {
-			s.logger.Printf("Refusing to serve %s: resolves to a protected location", f.AbsPath)
+			s.Logger.Printf("Refusing to serve %s: resolves to a protected location", f.AbsPath)
 			http.Error(w, "Not Found", http.StatusNotFound)
 			return
 		}
-		s.logger.Printf("Error reading %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error reading %s: %v", f.AbsPath, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -602,12 +603,12 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 			// dedups against the first save's pre-write backup instead of doubling
 			// every file.
 			if _, bErr := s.versions.Backup(key, f.AbsPath, data); bErr != nil {
-				s.logger.Printf("First-open snapshot failed for %s: %v", f.RelPath, bErr)
+				s.Logger.Printf("First-open snapshot failed for %s: %v", f.RelPath, bErr)
 			} else if provisional {
 				// This snapshot's identity was freshly minted; mark it so it is
 				// reclaimed if no save ever makes it durable.
 				if pErr := s.versions.SetProvisional(key, f.AbsPath, true); pErr != nil {
-					s.logger.Printf("Could not mark provisional history for %s: %v", f.RelPath, pErr)
+					s.Logger.Printf("Could not mark provisional history for %s: %v", f.RelPath, pErr)
 				}
 			}
 			pruneKey = key
@@ -637,8 +638,8 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	// the document behavior; every current browser sends the header.
 	if dest := r.Header.Get("Sec-Fetch-Dest"); dest == "" || dest == "document" {
 		served = htmlutil.InjectToken(served, f.Token)
-		if names := s.setupBarNames(f.AbsPath); len(names) > 0 && s.hooks.AskHelper != nil && r.Header.Get("Clay-Source") != "1" {
-			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(setupBarHTML(names)))
+		if names := s.SetupBarNames(f.AbsPath); len(names) > 0 && s.hooks.AskHelper != nil && r.Header.Get("Clay-Source") != "1" {
+			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(wire.SetupBarHTML(names)))
 		}
 		// The notice a ClayJS page draws needs a runtime that carries the module,
 		// so a document pinned to an older one, or using no ClayJS at all, would
@@ -686,7 +687,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 	// exists. Internal and hidden paths are refused outright; both tests are pure
 	// string work and name locations a page can already infer.
 	if s.isInternal(absPath) {
-		s.logger.Printf("Denying request for internal path %s", absPath)
+		s.Logger.Printf("Denying request for internal path %s", absPath)
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
@@ -742,7 +743,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 	// Re-checked on the resolved path: the lexical tests above cannot see a symlink
 	// pointing into the versions/config tree or into a hidden directory.
 	if s.isInternal(absPath) {
-		s.logger.Printf("Denying request for internal path %s", absPath)
+		s.Logger.Printf("Denying request for internal path %s", absPath)
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
@@ -791,13 +792,13 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 	// fast path for the common, unraced case.
 	real, err := platform.RealPath(file)
 	if err != nil {
-		s.logger.Printf("Could not resolve real path for asset %s: %v", absPath, err)
+		s.Logger.Printf("Could not resolve real path for asset %s: %v", absPath, err)
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
 	real = filepath.Clean(real)
 	if s.isInternal(real) || session.HasHiddenComponent(s.sessions.HomeDir(), real) {
-		s.logger.Printf("Denying asset resolving to internal/hidden path: %s", absPath)
+		s.Logger.Printf("Denying asset resolving to internal/hidden path: %s", absPath)
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
@@ -810,7 +811,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 	if mode.active() {
 		raw, rErr := io.ReadAll(file)
 		if rErr != nil {
-			s.logger.Printf("Error reading asset %s for extraction: %v", absPath, rErr)
+			s.Logger.Printf("Error reading asset %s for extraction: %v", absPath, rErr)
 			http.Error(w, "Not Found", http.StatusNotFound)
 			return
 		}
@@ -835,7 +836,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 	// response bodies above stay coarse.
 	etag, err := assetETag(file, info)
 	if err != nil {
-		s.logger.Printf("Error computing ETag for %s: %v", absPath, err)
+		s.Logger.Printf("Error computing ETag for %s: %v", absPath, err)
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
@@ -989,7 +990,7 @@ func (s *Server) serveEncodedSidecar(w http.ResponseWriter, r *http.Request, inn
 	w.Header().Set("Accept-Ranges", "none")
 
 	if r.Header.Get("Range") != "" {
-		s.logger.Printf("Declining Range on encoded sidecar %s; serving full representation", inner)
+		s.Logger.Printf("Declining Range on encoded sidecar %s; serving full representation", inner)
 	}
 
 	if etagMatches(r.Header.Get("If-None-Match"), etag) {
@@ -1003,7 +1004,7 @@ func (s *Server) serveEncodedSidecar(w http.ResponseWriter, r *http.Request, inn
 		return
 	}
 	if _, err := io.Copy(w, file); err != nil {
-		s.logger.Printf("Error writing sidecar %s: %v", inner, err)
+		s.Logger.Printf("Error writing sidecar %s: %v", inner, err)
 	}
 }
 
@@ -1029,11 +1030,11 @@ func (s *Server) handleRead(w http.ResponseWriter, r *http.Request) {
 	data, err := s.readRegisteredFile(f.AbsPath)
 	if err != nil {
 		if errors.Is(err, errRefusedInternal) {
-			s.logger.Printf("Refusing to read %s: resolves to a protected location", f.AbsPath)
+			s.Logger.Printf("Refusing to read %s: resolves to a protected location", f.AbsPath)
 			s.writeError(w, http.StatusNotFound, "not found")
 			return
 		}
-		s.logger.Printf("Error reading %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error reading %s: %v", f.AbsPath, err)
 		s.writeError(w, http.StatusInternalServerError, "read error")
 		return
 	}
@@ -1123,7 +1124,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	// first, before If-Match and every other write check, so its client shows
 	// "copy your text, then reload" rather than a conflict it cannot resolve.
 	if pageadmission.OldBlockeditorFormat(string(body)) {
-		s.logger.Printf("Refusing a save of %s: it carries the block editor format from before ClayJS 1.24.0", f.RelPath)
+		s.Logger.Printf("Refusing a save of %s: it carries the block editor format from before ClayJS 1.24.0", f.RelPath)
 		writeOldFormatRefusal(w)
 		return
 	}
@@ -1136,7 +1137,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	// left to the normal first-save path below.
 	if errors.Is(readErr, errRefusedInternal) {
 		f.Unlock()
-		s.logger.Printf("Refusing to save %s: resolves to a protected location", f.AbsPath)
+		s.Logger.Printf("Refusing to save %s: resolves to a protected location", f.AbsPath)
 		s.writeError(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -1174,7 +1175,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		// to compare; a host that cannot read cannot compare, and says so.
 		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
 			f.Unlock()
-			s.logger.Printf("Cannot judge a conditional save of %s: %v", f.RelPath, readErr)
+			s.Logger.Printf("Cannot judge a conditional save of %s: %v", f.RelPath, readErr)
 			s.writeError(w, http.StatusInternalServerError, "cannot read the stored document")
 			return
 		}
@@ -1183,7 +1184,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 			currentEtag := specwire.Etag(current)
 			receipt := f.SaveReceiptFor(currentEtag)
 			f.Unlock()
-			s.logger.Printf("Refusing a conditional save of %s: the stored bytes have moved on", f.RelPath)
+			s.Logger.Printf("Refusing a conditional save of %s: the stored bytes have moved on", f.RelPath)
 			conflictRefusal(w, f.Name, currentEtag, changedBy, receipt)
 			return
 		}
@@ -1273,7 +1274,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	// through against a document the page has actually been shown.
 	if readErr == nil && stale && len(current) == 0 && s.watcher.emptyPending(f.AbsPath) {
 		f.Unlock()
-		s.logger.Printf("Refusing to save over a truncation in progress: %s", f.RelPath)
+		s.Logger.Printf("Refusing to save over a truncation in progress: %s", f.RelPath)
 		s.writeError(w, http.StatusConflict,
 			"the file was just emptied on disk; retry once that change reaches the page")
 		return
@@ -1306,18 +1307,18 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	// behind the warning.
 	if readErr == nil && (stale || !s.versions.HasHistory(key, f.AbsPath)) {
 		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
-			s.logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
+			s.Logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
 		}
 	}
 	// Backup failure never fails a normal save.
 	if _, bErr := s.versions.Backup(key, f.AbsPath, body); bErr != nil {
-		s.logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
+		s.Logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
 	}
 
 	err = atomicWriteFile(f.AbsPath, body)
 	if err == nil {
 		if sErr := s.versions.SettlePageState(key, f.AbsPath, body); sErr != nil {
-			s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
+			s.Logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
 		}
 		f.RecordServerWrite(versions.Hash(body))
 		f.NoteWriteByThisHost()
@@ -1330,7 +1331,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		// the meta to non-provisional, but a save that only deduplicated skips that
 		// write, so clear the flag explicitly.
 		if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-			s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+			s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 		}
 		s.coord.acceptServerReplacement(f)
 		s.broadcastDiskHTML(f, body, key)
@@ -1342,7 +1343,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		s.logger.Printf("Error saving %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error saving %s: %v", f.AbsPath, err)
 		s.writeError(w, http.StatusInternalServerError, "write error")
 		return
 	}
@@ -1350,7 +1351,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	// Bulk pruning runs on the store lock only, never inside f.Lock().
 	s.versions.MaybePrune(key, f.AbsPath)
 
-	s.logger.Printf("Saved %s (%d bytes)", f.RelPath, len(body))
+	s.Logger.Printf("Saved %s (%d bytes)", f.RelPath, len(body))
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 
@@ -1371,7 +1372,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	saveIDEcho := saveID
 
 	if stale {
-		s.logger.Printf("Stale write: %s changed on disk since this server last wrote it", f.RelPath)
+		s.Logger.Printf("Stale write: %s changed on disk since this server last wrote it", f.RelPath)
 		stalePayload := map[string]interface{}{
 			"ok":      true,
 			"msg":     f.Name + " had been changed outside this tab. Your version was saved; the previous one is in Backups.",
@@ -1402,9 +1403,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 // most permissive possible reading of bytes we could not understand, and it let the
 // old envelope through to be written to the file verbatim.
 func isJSONContentType(ct string) bool {
-	mediaType, _, _ := strings.Cut(ct, ";")
-	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
-	return mediaType == "application/json" || strings.HasSuffix(mediaType, "+json")
+	return wire.IsJSONContentType(ct)
 }
 
 // replaceFile renames tmp over target, retrying briefly before giving up.
@@ -1530,11 +1529,11 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 	rf, err := s.openRegisteredFile(f.AbsPath)
 	if err != nil {
 		if errors.Is(err, errRefusedInternal) {
-			s.logger.Printf("Refusing meta for %s: resolves to a protected location", f.AbsPath)
+			s.Logger.Printf("Refusing meta for %s: resolves to a protected location", f.AbsPath)
 			s.writeError(w, http.StatusNotFound, "not found")
 			return
 		}
-		s.logger.Printf("Error stat %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error stat %s: %v", f.AbsPath, err)
 		s.writeError(w, http.StatusInternalServerError, "stat error")
 		return
 	}
@@ -1542,7 +1541,7 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 
 	info, err := rf.Stat()
 	if err != nil {
-		s.logger.Printf("Error stat %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error stat %s: %v", f.AbsPath, err)
 		s.writeError(w, http.StatusInternalServerError, "stat error")
 		return
 	}
@@ -1553,7 +1552,7 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 	// for one state while being told the id of another.
 	stored, readErr := io.ReadAll(rf)
 	if readErr != nil {
-		s.logger.Printf("Error reading %s for meta: %v", f.AbsPath, readErr)
+		s.Logger.Printf("Error reading %s for meta: %v", f.AbsPath, readErr)
 		s.writeError(w, http.StatusInternalServerError, "read error")
 		return
 	}
@@ -1622,7 +1621,7 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 			Actions:          s.documentActions(r.PathValue("token")),
 		},
 	}
-	meta.Document.WireMode, meta.Document.Helpers = s.helperDiscovery(f.AbsPath)
+	meta.Document.WireMode, meta.Document.Helpers = s.HelperDiscovery(f.AbsPath)
 	meta.Document.People = s.people()
 	if historyKey != "" {
 		meta.Document.DataGuard = &dataGuardMeta{Href: "/_/data-loss/" + r.PathValue("token")}
@@ -1749,6 +1748,13 @@ var specErrorCodes = map[int]string{
 // inside the file and no update ever reaches it. So the old pair does not go away when
 // the new one arrives, the same way the pre-rename save token does not.
 func (s *Server) writeError(w http.ResponseWriter, status int, message string) {
+	WriteError(w, status, message)
+}
+
+// WriteError writes the loose host's error body for status. A served root
+// hands this same function to its wire core, so a wire refusal has the same
+// bytes on both hosts.
+func WriteError(w http.ResponseWriter, status int, message string) {
 	code := specErrorCodes[status]
 	writeSaveError(w, status, message, code, "")
 }
@@ -1913,12 +1919,12 @@ func (s *Server) blockeditorGeneration(key, absPath, diskHash string, decision p
 // was written: the sidecar is written before the file, and the file only after it.
 func (s *Server) refusePageState(w http.ResponseWriter, f *session.File, err error) {
 	if errors.Is(err, versions.ErrInvalidPageState) {
-		s.logger.Printf("Refusing a save of %s: its page state is not valid", f.RelPath)
+		s.Logger.Printf("Refusing a save of %s: its page state is not valid", f.RelPath)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid page state", "code": "invalid-blockeditor-state"})
 		return
 	}
-	s.logger.Printf("Refusing a save of %s: cannot store its page state: %v", f.RelPath, err)
+	s.Logger.Printf("Refusing a save of %s: cannot store its page state: %v", f.RelPath, err)
 	s.writeError(w, http.StatusInternalServerError, "cannot store page state")
 }

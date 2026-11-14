@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,10 +23,10 @@ func aiEditSend(t *testing.T, srv *Server, token, body string) *httptest.Respons
 	req = sameOriginHeaders(req)
 	req.Header.Set("Document-URL", helperPageURL(srv))
 	if token != "" {
-		req.Header.Set(helperTokenHeader, token)
+		req.Header.Set(wire.TokenHeader, token)
 	}
 	w := httptest.NewRecorder()
-	srv.wireMux().ServeHTTP(w, req)
+	srv.WireMux().ServeHTTP(w, req)
 	return w
 }
 
@@ -49,7 +50,7 @@ func aiEditDelivered(t *testing.T, w *httptest.ResponseRecorder) {
 	}
 }
 
-func aiEditEnvelopeType(t *testing.T, sub *wireSub, id string, frames int) wireEnvelope {
+func aiEditEnvelopeType(t *testing.T, sub *wire.Sub, id string, frames int) wire.Envelope {
 	t.Helper()
 	for i := 0; i < frames; i++ {
 		env := receiveHelperEnvelope(t, sub)
@@ -61,23 +62,23 @@ func aiEditEnvelopeType(t *testing.T, sub *wireSub, id string, frames int) wireE
 		}
 	}
 	t.Fatalf("no terminal frame for %s", id)
-	return wireEnvelope{}
+	return wire.Envelope{}
 }
 
 func aiEditSwitch(on *atomic.Bool) Hooks {
 	return Hooks{AIEditEnabled: func() bool { return on.Load() }}
 }
 
-func aiEditDiscoveryMeta(t *testing.T, srv *Server, file string) []helperMeta {
+func aiEditDiscoveryMeta(t *testing.T, srv *Server, file string) []wire.HelperMeta {
 	t.Helper()
-	_, meta := srv.helperDiscovery(file)
+	_, meta := srv.HelperDiscovery(file)
 	return meta
 }
 
 func TestAIEditDiscovery(t *testing.T) {
 	withoutPageToolPrompts(t)
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 
 	for _, entry := range aiEditDiscoveryMeta(t, srv, f.AbsPath) {
@@ -91,26 +92,26 @@ func TestAIEditDiscovery(t *testing.T) {
 	srv.SetHooks(aiEditSwitch(&on))
 
 	meta := aiEditDiscoveryMeta(t, srv, f.AbsPath)
-	if len(meta) != 1 || meta[0] != (helperMeta{Name: "ai-edit", State: "ready"}) {
+	if len(meta) != 1 || meta[0] != (wire.HelperMeta{Name: "ai-edit", State: "ready"}) {
 		t.Fatalf("enabled discovery = %+v", meta)
 	}
 
 	on.Store(false)
 	meta = aiEditDiscoveryMeta(t, srv, f.AbsPath)
-	if len(meta) != 1 || meta[0] != (helperMeta{Name: "ai-edit", State: "unavailable"}) {
+	if len(meta) != 1 || meta[0] != (wire.HelperMeta{Name: "ai-edit", State: "unavailable"}) {
 		t.Fatalf("disabled discovery = %+v", meta)
 	}
 
 	on.Store(true)
-	srv.helperMu.Lock()
-	if srv.helperOffline == nil {
-		srv.helperOffline = make(map[string][]string)
+	srv.HelperMu.Lock()
+	if srv.HelperOffline == nil {
+		srv.HelperOffline = make(map[string][]string)
 	}
-	srv.helperOffline[f.AbsPath] = []string{"search", "ai-edit"}
-	srv.helperMu.Unlock()
+	srv.HelperOffline[f.AbsPath] = []string{"search", "ai-edit"}
+	srv.HelperMu.Unlock()
 
 	meta = aiEditDiscoveryMeta(t, srv, f.AbsPath)
-	want := []helperMeta{{Name: "search", State: "unavailable"}, {Name: "ai-edit", State: "ready"}}
+	want := []wire.HelperMeta{{Name: "search", State: "unavailable"}, {Name: "ai-edit", State: "ready"}}
 	if len(meta) != len(want) || meta[0] != want[0] || meta[1] != want[1] {
 		t.Fatalf("declared-plus-built-in discovery = %+v, want %+v", meta, want)
 	}
@@ -119,7 +120,7 @@ func TestAIEditDiscovery(t *testing.T) {
 func TestAIEditAnswersWithTheMock(t *testing.T) {
 	t.Setenv("MOCK_MODEL", "1")
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 	var on atomic.Bool
 	on.Store(true)
@@ -168,7 +169,7 @@ func TestAIEditAnswersWithTheMock(t *testing.T) {
 func TestAIEditRequiresTheSaveToken(t *testing.T) {
 	t.Setenv("MOCK_MODEL", "1")
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 	var on atomic.Bool
 	on.Store(true)
@@ -179,7 +180,7 @@ func TestAIEditRequiresTheSaveToken(t *testing.T) {
 		t.Fatalf("tokenless status %d, want 403: %s", w.Code, w.Body.String())
 	}
 	select {
-	case raw := <-sub.ch:
+	case raw := <-sub.Ch:
 		t.Fatalf("tokenless send published a frame: %s", raw)
 	case <-time.After(300 * time.Millisecond):
 	}
@@ -188,7 +189,7 @@ func TestAIEditRequiresTheSaveToken(t *testing.T) {
 func TestAIEditOffIsRefused(t *testing.T) {
 	t.Setenv("MOCK_MODEL", "1")
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 	var on atomic.Bool
 	srv.SetHooks(aiEditSwitch(&on))
@@ -205,7 +206,7 @@ func TestAIEditOffIsRefused(t *testing.T) {
 func TestAIEditOneAtATime(t *testing.T) {
 	t.Setenv("MOCK_MODEL", "1")
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 	var on atomic.Bool
 	on.Store(true)
@@ -240,7 +241,7 @@ func TestAIEditOneAtATime(t *testing.T) {
 func TestCancelAIEditsStopsRunningEdits(t *testing.T) {
 	t.Setenv("MOCK_MODEL", "1")
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 	var on atomic.Bool
 	on.Store(true)
@@ -263,28 +264,28 @@ func TestAIEditReleasesSlotBeforeTerminalFrame(t *testing.T) {
 	srv.SetHooks(aiEditSwitch(&on))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	srv.aiEdit.mu.Lock()
-	srv.aiEdit.running = map[string]aiEditRun{f.AbsPath: {id: "order", cancel: cancel}}
-	srv.aiEdit.mu.Unlock()
-	request := wireEnvelope{Type: "wire/request", ID: "order", File: f.AbsPath, Helper: "ai-edit", Payload: json.RawMessage(`{}`)}
+	srv.AIEdit.Mu.Lock()
+	srv.AIEdit.Running = map[string]wire.AIEditRun{f.AbsPath: {ID: "order", Cancel: cancel}}
+	srv.AIEdit.Mu.Unlock()
+	request := wire.Envelope{Type: "wire/request", ID: "order", File: f.AbsPath, Helper: "ai-edit", Payload: json.RawMessage(`{}`)}
 	// Block the terminal frame's publication. The empty payload fails at once, so
 	// the slot must already be free while the frame waits.
-	srv.wire.mu.Lock()
+	srv.Hub.Mu.Lock()
 	done := make(chan struct{})
-	go func() { defer close(done); srv.runAIEdit(ctx, cancel, f.AbsPath, request, aiedit.Payload{}) }()
+	go func() { defer close(done); srv.RunAIEdit(ctx, cancel, f.AbsPath, request, aiedit.Payload{}) }()
 	released := false
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		srv.aiEdit.mu.Lock()
-		_, busy := srv.aiEdit.running[f.AbsPath]
-		srv.aiEdit.mu.Unlock()
+		srv.AIEdit.Mu.Lock()
+		_, busy := srv.AIEdit.Running[f.AbsPath]
+		srv.AIEdit.Mu.Unlock()
 		if !busy {
 			released = true
 			break
 		}
 		time.Sleep(time.Millisecond)
 	}
-	srv.wire.mu.Unlock()
+	srv.Hub.Mu.Unlock()
 	<-done
 	if !released {
 		t.Fatal("the terminal frame is waiting to publish and the AI edit slot is still held")
@@ -294,7 +295,7 @@ func TestAIEditReleasesSlotBeforeTerminalFrame(t *testing.T) {
 func TestAIEditDuplicateRefusalIsNotRetained(t *testing.T) {
 	t.Setenv("MOCK_MODEL", "1")
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 	var on atomic.Bool
 	on.Store(true)
@@ -312,9 +313,9 @@ func TestAIEditDuplicateRefusalIsNotRetained(t *testing.T) {
 	if env := aiEditEnvelopeType(t, sub, "e1", 8); env.Type != "wire/error" || helperErrorCode(t, env) != "helper_cancelled" {
 		t.Fatalf("cancel answer = %s %s", env.Type, env.Payload)
 	}
-	srv.wire.mu.Lock()
-	retained := string(srv.wire.chans[f.AbsPath].terminal["e1"].frame)
-	srv.wire.mu.Unlock()
+	srv.Hub.Mu.Lock()
+	retained := string(srv.Hub.Chans[f.AbsPath].Terminal["e1"].Frame)
+	srv.Hub.Mu.Unlock()
 	if !strings.Contains(retained, "helper_cancelled") {
 		t.Fatalf("retained outcome = %s", retained)
 	}
@@ -324,7 +325,7 @@ func TestAIEditDescribeIsRefused(t *testing.T) {
 	t.Setenv("MOCK_MODEL", "1")
 	srv, f := setupLiveSyncTest(t)
 	t.Cleanup(srv.CancelAIEdits)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	var on atomic.Bool
 	on.Store(true)
 	srv.SetHooks(aiEditSwitch(&on))

@@ -1,4 +1,4 @@
-package server
+package wire
 
 import (
 	"bytes"
@@ -21,16 +21,16 @@ import (
 
 const pageToolOffText = "AI Editing is off. Turn it on in HTML Clay's menu."
 
-// pageToolBudget is a variable so a test can shorten it.
-var pageToolBudget = 5 * time.Minute
+// PageToolBudget is a variable so a test can shorten it.
+var PageToolBudget = 5 * time.Minute
 
-// pageToolPrompts reads this helper's system prompt: tool-generation/system.md
+// PageToolPrompts reads this helper's system prompt: tool-generation/system.md
 // and context.md from the runtime vendored into this binary, at the selected
 // version. A test replaces it with a fixture, because the vendored runtime does
 // not carry the files until ClayJS ships them.
-var pageToolPrompts = readPageToolPrompts
+var PageToolPrompts = ReadPageToolPrompts
 
-func readPageToolPrompts() (string, bool) {
+func ReadPageToolPrompts() (string, bool) {
 	_, system, ok := clayruntime.Asset(clayruntime.Selected, "tool-generation/system.md")
 	if !ok {
 		return "", false
@@ -49,25 +49,25 @@ func readPageToolPrompts() (string, bool) {
 
 // pageToolOffered reports whether this server can answer blockeditor-tool at all: the
 // AI Editing hook, and the prompt files it needs.
-func (s *wireCore) pageToolOffered() bool {
+func (s *Core) pageToolOffered() bool {
 	if !s.aiEditOffered() {
 		return false
 	}
-	_, ok := pageToolPrompts()
+	_, ok := PageToolPrompts()
 	return ok
 }
 
 // pageToolMeta is the discovery entry for a document, when this server offers
 // the blockeditor-tool helper for it.
-func (s *wireCore) pageToolMeta(file string) (helperMeta, bool) {
+func (s *Core) pageToolMeta(file string) (HelperMeta, bool) {
 	if !s.pageToolOffered() || !aiedit.IsDocument(file) {
-		return helperMeta{}, false
+		return HelperMeta{}, false
 	}
 	state := "unavailable"
-	if s.policy.aiEditEnabled() {
+	if s.policy.AIEditEnabled() {
 		state = "ready"
 	}
-	return helperMeta{Name: aiedit.PageToolHelperName, State: state}, true
+	return HelperMeta{Name: aiedit.PageToolHelperName, State: state}, true
 }
 
 type pageToolDone struct {
@@ -79,12 +79,12 @@ type pageToolDone struct {
 
 // startPageTool registers the request and runs it in the background. The caller
 // has already checked the document's token.
-func (s *wireCore) startPageTool(doc wireDocument, request wireEnvelope) {
-	if !s.policy.aiEditEnabled() {
+func (s *Core) startPageTool(doc Document, request Envelope) {
+	if !s.policy.AIEditEnabled() {
 		s.refuseAIEdit(request, "host", "helper_not_granted", pageToolOffText)
 		return
 	}
-	systemPrompt, ok := pageToolPrompts()
+	systemPrompt, ok := PageToolPrompts()
 	if !ok {
 		s.refuseAIEdit(request, "host", "helper_not_granted", "this build has no tool prompt files")
 		return
@@ -99,44 +99,44 @@ func (s *wireCore) startPageTool(doc wireDocument, request wireEnvelope) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), pageToolBudget)
-	s.aiEdit.mu.Lock()
-	if s.aiEdit.running == nil {
-		s.aiEdit.running = make(map[string]aiEditRun)
+	ctx, cancel := context.WithTimeout(context.Background(), PageToolBudget)
+	s.AIEdit.Mu.Lock()
+	if s.AIEdit.Running == nil {
+		s.AIEdit.Running = make(map[string]AIEditRun)
 	}
-	if run, busy := s.aiEdit.running[doc.Path]; busy {
-		s.aiEdit.mu.Unlock()
+	if run, busy := s.AIEdit.Running[doc.Path]; busy {
+		s.AIEdit.Mu.Unlock()
 		cancel()
-		if run.id == request.ID {
+		if run.ID == request.ID {
 			s.refuseAIEdit(request, "host", "duplicate_request", "a request with this id is already running")
-			s.wire.forgetTerminal(request.File, request.ID)
+			s.Hub.forgetTerminal(request.File, request.ID)
 		} else {
 			s.refuseAIEdit(request, "host", "helper_busy", "an AI request is already running on this document")
 		}
 		return
 	}
-	s.aiEdit.running[doc.Path] = aiEditRun{id: request.ID, cancel: cancel}
-	s.aiEdit.mu.Unlock()
-	s.wire.forgetTerminal(request.File, request.ID)
+	s.AIEdit.Running[doc.Path] = AIEditRun{ID: request.ID, Cancel: cancel}
+	s.AIEdit.Mu.Unlock()
+	s.Hub.forgetTerminal(request.File, request.ID)
 
-	s.publishAIEdit(request, "wire/ack", "", map[string]any{"mode": "jsonl", "budgetMs": pageToolBudget.Milliseconds()})
+	s.publishAIEdit(request, "wire/ack", "", map[string]any{"mode": "jsonl", "budgetMs": PageToolBudget.Milliseconds()})
 	s.publishAIEdit(request, "wire/status", "Making your tool…", nil)
 	go s.runPageTool(ctx, cancel, doc.Path, request, toolRequest, systemPrompt)
 }
 
-func (s *wireCore) runPageTool(ctx context.Context, cancel context.CancelFunc, file string, request wireEnvelope, toolRequest aiedit.ToolRequest, systemPrompt string) {
+func (s *Core) runPageTool(ctx context.Context, cancel context.CancelFunc, file string, request Envelope, toolRequest aiedit.ToolRequest, systemPrompt string) {
 	release := func() {
 		cancel()
-		s.aiEdit.mu.Lock()
-		if run, ok := s.aiEdit.running[file]; ok && run.id == request.ID {
-			delete(s.aiEdit.running, file)
+		s.AIEdit.Mu.Lock()
+		if run, ok := s.AIEdit.Running[file]; ok && run.ID == request.ID {
+			delete(s.AIEdit.Running, file)
 		}
-		s.aiEdit.mu.Unlock()
+		s.AIEdit.Mu.Unlock()
 	}
 
 	var def string
 	var engines map[string][]string
-	def, engines = s.policy.aiEditEngines()
+	def, engines = s.policy.AIEditEngines()
 	opts := aiedit.ToolOptions{
 		BaseDir:      filepath.Dir(file),
 		Default:      def,

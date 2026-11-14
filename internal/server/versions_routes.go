@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"github.com/panphora/htmlclay/internal/wire"
 	"io/fs"
 	"net/http"
 	"os"
@@ -43,8 +44,7 @@ func historyKey(f *session.File) string {
 
 // noStoreJSON marks every token-bearing response uncacheable.
 func noStoreJSON(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
+	wire.NoStoreJSON(w)
 }
 
 func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +58,7 @@ func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
 	f.Unlock()
 
 	if err != nil {
-		s.logger.Printf("Error listing versions for %s: %v", f.RelPath, err)
+		s.Logger.Printf("Error listing versions for %s: %v", f.RelPath, err)
 		s.writeError(w, http.StatusInternalServerError, "list error")
 		return
 	}
@@ -94,7 +94,7 @@ func (s *Server) handleReadVersion(w http.ResponseWriter, r *http.Request) {
 	f.Unlock()
 
 	if err != nil {
-		s.logger.Printf("Error reading version %s of %s: %v", name, f.RelPath, err)
+		s.Logger.Printf("Error reading version %s of %s: %v", name, f.RelPath, err)
 		s.writeError(w, http.StatusNotFound, "version not found")
 		return
 	}
@@ -168,14 +168,14 @@ func (s *Server) RestoreVersion(f *session.File, host, name string) error {
 	// absent has nothing to lose and needs no safety copy.
 	if readErr != nil && !errors.Is(readErr, fs.ErrNotExist) {
 		f.Unlock()
-		s.logger.Printf("Refusing to restore %s: current file cannot be read: %v", f.RelPath, readErr)
+		s.Logger.Printf("Refusing to restore %s: current file cannot be read: %v", f.RelPath, readErr)
 		return &RestoreRefusal{Status: http.StatusInternalServerError, Message: "current file cannot be read, so no safety backup is possible"}
 	}
 
 	data, err := s.versions.Read(key, f.AbsPath, name)
 	if err != nil {
 		f.Unlock()
-		s.logger.Printf("Error reading version %s of %s: %v", name, f.RelPath, err)
+		s.Logger.Printf("Error reading version %s of %s: %v", name, f.RelPath, err)
 		return &RestoreRefusal{Status: http.StatusNotFound, Message: "version not found"}
 	}
 	// Versions are written from banner-stripped saves, but a restore must not
@@ -187,7 +187,7 @@ func (s *Server) RestoreVersion(f *session.File, host, name string) error {
 	}
 	if !htmlutil.IsCompleteHTMLDocument(data) {
 		f.Unlock()
-		s.logger.Printf("Refusing to restore %s of %s: not a complete HTML document", name, f.RelPath)
+		s.Logger.Printf("Refusing to restore %s of %s: not a complete HTML document", name, f.RelPath)
 		return &RestoreRefusal{Status: http.StatusBadRequest, Message: "version is not a complete HTML document"}
 	}
 
@@ -198,7 +198,7 @@ func (s *Server) RestoreVersion(f *session.File, host, name string) error {
 	if readErr == nil {
 		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
 			f.Unlock()
-			s.logger.Printf("Refusing to restore %s: safety backup failed: %v", f.RelPath, bErr)
+			s.Logger.Printf("Refusing to restore %s: safety backup failed: %v", f.RelPath, bErr)
 			return &RestoreRefusal{Status: http.StatusInternalServerError, Message: "could not create a safety backup"}
 		}
 	}
@@ -219,13 +219,13 @@ func (s *Server) RestoreVersion(f *session.File, host, name string) error {
 
 	if wErr := atomicWriteFile(f.AbsPath, data); wErr != nil {
 		f.Unlock()
-		s.logger.Printf("Error restoring %s: %v", f.AbsPath, wErr)
+		s.Logger.Printf("Error restoring %s: %v", f.AbsPath, wErr)
 		return &RestoreRefusal{Status: http.StatusInternalServerError, Message: "write error"}
 	}
 
 	if key != "" {
 		if sErr := s.versions.SettlePageState(key, f.AbsPath, data); sErr != nil {
-			s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
+			s.Logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
 		}
 	}
 
@@ -236,7 +236,7 @@ func (s *Server) RestoreVersion(f *session.File, host, name string) error {
 	// Restoring engages the history, so it is no longer a throwaway first-open
 	// snapshot: clear any provisional flag so it is never reclaimed.
 	if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-		s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+		s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 	}
 	s.coord.acceptServerReplacement(f)
 	s.broadcastDiskHTML(f, data, key)
@@ -250,6 +250,6 @@ func (s *Server) RestoreVersion(f *session.File, host, name string) error {
 
 	s.versions.MaybePrune(key, f.AbsPath)
 
-	s.logger.Printf("Restored %s from version %s", f.RelPath, name)
+	s.Logger.Printf("Restored %s from version %s", f.RelPath, name)
 	return nil
 }

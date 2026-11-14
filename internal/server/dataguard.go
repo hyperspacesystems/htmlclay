@@ -205,7 +205,7 @@ func (s *Server) guardNotify(f *session.File, key string) func(kind string, even
 		switch kind {
 		case "raised":
 			if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-				s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+				s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 			}
 			s.coord.evict(f, s.hub.notifyGuard(f.AbsPath, "raised", "Saved data overwritten", event))
 		case "resolved":
@@ -298,7 +298,7 @@ func (s *Server) pendingGuardEvent(f *session.File, key string) *dataguard.Clien
 		return s.readRegisteredFile(f.AbsPath)
 	})
 	if err != nil {
-		s.logger.Printf("Data guard notice for %s failed: %v", f.RelPath, err)
+		s.Logger.Printf("Data guard notice for %s failed: %v", f.RelPath, err)
 		return nil
 	}
 	if event == nil || event.Status != "pending" {

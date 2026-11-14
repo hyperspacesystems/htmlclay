@@ -478,21 +478,21 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := os.MkdirAll(s.uploadsDir, 0o755); err != nil {
-		s.logger.Printf("Error creating the uploads library: %v", err)
+		s.Logger.Printf("Error creating the uploads library: %v", err)
 		uploadError(w, http.StatusInternalServerError, "error", "Could not store the file")
 		return
 	}
 
 	key, err := s.uploadKeyBytes()
 	if err != nil {
-		s.logger.Printf("Error reading the uploads library key: %v", err)
+		s.Logger.Printf("Error reading the uploads library key: %v", err)
 		uploadError(w, http.StatusInternalServerError, "error", "Could not store the file")
 		return
 	}
 
 	name, err := storeUpload(s.uploadsDir, folder, stem, ext, key, data)
 	if err != nil {
-		s.logger.Printf("Error storing upload in %s: %v", folder, err)
+		s.Logger.Printf("Error storing upload in %s: %v", folder, err)
 		uploadError(w, http.StatusInternalServerError, "error", "Could not store the file")
 		return
 	}

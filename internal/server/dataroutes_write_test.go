@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -184,13 +185,13 @@ func TestDataWriteBrowserNeedsTheTargetFilesSaveToken(t *testing.T) {
 	}
 
 	withToken := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"title":"World"}`,
-		browser(map[string]string{helperTokenHeader: f.Token}))
+		browser(map[string]string{wire.TokenHeader: f.Token}))
 	if withToken.Code != 200 {
 		t.Fatalf("the file's own token: status = %d, want 200: %s", withToken.Code, withToken.Body.String())
 	}
 
 	wrongToken := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"title":"Again"}`,
-		browser(map[string]string{helperTokenHeader: other.Token}))
+		browser(map[string]string{wire.TokenHeader: other.Token}))
 	if wrongToken.Code != 403 {
 		t.Fatalf("a sibling's token: status = %d, want 403: %s", wrongToken.Code, wrongToken.Body.String())
 	}
@@ -807,9 +808,9 @@ func TestDataWritePageRemovalNeedsNoVersion(t *testing.T) {
 	}
 
 	headers := map[string]string{
-		"Sec-Fetch-Site":  "same-origin",
-		"Origin":          fmt.Sprintf("http://127.0.0.1:%d", srv.port),
-		helperTokenHeader: f.Token,
+		"Sec-Fetch-Site": "same-origin",
+		"Origin":         fmt.Sprintf("http://127.0.0.1:%d", srv.port),
+		wire.TokenHeader: f.Token,
 	}
 	w := postDataWrite(t, srv, "/_/api/fixtures/test.htmlclay", `{"items":["A"]}`, headers)
 	if w.Code != 200 {

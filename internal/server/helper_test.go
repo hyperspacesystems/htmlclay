@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -29,32 +30,32 @@ func writeHelperDocument(t *testing.T, path string, names ...string) {
 	}
 }
 
-func helperObserver(t *testing.T, srv *Server, file string) *wireSub {
+func helperObserver(t *testing.T, srv *Server, file string) *wire.Sub {
 	t.Helper()
-	sub := &wireSub{key: file, ch: make(chan []byte, 64), done: make(chan struct{})}
-	if _, _, err := srv.wire.add(sub, 0); err != nil {
+	sub := &wire.Sub{Key: file, Ch: make(chan []byte, 64), Done: make(chan struct{})}
+	if _, _, err := srv.Hub.Add(sub, 0); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { srv.wire.remove(sub) })
+	t.Cleanup(func() { srv.Hub.Remove(sub) })
 	return sub
 }
 
-func receiveHelperEnvelope(t *testing.T, sub *wireSub) wireEnvelope {
+func receiveHelperEnvelope(t *testing.T, sub *wire.Sub) wire.Envelope {
 	t.Helper()
 	select {
-	case raw := <-sub.ch:
-		env, err := decodeWireEnvelope(raw)
+	case raw := <-sub.Ch:
+		env, err := wire.DecodeEnvelope(raw)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return env
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for helper frame")
-		return wireEnvelope{}
+		return wire.Envelope{}
 	}
 }
 
-func receiveHelperType(t *testing.T, sub *wireSub, typ, id string) wireEnvelope {
+func receiveHelperType(t *testing.T, sub *wire.Sub, typ, id string) wire.Envelope {
 	t.Helper()
 	for i := 0; i < 8; i++ {
 		env := receiveHelperEnvelope(t, sub)
@@ -63,10 +64,10 @@ func receiveHelperType(t *testing.T, sub *wireSub, typ, id string) wireEnvelope 
 		}
 	}
 	t.Fatalf("did not receive %s for %s", typ, id)
-	return wireEnvelope{}
+	return wire.Envelope{}
 }
 
-func helperErrorCode(t *testing.T, env wireEnvelope) string {
+func helperErrorCode(t *testing.T, env wire.Envelope) string {
 	t.Helper()
 	var payload struct {
 		Code string `json:"code"`
@@ -83,7 +84,7 @@ func helperProgram(name, path string) config.HelperProgram {
 
 func TestAttachHelpersDispatchesAndReusesCompletedID(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search", "ocr")
 	t.Setenv(serverHelperArg, filepath.Join(t.TempDir(), "count"))
 	program := helperProgram("search", structuredHelper(t, "count"))
@@ -94,25 +95,25 @@ func TestAttachHelpersDispatchesAndReusesCompletedID(t *testing.T) {
 	}
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 
-	srv.helperMu.Lock()
-	first := srv.helpers[file.AbsPath]
-	srv.helperMu.Unlock()
+	srv.HelperMu.Lock()
+	first := srv.Helpers[file.AbsPath]
+	srv.HelperMu.Unlock()
 	generation := srv.HelperGeneration(file.AbsPath)
 	if err := srv.AttachHelpers(file.AbsPath, allowed, denied); err != nil {
 		t.Fatal(err)
 	}
-	srv.helperMu.Lock()
-	second := srv.helpers[file.AbsPath]
-	srv.helperMu.Unlock()
+	srv.HelperMu.Lock()
+	second := srv.Helpers[file.AbsPath]
+	srv.HelperMu.Unlock()
 	if first != second || srv.HelperGeneration(file.AbsPath) != generation {
 		t.Fatal("idempotent attach replaced the dispatcher or advanced its generation")
 	}
 
-	mode, helpers := srv.helperDiscovery(file.AbsPath)
+	mode, helpers := srv.HelperDiscovery(file.AbsPath)
 	if mode != "jsonl" {
 		t.Fatalf("mode = %q, want jsonl", mode)
 	}
-	if len(helpers) != 2 || helpers[0] != (helperMeta{Name: "search", State: "ready"}) || helpers[1] != (helperMeta{Name: "ocr", State: "denied"}) {
+	if len(helpers) != 2 || helpers[0] != (wire.HelperMeta{Name: "search", State: "ready"}) || helpers[1] != (wire.HelperMeta{Name: "ocr", State: "denied"}) {
 		t.Fatalf("helper discovery = %+v", helpers)
 	}
 	meta := metaOf(t, srv, file)
@@ -126,7 +127,7 @@ func TestAttachHelpersDispatchesAndReusesCompletedID(t *testing.T) {
 
 	observer := helperObserver(t, srv, file.AbsPath)
 	for want := 1; want <= 2; want++ {
-		srv.wire.publish(file.AbsPath, wireEnvelope{
+		srv.Hub.Publish(file.AbsPath, wire.Envelope{
 			V: 1, Type: "wire/request", ID: "reusable", File: file.AbsPath,
 			Helper: "search", Document: "none", Payload: json.RawMessage(`{"query":"clay"}`),
 		})
@@ -153,17 +154,17 @@ func TestAttachHelpersDispatchesAndReusesCompletedID(t *testing.T) {
 			t.Fatalf("result = %+v, want count %d and cwd %s", result, want, filepath.Dir(file.AbsPath))
 		}
 		waitFor(t, time.Second, "the completed request to leave the live set", func() bool {
-			first.mu.Lock()
-			defer first.mu.Unlock()
-			_, live := first.live["reusable"]
+			first.Mu.Lock()
+			defer first.Mu.Unlock()
+			_, live := first.Live["reusable"]
 			return !live
 		})
 	}
 
-	srv.wire.mu.Lock()
-	retained := append([]byte(nil), srv.wire.chans[file.AbsPath].terminal["reusable"].frame...)
-	srv.wire.mu.Unlock()
-	env, err := decodeWireEnvelope(retained)
+	srv.Hub.Mu.Lock()
+	retained := append([]byte(nil), srv.Hub.Chans[file.AbsPath].Terminal["reusable"].Frame...)
+	srv.Hub.Mu.Unlock()
+	env, err := wire.DecodeEnvelope(retained)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +181,7 @@ func TestAttachHelpersDispatchesAndReusesCompletedID(t *testing.T) {
 
 func TestDispatcherRefusesNamesWithoutPrompting(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search", "ocr")
 	program := helperProgram("search", structuredHelper(t, "result-null"))
 	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"search": program}, nil); err != nil {
@@ -199,7 +200,7 @@ func TestDispatcherRefusesNamesWithoutPrompting(t *testing.T) {
 		{"undeclared", "other", "helper_not_declared"},
 	}
 	for _, tc := range cases {
-		srv.wire.publish(file.AbsPath, wireEnvelope{V: 1, Type: "wire/request", ID: tc.id, File: file.AbsPath, Helper: tc.helper})
+		srv.Hub.Publish(file.AbsPath, wire.Envelope{V: 1, Type: "wire/request", ID: tc.id, File: file.AbsPath, Helper: tc.helper})
 		env := receiveHelperType(t, observer, "wire/error", tc.id)
 		if code := helperErrorCode(t, env); code != tc.code {
 			t.Fatalf("%s code = %q, want %q", tc.id, code, tc.code)
@@ -209,21 +210,21 @@ func TestDispatcherRefusesNamesWithoutPrompting(t *testing.T) {
 
 func TestExternalRawHandlerStaysAttachedAndRejectsNamedCalls(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
-	handler := &wireSub{key: file.AbsPath, handler: true, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := srv.wire.add(handler, 0); err != nil {
+	handler := &wire.Sub{Key: file.AbsPath, Handler: true, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := srv.Hub.Add(handler, 0); err != nil {
 		t.Fatal(err)
 	}
 	program := helperProgram("search", structuredHelper(t, "result-null"))
-	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"search": program}, nil); !errors.Is(err, errHelperHandlerTaken) {
+	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"search": program}, nil); !errors.Is(err, wire.ErrHelperHandlerTaken) {
 		t.Fatalf("AttachHelpers error = %v, want external handler conflict", err)
 	}
-	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"search": program}, nil); !errors.Is(err, errHelperHandlerTaken) {
+	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"search": program}, nil); !errors.Is(err, wire.ErrHelperHandlerTaken) {
 		t.Fatalf("repeated AttachHelpers error = %v, want remembered external handler conflict", err)
 	}
-	mode, helpers := srv.helperDiscovery(file.AbsPath)
-	if mode != "raw" || len(helpers) != 1 || helpers[0] != (helperMeta{Name: "search", State: "unavailable"}) {
+	mode, helpers := srv.HelperDiscovery(file.AbsPath)
+	if mode != "raw" || len(helpers) != 1 || helpers[0] != (wire.HelperMeta{Name: "search", State: "unavailable"}) {
 		t.Fatalf("discovery = mode %q, helpers %+v", mode, helpers)
 	}
 	observer := helperObserver(t, srv, file.AbsPath)
@@ -232,7 +233,7 @@ func TestExternalRawHandlerStaysAttachedAndRejectsNamedCalls(t *testing.T) {
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	srv.wireMux().ServeHTTP(w, req)
+	srv.WireMux().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
@@ -262,7 +263,7 @@ func TestExternalRawHandlerStaysAttachedAndRejectsNamedCalls(t *testing.T) {
 		t.Fatalf("error code = %q", code)
 	}
 	select {
-	case frame := <-handler.ch:
+	case frame := <-handler.Ch:
 		t.Fatalf("raw handler received named request: %q", frame)
 	default:
 	}
@@ -270,21 +271,21 @@ func TestExternalRawHandlerStaysAttachedAndRejectsNamedCalls(t *testing.T) {
 
 func TestRevocationCancelsAcceptedEditAndReleasesWatcher(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	program := helperProgram("search", structuredHelper(t, "hold"))
 	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"search": program}, nil); err != nil {
 		t.Fatal(err)
 	}
 	observer := helperObserver(t, srv, file.AbsPath)
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "active", File: file.AbsPath,
 		Helper: "search", Document: "edit", Payload: json.RawMessage(`{}`),
 	})
 	receiveHelperType(t, observer, "wire/status", "active")
 	waitFor(t, 2*time.Second, "the editing helper watcher lease", func() bool { return watchEntries(srv) == 1 })
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "active", File: file.AbsPath,
 		Helper: "search", Document: "edit", Payload: json.RawMessage(`{}`),
 	})
@@ -301,37 +302,37 @@ func TestRevocationCancelsAcceptedEditAndReleasesWatcher(t *testing.T) {
 
 func TestEvictedDispatcherCannotPublishIntoAReplacementHandler(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	program := helperProgram("search", structuredHelper(t, "result-null"))
 	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"search": program}, nil); err != nil {
 		t.Fatal(err)
 	}
-	srv.helperMu.Lock()
-	dispatcher := srv.helpers[file.AbsPath]
-	generation := dispatcher.generation
-	srv.wire.remove(dispatcher.sub)
-	replacement := &wireSub{
-		key: file.AbsPath, handler: true, mode: "raw",
-		ch: make(chan []byte, 4), done: make(chan struct{}),
+	srv.HelperMu.Lock()
+	dispatcher := srv.Helpers[file.AbsPath]
+	generation := dispatcher.Generation
+	srv.Hub.Remove(dispatcher.Sub)
+	replacement := &wire.Sub{
+		Key: file.AbsPath, Handler: true, Mode: "raw",
+		Ch: make(chan []byte, 4), Done: make(chan struct{}),
 	}
-	if _, _, err := srv.wire.add(replacement, 0); err != nil {
-		srv.helperMu.Unlock()
+	if _, _, err := srv.Hub.Add(replacement, 0); err != nil {
+		srv.HelperMu.Unlock()
 		t.Fatal(err)
 	}
-	_, _, published := srv.wire.publishFromHandler(file.AbsPath, dispatcher.sub, wireEnvelope{
+	_, _, published := srv.Hub.PublishFromHandler(file.AbsPath, dispatcher.Sub, wire.Envelope{
 		Type: "wire/done", ID: "late", File: file.AbsPath, Payload: json.RawMessage(`{"late":true}`),
 	})
 	if srv.HelperGeneration(file.AbsPath) != generation {
-		srv.helperMu.Unlock()
+		srv.HelperMu.Unlock()
 		t.Fatal("generation changed before dispatcher cleanup reached the binding")
 	}
-	srv.helperMu.Unlock()
+	srv.HelperMu.Unlock()
 	if published {
 		t.Fatal("evicted dispatcher published after losing its handler slot")
 	}
 	select {
-	case frame := <-replacement.ch:
+	case frame := <-replacement.Ch:
 		t.Fatalf("replacement handler received the evicted dispatcher's frame: %q", frame)
 	default:
 	}
@@ -344,11 +345,11 @@ func TestDispatcherStopsWhenWireShutsDown(t *testing.T) {
 	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"search": program}, nil); err != nil {
 		t.Fatal(err)
 	}
-	srv.wire.shutdown()
+	srv.Hub.Shutdown()
 	waitFor(t, time.Second, "dispatcher shutdown", func() bool {
-		srv.helperMu.Lock()
-		_, attached := srv.helpers[file.AbsPath]
-		srv.helperMu.Unlock()
+		srv.HelperMu.Lock()
+		_, attached := srv.Helpers[file.AbsPath]
+		srv.HelperMu.Unlock()
 		return !attached && !srv.HelpersBound(file.AbsPath)
 	})
 }
@@ -364,7 +365,7 @@ func TestWireHandlerModes(t *testing.T) {
 		{"jsonl", "jsonl", true},
 		{"auto", "", false},
 	} {
-		got, ok := wireHandlerMode(tc.input)
+		got, ok := wire.WireHandlerMode(tc.input)
 		if got != tc.want || ok != tc.ok {
 			t.Errorf("wireHandlerMode(%q) = %q, %v; want %q, %v", tc.input, got, ok, tc.want, tc.ok)
 		}
@@ -377,66 +378,66 @@ func TestWireHandlerModes(t *testing.T) {
 // input queue, was evicted from its own handler slot, and lost the terminal
 // frame for the request it was answering. Valid status alone was enough.
 func TestAHandlerDoesNotReceiveItsOwnOutput(t *testing.T) {
-	wh := newWireHub()
-	defer wh.shutdown()
-	owner := &wireSub{key: "/doc", handler: true, ch: make(chan []byte, wireQueueSize), done: make(chan struct{})}
-	if _, _, err := wh.add(owner, 0); err != nil {
+	wh := wire.NewHub()
+	defer wh.Shutdown()
+	owner := &wire.Sub{Key: "/doc", Handler: true, Ch: make(chan []byte, wire.WireQueueSize), Done: make(chan struct{})}
+	if _, _, err := wh.Add(owner, 0); err != nil {
 		t.Fatal(err)
 	}
-	observer := &wireSub{key: "/doc", ch: make(chan []byte, wireQueueSize*4), done: make(chan struct{})}
-	if _, _, err := wh.add(observer, 0); err != nil {
+	observer := &wire.Sub{Key: "/doc", Ch: make(chan []byte, wire.WireQueueSize*4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(observer, 0); err != nil {
 		t.Fatal(err)
 	}
 
-	const burst = wireQueueSize + 8
+	const burst = wire.WireQueueSize + 8
 	for i := 0; i < burst; i++ {
-		if _, _, published := wh.publishFromHandler("/doc", owner, wireEnvelope{
+		if _, _, published := wh.PublishFromHandler("/doc", owner, wire.Envelope{
 			V: 1, Type: "wire/status", ID: "r1", File: "/doc", Text: "tick",
 		}); !published {
 			t.Fatalf("publish %d was refused, so the handler had already been evicted", i)
 		}
 	}
 
-	if got := len(owner.ch); got != 0 {
+	if got := len(owner.Ch); got != 0 {
 		t.Errorf("the handler received %d of its own frames, want 0", got)
 	}
-	if owner.removed {
+	if owner.Removed {
 		t.Error("a status burst evicted the handler from its own slot")
 	}
 	// The observers it was publishing FOR still get every frame.
-	if got := len(observer.ch); got != burst {
+	if got := len(observer.Ch); got != burst {
 		t.Errorf("observer received %d frames, want %d", got, burst)
 	}
 }
 
 func TestHelpersComeBackAfterTheExternalHandlerLeaves(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
-	handler := &wireSub{key: file.AbsPath, handler: true, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := srv.wire.add(handler, 0); err != nil {
+	handler := &wire.Sub{Key: file.AbsPath, Handler: true, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := srv.Hub.Add(handler, 0); err != nil {
 		t.Fatal(err)
 	}
 	program := helperProgram("search", structuredHelper(t, "result-null"))
 	allowed := map[string]config.HelperProgram{"search": program}
-	if err := srv.AttachHelpers(file.AbsPath, allowed, nil); !errors.Is(err, errHelperHandlerTaken) {
+	if err := srv.AttachHelpers(file.AbsPath, allowed, nil); !errors.Is(err, wire.ErrHelperHandlerTaken) {
 		t.Fatalf("AttachHelpers error = %v, want external handler conflict", err)
 	}
 	// The terminal running `htmlclay wire serve` is quit, and the document is
 	// opened again. Nothing about the remembered conflict is still true.
-	srv.wire.remove(handler)
+	srv.Hub.Remove(handler)
 	if err := srv.AttachHelpers(file.AbsPath, allowed, nil); err != nil {
 		t.Fatalf("AttachHelpers after the external handler left: %v", err)
 	}
-	mode, helpers := srv.helperDiscovery(file.AbsPath)
-	if mode != "jsonl" || len(helpers) != 1 || helpers[0] != (helperMeta{Name: "search", State: "ready"}) {
+	mode, helpers := srv.HelperDiscovery(file.AbsPath)
+	if mode != "jsonl" || len(helpers) != 1 || helpers[0] != (wire.HelperMeta{Name: "search", State: "ready"}) {
 		t.Fatalf("discovery = mode %q, helpers %+v", mode, helpers)
 	}
 }
 
 func TestDiscoveryTellsARefusalApartFromAnUndecidedHelper(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	writeHelperDocument(t, file.AbsPath, "search", "ocr", "translate", "index")
 	program := helperProgram("search", structuredHelper(t, "result-null"))
@@ -447,8 +448,8 @@ func TestDiscoveryTellsARefusalApartFromAnUndecidedHelper(t *testing.T) {
 	if err := srv.AttachHelpers(file.AbsPath, allowed, []string{"ocr"}); err != nil {
 		t.Fatal(err)
 	}
-	_, helpers := srv.helperDiscovery(file.AbsPath)
-	want := []helperMeta{
+	_, helpers := srv.HelperDiscovery(file.AbsPath)
+	want := []wire.HelperMeta{
 		{Name: "search", State: "ready"},
 		{Name: "ocr", State: "denied"},
 		{Name: "translate", State: "unavailable"},
@@ -463,14 +464,14 @@ func TestDiscoveryTellsARefusalApartFromAnUndecidedHelper(t *testing.T) {
 	if err := srv.AttachHelpers(file.AbsPath, allowed, []string{"ocr", "translate"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, helpers := srv.helperDiscovery(file.AbsPath); helpers[2].State != "denied" {
+	if _, helpers := srv.HelperDiscovery(file.AbsPath); helpers[2].State != "denied" {
 		t.Fatalf("a new refusal did not reach discovery: %+v", helpers)
 	}
 }
 
 func TestADuplicateRefusalDoesNotBecomeTheLiveRequestsOutcome(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	writeHelperDocument(t, file.AbsPath, "search")
 	release := filepath.Join(t.TempDir(), "release")
@@ -480,18 +481,18 @@ func TestADuplicateRefusalDoesNotBecomeTheLiveRequestsOutcome(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	observer := &wireSub{key: file.AbsPath, ch: make(chan []byte, 64), done: make(chan struct{})}
-	cursor, _, err := srv.wire.add(observer, 0)
+	observer := &wire.Sub{Key: file.AbsPath, Ch: make(chan []byte, 64), Done: make(chan struct{})}
+	cursor, _, err := srv.Hub.Add(observer, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { srv.wire.remove(observer) })
+	t.Cleanup(func() { srv.Hub.Remove(observer) })
 
-	request := wireEnvelope{V: 1, Type: "wire/request", ID: "live", File: file.AbsPath, Helper: "search", Payload: json.RawMessage(`{}`)}
-	srv.wire.publish(file.AbsPath, request)
+	request := wire.Envelope{V: 1, Type: "wire/request", ID: "live", File: file.AbsPath, Helper: "search", Payload: json.RawMessage(`{}`)}
+	srv.Hub.Publish(file.AbsPath, request)
 	receiveHelperType(t, observer, "wire/status", "live")
 
-	srv.wire.publish(file.AbsPath, request)
+	srv.Hub.Publish(file.AbsPath, request)
 	if code := helperErrorCode(t, receiveHelperType(t, observer, "wire/error", "live")); code != "duplicate_request" {
 		t.Fatalf("the second request was not refused as a duplicate")
 	}
@@ -504,16 +505,16 @@ func TestADuplicateRefusalDoesNotBecomeTheLiveRequestsOutcome(t *testing.T) {
 	// A client that reconnects with a cursor from before the request replays the
 	// one remembered outcome for that id. It has to be the answer the program
 	// produced, not the refusal handed to whoever reused the id.
-	replayed := &wireSub{key: file.AbsPath, ch: make(chan []byte, 64), done: make(chan struct{})}
-	_, replay, err := srv.wire.add(replayed, cursor)
+	replayed := &wire.Sub{Key: file.AbsPath, Ch: make(chan []byte, 64), Done: make(chan struct{})}
+	_, replay, err := srv.Hub.Add(replayed, cursor)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { srv.wire.remove(replayed) })
+	t.Cleanup(func() { srv.Hub.Remove(replayed) })
 	if len(replay) != 1 {
 		t.Fatalf("replay = %d frames, want the single retained outcome", len(replay))
 	}
-	env, err := decodeWireEnvelope(replay[0])
+	env, err := wire.DecodeEnvelope(replay[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -524,7 +525,7 @@ func TestADuplicateRefusalDoesNotBecomeTheLiveRequestsOutcome(t *testing.T) {
 
 func TestAChildReadsTheDocumentModeTheHostResolved(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	writeHelperDocument(t, file.AbsPath, "search")
 	program := helperProgram("search", structuredHelper(t, "document-mode"))
@@ -536,12 +537,12 @@ func TestAChildReadsTheDocumentModeTheHostResolved(t *testing.T) {
 	// The page omits document, which the host reads as "none" and enforces. The
 	// child has to be told the same thing rather than left to infer it from a
 	// field that is not there.
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "unstated", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
 	env := receiveHelperEnvelope(t, observer)
-	for !env.isTerminal() {
+	for !env.IsTerminal() {
 		env = receiveHelperEnvelope(t, observer)
 	}
 	if env.Type != "wire/done" {
@@ -551,14 +552,14 @@ func TestAChildReadsTheDocumentModeTheHostResolved(t *testing.T) {
 
 func TestAnUndecidedHelperWaitsForSetupThenRuns(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	t.Setenv(serverHelperArg, filepath.Join(t.TempDir(), "count"))
 	program := helperProgram("search", structuredHelper(t, "count"))
 	var calls atomic.Int32
 	entered := make(chan struct{}, 1)
 	proceed := make(chan struct{})
-	ready := make(chan *wireSub, 1)
+	ready := make(chan *wire.Sub, 1)
 	srv.SetHooks(Hooks{AskHelper: func(path, name string) bool {
 		calls.Add(1)
 		entered <- struct{}{}
@@ -567,8 +568,8 @@ func TestAnUndecidedHelperWaitsForSetupThenRuns(t *testing.T) {
 			t.Errorf("reattach after approval: %v", err)
 			return false
 		}
-		sub := &wireSub{key: path, ch: make(chan []byte, 64), done: make(chan struct{})}
-		if _, _, err := srv.wire.add(sub, 0); err != nil {
+		sub := &wire.Sub{Key: path, Ch: make(chan []byte, 64), Done: make(chan struct{})}
+		if _, _, err := srv.Hub.Add(sub, 0); err != nil {
 			t.Errorf("observe after approval: %v", err)
 			return false
 		}
@@ -581,7 +582,7 @@ func TestAnUndecidedHelperWaitsForSetupThenRuns(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "first", File: file.AbsPath,
 		Helper: "search", Document: "none", Payload: json.RawMessage(`{"query":"clay"}`),
 	})
@@ -593,7 +594,7 @@ func TestAnUndecidedHelperWaitsForSetupThenRuns(t *testing.T) {
 	if err := json.Unmarshal(ack.Payload, &accepted); err != nil {
 		t.Fatal(err)
 	}
-	budget := int(helperParkLimit/time.Millisecond) + helper.StructuredDeadline
+	budget := int(wire.HelperParkLimit/time.Millisecond) + helper.StructuredDeadline
 	if accepted.Mode != "jsonl" || accepted.BudgetMS != budget {
 		t.Fatalf("parked ack = %+v, want jsonl with a %dms budget that covers the wait", accepted, budget)
 	}
@@ -607,7 +608,7 @@ func TestAnUndecidedHelperWaitsForSetupThenRuns(t *testing.T) {
 
 	setUp := make(chan bool, 1)
 	go func() {
-		granted, _ := srv.setUpHelper(file.AbsPath, "search")
+		granted, _ := srv.SetUpHelper(file.AbsPath, "search")
 		setUp <- granted
 	}()
 	select {
@@ -616,13 +617,13 @@ func TestAnUndecidedHelperWaitsForSetupThenRuns(t *testing.T) {
 		t.Fatal("the setup request was never raised")
 	}
 	close(proceed)
-	var doneSub *wireSub
+	var doneSub *wire.Sub
 	select {
 	case doneSub = <-ready:
 	case <-time.After(2 * time.Second):
 		t.Fatal("no wire subscription after the approval reattached the helpers")
 	}
-	t.Cleanup(func() { srv.wire.remove(doneSub) })
+	t.Cleanup(func() { srv.Hub.Remove(doneSub) })
 	if granted := <-setUp; !granted {
 		t.Fatal("setup did not grant search")
 	}
@@ -634,11 +635,11 @@ func TestAnUndecidedHelperWaitsForSetupThenRuns(t *testing.T) {
 
 func TestOneDialogServesEveryRequestForTheSameHelper(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	program := helperProgram("search", structuredHelper(t, "result-null"))
 	release := make(chan struct{})
-	ready := make(chan *wireSub, 1)
+	ready := make(chan *wire.Sub, 1)
 	var calls atomic.Int32
 	srv.SetHooks(Hooks{AskHelper: func(path, name string) bool {
 		calls.Add(1)
@@ -647,8 +648,8 @@ func TestOneDialogServesEveryRequestForTheSameHelper(t *testing.T) {
 			t.Errorf("reattach after approval: %v", err)
 			return false
 		}
-		sub := &wireSub{key: path, ch: make(chan []byte, 64), done: make(chan struct{})}
-		if _, _, err := srv.wire.add(sub, 0); err != nil {
+		sub := &wire.Sub{Key: path, Ch: make(chan []byte, 64), Done: make(chan struct{})}
+		if _, _, err := srv.Hub.Add(sub, 0); err != nil {
 			t.Errorf("observe after approval: %v", err)
 			return false
 		}
@@ -661,12 +662,12 @@ func TestOneDialogServesEveryRequestForTheSameHelper(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "one", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
 	receiveHelperType(t, observer, "wire/ack", "one")
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "two", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
@@ -677,17 +678,17 @@ func TestOneDialogServesEveryRequestForTheSameHelper(t *testing.T) {
 
 	settled := make(chan bool, 1)
 	go func() {
-		granted, _ := srv.setUpHelper(file.AbsPath, "search")
+		granted, _ := srv.SetUpHelper(file.AbsPath, "search")
 		settled <- granted
 	}()
 	close(release)
-	var doneSub *wireSub
+	var doneSub *wire.Sub
 	select {
 	case doneSub = <-ready:
 	case <-time.After(2 * time.Second):
 		t.Fatal("no wire subscription after the approval reattached the helpers")
 	}
-	t.Cleanup(func() { srv.wire.remove(doneSub) })
+	t.Cleanup(func() { srv.Hub.Remove(doneSub) })
 	seen := make(map[string]bool)
 	for len(seen) < 2 {
 		env := receiveHelperEnvelope(t, doneSub)
@@ -708,7 +709,7 @@ func TestOneDialogServesEveryRequestForTheSameHelper(t *testing.T) {
 
 func TestADeniedForThisOpenHelperIsNeverAskedAbout(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	structuredHelper(t, "result-null")
 	var calls atomic.Int32
@@ -722,7 +723,7 @@ func TestADeniedForThisOpenHelperIsNeverAskedAbout(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "denied", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
@@ -736,7 +737,7 @@ func TestADeniedForThisOpenHelperIsNeverAskedAbout(t *testing.T) {
 
 func TestADialogThatGrantsNothingQuietsThePageForAMinute(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	structuredHelper(t, "result-null")
 	var calls atomic.Int32
@@ -750,7 +751,7 @@ func TestADialogThatGrantsNothingQuietsThePageForAMinute(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "first", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
@@ -759,13 +760,13 @@ func TestADialogThatGrantsNothingQuietsThePageForAMinute(t *testing.T) {
 	if calls.Load() != 0 {
 		t.Fatalf("AskHelper calls = %d, want none until setup starts", calls.Load())
 	}
-	if granted, ran := srv.setUpHelper(file.AbsPath, "search"); granted || !ran {
+	if granted, ran := srv.SetUpHelper(file.AbsPath, "search"); granted || !ran {
 		t.Fatalf("setup = granted %v, ran %v, want a refused dialog", granted, ran)
 	}
 	if code := helperErrorCode(t, receiveHelperType(t, observer, "wire/error", "first")); code != "helper_not_granted" {
 		t.Fatalf("first code = %q, want helper_not_granted", code)
 	}
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "second", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
@@ -779,7 +780,7 @@ func TestADialogThatGrantsNothingQuietsThePageForAMinute(t *testing.T) {
 
 func TestLoadingThePageNeverAsksAboutAnUndecidedHelper(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	structuredHelper(t, "result-null")
 	var calls atomic.Int32
@@ -793,7 +794,7 @@ func TestLoadingThePageNeverAsksAboutAnUndecidedHelper(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/describe", ID: "describe", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
@@ -807,7 +808,7 @@ func TestLoadingThePageNeverAsksAboutAnUndecidedHelper(t *testing.T) {
 
 func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	countPath := filepath.Join(t.TempDir(), "count")
 	t.Setenv(serverHelperArg, countPath)
@@ -831,7 +832,7 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "parked", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
@@ -841,7 +842,7 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 	}
 	settled := make(chan struct{})
 	go func() {
-		srv.setUpHelper(file.AbsPath, "search")
+		srv.SetUpHelper(file.AbsPath, "search")
 		close(settled)
 	}()
 	select {
@@ -849,16 +850,16 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("the setup request was never raised")
 	}
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/cancel", ID: "parked", File: file.AbsPath,
 	})
 	// The dispatcher handles the cancel on its own goroutine. Approving before it has
 	// is a different case (a cancel after start stops the running program), so wait.
 	waitFor(t, time.Second, "the cancel to reach the parked request", func() bool {
-		srv.helperMu.Lock()
-		defer srv.helperMu.Unlock()
-		for _, p := range srv.helperAsking[helperAskKey(file.AbsPath, "search")] {
-			if p.env.ID == "parked" {
+		srv.HelperMu.Lock()
+		defer srv.HelperMu.Unlock()
+		for _, p := range srv.HelperAsking[wire.HelperAskKey(file.AbsPath, "search")] {
+			if p.Env.ID == "parked" {
 				return false
 			}
 		}
@@ -866,9 +867,9 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 	})
 	close(release)
 	waitFor(t, time.Second, "the parked request to be released", func() bool {
-		srv.helperMu.Lock()
-		defer srv.helperMu.Unlock()
-		_, asking := srv.helperAsking[helperAskKey(file.AbsPath, "search")]
+		srv.HelperMu.Lock()
+		defer srv.HelperMu.Unlock()
+		_, asking := srv.HelperAsking[wire.HelperAskKey(file.AbsPath, "search")]
 		return !asking
 	})
 	waitFor(t, time.Second, "the setup to finish", func() bool {
@@ -886,7 +887,7 @@ func TestARequestCancelledWhileParkedNeverRuns(t *testing.T) {
 
 func TestRegrantKeepsARunningRequestAlive(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "a", "b")
 	releasePath := filepath.Join(t.TempDir(), "release")
 	t.Setenv(serverHelperArg, releasePath)
@@ -899,21 +900,21 @@ func TestRegrantKeepsARunningRequestAlive(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "run", File: file.AbsPath,
 		Helper: "a", Document: "none", Payload: json.RawMessage(`{}`),
 	})
 	receiveHelperType(t, observer, "wire/ack", "run")
 
-	srv.helperMu.Lock()
-	before := srv.helpers[file.AbsPath]
-	srv.helperMu.Unlock()
+	srv.HelperMu.Lock()
+	before := srv.Helpers[file.AbsPath]
+	srv.HelperMu.Unlock()
 	if err := srv.AttachHelpers(file.AbsPath, map[string]config.HelperProgram{"a": aProgram, "b": bProgram}, nil); err != nil {
 		t.Fatal(err)
 	}
-	srv.helperMu.Lock()
-	after := srv.helpers[file.AbsPath]
-	srv.helperMu.Unlock()
+	srv.HelperMu.Lock()
+	after := srv.Helpers[file.AbsPath]
+	srv.HelperMu.Unlock()
 	if after != before {
 		t.Fatal("regranting an unchanged declaration replaced the dispatcher")
 	}
@@ -925,7 +926,7 @@ func TestRegrantKeepsARunningRequestAlive(t *testing.T) {
 
 func TestRegrantCancelsARunningRequestThatLostItsGrant(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "a", "b")
 	t.Setenv(serverHelperArg, filepath.Join(t.TempDir(), "release"))
 	exe := structuredHelper(t, "release")
@@ -937,7 +938,7 @@ func TestRegrantCancelsARunningRequestThatLostItsGrant(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "run", File: file.AbsPath,
 		Helper: "a", Document: "none", Payload: json.RawMessage(`{}`),
 	})
@@ -954,7 +955,7 @@ func TestRegrantCancelsARunningRequestThatLostItsGrant(t *testing.T) {
 
 func TestAQuietFileRefusesAnotherUndecidedNameWithoutAsking(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "a", "b")
 	structuredHelper(t, "result-null")
 	var calls atomic.Int32
@@ -968,7 +969,7 @@ func TestAQuietFileRefusesAnotherUndecidedNameWithoutAsking(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "first", File: file.AbsPath,
 		Helper: "a", Payload: json.RawMessage(`{}`),
 	})
@@ -976,13 +977,13 @@ func TestAQuietFileRefusesAnotherUndecidedNameWithoutAsking(t *testing.T) {
 	if calls.Load() != 0 {
 		t.Fatalf("AskHelper calls = %d, want none until setup starts", calls.Load())
 	}
-	if _, ran := srv.setUpHelper(file.AbsPath, "a"); !ran {
+	if _, ran := srv.SetUpHelper(file.AbsPath, "a"); !ran {
 		t.Fatal("the setup request never ran")
 	}
 	if code := helperErrorCode(t, receiveHelperType(t, observer, "wire/error", "first")); code != "helper_not_granted" {
 		t.Fatalf("first code = %q, want helper_not_granted", code)
 	}
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "second", File: file.AbsPath,
 		Helper: "b", Payload: json.RawMessage(`{}`),
 	})
@@ -996,14 +997,14 @@ func TestAQuietFileRefusesAnotherUndecidedNameWithoutAsking(t *testing.T) {
 
 func TestAParkedRequestIsAnsweredWhenTheDispatcherIsGone(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	structuredHelper(t, "result-null")
-	reconnected := make(chan *wireSub, 1)
+	reconnected := make(chan *wire.Sub, 1)
 	srv.SetHooks(Hooks{AskHelper: func(path, name string) bool {
 		srv.DetachHelpers(path)
-		sub := &wireSub{key: path, ch: make(chan []byte, 64), done: make(chan struct{})}
-		if _, _, err := srv.wire.add(sub, 0); err != nil {
+		sub := &wire.Sub{Key: path, Ch: make(chan []byte, 64), Done: make(chan struct{})}
+		if _, _, err := srv.Hub.Add(sub, 0); err != nil {
 			t.Errorf("reconnect after detach: %v", err)
 		}
 		reconnected <- sub
@@ -1015,7 +1016,7 @@ func TestAParkedRequestIsAnsweredWhenTheDispatcherIsGone(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "parked", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
@@ -1023,16 +1024,16 @@ func TestAParkedRequestIsAnsweredWhenTheDispatcherIsGone(t *testing.T) {
 
 	settled := make(chan struct{})
 	go func() {
-		srv.setUpHelper(file.AbsPath, "search")
+		srv.SetUpHelper(file.AbsPath, "search")
 		close(settled)
 	}()
-	var page *wireSub
+	var page *wire.Sub
 	select {
 	case page = <-reconnected:
 	case <-time.After(2 * time.Second):
 		t.Fatal("the setup never detached the dispatcher")
 	}
-	t.Cleanup(func() { srv.wire.remove(page) })
+	t.Cleanup(func() { srv.Hub.Remove(page) })
 	env := receiveHelperType(t, page, "wire/error", "parked")
 	if code := helperErrorCode(t, env); code != "helper_not_granted" {
 		t.Fatalf("terminal code = %q, want helper_not_granted", code)
@@ -1049,7 +1050,7 @@ func TestAParkedRequestIsAnsweredWhenTheDispatcherIsGone(t *testing.T) {
 
 func TestAMalformedRequestIsRefusedBeforeItCanAsk(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	structuredHelper(t, "result-null")
 	var calls atomic.Int32
@@ -1063,7 +1064,7 @@ func TestAMalformedRequestIsRefusedBeforeItCanAsk(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "bad", File: file.AbsPath,
 		Helper: "search", Document: "bogus", Payload: json.RawMessage(`{}`),
 	})

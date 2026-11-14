@@ -68,7 +68,7 @@ func (s *Server) handleReveal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := hook(f.AbsPath); err != nil {
-		s.logger.Printf("Error revealing %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error revealing %s: %v", f.AbsPath, err)
 		writeActionReply(w, http.StatusInternalServerError, "Couldn't show the file.")
 		return
 	}
@@ -92,7 +92,7 @@ func (s *Server) handleVersionsFolder(w http.ResponseWriter, r *http.Request) {
 		err = hook(dir)
 	}
 	if err != nil {
-		s.logger.Printf("Error opening the versions folder for %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error opening the versions folder for %s: %v", f.AbsPath, err)
 		writeActionReply(w, http.StatusInternalServerError, "Couldn't open the versions folder.")
 		return
 	}
@@ -110,7 +110,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := hook(f.AbsPath); err != nil {
-		s.logger.Printf("Error exporting %s: %v", f.AbsPath, err)
+		s.Logger.Printf("Error exporting %s: %v", f.AbsPath, err)
 		writeActionReply(w, http.StatusInternalServerError, "Couldn't export the document.")
 		return
 	}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/panphora/htmlclay/internal/wire"
 	"testing"
 )
 
@@ -9,23 +10,23 @@ func TestRunningWorkCountsAIEditsAndHelperRequests(t *testing.T) {
 	if n := srv.RunningWork(); n != 0 {
 		t.Fatalf("an idle server reports %d running", n)
 	}
-	srv.aiEdit.mu.Lock()
-	srv.aiEdit.running = map[string]aiEditRun{f.AbsPath: {id: "e1", cancel: func() {}}}
-	srv.aiEdit.mu.Unlock()
-	fake := &helperDispatcher{live: map[string]liveHelperRun{"r1": {cancel: func() {}}, "r2": {cancel: func() {}}}}
-	srv.helperMu.Lock()
-	if srv.helpers == nil {
-		srv.helpers = map[string]*helperDispatcher{}
+	srv.AIEdit.Mu.Lock()
+	srv.AIEdit.Running = map[string]wire.AIEditRun{f.AbsPath: {ID: "e1", Cancel: func() {}}}
+	srv.AIEdit.Mu.Unlock()
+	fake := &wire.Dispatcher{Live: map[string]wire.LiveHelperRun{"r1": {Cancel: func() {}}, "r2": {Cancel: func() {}}}}
+	srv.HelperMu.Lock()
+	if srv.Helpers == nil {
+		srv.Helpers = map[string]*wire.Dispatcher{}
 	}
-	srv.helpers["fake-document"] = fake
-	srv.helperMu.Unlock()
+	srv.Helpers["fake-document"] = fake
+	srv.HelperMu.Unlock()
 	t.Cleanup(func() {
-		srv.helperMu.Lock()
-		delete(srv.helpers, "fake-document")
-		srv.helperMu.Unlock()
-		srv.aiEdit.mu.Lock()
-		srv.aiEdit.running = nil
-		srv.aiEdit.mu.Unlock()
+		srv.HelperMu.Lock()
+		delete(srv.Helpers, "fake-document")
+		srv.HelperMu.Unlock()
+		srv.AIEdit.Mu.Lock()
+		srv.AIEdit.Running = nil
+		srv.AIEdit.Mu.Unlock()
 	})
 	if n := srv.RunningWork(); n != 3 {
 		t.Fatalf("RunningWork = %d, want 3 (one AI edit, two helper requests)", n)

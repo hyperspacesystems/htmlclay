@@ -1,4 +1,4 @@
-package server
+package wire
 
 import (
 	"context"
@@ -25,35 +25,35 @@ const (
 	aiEditOffText       = "AI Editing is off. Turn it on in HTML Clay's menu."
 )
 
-type aiEditRun struct {
-	id     string
-	cancel context.CancelFunc
+type AIEditRun struct {
+	ID     string
+	Cancel context.CancelFunc
 }
 
 type aiEditRegistry struct {
-	mu      sync.Mutex
-	running map[string]aiEditRun // document path -> its one request in flight
+	Mu      sync.Mutex
+	Running map[string]AIEditRun // document path -> its one request in flight
 }
 
-func (s *wireCore) aiEditOffered() bool {
-	return s.policy.aiEditOffered()
+func (s *Core) aiEditOffered() bool {
+	return s.policy.AIEditOffered()
 }
 
 // aiEditMeta is the discovery entry for a document, when this server offers AI
 // editing for it.
-func (s *wireCore) aiEditMeta(file string) (helperMeta, bool) {
+func (s *Core) aiEditMeta(file string) (HelperMeta, bool) {
 	if !s.aiEditOffered() || !aiedit.IsDocument(file) {
-		return helperMeta{}, false
+		return HelperMeta{}, false
 	}
 	state := "unavailable"
-	if s.policy.aiEditEnabled() {
+	if s.policy.AIEditEnabled() {
 		state = "ready"
 	}
-	return helperMeta{Name: aiedit.HelperName, State: state}, true
+	return HelperMeta{Name: aiedit.HelperName, State: state}, true
 }
 
-func (s *wireCore) publishAIEdit(request wireEnvelope, typ, text string, payload any) {
-	env := wireEnvelope{
+func (s *Core) publishAIEdit(request Envelope, typ, text string, payload any) {
+	env := Envelope{
 		V:      1,
 		Type:   typ,
 		ID:     request.ID,
@@ -70,17 +70,17 @@ func (s *wireCore) publishAIEdit(request wireEnvelope, typ, text string, payload
 		env.Text = "the rewrite does not fit in a wire envelope"
 		env.Payload = encodeHelperJSON(map[string]string{"source": "host", "code": "helper_result_too_large"})
 	}
-	s.wire.publish(request.File, env)
+	s.Hub.Publish(request.File, env)
 }
 
-func (s *wireCore) refuseAIEdit(request wireEnvelope, source, code, text string) {
+func (s *Core) refuseAIEdit(request Envelope, source, code, text string) {
 	s.publishAIEdit(request, "wire/error", text, map[string]string{"source": source, "code": code})
 }
 
 // startAIEdit registers the request and runs it in the background. The caller
 // has already checked the document's token.
-func (s *wireCore) startAIEdit(doc wireDocument, request wireEnvelope) {
-	if !s.policy.aiEditEnabled() {
+func (s *Core) startAIEdit(doc Document, request Envelope) {
+	if !s.policy.AIEditEnabled() {
 		s.refuseAIEdit(request, "host", "helper_not_granted", aiEditOffText)
 		return
 	}
@@ -95,54 +95,54 @@ func (s *wireCore) startAIEdit(doc wireDocument, request wireEnvelope) {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), aiEditBudget)
-	s.aiEdit.mu.Lock()
-	if s.aiEdit.running == nil {
-		s.aiEdit.running = make(map[string]aiEditRun)
+	s.AIEdit.Mu.Lock()
+	if s.AIEdit.Running == nil {
+		s.AIEdit.Running = make(map[string]AIEditRun)
 	}
-	if run, busy := s.aiEdit.running[doc.Path]; busy {
-		s.aiEdit.mu.Unlock()
+	if run, busy := s.AIEdit.Running[doc.Path]; busy {
+		s.AIEdit.Mu.Unlock()
 		cancel()
-		if run.id == request.ID {
+		if run.ID == request.ID {
 			s.refuseAIEdit(request, "host", "duplicate_request", "a request with this id is already running")
 			// This refusal is about the second request. Left retained, it would win
 			// the id's one remembered outcome and a reconnect would replay it
 			// instead of the running request's real answer.
-			s.wire.forgetTerminal(request.File, request.ID)
+			s.Hub.forgetTerminal(request.File, request.ID)
 		} else {
 			s.refuseAIEdit(request, "host", "helper_busy", "an AI edit is already running on this document")
 		}
 		return
 	}
-	s.aiEdit.running[doc.Path] = aiEditRun{id: request.ID, cancel: cancel}
-	s.aiEdit.mu.Unlock()
+	s.AIEdit.Running[doc.Path] = AIEditRun{ID: request.ID, Cancel: cancel}
+	s.AIEdit.Mu.Unlock()
 	// An accepted request starts with no stale outcome under its id.
-	s.wire.forgetTerminal(request.File, request.ID)
+	s.Hub.forgetTerminal(request.File, request.ID)
 
 	s.publishAIEdit(request, "wire/ack", "", map[string]any{"mode": "jsonl", "budgetMs": aiEditBudget.Milliseconds()})
-	go s.runAIEdit(ctx, cancel, doc.Path, request, payload)
+	go s.RunAIEdit(ctx, cancel, doc.Path, request, payload)
 }
 
-func (s *wireCore) runAIEdit(ctx context.Context, cancel context.CancelFunc, file string, request wireEnvelope, payload aiedit.Payload) {
+func (s *Core) RunAIEdit(ctx context.Context, cancel context.CancelFunc, file string, request Envelope, payload aiedit.Payload) {
 	// The slot is released before the terminal frame goes out, so a page that
 	// sends its next request on seeing that frame is never refused as busy.
 	release := func() {
 		cancel()
-		s.aiEdit.mu.Lock()
-		if run, ok := s.aiEdit.running[file]; ok && run.id == request.ID {
-			delete(s.aiEdit.running, file)
+		s.AIEdit.Mu.Lock()
+		if run, ok := s.AIEdit.Running[file]; ok && run.ID == request.ID {
+			delete(s.AIEdit.Running, file)
 		}
-		s.aiEdit.mu.Unlock()
+		s.AIEdit.Mu.Unlock()
 	}
 
 	var def string
 	var engines map[string][]string
-	def, engines = s.policy.aiEditEngines()
+	def, engines = s.policy.AIEditEngines()
 	opts := aiedit.Options{
 		File:     file,
 		BaseDir:  filepath.Dir(file),
 		Default:  def,
 		Engines:  engines,
-		Internal: s.docs.internal,
+		Internal: s.docs.Internal,
 		Mock:     os.Getenv("MOCK_MODEL") == "1",
 		Status: func(text string) {
 			s.publishAIEdit(request, "wire/status", text, nil)
@@ -187,23 +187,23 @@ func (s *wireCore) runAIEdit(ctx context.Context, cancel context.CancelFunc, fil
 
 // cancelAIEdit cancels the running AI edit on a document when its id matches,
 // and reports whether it did.
-func (s *wireCore) cancelAIEdit(file, id string) bool {
-	s.aiEdit.mu.Lock()
-	defer s.aiEdit.mu.Unlock()
-	run, ok := s.aiEdit.running[file]
-	if !ok || run.id != id {
+func (s *Core) cancelAIEdit(file, id string) bool {
+	s.AIEdit.Mu.Lock()
+	defer s.AIEdit.Mu.Unlock()
+	run, ok := s.AIEdit.Running[file]
+	if !ok || run.ID != id {
 		return false
 	}
-	run.cancel()
+	run.Cancel()
 	return true
 }
 
 // CancelAIEdits cancels every running AI edit: the switch was turned off, or the
 // server is shutting down.
-func (s *wireCore) CancelAIEdits() {
-	s.aiEdit.mu.Lock()
-	defer s.aiEdit.mu.Unlock()
-	for _, run := range s.aiEdit.running {
-		run.cancel()
+func (s *Core) CancelAIEdits() {
+	s.AIEdit.Mu.Lock()
+	defer s.AIEdit.Mu.Unlock()
+	for _, run := range s.AIEdit.Running {
+		run.Cancel()
 	}
 }

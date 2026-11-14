@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net"
 	"net/http"
 	"os"
@@ -62,7 +63,7 @@ type Server struct {
 	// The wire core is per-server, unlike the shared live-sync runtime above: a
 	// site is the lifetime boundary for an instruction channel, so untrusting a
 	// folder (which closes the site) cannot leave a live wire into it.
-	*wireCore
+	*wire.Core
 	// guard judges every write to a document against the baseline HTML Clay last
 	// wrote, so a save or an outside edit that destroys data can raise a notice.
 	// guardQueue serializes its observations and resolves per history key, and
@@ -214,7 +215,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 
 		tailwindLogged: map[string]bool{},
 	}
-	s.wireCore = newWireCore(looseWire{s: s}, looseWire{s: s}, logger, s.writeError)
+	s.Core = wire.NewCore(looseWire{s: s}, looseWire{s: s}, logger, s.writeError)
 	s.tailwindCompile = s.compileTailwind
 	// The watcher is shared by every site, so an external change is offered to each
 	// site's guard and judged by the one that owns the document's key.
@@ -308,7 +309,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	// ("matches fewer methods but has a more general path pattern") and panics at
 	// registration. Listing the two methods the wire uses keeps one guard while
 	// leaving anything else on the subtree to fall through as it would anyway.
-	wire := s.wireMux()
+	wire := s.WireMux()
 	mux.Handle("GET /_/wire/", wire)
 	mux.Handle("POST /_/wire/", wire)
 
@@ -388,7 +389,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.CancelAIEdits()
 	s.guardQueue.Settle()
 	s.broker.shutdown()
-	s.wire.shutdown()
+	s.Hub.Shutdown()
 	if s.ownsLiveSync {
 		s.ls.Shutdown()
 	}
@@ -402,7 +403,7 @@ func (s *Server) Close() error {
 	s.CancelAIEdits()
 	s.guardQueue.Settle()
 	s.broker.shutdown()
-	s.wire.shutdown()
+	s.Hub.Shutdown()
 	if s.ownsLiveSync {
 		s.ls.Shutdown()
 	}
@@ -417,7 +418,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		rw := &responseWriter{ResponseWriter: w, status: 200}
 		next.ServeHTTP(rw, r)
-		s.logger.Printf("%s %s %d %s", r.Method, redactPath(r.URL.Path), rw.status, time.Since(start))
+		s.Logger.Printf("%s %s %d %s", r.Method, redactPath(r.URL.Path), rw.status, time.Since(start))
 	})
 }
 

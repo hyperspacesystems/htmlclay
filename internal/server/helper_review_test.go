@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/wire"
 	"testing"
 	"time"
 )
@@ -10,7 +11,7 @@ import (
 func TestReviewTrayStyleRegrantResumesParkedRequest(t *testing.T) {
 	shortHelperParkLimit(t, 300*time.Millisecond)
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	srv.SetHooks(Hooks{AskHelper: func(string, string) bool { t.Fatal("tray regrant should not ask again"); return false }})
 	if err := srv.AttachHelpers(file.AbsPath, nil, nil); err != nil {
@@ -18,7 +19,7 @@ func TestReviewTrayStyleRegrantResumesParkedRequest(t *testing.T) {
 	}
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
-	srv.wire.publish(file.AbsPath, wireEnvelope{V: 1, Type: "wire/request", ID: "waiting", File: file.AbsPath, Helper: "search", Payload: json.RawMessage(`{}`)})
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{V: 1, Type: "wire/request", ID: "waiting", File: file.AbsPath, Helper: "search", Payload: json.RawMessage(`{}`)})
 	receiveHelperType(t, observer, "wire/ack", "waiting")
 	// configureHelperDocumentWith -> refreshHelperDispatchers -> applyHelperPlan calls AttachHelpers.
 	p := helperProgram("search", structuredHelper(t, "result-null"))

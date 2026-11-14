@@ -62,7 +62,7 @@ func (s *Server) handleTrustRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	via := s.sessions.Via(f.AbsPath)
 	if !via.Has(session.ViaOsOpen) {
-		s.logger.Printf("Trust request refused for %s: the user never opened this file", f.RelPath)
+		s.Logger.Printf("Trust request refused for %s: the user never opened this file", f.RelPath)
 		writeTrustRefused(w)
 		return
 	}
@@ -93,7 +93,7 @@ func (s *Server) handleTrustRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	if !allowed {
 		s.suppressTrustDenied(filepath.Dir(f.AbsPath))
-		s.logger.Printf("Trust request denied for %s; folder suppressed for this session", f.RelPath)
+		s.Logger.Printf("Trust request denied for %s; folder suppressed for this session", f.RelPath)
 		writeTrustRefused(w)
 		return
 	}

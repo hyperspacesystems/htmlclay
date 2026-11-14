@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -17,18 +18,18 @@ const pageToolID = "3f1b9c62-0000-4000-8000-1234567890ab"
 // so a test does not depend on the bundled runtime's prompt text.
 func withPageToolPrompts(t *testing.T) {
 	t.Helper()
-	original := pageToolPrompts
-	pageToolPrompts = func() (string, bool) { return "HOUSE RULES\n", true }
-	t.Cleanup(func() { pageToolPrompts = original })
+	original := wire.PageToolPrompts
+	wire.PageToolPrompts = func() (string, bool) { return "HOUSE RULES\n", true }
+	t.Cleanup(func() { wire.PageToolPrompts = original })
 }
 
 // withoutPageToolPrompts hides the bundled runtime's tool-generation prompts, for a
 // test about a server whose runtime carries none.
 func withoutPageToolPrompts(t *testing.T) {
 	t.Helper()
-	original := pageToolPrompts
-	pageToolPrompts = func() (string, bool) { return "", false }
-	t.Cleanup(func() { pageToolPrompts = original })
+	original := wire.PageToolPrompts
+	wire.PageToolPrompts = func() (string, bool) { return "", false }
+	t.Cleanup(func() { wire.PageToolPrompts = original })
 }
 
 func pageToolBody(t *testing.T, id, prompt string) string {
@@ -44,7 +45,7 @@ func pageToolServer(t *testing.T) (*Server, *session.File) {
 	t.Helper()
 	t.Setenv("MOCK_MODEL", "1")
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 	var on atomic.Bool
 	on.Store(true)
@@ -55,7 +56,7 @@ func pageToolServer(t *testing.T) (*Server, *session.File) {
 
 func TestPageToolListing(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	// A server with no AI editing hook offers neither builtin.
 	for _, entry := range aiEditDiscoveryMeta(t, srv, f.AbsPath) {
@@ -69,7 +70,7 @@ func TestPageToolListing(t *testing.T) {
 	srv.SetHooks(aiEditSwitch(&on))
 
 	// The bundled runtime carries the tool prompt files, so the helper is offered.
-	if _, ok := readPageToolPrompts(); !ok {
+	if _, ok := wire.ReadPageToolPrompts(); !ok {
 		t.Fatal("the bundled runtime carries no tool-generation prompts")
 	}
 
@@ -81,25 +82,25 @@ func TestPageToolListing(t *testing.T) {
 	}
 
 	withPageToolPrompts(t)
-	want := []helperMeta{{Name: "ai-edit", State: "ready"}, {Name: "blockeditor-tool", State: "ready"}}
+	want := []wire.HelperMeta{{Name: "ai-edit", State: "ready"}, {Name: "blockeditor-tool", State: "ready"}}
 	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 2 || meta[0] != want[0] || meta[1] != want[1] {
 		t.Fatalf("enabled discovery = %+v, want %+v", meta, want)
 	}
 
 	on.Store(false)
-	want = []helperMeta{{Name: "ai-edit", State: "unavailable"}, {Name: "blockeditor-tool", State: "unavailable"}}
+	want = []wire.HelperMeta{{Name: "ai-edit", State: "unavailable"}, {Name: "blockeditor-tool", State: "unavailable"}}
 	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 2 || meta[0] != want[0] || meta[1] != want[1] {
 		t.Fatalf("disabled discovery = %+v, want %+v", meta, want)
 	}
 	on.Store(true)
 
 	// A document cannot shadow the builtin by declaring the name.
-	srv.helperMu.Lock()
-	if srv.helperOffline == nil {
-		srv.helperOffline = make(map[string][]string)
+	srv.HelperMu.Lock()
+	if srv.HelperOffline == nil {
+		srv.HelperOffline = make(map[string][]string)
 	}
-	srv.helperOffline[f.AbsPath] = []string{"search", "blockeditor-tool"}
-	srv.helperMu.Unlock()
+	srv.HelperOffline[f.AbsPath] = []string{"search", "blockeditor-tool"}
+	srv.HelperMu.Unlock()
 	meta := aiEditDiscoveryMeta(t, srv, f.AbsPath)
 	if len(meta) != 3 || meta[0].Name != "search" || meta[1].Name != "ai-edit" || meta[2].Name != "blockeditor-tool" {
 		t.Fatalf("declared-plus-built-in discovery = %+v", meta)
@@ -120,7 +121,7 @@ func TestPageToolSuccessThroughTheHandler(t *testing.T) {
 	if err := json.Unmarshal(ack.Payload, &ackPayload); err != nil {
 		t.Fatal(err)
 	}
-	if ackPayload.Mode != "jsonl" || ackPayload.BudgetMs != pageToolBudget.Milliseconds() {
+	if ackPayload.Mode != "jsonl" || ackPayload.BudgetMs != wire.PageToolBudget.Milliseconds() {
 		t.Fatalf("ack payload = %+v", ackPayload)
 	}
 	status := receiveHelperEnvelope(t, sub)
@@ -193,9 +194,9 @@ func TestPageToolTimesOut(t *testing.T) {
 	srv, f := pageToolServer(t)
 	sub := helperObserver(t, srv, f.AbsPath)
 
-	original := pageToolBudget
-	pageToolBudget = 150 * time.Millisecond
-	t.Cleanup(func() { pageToolBudget = original })
+	original := wire.PageToolBudget
+	wire.PageToolBudget = 150 * time.Millisecond
+	t.Cleanup(func() { wire.PageToolBudget = original })
 
 	aiEditDelivered(t, aiEditSend(t, srv, f.Token, pageToolBody(t, pageToolID, "make a tally [mock:hang]")))
 	if env := aiEditEnvelopeType(t, sub, pageToolID, 8); env.Type != "wire/error" || helperErrorCode(t, env) != "helper_timeout" {
@@ -217,7 +218,7 @@ func TestPageToolRefusesAMalformedRequest(t *testing.T) {
 
 func TestPageToolRefusedWhileAIEditingIsOff(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	t.Cleanup(srv.CancelAIEdits)
 	var on atomic.Bool
 	srv.SetHooks(aiEditSwitch(&on))

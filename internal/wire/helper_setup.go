@@ -1,4 +1,4 @@
-package server
+package wire
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 // dialog gives up after two minutes and the file picker after five.
 const helperSetupWait = 8 * time.Minute
 
-func (s *wireCore) handleSetup(w http.ResponseWriter, r *http.Request, doc wireDocument) {
+func (s *Core) HandleSetup(w http.ResponseWriter, r *http.Request, doc Document) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
 	var payload struct {
 		Name string `json:"name"`
@@ -23,12 +23,12 @@ func (s *wireCore) handleSetup(w http.ResponseWriter, r *http.Request, doc wireD
 		s.writeError(w, http.StatusBadRequest, "invalid helper name")
 		return
 	}
-	s.helperMu.Lock()
-	d := s.helpers[doc.Path]
+	s.HelperMu.Lock()
+	d := s.Helpers[doc.Path]
 	declared := d != nil && d.declared[payload.Name]
 	allowed := declared && d.allowed[payload.Name].ID != ""
 	quiet := time.Now().Before(s.helperAskQuiet[doc.Path])
-	s.helperMu.Unlock()
+	s.HelperMu.Unlock()
 	switch {
 	case !declared:
 		writeHelperSetupState(w, "undeclared")
@@ -39,12 +39,12 @@ func (s *wireCore) handleSetup(w http.ResponseWriter, r *http.Request, doc wireD
 	case quiet:
 		writeHelperSetupState(w, "retry")
 		return
-	case !s.policy.canAskProgram():
+	case !s.policy.CanAskProgram():
 		writeHelperSetupState(w, "unavailable")
 		return
 	}
 	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(helperSetupWait))
-	granted, ran := s.setUpHelper(doc.Path, payload.Name)
+	granted, ran := s.SetUpHelper(doc.Path, payload.Name)
 	switch {
 	case !ran:
 		writeHelperSetupState(w, "busy")
@@ -56,39 +56,39 @@ func (s *wireCore) handleSetup(w http.ResponseWriter, r *http.Request, doc wireD
 }
 
 func writeHelperSetupState(w http.ResponseWriter, state string) {
-	noStoreJSON(w)
+	NoStoreJSON(w)
 	fmt.Fprintf(w, `{"state":%q}`, state)
 }
 
-// setUpHelper runs the setup dialog for one file and name unless one is already
+// SetUpHelper runs the setup dialog for one file and name unless one is already
 // running, then starts or refuses the requests that were waiting for it. ran is
 // false when another setup for the same name was already in progress.
-func (s *wireCore) setUpHelper(file, name string) (granted, ran bool) {
-	key := helperAskKey(file, name)
-	s.helperMu.Lock()
+func (s *Core) SetUpHelper(file, name string) (granted, ran bool) {
+	key := HelperAskKey(file, name)
+	s.HelperMu.Lock()
 	if s.helperSetting[key] {
-		s.helperMu.Unlock()
+		s.HelperMu.Unlock()
 		return false, false
 	}
 	if s.helperSetting == nil {
 		s.helperSetting = make(map[string]bool)
 	}
 	s.helperSetting[key] = true
-	s.helperMu.Unlock()
+	s.HelperMu.Unlock()
 	defer func() {
-		s.helperMu.Lock()
+		s.HelperMu.Lock()
 		delete(s.helperSetting, key)
-		s.helperMu.Unlock()
+		s.HelperMu.Unlock()
 	}()
 	return s.finishHelperAsk(file, name), true
 }
 
-// setupBarNames lists, in declaration order, the programs file declares that
+// SetupBarNames lists, in declaration order, the programs file declares that
 // are neither allowed nor refused, which are the ones the setup bar offers.
-func (s *wireCore) setupBarNames(file string) []string {
-	s.helperMu.Lock()
-	defer s.helperMu.Unlock()
-	d := s.helpers[file]
+func (s *Core) SetupBarNames(file string) []string {
+	s.HelperMu.Lock()
+	defer s.HelperMu.Unlock()
+	d := s.Helpers[file]
 	if d == nil {
 		return nil
 	}
@@ -101,7 +101,7 @@ func (s *wireCore) setupBarNames(file string) []string {
 	return names
 }
 
-// setupBarHTML is the bar HTML Clay puts at the top of a document whose programs
+// SetupBarHTML is the bar HTML Clay puts at the top of a document whose programs
 // are not set up. It names only the programs the document itself declares,
 // never a file or folder, because the page can read everything in it. It sits
 // inside the banner markers, so a save strips it, and carries no-save so ClayJS
@@ -111,7 +111,7 @@ func (s *wireCore) setupBarNames(file string) []string {
 // The page's own action triggers setup too: ClayJS announces each request on
 // clay:wire-state, and when that happens during a click the bar starts setup
 // for that program, so pressing the page's Search button is enough.
-func setupBarHTML(names []string) []byte {
+func SetupBarHTML(names []string) []byte {
 	var b strings.Builder
 	b.WriteString(`<div clay="no-save no-snapshot no-watch" data-htmlclay-setup style="position:fixed;top:0;left:0;right:0;z-index:2147483647;font:13px/1.4 -apple-system,system-ui,sans-serif">`)
 	for _, name := range names {
