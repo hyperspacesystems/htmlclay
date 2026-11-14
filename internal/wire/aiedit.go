@@ -48,7 +48,7 @@ func (s *Core) aiEditMeta(file string) (HelperMeta, bool) {
 		return HelperMeta{}, false
 	}
 	state := "unavailable"
-	if on, _ := s.policy.AIEditFor(file); on {
+	if on, ask := s.policy.AIEditFor(file); on || ask {
 		state = "ready"
 	}
 	return HelperMeta{Name: aiedit.HelperName, State: state}, true
@@ -203,6 +203,16 @@ func (s *Core) cancelAIEdit(file, id string) bool {
 	}
 	run.Cancel()
 	return true
+}
+
+// CancelAIEditFor cancels the AI request running on one document: the person
+// took AI editing away from it.
+func (s *Core) CancelAIEditFor(file string) {
+	s.AIEdit.Mu.Lock()
+	defer s.AIEdit.Mu.Unlock()
+	if run, ok := s.AIEdit.Running[file]; ok {
+		run.Cancel()
+	}
 }
 
 // CancelAIEdits cancels every running AI edit: the switch was turned off, or the

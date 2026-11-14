@@ -218,6 +218,11 @@ type app struct {
 	// waiting on, so a second ask about the same one does not stack another
 	// question. Guarded by helperStateMu.
 	helperSetupOpen map[string]bool
+	// aiEditAsking holds the documents whose AI editing question is open, and
+	// aiEditQuiet when each may next be asked after a question that allowed
+	// nothing. Guarded by helperStateMu.
+	aiEditAsking map[string]bool
+	aiEditQuiet  map[string]time.Time
 	// dialogAdvice is non-empty when this machine cannot raise a permission
 	// dialog at all. It is read once at startup and shown in two places, so it
 	// is held rather than asked for again: platform.MissingDialogAdvice runs

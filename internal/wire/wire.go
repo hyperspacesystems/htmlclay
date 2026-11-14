@@ -202,12 +202,14 @@ func (s *Core) BoundFiles() []string {
 	return files
 }
 
-// Forget ends everything the wire holds for path: its programs are detached,
-// its channel is unbound, and every stream on it is closed. The binding's
+// Forget ends everything the wire holds for path: a running AI edit is
+// cancelled, its programs are detached, its channel is unbound, and every
+// stream on it is closed. The binding's
 // generation keeps counting, so a dispatcher from before cannot match a later
 // binding of the same path. A renamed or removed document is forgotten under
 // its old path.
 func (s *Core) Forget(path string) {
+	s.CancelAIEditFor(path)
 	s.DetachHelpers(path)
 	s.HelperBindings.mu.Lock()
 	if state, ok := s.HelperBindings.byFile[path]; ok && state.bound {

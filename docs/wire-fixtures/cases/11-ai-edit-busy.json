@@ -1,7 +1,8 @@
 {
   "name": "AI edit busy",
   "hosts": [
-    "loose"
+    "loose",
+    "served"
   ],
   "served": "unreleased",
   "setup": {

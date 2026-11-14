@@ -64,7 +64,7 @@ func (s *Core) pageToolMeta(file string) (HelperMeta, bool) {
 		return HelperMeta{}, false
 	}
 	state := "unavailable"
-	if on, _ := s.policy.AIEditFor(file); on {
+	if on, ask := s.policy.AIEditFor(file); on || ask {
 		state = "ready"
 	}
 	return HelperMeta{Name: aiedit.PageToolHelperName, State: state}, true

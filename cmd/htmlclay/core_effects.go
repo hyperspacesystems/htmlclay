@@ -545,6 +545,9 @@ func (a *app) askProgramAgain(e appcore.Effect) *appcore.Refusal {
 // the document's own scope, so a removal in a team folder refuses at once instead
 // of asking again.
 func (a *app) removeProgramAccess(e appcore.Effect) *appcore.Refusal {
+	if e.ProgramID == aiEditProgramID {
+		return a.removeAIEditAccess(e)
+	}
 	a.helperStateMu.Lock()
 	refusal := a.removeProgramAccessLocked(e)
 	a.helperStateMu.Unlock()
@@ -709,6 +712,9 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 		}
 		a.rt.cfg.SetAIEditEnabled(on)
 		a.saveConfig("preference aiEditing")
+		if !on {
+			a.cancelAIEdits()
+		}
 		return nil
 	case "appearance":
 		var v string

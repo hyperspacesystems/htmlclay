@@ -85,6 +85,9 @@ type Config struct {
 	// AIEdit is the built-in AI editing helper's setting. Nil, or a nil Enabled,
 	// reads as on: AI editing is on unless the person turned it off.
 	AIEdit *AIEditSettings `json:"aiEdit,omitempty"`
+	// AIEditDocuments are the documents the person allowed AI editing for where
+	// the switch alone is not enough: a team folder, or an unreadable team record.
+	AIEditDocuments []AIEditDocument `json:"aiEditDocuments,omitempty"`
 	// Profile is the person HTML Clay names in files it serves, when Enabled. Nil
 	// means never set up, which reads as off. The id survives renames and toggles.
 	Profile *Profile `json:"profile,omitempty"`
@@ -1347,6 +1350,7 @@ func LoadFrom(baseDir string, identity func(string) string) (*Config, Result, er
 	// be dropped as an alias of one already kept.
 	res.PinnedIdentities = cfg.backfillIdentities(identity)
 	res.DroppedHelperPrograms, res.DroppedHelperDecisions = cfg.normalizeHelpers()
+	cfg.normalizeAIEditDocuments()
 	cfg.capSitePorts()
 	cfg.retireNamedSlugs()
 	cfg.dedupeSiteSlugs()

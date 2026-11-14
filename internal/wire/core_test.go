@@ -2,6 +2,7 @@ package wire
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -412,6 +413,23 @@ func TestM3AIEditAsks(t *testing.T) {
 }
 
 func TestM3WireForgetAndBound(t *testing.T) {
+	t.Run("Forget cancels a running AI edit on that document only", func(t *testing.T) {
+		core, _, _, file := newFakeCore(t)
+		other := filepath.Join(filepath.Dir(file), "other.htmlclay")
+		ctx, cancel := context.WithCancel(context.Background())
+		otherCtx, otherCancel := context.WithCancel(context.Background())
+		t.Cleanup(otherCancel)
+		core.AIEdit.Mu.Lock()
+		core.AIEdit.Running = map[string]AIEditRun{file: {ID: "a", Cancel: cancel}, other: {ID: "b", Cancel: otherCancel}}
+		core.AIEdit.Mu.Unlock()
+		core.Forget(file)
+		if ctx.Err() == nil {
+			t.Fatal("Forget left the document's AI edit running")
+		}
+		if otherCtx.Err() != nil {
+			t.Fatal("Forget cancelled another document's AI edit")
+		}
+	})
 	t.Run("BoundFiles lists bound documents", func(t *testing.T) {
 		core, _, _, file := newFakeCore(t)
 		writeHelperDocument(t, filepath.Join(filepath.Dir(file), "other.htmlclay"), "marker")

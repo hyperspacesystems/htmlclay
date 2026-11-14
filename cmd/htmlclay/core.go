@@ -691,6 +691,9 @@ func (a *app) programFacts() []appcore.Program {
 			RemovedDocuments:  removed,
 		})
 	}
+	if aiEditing, ok := a.aiEditProgramFact(); ok {
+		programs = append(programs, aiEditing)
+	}
 	return programs
 }
 
