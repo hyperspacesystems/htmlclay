@@ -316,9 +316,17 @@ const wireExitAmbiguous = 8
 
 // wireConfig is the tolerant decode of the config fields the CLI reads.
 type wireConfig struct {
-	Port      int               `json:"port"`
-	SiteSlugs map[string]string `json:"siteSlugs"`
-	SitePorts map[string]int    `json:"sitePorts"`
+	Port          int                `json:"port"`
+	SiteSlugs     map[string]string  `json:"siteSlugs"`
+	SitePorts     map[string]int     `json:"sitePorts"`
+	ServedFolders []wireServedFolder `json:"servedFolders"`
+}
+
+// wireServedFolder is the part of a served folder the CLI needs.
+type wireServedFolder struct {
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Serving bool   `json:"serving"`
 }
 
 // wireReadConfig reads the remembered origins WITHOUT going through config.Load.
@@ -418,6 +426,12 @@ func wireCandidates(cfg wireConfig, file string) []wireCandidate {
 				continue
 			}
 			add(wireCandidate{anchor: key, port: cfg.Port, host: slug + ".localhost:" + strconv.Itoa(cfg.Port), source: "htmlclay"})
+		}
+		for _, f := range cfg.ServedFolders {
+			if !f.Serving || f.Name == "" || f.Path == "" {
+				continue
+			}
+			add(wireCandidate{anchor: f.Path, port: cfg.Port, host: servedHostName(f.Name, cfg.Port), source: "htmlclay"})
 		}
 	}
 	for anchor, port := range cfg.SitePorts {
