@@ -31,6 +31,10 @@ const (
 
 var errHelperHandlerTaken = errors.New("an external wire handler is already attached")
 
+// errHelperNotGranted refuses a process whose grant the app no longer honors,
+// such as one decided before the document's folder became a team folder.
+var errHelperNotGranted = errors.New("this document was not granted that helper")
+
 type helperMeta struct {
 	Name  string `json:"name"`
 	State string `json:"state"`
@@ -632,6 +636,11 @@ func (d *helperDispatcher) run(ctx context.Context, cancel context.CancelFunc, e
 		Stdin:      input,
 		Stderr:     stderr,
 		Start: func(cmd *exec.Cmd) error {
+			// The scope is read here, at the moment of starting, not when the
+			// dispatcher attached: the folder may have become a team folder since.
+			if granted := d.server.hooks.HelperGranted; granted != nil && !granted(d.file, env.Helper, program.ID) {
+				return errHelperNotGranted
+			}
 			d.server.helperMu.Lock()
 			defer d.server.helperMu.Unlock()
 			if !d.server.helperCurrentLocked(d) || !d.grantedLocked(env.Helper, program.ID) {

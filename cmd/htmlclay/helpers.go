@@ -205,6 +205,22 @@ func (a *app) helperPickerFolder(document, name string) string {
 	return candidate
 }
 
+// scopeOf is what a program decision about document is stored and read as. The
+// folder identity is the one the identity pin uses, so a team folder is still
+// found after it is renamed, moved, or reached through another spelling.
+func (a *app) scopeOf(document string) config.Scope {
+	return a.rt.cfg.ScopeOf(document, platform.DirIdentity)
+}
+
+// helperGranted is the server's last question before a program's process starts:
+// may name run programID for file right now? It reads the scope at this moment
+// rather than anything cached when the dispatcher attached, so a folder that
+// became a team folder, or an access the person removed, stops the process.
+func (a *app) helperGranted(file, name, programID string) bool {
+	resolution, _ := a.rt.cfg.ResolveHelper(file, name, a.trustedLive(file), a.scopeOf(file))
+	return resolution.Decided && resolution.Allowed && resolution.Program.ID == programID
+}
+
 // A name that is in neither result was never decided: nobody was asked, the
 // picker was cancelled, or the program behind an old allow is gone.
 func (a *app) resolvedHelpers(document string, names []string) (map[string]config.HelperProgram, []string) {
@@ -216,8 +232,9 @@ func (a *app) resolvedHelpers(document string, names []string) (map[string]confi
 func (a *app) resolvedHelpersLocked(document string, names []string) (map[string]config.HelperProgram, []string) {
 	allowed := make(map[string]config.HelperProgram)
 	var denied []string
+	scope := a.scopeOf(document)
 	for _, name := range names {
-		resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document))
+		resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document), scope)
 		switch {
 		case !resolution.Decided:
 		case resolution.Allowed:
@@ -284,6 +301,14 @@ func (a *app) saveHelperDecisionSet(document string, candidates []helperCandidat
 // saveHelperDecisionSetLocked is saveHelperDecisionSet for a caller that already
 // holds helperStateMu, so a registration check and the save share one transaction.
 func (a *app) saveHelperDecisionSetLocked(document string, candidates []helperCandidate, choice platform.ConfirmChoice) error {
+	scope := a.scopeOf(document)
+	// "Always" reaches every document in a trusted folder, which is a promise this
+	// machine makes about its own folders. A team folder's documents are the
+	// team's, so the widest answer there is still one document. Refused before
+	// anything is registered or stored, so a refusal leaves no trace.
+	if choice == platform.ConfirmAllowAlways && scope.Kind != config.ScopeLocal {
+		return fmt.Errorf("a program cannot be allowed for every document in a %s folder", scope.Kind)
+	}
 	added := make([]config.HelperProgram, 0, len(candidates))
 	flagUndo := make(map[string]bool)
 	decisionUndo := make([]helperDecisionUndo, 0, len(candidates))
@@ -342,6 +367,7 @@ func (a *app) saveHelperDecisionSetLocked(document string, candidates []helperCa
 			Program:   candidate.program.ID,
 			Allowed:   true,
 			DecidedAt: now + int64(i),
+			Scope:     scope,
 		}
 		previous, had, err := a.rt.cfg.DecideHelper(decision)
 		if err != nil {
@@ -357,16 +383,16 @@ func (a *app) saveHelperDecisionSetLocked(document string, candidates []helperCa
 	for _, program := range added {
 		a.rt.logger.Printf("Helper program registered: id=%s name=%s path=%s", program.ID, program.Name, program.Path)
 	}
-	scope := "document"
+	reach := "document"
 	if choice == platform.ConfirmAllowAlways {
-		scope = "any document"
+		reach = "any document"
 	}
 	for i, candidate := range candidates {
 		previous := ""
 		if decisionUndo[i].had {
 			previous = decisionUndo[i].previous.Program
 		}
-		a.rt.logger.Printf("Helper binding saved: document=%s name=%s program=%s path=%s scope=%s previous=%s", document, candidate.name, candidate.program.ID, candidate.program.Path, scope, previous)
+		a.rt.logger.Printf("Helper binding saved: document=%s name=%s program=%s path=%s scope=%s previous=%s", document, candidate.name, candidate.program.ID, candidate.program.Path, reach, previous)
 	}
 	return nil
 }

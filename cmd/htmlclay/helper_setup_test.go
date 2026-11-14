@@ -96,7 +96,7 @@ func TestHelperSetupOffersFoundFile(t *testing.T) {
 	if _, ok := plan.allowed["search"]; !ok {
 		t.Fatalf("allowed plan = %+v, want search", plan.allowed)
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(doc, "search", false)
+	resolution, _ := a.rt.cfg.ResolveHelper(doc, "search", false, a.scopeOf(doc))
 	if !resolution.Allowed || resolution.Program.Path != found {
 		t.Fatalf("resolution = %+v, want the found file %s", resolution, found)
 	}
@@ -124,7 +124,7 @@ func TestHelperSetupTrustedFoldersRegistersUnderRequestedName(t *testing.T) {
 	a.rt.cfg.SetHelperAnyDocument(registered.ID, true)
 	a.rt.cfg.AddTrustedFolder(folder, platform.DirIdentity(folder))
 
-	if before, _ := a.rt.cfg.ResolveHelper(other, "search", true); before.Allowed {
+	if before, _ := a.rt.cfg.ResolveHelper(other, "search", true, a.scopeOf(other)); before.Allowed {
 		t.Fatalf("the requested name resolved before it was set up: %+v", before)
 	}
 
@@ -140,7 +140,7 @@ func TestHelperSetupTrustedFoldersRegistersUnderRequestedName(t *testing.T) {
 	if len(declared) != 1 || declared[0].Path != path || !declared[0].AnyDocument || declared[0].ID == registered.ID {
 		t.Fatalf("registrations named search = %+v, want one any-document registration at %s", declared, path)
 	}
-	after, _ := a.rt.cfg.ResolveHelper(other, "search", true)
+	after, _ := a.rt.cfg.ResolveHelper(other, "search", true, a.scopeOf(other))
 	if !after.Allowed || after.Program.ID != declared[0].ID {
 		t.Fatalf("the other document resolves to %+v, want %s", after, declared[0].ID)
 	}
@@ -241,7 +241,7 @@ func TestHelperSetupAfterRevoke(t *testing.T) {
 	if _, _, err := a.rt.cfg.RevokeHelper(document, "search"); err != nil {
 		t.Fatal(err)
 	}
-	if revoked, _ := a.rt.cfg.ResolveHelper(document, "search", true); revoked.Allowed {
+	if revoked, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document)); revoked.Allowed {
 		t.Fatalf("a revoked name still resolved as allowed: %+v", revoked)
 	}
 
@@ -253,7 +253,7 @@ func TestHelperSetupAfterRevoke(t *testing.T) {
 	if _, ok := plan.allowed["search"]; !ok {
 		t.Fatalf("allowed plan = %+v, want search", plan.allowed)
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if !resolution.Allowed || resolution.Program.ID != program.ID {
 		t.Fatalf("resolution = %+v, want %s allowed again", resolution, program.ID)
 	}

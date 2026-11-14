@@ -280,7 +280,7 @@ func TestHelperApprovalSelectsThenPersistsTheProgram(t *testing.T) {
 	if !ok || program.Path != programPath || !program.AnyDocument {
 		t.Fatalf("allowed helper = %+v, %v", program, ok)
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
 		t.Fatalf("saved resolution = %+v", resolution)
 	}
@@ -421,7 +421,7 @@ func TestTrustedNavigationRestoresHelpersWithoutDialogs(t *testing.T) {
 					t.Error("browser navigation raised a helper permission dialog")
 					return platform.ChoiceNone, nil
 				}
-				resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+				resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 				if resolution.Decided != permission.decided || resolution.Allowed != permission.allowed {
 					t.Fatalf("stored resolution = %+v", resolution)
 				}

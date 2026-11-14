@@ -307,3 +307,195 @@ func TestM3TeamRecord(t *testing.T) {
 		mustScope(t, cfg, filepath.Join(base, "elsewhere", "doc.htmlclay"), fakeIdentities{}, Scope{Kind: ScopeLocal})
 	})
 }
+
+// m3ScopeConfig is one machine with a team folder and a local folder, two
+// programs, and the folder-identity answers the scope is read with.
+type m3ScopeConfig struct {
+	cfg      *Config
+	ident    fakeIdentities
+	teamDir  string
+	teamDoc  string
+	localDoc string
+	owned    HelperProgram
+	broad    HelperProgram
+}
+
+func newM3ScopeConfig(t *testing.T) m3ScopeConfig {
+	t.Helper()
+	base := t.TempDir()
+	cfg, _, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	teamDir := filepath.Join(base, "team")
+	if err := os.MkdirAll(teamDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ident := fakeIdentities{teamDir: "16777234:200"}
+	markTeam(t, cfg, TeamFolder{
+		FolderID: "0123456789abcdef",
+		Path:     teamDir,
+		Identity: ident[teamDir],
+		Kind:     TeamFolderKindTeam,
+		Key:      "acme",
+	}, ident)
+	owned, err := cfg.AddHelperProgram("search", "/helpers/search")
+	if err != nil {
+		t.Fatal(err)
+	}
+	broad, err := cfg.AddHelperProgram("ocr", "/helpers/ocr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.SetHelperAnyDocument(broad.ID, true); !ok {
+		t.Fatal("fixture could not grant the broad program")
+	}
+	return m3ScopeConfig{
+		cfg:      cfg,
+		ident:    ident,
+		teamDir:  teamDir,
+		teamDoc:  filepath.Join(teamDir, "doc.htmlclay"),
+		localDoc: filepath.Join(base, "mine", "doc.htmlclay"),
+		owned:    owned,
+		broad:    broad,
+	}
+}
+
+func (f m3ScopeConfig) decide(t *testing.T, document, name, program string, scope Scope) {
+	t.Helper()
+	if _, _, err := f.cfg.DecideHelper(HelperDecision{
+		Document: document,
+		Name:     name,
+		Program:  program,
+		Allowed:  true,
+		Scope:    scope,
+	}); err != nil {
+		t.Fatalf("DecideHelper: %v", err)
+	}
+}
+
+func (f m3ScopeConfig) resolve(t *testing.T, document, name string, trusted bool) (HelperResolution, bool) {
+	t.Helper()
+	return f.cfg.ResolveHelper(document, name, trusted, f.cfg.ScopeOf(document, f.ident.identityOf))
+}
+
+// TestM3ResolveScope is step 7.5's resolution half: a stored decision applies
+// only in the scope it was decided about, and the broad any-document grant
+// applies only in a trusted local folder — never in a team folder, whatever the
+// folder's trust, and never when the record of what is a team folder is unreadable.
+func TestM3ResolveScope(t *testing.T) {
+	t.Run("a local decision applies in a local folder", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		f.decide(t, f.localDoc, "search", f.owned.ID, Scope{Kind: ScopeLocal})
+		resolution, ok := f.resolve(t, f.localDoc, "search", false)
+		if !ok || !resolution.Allowed || resolution.Program.ID != f.owned.ID {
+			t.Fatalf("local decision did not apply locally: %+v, %v", resolution, ok)
+		}
+	})
+
+	t.Run("an old-format decision with no scope reads as local", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		f.decide(t, f.localDoc, "search", f.owned.ID, Scope{})
+		if resolution, _ := f.resolve(t, f.localDoc, "search", false); !resolution.Allowed {
+			t.Fatalf("a decision stored before scopes existed stopped working: %+v", resolution)
+		}
+		if resolution, _ := f.cfg.ResolveHelper(f.teamDoc, "search", true, Scope{Kind: ScopeTeam, Key: "team:acme"}); resolution.Allowed {
+			t.Fatalf("an old-format decision applied to a team folder: %+v", resolution)
+		}
+	})
+
+	t.Run("a decision stored for a team does not apply locally", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		f.decide(t, f.localDoc, "search", f.owned.ID, Scope{Kind: ScopeTeam, Key: "team:acme"})
+		if resolution, _ := f.resolve(t, f.localDoc, "search", false); resolution.Allowed {
+			t.Fatalf("a team decision applied in a local folder: %+v", resolution)
+		}
+	})
+
+	t.Run("a decision stored for one team does not apply in another team", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		other := filepath.Join(t.TempDir(), "other")
+		if err := os.MkdirAll(other, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		markTeam(t, f.cfg, TeamFolder{
+			FolderID: "fedcba9876543210",
+			Path:     other,
+			Identity: "16777234:201",
+			Kind:     TeamFolderKindTeam,
+			Key:      "other",
+		}, f.ident)
+		otherDoc := filepath.Join(other, "doc.htmlclay")
+		f.decide(t, otherDoc, "search", f.owned.ID, Scope{Kind: ScopeTeam, Key: "team:acme"})
+		if resolution, _ := f.resolve(t, otherDoc, "search", false); resolution.Allowed {
+			t.Fatalf("a decision for team:acme applied in team:other: %+v", resolution)
+		}
+	})
+
+	t.Run("a team decision applies in its own team folder", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		f.decide(t, f.teamDoc, "search", f.owned.ID, Scope{Kind: ScopeTeam, Key: "team:acme"})
+		resolution, ok := f.resolve(t, f.teamDoc, "search", false)
+		if !ok || !resolution.Allowed || resolution.Program.ID != f.owned.ID {
+			t.Fatalf("a team decision did not apply in its own team: %+v, %v", resolution, ok)
+		}
+	})
+
+	t.Run("a broad grant applies in a trusted local folder", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		resolution, ok := f.resolve(t, f.localDoc, "ocr", true)
+		if !ok || !resolution.Allowed || resolution.Program.ID != f.broad.ID {
+			t.Fatalf("the broad grant did not apply in a trusted local folder: %+v, %v", resolution, ok)
+		}
+	})
+
+	t.Run("a broad grant does not apply in an untrusted local folder", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		if resolution, _ := f.resolve(t, f.localDoc, "ocr", false); resolution.Allowed {
+			t.Fatalf("the broad grant applied in an untrusted folder: %+v", resolution)
+		}
+	})
+
+	t.Run("a broad grant does not apply in a team folder, even trusted", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		if resolution, _ := f.resolve(t, f.teamDoc, "ocr", true); resolution.Allowed {
+			t.Fatalf("the broad grant applied in a team folder: %+v", resolution)
+		}
+	})
+
+	t.Run("a broad grant does not apply when the team record is unreadable", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		if err := os.Remove(f.cfg.teamFoldersPath()); err != nil {
+			t.Fatal(err)
+		}
+		if resolution, _ := f.resolve(t, f.teamDoc, "ocr", true); resolution.Allowed {
+			t.Fatalf("the broad grant applied on a machine whose team record cannot be read: %+v", resolution)
+		}
+	})
+
+	t.Run("no stored decision applies when the team record is unreadable", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		f.decide(t, f.teamDoc, "search", f.owned.ID, Scope{Kind: ScopeTeam, Key: "team:acme"})
+		if err := os.Remove(f.cfg.teamFoldersPath()); err != nil {
+			t.Fatal(err)
+		}
+		if resolution, _ := f.resolve(t, f.teamDoc, "search", true); resolution.Allowed {
+			t.Fatalf("a decision applied in an unknown scope: %+v", resolution)
+		}
+	})
+
+	t.Run("a revocation stored for a team does not revoke a local document", func(t *testing.T) {
+		f := newM3ScopeConfig(t)
+		revocation := HelperDecision{
+			Document: f.localDoc,
+			Name:     "ocr",
+			Scope:    Scope{Kind: ScopeTeam, Key: "team:acme"},
+		}
+		if restored := f.cfg.RestoreHelperDecisions([]HelperDecision{revocation}); restored != 1 {
+			t.Fatalf("fixture restored %d revocations", restored)
+		}
+		if resolution, _ := f.resolve(t, f.localDoc, "ocr", true); !resolution.Allowed || resolution.Revoked {
+			t.Fatalf("a team revocation revoked a local document: %+v", resolution)
+		}
+	})
+}

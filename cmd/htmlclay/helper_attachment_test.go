@@ -225,7 +225,7 @@ func TestHelperAttachmentUsesCurrentPermissions(t *testing.T) {
 				if terminal.Type != "wire/done" || terminal.Payload.Program != "replacement" {
 					t.Fatalf("stale attachment executed wrong program: %+v", terminal)
 				}
-				current, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+				current, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 				if !current.Allowed || current.Program.Path != newPath {
 					t.Fatal("replacement config changed")
 				}
@@ -269,7 +269,7 @@ func TestHelperRefreshDoesNotNotifyForAnUnrelatedDeletedDocument(t *testing.T) {
 	a.rt.notify = func(string, string) error { notifications.Add(1); return nil }
 	path := writeTestProgram(t, t.TempDir(), "search", 0755)
 	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(path, platform.ConfirmAllowOnce, nil))
-	current, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+	current, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if !current.Allowed || current.Program.Path != path {
 		t.Fatal("repair did not save the selected program")
 	}

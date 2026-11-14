@@ -209,6 +209,7 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		AIEditEngines:  a.rt.cfg.AIEditEngines,
 		Profile:        a.rt.cfg.SharedPerson,
 		AskHelper:      a.askHelperForUse,
+		HelperGranted:  a.helperGranted,
 		Reveal:         browser.Reveal,
 		OpenFolder:     browser.OpenURL,
 		ExportDocument: a.exportForPage,

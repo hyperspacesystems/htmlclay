@@ -379,16 +379,21 @@ func (c *Config) HelperDecisionList() []HelperDecision {
 
 // ResolveHelper answers in one locked read whether there is a decision, whether
 // it allows execution, and which registered program it selects. trusted says
-// whether the document sits in a trusted folder: an any-document registration
-// applies only then. It never picks between registrations that share a name:
-// two allowed for any document leave the name undecided, and an undecided name
-// with several registrations carries them all as Candidates and no Program, so
-// the prompt asks which one.
-func (c *Config) ResolveHelper(document, name string, trusted bool) (HelperResolution, bool) {
+// whether the document sits in a trusted folder, and scope says what the
+// document's folder is: an any-document registration applies only in a trusted
+// local folder, and a stored decision applies only in the scope it was decided
+// about, so a folder that later became a team folder never runs on it. It never
+// picks between registrations that share a name: two allowed for any document
+// leave the name undecided, and an undecided name with several registrations
+// carries them all as Candidates and no Program, so the prompt asks which one.
+//
+// A decision stored before scopes existed carries no scope, which reads as the
+// local key, so local decisions keep working.
+func (c *Config) ResolveHelper(document, name string, trusted bool, scope Scope) (HelperResolution, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, d := range c.HelperDecisions {
-		if d.Document != document || d.Name != name {
+		if d.Document != document || d.Name != name || d.Scope.Key != scope.Key {
 			continue
 		}
 		if d.Revoked {
@@ -414,7 +419,7 @@ func (c *Config) ResolveHelper(document, name string, trusted bool) (HelperResol
 			anyDocument = append(anyDocument, p)
 		}
 	}
-	if trusted && len(anyDocument) == 1 {
+	if trusted && scope.Kind == ScopeLocal && len(anyDocument) == 1 {
 		return HelperResolution{Decided: true, Allowed: true, Program: anyDocument[0]}, true
 	}
 	if len(candidates) == 0 {

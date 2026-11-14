@@ -85,6 +85,14 @@ type Hooks struct {
 	// which is what a standalone server (every server test) wants.
 	AskHelper func(file, name string) bool
 
+	// HelperGranted reports whether name may run the registered program programID
+	// for file at this moment. The server asks it immediately before a program's
+	// process starts, because the grant a dispatcher holds was resolved earlier:
+	// a folder that has since become a team folder, a scope that can no longer be
+	// read, or an access the person removed must stop the process. Nil allows,
+	// which is what a standalone server (every server test) wants.
+	HelperGranted func(file, name, programID string) bool
+
 	// Reveal shows a document's file in the OS file manager, selected. Nil hides
 	// the action, which is what a standalone server (every server test) wants.
 	Reveal func(absPath string) error
