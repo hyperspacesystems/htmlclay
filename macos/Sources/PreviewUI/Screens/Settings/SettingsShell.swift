@@ -30,7 +30,9 @@ public struct SettingsView: View {
         self.actions = actions
     }
 
-    private var activeRoute: SettingsRoute { pinned ?? model.route }
+    private var activeRoute: SettingsRoute {
+        SettingsControls.visibleRoute(pinned ?? model.route, in: model.snapshot)
+    }
 
     private var activePane: SettingsPane { activeRoute.pane }
 

@@ -88,6 +88,9 @@ type Config struct {
 	// Profile is the person HTML Clay names in files it serves, when Enabled. Nil
 	// means never set up, which reads as off. The id survives renames and toggles.
 	Profile *Profile `json:"profile,omitempty"`
+	// AppearanceSetting is the person's chosen appearance: "system", "light" or
+	// "dark". Empty reads as system. Read through Appearance().
+	AppearanceSetting string `json:"appearance,omitempty"`
 	// Updates set to "off" keeps the self-updater from downloading or applying
 	// anything, for machines whose software is managed some other way. The tray
 	// still links to the download page. Anything else, or nothing, leaves it on.
@@ -891,6 +894,24 @@ func (c *Config) SetAIEditEnabled(v bool) {
 		c.AIEdit = &AIEditSettings{}
 	}
 	c.AIEdit.Enabled = &v
+}
+
+// Appearance reports the chosen appearance under the lock. Empty, or anything the
+// app does not name, reads as system.
+func (c *Config) Appearance() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.AppearanceSetting == "" {
+		return "system"
+	}
+	return c.AppearanceSetting
+}
+
+// SetAppearance records the chosen appearance under the lock.
+func (c *Config) SetAppearance(v string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.AppearanceSetting = v
 }
 
 // AIEditEngines returns the default engine name and a copy of the user engines,

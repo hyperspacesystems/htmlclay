@@ -37,26 +37,28 @@ struct AdvancedPane: View {
                     folderTrailing(Strings.Advanced.uploadsSize, note: Strings.Advanced.wouldShowUploads)
                 }
             }
-            KilnGroupTitle(Strings.Advanced.troubleshooting)
-            KilnCard {
-                KilnRow(title: Strings.Advanced.logs) {
-                    HStack(spacing: 8) {
-                        Button(Strings.Advanced.showAppLog) {
-                            model.say(Strings.Advanced.wouldShowAppLog)
+            if SettingsControls.showsTroubleshooting(isSample: model.isSample) {
+                KilnGroupTitle(Strings.Advanced.troubleshooting)
+                KilnCard {
+                    KilnRow(title: Strings.Advanced.logs) {
+                        HStack(spacing: 8) {
+                            Button(Strings.Advanced.showAppLog) {
+                                model.say(Strings.Advanced.wouldShowAppLog)
+                            }
+                            .buttonStyle(KilnButtonStyle(.plain))
+                            Button(Strings.Advanced.showSyncLog) {
+                                model.say(Strings.Advanced.wouldShowSyncLog)
+                            }
+                            .buttonStyle(KilnButtonStyle(.plain))
                         }
-                        .buttonStyle(KilnButtonStyle(.plain))
-                        Button(Strings.Advanced.showSyncLog) {
-                            model.say(Strings.Advanced.wouldShowSyncLog)
+                    }
+                    KilnRowDivider()
+                    KilnRow(title: Strings.Advanced.stopOpening) {
+                        Button(Strings.Advanced.remove) {
+                            model.say(Strings.Advanced.wouldRemoveFileType)
                         }
                         .buttonStyle(KilnButtonStyle(.plain))
                     }
-                }
-                KilnRowDivider()
-                KilnRow(title: Strings.Advanced.stopOpening) {
-                    Button(Strings.Advanced.remove) {
-                        model.say(Strings.Advanced.wouldRemoveFileType)
-                    }
-                    .buttonStyle(KilnButtonStyle(.plain))
                 }
             }
         }
@@ -68,10 +70,12 @@ struct AdvancedPane: View {
             Text(size)
                 .font(.system(size: 13))
                 .foregroundStyle(kiln.muted)
-            Button(Strings.Advanced.showInFinder) {
-                model.say(note)
+            if SettingsControls.showsTroubleshooting(isSample: model.isSample) {
+                Button(Strings.Advanced.showInFinder) {
+                    model.say(note)
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
             }
-            .buttonStyle(KilnButtonStyle(.plain))
         }
     }
 }

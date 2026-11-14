@@ -178,6 +178,30 @@ final class SettingsTests: XCTestCase {
         }
     }
 
+    func testSettingsRendersTheRealHostsSnapshot() throws {
+        _ = NSApplication.shared
+        let fixture = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("PreviewCoreTests/Fixtures/v1/servedFolder.snapshot.json")
+        let wire = try HostWireCoding.decoder().decode(WireSnapshot.self, from: Data(contentsOf: fixture))
+        let snapshot = HostSnapshotAdapter.snapshot(from: wire)
+        let model = AppModel(host: SampleHost(persona: .servedFolder), initial: snapshot)
+        XCTAssertFalse(model.isSample)
+        XCTAssertFalse(SettingsControls.showsPane(.programs, in: snapshot))
+        XCTAssertFalse(SettingsControls.showsPane(.sync, in: snapshot))
+
+        let settings = NSHostingView(rootView: KilnRoot { SettingsView() }.environment(model))
+        settings.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThanOrEqual(settings.fittingSize.width, 840)
+
+        model.route = .pane(.programs)
+        let programs = NSHostingView(rootView: KilnRoot { SettingsView() }.environment(model))
+        programs.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThanOrEqual(programs.fittingSize.width, 840)
+        XCTAssertEqual(model.route, .pane(.programs))
+    }
+
     func testFolderSheets() {
         _ = NSApplication.shared
         XCTAssertEqual(FoldersPane.orderedLocalFolders(SampleReducer.apply(.trustFolder(name: "Documents", path: "~/Documents"), to: SampleData.snapshot(for: .trustedFolder))),

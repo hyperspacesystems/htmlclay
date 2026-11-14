@@ -17,7 +17,7 @@ public struct SettingsSidebar: View {
         VStack(spacing: 2) {
             Color.clear
                 .frame(height: 32)
-            ForEach(SettingsPane.allCases, id: \.self) { pane in
+            ForEach(SettingsPane.allCases.filter { SettingsControls.showsPane($0, in: model.snapshot) }, id: \.self) { pane in
                 row(pane)
             }
             Spacer(minLength: 0)

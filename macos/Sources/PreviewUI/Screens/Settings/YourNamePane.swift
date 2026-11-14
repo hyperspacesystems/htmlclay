@@ -40,9 +40,15 @@ struct YourNamePane: View {
                     }
                 case .account:
                     KilnRowDivider()
-                    KilnRow(title: model.snapshot.sync.fullName, subtitle: Strings.YourName.accountSub) {
-                        KilnLink(Strings.YourName.change) {
-                            model.say(Strings.YourName.wouldChange)
+                    if SettingsControls.showsAccountChange(isSample: model.isSample) {
+                        KilnRow(title: model.snapshot.sync.fullName, subtitle: Strings.YourName.accountSub) {
+                            KilnLink(Strings.YourName.change) {
+                                model.say(Strings.YourName.wouldChange)
+                            }
+                        }
+                    } else {
+                        KilnRow(title: model.snapshot.sync.fullName, subtitle: Strings.YourName.accountSub) {
+                            EmptyView()
                         }
                     }
                 case .off:

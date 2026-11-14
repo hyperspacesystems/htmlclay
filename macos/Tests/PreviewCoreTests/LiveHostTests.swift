@@ -454,6 +454,36 @@ final class LiveHostTests: XCTestCase {
                       "the document left Recent with no effect to forget it")
     }
 
+    func testTheSettingsLandOnTheRealHost() async throws {
+        let host = try await LiveHost.start()
+
+        let dark = try done(await host.client.perform(.setAppearance(.dark)),
+                            "setting the appearance was refused")
+        XCTAssertEqual(dark.preferences.appearance, .dark)
+        let named = try done(await host.client.perform(.setAIEditing(false)),
+                             "turning AI editing off was refused")
+        XCTAssertFalse(named.preferences.aiEditing)
+        _ = try done(await host.client.perform(.setYourName("Ada")),
+                     "setting the name was refused")
+        let sharing = try done(await host.client.perform(.setUseName(true)),
+                               "turning the name on was refused")
+        XCTAssertEqual(sharing.preferences.yourName, "Ada")
+        XCTAssertTrue(sharing.preferences.useName)
+
+        guard case let .refused(loginRefusal) = await host.client.perform(.setOpenAtLogin(true)) else {
+            return XCTFail("the host wrote the login item the Mac app owns")
+        }
+        XCTAssertEqual(loginRefusal.code, "not-yet")
+        let model = AppModel(host: host.client, initial: sharing)
+        XCTAssertFalse(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
+
+        let reloaded = try await host.client.load()
+        XCTAssertEqual(reloaded.preferences.appearance, .dark)
+        XCTAssertEqual(reloaded.preferences.yourName, "Ada")
+        XCTAssertTrue(reloaded.preferences.useName)
+        XCTAssertFalse(reloaded.preferences.aiEditing)
+    }
+
     func testAFolderInsideAServedFolderFollowsTheHostsSwitch() async throws {
         let host = try await LiveHost.start()
         let outer = host.home.appendingPathComponent("notes")

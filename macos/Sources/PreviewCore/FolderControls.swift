@@ -25,6 +25,13 @@ public enum HostActionType {
     public static let updateStart = "update.start"
     public static let syncSetPaused = "sync.setPaused"
     public static let requestAnswer = "request.answer"
+    public static let programAdd = "program.add"
+    public static let programSetAllTrusted = "program.setAllTrusted"
+    public static let programRemoveAccess = "program.removeAccess"
+    public static let syncConnect = "sync.connect"
+    public static let syncDisconnect = "sync.disconnect"
+    public static let serviceRestart = "service.restart"
+    public static let prefsSet = "prefs.set"
 }
 
 /// The folder page's decisions, away from the views: what each switch shows and

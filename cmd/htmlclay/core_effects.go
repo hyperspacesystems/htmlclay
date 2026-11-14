@@ -9,6 +9,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/browser"
+	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 )
 
@@ -189,6 +190,14 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 		a.rt.cfg.SetAIEditEnabled(on)
 		a.saveConfig("preference aiEditing")
 		return nil
+	case "appearance":
+		var v string
+		if json.Unmarshal(e.Value, &v) != nil {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+		}
+		a.rt.cfg.SetAppearance(v)
+		a.saveConfig("preference appearance")
+		return nil
 	case "openAtLogin":
 		// The Mac app takes over Open at Login in milestone 7; until then a host it started never writes the login item.
 		if a.shell {
@@ -209,6 +218,15 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 		case "useName":
 			if json.Unmarshal(e.Value, &profile.Enabled) != nil {
 				return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+			}
+			// The tray mints the id when sharing is first turned on; the Mac app's
+			// switch needs the same, or turning it on is refused for a missing id.
+			if profile.Enabled && !config.ValidProfileID(profile.ID) {
+				id, err := config.NewProfileID()
+				if err != nil {
+					return &appcore.Refusal{Code: appcore.RefuseFailed}
+				}
+				profile.ID = id
 			}
 		case "yourName":
 			if json.Unmarshal(e.Value, &profile.Name) != nil {

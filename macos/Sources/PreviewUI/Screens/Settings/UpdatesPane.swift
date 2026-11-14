@@ -12,36 +12,47 @@ struct UpdatesPane: View {
 
     private var update: UpdateState { model.snapshot.update }
 
+    private var showsControls: Bool { SettingsControls.showsUpdateControls(can: model.can(HostActionType.updateStart)) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(Strings.Settings.title(.updates))
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
                 .padding(.bottom, 12)
-            KilnCard {
-                versionRow
-                KilnRowDivider()
-                KilnRow(title: Strings.Updates.automatic) {
-                    Toggle(isOn: Binding(
-                        get: { model.snapshot.update.automatic },
-                        set: { model.send(.setAutoUpdate($0)) }
-                    )) {
+            if showsControls {
+                KilnCard {
+                    versionRow
+                    KilnRowDivider()
+                    KilnRow(title: Strings.Updates.automatic) {
+                        Toggle(isOn: Binding(
+                            get: { model.snapshot.update.automatic },
+                            set: { model.send(.setAutoUpdate($0)) }
+                        )) {
+                            EmptyView()
+                        }
+                        .toggleStyle(KilnSwitchStyle())
+                    }
+                }
+                HStack(spacing: 4) {
+                    if update.ready != nil {
+                        Text(Strings.Updates.restartNote)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(kiln.muted)
+                    }
+                    KilnLink(Strings.Updates.whatsNew) {
+                        model.say(Strings.Updates.wouldShowWhatsNew)
+                    }
+                }
+                .padding(.top, 10)
+            } else {
+                KilnCard {
+                    KilnRow(title: Strings.Updates.current(UpdatesPane.short(update.current)),
+                            leading: { Squircle(.jade, symbol: Symbols.update) }) {
                         EmptyView()
                     }
-                    .toggleStyle(KilnSwitchStyle())
                 }
             }
-            HStack(spacing: 4) {
-                if update.ready != nil {
-                    Text(Strings.Updates.restartNote)
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(kiln.muted)
-                }
-                KilnLink(Strings.Updates.whatsNew) {
-                    model.say(Strings.Updates.wouldShowWhatsNew)
-                }
-            }
-            .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

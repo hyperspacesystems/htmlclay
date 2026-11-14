@@ -15,16 +15,18 @@ struct GeneralPane: View {
                 .foregroundStyle(kiln.ink)
                 .padding(.bottom, 12)
             KilnCard {
-                KilnRow(title: Strings.General.openAtLogin) {
-                    Toggle(isOn: Binding(
-                        get: { model.snapshot.preferences.openAtLogin },
-                        set: { model.send(.setOpenAtLogin($0)) }
-                    )) {
-                        EmptyView()
+                if SettingsControls.showsOpenAtLogin(isSample: model.isSample) {
+                    KilnRow(title: Strings.General.openAtLogin) {
+                        Toggle(isOn: Binding(
+                            get: { model.snapshot.preferences.openAtLogin },
+                            set: { model.send(.setOpenAtLogin($0)) }
+                        )) {
+                            EmptyView()
+                        }
+                        .toggleStyle(KilnSwitchStyle())
                     }
-                    .toggleStyle(KilnSwitchStyle())
+                    KilnRowDivider()
                 }
-                KilnRowDivider()
                 KilnRow(title: Strings.General.aiTitle, subtitle: Strings.General.aiSub) {
                     Toggle(isOn: Binding(
                         get: { model.snapshot.preferences.aiEditing },

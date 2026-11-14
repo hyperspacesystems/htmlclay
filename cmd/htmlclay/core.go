@@ -149,7 +149,7 @@ func (a *app) facts() appcore.Facts {
 		OpenAtLogin:       a.rt.cfg.StartOnLoginEnabled(),
 		OpenAtLoginChosen: true,
 		AIEditing:         a.rt.cfg.AIEditEnabled(),
-		Appearance:        appcore.AppearanceSystem,
+		Appearance:        a.rt.cfg.Appearance(),
 		YourName:          profile.Name,
 		UseName:           profile.Enabled,
 	}

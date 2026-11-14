@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
 )
 
@@ -328,7 +330,8 @@ func TestCoreMarkSeenClearsDot(t *testing.T) {
 
 func TestCorePreferences(t *testing.T) {
 	home := evalTempHome(t)
-	a := buildTestApp(t, home, t.TempDir())
+	cfgBase := t.TempDir()
+	a := buildTestApp(t, home, cfgBase)
 
 	snapshot, refusal := a.do(context.Background(), coreAction(t, "pref-1", "prefs.set", map[string]any{"key": "aiEditing", "value": false}), ChannelTray)
 	if refusal != nil {
@@ -341,9 +344,24 @@ func TestCorePreferences(t *testing.T) {
 		t.Error("AI editing is still on in the snapshot")
 	}
 
-	_, refusal = a.do(context.Background(), coreAction(t, "pref-2", "prefs.set", map[string]any{"key": "appearance", "value": "dark"}), ChannelTray)
-	if refusal == nil || refusal.Code != appcore.RefuseNotYet {
-		t.Fatalf("prefs.set appearance = %+v, want %q", refusal, appcore.RefuseNotYet)
+	snapshot, refusal = a.do(context.Background(), coreAction(t, "pref-2", "prefs.set", map[string]any{"key": "appearance", "value": "dark"}), ChannelTray)
+	if refusal != nil {
+		t.Fatalf("prefs.set appearance refused: %+v", refusal)
+	}
+	if snapshot.Preferences.Appearance != appcore.AppearanceDark {
+		t.Errorf("appearance = %q in the snapshot, want %q", snapshot.Preferences.Appearance, appcore.AppearanceDark)
+	}
+	reloaded, _, err := config.LoadFrom(cfgBase, platform.DirIdentity)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if got := reloaded.Appearance(); got != appcore.AppearanceDark {
+		t.Errorf("appearance = %q after a reload, want %q", got, appcore.AppearanceDark)
+	}
+
+	_, refusal = a.do(context.Background(), coreAction(t, "pref-3", "prefs.set", map[string]any{"key": "appearance", "value": "purple"}), ChannelTray)
+	if refusal == nil || refusal.Code != appcore.RefuseBadArguments {
+		t.Fatalf("prefs.set appearance purple = %+v, want %q", refusal, appcore.RefuseBadArguments)
 	}
 }
 
