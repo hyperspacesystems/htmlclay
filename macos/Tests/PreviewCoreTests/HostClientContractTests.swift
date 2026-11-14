@@ -71,3 +71,48 @@ private final class RefusingHost: HostClient {
         HostSubscription {}
     }
 }
+
+@MainActor
+private final class PushHost: HostClient {
+    var current: HostSnapshot
+    private var listeners: [Int: @MainActor (HostSnapshot) -> Void] = [:]
+    private var next = 0
+    init(_ snapshot: HostSnapshot) { current = snapshot }
+    func load() async throws -> HostSnapshot { current }
+    func perform(_ action: HostAction) async -> HostOutcome { .done(current) }
+    func check(_ action: HostAction) async -> Result<HostCheckAnswer, HostRefusal> { .success(HostCheckAnswer()) }
+    func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) -> HostSubscription {
+        let key = next
+        next += 1
+        listeners[key] = onChange
+        return HostSubscription { [weak self] in self?.listeners[key] = nil }
+    }
+    func push(_ snapshot: HostSnapshot) {
+        current = snapshot
+        listeners.values.forEach { $0(snapshot) }
+    }
+}
+
+@MainActor
+final class FolderRouteTests: XCTestCase {
+    private func snapshot(_ folders: [Folder]) -> HostSnapshot { HostSnapshot(folders: folders) }
+
+    func testOpenFolderFollowsANewIDAtTheSamePlace() {
+        let host = PushHost(snapshot([Folder(id: "tabc", name: "notes", path: "~/notes", fullPath: "/Users/sam/notes")]))
+        let model = AppModel(host: host, initial: host.current)
+        model.route = .folder("tabc")
+        host.push(snapshot([Folder(id: "0123456789abcdef", name: "notes", path: "~/notes", served: true, fullPath: "/Users/sam/notes")]))
+        XCTAssertEqual(model.route, .folder("0123456789abcdef"))
+        model.route = .folderHistory("0123456789abcdef")
+        host.push(snapshot([Folder(id: "tabc", name: "notes", path: "~/notes", fullPath: "/Users/sam/notes")]))
+        XCTAssertEqual(model.route, .folderHistory("tabc"))
+    }
+
+    func testRemovedFolderGoesBackToTheList() {
+        let host = PushHost(snapshot([Folder(id: "tabc", name: "notes", path: "~/notes", fullPath: "/Users/sam/notes")]))
+        let model = AppModel(host: host, initial: host.current)
+        model.route = .folder("tabc")
+        host.push(snapshot([]))
+        XCTAssertEqual(model.route, .pane(.folders))
+    }
+}

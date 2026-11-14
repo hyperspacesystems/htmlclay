@@ -54,13 +54,23 @@ public final class AppModel {
     }
 
     private func receive(_ next: HostSnapshot) {
+        let previous = snapshot
         snapshot = next
         switch route {
-        case let .folder(id) where next.folder(id) == nil: route = .pane(.folders)
-        case let .folderHistory(id) where next.folder(id) == nil: route = .pane(.folders)
+        case let .folder(id) where next.folder(id) == nil:
+            route = sameFolder(id, from: previous, in: next).map(SettingsRoute.folder) ?? .pane(.folders)
+        case let .folderHistory(id) where next.folder(id) == nil:
+            route = sameFolder(id, from: previous, in: next).map(SettingsRoute.folderHistory) ?? .pane(.folders)
         case let .program(id) where next.program(id) == nil: route = .pane(.programs)
         default: break
         }
+    }
+
+    /// The host gives a folder a new id when it starts being served, so an open
+    /// folder page follows the folder at the same place on disk.
+    private func sameFolder(_ id: String, from previous: HostSnapshot, in next: HostSnapshot) -> String? {
+        guard let old = previous.folder(id), !old.fullPath.isEmpty else { return nil }
+        return next.folders.first { $0.fullPath == old.fullPath }?.id
     }
 
     public var showsDot: Bool {
