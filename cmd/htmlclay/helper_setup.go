@@ -94,7 +94,7 @@ func (a *app) askHelperSetup(document string, names []string, plan helperOpenPla
 		shown = helperFileSnapshot(suggestion.path)
 	}
 	presenter := a.setupConfirmer(dialogs, suggestion)
-	ask := a.helperSetupAsk(document, name, suggestion, a.scopeOf(document), presenter.widePick)
+	ask := a.helperSetupAsk(document, name, suggestion, a.scopeOf(document))
 
 	// The person can take minutes. helperMu stays free so another document's
 	// setup, and Remove Access, still run; everything is checked again below.
@@ -212,7 +212,7 @@ func (a *app) askHelperSetup(document string, names []string, plan helperOpenPla
 
 // helperSetupAsk is the question the flow puts to the person: the file HTML Clay
 // found, if any, and the answers this document's scope may offer.
-func (a *app) helperSetupAsk(document, name string, suggestion helperSuggestion, scope config.Scope, widePick bool) confirm.Ask {
+func (a *app) helperSetupAsk(document, name string, suggestion helperSuggestion, scope config.Scope) confirm.Ask {
 	ask := confirm.Ask{
 		Document: document,
 		Program:  name,
@@ -221,9 +221,6 @@ func (a *app) helperSetupAsk(document, name string, suggestion helperSuggestion,
 	if suggestion.path == "" {
 		ask.Kind = appcore.RequestNoFile
 		ask.Answers = []string{helperAnswerDeny, helperAnswerChooseFile}
-		if widePick {
-			ask.Answers = []string{helperAnswerDeny, helperAnswerAllowAllTrusted, helperAnswerChooseFile}
-		}
 		return ask
 	}
 	ask.Kind = appcore.RequestFound

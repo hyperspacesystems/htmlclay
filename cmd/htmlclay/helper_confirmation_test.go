@@ -303,7 +303,7 @@ func TestM3HelperConfirmation(t *testing.T) {
 		testutil.Receive(t, 5*time.Second, "the second setup", secondPlan)
 	})
 
-	t.Run("dialog presenter keeps today's wide pick", func(t *testing.T) {
+	t.Run("dialog presenter's pick covers one document", func(t *testing.T) {
 		settledSetup(t)
 		home := t.TempDir()
 		a := newTestApp(t, home)
@@ -327,12 +327,12 @@ func TestM3HelperConfirmation(t *testing.T) {
 				return true, nil
 			},
 		})
-		if got := strings.Join(order, ","); got != "setup,setup,choose,prepare" {
+		if got := strings.Join(order, ","); got != "setup,choose,prepare" {
 			t.Fatalf("dialog order = %s", got)
 		}
 		program, ok := plan.allowed["search"]
-		if !ok || program.Path != programPath || !program.AnyDocument {
-			t.Fatalf("allowed = %+v, %v, want any document at %s", program, ok, programPath)
+		if !ok || program.Path != programPath || program.AnyDocument {
+			t.Fatalf("allowed = %+v, %v, want this document only at %s", program, ok, programPath)
 		}
 	})
 }

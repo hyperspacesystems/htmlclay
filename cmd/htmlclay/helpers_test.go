@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
@@ -40,6 +41,21 @@ func clearPageAskQuiet(t *testing.T, a *app, document string) {
 
 // A click on Deny is not remembered: it denies the helper for the rest of this
 // open, stores nothing, and a new open may ask again, including after a restart.
+// writeHelperPageNamed writes another document beside the page a test already
+// made, so two documents share one folder.
+func writeHelperPageNamed(t *testing.T, dir, name string, names ...string) string {
+	t.Helper()
+	var metas strings.Builder
+	for _, helper := range names {
+		metas.WriteString("<meta name=\"htmlclay-helper\" content=\"" + helper + "\">")
+	}
+	path := filepath.Join(dir, name+".htmlclay")
+	if err := os.WriteFile(path, []byte("<!doctype html><head>"+metas.String()+"</head>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestHelperDenialAppliesToThisOpenOnly(t *testing.T) {
 	home := t.TempDir()
 	cfgBase := t.TempDir()
@@ -253,10 +269,7 @@ func TestHelperApprovalSelectsThenPersistsTheProgram(t *testing.T) {
 	plan := a.helpersForUseWith(document, "search", helperApprovalDialogs{
 		setup: func(string, string, string, string, string) (platform.Choice, error) {
 			order = append(order, "setup")
-			if len(order) == 1 {
-				return platform.ChoiceMiddle, nil
-			}
-			return platform.ChoiceAffirm, nil
+			return platform.ChoiceMiddle, nil
 		},
 		choose: func(prompt, dir string) (string, bool, error) {
 			order = append(order, "choose")
@@ -273,17 +286,80 @@ func TestHelperApprovalSelectsThenPersistsTheProgram(t *testing.T) {
 			return true, nil
 		},
 	})
-	if strings.Join(order, ",") != "setup,setup,choose,prepare" {
+	if strings.Join(order, ",") != "setup,choose,prepare" {
 		t.Fatalf("dialog order = %v", order)
 	}
 	program, ok := plan.allowed["search"]
-	if !ok || program.Path != programPath || !program.AnyDocument {
-		t.Fatalf("allowed helper = %+v, %v", program, ok)
+	if !ok || program.Path != programPath || program.AnyDocument {
+		t.Fatalf("a picked file was granted for every document: %+v, %v", program, ok)
 	}
 	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
 		t.Fatalf("saved resolution = %+v", resolution)
 	}
+	second := writeHelperPageNamed(t, home, "second", "search")
+	secondResolution, _ := a.rt.cfg.ResolveHelper(second, "search", true, a.scopeOf(second))
+	if secondResolution.Decided {
+		t.Fatalf("a picked file covered a second document: %+v", secondResolution)
+	}
+}
+
+// pickOneDocumentProgram sets up a program by hand for one document and returns
+// the app, a second document in the same folder and the program it registered.
+func pickOneDocumentProgram(t *testing.T) (*app, string, config.HelperProgram) {
+	t.Helper()
+	settledSetup(t)
+	home := t.TempDir()
+	a := newTestApp(t, home)
+	document := writeHelperPage(t, home, "search")
+	second := writeHelperPageNamed(t, home, "second", "search")
+	programPath := writeTestProgram(t, t.TempDir(), "search", 0755)
+	plan := a.helpersForUseWith(document, "search", helperApprovalDialogs{
+		setup: func(string, string, string, string, string) (platform.Choice, error) {
+			return platform.ChoiceMiddle, nil
+		},
+		choose: func(string, string) (string, bool, error) {
+			return programPath, true, nil
+		},
+		prepare: func(string) (bool, error) { return true, nil },
+	})
+	program, ok := plan.allowed["search"]
+	if !ok || program.Path != programPath || program.AnyDocument {
+		t.Fatalf("a picked file was granted for every document: %+v, %v", program, ok)
+	}
+	if secondResolution, _ := a.rt.cfg.ResolveHelper(second, "search", true, a.scopeOf(second)); secondResolution.Decided {
+		t.Fatalf("a picked file covered a second document: %+v", secondResolution)
+	}
+	return a, second, program
+}
+
+func TestPickedProgramCanBeWidenedLater(t *testing.T) {
+	t.Run("tray programs page", func(t *testing.T) {
+		a, second, program := pickOneDocumentProgram(t)
+		dialogs := helperApprovalDialogs{
+			setup: func(string, string, string, string, string) (platform.Choice, error) {
+				return platform.ChoiceAffirm, nil
+			},
+		}
+		if outcome, err := a.widenHelperProgram(program, dialogs); err != nil || outcome != "widened" {
+			t.Fatalf("widen = %q, %v", outcome, err)
+		}
+		resolution, _ := a.rt.cfg.ResolveHelper(second, "search", true, a.scopeOf(second))
+		if !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+			t.Fatalf("second document after widening = %+v", resolution)
+		}
+	})
+
+	t.Run("Mac app setAllTrusted", func(t *testing.T) {
+		a, second, program := pickOneDocumentProgram(t)
+		if refusal := a.setProgramAllTrusted(appcore.Effect{Type: "program.setAllTrusted", ProgramID: program.ID, On: true}); refusal != nil {
+			t.Fatalf("setAllTrusted refused: %+v", refusal)
+		}
+		resolution, _ := a.rt.cfg.ResolveHelper(second, "search", true, a.scopeOf(second))
+		if !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+			t.Fatalf("second document after widening = %+v", resolution)
+		}
+	})
 }
 
 func TestHelperDecisionSaveFailureRollsBackExactly(t *testing.T) {
