@@ -34,8 +34,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "folder.stopTrusting", args: ["id": .string(folderID)])
         case let .mergeIntoParent(folderID):
             return WireActionRequest(type: "folder.merge", args: ["id": .string(folderID)])
-        case let .trustFolder(_, path):
-            return WireActionRequest(type: "folder.trust", args: ["path": .string(path)])
+        case let .trustFolder(_, path, acknowledged):
+            return WireActionRequest(type: "folder.trust", args: ["path": .string(path), "acknowledged": .strings(acknowledged)])
         case let .setUpTeamFolder(folderID):
             return WireActionRequest(type: "folder.setUpTeam", args: ["id": .string(folderID)])
         case let .revealFolder(id):

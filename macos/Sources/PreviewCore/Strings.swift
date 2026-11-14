@@ -383,6 +383,8 @@ public enum Strings {
         public static func inside(_ name: String, count: Int) -> String {
             count == 1 ? "\(name) already has 1 trusted folder inside. It keeps its own address." : "\(name) already has \(count) trusted folders inside. They keep their own address."
         }
+        public static func insideTrusted(_ name: String, around: String) -> String { "\(name) is inside \(around). Its documents get a new address, and nothing they stored in the browser moves with them." } // TODO-COPY: trust sheet warning for a folder inside a trusted folder, the two folder names, max 150 chars
+        public static let trustNewAddress = "Trust with new address" // TODO-COPY: trust sheet button that accepts the inside-trusted warning, max 22 chars
     }
     public enum Levels {
         public static let trusted = "Trusted"

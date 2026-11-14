@@ -85,7 +85,7 @@ public enum SampleReducer {
         case let .markSeen(waitingIDs):
             for i in next.waiting.indices where waitingIDs.contains(next.waiting[i].id) { next.waiting[i].seen = true }
         case let .setAutoUpdate(on): next.update.automatic = on
-        case let .trustFolder(name, path):
+        case let .trustFolder(name, path, _):
             guard !next.folders.contains(where: { $0.path == path }) else { return snapshot }
             let id = newFolderID(name, in: next)
             let documents = SampleData.trustCandidates.first { $0.path == path }?.documents ?? 0
@@ -233,7 +233,7 @@ public final class SampleHost: HostClient {
         case let .setServed(folderID, on) where on:
             let name = ServeRules.startName(folderID: folderID, in: current)
             return .success(HostCheckAnswer(address: ServeRules.address(for: name), name: name))
-        case let .trustFolder(name, path):
+        case let .trustFolder(name, path, _):
             var warnings: [HostWarning] = []
             if TrustRules.isMainFolder(path) {
                 warnings.append(HostWarning(code: "personal-folder", text: ""))
@@ -243,6 +243,11 @@ public final class SampleHost: HostClient {
                 .map(\.name)
             if !inside.isEmpty {
                 warnings.append(HostWarning(code: "contains-trusted", text: "", names: inside))
+            }
+            if !current.folders.contains(where: { $0.path == path }),
+               let around = SampleReducer.nearestParent(of: path, in: current).flatMap({ current.folder($0) }),
+               !around.served {
+                warnings.append(HostWarning(code: TrustRules.insideTrusted, text: "", names: [around.name]))
             }
             return .success(HostCheckAnswer(name: name, path: path, warnings: warnings))
         default:

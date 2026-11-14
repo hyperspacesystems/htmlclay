@@ -78,13 +78,23 @@ func (b shellBackend) Check(act appcore.Action) (shellapi.Preview, *appcore.Refu
 }
 
 // trustPreview is the Trust sheet's answer: the folder as it will be stored, or
-// why it cannot be trusted, and what the person should know first.
+// why it cannot be trusted, and what the person should know first. inside-trusted
+// names the folder around it, and is the one warning the trust itself checks.
 func (b shellBackend) trustPreview(path string) (shellapi.Preview, *appcore.Refusal) {
 	canonical, err := b.a.rt.policy.Canonical(path)
 	if err != nil {
 		return shellapi.Preview{}, &appcore.Refusal{Code: appcore.RefuseCannotTrust}
 	}
-	return shellapi.Preview{Path: canonical, Name: filepath.Base(canonical), Warnings: b.a.folderWarnings(canonical)}, nil
+	warnings := b.a.folderWarnings(canonical)
+	if around, inside := b.a.trustedAround(canonical); inside {
+		name := filepath.Base(around)
+		warnings = append(warnings, shellapi.Warning{
+			Code:  warnInsideTrusted,
+			Text:  fmt.Sprintf(appcore.TextWarnInsideTrusted, name),
+			Names: []string{name},
+		})
+	}
+	return shellapi.Preview{Path: canonical, Name: filepath.Base(canonical), Warnings: warnings}, nil
 }
 
 // folderWarnings is what a person should know before canonical is trusted: a main

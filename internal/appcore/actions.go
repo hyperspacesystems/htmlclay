@@ -155,8 +155,8 @@ type Effect struct {
 	Route      string          `json:"route,omitempty"`
 	Username   string          `json:"username,omitempty"`
 	Force      bool            `json:"force,omitempty"`
-	// Acknowledged is what the sheet showed about the file: a code the effect
-	// finds and this list does not hold refuses needs-confirmation.
+	// Acknowledged is what the sheet showed about the file or the folder: a code
+	// the effect finds and this list does not hold refuses needs-confirmation.
 	Acknowledged []string `json:"acknowledged,omitempty"`
 }
 
@@ -183,7 +183,7 @@ type actionArgs struct {
 	FolderIDs   []string        `json:"folderIDs"`
 	Destination string          `json:"destination"`
 	// Acknowledged is the warnings a sheet showed, for the two actions that
-	// register a program file and for a folder relink.
+	// register a program file, for a folder relink, and for trusting a folder.
 	Acknowledged []string `json:"acknowledged"`
 }
 
@@ -376,7 +376,7 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if args.Path == "" {
 			return bad("path")
 		}
-		return one(Effect{Type: a.Type, Path: args.Path})
+		return one(Effect{Type: a.Type, Path: args.Path, Acknowledged: args.Acknowledged})
 	case "folder.relink":
 		ff, refusal := folderArg(f, args.ID)
 		if refusal != nil {

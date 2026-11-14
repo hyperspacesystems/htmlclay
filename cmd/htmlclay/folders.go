@@ -116,6 +116,13 @@ func (a *app) takeOwnAddress(dir string) []string {
 // folder no file has been opened in. That is intended, since the folder is
 // genuinely trusted either way, but it is why sitePortCap matters more than it did.
 func (a *app) bringLive(canonical string) {
+	a.bindLive(canonical, false)
+}
+
+// bindLive is bringLive for a caller that may have written the folder's label
+// already, with the entry it belongs to: labelSaved skips the write that records
+// it, so that caller's one write stays the only one.
+func (a *app) bindLive(canonical string, labelSaved bool) {
 	if !a.shouldBindLive(canonical) {
 		return
 	}
@@ -137,7 +144,9 @@ func (a *app) bringLive(canonical string) {
 	// Persist the slug in the same critical section that publishes the site, and
 	// so under the same lock shutdown takes to set stopping. Saving after the
 	// unlock let a config write land after shutdown had already returned.
-	a.saveConfig("trusting " + s.slug)
+	if !labelSaved {
+		a.saveConfig("trusting " + s.slug)
+	}
 	a.mu.Unlock()
 
 	a.rt.logger.Printf("Trusted folder %s at http://%s", canonical, s.host)
@@ -231,13 +240,13 @@ func (a *app) untrustFolder(dir string) error {
 		return fmt.Errorf("could not save config: %w", err)
 	}
 
-	var reopen []string
+	var reopen []session.RegistrationInfo
 	var closing []*site
 	if s := a.siteAtLocked(dir); s != nil {
 		closing = append(closing, s)
 		for _, reg := range s.sessions.Registrations() {
 			if reg.Via.Has(session.ViaOsOpen) {
-				reopen = append(reopen, reg.Path)
+				reopen = append(reopen, session.RegistrationInfo{Path: reg.Path, Via: session.ViaOsOpen})
 			}
 		}
 	}
@@ -253,18 +262,7 @@ func (a *app) untrustFolder(dir string) error {
 		}
 	}
 	a.closeFolderRequests(dir)
-	for _, p := range reopen {
-		if owner, err := a.ResolveDocument(p); err == nil && owner.Kind == OwnerServed {
-			a.rt.logger.Printf("Leaving %s at its served address %s", p, owner.URL())
-			continue
-		}
-		s, _, ok := a.route(p, session.ViaOsOpen)
-		if !ok {
-			a.rt.logger.Printf("Could not re-home %s after untrusting %s", p, dir)
-			continue
-		}
-		a.applyHelperPlan(s.srv.Core, p, a.helpersForOpen(p, false))
-	}
+	a.routeAgain(reopen, "untrusting "+dir)
 	// A legacy per-folder port for this folder, if one is still bound, keeps answering the
 	// recovery page for the rest of this run instead of redirecting: its folder is no longer
 	// trusted. Its config entry was forgotten above.
@@ -310,10 +308,8 @@ func (a *app) mergeFolder(e appcore.Effect) *appcore.Refusal {
 		}
 	}
 
-	// The flush host.quit uses: a page that still holds edits stops the merge, and
-	// then nothing at all has changed.
-	if names, answered := a.unsavedDocuments(); !answered || len(names) > 0 {
-		return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: e.FolderID, Documents: names}
+	if refusal := a.flushOpenPages(e.FolderID); refusal != nil {
+		return refusal
 	}
 
 	a.mu.Lock()
@@ -341,21 +337,149 @@ func (a *app) mergeFolder(e appcore.Effect) *appcore.Refusal {
 	for _, p := range dropped {
 		a.rt.ls.DropSubscribers(p)
 	}
-	for _, reg := range reopen {
+	a.routeAgain(reopen, "merging "+childPath)
+	a.refreshHelperDispatchers()
+	a.rt.logger.Printf("Merged trusted folder %s into %s (%d documents routed again)", childPath, parentPath, len(reopen))
+	return nil
+}
+
+// warnInsideTrusted is the Trust sheet's code for a folder inside one already
+// trusted: its documents answer at that folder's address now, and trusting it
+// gives them an address of their own. The person has to acknowledge it before
+// the trust.
+const warnInsideTrusted = "inside-trusted"
+
+// trustFromAction runs folder.trust, the Trust sheet's door. It is the one door
+// that shows a warning and carries the answer back, so it is the one door where
+// a folder inside a trusted folder gets its own address. The picker and the two
+// page doors record such a folder under the folder around it, as they always
+// have, and move nothing.
+func (a *app) trustFromAction(e appcore.Effect) *appcore.Refusal {
+	canonical, err := a.rt.policy.Canonical(e.Path)
+	if err != nil {
+		a.rt.logger.Printf("Could not trust folder %s: %v", e.Path, err)
+		return &appcore.Refusal{Code: appcore.RefuseCannotTrust}
+	}
+	// Read again here, the way the relink and the program effects read their
+	// warnings: a folder that came to sit inside a trusted one after the sheet
+	// asked is never moved on the sheet's word.
+	if around, inside := a.trustedAround(canonical); inside {
+		if !slices.Contains(e.Acknowledged, warnInsideTrusted) {
+			return &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation}
+		}
+		return a.trustInsideTrusted(canonical, around)
+	}
+	if err := a.trustFolder(canonical); err != nil {
+		a.rt.logger.Printf("Could not trust folder %s: %v", canonical, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	return nil
+}
+
+// trustedAround answers the live trusted folder whose address dir's documents
+// answer at now, for a dir that is not on the trusted list. That is the one trust
+// that moves documents. A folder already on the list keeps the address it has
+// when it is approved again, and a served folder's documents stay at the served
+// address whatever is trusted inside it, so neither has a folder around it here.
+func (a *app) trustedAround(dir string) (string, bool) {
+	if _, listed := a.trustedEntry(dir); listed {
+		return "", false
+	}
+	owner, err := a.ResolveDocument(dir)
+	if err != nil || owner.Kind != OwnerTrusted {
+		return "", false
+	}
+	return owner.FolderPath, true
+}
+
+// trustInsideTrusted is mergeFolder in reverse: canonical, which sits inside the
+// trusted folder around, is trusted with an address of its own, after every open
+// page has saved.
+//
+// Nothing in the folder moves and nothing in it is rewritten, and what the
+// browser stored at around's address stays there. One config write records the
+// entry, that it keeps its own address, and the label that address answers with;
+// when it fails, nothing has changed. After it, around's site lets go of the
+// documents it had open from canonical, so around's address redirects their pages
+// to the new one and no longer saves them.
+func (a *app) trustInsideTrusted(canonical, around string) *appcore.Refusal {
+	if refusal := a.flushOpenPages(""); refusal != nil {
+		return refusal
+	}
+	identity := platform.DirIdentity(canonical)
+
+	a.mu.Lock()
+	// The flush ran without the lock, so the folder around is read once more.
+	if now, inside := a.trustedAround(canonical); !inside || now != around {
+		a.mu.Unlock()
+		return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow}
+	}
+	a.rt.cfg.AddTrustedFolder(canonical, identity)
+	a.rt.cfg.SetTrustedOwnAddress(canonical, true)
+	// A label remembered from before the folder around was trusted is the address
+	// these documents had then, so it is the one they go back to.
+	freshSlug := a.rt.cfg.SiteSlug(canonical) == ""
+	a.slugForLocked(canonical)
+	if err := a.rt.cfg.Save(); err != nil {
+		a.rt.cfg.RemoveTrustedFolder(canonical)
+		if freshSlug {
+			a.rt.cfg.DropSiteSlug(canonical)
+		}
+		a.mu.Unlock()
+		a.rt.logger.Printf("Could not trust folder %s: %v", canonical, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	a.adoptLocked(canonical)
+	var moved []session.RegistrationInfo
+	previous := a.siteAtLocked(around)
+	if previous != nil {
+		for _, reg := range previous.sessions.Registrations() {
+			if session.EqualOrUnder(reg.Path, canonical) && previous.sessions.Unregister(reg.Path) {
+				moved = append(moved, reg)
+			}
+		}
+	}
+	a.mu.Unlock()
+
+	// What closing a whole site does for every document it held, done for the ones
+	// that left a site that stays open.
+	for _, reg := range moved {
+		previous.srv.Core.Forget(reg.Path)
+		a.rt.ls.DropSubscribers(reg.Path)
+	}
+	a.bindLive(canonical, true)
+	a.routeAgain(moved, "trusting "+canonical)
+	a.refreshHelperDispatchers()
+	a.rt.logger.Printf("Trusted folder %s inside %s at its own address (%d documents routed again)", canonical, around, len(moved))
+	return nil
+}
+
+// flushOpenPages is the flush host.quit uses, run before a change that moves open
+// documents to another address: a page that still holds edits stops the change,
+// and then nothing at all has changed.
+func (a *app) flushOpenPages(subjectID string) *appcore.Refusal {
+	if names, answered := a.unsavedDocuments(); !answered || len(names) > 0 {
+		return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: subjectID, Documents: names}
+	}
+	return nil
+}
+
+// routeAgain registers documents again after a change took them from the site
+// that held them, each with the provenance it is given, and attaches its programs
+// where it lands. A document a served folder holds is left at its served address.
+func (a *app) routeAgain(regs []session.RegistrationInfo, after string) {
+	for _, reg := range regs {
 		if owner, err := a.ResolveDocument(reg.Path); err == nil && owner.Kind == OwnerServed {
 			a.rt.logger.Printf("Leaving %s at its served address %s", reg.Path, owner.URL())
 			continue
 		}
 		s, _, ok := a.route(reg.Path, reg.Via)
 		if !ok {
-			a.rt.logger.Printf("Could not route %s again after merging %s", reg.Path, childPath)
+			a.rt.logger.Printf("Could not route %s again after %s", reg.Path, after)
 			continue
 		}
 		a.applyHelperPlan(s.srv.Core, reg.Path, a.helpersForOpen(reg.Path, false))
 	}
-	a.refreshHelperDispatchers()
-	a.rt.logger.Printf("Merged trusted folder %s into %s (%d documents routed again)", childPath, parentPath, len(reopen))
-	return nil
 }
 
 // trustedEntry answers the trusted folder at path, if there is one.

@@ -430,7 +430,7 @@ public enum HostAction: Equatable, Sendable {
     case setProgramAllTrusted(programID: String, on: Bool)
     case setUseName(Bool)
     case setAutoUpdate(Bool)
-    case trustFolder(name: String, path: String)
+    case trustFolder(name: String, path: String, acknowledged: [String] = [String]())
     case serveFolder(path: String, name: String)
     case addProgram(name: String, path: String, acknowledged: [String] = [String]())
     case relinkProgram(programID: String, path: String, acknowledged: [String] = [String]())

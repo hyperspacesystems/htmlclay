@@ -77,7 +77,11 @@ struct TrustSheet: View {
     @State private var sheet: TrustSheetModel
 
     init(name: String, path: String, model: AppModel) {
-        _sheet = State(initialValue: TrustSheetModel(name: name, path: path, model: model))
+        self.init(sheet: TrustSheetModel(name: name, path: path, model: model))
+    }
+
+    init(sheet: TrustSheetModel) {
+        _sheet = State(initialValue: sheet)
     }
 
     var body: some View {
@@ -94,7 +98,7 @@ struct TrustSheet: View {
     private var mainFolder: some View {
         KilnAlertBox(title: Strings.TrustSheet.mainTitle(sheet.name),
                      message: Text(Strings.TrustSheet.mainStart(sheet.name)) + Text(Strings.TrustSheet.htmlclay).monospaced() + Text(Strings.TrustSheet.mainEnd)) {
-            EmptyView()
+            newAddressWarning
         } buttons: {
             Button(Strings.TrustSheet.chooseAnother) {
                 Task {
@@ -102,7 +106,7 @@ struct TrustSheet: View {
                 }
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            Button(Strings.Request.trustNamed(sheet.name)) {
+            Button(sheet.trustTitle) {
                 Task {
                     if await sheet.trust() { model.sheet = nil }
                 }
@@ -132,6 +136,7 @@ struct TrustSheet: View {
                 }
                 .padding(.top, 14)
             }
+            newAddressWarning
             if let problem = sheet.problem {
                 KilnFieldNote(Text(problem), error: true)
             }
@@ -140,7 +145,7 @@ struct TrustSheet: View {
                 model.sheet = nil
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            Button(Strings.Request.trustNamed(sheet.name)) {
+            Button(sheet.trustTitle) {
                 Task {
                     if await sheet.trust() { model.sheet = nil }
                 }
@@ -148,6 +153,27 @@ struct TrustSheet: View {
             .buttonStyle(KilnButtonStyle(.primary))
             .disabled(!sheet.ready)
             .opacity(sheet.ready ? 1 : 0.42)
+        }
+    }
+
+    @ViewBuilder private var newAddressWarning: some View {
+        if let warning = sheet.newAddressWarning {
+            KilnCard(kind: .warn) {
+                HStack(alignment: .top, spacing: 11) {
+                    Image(systemName: Symbols.warning)
+                        .font(.system(size: 13))
+                        .foregroundStyle(kiln.warnFg)
+                    Text(warning)
+                        .font(.system(size: 13))
+                        .foregroundStyle(kiln.warnFg)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+            }
+            .padding(.top, 14)
         }
     }
 }

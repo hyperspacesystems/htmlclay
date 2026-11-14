@@ -61,6 +61,8 @@ public enum MoveRules {
 }
 
 public enum TrustRules {
+    /// The host's code for a folder inside a trusted folder: the one trust warning the person has to accept.
+    public static let insideTrusted = "inside-trusted"
     public static func isMainFolder(_ path: String) -> Bool {
         Strings.Request.mainFolders.contains(path)
     }

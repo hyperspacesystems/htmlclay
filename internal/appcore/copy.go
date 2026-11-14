@@ -33,6 +33,9 @@ const (
 	TextServeCLIWindows     = "The htmlclay serve command runs on Mac and Linux. On Windows, use the HTML Clay menu."     // copy: CLI, on Windows, max 120 chars
 	TextWarnPersonalFolder  = "This is one of your main folders. HTML Clay will be able to save every document in it."    // TODO-COPY: trust sheet warning before trusting a personal folder
 	TextWarnContainsTrusted = "These folders inside it are already trusted and become part of it: %s."                    // TODO-COPY: trust sheet warning, %s lists the trusted folders inside
+	// TextWarnInsideTrusted is the Trust sheet's warning for a folder inside one
+	// already trusted, the one trust warning a person has to acknowledge.
+	TextWarnInsideTrusted = "This folder is inside %s. Its documents get a new address, and what they stored in the browser stays at the old one." // TODO-COPY: trust sheet warning, %s is the trusted folder around it, max 150 chars
 	// TextWarnDifferentFolder is the Find it sheet's warning when the folder at the
 	// new path is not the one that moved.
 	TextWarnDifferentFolder = "This is a different folder from the one that moved. HTML Clay would trust it in its place." // TODO-COPY: relink sheet warning, max 140 chars

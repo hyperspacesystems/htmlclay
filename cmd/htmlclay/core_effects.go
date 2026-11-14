@@ -86,16 +86,7 @@ func (a *app) revealPath(path string) error {
 func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal {
 	switch e.Type {
 	case "folder.trust":
-		canonical, err := a.rt.policy.Canonical(e.Path)
-		if err != nil {
-			a.rt.logger.Printf("Could not trust folder %s: %v", e.Path, err)
-			return &appcore.Refusal{Code: appcore.RefuseCannotTrust}
-		}
-		if err := a.trustFolder(canonical); err != nil {
-			a.rt.logger.Printf("Could not trust folder %s: %v", canonical, err)
-			return &appcore.Refusal{Code: appcore.RefuseFailed}
-		}
-		return nil
+		return a.trustFromAction(e)
 	case "folder.relink":
 		return a.relinkFolder(e)
 	case "folder.merge":
