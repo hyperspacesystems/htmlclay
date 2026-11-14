@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -17,9 +18,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/logging"
-	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/testutil"
 	"github.com/panphora/htmlclay/internal/versions"
@@ -160,7 +161,7 @@ func TestRunPromptSerializesWithGrantPrompt(t *testing.T) {
 		orderMu.Unlock()
 	}
 
-	b := newBroker(mgr, logging.NewStdout(), func(string, string, bool) (platform.ConfirmChoice, error) {
+	b := newBroker(mgr, logging.NewStdout(), func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		if inPrompt.Add(1) > 1 {
 			overlapped.Store(true)
 		}
@@ -169,7 +170,7 @@ func TestRunPromptSerializesWithGrantPrompt(t *testing.T) {
 		<-releaseGrant
 		record("grant exit")
 		inPrompt.Add(-1)
-		return platform.ConfirmDeny, nil
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	})
 	holdBatchOpen(b)
 

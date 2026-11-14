@@ -1,6 +1,10 @@
 package server
 
-import "github.com/panphora/htmlclay/internal/platform"
+import (
+	"context"
+
+	"github.com/panphora/htmlclay/internal/confirm"
+)
 
 // Hooks are the decisions a site's server cannot make for itself. Each one
 // needs the declared trusted-folder list, the app's site registry, or a native
@@ -15,14 +19,17 @@ import "github.com/panphora/htmlclay/internal/platform"
 // A nil field disables that route, which is what a standalone server (every
 // server test) wants.
 type Hooks struct {
-	// Confirm replaces the native read-permission dialog. Nil uses the real one.
+	// Confirm presents one read question and waits for the person's answer, so
+	// only the presenter differs between a window and a dialog. Nil uses the real
+	// native dialog.
 	//
-	// allowTrust reports whether the dialog may offer to trust the folder
-	// durably. The app decides it from its refusal rules BEFORE the dialog is
-	// drawn, so a folder that could never be trusted is never offered; the
-	// button used to be drawn always and the refusal arrived afterwards as a
-	// notification, which asked the user for a choice that could not be honored.
-	Confirm func(title, message string, allowTrust bool) (platform.ConfirmChoice, error)
+	// The Ask's answers say whether the durable choice may be offered: the app
+	// decides that from its refusal rules BEFORE the question is shown, so a
+	// folder that could never be trusted is never offered. The button used to be
+	// drawn always and the refusal arrived afterwards as a notification, which
+	// asked the user for a choice that could not be honored. ctx is cancelled
+	// when every request waiting on the answer has stopped waiting.
+	Confirm func(ctx context.Context, ask confirm.Ask) (confirm.Reply, error)
 
 	// TrustedCovers reports whether absPath sits inside a DECLARED trusted
 	// folder. It is the config fact, not this site's runtime roots: a file can
@@ -47,8 +54,12 @@ type Hooks struct {
 	// anything that does not anchor at a live trusted folder.
 	Route func(absPath string) (url string, ok bool)
 
-	// MayTrustFolder gates Confirm's allowTrust for a candidate folder.
+	// MayTrustFolder gates Confirm's trust-folder answer for a candidate folder.
 	MayTrustFolder func(dir string) bool
+
+	// MainFolder reports whether a candidate folder is one of the main personal
+	// folders. Nil leaves the question without that detail.
+	MainFolder func(dir string) bool
 
 	// TrustFolder is the durable half of the read prompt's "Trust this folder"
 	// choice. The folder there is one the PAGE steered, by choosing which
@@ -113,5 +124,6 @@ func (s *Server) SetHooks(h Hooks) {
 		s.broker.confirm = h.Confirm
 	}
 	s.broker.mayTrust = h.MayTrustFolder
+	s.broker.mainFolder = h.MainFolder
 	s.broker.trust = h.TrustFolder
 }

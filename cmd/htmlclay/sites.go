@@ -198,7 +198,8 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 	srv.SetInternalDir(a.rt.configDir)
 	srv.SetSiteLabel(filepath.Base(anchor))
 	srv.SetHooks(server.Hooks{
-		Confirm:        a.rt.confirm,
+		Confirm:        a.readConfirmer().Ask,
+		MainFolder:     a.isMainFolder,
 		TrustedCovers:  a.trustedCovers,
 		TrustedLive:    a.trustedLive,
 		Route:          a.routeTrusted,

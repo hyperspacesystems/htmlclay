@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/tray"
@@ -351,12 +354,24 @@ func (a *app) trustFromPage(requestingFile string, openedByUser bool) (string, b
 	}
 	msg := fmt.Sprintf("%s%s wants to trust its folder:\n\n%s\n\nEvery HTML Clay file in that folder becomes editable without asking, including files added later, and any file in it will be able to change any other. Only allow this for a folder you control completely.",
 		reached, requestingFile, canonical)
-	allowed, err := a.confirmTrustRequest("HTML Clay", msg, "Trust Folder")
+	detail := ""
+	if a.isMainFolder(canonical) {
+		detail = "main-folder"
+	}
+	ask := confirm.Ask{
+		Kind:     appcore.RequestFolderReadAgain,
+		Document: requestingFile,
+		Folder:   filepath.Base(canonical),
+		Path:     canonical,
+		Detail:   detail,
+		Answers:  []string{confirm.ChoiceDeny, readChoiceTrustFolder},
+	}
+	reply, err := a.trustConfirmer("HTML Clay", msg).Ask(context.Background(), ask)
 	if err != nil {
 		a.rt.logger.Printf("Trust dialog error for %s: %v", canonical, err)
 		return "", false
 	}
-	if !allowed {
+	if reply.Choice != readChoiceTrustFolder {
 		return "", false
 	}
 	if err := a.trustFolder(canonical); err != nil {

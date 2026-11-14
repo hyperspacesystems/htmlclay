@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,8 +14,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/logging"
-	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/testutil"
 	"github.com/panphora/htmlclay/internal/versions"
@@ -876,9 +877,9 @@ func fireAssets(srv *Server, rels []string) <-chan assetResult {
 // nothing about batching.
 func TestConcurrentOutOfScopeAssetsResumeTogetherOnAllow(t *testing.T) {
 	var prompts atomic.Int32
-	srv, shared, rels := setupBatchAssetTest(t, func(string, string, bool) (platform.ConfirmChoice, error) {
+	srv, shared, rels := setupBatchAssetTest(t, func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		prompts.Add(1)
-		return platform.ConfirmAllowOnce, nil
+		return confirm.Reply{Choice: readAnswerAllowOnce}, nil
 	})
 	holdBatchOpen(srv.broker)
 
@@ -912,9 +913,9 @@ func TestConcurrentOutOfScopeAssetsResumeTogetherOnAllow(t *testing.T) {
 // by that single Deny rather than raising its own dialog.
 func TestConcurrentOutOfScopeAssetsRefuseTogetherOnDeny(t *testing.T) {
 	var prompts atomic.Int32
-	srv, shared, rels := setupBatchAssetTest(t, func(string, string, bool) (platform.ConfirmChoice, error) {
+	srv, shared, rels := setupBatchAssetTest(t, func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		prompts.Add(1)
-		return platform.ConfirmDeny, nil
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	})
 	holdBatchOpen(srv.broker)
 

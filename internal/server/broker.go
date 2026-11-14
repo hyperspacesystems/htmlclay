@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
@@ -33,12 +36,67 @@ const (
 	brokerParkCap = 64
 )
 
-// brokerConfirm raises the read-permission dialog. allowTrust reports whether
-// the durable "Trust this folder" choice may be offered at all; the app decides
-// that from the candidate folder before the dialog is drawn.
-type brokerConfirm func(title, message string, allowTrust bool) (platform.ConfirmChoice, error)
+// brokerConfirm presents one read question and waits for the person's answer.
+// ctx is cancelled once every request waiting on that answer has stopped
+// waiting, so a presenter that lists open questions can withdraw this one and
+// an answer arriving afterwards installs nothing.
+type brokerConfirm func(ctx context.Context, ask confirm.Ask) (confirm.Reply, error)
 
 type trustFunc func(dir string) error
+
+// The read question's answers. Deny and allow-once are always offered; the
+// durable trust-folder choice only when the app says trust may be recorded.
+const (
+	readAnswerAllowOnce   = "allow-once"
+	readAnswerTrustFolder = "trust-folder"
+	// readDetailMainFolder marks one of the main personal folders, which the
+	// request window names differently from an ordinary folder.
+	readDetailMainFolder = "main-folder"
+)
+
+// ReadReply maps a native dialog's answer onto the read question's answers. A
+// dialog that could not offer the durable choice cannot return it: Trust folds
+// down to Allow Once, which errs toward less permission.
+func ReadReply(choice platform.ConfirmChoice, allowTrust bool) confirm.Reply {
+	switch choice {
+	case platform.ConfirmAllowOnce:
+		return confirm.Reply{Choice: readAnswerAllowOnce}
+	case platform.ConfirmAllowAlways:
+		if allowTrust {
+			return confirm.Reply{Choice: readAnswerTrustFolder}
+		}
+		return confirm.Reply{Choice: readAnswerAllowOnce}
+	}
+	return confirm.Reply{Choice: confirm.ChoiceDeny}
+}
+
+// offersTrust reports whether the question offers its durable choice.
+func offersTrust(ask confirm.Ask) bool {
+	return slices.Contains(ask.Answers, readAnswerTrustFolder)
+}
+
+// ReadDialogText writes the native read prompt for a question. The two-button
+// wording is the honest one when the only affirmative answer is a session-long
+// read. The three-button wording has to describe BOTH outcomes, because Trust is
+// no longer a durable read: it is the app's one write-granting permission, and
+// this sentence is the only place the user is told so.
+func ReadDialogText(ask confirm.Ask) (string, string) {
+	who := ask.Document
+	if who == "" {
+		who = "A page you opened in HTML Clay"
+	}
+	if !offersTrust(ask) {
+		return "HTML Clay", fmt.Sprintf(
+			"%s is trying to read files in:\n\n%s\n\nAllow read-only access to that folder and everything inside it?",
+			who, ask.Path)
+	}
+	return "HTML Clay", fmt.Sprintf(
+		"%s is trying to read files in:\n\n%s\n\n"+
+			"Allow Once gives it read-only access to that folder until you quit.\n\n"+
+			"Trust This Folder is permanent: every HTML Clay file in it opens editable with no prompts, "+
+			"including files added later, and any file in it can change any other.",
+		who, ask.Path)
+}
 
 // defaultConfirm is the confirm every new broker starts with. Production leaves
 // it as the real native dialog; the server test binary overrides it in an init()
@@ -52,24 +110,30 @@ type trustFunc func(dir string) error
 // The labels belong to this call, not to the platform package: this is the read
 // prompt, so its wider grant really is "trust this folder". The document-programs
 // prompt raises the same dialog with its own pair.
-var defaultConfirm brokerConfirm = func(title, message string, allowTrust bool) (platform.ConfirmChoice, error) {
-	if allowTrust {
-		return platform.Confirm(title, message, platform.ConfirmLabels{
-			Allow:  "Allow Once",
-			Always: "Trust This Folder",
-		})
+var defaultConfirm brokerConfirm = func(_ context.Context, ask confirm.Ask) (confirm.Reply, error) {
+	title, message := ReadDialogText(ask)
+	if !offersTrust(ask) {
+		ok, err := platform.ConfirmWithButtons(title, message, "Allow")
+		if err != nil || !ok {
+			return ReadReply(platform.ConfirmDeny, false), err
+		}
+		return ReadReply(platform.ConfirmAllowOnce, false), nil
 	}
-	ok, err := platform.ConfirmWithButtons(title, message, "Allow")
-	if err != nil || !ok {
-		return platform.ConfirmDeny, err
-	}
-	return platform.ConfirmAllowOnce, nil
+	choice, err := platform.Confirm(title, message, platform.ConfirmLabels{
+		Allow:  "Allow Once",
+		Always: "Trust This Folder",
+	})
+	return ReadReply(choice, true), err
 }
 
 type parkWaiter struct {
 	path string
 	dir  string
 	ch   chan bool // buffered(1): a resolve never blocks on a gone waiter
+	// gone closes when this waiter stops waiting, whether it was resolved, gave
+	// up, or its client left. The prompt it was waiting on cannot outlive the
+	// last one of these.
+	gone chan struct{}
 }
 
 // broker turns an out-of-scope asset request into a one-shot native permission
@@ -85,8 +149,11 @@ type broker struct {
 	// Nil means never offer it, which is what a server with no app behind it
 	// wants: it has nowhere to record a durable decision.
 	mayTrust func(dir string) bool
-	home     string
-	label    string
+	// mainFolder reports whether a folder is one of the main personal folders.
+	// Nil leaves the question without that detail.
+	mainFolder func(dir string) bool
+	home       string
+	label      string
 
 	// debounce and maxBatch are the batch window. Fields rather than the
 	// constants directly so a test can hold a batch open until every waiter it
@@ -183,7 +250,8 @@ func (b *broker) await(ctx context.Context, candidate string) bool {
 		b.logger.Printf("broker: park cap reached, denying %s", candidate)
 		return false
 	}
-	w := &parkWaiter{path: candidate, dir: filepath.Dir(candidate), ch: make(chan bool, 1)}
+	w := &parkWaiter{path: candidate, dir: filepath.Dir(candidate), ch: make(chan bool, 1), gone: make(chan struct{})}
+	defer close(w.gone)
 	b.waiters = append(b.waiters, w)
 	b.armLocked()
 	// Started here rather than in the select below so that parking and arming the
@@ -297,10 +365,11 @@ func (b *broker) flush() {
 	confirm := b.confirm
 	trust := b.trust
 	mayTrust := b.mayTrust
+	mainFolder := b.mainFolder
 	b.mu.Unlock()
 
 	denyAll(denied)
-	b.decide(group, lca, confirm, trust, mayTrust)
+	b.decide(group, lca, confirm, trust, mayTrust, mainFolder)
 
 	b.mu.Lock()
 	b.prompting = false
@@ -309,9 +378,9 @@ func (b *broker) flush() {
 	b.mu.Unlock()
 }
 
-// decide runs the native prompt (outside the lock) and resolves the group, plus
-// any waiter parked during the prompt that the grant now covers.
-func (b *broker) decide(group []*parkWaiter, lca string, confirm brokerConfirm, trust trustFunc, mayTrust func(string) bool) {
+// decide asks the read question (outside the lock) and resolves the group, plus
+// any waiter parked during the question that the grant now covers.
+func (b *broker) decide(group []*parkWaiter, lca string, asker brokerConfirm, trust trustFunc, mayTrust func(string) bool, mainFolder func(string) bool) {
 	// Resolve the folder we are about to name and to grant, so the dialog, the log,
 	// the tray, and the installed capability all agree on one directory. Before
 	// this, a symlinked folder was named by the alias the page used and granted by
@@ -328,24 +397,63 @@ func (b *broker) decide(group []*parkWaiter, lca string, confirm brokerConfirm, 
 		grantPath = filepath.Clean(resolved)
 	}
 
-	// Decide whether the durable choice may be offered BEFORE drawing the
-	// dialog, and on the resolved path, so the button the user sees is one that
+	// Decide whether the durable choice may be offered BEFORE the question is
+	// shown, and on the resolved path, so the buttons the user sees are ones that
 	// can actually be honored. With no trust hook wired there is nowhere to
 	// record the decision, so the option is not offered either.
 	allowTrust := trust != nil && mayTrust != nil && mayTrust(grantPath)
 
-	title, msg := b.dialogText(grantPath, allowTrust)
-	choice, err := confirm(title, msg, allowTrust)
-	if err != nil {
-		b.logger.Printf("broker: confirm error for %s: %v", grantPath, err)
-		choice = platform.ConfirmDeny
+	answers := []string{confirm.ChoiceDeny, readAnswerAllowOnce}
+	if allowTrust {
+		answers = append(answers, readAnswerTrustFolder)
+	}
+	detail := ""
+	if mainFolder != nil && mainFolder(grantPath) {
+		detail = readDetailMainFolder
+	}
+	ask := confirm.Ask{
+		Kind:     appcore.RequestFolderRead,
+		Document: b.label,
+		Folder:   filepath.Base(grantPath),
+		Path:     grantPath,
+		Detail:   detail,
+		Answers:  answers,
 	}
 
-	// Only the two grants proceed. A dialog closed with no answer is a refusal
+	// The question lasts exactly as long as somebody is waiting for it. When the
+	// last request in the group stops waiting, because its client left or its park
+	// deadline expired, ctx is cancelled: a presenter that lists open questions
+	// withdraws this one, and the answer below is not acted on.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		for _, w := range group {
+			<-w.gone
+		}
+		cancel()
+	}()
+
+	reply, err := asker(ctx, ask)
+	if err != nil {
+		b.logger.Printf("broker: confirm error for %s: %v", grantPath, err)
+		reply = confirm.Reply{Choice: confirm.ChoiceDeny}
+	}
+
+	// An answer arriving after every waiter has gone installs nothing. The grant
+	// or the trust would change what the folder allows with no request left to
+	// serve, and the question was already taken off the person's screen. This
+	// asks the waiters directly rather than ctx, because cancelling ctx is the
+	// watcher's next step and can lag the answer by a scheduling turn.
+	if allGone(group) {
+		b.logger.Printf("broker: %s was answered after every request stopped waiting; nothing installed", grantPath)
+		return
+	}
+
+	// Only the two grants proceed. A question closed with no answer is a refusal
 	// here, because this refusal lasts only as long as the broker, and anything
 	// this code does not recognize must fail closed rather than fall through
 	// into the grant below.
-	if choice != platform.ConfirmAllowOnce && choice != platform.ConfirmAllowAlways {
+	if reply.Choice != readAnswerAllowOnce && reply.Choice != readAnswerTrustFolder {
 		b.suppress(lca)
 		denyAll(group)
 		return
@@ -377,7 +485,7 @@ func (b *broker) decide(group []*parkWaiter, lca string, confirm brokerConfirm, 
 	// replacement for the grant, because the folder in this dialog is often a
 	// cousin of the opened page rather than an ancestor of it, and the page must
 	// keep reading through the grant whatever the durable half does.
-	if choice == platform.ConfirmAllowAlways && allowTrust {
+	if reply.Choice == readAnswerTrustFolder && allowTrust {
 		if tErr := trust(grantPath); tErr != nil {
 			b.logger.Printf("broker: could not trust %s: %v", grantPath, tErr)
 		} else {
@@ -406,27 +514,16 @@ func (b *broker) decide(group []*parkWaiter, lca string, confirm brokerConfirm, 
 	}
 }
 
-// dialogText writes the prompt. The two-button wording is the honest one when
-// the only affirmative answer is a session-long read. The three-button wording
-// has to describe BOTH outcomes, because Trust is no longer a durable read: it
-// is the app's one write-granting permission, and this sentence is the only
-// place the user is told so.
-func (b *broker) dialogText(lca string, allowTrust bool) (string, string) {
-	who := b.label
-	if who == "" {
-		who = "A page you opened in HTML Clay"
+// allGone reports whether every waiter in group has stopped waiting.
+func allGone(group []*parkWaiter) bool {
+	for _, w := range group {
+		select {
+		case <-w.gone:
+		default:
+			return false
+		}
 	}
-	if !allowTrust {
-		return "HTML Clay", fmt.Sprintf(
-			"%s is trying to read files in:\n\n%s\n\nAllow read-only access to that folder and everything inside it?",
-			who, lca)
-	}
-	return "HTML Clay", fmt.Sprintf(
-		"%s is trying to read files in:\n\n%s\n\n"+
-			"Allow Once gives it read-only access to that folder until you quit.\n\n"+
-			"Trust This Folder is permanent: every HTML Clay file in it opens editable with no prompts, "+
-			"including files added later, and any file in it can change any other.",
-		who, lca)
+	return true
 }
 
 func (b *broker) suppress(root string) {
