@@ -175,7 +175,7 @@ func resolveWriteTarget(registry *consentRegistry, name string) (string, error) 
 		return "", invalidFilePathError()
 	}
 	if nameTooLong(upathBase(name) + sidecarSuffix) {
-		return "", &PathError{Status: 400, Message: "This document's name is too long to save. Rename it to something shorter, then save again."} // TODO-COPY: save refusal for a file name over 250 bytes
+		return "", &PathError{Status: 400, Message: "This document's name is too long to save. Rename it to something shorter, then save again."}
 	}
 	return resolveWritePath(registry, name)
 }

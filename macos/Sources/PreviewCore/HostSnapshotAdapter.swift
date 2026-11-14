@@ -188,13 +188,13 @@ public enum HostSnapshotAdapter {
     private static func formatTime(_ date: Date?, now: Date, calendar: Calendar) -> String {
         guard let date else { return "" }
         if calendar.isDate(date, inSameDayAs: now) {
-            return "Today at " + timeFormatter(calendar).string(from: date) // TODO-COPY
+            return "Today at " + timeFormatter(calendar).string(from: date)
         }
         let yesterday = calendar.date(byAdding: .day, value: -1, to: now)
         if let yesterday, calendar.isDate(date, inSameDayAs: yesterday) {
-            return "Yesterday at " + timeFormatter(calendar).string(from: date) // TODO-COPY
+            return "Yesterday at " + timeFormatter(calendar).string(from: date)
         }
-        return dateFormatter(calendar).string(from: date) // TODO-COPY
+        return dateFormatter(calendar).string(from: date)
     }
 
     private static func timeFormatter(_ calendar: Calendar) -> DateFormatter {

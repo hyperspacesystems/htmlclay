@@ -1,13 +1,9 @@
 import Foundation
 
 enum LoopbackText {
-    // TODO-COPY
     static let unavailable = "This isn't available yet."
-    // TODO-COPY
     static let interrupted = "HTML Clay didn't get that. Try again."
-    // TODO-COPY
     static let unreachable = "HTML Clay isn't responding."
-    // TODO-COPY
     static let hostError = "HTML Clay couldn't do that."
 }
 

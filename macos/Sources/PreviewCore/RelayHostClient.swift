@@ -1,7 +1,6 @@
 import Foundation
 
 private enum RelayText {
-    // TODO-COPY
     static let notRunning = "HTML Clay isn't running."
 }
 

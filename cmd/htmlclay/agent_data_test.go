@@ -235,7 +235,7 @@ func TestM3AgentLaneData(t *testing.T) {
 			read := agentLaneDataOf(t, fx.app, fx.served)
 			rec := agentLaneDataWrite(t, fx.app, fx.served, "patch", agentDataTabGone, "op-1", read.ETag)
 			refusal := wantAgentLaneRefusal(t, rec, http.StatusBadRequest, "patch-unsupported")
-			if len(refusal.Error.Message) > 160 || !strings.Contains(refusal.Error.Message, "whole data only") {
+			if len(refusal.Error.Message) > 160 || !strings.Contains(refusal.Error.Message, "whole data") {
 				t.Fatalf("the refusal's sentence = %q", refusal.Error.Message)
 			}
 			if got := agentLaneFileBytes(t, fx.served); got != before {

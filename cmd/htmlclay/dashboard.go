@@ -47,9 +47,9 @@ const (
 	dashboardRefuseEtagRequired  = "etag-required"
 	dashboardRefuseNotRestorable = "not-restorable"
 
-	textVersionStale         = "This document changed since you looked, so nothing was restored."                        // TODO-COPY: dashboard, refused restore, max 90 chars
-	textVersionEtagRequired  = "This restore didn't say which version of the document it read, so nothing was restored." // TODO-COPY: dashboard, refused restore, max 120 chars
-	textVersionNotRestorable = "This document isn't open and isn't in a trusted folder, so its versions aren't here."    // TODO-COPY: dashboard, refused restore or version route, max 140 chars
+	textVersionStale         = "This document changed since you looked, so HTML Clay didn't restore it."
+	textVersionEtagRequired  = "This restore didn't include which version of the document you saw, so HTML Clay didn't restore it. Try again."
+	textVersionNotRestorable = "This document isn't open or in a trusted folder, so its versions aren't available here. Open the document or trust its folder."
 
 	// dashboardPingEvery is how often the event stream sends a comment line, so a
 	// quiet stream is not closed for looking idle.

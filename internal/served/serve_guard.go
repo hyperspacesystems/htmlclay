@@ -107,7 +107,6 @@ func (s *rootServer) serveDataLossPost(w http.ResponseWriter, r *http.Request, i
 	}
 	choice, _ := object["choice"].(string)
 	if choice != "dismiss" && choice != "revert" && choice != "restore" && choice != "put-back" {
-		// TODO-COPY: Local's message with the fourth choice added; at most 60 characters.
 		return dataLossAnswer(w, r, http.StatusBadRequest, orderedObject{
 			{Key: "error", Value: "choice must be dismiss | revert | restore | put-back"},
 		})

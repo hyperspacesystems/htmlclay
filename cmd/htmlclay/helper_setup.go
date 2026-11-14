@@ -35,7 +35,7 @@ const (
 
 // helperTeamDocumentSentence is the app's team copy, shown beside a document a
 // team shares so the person knows why it asks one at a time.
-const helperTeamDocumentSentence = "This document is in a folder a team shares. Its editors can change it later, so a program is allowed for this document only." // TODO-COPY: helper setup dialog sentence for a team document, max 160 chars
+const helperTeamDocumentSentence = "A team shares this document's folder, and its editors can change it later. You can allow a program for this document only."
 
 // helperSetupPresenter is the one setup flow's view of who answers: the
 // request window under the Mac app, today's dialogs otherwise. widePick is the

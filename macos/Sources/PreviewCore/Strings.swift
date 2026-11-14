@@ -36,8 +36,8 @@ public enum Strings {
         }
     }
     public enum Recover {
-        public static let title = "Recover missing file" // TODO-COPY: save panel title, max 40 chars
-        public static let save = "Recover" // TODO-COPY: save panel button, max 20 chars
+        public static let title = "Recover missing file"
+        public static let save = "Recover"
     }
     public enum Menu {
         public static let settings = "Settings…"
@@ -47,9 +47,9 @@ public enum Strings {
         public static let versionHistory = "Version history…"
         public static let showInFinder = "Show in Finder"
         public static let exportZip = "Export as zip…"
-        public static let recoverMissing = "Recover missing file…" // TODO-COPY: panel document menu, max 30 chars
+        public static let recoverMissing = "Recover missing file…"
         public static let removeFromRecent = "Remove from Recent"
-        public static let keptCopies = "Kept Copies…" // TODO-COPY: panel menu, reuses the tray's words, max 20 chars
+        public static let keptCopies = "Kept Copies…"
         public static func needsYou(_ count: Int) -> String { "Needs you (\(count))" }
     }
     public enum Welcome {
@@ -140,9 +140,9 @@ public enum Strings {
         public static let serveSubOn = "Local web address and .html saving enabled."
         public static let serveSubOnlyOnThisMac = " · Only on this Mac"
         public static let address = "Address"
-        public static let framing = "Allow other sites to frame" // TODO-COPY: served folder page switch title, max 32 chars
-        public static let framingSub = "Other websites can show these pages inside their own pages." // TODO-COPY: served folder page switch subtitle, max 80 chars
-        public static let framingNote = "Only turn this on for pages you mean to share with another site. The Mac app is the only place that can turn it back off." // TODO-COPY: served folder page switch note, max 160 chars
+        public static let framing = "Let other sites embed pages"
+        public static let framingSub = "Other websites can show these pages inside their own pages."
+        public static let framingNote = "Turn this on only for pages you mean to share with another site. You can turn it back off only in the Mac app."
         public static let copy = "Copy"
         public static let versions = "Versions and uploads"
         public static let show = "Show"
@@ -177,8 +177,8 @@ public enum Strings {
             "\(child)'s \(documents) documents will move to \(parent)'s address, where documents in \(parent) can link to and change each other. Anything those documents saved in the browser stays behind at \(child)'s old address. Your files on disk stay right where they are."
         }
         public static func mergeAction(parent: String) -> String { "Merge into \(parent)" }
-        public static func relinkTitle(_ name: String) -> String { "Find \(name)?" } // TODO-COPY: Find it sheet title, the folder's name, max 40 chars
-        public static let relinkLead = "Choose where this folder went. It keeps its id, name and address." // TODO-COPY: Find it sheet lead, max 120 chars
+        public static func relinkTitle(_ name: String) -> String { "Find \(name)?" }
+        public static let relinkLead = "Choose where this folder moved. It keeps its id, name, and address."
     }
     public enum Programs {
         public static let addProgram = "Add program…"
@@ -267,9 +267,9 @@ public enum Strings {
         public static let liveService = "Live service"
         public static let liveServiceSub = "Runs served and synced folders"
         public static let running = "Running"
-        public static let starting = "Starting" // TODO-COPY: the live service is starting or restarting
-        public static let stopped = "Stopped" // TODO-COPY: the live service failed
-        public static let off = "Not running" // TODO-COPY: the live service is off
+        public static let starting = "Starting"
+        public static let stopped = "Stopped"
+        public static let off = "Not running"
         public static let storage = "Storage"
         public static let versions = "Versions of documents outside served folders"
         public static let versionsSize = "240 MB"
@@ -331,21 +331,21 @@ public enum Strings {
             if detail.isEmpty { return nil }
             switch detail {
             case "in-downloads":
-                return "It's in Downloads, where files from the internet land." // TODO-COPY: why a program file is risky, max 70 chars
+                return "It's in Downloads, where files from the internet land."
             case "in-temp":
-                return "It's in the temporary folder, where installers leave files." // TODO-COPY: why a program file is risky, max 70 chars
+                return "It's in the temporary folder, where installers leave files."
             case "just-arrived":
-                return "It changed a moment ago." // TODO-COPY: why a program file is risky, max 70 chars
+                return "It changed a moment ago."
             case "downloaded":
-                return "It came from the internet." // TODO-COPY: why a program file is risky, max 70 chars
+                return "It came from the internet."
             case "not-executable":
-                return "It isn't marked as runnable." // TODO-COPY: why a program file is risky, max 70 chars
+                return "It isn't marked as runnable."
             case "script-interpreter":
-                return "It's a script another program runs for you." // TODO-COPY: why a program file is risky, max 70 chars
+                return "It's a script another program runs for you."
             case "scope-unknown":
-                return "HTML Clay can't tell which folder this program may touch." // TODO-COPY: why a program file is risky, max 70 chars
+                return "HTML Clay can't tell which folder this program may touch."
             case "main-folder":
-                return "This is one of your main folders." // TODO-COPY: beside a folder path, max 70 chars
+                return "This is one of your main folders."
             default:
                 return detail
             }
@@ -383,8 +383,8 @@ public enum Strings {
         public static func inside(_ name: String, count: Int) -> String {
             count == 1 ? "\(name) already has 1 trusted folder inside. It keeps its own address." : "\(name) already has \(count) trusted folders inside. They keep their own address."
         }
-        public static func insideTrusted(_ name: String, around: String) -> String { "\(name) is inside \(around). Its documents get a new address, and nothing they stored in the browser moves with them." } // TODO-COPY: trust sheet warning for a folder inside a trusted folder, the two folder names, max 150 chars
-        public static let trustNewAddress = "Trust with new address" // TODO-COPY: trust sheet button that accepts the inside-trusted warning, max 22 chars
+        public static func insideTrusted(_ name: String, around: String) -> String { "\(name) is inside \(around). Its documents get a new address, and nothing they stored in your browser moves with them." }
+        public static let trustNewAddress = "Trust with new address"
     }
     public enum Levels {
         public static let trusted = "Trusted"
@@ -414,7 +414,7 @@ public enum Strings {
         public static func wouldExport(_ name: String) -> String { "Build 1: this would export \(name) as a zip file." }
         public static func wouldRecover(_ name: String) -> String { "Build 1: this would ask where to save a recovered copy of \(name)." }
         public static func wouldRemove(_ name: String) -> String { "Build 1: this would remove \(name) from Recent." }
-        public static let wouldOpenKeptCopies = "Build 1: this would open Kept Copies in your browser." // TODO-COPY: sample note, max 60 chars
+        public static let wouldOpenKeptCopies = "Build 1: this would open Kept Copies in your browser."
         public static func persona(_ persona: Persona) -> String {
             switch persona {
             case .newPerson: return "A new person"
@@ -505,11 +505,11 @@ public enum Strings {
         public static let file = "File"
         public static let nameHint = "The name documents ask for. Lowercase letters, numbers and hyphens."
         public static let add = "Add"
-        public static let relinkTitle = "Find the program file" // TODO-COPY: relink sheet title, max 40 chars
-        public static let relinkLead = "HTML Clay runs the file you choose instead. Nothing else about the program changes." // TODO-COPY: relink sheet lead, max 120 chars
-        public static let useFile = "Use this file" // TODO-COPY: relink sheet button, max 20 chars
-        public static let beforeYouAdd = "Before you add it" // TODO-COPY: add sheet warnings heading, max 30 chars
-        public static let beforeYouUse = "Before you use it" // TODO-COPY: relink sheet warnings heading, max 30 chars
+        public static let relinkTitle = "Find the program file"
+        public static let relinkLead = "HTML Clay will run the file you choose instead. Nothing else about the program changes."
+        public static let useFile = "Use this file"
+        public static let beforeYouAdd = "Before you add it"
+        public static let beforeYouUse = "Before you use it"
     }
     public enum Move {
         public static let title = "Move your folders from Hyperclay Local"
@@ -552,8 +552,8 @@ public enum Strings {
         public static let cancel = "Cancel"
         public static let noAnswer = "Your open documents could not be checked."
         public static func portTitle(_ port: String, process: String) -> String { "Port \(port) is in use by “\(process)”" }
-        public static func portTakenTitle(_ port: Int) -> String { "Port \(port) is in use" } // TODO-COPY: alert title when another app holds the host's port
-        public static let portTakenMessage = "Another app is using the port HTML Clay needs. Quit that app, then open HTML Clay again." // TODO-COPY: alert message when another app holds the host's port
+        public static func portTakenTitle(_ port: Int) -> String { "Port \(port) is in use" }
+        public static let portTakenMessage = "Another app is using the port HTML Clay needs. Quit that app, then open HTML Clay again."
         public static let portMessage = "HTML Clay can use another port, but every page's saved browser data starts over at the new address."
         public static func quitProcess(_ process: String) -> String { "Quit \(process) and retry" }
         public static func usePort(_ port: Int) -> String { "Use port \(port)" }
@@ -563,8 +563,8 @@ public enum Strings {
         public static func wouldUsePort(_ port: Int) -> String { "Build 1: this would move every address to port \(port). Saved browser data starts over." }
     }
     public enum Open {
-        public static func cantOpenTitle(_ name: String) -> String { "Can't open \"\(name)\"" } // TODO-COPY: alert title when a file open is refused; \(name) is the file's name
-        public static let cantOpenFallback = "Something went wrong. Try opening it again." // TODO-COPY: alert message when the host gives no reason
+        public static func cantOpenTitle(_ name: String) -> String { "Can't open \"\(name)\"" }
+        public static let cantOpenFallback = "Something went wrong. Try opening it again."
         public static let ok = "OK"
     }
     public enum Notify {
@@ -606,7 +606,6 @@ extension Strings.Panel {
     public static let restartsSoon = "HTML Clay restarts in a moment"
     public static let hostStopped = "HTML Clay stopped working."
     public static let hostStoppedSub = "Your files are safe. Open documents can't save until it restarts."
-    // TODO-COPY
     public static let notReady = "HTML Clay is still starting. Try again in a moment."
     public static let showLogs = "Show logs"
 }

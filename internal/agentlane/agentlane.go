@@ -73,26 +73,26 @@ const (
 // The sentences a refusal carries, so the lane never invents wording at a call
 // site.
 const (
-	textForbidden            = "This address answers only a request for 127.0.0.1 on this port with no browser headers."               // TODO-COPY: agent lane, max 120 chars
-	textNotFound             = "No route answers at this address."                                                                     // TODO-COPY: agent lane, max 120 chars
-	textNotReachable         = "That document is not in a served folder, a live trusted folder, or open."                              // TODO-COPY: agent lane, max 120 chars
-	textMethodNotAllowed     = "This route does not answer that method."                                                               // TODO-COPY: agent lane, max 120 chars
-	textBadRequest           = "That document id is not one this address issues."                                                      // TODO-COPY: agent lane, max 120 chars
-	textInternal             = "That document could not be read."                                                                      // TODO-COPY: agent lane, max 120 chars
-	textPreconditionRequired = "A write needs If-Match: read the document first and send the etag that read answered."                 // TODO-COPY: agent lane, max 160 chars
-	textInvalidMatch         = "If-Match must be exactly one etag from a read: not *, not a weak tag, not a list."                     // TODO-COPY: agent.invalid-match, max 160 chars
-	textOperationReused      = "This operationId already named a different write. Read the document again and send a new operationId." // TODO-COPY: agent.operation-reused, max 160 chars
-	textConflict             = "The document changed since it was read. Read it again and make the change on that version."            // TODO-COPY: agent lane, max 160 chars
-	textTooLarge             = "That document is larger than this app saves."                                                          // TODO-COPY: agent lane, max 120 chars
-	textInvalidDocument      = "That is not a whole HTML document."                                                                    // TODO-COPY: agent lane, max 120 chars
-	textRecoveryUnavailable  = "The current version could not be stored in history, so nothing was written. Try again."                // contract text, verbatim
-	textBadBody              = "The body must be JSON naming html and operationId, or a Save-ID header must name it."                  // TODO-COPY: agent lane, max 160 chars
-	textWriteFailed          = "That document could not be written."                                                                   // TODO-COPY: agent lane, max 120 chars
-	textBadDataBody          = "The body must be JSON naming data or patch, never both, and operationId or a Save-ID header."          // TODO-COPY: agent lane, max 160 chars
-	textNoAPIRules           = "This document has no api rules tag, so it has no data. Read its HTML and save the whole document."     // TODO-COPY: agent.no-api-rules, max 160 chars
-	textPatchUnsupported     = "This document's folder takes whole data only. Read the data, change it, and send it as data."          // TODO-COPY: agent.patch-unsupported, max 160 chars
-	textDataTooLarge         = "That data is larger than this app writes at once. Send fewer fields, or save the whole document."      // TODO-COPY: agent lane, max 160 chars
-	textUnauthorized         = "Send the token from %s as Authorization: Bearer <token>."                                              // TODO-COPY: agent lane, max 160 chars, %s is the token file's path
+	textForbidden            = "This address requires 127.0.0.1 on this port with no browser headers. Send the request to 127.0.0.1 without them."
+	textNotFound             = "No route matches this address. Check the address and try again."
+	textNotReachable         = "That document is not open or in a served or live trusted folder. Open it, or serve or trust its folder."
+	textMethodNotAllowed     = "This route does not accept that method. Use a method this route supports."
+	textBadRequest           = "This address did not issue that document id. Use a document id from this address."
+	textInternal             = "HTML Clay could not read that document. Check the document and try again."
+	textPreconditionRequired = "A write needs If-Match. Read the document first, then send the etag from that read."
+	textInvalidMatch         = "If-Match must be exactly one etag from a read: not *, not a weak tag, and not a list. Read the document and send that etag."
+	textOperationReused      = "You already used this operationId for a different write. Read the document again and send a new operationId."
+	textConflict             = "The document changed since you read it. Read it again and make your change on that version."
+	textTooLarge             = "That document is larger than HTML Clay can save. Reduce its size and try again."
+	textInvalidDocument      = "That is not a whole HTML document. Send a complete HTML document and try again."
+	textRecoveryUnavailable  = "The current version could not be stored in history, so nothing was written. Try again." // contract text, verbatim
+	textBadBody              = "Send a JSON body with html. Include operationId in the body or send a Save-ID header."
+	textWriteFailed          = "HTML Clay could not write that document. Check the file and try again."
+	textBadDataBody          = "Send a JSON body with data or patch, never both. Include operationId in the body or send a Save-ID header."
+	textNoAPIRules           = "This document has no api rules tag, so it has no data. Read its HTML and save the whole document."
+	textPatchUnsupported     = "This document's folder only accepts whole data. Read the data, change it, and send it as data."
+	textDataTooLarge         = "That data is too large for HTML Clay to write at once. Send fewer fields, or save the whole document."
+	textUnauthorized         = "This request did not include the current agent token. Send the token from %s as Authorization: Bearer <token>."
 )
 
 // Version is one kept version of a document.
