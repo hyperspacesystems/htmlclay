@@ -76,8 +76,10 @@ struct FolderPage: View {
                 }
                 KilnRowDivider()
                 KilnNoteRow(Strings.FolderPage.askOwner) {
-                    KilnLink(Strings.FolderPage.open) {
-                        model.say(Strings.Sync.wouldOpenSite)
+                    if model.isSample {
+                        KilnLink(Strings.FolderPage.open) {
+                            model.say(Strings.Sync.wouldOpenSite)
+                        }
                     }
                 }
             }
@@ -87,20 +89,22 @@ struct FolderPage: View {
                         subtitle: Strings.FolderPage.missingSub) {
                     EmptyView()
                 }
-                KilnRowDivider()
-                HStack(spacing: 8) {
-                    Spacer(minLength: 0)
-                    Button(Strings.Programs.findIt) {
-                        model.say(Strings.Programs.wouldFind(folder.name))
+                if model.isSample {
+                    KilnRowDivider()
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 0)
+                        Button(Strings.Programs.findIt) {
+                            model.say(Strings.Programs.wouldFind(folder.name))
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
+                        Button(Strings.FolderPage.setUpAgain) {
+                            model.say(Strings.FolderPage.wouldSetUpAgain(folder.name))
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
                     }
-                    .buttonStyle(KilnButtonStyle(.plain))
-                    Button(Strings.FolderPage.setUpAgain) {
-                        model.say(Strings.FolderPage.wouldSetUpAgain(folder.name))
-                    }
-                    .buttonStyle(KilnButtonStyle(.plain))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
             }
         case .none:
             EmptyView()
@@ -120,10 +124,16 @@ struct FolderPage: View {
                 actions.openDashboard()
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            Button(Strings.Menu.showInFinder) {
-                model.say(Strings.Preview.wouldShowInFinder(folder.path))
+            if model.isSample || model.can(FolderActionType.reveal) {
+                Button(Strings.Menu.showInFinder) {
+                    if model.isSample {
+                        model.say(Strings.Preview.wouldShowInFinder(folder.path))
+                    } else {
+                        model.send(.revealFolder(id: folder.id))
+                    }
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
             }
-            .buttonStyle(KilnButtonStyle(.plain))
         }
         .padding(.bottom, 16)
     }
@@ -131,11 +141,14 @@ struct FolderPage: View {
     private func outerCard(_ folder: Folder) -> some View {
         NestCard(level: .outer) {
             VStack(alignment: .leading, spacing: 0) {
-                FolderPageCardHeader(title: Strings.FolderPage.trusted, subtitle: trustedSub(folder)) {
+                let trusted = FolderControls.trusted(folder: folder)
+                FolderPageCardHeader(title: Strings.FolderPage.trusted,
+                                     subtitle: trusted.note ?? trustedSub(folder)) {
                     Toggle(isOn: trustedBinding) {
                         EmptyView()
                     }
                     .toggleStyle(KilnSwitchStyle())
+                    .disabled(!trusted.enabled)
                 }
                 let children = model.snapshot.children(of: folder.id)
                 if !children.isEmpty {
@@ -161,23 +174,31 @@ struct FolderPage: View {
                         Squircle(.sky, symbol: Symbols.folder)
                     }
                 } trailing: {
-                    Button(Strings.FolderPage.mergeButton(parent: folder.name)) {
-                        alert = FolderAlert(kind: .merge(childID: child.id))
+                    if FolderControls.showsMerge(child: child,
+                                                 hostCan: model.can(FolderActionType.merge)) {
+                        Button(Strings.FolderPage.mergeButton(parent: folder.name)) {
+                            alert = FolderAlert(kind: .merge(childID: child.id))
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
                     }
-                    .buttonStyle(KilnButtonStyle(.plain))
                 }
             }
         }
     }
 
     private func midCard(_ folder: Folder) -> some View {
-        NestCard(level: .mid, on: folder.served) {
+        let served = FolderControls.served(folder: folder, pending: model.pendingServed(folder.id))
+        return NestCard(level: .mid, on: served.value) {
             VStack(alignment: .leading, spacing: 0) {
                 FolderPageCardHeader(title: Strings.FolderPage.serve, subtitle: serveSub(folder)) {
                     Toggle(isOn: servedBinding) {
                         EmptyView()
                     }
                     .toggleStyle(KilnSwitchStyle())
+                    .disabled(!served.enabled)
+                }
+                if let note = served.note {
+                    KilnNoteRow(note)
                 }
                 if folder.served {
                     detailRows(folder)
@@ -193,10 +214,12 @@ struct FolderPage: View {
             KilnRowDivider()
             KilnRow(title: Strings.FolderPage.versions,
                     subtitle: Strings.FolderPage.versionsSub(size: folder.versionsSize)) {
-                Button(Strings.FolderPage.show) {
-                    model.say(Strings.FolderPage.versionsNote(folder: folder.name))
+                if model.isSample {
+                    Button(Strings.FolderPage.show) {
+                        model.say(Strings.FolderPage.versionsNote(folder: folder.name))
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
                 }
-                .buttonStyle(KilnButtonStyle(.plain))
             }
         }
     }
@@ -214,8 +237,12 @@ struct FolderPage: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button(Strings.FolderPage.copy) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(folder.address, forType: .string)
+                if model.isSample {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(folder.address, forType: .string)
+                } else {
+                    model.send(.copyAddress(folderID: folder.id))
+                }
                 model.say(Strings.Folders.copied(folder.address))
             }
             .buttonStyle(KilnButtonStyle(.plain))
@@ -233,13 +260,20 @@ struct FolderPage: View {
     }
 
     private func syncCard(_ folder: Folder) -> some View {
-        NestCard(level: .inner, on: folder.synced) {
+        let synced = FolderControls.synced(folder: folder,
+                                           pending: model.pendingSynced(folder.id),
+                                           hostCan: model.can(FolderActionType.setSynced))
+        return NestCard(level: .inner, on: synced.value) {
             VStack(alignment: .leading, spacing: 0) {
                 FolderPageCardHeader(title: Strings.FolderPage.sync, subtitle: Strings.FolderPage.syncSub) {
                     Toggle(isOn: syncedBinding) {
                         EmptyView()
                     }
                     .toggleStyle(KilnSwitchStyle())
+                    .disabled(!synced.enabled)
+                }
+                if let note = synced.note {
+                    KilnNoteRow(note)
                 }
                 if folder.synced {
                     let status = Self.syncStatus(folder, snapshot: model.snapshot)
@@ -261,7 +295,9 @@ struct FolderPage: View {
                             .buttonStyle(.plain)
                         }
                     }
-                } else if case let .team(name) = folder.origin, Self.problem(for: folder) == .none {
+                } else if case let .team(name) = folder.origin,
+                          Self.problem(for: folder) == .none,
+                          model.can(FolderActionType.setSynced) {
                     NestRows {
                         KilnRow(title: Strings.FolderPage.wasTeam(name), subtitle: Strings.FolderPage.wasTeamSub) {
                             StatusDot(.muted)
@@ -323,10 +359,18 @@ struct FolderPage: View {
 
     private var servedBinding: Binding<Bool> {
         Binding(
-            get: { model.snapshot.folder(folderID)?.served ?? false },
+            get: {
+                guard let folder = model.snapshot.folder(folderID) else { return false }
+                return FolderControls.served(folder: folder, pending: model.pendingServed(folderID)).value
+            },
             set: { on in
+                guard let folder = model.snapshot.folder(folderID) else { return }
                 if on {
-                    model.sheet = .serveFolder(folderID: folderID)
+                    if folder.address.isEmpty {
+                        model.sheet = .serveFolder(folderID: folderID)
+                    } else {
+                        model.send(.setServed(folderID: folderID, on: true))
+                    }
                 } else {
                     alert = FolderAlert(kind: .stopServing)
                 }
@@ -336,7 +380,11 @@ struct FolderPage: View {
 
     private var syncedBinding: Binding<Bool> {
         Binding(
-            get: { model.snapshot.folder(folderID)?.synced ?? false },
+            get: {
+                guard let folder = model.snapshot.folder(folderID) else { return false }
+                return FolderControls.synced(folder: folder, pending: model.pendingSynced(folderID),
+                                             hostCan: model.can(FolderActionType.setSynced)).value
+            },
             set: { on in
                 if on {
                     model.send(.setSynced(folderID: folderID, on: true))

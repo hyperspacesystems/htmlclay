@@ -887,6 +887,104 @@ func TestOpenLog(t *testing.T) {
 		}
 	})
 
+	t.Run("the host logs the folder it reveals and the address it copies", func(t *testing.T) {
+		base := shellBase(t)
+		writeShellConfig(t, base, fmt.Sprintf(`{"startOnLogin": false, "port": %d, "updates": "off"}`, freeLoopbackPort(t)))
+		notes := filepath.Join(base, "notes")
+		writeTestFile(t, filepath.Join(notes, "index.html"), servedTestDocument)
+		logPath := filepath.Join(base, "opened.log")
+
+		_, stdin, stdout, stderr := startShellHost(t, bin, base, "HTMLCLAY_OPEN_LOG="+logPath)
+		t.Cleanup(func() { _ = stdin.Close() })
+		secret := randomSecret(t)
+		if _, err := fmt.Fprintf(stdin, `{"v":1,"secret":%q}`+"\n", secret); err != nil {
+			t.Fatalf("write the bootstrap line: %v\n%s", err, stderr.String())
+		}
+		ready, ok := readReady(t, stdout, 30*time.Second)
+		if !ok {
+			t.Fatalf("no READY line within 30s; stderr:\n%s", stderr.String())
+		}
+
+		post := func(action string) []byte {
+			t.Helper()
+			request, err := http.NewRequest(http.MethodPost, ready.Shell+"/shell/v1/actions", strings.NewReader(action))
+			if err != nil {
+				t.Fatal(err)
+			}
+			request.Header.Set("Authorization", "Bearer "+secret)
+			response, err := http.DefaultClient.Do(request)
+			if err != nil {
+				t.Fatalf("POST %s: %v", action, err)
+			}
+			body, err := io.ReadAll(response.Body)
+			response.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != http.StatusOK {
+				t.Fatalf("%s = %d %s, want 200\nstderr:\n%s", action, response.StatusCode, body, stderr.String())
+			}
+			return body
+		}
+
+		post(shellJSON("trust1", "folder.trust", map[string]string{"path": notes}))
+		served := post(shellJSON("serve1", "folder.serve", map[string]string{"path": notes, "name": "notes"}))
+		var outcome struct {
+			Snapshot struct {
+				Folders []struct {
+					ID      string `json:"id"`
+					Address string `json:"address"`
+					Served  bool   `json:"served"`
+				} `json:"folders"`
+			} `json:"snapshot"`
+		}
+		if err := json.Unmarshal(served, &outcome); err != nil {
+			t.Fatalf("decode the serve answer: %v\n%s", err, served)
+		}
+		id, address := "", ""
+		for _, folder := range outcome.Snapshot.Folders {
+			if folder.Served && folder.Address != "" {
+				id, address = folder.ID, folder.Address
+			}
+		}
+		if id == "" {
+			t.Fatalf("serving %s gave no served folder with an address: %s", notes, served)
+		}
+
+		resolved, err := filepath.EvalSymlinks(notes)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		post(shellJSON("reveal1", "folder.reveal", map[string]string{"id": id}))
+		post(shellJSON("copy1", "folder.copyAddress", map[string]string{"id": id}))
+
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			logged, err := os.ReadFile(logPath)
+			if err == nil {
+				lines := strings.Split(strings.TrimRight(string(logged), "\n"), "\n")
+				revealed, copied := false, false
+				for _, line := range lines {
+					if line == "reveal "+resolved {
+						revealed = true
+					}
+					if strings.HasPrefix(line, "copy http") && strings.Contains(line, address) {
+						copied = true
+					}
+				}
+				if revealed && copied {
+					return
+				}
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("opened.log = %q within 5s, want a %q line and a copy of %q; read: %v; stderr:\n%s",
+					logged, "reveal "+resolved, address, err, stderr.String())
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	})
+
 	t.Run("only a host the app started logs", func(t *testing.T) {
 		logPath := filepath.Join(t.TempDir(), "opened.log")
 		if open := openLogOverride(false, logPath); open != nil {

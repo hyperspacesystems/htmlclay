@@ -368,6 +368,82 @@ final class LiveHostTests: XCTestCase {
         XCTAssertEqual(trustedOuter.name, "outer")
     }
 
+    func testRevealAndCopyAnswerAndLandInTheOpenLog() async throws {
+        let host = try await LiveHost.start()
+        let notes = host.home.appendingPathComponent("notes")
+        try makeFolder(notes)
+
+        _ = try done(await host.client.perform(.trustFolder(name: "notes", path: notes.path)),
+                     "trusting notes was refused")
+        let servedSnapshot = try done(await host.client.perform(.serveFolder(path: notes.path, name: "notes")),
+                                      "serving notes was refused")
+        let served = try XCTUnwrap(servedSnapshot.folders.first { $0.fullPath == notes.path })
+
+        _ = try done(await host.client.perform(.revealFolder(id: served.id)),
+                     "revealing notes was refused")
+        _ = try done(await host.client.perform(.copyAddress(folderID: served.id)),
+                     "copying the address of notes was refused")
+
+        let log = host.home.appendingPathComponent("open.log")
+        await waitUntil("the open log never got the reveal and the copy") {
+            guard let text = try? String(contentsOf: log, encoding: .utf8) else { return false }
+            return text.contains("reveal ") && text.contains("copy http")
+        }
+    }
+
+    func testAFolderInsideAServedFolderFollowsTheHostsSwitch() async throws {
+        let host = try await LiveHost.start()
+        let outer = host.home.appendingPathComponent("notes")
+        let inner = outer.appendingPathComponent("inner")
+        try makeFolder(outer)
+        try makeFolder(inner)
+
+        _ = try done(await host.client.perform(.trustFolder(name: "notes", path: outer.path)),
+                     "trusting notes was refused")
+        _ = try done(await host.client.perform(.serveFolder(path: outer.path, name: "notes")),
+                     "serving notes was refused")
+        let trusted = try done(await host.client.perform(.trustFolder(name: "inner", path: inner.path)),
+                               "trusting inner was refused")
+        let inside = try XCTUnwrap(trusted.folders.first { $0.fullPath == inner.path })
+        XCTAssertFalse(inside.served)
+
+        // The host's can is what the page's switch shows and obeys, here and now.
+        let toggle = FolderControls.served(folder: inside, pending: nil)
+        XCTAssertEqual(toggle.value, inside.served)
+        XCTAssertEqual(toggle.enabled, inside.can?.serve ?? true)
+        XCTAssertEqual(toggle.note, (inside.can?.serve ?? true) ? nil : inside.why.serve?.text)
+
+        // Serving it is still refused when it is asked for.
+        guard case let .refused(refusal) = await host.client.perform(.serveFolder(path: inner.path, name: "inner")) else {
+            return XCTFail("the host served a folder inside a served folder")
+        }
+        XCTAssertEqual(refusal.code, "overlaps-served")
+    }
+
+    func testAMissingFolderDisablesItsServedSwitchWithTheHostsReason() async throws {
+        let host = try await LiveHost.start()
+        let notes = host.home.appendingPathComponent("notes")
+        try makeFolder(notes)
+
+        let trusted = try done(await host.client.perform(.trustFolder(name: "notes", path: notes.path)),
+                               "trusting notes was refused")
+        let folder = try XCTUnwrap(trusted.folders.first { $0.fullPath == notes.path })
+        try FileManager.default.removeItem(at: notes)
+
+        let next = try done(await host.client.perform(.setAIEditing(false)),
+                            "asking the host for a fresh snapshot was refused")
+        let gone = try XCTUnwrap(next.folders.first { $0.fullPath == notes.path })
+        XCTAssertTrue(gone.missingOnDisk)
+
+        let toggle = FolderControls.served(folder: gone, pending: nil)
+        XCTAssertFalse(toggle.enabled)
+        XCTAssertEqual(toggle.value, false)
+        let why = try XCTUnwrap(gone.why.serve)
+        XCTAssertFalse(why.text.isEmpty)
+        XCTAssertEqual(toggle.note, why.text)
+        XCTAssertEqual(folder.id, gone.id)
+    }
+
     func testWrongSecretIsRefused() async throws {
         let host = try await LiveHost.start()
         let stranger = LoopbackHostClient(port: host.shellPort, secret: String(repeating: "0", count: 64))

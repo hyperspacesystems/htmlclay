@@ -30,6 +30,15 @@ var implementedActions = []string{
 	"waiting.markSeen",
 }
 
+// revealPath shows a folder in the file manager through the runtime seam, so a
+// test reads what would be revealed instead of opening a Finder window.
+func (a *app) revealPath(path string) error {
+	if a.rt.reveal != nil {
+		return a.rt.reveal(path)
+	}
+	return browser.Reveal(path)
+}
+
 // runEffect runs one effect with the code the app already has for that change.
 // An effect whose code is not here yet answers not-yet.
 func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal {
@@ -95,7 +104,7 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		if path == "" {
 			return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
 		}
-		if err := browser.Reveal(path); err != nil {
+		if err := a.revealPath(path); err != nil {
 			a.rt.logger.Printf("Could not show folder %s: %v", path, err)
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
 		}

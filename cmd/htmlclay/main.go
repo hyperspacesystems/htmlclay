@@ -110,6 +110,9 @@ type appRuntime struct {
 	// browser, so a test can capture the address instead of opening a window.
 	// Production leaves it nil and uses the platform browser.
 	launchBrowser func(string) error
+	// reveal overrides how folder.reveal shows a folder in Finder, so no test
+	// opens a Finder window. Production leaves it nil and uses browser.Reveal.
+	reveal func(string) error
 	// selectFolder overrides the native folder picker behind the Served Folders
 	// submenu, so no test can open a real picker.
 	selectFolder func(prompt string) (string, bool, error)
@@ -268,17 +271,32 @@ func migrateConfigDir() {
 // browser, and only to an absolute path, so the host never writes somewhere it
 // guessed.
 func openLogOverride(shell bool, env string) func(string) error {
-	if !shell || !filepath.IsAbs(env) {
+	logPath, ok := openLogPath(shell, env)
+	if !ok {
 		return nil
 	}
-	logPath := env
+	return openLogLine(logPath, "")
+}
+
+// openLogPath answers where a host the app started writes what it did instead of
+// doing it, and whether it does that at all.
+func openLogPath(shell bool, env string) (string, bool) {
+	if !shell || !filepath.IsAbs(env) {
+		return "", false
+	}
+	return env, true
+}
+
+// openLogLine returns the replacement for a runtime seam that writes the line the
+// host would have acted on, with prefix, instead of acting on it.
+func openLogLine(logPath, prefix string) func(string) error {
 	return func(target string) error {
 		f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
-		_, err = fmt.Fprintln(f, target)
+		_, err = fmt.Fprintln(f, prefix+target)
 		return err
 	}
 }
@@ -342,8 +360,10 @@ func main() {
 	fmt.Fprintln(os.Stderr, "[htmlclay] Starting up...")
 
 	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin, shell: *shellStdin}
-	if openLog := openLogOverride(*shellStdin, os.Getenv("HTMLCLAY_OPEN_LOG")); openLog != nil {
-		a.rt.launchBrowser = openLog
+	if logPath, ok := openLogPath(*shellStdin, os.Getenv("HTMLCLAY_OPEN_LOG")); ok {
+		a.rt.launchBrowser = openLogLine(logPath, "")
+		a.rt.reveal = openLogLine(logPath, "reveal ")
+		a.rt.copyText = openLogLine(logPath, "copy ")
 	}
 	a.initCore()
 	a.initConfig()

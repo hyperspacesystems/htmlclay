@@ -51,6 +51,18 @@ public final class AppModel {
         Task { _ = await self.run(action, announce: true) }
     }
 
+    /// Whether the host runs an action type at all. Sample data runs everything.
+    public func can(_ type: String) -> Bool { snapshot.hostCan(type) }
+
+    /// The newest served value a folder's switch is waiting on, if any.
+    public func pendingServed(_ folderID: String) -> HostAction? { pending("folder.served." + folderID) }
+
+    /// The newest synced value a folder's switch is waiting on, if any.
+    public func pendingSynced(_ folderID: String) -> HostAction? { pending("folder.synced." + folderID) }
+
+    /// True for the preview's sample data: only sample data carries no host can list.
+    public var isSample: Bool { snapshot.host.can.isEmpty }
+
     /// The value a control should show while its setting is pending: the newest the person chose.
     public func pending(_ slot: String) -> HostAction? {
         queued[slot] ?? inFlight[slot]
