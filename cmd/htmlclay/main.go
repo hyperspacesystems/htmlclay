@@ -65,6 +65,10 @@ type appRuntime struct {
 	ls        *server.LiveSync
 	home      string
 	configDir string
+	// agentToken is what a local program sends to the agent lane, read or made at
+	// start; agentTokenFile is where it lives. Never logged or put in a snapshot.
+	agentToken     string
+	agentTokenFile string
 	// folderLockDir is where the per-folder serve locks live. It is shared by every
 	// profile on this account, so two HTML Clay processes never serve one folder.
 	folderLockDir string
@@ -476,6 +480,12 @@ func (a *app) initConfig() {
 		fatal("Error resolving config dir: %v", err)
 	}
 	fmt.Fprintf(os.Stderr, "[htmlclay] Config dir: %s\n", configDir)
+
+	token, tokenFile, err := loadAgentToken(configDir)
+	if err != nil {
+		fatal("Error writing the agent token: %v", err)
+	}
+	a.rt.agentToken, a.rt.agentTokenFile = token, tokenFile
 
 	a.rt.si = platform.NewSingleInstance(configDir)
 	isPrimary, err := a.rt.si.TryLock()

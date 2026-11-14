@@ -22,6 +22,13 @@ var agentLaneHost = "127.0.0.1:" + strconv.Itoa(servedTestPort)
 
 const agentLanePrefix = "/_/agent/v1"
 
+// testAgentToken is the token the agent fixtures hand the lane, and testAgentTokenFile
+// is the file a refusal names.
+const (
+	testAgentToken     = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	testAgentTokenFile = "/test/agent-token"
+)
+
 // agentLaneRow is one row of the lane's list.
 type agentLaneRow struct {
 	ID     string `json:"id"`
@@ -89,6 +96,7 @@ func newAgentLaneFixture(t *testing.T) *agentLaneFixture {
 	writeTestFile(t, outsidePath, documentAccessDocument)
 
 	a := newServedTestApp(t, home, t.TempDir())
+	a.rt.agentToken, a.rt.agentTokenFile = testAgentToken, testAgentTokenFile
 	if _, refusal, err := a.serveFolder(servedDir, "notes"); err != nil || refusal != nil {
 		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
 	}
@@ -110,6 +118,14 @@ func newAgentLaneFixture(t *testing.T) *agentLaneFixture {
 // bare host.
 func agentLaneRequest(t *testing.T, a *app, method, target string, headers map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
+	if _, ok := headers["Authorization"]; !ok && a.rt.agentToken != "" {
+		sent := make(map[string]string, len(headers)+1)
+		for name, value := range headers {
+			sent[name] = value
+		}
+		sent["Authorization"] = "Bearer " + a.rt.agentToken
+		headers = sent
+	}
 	return servedRequest(t, a, method, agentLaneHost, agentLanePrefix+target, "", headers)
 }
 

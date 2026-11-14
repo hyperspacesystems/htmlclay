@@ -20,7 +20,7 @@ import (
 // nothing.
 func (a *app) agentLane() http.Handler {
 	a.lane.once.Do(func() {
-		a.lane.handler = agentlane.Handler(agentHost{a: a}, a.rt.port)
+		a.lane.handler = agentlane.Handler(agentHost{a: a}, a.rt.port, agentlane.RequireToken(a.rt.agentToken, a.rt.agentTokenFile))
 	})
 	return a.lane.handler
 }

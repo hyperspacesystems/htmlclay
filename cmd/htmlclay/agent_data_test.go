@@ -82,6 +82,7 @@ func newAgentDataFixture(t *testing.T) *agentDataFixture {
 	writeTestFile(t, fx.sheet, string(sheet))
 
 	fx.app = newServedTestApp(t, home, t.TempDir())
+	fx.app.rt.agentToken, fx.app.rt.agentTokenFile = testAgentToken, testAgentTokenFile
 	if _, refusal, err := fx.app.serveFolder(filepath.Dir(fx.served), "notes"); err != nil || refusal != nil {
 		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
 	}

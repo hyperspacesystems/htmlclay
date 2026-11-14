@@ -10,6 +10,7 @@ package agentlane
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -65,6 +66,8 @@ const (
 	codeBadAPIRules      = "bad-api-rules"
 	codeBadData          = "bad-data"
 	codePatchUnsupported = "patch-unsupported"
+
+	codeUnauthorized = "unauthorized"
 )
 
 // The sentences a refusal carries, so the lane never invents wording at a call
@@ -89,6 +92,7 @@ const (
 	textNoAPIRules           = "This document has no api rules tag, so it has no data. Read its HTML and save the whole document."     // TODO-COPY: agent.no-api-rules, max 160 chars
 	textPatchUnsupported     = "This document's folder takes whole data only. Read the data, change it, and send it as data."          // TODO-COPY: agent.patch-unsupported, max 160 chars
 	textDataTooLarge         = "That data is larger than this app writes at once. Send fewer fields, or save the whole document."      // TODO-COPY: agent lane, max 160 chars
+	textUnauthorized         = "Send the token from %s as Authorization: Bearer <token>."                                              // TODO-COPY: agent lane, max 160 chars, %s is the token file's path
 )
 
 // Version is one kept version of a document.
@@ -260,18 +264,55 @@ type handler struct {
 	host   Host
 	addr   string
 	replay *Replay
+	// token is what a request's Authorization header must carry; requireToken
+	// says the check runs at all. An empty required token admits nothing.
+	token        string
+	tokenFile    string
+	requireToken bool
+}
+
+// Option changes how Handler admits a request.
+type Option func(*handler)
+
+// RequireToken makes every request carry Authorization: Bearer <token>. file is
+// where the token lives, named in the refusal so a program knows where to look.
+func RequireToken(token, file string) Option {
+	return func(h *handler) {
+		h.token = token
+		h.tokenFile = file
+		h.requireToken = true
+	}
 }
 
 // Handler serves everything below /_/agent/v1/. port is the bare loopback port;
 // admission requires r.Host to be exactly 127.0.0.1:<port>.
-func Handler(host Host, port int) http.Handler {
-	return &handler{host: host, addr: "127.0.0.1:" + strconv.Itoa(port), replay: NewReplay(nil)}
+func Handler(host Host, port int, opts ...Option) http.Handler {
+	h := &handler{host: host, addr: "127.0.0.1:" + strconv.Itoa(port), replay: NewReplay(nil)}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
+}
+
+// tokenMatches reports whether the request carries this lane's token. An empty
+// token never matches, so a lane whose token could not be read admits nothing.
+func (h *handler) tokenMatches(r *http.Request) bool {
+	got, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !ok || h.token == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(h.token)) == 1
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if !admitted(r, h.addr) {
 		refuse(w, http.StatusForbidden, codeForbidden, textForbidden)
+		return
+	}
+	if h.requireToken && !h.tokenMatches(r) {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		refuse(w, http.StatusUnauthorized, codeUnauthorized, fmt.Sprintf(textUnauthorized, h.tokenFile))
 		return
 	}
 	kind, id, versionID := route(r.URL.Path)

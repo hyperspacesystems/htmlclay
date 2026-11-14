@@ -45,6 +45,9 @@ func agentLaneWrite(t *testing.T, a *app, method, target, body string, headers .
 	} else {
 		req = httptest.NewRequest(method, "http://"+agentLaneHost+agentLanePrefix+target, nil)
 	}
+	if req.Header.Get("Authorization") == "" && a.rt.agentToken != "" {
+		req.Header.Set("Authorization", "Bearer "+a.rt.agentToken)
+	}
 	for i := 0; i+1 < len(headers); i += 2 {
 		req.Header.Add(headers[i], headers[i+1])
 	}
