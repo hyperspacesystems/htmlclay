@@ -476,6 +476,8 @@ func (a *app) shutdownNow() {
 	a.parked = nil
 	a.mu.Unlock()
 
+	a.stopRequests()
+
 	for _, p := range parkedPorts {
 		p.close()
 	}

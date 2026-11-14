@@ -49,6 +49,7 @@ var implementedActions = []string{
 	"program.reveal",
 	"program.setAllTrusted",
 	"request.answer",
+	"request.show",
 	"service.restart",
 	"waiting.markSeen",
 }
@@ -260,6 +261,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.openPath(e.Path)
 	case "request.answer":
 		return a.answerRequest(e)
+	case "request.show":
+		return a.showRequest(e)
 	case "program.add", "program.relink":
 		return a.registerProgram(e)
 	case "program.setAllTrusted":

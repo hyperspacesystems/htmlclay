@@ -215,6 +215,7 @@ func (a *app) untrustFolder(dir string) error {
 			a.bringLive(tf.Path)
 		}
 	}
+	a.closeFolderRequests(dir)
 	for _, p := range reopen {
 		if owner, err := a.ResolveDocument(p); err == nil && owner.Kind == OwnerServed {
 			a.rt.logger.Printf("Leaving %s at its served address %s", p, owner.URL())

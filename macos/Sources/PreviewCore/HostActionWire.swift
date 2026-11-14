@@ -58,6 +58,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "file.open", args: ["path": .string(path)])
         case let .openDashboard(route):
             return WireActionRequest(type: "dashboard.open", args: route.isEmpty ? [:] : ["route": .string(route)])
+        case let .showRequest(requestID):
+            return WireActionRequest(type: "request.show", args: ["id": .string(requestID)])
         case let .answer(requestID, revision, answer, path):
             var args: [String: WireValue] = ["id": .string(requestID), "revision": .int(revision), "answer": .string(answer)]
             if !path.isEmpty { args["path"] = .string(path) }

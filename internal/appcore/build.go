@@ -105,6 +105,7 @@ func Build(f Facts) Snapshot {
 			ID:         r.ID,
 			Kind:       r.Kind,
 			Revision:   r.Revision,
+			Attention:  r.Attention,
 			DocumentID: optionalText(r.DocumentID),
 			Document:   r.Document,
 			Program:    r.Program,

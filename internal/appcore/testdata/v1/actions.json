@@ -122,6 +122,10 @@
       "class": "grant"
     },
     {
+      "type": "request.show",
+      "class": "safe"
+    },
+    {
       "type": "service.restart",
       "class": "safe"
     },

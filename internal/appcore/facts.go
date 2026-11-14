@@ -81,6 +81,7 @@ type RequestFact struct {
 	ID         string   `json:"id"`
 	Kind       string   `json:"kind"`
 	Revision   uint64   `json:"revision"`
+	Attention  uint64   `json:"attention"`
 	DocumentID string   `json:"documentID"`
 	Document   string   `json:"document"`
 	Program    string   `json:"program"`

@@ -235,9 +235,10 @@ public struct WireRequest: Codable, Equatable, Sendable {
     public var path: String
     public var detail: String
     public var answers: [String]
+    public var attention: Int?
 
     enum CodingKeys: String, CodingKey {
-        case id, kind, revision, documentID, document, program, folder, path, detail, answers
+        case id, kind, revision, documentID, document, program, folder, path, detail, answers, attention
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -252,6 +253,7 @@ public struct WireRequest: Codable, Equatable, Sendable {
         try container.encode(path, forKey: .path)
         try container.encode(detail, forKey: .detail)
         try container.encode(answers, forKey: .answers)
+        try container.encodeIfPresent(attention, forKey: .attention)
     }
 }
 

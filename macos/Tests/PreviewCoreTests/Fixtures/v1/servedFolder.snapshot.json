@@ -40,6 +40,7 @@
       "program.reveal": false,
       "program.setAllTrusted": false,
       "request.answer": false,
+      "request.show": false,
       "service.restart": true,
       "sync.connect": false,
       "sync.disconnect": false,

@@ -11,11 +11,13 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/platform"
 )
@@ -345,4 +347,142 @@ func nextSnapshot(t *testing.T, events <-chan appcore.Snapshot) appcore.Snapshot
 		t.Fatal("no snapshot arrived on the event stream")
 	}
 	return appcore.Snapshot{}
+}
+
+// folderAsk is the question a page in a folder asks: to read one file, or to
+// trust the folder it is in.
+func folderAsk(kind, dir string) confirm.Ask {
+	return confirm.Ask{
+		Kind:     kind,
+		Document: "index.html",
+		Folder:   filepath.Base(dir),
+		Path:     dir,
+		Answers:  appcore.AnswersFor(kind),
+	}
+}
+
+// requestWithID answers one request from a snapshot.
+func requestWithID(t *testing.T, requests []appcore.Request, id string) appcore.Request {
+	t.Helper()
+	for _, request := range requests {
+		if request.ID == id {
+			return request
+		}
+	}
+	t.Fatalf("the snapshot has no request %s: %+v", id, requests)
+	return appcore.Request{}
+}
+
+// sameRequest reports whether two versions of one request show the same question
+// and offer the same answers. Attention is what a show changes; nothing else is.
+func sameRequest(a, b appcore.Request) bool {
+	return a.ID == b.ID && a.Kind == b.Kind && a.Revision == b.Revision &&
+		a.Path == b.Path && a.Document == b.Document && a.Folder == b.Folder &&
+		slices.Equal(a.Answers, b.Answers)
+}
+
+// TestM3DashboardRequests is what the dashboard may do about a question: raise
+// it in the Mac app's window, and nothing else.
+func TestM3DashboardRequests(t *testing.T) {
+	t.Run("request.show raises attention and changes nothing else", func(t *testing.T) {
+		home := evalTempHome(t)
+		dir := filepath.Join(home, "notes")
+		c := openDashboardWithNoService(t, home)
+		reply := askThroughRegistry(t, c.app, folderAsk(appcore.RequestFolderRead, dir))
+		before := waitForOpenRequests(t, c.app, 1)[0]
+
+		for i, action := range []string{"show-1", "show-2"} {
+			// The second show carries an answer the way a forged request would:
+			// a show may only raise the question, never decide it.
+			args := map[string]any{"id": before.ID}
+			if i == 1 {
+				args["answer"] = "deny"
+			}
+			status, body := c.act(action, "request.show", args)
+			after := requestWithID(t, c.snapshot().Requests, before.ID)
+			if status != http.StatusOK {
+				t.Fatalf("%s from the dashboard = %d %s", action, status, body)
+			}
+			if after.Attention != before.Attention+uint64(i+1) {
+				t.Fatalf("attention after %d show(s) = %d, want %d", i+1, after.Attention, before.Attention+uint64(i+1))
+			}
+			if !sameRequest(after, before) {
+				t.Fatalf("request.show changed the request: %+v -> %+v", before, after)
+			}
+			stillWaiting(t, reply)
+		}
+	})
+
+	t.Run("the dashboard can never change a request's answers or path", func(t *testing.T) {
+		home := evalTempHome(t)
+		dir := filepath.Join(home, "notes")
+		c := openDashboardWithNoService(t, home)
+		reply := askThroughRegistry(t, c.app, folderAsk(appcore.RequestFolderRead, dir))
+		before := waitForOpenRequests(t, c.app, 1)[0]
+
+		status, body := c.act("answer-1", "request.answer", map[string]any{
+			"id": before.ID, "revision": before.Revision, "answer": "deny",
+		})
+		if code := refusalOf(t, status, body); code != appcore.RefuseNeedsConfirmation {
+			t.Fatalf("request.answer from the dashboard = %s", code)
+		}
+		if after := requestWithID(t, c.snapshot().Requests, before.ID); !sameRequest(after, before) {
+			t.Fatalf("the refused answer changed the request: %+v -> %+v", before, after)
+		}
+		stillWaiting(t, reply)
+
+		status, body = c.act("show-with-path", "request.show", map[string]any{
+			"id": before.ID, "path": "/tmp/elsewhere",
+		})
+		if status != http.StatusOK {
+			t.Fatalf("request.show carrying a path = %d %s", status, body)
+		}
+		after := requestWithID(t, c.snapshot().Requests, before.ID)
+		if !sameRequest(after, before) {
+			t.Fatalf("request.show changed the request's path or answers: %+v -> %+v", before, after)
+		}
+		stillWaiting(t, reply)
+	})
+
+	t.Run("after trust is removed, a folderReadAgain request for that folder is gone", func(t *testing.T) {
+		home := evalTempHome(t)
+		dir := filepath.Join(home, "notes")
+		writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+		c := openDashboardWithNoService(t, home)
+		if err := c.app.trustFolder(dir); err != nil {
+			t.Fatalf("trust %s: %v", dir, err)
+		}
+		folderID := ""
+		for _, folder := range c.snapshot().Folders {
+			if folder.Path == dir {
+				folderID = folder.ID
+			}
+		}
+		if folderID == "" {
+			t.Fatalf("the trusted folder is not in the snapshot: %+v", c.snapshot().Folders)
+		}
+		reply := askThroughRegistry(t, c.app, folderAsk(appcore.RequestFolderReadAgain, dir))
+		before := waitForOpenRequests(t, c.app, 1)[0]
+
+		status, body := c.act("untrust-1", "folder.stopTrusting", map[string]any{"id": folderID})
+		if status != http.StatusOK {
+			t.Fatalf("folder.stopTrusting from the dashboard = %d %s", status, body)
+		}
+		if requests := c.snapshot().Requests; len(requests) != 0 {
+			t.Fatalf("the snapshot still lists %d request(s) for the untrusted folder: %+v", len(requests), requests)
+		}
+		select {
+		case answer := <-reply:
+			if answer.Choice != confirm.ChoiceDeny {
+				t.Fatalf("the ask settled with %+v, want deny", answer)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("the ask for the untrusted folder is still waiting")
+		}
+
+		status, body = c.act("show-old", "request.show", map[string]any{"id": before.ID})
+		if code := refusalOf(t, status, body); code != appcore.RefuseNoSuchRequest {
+			t.Fatalf("request.show for an old id = %s", code)
+		}
+	})
 }

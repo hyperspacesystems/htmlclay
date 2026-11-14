@@ -21,6 +21,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         super.init()
         applyAppearance(model.snapshot.preferences.appearance)
         observeAppearance()
+        observeRequests()
     }
 
     public static let welcomeDoneKey = "welcomeDone"
@@ -66,6 +67,28 @@ public final class WindowManager: NSObject, NSWindowDelegate {
                 self.observeAppearance()
             }
         }
+    }
+
+    /// Watches the snapshot's questions for a raise: the dashboard can ask for
+    /// the request window, and only the person can answer in it.
+    private func observeRequests() {
+        let previous = model.snapshot
+        withObservationTracking {
+            _ = model.snapshot.requests
+        } onChange: { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.showRaisedRequest(from: previous, to: self.model.snapshot)
+                self.observeRequests()
+            }
+        }
+    }
+
+    private func showRaisedRequest(from previous: HostSnapshot, to next: HostSnapshot) {
+        guard let request = RequestAttention.raised(from: previous, to: next),
+              let item = next.waiting.first(where: { $0.subjectID == request.id && $0.kind == .programRequest })
+        else { return }
+        showRequest(item)
     }
 
     public func showSettings(_ pane: SettingsPane) {

@@ -227,10 +227,14 @@ public struct ProgramRequest: Codable, Equatable, Identifiable, Sendable {
     public var revision: Int
     public var answers: [String]
     public var documentID: String?
-    public init(id: String, kind: Kind, document: String, program: String, folder: String = "", path: String = "", detail: String = "", revision: Int = 0, answers: [String] = [], documentID: String? = nil) {
+    /// How many times somebody asked for this question to be shown. The Mac app
+    /// raises its window when the count goes up; nothing else about the
+    /// question changes. Older hosts send none, which reads as never raised.
+    public var attention: Int?
+    public init(id: String, kind: Kind, document: String, program: String, folder: String = "", path: String = "", detail: String = "", revision: Int = 0, answers: [String] = [], documentID: String? = nil, attention: Int? = nil) {
         self.id = id; self.kind = kind; self.document = document; self.program = program; self.folder = folder
         self.path = path; self.detail = detail; self.revision = revision; self.answers = answers
-        self.documentID = documentID
+        self.documentID = documentID; self.attention = attention
     }
 }
 
@@ -449,6 +453,7 @@ public enum HostAction: Equatable, Sendable {
     case revealFolder(id: String)
     case copyAddress(folderID: String)
     case answer(requestID: String, revision: Int, answer: String, path: String = String())
+    case showRequest(requestID: String)
     case connect(username: String, key: String)
     case quit(force: Bool)
 }

@@ -75,11 +75,13 @@ type Confirmer interface {
 }
 
 // Pending is one question the window shows: its id, the revision of the
-// question the person is looking at, and the question itself.
+// question the person is looking at, how many times it was raised in the
+// window, and the question itself.
 type Pending struct {
-	ID       string
-	Revision uint64
-	Ask      Ask
+	ID        string
+	Revision  uint64
+	Attention uint64
+	Ask       Ask
 }
 
 // askKey is what makes two asks the same request. Detail is left out on
@@ -113,13 +115,15 @@ type waiter struct {
 	reply Reply
 }
 
-// request is one question and the callers waiting on it.
+// request is one question, the callers waiting on it, and how many times
+// somebody raised it in the window.
 type request struct {
-	ask      Ask
-	revision uint64
-	settled  bool
-	reply    Reply
-	waiters  map[*waiter]struct{}
+	ask       Ask
+	revision  uint64
+	attention uint64
+	settled   bool
+	reply     Reply
+	waiters   map[*waiter]struct{}
 }
 
 // Registry is the Confirmer the app uses: it mints ids, keeps each open
@@ -151,7 +155,7 @@ func (r *Registry) Pending() []Pending {
 	for _, req := range r.order {
 		ask := req.ask
 		ask.Answers = slices.Clone(ask.Answers)
-		out = append(out, Pending{ID: req.ask.ID, Revision: req.revision, Ask: ask})
+		out = append(out, Pending{ID: req.ask.ID, Revision: req.revision, Attention: req.attention, Ask: ask})
 	}
 	return out
 }
@@ -270,6 +274,22 @@ func (r *Registry) Answer(id string, revision uint64, choice, path string) error
 	if choice != ChoiceChooseFile {
 		r.remove(req)
 	}
+	r.mu.Unlock()
+	r.notify()
+	return nil
+}
+
+// Show raises one open request in the window the person is looking at: it adds
+// one to that request's attention, which the Mac app watches, and changes
+// nothing else about it. An id the registry does not hold is ErrNoSuchRequest.
+func (r *Registry) Show(id string) error {
+	r.mu.Lock()
+	req := r.requests[id]
+	if req == nil {
+		r.mu.Unlock()
+		return ErrNoSuchRequest
+	}
+	req.attention++
 	r.mu.Unlock()
 	r.notify()
 	return nil

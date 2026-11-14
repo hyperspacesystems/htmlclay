@@ -131,7 +131,8 @@ public enum HostSnapshotAdapter {
             detail: wire.detail,
             revision: wire.revision,
             answers: wire.answers,
-            documentID: wire.documentID
+            documentID: wire.documentID,
+            attention: wire.attention
         )
     }
 

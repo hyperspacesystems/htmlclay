@@ -53,6 +53,7 @@ var ActionClasses = map[string]Class{
 	"program.reveal":     ClassSafe,
 	"folder.copyAddress": ClassSafe,
 	"waiting.markSeen":   ClassSafe,
+	"request.show":       ClassSafe,
 	"prefs.set":          ClassSafe,
 	"sync.setPaused":     ClassSafe,
 	"update.start":       ClassSafe,
@@ -390,6 +391,12 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return bad("path")
 		}
 		return one(Effect{Type: a.Type, Path: args.Path, Name: args.Name})
+	case "request.show":
+		r, ok := requestByID(f, args.ID)
+		if !ok {
+			return nil, &Refusal{Code: RefuseNoSuchRequest, SubjectID: args.ID}
+		}
+		return one(Effect{Type: a.Type, RequestID: r.ID})
 	case "request.answer":
 		r, ok := requestByID(f, args.ID)
 		if !ok {

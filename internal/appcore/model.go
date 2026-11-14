@@ -170,10 +170,14 @@ const (
 	RequestFolderReadAgain = "folderReadAgain"
 )
 
+// Request is one question waiting for the person. Attention counts how many
+// times somebody asked for it to be shown: the Mac app raises its window when
+// the count goes up, and nothing else about the request changes.
 type Request struct {
 	ID         string   `json:"id"`
 	Kind       string   `json:"kind"`
 	Revision   uint64   `json:"revision"`
+	Attention  uint64   `json:"attention"`
 	DocumentID *string  `json:"documentID"`
 	Document   string   `json:"document"`
 	Program    string   `json:"program"`
