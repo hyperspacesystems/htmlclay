@@ -3,7 +3,7 @@
   "protocol": 1,
   "package": "0.12.0",
   "entry": {
-    "javascript": "main-4CLLGJHF.js",
+    "javascript": "main-RXILNLWR.js",
     "css": [
       "main-J5PASYGV.css"
     ]
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
-      "path": "main-4CLLGJHF.js",
-      "bytes": 1733499,
-      "sha256": "a12d9cf2bf9840a8c5e29307b631ee2fe405423e24b8701f8d32c41824009351"
-    },
-    {
       "path": "main-J5PASYGV.css",
       "bytes": 385686,
       "sha256": "68f06eb3d40843d06f3cab03da4e0ca498c7ca57122b8c7e7575db07346d444d"
+    },
+    {
+      "path": "main-RXILNLWR.js",
+      "bytes": 1733642,
+      "sha256": "9c220252ad37e6014394ba9276d6e4fc73d86a34f59dfe3c45368f8d55abd719"
     }
   ]
 }
