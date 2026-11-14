@@ -469,3 +469,18 @@ func TestM3NestedOwnership(t *testing.T) {
 		t.Fatalf("warnings = %+v, want a contains-trusted warning naming child", preview.Warnings)
 	})
 }
+
+// saveAsBeforeOwnAddress writes the configuration the way HTML Clay saved it
+// before a nested trusted folder kept its own address: dir carries no
+// ownAddress, so the next launch routes it the old way, under its parent. Every
+// configuration written before 7.33 is in this state, so the recovery paths
+// that serve it are still guarded through it.
+func saveAsBeforeOwnAddress(t *testing.T, a *app, dir string) {
+	t.Helper()
+	if _, ok := a.rt.cfg.SetTrustedOwnAddress(dir, false); !ok {
+		t.Fatalf("%s is not a trusted folder", dir)
+	}
+	if err := a.rt.cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -38,7 +38,13 @@ func (a *app) trustFolder(dir string) error {
 		// approving it never helping.
 		previous, _ = a.rt.cfg.SetTrustedIdentity(canonical, identity)
 	}
-	owned := a.takeOwnAddress(canonical)
+	// Only a folder trusted for the first time hands its trusted children their
+	// own address. Approving a folder already on the list again (a re-pin) keeps
+	// every child where it answers now, so no address in use moves.
+	var owned []string
+	if added {
+		owned = a.takeOwnAddress(canonical)
+	}
 	if sErr := a.rt.cfg.Save(); sErr != nil {
 		// Put the list back exactly as it was: drop an entry this call added,
 		// restore the old pin on one it only re-pinned, and drop the addresses

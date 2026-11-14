@@ -279,6 +279,7 @@ func TestNestedTrustedFolderIsShadowedButItsHostnameRedirects(t *testing.T) {
 	if err := first.trustFolder(proj); err != nil {
 		t.Fatalf("trust proj: %v", err)
 	}
+	saveAsBeforeOwnAddress(t, first, sub)
 	first.shutdown()
 
 	second := newTestAppWithConfigDir(t, home, cfgBase)

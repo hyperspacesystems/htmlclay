@@ -167,6 +167,7 @@ func TestRecoveryNavigationMovesAnOldBookmarkToTheParentsOrigin(t *testing.T) {
 	if err := first.trustFolder(proj); err != nil {
 		t.Fatal(err)
 	}
+	saveAsBeforeOwnAddress(t, first, sub)
 	first.shutdown()
 
 	second := newTestAppWithConfigDir(t, home, cfgBase)
@@ -445,6 +446,7 @@ func TestLinkFromASiteToARetiredAddressRedirectsThenServes(t *testing.T) {
 	if err := first.trustFolder(proj); err != nil {
 		t.Fatal(err)
 	}
+	saveAsBeforeOwnAddress(t, first, sub)
 	first.shutdown()
 
 	second := newTestAppWithConfigDir(t, home, cfgBase)
@@ -658,6 +660,7 @@ func TestRecoveryNavigationDoesNotReviveAnUntrustedHostname(t *testing.T) {
 	if err := first.trustFolder(proj); err != nil {
 		t.Fatal(err)
 	}
+	saveAsBeforeOwnAddress(t, first, sub)
 	first.shutdown()
 
 	second := newTestAppWithConfigDir(t, home, cfgBase)
@@ -751,6 +754,7 @@ func TestRecoveryDeadChildRelocatesOnlyAfterItsPinIsRestored(t *testing.T) {
 	if err := first.trustFolder(proj); err != nil {
 		t.Fatal(err)
 	}
+	saveAsBeforeOwnAddress(t, first, child)
 	first.shutdown()
 
 	second := newTestAppWithConfigDir(t, home, cfgBase)
@@ -815,6 +819,7 @@ func TestRecoveryNavigationDoesNotReviveARetrustedChild(t *testing.T) {
 	if err := first.trustFolder(proj); err != nil {
 		t.Fatal(err)
 	}
+	saveAsBeforeOwnAddress(t, first, child)
 	first.shutdown()
 
 	second := newTestAppWithConfigDir(t, home, cfgBase)
@@ -872,6 +877,7 @@ func TestRecoveryUntrustingAParentBringsItsShadowedChildLive(t *testing.T) {
 		if err := first.trustFolder(proj); err != nil {
 			t.Fatal(err)
 		}
+		saveAsBeforeOwnAddress(t, first, child)
 		first.shutdown()
 		return home, proj, child, page, rel, cfgBase, childHost, bookmark
 	}
@@ -1058,18 +1064,22 @@ func TestRecoveryPreservesQueryThroughExistingChild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	firstHop := recoveryRedirect(t, bookmark)
-	code, headers, _ := do(t, browserClient(), navRequest(t, firstHop))
-	if code != http.StatusFound {
-		t.Fatalf("expected redirect to existing child, got %d", code)
-	}
-	secondHop := headers.Get("Location")
-	parsed, err := url.Parse(secondHop)
+	// The child kept its own address when the parent was trusted around it, so
+	// the bookmark relocates straight to the child that holds the document, in
+	// one hop, and that hop carries the query.
+	hop := recoveryRedirect(t, bookmark)
+	parsed, err := url.Parse(hop)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if parsed.Host != liveChild.host {
+		t.Fatalf("the bookmark relocated to %q, want the existing child at %s", hop, liveChild.host)
+	}
 	if parsed.RawQuery != "editmode=false&label=a%20b" {
-		t.Errorf("query lost on second hop: %q", parsed.RawQuery)
+		t.Errorf("query lost on the hop: %q", parsed.RawQuery)
+	}
+	if code, _, _ := do(t, browserClient(), navRequest(t, hop)); code != http.StatusOK {
+		t.Fatalf("the existing child should serve the document, got %d", code)
 	}
 	if n := registrations(t, second, page); n != 1 {
 		t.Errorf("registration count=%d", n)
@@ -1171,6 +1181,7 @@ func TestRecoveryDeadNestedSourceExplainsItsOwnReapproval(t *testing.T) {
 	if err := first.trustFolder(parent); err != nil {
 		t.Fatal(err)
 	}
+	saveAsBeforeOwnAddress(t, first, child)
 	first.shutdown()
 	current := newTestAppWithConfigDir(t, home, configDir)
 	if _, ok := current.rt.cfg.SetTrustedIdentity(child, "invalid-fixture-pin"); !ok {

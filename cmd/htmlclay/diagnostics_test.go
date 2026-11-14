@@ -425,6 +425,7 @@ func TestUsabilityDiagnosticsShadowedOriginLogsBothAnchorsWithoutRequests(t *tes
 	if err := first.trustFolder(proj); err != nil {
 		t.Fatal(err)
 	}
+	saveAsBeforeOwnAddress(t, first, sub)
 	first.shutdown()
 
 	second := newTestAppWithConfigDir(t, home, cfgBase)
