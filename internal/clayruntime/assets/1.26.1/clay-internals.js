@@ -1,11 +1,11 @@
-/* clay-dom.js — clayjs satellite: Element prototype helpers (nearest, el, val, text, exec, cycle, show/hide). https://clayjs.com */
+/* clay-internals.js — clayjs satellite: clay.internals = the supported low-level surface (snapshot, region policy, save lane). https://clayjs.com */
 (function () {
   var clay = window.clay = window.clay || {};
   clay.loaded = clay.loaded || {};
 
   var script = document.currentScript;
   if (!script || !script.src) {
-    console.error("clay-dom: could not determine my own URL (load me with a classic <script src=...>, not type=\"module\")");
+    console.error("clay-internals: could not determine my own URL (load me with a classic <script src=...>, not type=\"module\")");
     return;
   }
   var url = new URL(script.src, location.href);
@@ -70,15 +70,16 @@
     });
   }
   return { tree: tree, runtime: clay.__runtime };
-})({"dir":"m/","manifest":"manifest-7954CBE3.js","edit":"manifest-edit-93AA79D7.js","preload":["dom/dom-helpers-L7OSR6S4.js","c-XQXZAO7N.js","c-WRBKEJD4.js","c-VHNSBD2M.js","manifest-7954CBE3.js"]})
+})({"dir":"m/","manifest":"manifest-D70FE013.js","edit":"manifest-edit-93AA79D7.js","preload":["internals/index-3LAVREAU.js","c-EHAR4RJJ.js","c-LD6UVV5R.js","c-PGSBXHUE.js","c-KU3PX7LL.js","c-EQ5NBOGA.js","c-C7SUMNMI.js","c-BPF2NSPV.js","c-HA6INT6J.js","c-WRBKEJD4.js","c-P7KNDG34.js","c-CYWLPPUS.js","c-U4TWEIKZ.js","c-IJUK2GPW.js","c-UW6MMZ4V.js","c-XQXZAO7N.js","c-S7LK4KUE.js","c-MOP5KBWZ.js","c-2YYDMLNZ.js","c-ICMAOOGK.js","c-VHNSBD2M.js","manifest-D70FE013.js"]})
 
-  clay.loaded.dom = __clayChunks.runtime.then(function (R) {
-  if (!R.chunks) return import(__clayChunks.tree + "/src/dom/dom-helpers.js");
-  var file = R.manifest.entries["dom/dom-helpers.js"];
-  if (!file) throw new Error("clayjs: release " + R.manifest.version + " has no dom/dom-helpers.js");
+  // No DOM gate: nothing here touches document.body at import time, unlike clay-ui.
+  clay.loaded.internals = __clayChunks.runtime.then(function (R) {
+  if (!R.chunks) return import(__clayChunks.tree + "/src/internals/index.js");
+  var file = R.manifest.entries["internals/index.js"];
+  if (!file) throw new Error("clayjs: release " + R.manifest.version + " has no internals/index.js");
   return import(R.dir + file);
 })
-    .catch(function (err) { console.error("clay-dom failed to load:", err); throw err; });
-  // Mark handled: see clay-ui.js.
-  clay.loaded.dom.catch(function () {});
+    .catch(function (err) { console.error("clay-internals failed to load:", err); throw err; });
+  // Mark handled: a blocked satellite must not emit an unhandled rejection.
+  clay.loaded.internals.catch(function () {});
 })();

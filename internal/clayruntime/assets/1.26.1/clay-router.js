@@ -70,7 +70,7 @@
     });
   }
   return { tree: tree, runtime: clay.__runtime };
-})({"dir":"m/","manifest":"manifest-7954CBE3.js","edit":"manifest-edit-93AA79D7.js","preload":["route/route-62CHXL5B.js","c-VHNSBD2M.js","manifest-7954CBE3.js"]})
+})({"dir":"m/","manifest":"manifest-D70FE013.js","edit":"manifest-edit-93AA79D7.js","preload":["route/route-62CHXL5B.js","c-VHNSBD2M.js","manifest-D70FE013.js"]})
 
   // Mirror the hash onto <html> now, before the module loads, so a saved
   // show-when:route-* rule is right at first paint. The module re-applies.

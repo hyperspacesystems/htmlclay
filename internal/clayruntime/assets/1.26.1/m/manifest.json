@@ -1,9 +1,9 @@
 {
  "schema": 1,
  "package": "@panphora/clayjs",
- "version": "1.26.0",
- "build": "8483e393d15b3fddc813ccea6964d6efcf1d07014439fb927556e9f8a2607cc7",
- "runtime": "manifest-7954CBE3.js",
+ "version": "1.26.1",
+ "build": "aa505d50f0ceb01e38156bd27351d995a40d83707537d10fa17586dc3e656d7b",
+ "runtime": "manifest-D70FE013.js",
  "edit": "manifest-edit-93AA79D7.js",
  "entries": {
   "vendor/hljs-python.vendor.js": "c-5YIHJ3TJ.js",
@@ -120,12 +120,12 @@
   "ui/index.js": "ui/index-G7ZJXNMG.js",
   "utils/index.js": "utils/index-4TJCVLT7.js",
   "vendor/Sortable.vendor.js": "vendor/Sortable.vendor-A755ITLN.js",
-  "vendor/sap-core.vendor.js": "vendor/sap-core.vendor-5TWOJYVM.js",
+  "vendor/sap-core.vendor.js": "vendor/sap-core.vendor-UYOHDPAV.js",
   "plugins/visitor-drafts-owner.js": "plugins/visitor-drafts-owner-TLECTYWS.js",
   "plugins/visitor-menu.js": "plugins/visitor-menu-5XY57JQA.js",
   "plugins/bind-text.js": "plugins/bind-text-NX46N5UV.js",
   "plugins/source.js": "plugins/source-OYHDXKTB.js",
-  "plugins/derive.js": "plugins/derive-R4USHZ7P.js",
+  "plugins/derive.js": "plugins/derive-TRMYDN7J.js",
   "plugins/upgrade.js": "plugins/upgrade-SZQJYEQQ.js",
   "dom/all.js": "dom/all-APS5ZSKP.js",
   "dom/dom-helpers.js": "dom/dom-helpers-L7OSR6S4.js",
@@ -161,7 +161,7 @@
   "core/admin-attrs.js": "core/admin-attrs-43JBA6JB.js",
   "core/autosave.js": "core/autosave-HD7Y7UNV.js",
   "attrs/save-freeze.js": "attrs/save-freeze-PUYX32AK.js",
-  "loader.js": "loader-DCKCZKY6.js",
+  "loader.js": "loader-RHUGUKXI.js",
   "reader-core.js": "reader-core-AHOAP5DH.js",
   "core/is-edit-mode.js": "core/is-edit-mode-73OXKK5H.js",
   "core/draft-mode.js": "core/draft-mode-M5XNYBMY.js",
@@ -2783,9 +2783,9 @@
    "imports": [],
    "dynamicImports": []
   },
-  "vendor/sap-core.vendor-5TWOJYVM.js": {
-   "sha256": "2ba0378a6413c4ef3c98b677fbdc7e1c8296845f6df799616427f8a17fae83eb",
-   "bytes": 52544,
+  "vendor/sap-core.vendor-UYOHDPAV.js": {
+   "sha256": "25db32587707e2e81290b75c5775c93b3a421cf35306b37d06e5375fe4d195a0",
+   "bytes": 52545,
    "contentType": "text/javascript; charset=utf-8",
    "imports": [
     "c-VHNSBD2M.js"
@@ -2870,15 +2870,15 @@
     "c-H4M2T4A6.js"
    ]
   },
-  "plugins/derive-R4USHZ7P.js": {
-   "sha256": "c1ec56409e9a098e15dc61a8cbbbdeb9073e8c17651f8e7c2410cf4907ae2ffb",
+  "plugins/derive-TRMYDN7J.js": {
+   "sha256": "7002b12e7fb07cbf0f93fc0b412d488de09899ca289cfd2309876af6725f3cc8",
    "bytes": 198,
    "contentType": "text/javascript; charset=utf-8",
    "imports": [
     "c-VHNSBD2M.js"
    ],
    "dynamicImports": [
-    "vendor/sap-core.vendor-5TWOJYVM.js"
+    "vendor/sap-core.vendor-UYOHDPAV.js"
    ]
   },
   "plugins/upgrade-SZQJYEQQ.js": {
@@ -4233,8 +4233,8 @@
    ],
    "dynamicImports": []
   },
-  "loader-DCKCZKY6.js": {
-   "sha256": "75dc3c0b7842b757bca7e0a901787a50dee034a1e29858f5ade7c81545240798",
+  "loader-RHUGUKXI.js": {
+   "sha256": "3f432041a897aca8309dd05a0c2a33ef07d20562c02a9eac3fc0590151564aa4",
    "bytes": 19429,
    "contentType": "text/javascript; charset=utf-8",
    "imports": [
@@ -4303,7 +4303,7 @@
     "plugins/visitor-menu-5XY57JQA.js",
     "plugins/bind-text-NX46N5UV.js",
     "plugins/source-OYHDXKTB.js",
-    "plugins/derive-R4USHZ7P.js",
+    "plugins/derive-TRMYDN7J.js",
     "plugins/upgrade-SZQJYEQQ.js",
     "c-PQ5LK6QE.js",
     "c-XN6MBKI6.js",
@@ -4829,8 +4829,8 @@
    "imports": [],
    "dynamicImports": []
   },
-  "manifest-7954CBE3.js": {
-   "sha256": "7954cbe39d3820d2d6d806add5a7d5ef876bb2a8ddbebe8c62d5d1b4f33cb72d",
+  "manifest-D70FE013.js": {
+   "sha256": "d70fe013aa8611061b6eb8c7ef8b098a89555343e3c3986e56c67ca2ddc02d6e",
    "bytes": 9824,
    "contentType": "text/javascript; charset=utf-8",
    "imports": [],

@@ -1,11 +1,11 @@
-/* clay-options.js — clayjs satellite: option:/option-not:/show-when:/hide-when: visibility. https://clayjs.com */
+/* clay-events.js — clayjs satellite: onclickaway, onclickchildren, onclone, onmutation, onpagemutation, onrender. https://clayjs.com */
 (function () {
   var clay = window.clay = window.clay || {};
   clay.loaded = clay.loaded || {};
 
   var script = document.currentScript;
   if (!script || !script.src) {
-    console.error("clay-options: could not determine my own URL (load me with a classic <script src=...>, not type=\"module\")");
+    console.error("clay-events: could not determine my own URL (load me with a classic <script src=...>, not type=\"module\")");
     return;
   }
   var url = new URL(script.src, location.href);
@@ -70,9 +70,10 @@
     });
   }
   return { tree: tree, runtime: clay.__runtime };
-})({"dir":"m/","manifest":"manifest-7954CBE3.js","edit":"manifest-edit-93AA79D7.js","preload":["options/options-LKIZ7YTG.js","c-7SWMYKAI.js","c-MZCOGNZL.js","c-IJUK2GPW.js","c-MOP5KBWZ.js","c-2YYDMLNZ.js","c-HA6INT6J.js","c-WRBKEJD4.js","c-ICMAOOGK.js","c-VHNSBD2M.js","manifest-7954CBE3.js"]})
+})({"dir":"m/","manifest":"manifest-D70FE013.js","edit":"manifest-edit-93AA79D7.js","preload":["events/index-YKQIBZE5.js","c-MZCOGNZL.js","c-IJUK2GPW.js","c-MOP5KBWZ.js","c-2YYDMLNZ.js","c-HA6INT6J.js","c-WRBKEJD4.js","c-ICMAOOGK.js","c-VHNSBD2M.js","manifest-D70FE013.js"]})
 
-  // Subscribes to the mutation hub (observes document.body); wait for DOM ready.
+  // The mutation-backed attrs subscribe to a hub that observes document.body, so
+  // wait for DOM ready before importing (same gate as clay.js).
   function domReady() {
     return new Promise(function (r) {
       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", r);
@@ -80,14 +81,23 @@
     });
   }
 
-  clay.loaded.options = domReady()
+  // [onrender] sweeps the whole document the moment that import resolves, and those
+  // handlers routinely reach for clay-dom's element helpers (this.val, this.exec,
+  // this.nearest). The two satellites are independent dynamic imports with nothing
+  // ordering them, so on a cold load events can win and every handler throws
+  // "Cannot read properties of undefined". By DOM ready every satellite tag has run,
+  // so clay.loaded.dom is present exactly when clay-dom.js is on the page: wait for it
+  // then, proceed when it is absent. A clay-dom that failed to load must not take
+  // events down with it, so its rejection is swallowed here rather than chained.
+  clay.loaded.events = domReady()
+    .then(function () { return clay.loaded.dom && clay.loaded.dom.catch(function () {}); })
     .then(function () { return __clayChunks.runtime.then(function (R) {
-  if (!R.chunks) return import(__clayChunks.tree + "/src/options/options.js");
-  var file = R.manifest.entries["options/options.js"];
-  if (!file) throw new Error("clayjs: release " + R.manifest.version + " has no options/options.js");
+  if (!R.chunks) return import(__clayChunks.tree + "/src/events/index.js");
+  var file = R.manifest.entries["events/index.js"];
+  if (!file) throw new Error("clayjs: release " + R.manifest.version + " has no events/index.js");
   return import(R.dir + file);
 }); })
-    .catch(function (err) { console.error("clay-options failed to load:", err); throw err; });
+    .catch(function (err) { console.error("clay-events failed to load:", err); throw err; });
   // Mark handled: see clay-ui.js.
-  clay.loaded.options.catch(function () {});
+  clay.loaded.events.catch(function () {});
 })();

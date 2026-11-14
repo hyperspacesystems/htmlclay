@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "version": "1.26.0",
-  "chunkBuild": "8483e393d15b3fddc813ccea6964d6efcf1d07014439fb927556e9f8a2607cc7",
+  "version": "1.26.1",
+  "chunkBuild": "aa505d50f0ceb01e38156bd27351d995a40d83707537d10fa17586dc3e656d7b",
   "files": {
     "all.js": {
       "source": "dist/all.js",
-      "sha256": "8ddc0c4df58eb88d38f33df229ae7a47656e342f6c9ac70733d0fa8cced8eebc",
+      "sha256": "55dc75d458651a0763b6e3b9b2697925304a2c0314d7cf2e7c6850c8cd61c98c",
       "bytes": 4115,
       "type": "text/javascript; charset=utf-8"
     },
@@ -23,56 +23,56 @@
     },
     "clay-dom.js": {
       "source": "dist/clay-dom.js",
-      "sha256": "e84677c3fae0a841ad94ae9dbc31580f53aad15131328647c6a66045519b0221",
+      "sha256": "d415e618b751e0c7795a47bcf8cfb0cf9eb5c3bb16e58707c4eadcbc8b75ce83",
       "bytes": 4060,
       "type": "text/javascript; charset=utf-8"
     },
     "clay-events.js": {
       "source": "dist/clay-events.js",
-      "sha256": "cceda7f87ed3027cc45690087bf6359e4d6137aa5e2338fcbc7d68480cf63879",
+      "sha256": "a452ae36acce504e74bcfdac6a1ae5c0a7c6a03a674554da432d7b8be2b82eab",
       "bytes": 5284,
       "type": "text/javascript; charset=utf-8"
     },
     "clay-internals.js": {
       "source": "dist/clay-internals.js",
-      "sha256": "adc2c990e8524e14292553b94b34068bec9ffa95880ed78f6beac619550b53f3",
+      "sha256": "ea6148651cb6a36b7c39c65c969b3819d9f6819b8a418a5d036f5faca479a8d6",
       "bytes": 4500,
       "type": "text/javascript; charset=utf-8"
     },
     "clay-options.js": {
       "source": "dist/clay-options.js",
-      "sha256": "10cd94c0921338a9c027986ac0c3c17d030d9300675812a507d12cee8c64f76a",
+      "sha256": "642e2cf198ce5b4d69509cc502e2299591be570ae56c173f859940babf4da00f",
       "bytes": 4468,
       "type": "text/javascript; charset=utf-8"
     },
     "clay-router.js": {
       "source": "dist/clay-router.js",
-      "sha256": "84eb3212dfe8ccc638a71cef28d14b3a5a4579c1d050d6194ee62bcc34c5417a",
+      "sha256": "7e9762581b87cfba690d1a965380d72c4e329866fbbe3f9be72d2d98001966fe",
       "bytes": 4556,
       "type": "text/javascript; charset=utf-8"
     },
     "clay-ui.js": {
       "source": "dist/clay-ui.js",
-      "sha256": "31e19d994ebeeed5995d6a2e3b0b1b6485be60e835ff86a74007781eaa9c2aae",
+      "sha256": "0958c2562457f19664c4ade959181aafed4845faf3052931b198954dc2ee520c",
       "bytes": 4749,
       "type": "text/javascript; charset=utf-8"
     },
     "clay-utils.js": {
       "source": "dist/clay-utils.js",
-      "sha256": "2f5cbc11bb6dc0f21ad52aae9be00068926eafa7e6474b1b82c9d7ec1c546e59",
+      "sha256": "6e5b531807586eaa38f8e715257b86c022527a7556e2654a8133f77693c8df49",
       "bytes": 4065,
       "type": "text/javascript; charset=utf-8"
     },
     "clay.js": {
       "source": "dist/clay.js",
-      "sha256": "85c94b424c888ae78343a2720b8f5050a89b407dc77f6309d1483958c41787fe",
+      "sha256": "ea568c6163aa151083bbb26094ab7414efa63865e79bf95392c50cb0967ce6a5",
       "bytes": 7174,
       "type": "text/javascript; charset=utf-8"
     },
     "clay.standalone.js": {
       "source": "dist/clay.standalone.js",
-      "sha256": "18b2654fdf8ce0ce8ac57deef49abc8d35c4b8000a6b23b2d31bce723ef5f3c9",
-      "bytes": 5987563,
+      "sha256": "f0d67b8a4553e344a0f4b0d331b5aaae1268662b27f8314c4524df2b585d1eca",
+      "bytes": 5987564,
       "type": "text/javascript; charset=utf-8"
     },
     "compat/highlight-11.9.0.min.js": {
@@ -1815,15 +1815,15 @@
       "bytes": 685,
       "type": "text/javascript; charset=utf-8"
     },
-    "m/loader-DCKCZKY6.js": {
-      "source": "dist/m/loader-DCKCZKY6.js",
-      "sha256": "75dc3c0b7842b757bca7e0a901787a50dee034a1e29858f5ade7c81545240798",
+    "m/loader-RHUGUKXI.js": {
+      "source": "dist/m/loader-RHUGUKXI.js",
+      "sha256": "3f432041a897aca8309dd05a0c2a33ef07d20562c02a9eac3fc0590151564aa4",
       "bytes": 19429,
       "type": "text/javascript; charset=utf-8"
     },
-    "m/manifest-7954CBE3.js": {
-      "source": "dist/m/manifest-7954CBE3.js",
-      "sha256": "7954cbe39d3820d2d6d806add5a7d5ef876bb2a8ddbebe8c62d5d1b4f33cb72d",
+    "m/manifest-D70FE013.js": {
+      "source": "dist/m/manifest-D70FE013.js",
+      "sha256": "d70fe013aa8611061b6eb8c7ef8b098a89555343e3c3986e56c67ca2ddc02d6e",
       "bytes": 9824,
       "type": "text/javascript; charset=utf-8"
     },
@@ -1835,7 +1835,7 @@
     },
     "m/manifest.json": {
       "source": "dist/m/manifest.json",
-      "sha256": "6d45e8840e1d3ca04f21320b0fe2556e905ed0b76f919e1403512f0a3bf93de6",
+      "sha256": "f359dbaceb54c63c6598f98cf2b5f6e82a58e36d3ae470df7b635bdb69264fd4",
       "bytes": 130220,
       "type": "application/json"
     },
@@ -1875,9 +1875,9 @@
       "bytes": 2236,
       "type": "text/javascript; charset=utf-8"
     },
-    "m/plugins/derive-R4USHZ7P.js": {
-      "source": "dist/m/plugins/derive-R4USHZ7P.js",
-      "sha256": "c1ec56409e9a098e15dc61a8cbbbdeb9073e8c17651f8e7c2410cf4907ae2ffb",
+    "m/plugins/derive-TRMYDN7J.js": {
+      "source": "dist/m/plugins/derive-TRMYDN7J.js",
+      "sha256": "7002b12e7fb07cbf0f93fc0b412d488de09899ca289cfd2309876af6725f3cc8",
       "bytes": 198,
       "type": "text/javascript; charset=utf-8"
     },
@@ -2055,16 +2055,16 @@
       "bytes": 72,
       "type": "text/plain; charset=utf-8"
     },
-    "m/vendor/sap-core.vendor-5TWOJYVM.js": {
-      "source": "dist/m/vendor/sap-core.vendor-5TWOJYVM.js",
-      "sha256": "2ba0378a6413c4ef3c98b677fbdc7e1c8296845f6df799616427f8a17fae83eb",
-      "bytes": 52544,
+    "m/vendor/sap-core.vendor-UYOHDPAV.js": {
+      "source": "dist/m/vendor/sap-core.vendor-UYOHDPAV.js",
+      "sha256": "25db32587707e2e81290b75c5775c93b3a421cf35306b37d06e5375fe4d195a0",
+      "bytes": 52545,
       "type": "text/javascript; charset=utf-8"
     },
     "sap.js": {
       "source": "entries/sap.js",
-      "sha256": "7da9c02b4d950dd1fd4d9017e813faa41d25abf34219f686385e20326a152db6",
-      "bytes": 77020,
+      "sha256": "9df6f756f76a81ad1ea9c52ecfda22bdf924b74fe927a075edab10475208c6fd",
+      "bytes": 77021,
       "type": "text/javascript; charset=utf-8"
     },
     "server/checkpoint.cjs": {
@@ -4751,8 +4751,8 @@
     },
     "src/vendor/sap-core.vendor.js": {
       "source": "src/vendor/sap-core.vendor.js",
-      "sha256": "1ab3fe6b346f20fb3dca77c600cce82984f585c293d8fbaceed89c32f1826509",
-      "bytes": 52713,
+      "sha256": "5d01e7b12b5ff6605d115cb58a2f8b95bd079ae39e9f94388ef28eb253930a37",
+      "bytes": 52714,
       "type": "text/javascript; charset=utf-8"
     },
     "src/vendor/sap-ownership.vendor.js": {

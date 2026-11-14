@@ -70,7 +70,7 @@
     });
   }
   return { tree: tree, runtime: clay.__runtime };
-})({"dir":"m/","manifest":"manifest-7954CBE3.js","edit":"manifest-edit-93AA79D7.js","preload":["dom/all-APS5ZSKP.js","c-VHNSBD2M.js","manifest-7954CBE3.js"]})
+})({"dir":"m/","manifest":"manifest-D70FE013.js","edit":"manifest-edit-93AA79D7.js","preload":["dom/all-APS5ZSKP.js","c-VHNSBD2M.js","manifest-D70FE013.js"]})
 
   clay.loaded.all = __clayChunks.runtime.then(function (R) {
   if (!R.chunks) return import(__clayChunks.tree + "/src/dom/all.js");
