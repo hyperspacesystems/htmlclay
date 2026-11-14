@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/html"
 )
 
 // TestReviewWriteBOM pins the leading-byte-order-mark fix. x/net/html treats U+FEFF as text, which
@@ -150,4 +152,87 @@ func TestReviewSerializerRoundTripsCR(t *testing.T) {
 	if again := outerHTML(reparsed, reparsed.Root); again != full {
 		t.Errorf("render is not a fixed point:\n got: %q\nwant: %q", again, full)
 	}
+}
+
+// TestSeedCloneDropsHidden pins the seed clone's visibility. A seed row is usually hidden, but the
+// rows cloned from it are real items, so the clone drops `hidden` while the seed keeps it. A row
+// cloned from a real hidden row has no cms-template marker and stays hidden.
+func TestSeedCloneDropsHidden(t *testing.T) {
+	t.Run("seed", func(t *testing.T) {
+		src := `<script data-rules-name="api" data-rules-version="1">{items:["li.row",{name:".name"}]}</script>` +
+			`<ul><li class="row" cms-template hidden><span class="name"></span></li></ul>`
+		data, err := decodeJSON(`{"items":[{"name":"Milk"}]}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := WriteDocument([]byte(src), data, "api")
+		if err != nil {
+			t.Fatalf("WriteDocument: %v", err)
+		}
+		got, err := ParseBytes(res.HTML)
+		if err != nil {
+			t.Fatalf("ParseBytes: %v", err)
+		}
+		rows, err := Find(got.Root, "li.row", FindOpts{IncludeCMSTemplates: true})
+		if err != nil {
+			t.Fatalf("Find: %v", err)
+		}
+		if len(rows) != 2 {
+			t.Fatalf("found %d rows, want 2 (the seed and Milk): %q", len(rows), res.HTML)
+		}
+		var milk, seed *html.Node
+		for _, row := range rows {
+			if hasAttribute(row, cmsTemplateAttr) {
+				seed = row
+			} else {
+				milk = row
+			}
+		}
+		if seed == nil {
+			t.Fatalf("the seed row is gone: %q", res.HTML)
+		}
+		if !hasAttribute(seed, "hidden") {
+			t.Errorf("seed lost hidden: %q", res.HTML)
+		}
+		if milk == nil {
+			t.Fatalf("no row was cloned from the seed: %q", res.HTML)
+		}
+		if hasAttribute(milk, "hidden") {
+			t.Errorf("the row cloned from the seed is hidden: %q", res.HTML)
+		}
+		if name := textContent(milk); name != "Milk" {
+			t.Errorf("cloned row text = %q, want %q", name, "Milk")
+		}
+	})
+
+	t.Run("non-seed", func(t *testing.T) {
+		src := `<script data-rules-name="api" data-rules-version="1">{items:["li.row",{name:".name"}]}</script>` +
+			`<ul><li class="row" hidden><span class="name"></span></li></ul>`
+		data, err := decodeJSON(`{"items":[{"name":"Bread"},{"name":"Milk"}]}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := WriteDocument([]byte(src), data, "api")
+		if err != nil {
+			t.Fatalf("WriteDocument: %v", err)
+		}
+		got, err := ParseBytes(res.HTML)
+		if err != nil {
+			t.Fatalf("ParseBytes: %v", err)
+		}
+		rows, err := Find(got.Root, "li.row", FindOpts{})
+		if err != nil {
+			t.Fatalf("Find: %v", err)
+		}
+		if len(rows) != 2 {
+			t.Fatalf("found %d rows, want 2: %q", len(rows), res.HTML)
+		}
+		for _, row := range rows {
+			if !hasAttribute(row, "hidden") {
+				t.Errorf("a row cloned from a non-seed source lost hidden: %q", res.HTML)
+			}
+		}
+	})
 }

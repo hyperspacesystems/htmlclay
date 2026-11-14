@@ -158,7 +158,19 @@ if [ "$STATUS" != "Accepted" ]; then
   exit 1
 fi
 
-xcrun stapler staple "$DMG_NAME"
+# Stapling fetches the ticket from Apple's CDN, which can drop the connection
+# (stapler error 68) or lag a moment behind an accepted notarization. Retry
+# before failing the build.
+for attempt in 1 2 3 4 5; do
+  if xcrun stapler staple "$DMG_NAME"; then
+    break
+  fi
+  if [ "$attempt" = 5 ]; then
+    echo "Could not staple $DMG_NAME after 5 attempts"
+    exit 1
+  fi
+  sleep 15
+done
 echo "Notarized and stapled $DMG_NAME"
 
 # The DMG's ticket covers the app inside it, so the bare app staples from it

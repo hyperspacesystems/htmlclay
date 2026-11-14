@@ -9,7 +9,10 @@ import (
 const (
 	FuzzyMatchThreshold = 0.45
 	ItemWipeFraction    = 0.8
-	HugeScalarBytes     = 1024
+	// NearTotalWipe is the share of the data's values a proven reader (a program that
+	// named the exact version it read) must remove before the guard questions it.
+	NearTotalWipe   = 0.9
+	HugeScalarBytes = 1024
 
 	hugeScalarKeepFraction = 0.2
 	hugeScalarSim          = 0.4

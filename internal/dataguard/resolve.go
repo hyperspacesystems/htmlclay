@@ -167,6 +167,39 @@ func (g *Guard) resolve(key, absPath, id, choice string, current []byte, writeBa
 		g.clearEvent(st, kept, "restored", false)
 		return g.resolved(key, absPath, merged, st, event, choice)
 
+	case "put-back":
+		if len(event.Typed) == 0 {
+			return nil, ErrNotRestorable
+		}
+		recoverable, err := decodeIsland(event.RecoverableData)
+		if err != nil {
+			log.Printf("dataguard: could not read an event's recoverable data: %v", err)
+			recoverable = nil
+		}
+		merged, placed := PutBack(g.extractOrNil(absPath, current), event.Typed, recoverable)
+		if placed == 0 {
+			return nil, ErrNotRestorable
+		}
+		html, err := g.ext.Restore(current, merged)
+		if err != nil {
+			if errors.Is(err, ErrNotRestorable) {
+				return nil, err
+			}
+			return nil, fmt.Errorf("%w: %v", ErrNotRestorable, err)
+		}
+		if writeBack == nil {
+			return nil, fmt.Errorf("%w: a put-back needs a write-back", ErrNotRestorable)
+		}
+		if err := writeBack(html); err != nil {
+			return nil, err
+		}
+		kept := g.extractOrNil(absPath, html)
+		if kept == nil {
+			kept = merged
+		}
+		g.clearEvent(st, kept, "put-back", false)
+		return g.resolved(key, absPath, html, st, event, choice)
+
 	case "revert":
 		if !event.HasRecoverCopy {
 			return nil, ErrNoRecoverCopy
@@ -211,6 +244,9 @@ func (g *Guard) clearEvent(st *State, kept dataapi.Value, status string, forceBa
 	st.Event = nil
 	st.Status = status
 	st.UIWorkPending = false
+	// The typing record describes the data the person has accepted, so it follows
+	// the island the resolution leaves behind.
+	st.Typed = DropGone(st.Typed, kept)
 	if forceBaseline {
 		if kept == nil {
 			st.Baseline = nil

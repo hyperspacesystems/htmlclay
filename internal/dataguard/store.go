@@ -49,16 +49,19 @@ type Event struct {
 	LastWriteAt     int64           `json:"lastWriteAt"`
 	LossSummary     LossSummary     `json:"lossSummary"`
 	Status          string          `json:"status"`
+	Reason          string          `json:"reason,omitempty"`
+	Typed           []TypedValue    `json:"typed,omitempty"`
 }
 
 // State is everything the guard remembers about one document.
 type State struct {
-	Version       int       `json:"version"`
-	Baseline      *Baseline `json:"baseline,omitempty"`
-	UIWorkPending bool      `json:"uiWorkPending"`
-	Event         *Event    `json:"event,omitempty"`
-	Status        string    `json:"status,omitempty"`
-	LastSeenHash  string    `json:"lastSeenHash,omitempty"`
+	Version       int          `json:"version"`
+	Baseline      *Baseline    `json:"baseline,omitempty"`
+	UIWorkPending bool         `json:"uiWorkPending"`
+	Event         *Event       `json:"event,omitempty"`
+	Status        string       `json:"status,omitempty"`
+	LastSeenHash  string       `json:"lastSeenHash,omitempty"`
+	Typed         []TypedValue `json:"typed,omitempty"`
 }
 
 // Store keeps guard state in the document's history folder under the app's

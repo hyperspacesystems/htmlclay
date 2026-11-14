@@ -306,8 +306,15 @@ func itemID(item dataapi.Value) (string, bool) {
 		if !seen {
 			continue
 		}
-		if s, isStr := v.(string); isStr && jsTrim(s) != "" {
-			return k + ":" + s, true
+		switch n := v.(type) {
+		case string:
+			if jsTrim(n) != "" {
+				return k + ":" + n, true
+			}
+		case float64:
+			return k + ":" + strconv.FormatFloat(n, 'f', -1, 64), true
+		case int:
+			return k + ":" + strconv.FormatFloat(float64(n), 'f', -1, 64), true
 		}
 	}
 	return "", false

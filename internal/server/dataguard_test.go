@@ -343,48 +343,53 @@ func TestGuardObservesSave(t *testing.T) {
 	}
 }
 
-// A data API write has no tab behind it, so the guard judges it as an external
-// edit, exactly as Local does for origin === 'api'.
+// A data API write that would clobber the list without naming the version it read is refused before
+// the guard sees it (David, 2026-11-13): a program that has not read the data is told to, and the
+// document keeps its bytes.
 func TestGuardObservesDataAPIWrite(t *testing.T) {
 	srv, _, _ := setupHandlerTest(t)
-	f, path := registerFixture(t, srv, "board.htmlclay", string(lossParityPage("T", "alpha", "beta", "gamma", "delta")))
+	f, path := registerFixture(t, srv, "board.htmlclay", string(lossParityPage("T", "alpha")))
 	if w := serve(t, srv, "/fixtures/board.htmlclay", nil); w.Code != 200 {
 		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 	}
 	key := guardKey(t, f)
+	if w := guardSave(t, srv, f, string(lossParityPage("T", "alpha", "beta", "gamma", "delta")), map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
+		t.Fatalf("save: %d %s", w.Code, w.Body.String())
+	}
+	srv.guardQueue.Settle()
 
 	w := postDataWrite(t, srv, "/_/api/fixtures/board.htmlclay", `{"title":"T","items":["alpha"]}`, nil)
-	if w.Code != 200 {
+	if w.Code != http.StatusPreconditionRequired {
 		t.Fatalf("data write: %d %s", w.Code, w.Body.String())
 	}
 	srv.guardQueue.Settle()
 
+	if got := readDoc(t, path); got != string(lossParityPage("T", "alpha", "beta", "gamma", "delta")) {
+		t.Errorf("the refused write changed the document:\n%s", got)
+	}
 	st, err := srv.guardStore.Read(key, path)
 	if err != nil {
 		t.Fatalf("guard state: %v", err)
 	}
-	if st.Event == nil {
-		t.Fatalf("an api write that clobbered the list raised no event: %+v", st)
-	}
-	if got := st.Event.LossSummary.Provenance; got != dataguard.External {
-		t.Errorf("provenance = %q, want %q", got, dataguard.External)
+	if st.Event != nil {
+		t.Fatalf("a refused data write raised a guard event: %+v", st.Event)
 	}
 }
 
 // Fact 1: a document edited on disk while no tab is open reaches no subscriber, so
 // the watcher drops it. The page load is the only place it can be caught.
 func TestGuardObservesOutsideEditWhileClosed(t *testing.T) {
-	srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha", "beta", "gamma", "delta")))
+	srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha")))
 	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
 		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 	}
 	key := guardKey(t, f)
-	if w := guardSave(t, srv, f, string(lossParityPage("T2", "alpha", "beta", "gamma", "delta")), nil); w.Code != 200 {
+	if w := guardSave(t, srv, f, string(lossParityPage("T", "alpha", "beta", "gamma", "delta")), map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
 		t.Fatalf("save: %d %s", w.Code, w.Body.String())
 	}
 	srv.guardQueue.Settle()
 
-	if err := os.WriteFile(path, lossParityPage("T2", "alpha"), 0o644); err != nil {
+	if err := os.WriteFile(path, lossParityPage("T", "alpha"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
@@ -572,7 +577,7 @@ func TestDataLossGetNoEvent(t *testing.T) {
 // Fact 1 for the read route: an outside edit that landed while no tab was open is
 // caught by the first GET, which answers with the event rather than null.
 func TestDataLossGetCatchesUpOutsideEdit(t *testing.T) {
-	srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha", "beta", "gamma", "delta")))
+	srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha")))
 	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
 		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 	}
@@ -750,14 +755,16 @@ func TestDataGuardMetaHref(t *testing.T) {
 	if want := "/_/data-loss/" + f.Token; meta.Document.DataGuard.Href != want {
 		t.Errorf("dataGuard.href = %q, want %q", meta.Document.DataGuard.Href, want)
 	}
-	announced := false
-	for _, ext := range meta.Extensions {
-		if ext == "data-guard-v1" {
-			announced = true
+	for _, want := range []string{"data-guard-v1", "data-guard-v2"} {
+		announced := false
+		for _, ext := range meta.Extensions {
+			if ext == want {
+				announced = true
+			}
 		}
-	}
-	if !announced {
-		t.Errorf("extensions did not announce data-guard-v1: %v", meta.Extensions)
+		if !announced {
+			t.Errorf("extensions did not announce %s: %v", want, meta.Extensions)
+		}
 	}
 
 	plain, plainFile, _ := setupHandlerTest(t)
@@ -849,7 +856,7 @@ func TestGuardBarServedWhenPending(t *testing.T) {
 		`<script type="application/json" data-rules-name="api" data-rules-version="1">{items:".item[]"}</script>` +
 		`</body></html>`
 
-	srv, f, path := guardTestServer(t, whole)
+	srv, f, path := guardTestServer(t, clobbered)
 	w := serve(t, srv, "/board.htmlclay", nil)
 	if w.Code != 200 {
 		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
@@ -862,9 +869,9 @@ func TestGuardBarServedWhenPending(t *testing.T) {
 	}
 	srv.guardQueue.Settle()
 
-	// The outside edit loses the heading, so the event's summary names the key
-	// the document used for it. The clobbered bytes served afterwards hold no such
-	// string, so its presence in the page can only come from the bar.
+	// The outside edit loses the heading, so the event names the key the document
+	// used for it. The clobbered bytes served afterwards hold no such string, so
+	// its presence in the page can only come from the bar.
 	if err := os.WriteFile(path, []byte(clobbered), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -876,9 +883,10 @@ func TestGuardBarServedWhenPending(t *testing.T) {
 	body := w.Body.String()
 	for _, want := range []string{
 		"data-htmlclay-guard",
-		"Saved data was overwritten",
+		"A change from outside this page removed something you typed",
+		"Put it back",
 		"Undo the change",
-		"Keep as is",
+		"Keep the change",
 		`data-choice="dismiss"`,
 		"data-guard-message",
 		"/_/data-loss/",
@@ -890,7 +898,7 @@ func TestGuardBarServedWhenPending(t *testing.T) {
 	if strings.Contains(body, hostileKey) {
 		t.Errorf("the bar served a document key raw: %q", hostileKey)
 	}
-	if want := "api.&lt;img src=x onerror=alert(1)&gt;"; !strings.Contains(body, want) {
+	if want := "&lt;img src=x onerror=alert(1)&gt;"; !strings.Contains(body, want) {
 		t.Errorf("the served page does not carry the escaped key %q", want)
 	}
 
@@ -922,7 +930,7 @@ func TestGuardBarRestoreOnlyWhenRestorable(t *testing.T) {
 	})
 
 	t.Run("a page with no row to clone does not", func(t *testing.T) {
-		srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha", "beta")))
+		srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha")))
 		if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
 			t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 		}
@@ -951,7 +959,7 @@ func TestGuardBarRestoreOnlyWhenRestorable(t *testing.T) {
 		if strings.Contains(body, `data-choice="restore"`) {
 			t.Errorf("an unrestorable event served a Restore button: %s", body)
 		}
-		for _, want := range []string{"data-htmlclay-guard", "data-guard-message", `data-choice="dismiss"`, "Keep as is"} {
+		for _, want := range []string{"data-htmlclay-guard", "data-guard-message", `data-choice="dismiss"`, "Keep the change"} {
 			if !strings.Contains(body, want) {
 				t.Errorf("the served page is missing %q from the bar", want)
 			}
@@ -994,7 +1002,7 @@ func TestGuardBarNeverSaved(t *testing.T) {
 		t.Fatalf("save of the served bytes: %d %s", w.Code, w.Body.String())
 	}
 	saved := string(readFileBytes(t, path))
-	for _, forbidden := range []string{"data-htmlclay-guard", "Saved data was overwritten", "htmlclay-banner", "/_/data-loss/"} {
+	for _, forbidden := range []string{"data-htmlclay-guard", "Some saved data was removed", "htmlclay-banner", "/_/data-loss/"} {
 		if strings.Contains(saved, forbidden) {
 			t.Errorf("a save of the served bytes stored %q: %q", forbidden, saved)
 		}
@@ -1031,7 +1039,7 @@ func TestGuardBarNotSavedAfterBrowserParse(t *testing.T) {
 		t.Fatalf("save of the parsed bytes: %d %s", w.Code, w.Body.String())
 	}
 	saved := string(readFileBytes(t, path))
-	for _, forbidden := range []string{"data-htmlclay-guard", "Saved data was overwritten", "htmlclay-banner", "/_/data-loss/"} {
+	for _, forbidden := range []string{"data-htmlclay-guard", "Some saved data was removed", "htmlclay-banner", "/_/data-loss/"} {
 		if strings.Contains(saved, forbidden) {
 			t.Errorf("a save of the parsed page stored %q: %q", forbidden, saved)
 		}
@@ -1265,7 +1273,7 @@ func TestGuardRestoreDoesNotRefire(t *testing.T) {
 // watcher, which is the only path that sees it while the file is still watched.
 func TestGuardOutsideEditWithTabOpen(t *testing.T) {
 	whole := string(lossParityPage("T", "alpha", "beta", "gamma", "delta"))
-	srv, f, path := guardTestServer(t, whole)
+	srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha")))
 	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
 		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 	}
@@ -1362,7 +1370,7 @@ func TestGuardResolveKeepsCopyOfOutsideEdit(t *testing.T) {
 	for _, choice := range []string{"revert", "restore"} {
 		t.Run(choice, func(t *testing.T) {
 			whole := string(lossParityPage("T", "alpha", "beta", "gamma", "delta"))
-			srv, f, path := guardTestServer(t, whole)
+			srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha")))
 			if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
 				t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 			}
@@ -1512,7 +1520,7 @@ func TestGuardPendingEventSurvivesProvisionalPrune(t *testing.T) {
 	}
 	storeDir := t.TempDir()
 	docPath := filepath.Join(homeDir, "board.htmlclay")
-	if err := os.WriteFile(docPath, lossParityPage("T", "alpha", "beta", "gamma", "delta"), 0o644); err != nil {
+	if err := os.WriteFile(docPath, lossParityPage("T", "alpha"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	mgr := newTestManager(t, homeDir)
@@ -1525,6 +1533,13 @@ func TestGuardPendingEventSurvivesProvisionalPrune(t *testing.T) {
 		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 	}
 	key := guardKey(t, f)
+	if w := guardSave(t, srv, f, string(lossParityPage("T", "alpha", "beta", "gamma", "delta")), map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
+		t.Fatalf("save: %d %s", w.Code, w.Body.String())
+	}
+	srv.guardQueue.Settle()
+	if err := srv.versions.SetProvisional(key, docPath, true); err != nil {
+		t.Fatalf("set provisional: %v", err)
+	}
 	dir, err := srv.versions.ExistingFolder(key, docPath)
 	if err != nil {
 		t.Fatalf("existing folder: %v", err)
@@ -1732,7 +1747,7 @@ func TestGuardStaleReadDoesNotClearNewLoss(t *testing.T) {
 // edit made after that one open is caught by the next load.
 func TestGuardFirstOpenThenOutsideClobberRaises(t *testing.T) {
 	full := string(lossParityPage("T", "alpha", "beta", "gamma", "delta"))
-	srv, f, path := guardTestServer(t, full)
+	srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha")))
 	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
 		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 	}
@@ -1744,6 +1759,10 @@ func TestGuardFirstOpenThenOutsideClobberRaises(t *testing.T) {
 	if st.Baseline == nil || st.LastSeenHash == "" {
 		t.Fatalf("the first load seeded no baseline: %+v", st)
 	}
+	if w := guardSave(t, srv, f, full, map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
+		t.Fatalf("save: %d %s", w.Code, w.Body.String())
+	}
+	srv.guardQueue.Settle()
 
 	if err := os.WriteFile(path, lossParityPage("T", "alpha"), 0o644); err != nil {
 		t.Fatal(err)
@@ -1890,7 +1909,7 @@ func guardRaisedIDs(t *testing.T, sub *subscriber) []string {
 func TestGuardHostedSitesJudgeOnce(t *testing.T) {
 	full := string(lossParityPage("T", "alpha", "beta", "gamma", "delta"))
 	clobbered := lossParityPage("T", "alpha")
-	srv, f, path := guardTestServer(t, full)
+	srv, f, path := guardTestServer(t, string(clobbered))
 	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
 		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
 	}
@@ -1948,5 +1967,122 @@ func TestGuardHostedSitesJudgeOnce(t *testing.T) {
 	}
 	if again := guardRaisedIDs(t, live); len(again) != 0 {
 		t.Fatalf("the dismissed loss was raised again: %v", again)
+	}
+}
+
+const guardCardRulesTag = `<script type="application/json" data-rules-name="api" data-rules-version="1">{title:".title", items:[".item",{id:".id",note:".note"}]}</script>`
+
+// guardCardPage is a board whose one item carries an identity field, so a typed
+// value on it can still be put back.
+func guardCardPage(note string) string {
+	return `<html><body><h1 class="title">T</h1><ul><li class="item"><span class="id">5</span>` +
+		`<span class="note">` + note + `</span></li></ul>` + guardCardRulesTag + `</body></html>`
+}
+
+// guardCardServer registers the card page and saves it once, so the document has
+// the history identity an event is kept under.
+func guardCardServer(t *testing.T) (*Server, *session.File, string) {
+	t.Helper()
+	srv, f, path := guardTestServer(t, guardCardPage(""))
+	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
+		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
+	}
+	if w := guardSave(t, srv, f, guardCardPage(""), map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
+		t.Fatalf("save: %d %s", w.Code, w.Body.String())
+	}
+	srv.guardQueue.Settle()
+	return srv, f, path
+}
+
+// seedGuardReasonEvent plants the pending event the outside judge raises, so each
+// reason's wording can be read off the served card.
+func seedGuardReasonEvent(t *testing.T, srv *Server, f *session.File, path, reason, typedPath string) {
+	t.Helper()
+	key := guardKey(t, f)
+	store := dataguard.NewStore(func(key, absPath string) (string, error) {
+		return srv.versions.Folder(key, absPath)
+	})
+	event := &dataguard.Event{
+		ID:              "event-" + reason,
+		RecoverableData: json.RawMessage(`{"api":{"title":"T","items":[{"id":"5","note":"mine"}]},"@form":"stored"}`),
+		FirstDetectedAt: 1000,
+		LastWriteAt:     1000,
+		LossSummary:     dataguard.LossSummary{Provenance: dataguard.External, DestroyedAtoms: 1, Paths: []string{"api.items[0].note"}},
+		Status:          "pending",
+		Reason:          reason,
+		Typed: []dataguard.TypedValue{{
+			Path:    typedPath,
+			Digest:  `"mine"`,
+			Preview: "mine",
+			At:      1000,
+		}},
+	}
+	if err := store.Write(key, path, &dataguard.State{Version: 1, Event: event, Status: "pending"}); err != nil {
+		t.Fatalf("write guard state: %v", err)
+	}
+}
+
+// The card tells a person what an outside write took from them, in their own
+// words, and offers the calm repair first.
+func TestGuardBarReasonWording(t *testing.T) {
+	for _, c := range []struct {
+		reason string
+		title  string
+		body   string
+	}{
+		{"recent", "A change from outside this page removed something you typed", `note: "mine"`},
+		{"all-typed", "A change from outside this page removed everything you typed", `note: "mine"`},
+		{"emptied", "A change from outside this page emptied this page's data", "erased 1 value"},
+		{"unreadable", "A change from outside this page left its data unreadable", "erased 1 value"},
+	} {
+		t.Run(c.reason, func(t *testing.T) {
+			srv, f, path := guardCardServer(t)
+			seedGuardReasonEvent(t, srv, f, path, c.reason, "api.items[id:5].note")
+
+			w := serve(t, srv, "/board.htmlclay", nil)
+			if w.Code != 200 {
+				t.Fatalf("serve: %d %s", w.Code, w.Body.String())
+			}
+			body := w.Body.String()
+			for _, want := range []string{
+				"data-htmlclay-guard",
+				html.EscapeString(c.title),
+				html.EscapeString(c.body),
+				`data-choice="put-back"`,
+				"Put it back",
+				"Keep the change",
+				`data-choice="dismiss"`,
+			} {
+				if !strings.Contains(body, want) {
+					t.Errorf("the card is missing %q: %s", want, body)
+				}
+			}
+			for _, unwanted := range []string{"Keep as is", `data-choice="restore"`, "Undo the change"} {
+				if strings.Contains(body, unwanted) {
+					t.Errorf("the card offered %q: %s", unwanted, body)
+				}
+			}
+			if event := decodeDataLossEvent(t, dataLossGet(t, srv, f.Token)); event == nil || !event.CanPutBack {
+				t.Fatalf("event = %+v, want canPutBack", event)
+			}
+		})
+	}
+}
+
+// Put it back is only drawn when the server can place a typed value: a button
+// that cannot land is a button that does nothing.
+func TestGuardBarPutBackOnlyWhenPlaceable(t *testing.T) {
+	srv, f, path := guardCardServer(t)
+	seedGuardReasonEvent(t, srv, f, path, "recent", "api.items[id:9].note")
+
+	body := serve(t, srv, "/board.htmlclay", nil).Body.String()
+	if strings.Contains(body, `data-choice="put-back"`) {
+		t.Errorf("an unplaceable put-back was offered: %s", body)
+	}
+	if !strings.Contains(body, "Keep the change") {
+		t.Errorf("the card lost its keep choice: %s", body)
+	}
+	if event := decodeDataLossEvent(t, dataLossGet(t, srv, f.Token)); event == nil || event.CanPutBack {
+		t.Fatalf("event = %+v, want no put-back", event)
 	}
 }

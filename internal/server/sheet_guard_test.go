@@ -21,7 +21,7 @@ func TestSheetGuardAPI(t *testing.T) {
 		{"matched overwrite", "updated", "exact", false},
 		{"unmatched overwrite", "updated", "", true},
 		{"wildcard overwrite", "updated", "*", true},
-		{"matched clear", "", "exact", true},
+		{"matched clear by a program", "", "exact", false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			srv, _, _ := setupHandlerTest(t)
@@ -31,7 +31,8 @@ func TestSheetGuardAPI(t *testing.T) {
 			}
 			key := guardKey(t, file)
 			original := []byte(sheetGuardSource)
-			if _, err := srv.guard.Observe(dataguard.Observation{Key: key, AbsPath: path, NewHTML: original, PrevHTML: original, Prov: dataguard.UIGestured}); err != nil {
+			before := []byte(strings.Replace(sheetGuardSource, ">one<", ">two<", 1))
+			if _, err := srv.guard.Observe(dataguard.Observation{Key: key, AbsPath: path, NewHTML: original, PrevHTML: before, Prov: dataguard.UIGestured}); err != nil {
 				t.Fatal(err)
 			}
 			state, err := srv.guardStore.Read(key, path)
@@ -85,10 +86,56 @@ func TestSheetGuardAPI(t *testing.T) {
 	}
 }
 
+// A page is never a proven reader, even when ClayJS sends the exact version it read
+// along with the file's Save-Token: clearing a cell still raises an event.
+func TestSheetGuardPageMatchedClearStillFires(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	file, path := registerFixture(t, srv, "sheet.htmlclay", sheetGuardSource)
+	if w := serve(t, srv, "/fixtures/sheet.htmlclay", nil); w.Code != 200 {
+		t.Fatalf("serve = %d", w.Code)
+	}
+	key := guardKey(t, file)
+	original := []byte(sheetGuardSource)
+	if _, err := srv.guard.Observe(dataguard.Observation{Key: key, AbsPath: path, NewHTML: original, PrevHTML: original, Prov: dataguard.UIGestured}); err != nil {
+		t.Fatal(err)
+	}
+	state, err := srv.guardStore.Read(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !state.UIWorkPending {
+		t.Fatal("human work was not seeded")
+	}
+	value, _ := json.Marshal("")
+	body := fmt.Sprintf(`{"patch":[{"range":"B1","values":[[%s]]}]}`, value)
+	headers := map[string]string{
+		"Sec-Fetch-Site":  "same-origin",
+		"Origin":          fmt.Sprintf("http://127.0.0.1:%d", srv.port),
+		helperTokenHeader: file.Token,
+		"If-Match":        specwire.Etag(original),
+	}
+	w := postDataWrite(t, srv, "/_/api/fixtures/sheet.htmlclay", body, headers)
+	if w.Code != 200 {
+		t.Fatalf("patch = %d: %s", w.Code, w.Body.String())
+	}
+	srv.guardQueue.Settle()
+	state, err = srv.guardStore.Read(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Event == nil {
+		t.Fatal("a page's matched clear raised no event")
+	}
+}
+
 func TestSheetGuardUnreadableCodecAndTag(t *testing.T) {
-	for _, c := range []struct{ name, after string }{
-		{"codec", strings.Replace(sheetGuardSource, "@codec(sheet)", "@codec(unknown)", 1)},
-		{"tag", strings.Replace(sheetGuardSource, `data-rules-version="2"`, `data-rules-version="99"`, 1)},
+	for _, c := range []struct {
+		name, after  string
+		provenReader bool
+	}{
+		{"codec", strings.Replace(sheetGuardSource, "@codec(sheet)", "@codec(unknown)", 1), false},
+		{"tag", strings.Replace(sheetGuardSource, `data-rules-version="2"`, `data-rules-version="99"`, 1), false},
+		{"tag by a proven reader", strings.Replace(sheetGuardSource, `data-rules-version="2"`, `data-rules-version="99"`, 1), true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			srv, _, _ := setupHandlerTest(t)
@@ -96,7 +143,7 @@ func TestSheetGuardUnreadableCodecAndTag(t *testing.T) {
 			if w := serve(t, srv, "/fixtures/sheet.htmlclay", nil); w.Code != 200 {
 				t.Fatalf("serve = %d", w.Code)
 			}
-			event, err := srv.guard.Observe(dataguard.Observation{Key: guardKey(t, file), AbsPath: path, NewHTML: []byte(c.after), PrevHTML: []byte(sheetGuardSource), Prov: dataguard.External, IfMatched: true})
+			event, err := srv.guard.Observe(dataguard.Observation{Key: guardKey(t, file), AbsPath: path, NewHTML: []byte(c.after), PrevHTML: []byte(sheetGuardSource), Prov: dataguard.External, IfMatched: true, ProvenReader: c.provenReader})
 			if err != nil {
 				t.Fatal(err)
 			}

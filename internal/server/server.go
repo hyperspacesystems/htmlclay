@@ -52,11 +52,14 @@ type Server struct {
 	// to be published, so a test can observe the state the publish happens in.
 	// Tests only; nil everywhere else.
 	beforeFirstOpenSnapshot func()
-	ls                      *LiveSync
-	ownsLiveSync            bool
-	hub                     *hub
-	watcher                 *watcher
-	coord                   *streamCoordinator
+	// backupHook runs before a version is stored during a data write, so a test can
+	// make that store fail. Tests only; nil everywhere else.
+	backupHook   func() error
+	ls           *LiveSync
+	ownsLiveSync bool
+	hub          *hub
+	watcher      *watcher
+	coord        *streamCoordinator
 	// wire is per-server, unlike the shared live-sync runtime above: a site is
 	// the lifetime boundary for an instruction channel, so untrusting a folder
 	// (which closes the site) cannot leave a live wire into it.

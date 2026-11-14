@@ -8,6 +8,13 @@ import { HOST, PACKAGE, parseEngine } from './conformance.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PLATFORM = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const STATUSES = ['pass', 'fail', 'skip', 'na', 'waived', 'waiver-unused'];
+const VERSION_NUMBER = '(?:0|[1-9][0-9]*)';
+const PRERELEASE_ID = `(?:${VERSION_NUMBER}|[0-9]*[A-Za-z-][0-9A-Za-z-]*)`;
+const PACKAGE_VERSION = new RegExp(
+  `^${VERSION_NUMBER}\\.${VERSION_NUMBER}\\.${VERSION_NUMBER}`
+  + `(?:-${PRERELEASE_ID}(?:\\.${PRERELEASE_ID})*)?`
+  + '(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$',
+);
 
 export function parseCandidateArgs(argv) {
   let platform = '';
@@ -123,7 +130,7 @@ export function validateReport(reportPath) {
   if (report?.schema !== 1) throw new Error('the conformance report names no schema 1');
   if (report.package !== PACKAGE) throw new Error(`the conformance report names package ${JSON.stringify(report.package ?? null)}`);
   if (report.host !== HOST) throw new Error(`the conformance report names host ${JSON.stringify(report.host ?? null)}`);
-  if (typeof report.version !== 'string' || !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(report.version)) {
+  if (typeof report.version !== 'string' || PACKAGE_VERSION.exec(report.version)?.[0] !== report.version) {
     throw new Error('the conformance report names no package version');
   }
   if (!Array.isArray(report.checks) || !report.checks.length) throw new Error('the conformance report holds no checks');

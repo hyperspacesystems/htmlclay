@@ -29,6 +29,7 @@ var goFamilies = map[string]string{
 	"sheet-guard.json":             "internal/dataguard TestSheetGuardVectors",
 	"sheet-codec.json":             "internal/gridcodec TestScanVectors",
 	"spec-wire.json":               "internal/specwire TestHostVectors",
+	"typed-guard.json":             "internal/dataguard TestTypedGuardVectors",
 }
 
 type hostVectorIndex struct {

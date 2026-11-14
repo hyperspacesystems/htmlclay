@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "delete cannot include range, append, or values; send the delete on its own",
+  "status": 400,
+  "code": "bad_patch"
+}

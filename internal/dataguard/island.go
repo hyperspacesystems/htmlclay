@@ -27,15 +27,11 @@ func ExtractIsland(src []byte) (dataapi.Value, error) {
 }
 
 func NamesExactVersion(header string) bool {
-	found := false
-	for _, part := range strings.Split(header, ",") {
-		tag := strings.TrimSpace(part)
-		if tag == "*" {
-			return false
-		}
-		found = found || tag != ""
+	header = strings.TrimSpace(header)
+	if header == "" || header == "*" || strings.HasPrefix(header, "W/") || strings.Contains(header, ",") {
+		return false
 	}
-	return found
+	return true
 }
 
 func stripPageState(value dataapi.Value) dataapi.Value {

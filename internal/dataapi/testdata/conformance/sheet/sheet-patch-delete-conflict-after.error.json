@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "another operation names sheet \"Budget\"; send the delete on its own",
+  "status": 400,
+  "code": "bad_patch"
+}

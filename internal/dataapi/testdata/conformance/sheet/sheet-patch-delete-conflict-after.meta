@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: error
+note: either order of the same-tab conflict is refused

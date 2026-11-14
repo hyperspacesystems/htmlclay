@@ -26,7 +26,7 @@ func TestSheetGuardVectors(t *testing.T) {
 		}
 	}
 	testutil.LoadVectors(t, "sheet-guard.json", &vectors)
-	if len(vectors.Cases) != 42 || len(vectors.Metadata) != 4 {
+	if len(vectors.Cases) != 44 || len(vectors.Metadata) != 4 {
 		t.Fatalf("unexpected vector counts: %d/%d", len(vectors.Cases), len(vectors.Metadata))
 	}
 	for _, c := range vectors.Cases {
@@ -44,7 +44,7 @@ func TestSheetGuardVectors(t *testing.T) {
 				t.Fatalf("D = %+v, want %+v", *got, c.D)
 			}
 			matched := c.Lane == "agent" && c.IfMatch != nil && NamesExactVersion(*c.IfMatch)
-			if fire := ShouldFire(c.Provenance, c.Pending && !matched, base, inc, got); fire != c.Fire {
+			if fire := ShouldFire(c.Provenance, c.Pending && !matched, base, inc, got, matched); fire != c.Fire {
 				t.Fatalf("fire = %v, want %v", fire, c.Fire)
 			}
 		})

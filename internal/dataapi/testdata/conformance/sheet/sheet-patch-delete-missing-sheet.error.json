@@ -1,0 +1,6 @@
+{
+  "type": "QueryRefused",
+  "message": "delete requires a sheet name or id",
+  "status": 400,
+  "code": "bad_patch"
+}

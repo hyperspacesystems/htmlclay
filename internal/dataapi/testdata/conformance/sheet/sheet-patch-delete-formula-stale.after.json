@@ -1,0 +1,49 @@
+{
+  "sheets": [
+    {
+      "id": "s2",
+      "name": "Notes",
+      "cols": [
+        "c1"
+      ],
+      "rows": [
+        {
+          "id": "r1",
+          "cells": [
+            {
+              "f": "=Budget!A1",
+              "v": 7
+            }
+          ]
+        },
+        {
+          "id": "r2",
+          "cells": [
+            {
+              "f": "=SUM(A1:A2)",
+              "v": 3
+            }
+          ]
+        }
+      ],
+      "stale": true
+    },
+    {
+      "id": "s3",
+      "name": "Archive",
+      "cols": [
+        "c1"
+      ],
+      "rows": [
+        {
+          "id": "r1",
+          "cells": [
+            {
+              "v": 7
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

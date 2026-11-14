@@ -3,7 +3,7 @@ module github.com/panphora/htmlclay
 go 1.26
 
 require (
-	fyne.io/systray v1.12.0
+	fyne.io/systray v1.12.2
 	github.com/andybalholm/cascadia v1.3.4
 	golang.org/x/net v0.57.0
 	golang.org/x/sys v0.47.0

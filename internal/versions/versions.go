@@ -5,7 +5,7 @@
 //	<UserConfigDir>/htmlclay/versions/            0700
 //	    notes-a3f19c2b/                           <basename>-<8 hex display suffix>
 //	        2026-07-19-14-22-08-431-0400.html     0600, uncompressed, local + offset
-//	        meta.json                             {name, absPath, key, updatedAt}
+//	        meta.json                             {name, absPath, key, updatedAt, pinned}
 //
 // A version filename carries LOCAL wall time so it reads correctly in a file
 // browser, followed by the signed UTC offset that was in force at that moment.
@@ -135,6 +135,9 @@ type Entry struct {
 	Time time.Time `json:"time"`
 	Seq  int       `json:"seq"`
 	Size int64     `json:"size"`
+	// Pinned marks a version that is kept until the user deletes it: pruning
+	// never removes it, however old it is.
+	Pinned bool `json:"pinned,omitempty"`
 }
 
 func (e Entry) before(other Entry) bool {
@@ -155,6 +158,10 @@ type meta struct {
 	// meta rewrite clears it; SetProvisional(true) is what a first-open snapshot
 	// sets, and PruneAll deletes a still-provisional history once it ages out.
 	Provisional bool `json:"provisional,omitempty"`
+	// Pinned names the entries this history keeps until the user deletes them.
+	// Pruning removes a pinned entry never, and a pinned copy does not count
+	// toward MinKeep: it is kept in addition to the newest ones.
+	Pinned []string `json:"pinned,omitempty"`
 }
 
 type history struct {
@@ -590,12 +597,23 @@ func (s *Store) openHistory(vroot *os.Root, key, absPath string, create bool) (*
 }
 
 func writeMeta(root *os.Root, key, absPath string) error {
-	m := meta{
+	// A pin outlives the meta rewrites around it: the next backup of the same
+	// document must not quietly unpin the copy the guard kept.
+	var pinned []string
+	if old, err := readMeta(root); err == nil {
+		pinned = old.Pinned
+	}
+	return publishMeta(root, meta{
 		Name:      filepath.Base(absPath),
 		AbsPath:   absPath,
 		Key:       key,
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
-	}
+		Pinned:    pinned,
+	})
+}
+
+// publishMeta writes m out as the history's meta.json, atomically.
+func publishMeta(root *os.Root, m meta) error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return err
@@ -1106,10 +1124,100 @@ func (s *Store) List(key, absPath string) ([]Entry, error) {
 	if err != nil {
 		return nil, err
 	}
+	if m, mErr := readMeta(ref.root); mErr == nil && len(m.Pinned) > 0 {
+		pinned := make(map[string]bool, len(m.Pinned))
+		for _, name := range m.Pinned {
+			pinned[name] = true
+		}
+		for i := range entries {
+			entries[i].Pinned = pinned[entries[i].Name]
+		}
+	}
 	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
 		entries[i], entries[j] = entries[j], entries[i]
 	}
 	return entries, nil
+}
+
+// Pin marks name as kept until the user deletes it. A pinned version survives
+// every pruning rule, so the one copy of data the guard kept can never be aged
+// out from under it. Pinning is idempotent, and a name that is not a version in
+// this history is refused rather than recorded.
+func (s *Store) Pin(key, absPath, name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, _, err := ParseEntryName(name); err != nil {
+		return err
+	}
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		return err
+	}
+	defer vroot.Close()
+	ref, err := s.openHistory(vroot, key, absPath, false)
+	if err != nil {
+		return err
+	}
+	defer ref.Close()
+
+	entries, err := listEntries(ref.root)
+	if err != nil {
+		return err
+	}
+	found := false
+	for _, e := range entries {
+		if e.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("no version named %q in this history", name)
+	}
+	m, err := readMeta(ref.root)
+	if err != nil {
+		return err
+	}
+	for _, pinned := range m.Pinned {
+		if pinned == name {
+			return nil
+		}
+	}
+	m.Pinned = append(m.Pinned, name)
+	return publishMeta(ref.root, m)
+}
+
+// Pinned returns the entries of key's history that are kept until the user
+// deletes them.
+func (s *Store) Pinned(key, absPath string) ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer vroot.Close()
+	ref, err := s.openHistory(vroot, key, absPath, false)
+	if err != nil {
+		if errors.Is(err, ErrNoHistory) || errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer ref.Close()
+	m, err := readMeta(ref.root)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return m.Pinned, nil
 }
 
 // Read returns the bytes of one version. name must be exactly one generated
@@ -1222,8 +1330,10 @@ func (s *Store) PruneAll() {
 		// durable. Once it ages out, delete it whole (pruneDir only trims within a
 		// history and always keeps MinKeep, so a one-entry snapshot is otherwise
 		// immortal). Deleting an opened-but-never-saved file's snapshot is
-		// deliberate: recovery of pre-first-save state is best-effort.
-		if mErr == nil && m.Provisional && provisionalExpired(m.UpdatedAt, now) {
+		// deliberate: recovery of pre-first-save state is best-effort. A pin is the
+		// exception: it marks real data the guard kept, so a pinned history is never
+		// reclaimed this way.
+		if mErr == nil && m.Provisional && len(m.Pinned) == 0 && provisionalExpired(m.UpdatedAt, now) {
 			hroot.Close()
 			if rErr := vroot.RemoveAll(d.Name()); rErr == nil {
 				if m.Key != "" {
@@ -1253,17 +1363,30 @@ func provisionalExpired(updatedAt string, now time.Time) bool {
 }
 
 // pruneDir deletes versions older than MaxAge while always retaining the newest
-// MinKeep, keeping the union of the two sets. Deletion is oldest first and goes
-// through the opened history root, so it can never resolve outside the store.
+// MinKeep, keeping the union of the two sets. A pinned version is never deleted
+// and does not count toward MinKeep: it is kept in addition to the newest ones.
+// Deletion goes through the opened history root, so it can never resolve outside
+// the store.
 func pruneDir(hroot *os.Root) {
 	entries, err := listEntries(hroot)
 	if err != nil {
 		return
 	}
+	pinned := make(map[string]bool)
+	if m, mErr := readMeta(hroot); mErr == nil {
+		for _, name := range m.Pinned {
+			pinned[name] = true
+		}
+	}
 	cutoff := time.Now().Add(-MaxAge)
-	n := len(entries)
-	for i, e := range entries {
-		if i >= n-MinKeep {
+	kept := 0
+	for i := len(entries) - 1; i >= 0; i-- {
+		e := entries[i]
+		if pinned[e.Name] {
+			continue
+		}
+		kept++
+		if kept <= MinKeep {
 			continue
 		}
 		if e.Time.After(cutoff) {

@@ -3,6 +3,7 @@ package dataapi
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,8 +19,8 @@ type PatchOptions struct {
 	NewID func() string
 }
 
-// PatchResult is patchDocument's { html, changed, stale }. Stale is always true: a host cannot
-// recalculate, so every patched table carries `stale` until a browser saves it.
+// PatchResult is patchDocument's { html, changed, stale }. A host cannot recalculate, so patched
+// tables and formula-bearing survivors of a deletion carry `stale` until a browser saves them.
 type PatchResult struct {
 	HTML    []byte
 	Changed gridcodec.Changed
@@ -29,12 +30,10 @@ type PatchResult struct {
 // NotCanonicalMessage is patch-document.js NOT_CANONICAL_MESSAGE.
 const NotCanonicalMessage = "This sheet was edited outside the sheet editor, so the API cannot patch it: open the sheet in the editor and save once."
 
-// PatchDocument applies a patch list to a sheet document's source, rewriting only the rows it
-// touches, and returns the new source with the cells and rows it changed. Port of
-// hyper-html-api src/patch-document.js patchDocument. Each operation is
-// { sheet?, range, values } or { sheet?, append }; `sheet` is a tab name or id and none means the
-// first tab. Every check runs in the reference's order, so a document or a patch the reference
-// refuses is refused with the same type, code and message before any output exists.
+// PatchDocument applies a patch list to a sheet document's source, rewriting only touched rows,
+// deleted tab sections and needed stale attributes. Port of hyper-html-api
+// src/patch-document.js patchDocument. Every check runs in the reference's order, so a document
+// or patch the reference refuses is refused with the same type, code and message before output.
 func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, error) {
 	token := opts.Token
 	if token == "" {
@@ -55,7 +54,16 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 	}
 	source := string(body)
 
-	tabs, err := locateTabs(source, token)
+	deleting := false
+	for _, raw := range ops {
+		if op, isObject := raw.(*Object); isObject {
+			if _, hasDelete := op.Get("delete"); hasDelete {
+				deleting = true
+				break
+			}
+		}
+	}
+	tabs, err := locateTabs(source, token, deleting)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +73,21 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 	for _, raw := range ops {
 		op, isObject := raw.(*Object)
 		if !isObject {
-			return nil, &gridcodec.QueryRefused{Code: "bad_patch", Message: "an operation is { sheet, range, values } or { sheet, append }"}
+			return nil, &gridcodec.QueryRefused{Code: "bad_patch", Message: "an operation is { sheet, range, values }, { sheet, append }, or { sheet, delete: true }"}
+		}
+		if deleteValue, hasDelete := op.Get("delete"); hasDelete {
+			deleteTrue, isTrue := deleteValue.(bool)
+			if !isTrue || !deleteTrue {
+				return nil, &gridcodec.QueryRefused{Code: "bad_patch", Message: "delete must be exactly true"}
+			}
+			if _, hasSheet := op.Get("sheet"); !hasSheet {
+				return nil, &gridcodec.QueryRefused{Code: "bad_patch", Message: "delete requires a sheet name or id"}
+			}
+			for _, key := range []string{"range", "append", "values"} {
+				if _, present := op.Get(key); present {
+					return nil, &gridcodec.QueryRefused{Code: "bad_patch", Message: "delete cannot include range, append, or values; send the delete on its own"}
+				}
+			}
 		}
 		wanted, hasSheet := op.Get("sheet")
 		tab, err := pickTab(tabs, wanted, hasSheet)
@@ -85,6 +107,28 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 		}
 		groups[tab] = append(groups[tab], gridOp)
 	}
+	deleted := map[*sheetTab]bool{}
+	for _, tab := range order {
+		deleteGroup := false
+		for _, raw := range groups[tab] {
+			op := raw.(map[string]any)
+			deleteTrue, isTrue := op["delete"].(bool)
+			if isTrue && deleteTrue {
+				deleteGroup = true
+				break
+			}
+		}
+		if !deleteGroup {
+			continue
+		}
+		if len(groups[tab]) != 1 {
+			return nil, &gridcodec.QueryRefused{Code: "bad_patch", Message: fmt.Sprintf("another operation names sheet %s; send the delete on its own", jsJSON(tab.name))}
+		}
+		deleted[tab] = true
+	}
+	if len(deleted) > 0 && len(deleted) == len(tabs) {
+		return nil, &gridcodec.QueryRefused{Code: "last_sheet", Message: "cannot delete the last sheet; keep at least one tab"}
+	}
 
 	type pendingEdit struct {
 		start, end int
@@ -92,7 +136,15 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 	}
 	edits := []pendingEdit{}
 	cells, rows := 0, 0
+	stale := false
 	for _, tab := range order {
+		if deleted[tab] {
+			if tab.sectionRegion == nil {
+				return nil, &CodecRefused{Code: "sheet-not-canonical", Message: NotCanonicalMessage}
+			}
+			edits = append(edits, pendingEdit{start: tab.sectionRegion.Start, end: tab.sectionRegion.End})
+			continue
+		}
 		if tab.region == nil {
 			return nil, &CodecRefused{Code: "sheet-not-canonical", Message: NotCanonicalMessage}
 		}
@@ -103,6 +155,23 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 		edits = append(edits, pendingEdit{start: tab.region.Start, end: tab.region.End, bytes: out})
 		cells += changed.Cells
 		rows += changed.Rows
+		stale = true
+	}
+	if len(deleted) > 0 {
+		for i := range tabs {
+			tab := &tabs[i]
+			if _, grouped := groups[tab]; grouped || tab.table == nil || !hasFormulaDescendant(tab.table) {
+				continue
+			}
+			stale = true
+			if hasAttribute(tab.table, "stale") {
+				continue
+			}
+			if tab.staleAt < 0 {
+				return nil, &CodecRefused{Code: "sheet-not-canonical", Message: NotCanonicalMessage}
+			}
+			edits = append(edits, pendingEdit{start: tab.staleAt, end: tab.staleAt, bytes: " stale"})
+		}
 	}
 
 	sort.Slice(edits, func(i, j int) bool { return edits[i].start > edits[j].start })
@@ -116,9 +185,27 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 	}
 	return &PatchResult{
 		HTML:    result,
-		Changed: gridcodec.Changed{Cells: cells, Rows: rows},
-		Stale:   true,
+		Changed: gridcodec.Changed{Cells: cells, Rows: rows, Sheets: len(deleted)},
+		Stale:   stale,
 	}, nil
+}
+
+// hasFormulaDescendant matches cheerio table.find("[f]"): the table itself is excluded and
+// detached template content is not traversed.
+func hasFormulaDescendant(table *html.Node) bool {
+	var walk func(*html.Node) bool
+	walk = func(node *html.Node) bool {
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			if child.Type == html.ElementNode && hasAttribute(child, "f") {
+				return true
+			}
+			if walk(child) {
+				return true
+			}
+		}
+		return false
+	}
+	return walk(table)
 }
 
 // plainJSON converts a decoded patch value into the plain JSON shapes gridcodec.PatchGrid takes:
@@ -222,7 +309,10 @@ func IsPatchBody(body, rules Value) bool {
 // or no region when the table is missing or not canonical. The cut route first, as ReadDocument
 // reads; when its holes do not verify, one parse with the tables' starts marked in the source, then
 // a strict scan at each mark.
-func locateTabs(body, token string) ([]sheetTab, error) {
+func locateTabs(body, token string, deleting bool) ([]sheetTab, error) {
+	if deleting {
+		return locateDeleteTabs(body, token)
+	}
 	marker := gridcodec.HoleMarker(body)
 	rest, regions, err := gridcodec.CutGrids(body, marker)
 	if err != nil {

@@ -103,6 +103,50 @@ func (h *GuardHistory) NewestDifferingFrom(hash string) ([]byte, bool) {
 	return nil, false
 }
 
+// Keep stores content as a version of the document and returns the name of an
+// entry that holds exactly those bytes. The guard uses it to make sure the bytes an
+// outside write replaced exist somewhere before pinning them.
+func (h *GuardHistory) Keep(content []byte) (string, error) {
+	if name, ok := h.versionWithBytes(content); ok {
+		return name, nil
+	}
+	if _, err := h.versions.Backup(h.key, h.absPath, content); err != nil {
+		return "", err
+	}
+	if name, ok := h.versionWithBytes(content); ok {
+		return name, nil
+	}
+	return "", fmt.Errorf("no version of %s holds the kept bytes", h.absPath)
+}
+
+// versionWithBytes finds a stored version whose bytes hash equal content.
+func (h *GuardHistory) versionWithBytes(content []byte) (string, bool) {
+	want := versions.Hash(content)
+	entries, err := h.versions.List(h.key, h.absPath)
+	if err != nil {
+		return "", false
+	}
+	if len(entries) > newestDifferingScan {
+		entries = entries[:newestDifferingScan]
+	}
+	for _, entry := range entries {
+		body, err := h.versions.Read(h.key, h.absPath, entry.Name)
+		if err != nil {
+			continue
+		}
+		if versions.Hash(body) == want {
+			return entry.Name, true
+		}
+	}
+	return "", false
+}
+
+// Pin marks one version as kept until the user deletes it, so no pruning rule can
+// remove the only copy of data the guard chose not to report.
+func (h *GuardHistory) Pin(name string) error {
+	return h.versions.Pin(h.key, h.absPath, name)
+}
+
 // provenanceFromRequest reads who drove a save off the request: a Save-Trigger of
 // "user" is a person, anything else is the page acting on its own. A client that
 // sends neither is a UI of unknown provenance, which the guard judges as one.
@@ -122,24 +166,33 @@ func provenanceFromRequest(r *http.Request) dataguard.Provenance {
 	return dataguard.UIProvenanceOf(nil)
 }
 
+// writeProof is what a write showed about the version it was based on.
+type writeProof struct {
+	IfMatched    bool // the request named the exact stored version
+	ProvenReader bool // ...and came from a program, not a page
+	FromPage     bool // a browser page sent this write
+}
+
 // observeWrite hands one document write to the guard. It only enqueues: the guard
 // parses the whole document, and a save must never wait for that. prev is the
 // bytes the write replaced (nil when there were none) and next is what was stored.
-func (s *Server) observeWrite(f *session.File, key string, prev, next []byte, prov dataguard.Provenance, ifMatched ...bool) {
+func (s *Server) observeWrite(f *session.File, key string, prev, next []byte, prov dataguard.Provenance, proof ...writeProof) {
 	if key == "" || !isExtractable(f.AbsPath) {
 		return
 	}
 	s.noteGuardSeen(key, next)
 	s.guardQueue.Do(key, func() {
 		s.guard.Observe(dataguard.Observation{
-			Key:       key,
-			AbsPath:   f.AbsPath,
-			NewHTML:   next,
-			PrevHTML:  prev,
-			Prov:      prov,
-			IfMatched: len(ifMatched) > 0 && ifMatched[0],
-			History:   NewGuardHistory(s.versions, key, f.AbsPath),
-			Notify:    s.guardNotify(f, key),
+			Key:          key,
+			AbsPath:      f.AbsPath,
+			NewHTML:      next,
+			PrevHTML:     prev,
+			Prov:         prov,
+			IfMatched:    len(proof) > 0 && proof[0].IfMatched,
+			ProvenReader: len(proof) > 0 && proof[0].ProvenReader,
+			FromPage:     len(proof) > 0 && proof[0].FromPage,
+			History:      NewGuardHistory(s.versions, key, f.AbsPath),
+			Notify:       s.guardNotify(f, key),
 		})
 	})
 }
@@ -277,6 +330,70 @@ func guardSummaryText(event *dataguard.ClientEvent) string {
 	return text
 }
 
+// guardReasonTitle is the card's heading for an event the guard raised on an
+// outside write, and "" for an event with no reason: those keep the older card.
+func guardReasonTitle(reason string) string {
+	switch reason {
+	case "recent":
+		return "A change from outside this page removed something you typed"
+	case "all-typed":
+		return "A change from outside this page removed everything you typed"
+	case "emptied":
+		return "A change from outside this page emptied this page's data"
+	case "unreadable":
+		return "A change from outside this page left its data unreadable"
+	}
+	return ""
+}
+
+// guardCardText is the card's heading and its one line of detail. A reason from
+// the outside judge names what the person typed; every other event keeps the
+// summary sentence.
+func guardCardText(event *dataguard.ClientEvent) (string, string) {
+	title := guardReasonTitle(event.Reason)
+	if title == "" {
+		return "Some saved data was removed", guardSummaryText(event)
+	}
+	switch event.Reason {
+	case "recent", "all-typed":
+		return title, guardTypedText(event.Typed)
+	}
+	return title, guardSummaryText(event)
+}
+
+// guardTypedText names up to three typed values the loss took, then counts the
+// rest, in the person's own words.
+func guardTypedText(rows []dataguard.TypedRow) string {
+	if len(rows) == 0 {
+		return ""
+	}
+	n := len(rows)
+	if n > 3 {
+		n = 3
+	}
+	parts := make([]string, n)
+	for i, row := range rows[:n] {
+		parts[i] = guardTypedLabel(row.Path) + `: "` + row.Yours + `"`
+	}
+	text := strings.Join(parts, "; ")
+	if extra := len(rows) - n; extra > 0 {
+		text += fmt.Sprintf(" and %d more", extra)
+	}
+	return text
+}
+
+// guardTypedLabel is the last key of an identity path, read as words:
+// api.items[id:5].note -> note, api.tags[*] -> tags.
+func guardTypedLabel(path string) string {
+	if i := strings.LastIndexByte(path, '.'); i >= 0 {
+		path = path[i+1:]
+	}
+	if i := strings.IndexByte(path, '['); i >= 0 {
+		path = path[:i]
+	}
+	return strings.NewReplacer("_", " ", "-", " ").Replace(path)
+}
+
 func guardPlural(count int, word string) string {
 	if count == 1 {
 		return fmt.Sprintf("%d %s", count, word)
@@ -284,30 +401,44 @@ func guardPlural(count int, word string) string {
 	return fmt.Sprintf("%d %ss", count, word)
 }
 
-// guardBarHTML is the notice HTML Clay puts at the top of a document whose saved
+// guardBarHTML is the notice HTML Clay puts in the top-right corner of a document whose saved
 // data was overwritten, for the pages whose own runtime cannot draw it: a
 // document pinned to a ClayJS older than the notice module, or one using no
 // ClayJS at all, never loads that module. It follows setupBarHTML: the same
 // wrapper attributes and inline style values, plus data-htmlclay-guard so the
 // module removes it when it takes over, and it sits inside the banner markers, so
 // a save strips it byte-exactly. The buttons post the same choices the module
-// posts, and the page reloads once the server says ok. Restore is only drawn for
-// an event the server says it can restore, and a refusal is written into the
-// bar's message span instead of being dropped.
+// posts, and the page reloads once the server says ok. It is a small card, like
+// ClayJS's own notice, so it never covers the page's header. Restore is only drawn for
+// an event the server says it can restore, a reason event offers Put it back
+// instead, and a refusal is written into the bar's message span instead of being
+// dropped.
 func guardBarHTML(event *dataguard.ClientEvent) []byte {
 	id, _ := json.Marshal(event.ID)
 	var b strings.Builder
-	b.WriteString(`<div clay="no-save no-snapshot no-watch" data-htmlclay-guard style="position:fixed;top:0;left:0;right:0;z-index:2147483647;font:13px/1.4 -apple-system,system-ui,sans-serif">`)
-	b.WriteString(`<div style="display:flex;align-items:center;gap:12px;padding:8px 16px;background:#f6ead0;color:#3b2f17;border-bottom:1px solid #e2cf9f">`)
-	b.WriteString(`<span style="flex:1"><strong>Saved data was overwritten</strong> ` + html.EscapeString(guardSummaryText(event)) + `</span>`)
+	b.WriteString(`<div clay="no-save no-snapshot no-watch" data-htmlclay-guard style="position:fixed;top:16px;right:16px;z-index:2147483647;width:min(330px,calc(100vw - 32px));font:13px/1.4 -apple-system,system-ui,sans-serif">`)
+	b.WriteString(`<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding:12px 14px;background:#f6ead0;color:#3b2f17;border:1px solid #e2cf9f;border-radius:8px;box-shadow:0 6px 20px rgba(59,47,23,.18)">`)
+	title, text := guardCardText(event)
+	b.WriteString(`<span style="flex:1 1 100%"><strong>` + html.EscapeString(title) + `</strong> ` + html.EscapeString(text) + `</span>`)
 	b.WriteString(`<span data-guard-message style="color:#8a2a12"></span>`)
-	if event.Restorable {
-		b.WriteString(`<button type="button" data-choice="restore" style="padding:5px 12px;border:0;border-radius:6px;background:#2f6fde;color:#f7f9fc;font:inherit;cursor:pointer">Restore</button>`)
+	primary := `padding:5px 12px;border:0;border-radius:6px;background:#2f6fde;color:#f7f9fc;font:inherit;cursor:pointer`
+	if event.Reason != "" {
+		if event.CanPutBack {
+			b.WriteString(`<button type="button" data-choice="put-back" style="` + primary + `">Put it back</button>`)
+		}
+		if event.CanRevert {
+			b.WriteString(`<button type="button" data-choice="revert" style="` + primary + `">Undo the change</button>`)
+		}
+		b.WriteString(`<button type="button" data-choice="dismiss" style="padding:5px 9px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;cursor:pointer">Keep the change</button>`)
+	} else {
+		if event.Restorable {
+			b.WriteString(`<button type="button" data-choice="restore" style="` + primary + `">Restore</button>`)
+		}
+		if event.CanRevert {
+			b.WriteString(`<button type="button" data-choice="revert" style="` + primary + `">Undo the change</button>`)
+		}
+		b.WriteString(`<button type="button" data-choice="dismiss" style="padding:5px 9px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;cursor:pointer">Keep as is</button>`)
 	}
-	if event.CanRevert {
-		b.WriteString(`<button type="button" data-choice="revert" style="padding:5px 12px;border:0;border-radius:6px;background:#2f6fde;color:#f7f9fc;font:inherit;cursor:pointer">Undo the change</button>`)
-	}
-	b.WriteString(`<button type="button" data-choice="dismiss" style="padding:5px 9px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;cursor:pointer">Keep as is</button>`)
 	b.WriteString(`</div>`)
 	b.WriteString(`<script>(function(){` +
 		`var bar=document.currentScript.parentNode,busy=0,id=` + string(id) + `,msg=bar.querySelector('[data-guard-message]');` +

@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: ok
+note: deleting a tab by name removes exactly its section

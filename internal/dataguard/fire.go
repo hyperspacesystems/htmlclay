@@ -19,12 +19,19 @@ type LossSummary struct {
 	Paths          []string   `json:"paths"`
 }
 
-func ShouldFire(prov Provenance, uiWorkPending bool, base, inc dataapi.Value, d *Destruction) bool {
+func ShouldFire(prov Provenance, uiWorkPending bool, base, inc dataapi.Value, d *Destruction, provenReader bool) bool {
 	if base == nil || IsEmptyIsland(base) {
 		return false
 	}
 	if inc == nil {
 		return true
+	}
+
+	// A program that named the exact version it read meant its change. Only a
+	// near-total wipe still speaks (David, 2026-11-13): 90% or more of the data's
+	// values gone, counted across the whole data so removed list items count.
+	if provenReader {
+		return d.AnyDestruction && nearTotalWipe(base, inc)
 	}
 
 	if prov == External && d.AnyDestruction {
@@ -86,4 +93,62 @@ func LossSummaryOf(prov Provenance, d *Destruction) LossSummary {
 		summary.ModifiedAtoms = d.ModifiedAtoms
 	}
 	return summary
+}
+
+// nearTotalWipe reports whether the write kept no more than a tenth of the values
+// that were there, counting every value inside lists and objects, so removed list
+// items count as much as cleared fields.
+func nearTotalWipe(base, inc dataapi.Value) bool {
+	before := dataValueCount(base)
+	if before == 0 {
+		return false
+	}
+	removed := before - dataValueCount(inc)
+	return float64(removed)/float64(before) >= NearTotalWipe
+}
+
+// dataValueCount counts an island's values, leaving out the guard's own top-level
+// bookkeeping (the codec declarations and the stored-form marker).
+func dataValueCount(island dataapi.Value) int {
+	obj, ok := island.(*dataapi.Object)
+	if !ok {
+		return valueCount(island)
+	}
+	n := 0
+	for _, k := range jsKeys(obj) {
+		if k == CodecsKey || k == FormKey {
+			continue
+		}
+		val, _ := obj.Get(k)
+		n += valueCount(val)
+	}
+	return n
+}
+
+// valueCount is the number of values a person could have typed: every non-blank
+// scalar, at any depth.
+func valueCount(v dataapi.Value) int {
+	switch t := v.(type) {
+	case nil:
+		return 0
+	case string:
+		if Meaningful(t) {
+			return 1
+		}
+		return 0
+	case []dataapi.Value:
+		n := 0
+		for _, item := range t {
+			n += valueCount(item)
+		}
+		return n
+	case *dataapi.Object:
+		n := 0
+		for _, k := range jsKeys(t) {
+			val, _ := t.Get(k)
+			n += valueCount(val)
+		}
+		return n
+	}
+	return 1
 }

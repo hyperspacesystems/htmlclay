@@ -26,10 +26,20 @@ const maxDataWriteSize = 1 << 20
 // writeErrorBody is the write face's error shape, shared with hyperclay-local's
 // applySiteDataLocal: details carries the engine's structured refusals.
 type writeErrorBody struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
-	Code    string `json:"code,omitempty"`
-	Details any    `json:"details,omitempty"`
+	Error       string           `json:"error"`
+	Message     string           `json:"message"`
+	Code        string           `json:"code,omitempty"`
+	Details     any              `json:"details,omitempty"`
+	Etag        string           `json:"etag,omitempty"`
+	WouldRemove *wouldRemoveBody `json:"wouldRemove,omitempty"`
+}
+
+// wouldRemoveBody says what a refused program write would have taken, so the
+// program can see why it has to read the document before writing.
+type wouldRemoveBody struct {
+	Items  int      `json:"items"`
+	Values int      `json:"values"`
+	Paths  []string `json:"paths"`
 }
 
 func writeWriteError(w http.ResponseWriter, status int, body writeErrorBody) {
@@ -41,6 +51,9 @@ func writeWriteError(w http.ResponseWriter, status int, body writeErrorBody) {
 		return
 	}
 	dataHeaders(w)
+	if body.Etag != "" {
+		w.Header().Set("ETag", body.Etag)
+	}
 	w.WriteHeader(status)
 	w.Write(bytes.TrimRight(buf.Bytes(), "\n"))
 }
@@ -155,7 +168,7 @@ func (s *Server) handleDataAPIWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeApplied(w, r, f, data, mode)
+	s.writeApplied(w, r, f, data, mode, isBrowser)
 }
 
 // resolveWriteTarget turns the request path into the absolute path a write would touch, or reports
@@ -218,7 +231,7 @@ func (s *Server) mayRegisterForWrite(absPath string) bool {
 }
 
 // writeApplied is handleSave's commit sequence with the body computed from the stored bytes.
-func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session.File, data dataapi.Value, mode dataMode) {
+func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session.File, data dataapi.Value, mode dataMode, isBrowser bool) {
 	f.Lock()
 	current, readErr := s.readRegisteredFile(f.AbsPath)
 	if readErr != nil {
@@ -246,7 +259,7 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 	if mode.face == faceAPI {
 		stripped := htmlutil.StripToken(current)
 		if rules, _, found, rErr := dataapi.DocumentRules(stripped, "api"); rErr == nil && found && dataapi.IsPatchBody(data, rules) {
-			s.patchApplied(w, r, f, current, data)
+			s.patchApplied(w, r, f, current, data, isBrowser)
 			return
 		}
 	}
@@ -298,7 +311,9 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 	written := current
 	key := ""
 	if res.Changed {
-		written, key, err = s.commitDataEdit(f, current, res.HTML, r.Host)
+		ifMatch, _ := listHeader(r, "If-Match")
+		written, key, err = s.commitDataEdit(f, current, res.HTML, r.Host,
+			dataguard.NamesExactVersion(ifMatch) && !isBrowser, !isBrowser && !dataguard.NamesExactVersion(ifMatch))
 		if err != nil {
 			f.Unlock()
 			var refusal *dataEditError
@@ -323,7 +338,8 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 
 	if res.Changed {
 		ifMatch, _ := listHeader(r, "If-Match")
-		s.observeWrite(f, key, current, written, dataguard.External, dataguard.NamesExactVersion(ifMatch))
+		exact := dataguard.NamesExactVersion(ifMatch)
+		s.observeWrite(f, key, current, written, dataguard.External, writeProof{IfMatched: exact, ProvenReader: exact && !isBrowser, FromPage: isBrowser})
 		s.versions.MaybePrune(key, f.AbsPath)
 		s.logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), res.Spliced)
 	}
@@ -331,7 +347,7 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 }
 
 // patchApplied applies a sheet patch body. Caller holds f.Lock; patchApplied releases it.
-func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session.File, current []byte, body dataapi.Value) {
+func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session.File, current []byte, body dataapi.Value, isBrowser bool) {
 	patch, _ := body.(*dataapi.Object).Get("patch")
 	res, err := dataapi.PatchDocument(htmlutil.StripToken(current), patch, dataapi.PatchOptions{Token: "api"})
 	if err != nil {
@@ -343,7 +359,9 @@ func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session
 		writeWriteError(w, status, errBody)
 		return
 	}
-	written, key, err := s.commitDataEdit(f, current, res.HTML, r.Host)
+	ifMatch, _ := listHeader(r, "If-Match")
+	written, key, err := s.commitDataEdit(f, current, res.HTML, r.Host,
+		dataguard.NamesExactVersion(ifMatch) && !isBrowser, !isBrowser && !dataguard.NamesExactVersion(ifMatch))
 	if err != nil {
 		f.Unlock()
 		var refusal *dataEditError
@@ -362,8 +380,8 @@ func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session
 	s.coord.publishExternalChange(f, f.Name+" was updated through the data API", forBrowser(written, key, s.documentURLFor(f)), specwire.Etag(written))
 	f.Unlock()
 
-	ifMatch, _ := listHeader(r, "If-Match")
-	s.observeWrite(f, key, current, written, dataguard.External, dataguard.NamesExactVersion(ifMatch))
+	exact := dataguard.NamesExactVersion(ifMatch)
+	s.observeWrite(f, key, current, written, dataguard.External, writeProof{IfMatched: exact, ProvenReader: exact && !isBrowser, FromPage: isBrowser})
 	s.versions.MaybePrune(key, f.AbsPath)
 	s.logger.Printf("Patched sheet cells in %s (%d cells, %d rows)", f.RelPath, res.Changed.Cells, res.Changed.Rows)
 
@@ -405,7 +423,7 @@ func (e *dataEditError) Error() string { return e.body.Message }
 // The stored document is the only source of an edit, so the bytes it produced can
 // carry a runtime URL only if disk already held one. Canonicalizing before the
 // admission check means what is judged is what would be written.
-func (s *Server) commitDataEdit(f *session.File, current, html []byte, host string) ([]byte, string, error) {
+func (s *Server) commitDataEdit(f *session.File, current, html []byte, host string, provenReader, readFirst bool) ([]byte, string, error) {
 	html = canonicalForWrite(host, html)
 	html = []byte(pageadmission.WithPageFormatFloor(string(html),
 		pageadmission.PageFormatFloor(string(current))))
@@ -429,13 +447,37 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 	}
 
 	written := []byte(pageadmission.StripPageTag(string(html)))
+	if readFirst {
+		if D := readRequiredWrite(current, written); D != nil {
+			return nil, "", &dataEditError{status: http.StatusPreconditionRequired, body: writeErrorBody{
+				Code:        "read-required",
+				Error:       "Read first",
+				Message:     "This write would remove data. Read the document first and send its etag as If-Match.",
+				Etag:        specwire.Etag(current),
+				WouldRemove: &wouldRemoveBody{Items: D.RemovedItems, Values: D.DestroyedLeaves, Paths: D.Paths},
+			}}
+		}
+	}
 	key, _ := s.ensureHistoryKeyLocked(f, current)
+	// A proven reader is a program that read this exact version and computes its
+	// edit from it, so its write replaces bytes nothing else holds. Those bytes have
+	// to be kept first: if they cannot be, the write does not happen at all.
+	if provenReader && !s.recentVersionsHold(key, f.AbsPath, current) {
+		if bErr := s.backupVersion(key, f.AbsPath, current); bErr != nil {
+			s.logger.Printf("Could not keep the current version of %s: %v", f.RelPath, bErr)
+			return nil, "", &dataEditError{status: http.StatusServiceUnavailable, body: writeErrorBody{
+				Code:    "recovery-unavailable",
+				Error:   "Could not keep the current version",
+				Message: "The current version could not be stored in history, so nothing was written. Try again.",
+			}}
+		}
+	}
 	if !s.versions.HasHistory(key, f.AbsPath) {
-		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
+		if bErr := s.backupVersion(key, f.AbsPath, current); bErr != nil {
 			s.logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
 		}
 	}
-	if _, bErr := s.versions.Backup(key, f.AbsPath, written); bErr != nil {
+	if bErr := s.backupVersion(key, f.AbsPath, written); bErr != nil {
 		s.logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
 	}
 	if err := atomicWriteFile(f.AbsPath, written); err != nil {
@@ -448,6 +490,63 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 	f.RecordServerWrite(versions.Hash(written))
 	f.NoteWriteByThisHost()
 	return written, key, nil
+}
+
+// readRequiredWrite judges what a program's write would destroy between the
+// document on disk and the bytes about to be written, with the same extraction
+// and classification the guard uses. A nil answer means nothing would be removed.
+func readRequiredWrite(current, written []byte) *dataguard.Destruction {
+	ext := Extractor{}
+	base, err := ext.Extract(current)
+	if err != nil || dataguard.IsEmptyIsland(base) {
+		return nil
+	}
+	inc, incErr := ext.Extract(written)
+	D := dataguard.ClassifyDestruction(base, inc)
+	if incErr != nil || D.AnyDestruction {
+		return D
+	}
+	return nil
+}
+
+// backupVersion stores content as a version of the document, or fails the way an
+// injected test hook says it should.
+func (s *Server) backupVersion(key, absPath string, content []byte) error {
+	if s.backupHook != nil {
+		if err := s.backupHook(); err != nil {
+			return err
+		}
+	}
+	_, err := s.versions.Backup(key, absPath, content)
+	return err
+}
+
+// recentVersionsChecked is how many of the newest versions recentVersionsHold looks
+// through. A few, not one: the watcher and the page save lane both store versions of
+// the same document, so a write caught mid-save lands after the copy it is checking.
+const recentVersionsChecked = 3
+
+// recentVersionsHold reports whether one of the newest few versions holds exactly
+// content, so bytes already kept need no second copy.
+func (s *Server) recentVersionsHold(key, absPath string, content []byte) bool {
+	entries, err := s.versions.List(key, absPath)
+	if err != nil {
+		return false
+	}
+	if len(entries) > recentVersionsChecked {
+		entries = entries[:recentVersionsChecked]
+	}
+	want := versions.Hash(content)
+	for _, entry := range entries {
+		body, err := s.versions.Read(key, absPath, entry.Name)
+		if err != nil {
+			continue
+		}
+		if versions.Hash(body) == want {
+			return true
+		}
+	}
+	return false
 }
 
 // mapWriteError gives the write engine's refusals the bodies hyperclay-local sends, and defers to

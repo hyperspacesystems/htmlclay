@@ -1,0 +1,5 @@
+tier: 1
+face: patch
+token: api
+expect: error
+note: deleting the only tab is refused: a document keeps at least one tab

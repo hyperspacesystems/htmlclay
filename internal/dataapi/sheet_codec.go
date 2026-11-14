@@ -17,15 +17,18 @@ var SheetCodec Codec = sheetCodec{}
 type sheetCodec struct{}
 
 type sheetTab struct {
-	id, name string
-	table    *html.Node
-	sheet    *gridcodec.Sheet
-	region   *gridcodec.Region
+	id, name      string
+	section       *html.Node
+	table         *html.Node
+	sheet         *gridcodec.Sheet
+	region        *gridcodec.Region
+	sectionRegion *gridcodec.Region
+	staleAt       int
 }
 
 func firstChildElement(n *html.Node, match func(*html.Node) bool) *html.Node {
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.ElementNode && match(c) {
+	for _, c := range adapterChildren(n) {
+		if match(c) {
 			return c
 		}
 	}
@@ -37,16 +40,17 @@ func hasAttribute(n *html.Node, name string) bool {
 	return ok
 }
 
-// sheetTabNodes is sheet.js tabNodes: each <section item> child, its data-id, the text of its
-// <h2 bind="name"> child (textContent, never trimmed), and its <table grid> child.
+// sheetTabNodes is sheet.js tabNodes: each non-template <section item> child, its data-id, the
+// text of its <h2 bind="name"> child (textContent, never trimmed), and its <table grid> child.
 func sheetTabNodes(node *html.Node) []sheetTab {
 	tabs := []sheetTab{}
-	for c := node.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type != html.ElementNode || c.Data != "section" || !hasAttribute(c, "item") {
+	for _, c := range adapterChildren(node) {
+		if c.Data != "section" || !hasAttribute(c, "item") ||
+			hasAttribute(c, "cms-template") || hasAttribute(c, "template") {
 			continue
 		}
 		id, _ := attrValue(c, "data-id")
-		tab := sheetTab{id: id}
+		tab := sheetTab{id: id, section: c}
 		heading := firstChildElement(c, func(n *html.Node) bool {
 			bind, ok := attrValue(n, "bind")
 			return n.Data == "h2" && ok && bind == "name"

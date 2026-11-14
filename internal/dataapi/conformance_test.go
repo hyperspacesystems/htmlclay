@@ -125,7 +125,61 @@ func loadConformance(t testing.TB) *conformanceCorpus {
 		corpus.cases[c.Name] = &conformanceCase{meta: meta, files: files}
 		corpus.order = append(corpus.order, c.Name)
 	}
+	loadSyncedSheetDeletes(t, corpus)
 	return corpus
+}
+
+// The packed host corpus predates tab deletion. Use the synced reference cases until it catches up.
+func loadSyncedSheetDeletes(t testing.TB, corpus *conformanceCorpus) {
+	t.Helper()
+	paths, err := filepath.Glob(filepath.Join(corpusDir, "sheet", "sheet-*delete*.meta"))
+	if err != nil || len(paths) < 15 {
+		t.Fatalf("synced sheet deletion corpus: %d cases, want at least 15 (%v)", len(paths), err)
+	}
+	for _, path := range paths {
+		name := strings.TrimSuffix(filepath.Base(path), ".meta")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		meta := caseMeta{skip: map[string]string{}}
+		for _, line := range strings.Split(string(raw), "\n") {
+			key, value, _ := strings.Cut(line, ":")
+			value = strings.TrimSpace(value)
+			switch key {
+			case "tier":
+				meta.tier = value
+			case "face":
+				meta.face = value
+			case "token":
+				meta.token = value
+			case "expect":
+				meta.expect = value
+			case "note", "":
+			default:
+				t.Fatalf("%s: unsupported metadata %q", path, key)
+			}
+		}
+		if meta.face != "patch" || meta.token == "" || meta.tier == "" || meta.expect == "" {
+			t.Fatalf("%s: incomplete patch metadata", path)
+		}
+		artifacts, err := filepath.Glob(strings.TrimSuffix(path, ".meta") + ".*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		files := map[string]string{}
+		for _, artifact := range artifacts {
+			raw, err := os.ReadFile(artifact)
+			if err != nil {
+				t.Fatal(err)
+			}
+			files[strings.TrimPrefix(filepath.Base(artifact), name)] = string(raw)
+		}
+		if corpus.cases[name] == nil {
+			corpus.order = append(corpus.order, name)
+		}
+		corpus.cases[name] = &conformanceCase{meta: meta, files: files}
+	}
 }
 
 // compactJSON strips the whitespace from one expected artifact without touching its key order: the
@@ -570,6 +624,9 @@ func runPatchCase(t *testing.T, name string, meta caseMeta) {
 	changed := NewObject()
 	changed.Set("cells", res.Changed.Cells)
 	changed.Set("rows", res.Changed.Rows)
+	if res.Changed.Sheets > 0 {
+		changed.Set("sheets", res.Changed.Sheets)
+	}
 	got := NewObject()
 	got.Set("changed", changed)
 	got.Set("stale", res.Stale)
