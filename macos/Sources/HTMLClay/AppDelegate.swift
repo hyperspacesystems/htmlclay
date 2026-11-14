@@ -15,7 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: TerminationCoordinator?
     private var quitting = false
     private var home: URL?
-    private var opener: FileOpener!
+    private var opener: FileOpener?
+    /// Files AppKit asks us to open before there is an opener (a cold launch to open a file).
+    private var pendingOpens: [String] = []
     private var profile: Persona?
     private var seedStarted = false
     private var seeded = false
@@ -44,9 +46,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model = AppModel(host: relay, initial: relay.last)
         model.folderChooser = OpenPanelFolderChooser()
         alerts = AppAlerts(model: model)
-        opener = FileOpener(model: model)
+        let opener = FileOpener(model: model)
         opener.onRefused = { [weak self] name, refusal in self?.alerts.cantOpen(name: name, text: refusal.text) }
+        self.opener = opener
         model.fileOpener = opener
+        let opens = pendingOpens
+        pendingOpens = []
+        opener.open(opens)
         windows = WindowManager(model: model)
         statusItem = StatusItemController(model: model, windows: windows)
         NSApp.mainMenu = MainMenu.build(settingsTarget: self, settingsAction: #selector(openSettings(_:)),
@@ -63,30 +69,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startHost() {
         guard let home else { return }
+        guard HostRestartPolicy.shouldStart(current: process?.state) else { return }
         let launch = HostLaunch(binary: Self.hostBinary(), environment: CandidateHome.environment(home))
         let process = HostProcess(launch: launch)
         self.process = process
         coordinator = TerminationCoordinator(host: relay, process: process, presenter: alerts)
-        process.onReady = { [weak self] _, client in
-            guard let self else { return }
+        process.onReady = { [weak self, weak process] _, client in
+            guard let self, let process, self.process === process else { return }
             Task {
                 await self.relay.attach(client)
-                self.opener.hostReady()
+                self.opener?.hostReady()
                 self.writeState()
                 await self.seedProfile()
             }
         }
-        process.onState = { [weak self] state in
-            guard let self else { return }
+        process.onState = { [weak self, weak process] state in
+            guard let self, let process, self.process === process else { return }
             switch state {
             case let .failed(failure):
                 if failure.code == "port-taken", let port = failure.port { self.alerts.portTaken(port: port) }
-                self.opener.hostGone()
+                self.opener?.hostGone()
                 self.relay.hostGone()
             case .stopped:
-                self.opener.hostGone()
+                self.opener?.hostGone()
                 self.relay.hostGone()
-            case .starting, .running:
+            case .starting:
+                self.opener?.hostGone()
+            case .running:
                 break
             }
             self.writeState()
@@ -118,7 +127,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        opener.open(urls.filter(\.isFileURL).map(\.path))
+        let paths = urls.filter(\.isFileURL).map(\.path)
+        guard let opener else {
+            for path in paths where !pendingOpens.contains(path) { pendingOpens.append(path) }
+            return
+        }
+        opener.open(paths)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

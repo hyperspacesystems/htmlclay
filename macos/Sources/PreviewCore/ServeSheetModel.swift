@@ -14,11 +14,14 @@ public final class ServeSheetModel {
     public private(set) var pathProblem: String?
     public private(set) var nameProblem: String?
     public private(set) var otherProblem: String?
+    public private(set) var problemIsRetryable = false
     public private(set) var checking = false
     public private(set) var serving = false
     public var ready: Bool {
-        !path.isEmpty && !(nameEditable && name.isEmpty) && pathProblem == nil && nameProblem == nil && otherProblem == nil && !checking && !serving
+        !path.isEmpty && !(nameEditable && name.isEmpty) && pathProblem == nil && nameProblem == nil && blocked && !checking && !serving
     }
+
+    private var blocked: Bool { otherProblem == nil || problemIsRetryable }
 
     private let model: AppModel
     private var checkToken = 0
@@ -50,6 +53,7 @@ public final class ServeSheetModel {
             pathProblem = nil
             nameProblem = nil
             otherProblem = nil
+            problemIsRetryable = false
             address = ""
             checking = false
             return
@@ -64,6 +68,7 @@ public final class ServeSheetModel {
             pathProblem = nil
             nameProblem = nil
             otherProblem = nil
+            problemIsRetryable = false
         case let .failure(refusal):
             address = ""
             note(refusal)
@@ -79,6 +84,7 @@ public final class ServeSheetModel {
         pathProblem = nil
         nameProblem = nil
         otherProblem = nil
+        problemIsRetryable = false
     }
 
     /// Serves. True when the host did it (the sheet closes); false keeps every field and shows the refusal.
@@ -101,8 +107,10 @@ public final class ServeSheetModel {
     }
 
     private func note(_ refusal: HostRefusal) {
+        let onField = refusal.field == "path" || refusal.field == "name"
         pathProblem = refusal.field == "path" ? refusal.text : nil
         nameProblem = refusal.field == "name" ? refusal.text : nil
-        otherProblem = refusal.field == "path" || refusal.field == "name" ? nil : refusal.text
+        otherProblem = onField ? nil : refusal.text
+        problemIsRetryable = !onField && SheetRules.isRetryable(refusal)
     }
 }

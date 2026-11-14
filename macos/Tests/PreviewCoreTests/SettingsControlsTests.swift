@@ -68,6 +68,16 @@ final class SettingsControlsTests: XCTestCase {
         XCTAssertFalse(SettingsControls.showsServiceRestart(can: model.can(HostActionType.serviceRestart)))
     }
 
+    func testARealHostWithNoSnapshotYetIsNotSample() {
+        let relay = RelayHostClient()
+        let model = AppModel(host: relay, initial: relay.last)
+
+        XCTAssertFalse(model.isSample)
+        XCTAssertFalse(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
+        XCTAssertFalse(SettingsControls.showsAccountChange(isSample: model.isSample))
+        XCTAssertFalse(SettingsControls.showsTroubleshooting(isSample: model.isSample))
+    }
+
     func testAPaneShowsWhenTheHostRunsAnyOfItsActions() {
         var snapshot = SampleData.snapshot(for: .servedFolder)
         var can = Dictionary(uniqueKeysWithValues: Self.knownTypes.map { ($0, false) })

@@ -235,4 +235,13 @@ final class TerminationCoordinatorTests: XCTestCase {
         let firstAnswer = await first.value
         XCTAssertTrue(firstAnswer)
     }
+
+    func testASecondRestartStartsNoSecondHost() {
+        XCTAssertTrue(HostRestartPolicy.shouldStart(current: nil))
+        XCTAssertTrue(HostRestartPolicy.shouldStart(current: .failed(HostFailure(v: 1, code: "already-running", port: nil, message: nil))))
+        XCTAssertTrue(HostRestartPolicy.shouldStart(current: .stopped(reason: "exited 4 times in a row")))
+        XCTAssertFalse(HostRestartPolicy.shouldStart(current: .starting))
+        XCTAssertFalse(HostRestartPolicy.shouldStart(current: .running(
+            HostReady(v: 1, shell: "http://127.0.0.1:4545", port: 4545, epoch: "e1", pid: 42, version: "1"))))
+    }
 }

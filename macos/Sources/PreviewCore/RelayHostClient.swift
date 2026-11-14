@@ -29,6 +29,9 @@ public final class RelayHostClient: HostClient {
     private var subscription: HostSubscription?
     private var listeners: [Int: @MainActor (HostSnapshot) -> Void] = [:]
     private var listenerCount = 0
+    /// Raised by every attachment, epoch change and loss, so one loss is announced once.
+    private var attachment = 0
+    private var announcedAttachment = 0
 
     /// A ready host: forward to it, subscribe, load its snapshot. A second attach (a restarted host) calls onRestart first.
     public func attach(_ client: LoopbackHostClient) async {
@@ -40,19 +43,27 @@ public final class RelayHostClient: HostClient {
     func attach(_ client: any HostClient, onNewEpoch install: (EpochCallback) -> Void) async {
         subscription?.cancel()
         subscription = nil
-        if self.client != nil { onRestart?() }
+        attachment += 1
+        if self.client != nil { announceRestart() }
         self.client = client
-        install(EpochCallback { [weak self] in self?.onRestart?() })
+        install(EpochCallback { [weak self] in
+            guard let self else { return }
+            self.attachment += 1
+            self.announceRestart()
+        })
         subscription = client.subscribe { [weak self] snapshot in self?.receive(snapshot) }
         if let loaded = try? await client.load() { receive(loaded) }
     }
 
-    /// The host is gone (stopped or failed): listeners get `last` with hostStopped = true; actions answer unreachable.
+    /// The host is gone (stopped or failed): pending work is interrupted once, listeners get `last`
+    /// with hostStopped = true, and actions answer unreachable.
     public func hostGone() {
         subscription?.cancel()
         subscription = nil
         client = nil
         last.hostStopped = true
+        attachment += 1
+        announceRestart()
         listeners.values.forEach { $0(last) }
     }
 
@@ -80,6 +91,13 @@ public final class RelayHostClient: HostClient {
         let key = listenerCount
         listeners[key] = onChange
         return HostSubscription { [weak self] in self?.listeners[key] = nil }
+    }
+
+    /// Interrupts AppModel's pending work once per loss; a later attach does not repeat it.
+    private func announceRestart() {
+        guard announcedAttachment != attachment else { return }
+        announcedAttachment = attachment
+        onRestart?()
     }
 
     private var unreachable: HostRefusal {

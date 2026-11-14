@@ -166,15 +166,22 @@ public final class SampleHost: HostClient {
 
     public init(persona: Persona) {
         self.persona = persona
-        self.current = SampleData.snapshot(for: persona)
+        self.current = Self.snapshot(for: persona)
     }
 
     public func pretend(_ persona: Persona) {
         let appearance = current.preferences.appearance
         self.persona = persona
-        current = SampleData.snapshot(for: persona)
+        current = Self.snapshot(for: persona)
         current.preferences.appearance = appearance
         listeners.values.forEach { $0(current) }
+    }
+
+    /// Every snapshot this host publishes is sample data; a real host's snapshot never is.
+    private static func snapshot(for persona: Persona) -> HostSnapshot {
+        var snapshot = SampleData.snapshot(for: persona)
+        snapshot.isSample = true
+        return snapshot
     }
 
     public func load() async throws -> HostSnapshot { current }

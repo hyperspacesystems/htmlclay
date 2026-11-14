@@ -347,14 +347,43 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public var host: HostInfo
     public var hostCounts: WaitCounts?
     public var moveFolders: [MoveFolderInfo]
+    /// Only the preview's SampleHost sets this: a host snapshot is never sample data.
+    public var isSample: Bool
 
-    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = []) {
+    private enum CodingKeys: String, CodingKey {
+        case documents, folders, programs, requests, waiting, sync, update, preferences,
+             localMoveOffer, hostStopped, rev, epoch, host, hostCounts, moveFolders
+    }
+
+    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], isSample: Bool = false) {
         self.documents = documents; self.folders = folders; self.programs = programs; self.requests = requests
         self.waiting = waiting; self.sync = sync; self.update = update; self.preferences = preferences
         self.localMoveOffer = localMoveOffer
         self.hostStopped = hostStopped
         self.rev = rev; self.epoch = epoch; self.host = host; self.hostCounts = hostCounts
         self.moveFolders = moveFolders
+        self.isSample = isSample
+    }
+
+    /// A decoded snapshot is never sample data: isSample stays out of the JSON.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        documents = try container.decode([RecentDocument].self, forKey: .documents)
+        folders = try container.decode([Folder].self, forKey: .folders)
+        programs = try container.decode([Program].self, forKey: .programs)
+        requests = try container.decode([ProgramRequest].self, forKey: .requests)
+        waiting = try container.decode([WaitingItem].self, forKey: .waiting)
+        sync = try container.decode(SyncState.self, forKey: .sync)
+        update = try container.decode(UpdateState.self, forKey: .update)
+        preferences = try container.decode(PreferenceState.self, forKey: .preferences)
+        localMoveOffer = try container.decode(Bool.self, forKey: .localMoveOffer)
+        hostStopped = try container.decode(Bool.self, forKey: .hostStopped)
+        rev = try container.decode(Int.self, forKey: .rev)
+        epoch = try container.decode(String.self, forKey: .epoch)
+        host = try container.decode(HostInfo.self, forKey: .host)
+        hostCounts = try container.decodeIfPresent(WaitCounts.self, forKey: .hostCounts)
+        moveFolders = try container.decode([MoveFolderInfo].self, forKey: .moveFolders)
+        isSample = false
     }
 
     public var syncConnected: Bool { sync.connected }
@@ -362,8 +391,6 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public func count(in pane: SettingsPane) -> Int { hostCounts?.byPane[pane.rawValue] ?? waiting.filter { $0.pane == pane }.count }
     public var totalCount: Int { hostCounts?.total ?? waiting.count }
     public func hostCan(_ type: String) -> Bool { host.can[type] ?? true }
-    /// True for the preview's sample data: only sample data carries no host can list.
-    public var isSample: Bool { host.can.isEmpty }
 
     public func folder(_ id: String) -> Folder? { folders.first { $0.id == id } }
     public func program(_ id: String) -> Program? { programs.first { $0.id == id } }

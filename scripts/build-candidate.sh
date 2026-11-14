@@ -43,7 +43,7 @@ mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 cp "$BIN" "$STAGE/Contents/MacOS/htmlclay"
 (cd "$ROOT" && go build -o "$STAGE/Contents/MacOS/htmlclay-host" ./cmd/htmlclay)
 cp "$ROOT/macos/Resources/Candidate/Info.plist" "$STAGE/Contents/Info.plist"
-find "$ROOT/macos/Resources" -type f ! -name Info.plist ! -path '*/Candidate/*' -exec cp {} "$STAGE/Contents/Resources/" \;
+find "$ROOT/macos/Resources" -type f ! -name Info.plist ! -name 'dashboard-preview*' ! -path '*/Candidate/*' -exec cp {} "$STAGE/Contents/Resources/" \;
 plutil -lint "$STAGE/Contents/Info.plist" >/dev/null
 for key in CFBundleDocumentTypes CFBundleURLTypes UTExportedTypeDeclarations; do
   if /usr/libexec/PlistBuddy -c "Print :$key" "$STAGE/Contents/Info.plist" >/dev/null 2>&1; then

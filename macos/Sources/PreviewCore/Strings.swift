@@ -551,6 +551,8 @@ extension Strings.Panel {
     public static let restartsSoon = "HTML Clay restarts in a moment"
     public static let hostStopped = "HTML Clay stopped working."
     public static let hostStoppedSub = "Your files are safe. Open documents can't save until it restarts."
+    // TODO-COPY
+    public static let notReady = "HTML Clay is still starting. Try again in a moment."
     public static let showLogs = "Show logs"
 }
 extension Strings.FolderPage {

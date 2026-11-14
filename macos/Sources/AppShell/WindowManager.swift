@@ -41,6 +41,8 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     func openBundledDashboard() {
         if model.isSample {
             if !Browser.openBundledPage("dashboard-preview") { model.say(Strings.Preview.dashboardMissing) }
+        } else if model.snapshot.host.can.isEmpty {
+            model.say(model.snapshot.hostStopped ? Strings.Panel.hostStopped : Strings.Panel.notReady)
         } else {
             model.send(.openDashboard(route: String()))
         }

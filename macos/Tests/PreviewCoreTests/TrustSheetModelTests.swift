@@ -1,6 +1,22 @@
 import XCTest
 @testable import PreviewCore
 
+/// A host that was interrupted: every answer is the retryable refusal a restart gives.
+@MainActor
+private final class InterruptedHost: HostClient {
+    static let refusal = HostRefusal(code: "interrupted", text: "HTML Clay restarted before that finished. Try again.", retryable: true)
+
+    func load() async throws -> HostSnapshot { HostSnapshot() }
+
+    func perform(_ action: HostAction) async -> HostOutcome { .refused(Self.refusal) }
+
+    func check(_ action: HostAction) async -> Result<HostCheckAnswer, HostRefusal> { .failure(Self.refusal) }
+
+    func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) -> HostSubscription {
+        HostSubscription {}
+    }
+}
+
 @MainActor
 final class TrustSheetModelTests: XCTestCase {
     private func sample() -> (host: SampleHost, model: AppModel) {
@@ -48,6 +64,27 @@ final class TrustSheetModelTests: XCTestCase {
         XCTAssertEqual(sheet.name, "Recipes")
         XCTAssertFalse(sheet.isMainFolder)
         XCTAssertTrue(sheet.insideNames.isEmpty)
+    }
+
+    func testARetryableRefusalKeepsTheSheetReadyAndShowsTheText() async {
+        let model = AppModel(host: InterruptedHost(), initial: HostSnapshot())
+        let sheet = TrustSheetModel(name: "Downloads", path: "~/Downloads", model: model)
+
+        await sheet.check()
+
+        XCTAssertEqual(sheet.problem, InterruptedHost.refusal.text)
+        XCTAssertTrue(sheet.ready)
+    }
+
+    func testARetryableRefusalFromTrustKeepsTheSheetReady() async {
+        let model = AppModel(host: InterruptedHost(), initial: HostSnapshot())
+        let sheet = TrustSheetModel(name: "Downloads", path: "~/Downloads", model: model)
+
+        let trusted = await sheet.trust()
+
+        XCTAssertFalse(trusted)
+        XCTAssertEqual(sheet.problem, InterruptedHost.refusal.text)
+        XCTAssertTrue(sheet.ready)
     }
 
     func testTrustOnAGoodFolderReturnsTrueAndTrustsIt() async throws {

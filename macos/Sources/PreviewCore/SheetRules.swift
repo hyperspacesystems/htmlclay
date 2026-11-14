@@ -43,6 +43,14 @@ public enum ServeRules {
     }
 }
 
+/// The refusals a person can simply try again: the host was not there, or it was
+/// interrupted. Those keep the sheet's button live; anything else keeps the sheet open.
+public enum SheetRules {
+    public static func isRetryable(_ refusal: HostRefusal) -> Bool {
+        refusal.retryable || ["interrupted", "unreachable", "host-error"].contains(refusal.code)
+    }
+}
+
 public enum MoveRules {
     public static func ordered(_ checked: Set<String>) -> [String] {
         SampleData.localMoveFolders.map(\.id).filter { checked.contains($0) }

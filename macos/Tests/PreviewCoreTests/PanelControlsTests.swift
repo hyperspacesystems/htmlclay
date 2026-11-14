@@ -39,6 +39,24 @@ final class PanelControlsTests: XCTestCase {
         XCTAssertFalse(PanelControls.showsExport(isSample: model.isSample))
     }
 
+    func testARealHostWithNoSnapshotYetIsNotSample() {
+        let relay = RelayHostClient()
+        let model = AppModel(host: relay, initial: relay.last)
+
+        XCTAssertFalse(model.isSample)
+        XCTAssertFalse(PanelControls.showsExport(isSample: model.isSample))
+        XCTAssertFalse(PanelControls.showsAppLog(isSample: model.isSample))
+        XCTAssertTrue(PanelControls.showsDocumentAction(HostActionType.documentOpen, in: model.snapshot))
+    }
+
+    func testADecodedSnapshotIsNotSampleData() throws {
+        var sample = SampleData.snapshot(for: .fiveDocuments)
+        sample.isSample = true
+        let data = try JSONEncoder().encode(sample)
+
+        XCTAssertFalse(try JSONDecoder().decode(HostSnapshot.self, from: data).isSample)
+    }
+
     func testTheRealHostHidesADocumentActionItsCanListRefuses() {
         var snapshot = SampleData.snapshot(for: .fiveDocuments)
         snapshot.host.can = [HostActionType.documentOpen: true, HostActionType.documentForget: false]

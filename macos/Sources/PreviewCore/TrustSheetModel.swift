@@ -11,9 +11,10 @@ public final class TrustSheetModel {
     public private(set) var isMainFolder = false
     public private(set) var insideNames: [String] = []
     public private(set) var problem: String?
+    public private(set) var problemIsRetryable = false
     public private(set) var checking = false
     public private(set) var trusting = false
-    public var ready: Bool { problem == nil && !checking && !trusting && !path.isEmpty }
+    public var ready: Bool { (problem == nil || problemIsRetryable) && !checking && !trusting && !path.isEmpty }
 
     private let model: AppModel
     private var checkToken = 0
@@ -38,8 +39,10 @@ public final class TrustSheetModel {
             isMainFolder = check.warnings.contains { $0.code == "personal-folder" }
             insideNames = check.warnings.first { $0.code == "contains-trusted" }?.names ?? []
             problem = nil
+            problemIsRetryable = false
         case let .failure(refusal):
             problem = refusal.text
+            problemIsRetryable = SheetRules.isRetryable(refusal)
             isMainFolder = false
             insideNames = []
         }
@@ -53,6 +56,7 @@ public final class TrustSheetModel {
         isMainFolder = false
         insideNames = []
         problem = nil
+        problemIsRetryable = false
         await check()
         return true
     }
@@ -67,6 +71,7 @@ public final class TrustSheetModel {
             trusting = false
             guard refusal.code != "duplicate", refusal.code != "queued" else { return false }
             problem = refusal.text
+            problemIsRetryable = SheetRules.isRetryable(refusal)
             return false
         }
     }
