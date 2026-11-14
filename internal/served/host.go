@@ -112,6 +112,20 @@ func (h *Host) SetAllowFraming(rootID string, allow bool) {
 	server.allowFraming.Store(allow)
 }
 
+// Versions reads one page of a served document's kept versions, newest first,
+// in the same item shape the loose store answers. rel is the document's path
+// under the root. A document that is gone still answers its history, and the
+// read creates nothing: no version, no folder and no document.
+func (h *Host) Versions(rootID, rel, before string, limit int) ([]VersionRow, error) {
+	h.mu.Lock()
+	server, ok := h.byID[rootID]
+	h.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("served: root %q is not served", rootID)
+	}
+	return server.versions(rel, before, limit)
+}
+
 // RemoveRoot stops serving one root: its watcher stops and Handler no longer finds it.
 // Requests already inside its handler finish on their own; the caller ends long-lived
 // ones (live streams) by cancelling the contexts it handed them.

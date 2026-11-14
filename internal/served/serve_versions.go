@@ -2,6 +2,7 @@ package served
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -175,6 +176,136 @@ func listVersionEntries(dir string, recovered bool) []versionHistoryEntry {
 		entries = append(entries, listed)
 	}
 	return entries
+}
+
+// VersionRow is one kept version of a served document, in the same item shape
+// the loose store answers: id, createdAt, size, kind, pinned, restorable.
+type VersionRow struct {
+	ID         string
+	CreatedAt  time.Time
+	Size       int64
+	Kind       string
+	Pinned     bool
+	Restorable bool
+}
+
+// servedVersionRow is one version as the read page orders it.
+type servedVersionRow struct {
+	value VersionRow
+	order servedVersionOrder
+}
+
+// servedVersionOrder is the whole ordering key of one served version: the
+// instant, then the collision suffix, then the id. Two versions written in one
+// millisecond need the suffix, and a kept version and a recovered one can share
+// both, so the id is the tiebreak that makes the key total and lets a page
+// boundary never repeat or skip a row.
+type servedVersionOrder struct {
+	instant int64
+	seq     int64
+	id      string
+}
+
+// newerThan is the one comparison: newest first by instant, then suffix, then
+// id. The sort and the before cursor both use it.
+func (o servedVersionOrder) newerThan(other servedVersionOrder) bool {
+	if o.instant != other.instant {
+		return o.instant > other.instant
+	}
+	if o.seq != other.seq {
+		return o.seq > other.seq
+	}
+	return o.id > other.id
+}
+
+// versions answers one page of a document's kept versions, newest first, in the
+// shape the loose store answers too. It reads and never writes: no version, no
+// pin and no document is created, and a document that is gone still answers its
+// history. before names one version, an empty before starts at the newest row.
+func (s *rootServer) versions(rel, before string, limit int) ([]VersionRow, error) {
+	if _, err := validateSegments(rel); err != nil {
+		return nil, err
+	}
+	if !isDocumentName(rel) {
+		return nil, invalidFilePathError()
+	}
+	filePath, err := resolveWritePath(s.registry, rel)
+	if err != nil {
+		return nil, err
+	}
+	// A document that is gone is not restorable: a restore would create it, and
+	// reading its history gives no right to do that.
+	restorable := false
+	if _, statErr := os.Lstat(filePath); statErr == nil {
+		restorable = true
+	}
+
+	rows := make([]servedVersionRow, 0, 4)
+	for _, store := range []struct {
+		dir       string
+		recovered bool
+	}{
+		{versionsDirFor(s.baseDir, rel), false},
+		{recoveredDirFor(s.baseDir, rel), true},
+	} {
+		kind := "saved"
+		if store.recovered {
+			kind = "recovered"
+		}
+		for _, entry := range listVersionEntries(store.dir, store.recovered) {
+			rows = append(rows, servedVersionRow{
+				value: VersionRow{
+					ID:         entry.Name,
+					CreatedAt:  time.UnixMilli(entry.Order).UTC(),
+					Size:       entry.Size,
+					Kind:       kind,
+					Restorable: restorable,
+				},
+				order: servedVersionOrder{instant: entry.Order, seq: entry.Seq, id: entry.Name},
+			})
+		}
+	}
+
+	sort.Slice(rows, func(i, j int) bool { return rows[i].order.newerThan(rows[j].order) })
+	if before != "" {
+		cursor, err := servedVersionCursor(rows, before)
+		if err != nil {
+			return nil, err
+		}
+		older := make([]servedVersionRow, 0, len(rows))
+		for _, r := range rows {
+			if cursor.newerThan(r.order) {
+				older = append(older, r)
+			}
+		}
+		rows = older
+	}
+	if limit >= 0 && len(rows) > limit {
+		rows = rows[:limit]
+	}
+	out := make([]VersionRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.value)
+	}
+	return out, nil
+}
+
+// servedVersionCursor is the ordering key of the version named before. A name
+// carries its own instant and suffix, so a cursor still lands correctly after
+// its version has been pruned; a legacy name with no zone has no instant of its
+// own and is read from the listing while that version is still there.
+func servedVersionCursor(rows []servedVersionRow, before string) (servedVersionOrder, error) {
+	for _, r := range rows {
+		if r.value.ID == before {
+			return r.order, nil
+		}
+	}
+	stored := storedVersionName(before)
+	instant, ok := ParseVersionTimestamp(stored)
+	if !ok {
+		return servedVersionOrder{}, fmt.Errorf("served: not a version name: %q", before)
+	}
+	return servedVersionOrder{instant: instant, seq: CollisionSuffix(stored), id: before}, nil
 }
 
 // serveVersions is Local's GET /_/versions/<rootRel>:

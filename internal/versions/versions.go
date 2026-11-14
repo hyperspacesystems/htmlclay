@@ -1124,19 +1124,163 @@ func (s *Store) List(key, absPath string) ([]Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	if m, mErr := readMeta(ref.root); mErr == nil && len(m.Pinned) > 0 {
-		pinned := make(map[string]bool, len(m.Pinned))
-		for _, name := range m.Pinned {
-			pinned[name] = true
-		}
-		for i := range entries {
-			entries[i].Pinned = pinned[entries[i].Name]
-		}
-	}
+	entries = entriesWithPins(ref, entries)
 	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
 		entries[i], entries[j] = entries[j], entries[i]
 	}
 	return entries, nil
+}
+
+// entriesWithPins marks the versions meta.json names as kept until the user
+// deletes them. It only reads.
+func entriesWithPins(ref *historyRef, entries []Entry) []Entry {
+	m, err := readMeta(ref.root)
+	if err != nil || len(m.Pinned) == 0 {
+		return entries
+	}
+	pinned := make(map[string]bool, len(m.Pinned))
+	for _, name := range m.Pinned {
+		pinned[name] = true
+	}
+	for i := range entries {
+		entries[i].Pinned = pinned[entries[i].Name]
+	}
+	return entries
+}
+
+// versionOrder is the whole ordering key of one version: the instant it was
+// written, then its collision suffix, then its name. The suffix separates two
+// versions written in one millisecond, and the name separates two readings of
+// one instant (an offset name and the legacy `Z` name), so the key is total and
+// a page boundary can never repeat or skip a row.
+type versionOrder struct {
+	instant time.Time
+	seq     int
+	id      string
+}
+
+func orderOf(e Entry) versionOrder {
+	return versionOrder{instant: e.Time, seq: e.Seq, id: e.Name}
+}
+
+// newerThan is the one comparison: newest first by instant, then suffix, then
+// name. Both the sort and the before cursor use it, so a cursor always lands
+// where the listing put that version.
+func (o versionOrder) newerThan(other versionOrder) bool {
+	if !o.instant.Equal(other.instant) {
+		return o.instant.After(other.instant)
+	}
+	if o.seq != other.seq {
+		return o.seq > other.seq
+	}
+	return o.id > other.id
+}
+
+// Page returns up to limit versions of the document at absPath, newest first,
+// starting after the before cursor.
+//
+// data is the document's bytes while it is on disk, and nil once it is gone. A
+// document that is gone is found through the history already bound to its path,
+// so its versions stay readable; nothing here creates the document, a history
+// folder, a version or a pin, and no stored format changes.
+//
+// An empty before starts at the newest version. Any other value names one
+// version, and a version's name carries its whole ordering key, so the next
+// page starts where the last one ended even when the cursor's own version has
+// since been pruned.
+func (s *Store) Page(absPath string, data []byte, before string, limit int) ([]Entry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var cursor versionOrder
+	if before != "" {
+		at, seq, err := ParseEntryName(before)
+		if err != nil {
+			return nil, err
+		}
+		cursor = versionOrder{instant: at, seq: seq, id: before}
+	}
+
+	vroot, err := s.openVersionsRoot(false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer vroot.Close()
+	if err := s.load(vroot); err != nil {
+		return nil, err
+	}
+
+	key := Key(absPath, data)
+	entries, err := s.pageEntries(vroot, key)
+	if err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 && data == nil {
+		if bound, ok := s.keyBoundTo(absPath); ok && bound != key {
+			if entries, err = s.pageEntries(vroot, bound); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return orderOf(entries[i]).newerThan(orderOf(entries[j]))
+	})
+	if before != "" {
+		older := make([]Entry, 0, len(entries))
+		for _, e := range entries {
+			if cursor.newerThan(orderOf(e)) {
+				older = append(older, e)
+			}
+		}
+		entries = older
+	}
+	if limit >= 0 && len(entries) > limit {
+		entries = entries[:limit]
+	}
+	return entries, nil
+}
+
+// pageEntries reads one history as a read leaves it: the versions stay in the
+// order the listing put them in, and no folder is renamed because the document
+// changed its name.
+func (s *Store) pageEntries(vroot *os.Root, key string) ([]Entry, error) {
+	h, ok := s.index[key]
+	if !ok || h.folder == "" {
+		return nil, nil
+	}
+	root, err := openVerifiedChild(vroot, h.folder, false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	ref := &historyRef{folder: h.folder, root: root}
+	defer ref.Close()
+	entries, err := listEntries(ref.root)
+	if err != nil {
+		return nil, err
+	}
+	return entriesWithPins(ref, entries), nil
+}
+
+// keyBoundTo is the key whose history is bound to absPath. The smallest key
+// wins so two keys bound to one path answer the same order every time.
+func (s *Store) keyBoundTo(absPath string) (string, bool) {
+	found := ""
+	for key, h := range s.index {
+		if h.absPath == "" || !samePath(h.absPath, absPath) {
+			continue
+		}
+		if found == "" || key < found {
+			found = key
+		}
+	}
+	return found, found != ""
 }
 
 // Pin marks name as kept until the user deletes it. A pinned version survives
