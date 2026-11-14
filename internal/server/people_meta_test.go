@@ -56,7 +56,7 @@ func TestMetaWithoutAProfileNamesNoOne(t *testing.T) {
 
 	// Spelled out rather than read from hostExtensions, because comparing the
 	// package against itself would pass the day the list gains a member.
-	want := []string{"blockeditor", "blockeditor-awareness-v1", "blockeditor-format-v1", "blockeditor-recovery-v1", "conditional", "data-guard-v1", "data-read", "data-write", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
+	want := []string{"blockeditor", "blockeditor-awareness-v1", "blockeditor-format-v1", "blockeditor-recovery-v1", "conditional", "data-guard-v1", "data-guard-v2", "data-read", "data-write", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
 
 	for _, route := range []string{"/_/meta", "/_/meta/" + f.Token} {
 		w := getThroughMux(t, srv, route)

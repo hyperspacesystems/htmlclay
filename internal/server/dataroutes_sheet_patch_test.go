@@ -162,7 +162,18 @@ func TestSheetPatchDeleteResponseAndStoredTabs(t *testing.T) {
 			srv, _, _ := setupHandlerTest(t)
 			path := writeHome(t, srv, "test.htmlclay", fixture(".html"))
 			before := readDoc(t, path)
-			w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"patch":`+fixture(".data.json")+`}`, nil)
+			if name != "sheet-patch-delete-only" {
+				// Deleting a tab removes data, so a program must name the version it read.
+				unread := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"patch":`+fixture(".data.json")+`}`, nil)
+				if unread.Code != 428 || decodeWriteError(t, unread).Code != "read-required" {
+					t.Fatalf("unread delete = %d %s, want 428 read-required", unread.Code, unread.Body.String())
+				}
+				if readDoc(t, path) != before {
+					t.Fatal("a refused unread delete changed the stored document")
+				}
+			}
+			readEtag := getAPI(t, srv, "test.htmlclay").Header().Get("ETag")
+			w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"patch":`+fixture(".data.json")+`}`, map[string]string{"If-Match": readEtag})
 			if name == "sheet-patch-delete-only" {
 				if w.Code != 400 || decodeWriteError(t, w).Code != "last_sheet" {
 					t.Fatalf("last sheet refusal = %d %s", w.Code, w.Body.String())

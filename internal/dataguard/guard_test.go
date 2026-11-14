@@ -252,10 +252,14 @@ func TestObserveFiredEventKeepsRecoverCopy(t *testing.T) {
 func TestObserveOutsideEditRecoversNewestDifferingVersion(t *testing.T) {
 	whole := boardHTML("Board", fourItems...)
 	oneLeafGone := boardHTML("Board", fourItems[:3]...)
+	threeItems := boardHTML("Board", fourItems[:3]...)
 
 	h := newHarness(t)
-	if event := h.observe(whole, nil, dataguard.External); event != nil {
+	if event := h.observe(threeItems, nil, dataguard.External); event != nil {
 		t.Fatalf("a blind seed must not fire, got %+v", event)
+	}
+	if event := h.observe(whole, threeItems, dataguard.UIGestured); event != nil {
+		t.Fatalf("the person's save fired: %+v", event)
 	}
 
 	for _, body := range [][]byte{whole, oneLeafGone} {
@@ -282,9 +286,11 @@ func TestObserveOutsideEditRecoversNewestDifferingVersion(t *testing.T) {
 func TestObserveFiredEventWithoutRecoverCopy(t *testing.T) {
 	whole := boardHTML("Board", fourItems...)
 	oneLeafGone := boardHTML("Board", fourItems[:3]...)
+	threeItems := boardHTML("Board", fourItems[:3]...)
 
 	h := newHarness(t)
-	h.observe(whole, nil, dataguard.External)
+	h.observe(threeItems, nil, dataguard.External)
+	h.observe(whole, threeItems, dataguard.UIGestured)
 	event, err := h.guard.Observe(dataguard.Observation{
 		Key:     h.key,
 		AbsPath: h.docPath,

@@ -1110,3 +1110,148 @@ func TestIdentityLookupAndClaimAreOneTransaction(t *testing.T) {
 		t.Fatal("the store lock was released between the lookup and the claim")
 	}
 }
+
+// plantAncientAndRecentForTest writes 30 versions past MaxAge plus 3 recent ones
+// into dir and returns the names it planted, oldest first.
+func plantAncientAndRecentForTest(t *testing.T, dir string) []string {
+	t.Helper()
+	var names []string
+	ancient := time.Now().UTC().Add(-90 * 24 * time.Hour)
+	for i := 0; i < 30; i++ {
+		name := entryName(ancient.Add(time.Duration(i)*time.Minute), 0)
+		names = append(names, name)
+		if err := os.WriteFile(filepath.Join(dir, name), doc(fmt.Sprintf("old%d", i)), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	recent := time.Now().UTC().Add(-time.Hour)
+	for i := 0; i < 3; i++ {
+		name := entryName(recent.Add(time.Duration(i)*time.Minute), 0)
+		names = append(names, name)
+		if err := os.WriteFile(filepath.Join(dir, name), doc(fmt.Sprintf("new%d", i)), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return names
+}
+
+// A version the guard pinned is the only copy of data the user cannot get back
+// any other way, so no pruning rule may remove it: neither MaxAge nor the MinKeep
+// window, which counts only unpinned versions.
+func TestPinSurvivesPruningPastMaxAgeAndMinKeep(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/pinned.html"
+	key := Key(path, nil)
+	dir := historyDirForTest(t, s, key, path)
+	names := plantAncientAndRecentForTest(t, dir)
+
+	ancient := names[0]
+	if err := s.Pin(key, path, ancient); err != nil {
+		t.Fatal(err)
+	}
+	// A later backup rewrites meta.json; the pin must ride along.
+	if _, err := s.Backup(key, path, doc("later save")); err != nil {
+		t.Fatal(err)
+	}
+
+	pruneHistoryForTest(t, s, key, path)
+
+	if _, err := os.Lstat(filepath.Join(dir, ancient)); err != nil {
+		t.Fatalf("pruning removed a pinned version: %v", err)
+	}
+	entries, err := s.List(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != MinKeep+1 {
+		t.Fatalf("expected %d versions retained (the newest %d unpinned plus the pinned one), got %d",
+			MinKeep+1, MinKeep, len(entries))
+	}
+	pinned, err := s.Pinned(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 || pinned[0] != ancient {
+		t.Fatalf("pins after pruning: %v, want [%s]", pinned, ancient)
+	}
+}
+
+func TestPinRefusesANameThatIsNotAVersion(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/missing.html"
+	key := Key(path, nil)
+	if _, err := s.Backup(key, path, doc("one")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Pin(key, path, entryName(time.Now().UTC(), 7)); err == nil {
+		t.Fatal("pinning a name that is not in the history succeeded")
+	}
+	if err := s.Pin(key, path, "not-a-version.html"); err == nil {
+		t.Fatal("pinning a name that is not a version name succeeded")
+	}
+	entries, err := s.List(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Pinned {
+		t.Fatalf("a refused pin changed the history: %+v", entries)
+	}
+}
+
+// A provisional history is deleted whole once it ages out, but a pin means real
+// data is in there: the copy is kept until the user deletes it.
+func TestPruneAllKeepsAProvisionalHistoryWithAPin(t *testing.T) {
+	s := newStore(t)
+	path := filepath.Join(t.TempDir(), "notes.htmlclay")
+	key := "id:" + validUUID
+
+	if _, err := s.Backup(key, path, doc("first open")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetProvisional(key, path, true); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := s.List(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one version, got %d", len(entries))
+	}
+	if err := s.Pin(key, path, entries[0].Name); err != nil {
+		t.Fatal(err)
+	}
+	dir := lookupHistoryDirForTest(t, s, key, path)
+	backdateMetaForTest(t, dir, ProvisionalMaxAge+time.Hour)
+
+	s.PruneAll()
+
+	if _, err := os.Stat(filepath.Join(dir, entries[0].Name)); err != nil {
+		t.Fatalf("PruneAll deleted a pinned provisional history: %v", err)
+	}
+}
+
+func TestListMarksPinnedEntries(t *testing.T) {
+	s := newStore(t)
+	path := "/home/u/marks.html"
+	key := Key(path, nil)
+	dir := historyDirForTest(t, s, key, path)
+	names := plantAncientAndRecentForTest(t, dir)
+	oldest, newest := names[0], names[len(names)-1]
+	for _, name := range []string{oldest, newest} {
+		if err := s.Pin(key, path, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	entries, err := s.List(key, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		want := e.Name == oldest || e.Name == newest
+		if e.Pinned != want {
+			t.Fatalf("List marked %q pinned=%v, want %v", e.Name, e.Pinned, want)
+		}
+	}
+}

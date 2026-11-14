@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -32,9 +33,15 @@ type Extractor interface {
 }
 
 // HistoryReader offers the newest version of a document whose bytes are not the
-// ones named by hash, so an outside edit can be recovered from.
+// ones named by hash, so an outside edit can be recovered from, and lets the guard
+// pin the version such a write replaced.
 type HistoryReader interface {
 	NewestDifferingFrom(hash string) ([]byte, bool)
+	// Keep stores content as a version and returns the name of an entry that holds
+	// exactly those bytes.
+	Keep(content []byte) (string, error)
+	// Pin marks an entry as kept until the user deletes it.
+	Pin(name string) error
 }
 
 // Observation is one write the guard is asked to judge.
@@ -44,6 +51,8 @@ type Observation struct {
 	PrevHTML     []byte // nil for an outside edit
 	Prov         Provenance
 	IfMatched    bool
+	ProvenReader bool // a program (not a page) named the exact version it read
+	FromPage     bool // a browser page sent this write (its own data API write)
 	History      HistoryReader
 	Notify       func(kind string, event *ClientEvent, id string)
 }
@@ -53,6 +62,13 @@ type PreviewRow struct {
 	Key   string `json:"key"`
 	Now   string `json:"now"`
 	Yours string `json:"yours"`
+}
+
+// TypedRow is one typed value a loss took, for the recovery panel.
+type TypedRow struct {
+	Path  string `json:"path"`
+	Yours string `json:"yours"`
+	At    int64  `json:"at"`
 }
 
 // ClientEvent is the event shape the panel is allowed to see. It carries no
@@ -68,7 +84,14 @@ type ClientEvent struct {
 	Restorable       bool         `json:"restorable"`
 	CanRevert        bool         `json:"canRevert"`
 	Status           string       `json:"status"`
+	Reason           string       `json:"reason,omitempty"`
+	Typed            []TypedRow   `json:"typed,omitempty"`
+	CanPutBack       bool         `json:"canPutBack"`
 }
+
+// outside reports a write that no page sent and that showed no proof of reading
+// the version it was based on.
+func (o Observation) outside() bool { return o.Prov == External && !o.FromPage && !o.ProvenReader }
 
 // Guard judges one document's writes against the baseline it last observed.
 type Guard struct {
@@ -183,8 +206,24 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 			}
 			return nil, nil
 		}
-		if ShouldFire(o.Prov, st.UIWorkPending && !o.IfMatched, base, inc, D) {
+		fire := ShouldFire(o.Prov, st.UIWorkPending && !o.IfMatched, base, inc, D, o.ProvenReader)
+		verdict := OutsideVerdict{}
+		if o.outside() {
+			if IsSheet(base) || IsSheet(inc) {
+				fire = ShouldFire(o.Prov, st.UIWorkPending && !o.IfMatched, base, inc, D, o.ProvenReader)
+			} else {
+				verdict = JudgeOutside(base, inc, D, st.Typed, g.now())
+				fire = verdict.Fire
+			}
+		}
+		if fire {
 			st.Event.LastWriteAt = g.now()
+			if o.outside() {
+				st.Event.Typed = unionTyped(st.Event.Typed, verdict.Gone)
+				if verdict.Reason != "" {
+					st.Event.Reason = verdict.Reason
+				}
+			}
 		}
 		if o.Prov == External {
 			st.UIWorkPending = false
@@ -194,7 +233,26 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 	}
 
 	D := g.classify(base, inc)
-	if ShouldFire(o.Prov, st.UIWorkPending && !o.IfMatched, base, inc, D) {
+	verdict := OutsideVerdict{}
+	fire := ShouldFire(o.Prov, st.UIWorkPending && !o.IfMatched, base, inc, D, o.ProvenReader)
+	if o.outside() {
+		if IsSheet(base) || IsSheet(inc) {
+			fire = ShouldFire(o.Prov, st.UIWorkPending && !o.IfMatched, base, inc, D, o.ProvenReader)
+		} else {
+			verdict = JudgeOutside(base, inc, D, st.Typed, g.now())
+			fire = verdict.Fire
+		}
+	}
+	// An outside write that removed data without firing is one the guard judged
+	// intended: a person typed here long ago, or the page carried its own work
+	// over. Silence is not permission to lose the copy, so the version it replaced
+	// is pinned and pruning can never take it. When no copy can be kept, the guard
+	// cannot stay silent.
+	if !fire && o.outside() && (D.AnyDestruction || len(DropGone(st.Typed, inc)) < len(st.Typed)) {
+		fire = !g.pinReplaced(o, hash)
+	}
+
+	if fire {
 		hasCopy := g.captureRecover(o, hash)
 		id, err := newEventID()
 		if err != nil {
@@ -208,6 +266,8 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 			LastWriteAt:     g.now(),
 			LossSummary:     LossSummaryOf(o.Prov, D),
 			Status:          "pending",
+			Reason:          verdict.Reason,
+			Typed:           verdict.Gone,
 		}
 		st.Status = "pending"
 		if o.Prov == External {
@@ -225,10 +285,23 @@ func (g *Guard) Observe(o Observation) (*ClientEvent, error) {
 	}
 
 	if o.Prov == UIGestured {
+		prev := base
+		if o.PrevHTML != nil {
+			if p, err := g.ext.Extract(o.PrevHTML); err == nil && p != nil {
+				prev = p
+			}
+		}
+		st.Typed = UpdateTyped(prev, inc, st.Typed, g.now())
 		st.Baseline = g.baselineOf(inc)
 		st.UIWorkPending = true
 	} else if o.Prov == External {
 		st.UIWorkPending = false
+		if o.outside() || o.ProvenReader {
+			st.Typed = DropGone(st.Typed, inc)
+			if inc != nil && !IsEmptyIsland(inc) {
+				st.Baseline = g.baselineOf(inc)
+			}
+		}
 	}
 	st.LastSeenHash = hash
 	return nil, g.store.Write(o.Key, o.AbsPath, st)
@@ -251,6 +324,36 @@ func (g *Guard) captureRecover(o Observation, hash string) bool {
 	}
 	if err := g.store.WriteRecover(o.Key, o.AbsPath, body); err != nil {
 		log.Printf("dataguard: could not store the recover copy of %s: %v", o.AbsPath, err)
+		return false
+	}
+	return true
+}
+
+// pinReplaced pins the version an outside write replaced, so the one copy of the
+// data the guard stayed silent about is kept until the user deletes it. The bytes
+// are found the way a recover copy finds them: the pre-write body when there is
+// one, else the newest version that is not the bytes just written. It reports
+// whether that copy is now kept and pinned. A failure here is logged and never
+// fails the observation.
+func (g *Guard) pinReplaced(o Observation, hash string) bool {
+	if o.History == nil {
+		return false
+	}
+	body := o.PrevHTML
+	if body == nil {
+		found, ok := o.History.NewestDifferingFrom(hash)
+		if !ok {
+			return false
+		}
+		body = found
+	}
+	name, err := o.History.Keep(body)
+	if err != nil {
+		log.Printf("dataguard: could not keep the version %s replaced: %v", o.AbsPath, err)
+		return false
+	}
+	if err := o.History.Pin(name); err != nil {
+		log.Printf("dataguard: could not pin version %s of %s: %v", name, o.AbsPath, err)
 		return false
 	}
 	return true
@@ -317,8 +420,42 @@ func (g *Guard) clientEvent(event *Event, current dataapi.Value, currentHTML []b
 		DroppedAdditions: DroppedItems(OrdinaryData(recoverable), OrdinaryData(current)),
 		Restorable:       !HasCodecs(recoverable) && g.ext.CanRestore(currentHTML, recoverable),
 		CanRevert:        event.HasRecoverCopy,
+		CanPutBack:       canPutBack(event.Typed, current, recoverable),
 		Status:           event.Status,
+		Reason:           event.Reason,
+		Typed:            typedRows(event.Typed),
 	}
+}
+
+// canPutBack reports whether at least one typed value can still be written back
+// into a place the current page kept.
+func canPutBack(typed []TypedValue, current, recoverable dataapi.Value) bool {
+	if len(typed) == 0 || current == nil || recoverable == nil {
+		return false
+	}
+	_, placed := PutBack(current, typed, recoverable)
+	return placed > 0
+}
+
+// typedRows is the newest typed values a loss took, capped for the panel.
+func typedRows(typed []TypedValue) []TypedRow {
+	if len(typed) == 0 {
+		return nil
+	}
+	order := make([]int, len(typed))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool { return typed[order[a]].At > typed[order[b]].At })
+	n := len(order)
+	if n > 12 {
+		n = 12
+	}
+	rows := make([]TypedRow, n)
+	for i, idx := range order[:n] {
+		rows[i] = TypedRow{Path: typed[idx].Path, Yours: typed[idx].Preview, At: typed[idx].At}
+	}
+	return rows
 }
 
 // islandField reads one top-level value of a wrapped island, the way the JS reads

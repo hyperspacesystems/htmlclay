@@ -49,7 +49,7 @@ var vectorRunners = map[string]func(args []dataapi.Value) dataapi.Value{
 		prov, _ := args[0].(string)
 		pending, _ := args[1].(bool)
 		D := ClassifyDestruction(args[2], args[3])
-		return ShouldFire(Provenance(prov), pending, args[2], args[3], D)
+		return ShouldFire(Provenance(prov), pending, args[2], args[3], D, false)
 	},
 	"uiProvenance": func(args []dataapi.Value) dataapi.Value {
 		var userDriven *bool

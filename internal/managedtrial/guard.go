@@ -341,7 +341,7 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 				writeGuard(args.BaseDir, args.Name, guard)
 				return
 			}
-			if dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction) {
+			if dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction, false) {
 				guard.Event.LastWriteAt = guardNow()
 			}
 			if args.Prov == dataguard.External {
@@ -352,7 +352,7 @@ func runDataLossGuard(args runGuardArgs) *guardClientEvent {
 		}
 
 		destruction := classify(base, inc)
-		if dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction) {
+		if dataguard.ShouldFire(args.Prov, guard.UIWorkPending && !args.IfMatched, base, inc, destruction, false) {
 			backup := captureRecoverPath(args.BaseDir, args.Name, args.PrevContent)
 			guard.Event = &guardRecordEvent{
 				ID:                    guardNewID(),

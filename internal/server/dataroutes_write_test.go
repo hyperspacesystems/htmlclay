@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -659,4 +660,181 @@ func TestDataWriteWatcherStaysQuiet(t *testing.T) {
 	wt.check(e)
 
 	expectNoFrame(t, live, 100*time.Millisecond)
+}
+
+// A program that proved it read the version it is replacing gets its write refused
+// when the bytes it replaces cannot be kept: nothing else holds them, so writing
+// would lose the only copy. The file is left exactly as it was.
+func TestDataWriteProvenReaderRefusedWhenTheOldVersionCannotBeKept(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	path := writeHome(t, srv, "test.htmlclay", dataWriteDoc)
+	srv.backupHook = func() error { return errors.New("history is unavailable") }
+
+	w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"title":"World"}`,
+		map[string]string{"If-Match": specwire.Etag([]byte(dataWriteDoc))})
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503: %s", w.Code, w.Body.String())
+	}
+	body := decodeWriteError(t, w)
+	if body.Code != "recovery-unavailable" || body.Error != "Could not keep the current version" {
+		t.Fatalf("refusal body = %+v", body)
+	}
+	if want := "The current version could not be stored in history, so nothing was written. Try again."; body.Message != want {
+		t.Fatalf("message = %q, want %q", body.Message, want)
+	}
+	if got := readDoc(t, path); got != dataWriteDoc {
+		t.Fatalf("a refused write changed the file:\n%s", got)
+	}
+}
+
+// The same failure on a write that showed no proof of reading keeps today's
+// behaviour: the backup is logged and the write happens anyway.
+func TestDataWriteWithoutProofStillWritesWhenTheOldVersionCannotBeKept(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	path := writeHome(t, srv, "test.htmlclay", dataWriteDoc)
+	srv.backupHook = func() error { return errors.New("history is unavailable") }
+
+	w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"title":"World"}`, nil)
+	if w.Code != 200 {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if got := readDoc(t, path); !strings.Contains(got, "<h1>World</h1>") {
+		t.Fatalf("the write did not land:\n%s", got)
+	}
+}
+
+// Bytes a recent version already holds need no second copy, so a proven reader is
+// never refused for a version that is already kept.
+func TestDataWriteProvenReaderNeedsNoNewCopyOfKeptBytes(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	writeHome(t, srv, "test.htmlclay", dataWriteDoc)
+
+	if w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"title":"World"}`,
+		map[string]string{"If-Match": specwire.Etag([]byte(dataWriteDoc))}); w.Code != 200 {
+		t.Fatalf("first write: status = %d: %s", w.Code, w.Body.String())
+	}
+	srv.backupHook = func() error { return errors.New("history is unavailable") }
+
+	kept := readDoc(t, mustDocPath(t, srv, "test.htmlclay"))
+	w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"title":"Again"}`,
+		map[string]string{"If-Match": specwire.Etag([]byte(kept))})
+	if w.Code != 200 {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+}
+
+// mustDocPath returns the path writeHome gave a document.
+func mustDocPath(t *testing.T, srv *Server, name string) string {
+	t.Helper()
+	path := filepath.Join(srv.sessions.HomeDir(), name)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("%s is not there: %v", name, err)
+	}
+	return path
+}
+
+// A program that removes data without naming the version it read is refused: it has not read the
+// data it would take, so the answer is a 428 it can fix by reading first, and nothing is written.
+func TestDataWriteRefusesAProgramRemovalWithoutAVersion(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	path := writeHome(t, srv, "test.htmlclay", dataWriteDoc)
+
+	servedETag := getAPI(t, srv, "test.htmlclay").Header().Get("ETag")
+	w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"items":["A"]}`, nil)
+	if w.Code != http.StatusPreconditionRequired {
+		t.Fatalf("status = %d, want 428: %s", w.Code, w.Body.String())
+	}
+	body := decodeWriteError(t, w)
+	if body.Code != "read-required" {
+		t.Errorf("code = %q, want read-required (body %s)", body.Code, w.Body.String())
+	}
+	var full struct {
+		Etag        string `json:"etag"`
+		WouldRemove struct {
+			Items  int      `json:"items"`
+			Values int      `json:"values"`
+			Paths  []string `json:"paths"`
+		} `json:"wouldRemove"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &full); err != nil {
+		t.Fatalf("refusal body is not JSON: %v", err)
+	}
+	if full.Etag != servedETag {
+		t.Errorf("etag = %q, want the served etag %q", full.Etag, servedETag)
+	}
+	if len(full.WouldRemove.Paths) == 0 || full.WouldRemove.Items+full.WouldRemove.Values == 0 {
+		t.Errorf("wouldRemove = %+v, want what the write would have taken", full.WouldRemove)
+	}
+	assertUnchanged(t, path, dataWriteDoc)
+}
+
+// The same write goes through once the program names the version it read.
+func TestDataWriteProgramRemovalWithTheVersionItRead(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	path := writeHome(t, srv, "test.htmlclay", dataWriteDoc)
+
+	etag := getAPI(t, srv, "test.htmlclay").Header().Get("ETag")
+	w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"items":["A"]}`, map[string]string{"If-Match": etag})
+	if w.Code != 200 {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	after := readDoc(t, path)
+	if !strings.Contains(after, "<li>A</li></ul>") {
+		t.Errorf("the item was not removed:\n%s", after)
+	}
+}
+
+// Adding a value removes nothing, so a program needs no version for it.
+func TestDataWriteProgramAdditionNeedsNoVersion(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	path := writeHome(t, srv, "test.htmlclay", dataWriteDoc)
+
+	w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"items":["A","B","C"]}`, nil)
+	if w.Code != 200 {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if after := readDoc(t, path); !strings.Contains(after, "<li>C</li>") {
+		t.Errorf("the item was not added:\n%s", after)
+	}
+}
+
+// A page is never refused this way: the person's own tabs keep the guard, and their write lands.
+func TestDataWritePageRemovalNeedsNoVersion(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	f, path := registerFixture(t, srv, "test.htmlclay", dataWriteDoc)
+	if w := serve(t, srv, "/fixtures/test.htmlclay", nil); w.Code != 200 {
+		t.Fatalf("serve = %d", w.Code)
+	}
+
+	headers := map[string]string{
+		"Sec-Fetch-Site":  "same-origin",
+		"Origin":          fmt.Sprintf("http://127.0.0.1:%d", srv.port),
+		helperTokenHeader: f.Token,
+	}
+	w := postDataWrite(t, srv, "/_/api/fixtures/test.htmlclay", `{"items":["A"]}`, headers)
+	if w.Code != 200 {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if after := readDoc(t, path); !strings.Contains(after, "<li>A</li></ul>") {
+		t.Errorf("the page's removal was not written:\n%s", after)
+	}
+}
+
+// A sheet patch that clears a cell from a program with no version removes a value, so it is
+// refused the same way.
+func TestDataWriteSheetPatchClearWithoutAVersionIsRefused(t *testing.T) {
+	srv, _, _ := setupHandlerTest(t)
+	_, path := registerFixture(t, srv, "sheet.htmlclay", sheetGuardSource)
+	if w := serve(t, srv, "/fixtures/sheet.htmlclay", nil); w.Code != 200 {
+		t.Fatalf("serve = %d", w.Code)
+	}
+
+	w := postDataWrite(t, srv, "/_/api/fixtures/sheet.htmlclay", `{"patch":[{"range":"B1","values":[[""]]}]}`, nil)
+	if w.Code != http.StatusPreconditionRequired {
+		t.Fatalf("status = %d, want 428: %s", w.Code, w.Body.String())
+	}
+	if body := decodeWriteError(t, w); body.Code != "read-required" {
+		t.Errorf("code = %q, want read-required (body %s)", body.Code, w.Body.String())
+	}
+	assertUnchanged(t, path, sheetGuardSource)
 }

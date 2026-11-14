@@ -314,3 +314,38 @@ func dirNames(t *testing.T, dir string) []string {
 	}
 	return names
 }
+
+// The typing record was added without a version bump: a v1 sidecar that does not
+// carry it still reads, and one that does round-trips.
+func TestStoreTypedRecordCompatibility(t *testing.T) {
+	s, v, doc := guardStoreForTest(t)
+	key := versions.Key(doc, nil)
+	folder, err := v.Folder(key, doc)
+	if err != nil {
+		t.Fatalf("folder: %v", err)
+	}
+
+	legacy := []byte(`{"version":1,"baseline":{"data":{"title":"hi"},"hash":"h","at":7},"uiWorkPending":true}`)
+	if err := os.WriteFile(filepath.Join(folder, StateName), legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err := s.Read(key, doc)
+	if err != nil {
+		t.Fatalf("read legacy: %v", err)
+	}
+	if st.Version != 1 || st.Baseline == nil || st.Typed != nil {
+		t.Fatalf("legacy state read as %+v", st)
+	}
+
+	typed := []TypedValue{{Path: "title", Digest: "d", Preview: "hi", At: 9}}
+	if err := s.Write(key, doc, &State{Version: 1, Typed: typed}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := s.Read(key, doc)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if len(got.Typed) != 1 || got.Typed[0] != typed[0] {
+		t.Fatalf("typed record read back as %+v", got.Typed)
+	}
+}

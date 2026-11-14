@@ -80,9 +80,9 @@ func (s *Server) handleDataLossResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch req.Choice {
-	case "restore", "revert", "dismiss":
+	case "restore", "put-back", "revert", "dismiss":
 	default:
-		writeDataLossError(w, http.StatusBadRequest, "Unknown choice. Use restore, revert or dismiss.")
+		writeDataLossError(w, http.StatusBadRequest, "Unknown choice. Use restore, put-back, revert or dismiss.")
 		return
 	}
 
@@ -104,7 +104,7 @@ func (s *Server) handleDataLossResolve(w http.ResponseWriter, r *http.Request) {
 		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
 			return fmt.Errorf("back up the current document: %w", bErr)
 		}
-		out, _, err := s.commitDataEdit(f, current, html, r.Host)
+		out, _, err := s.commitDataEdit(f, current, html, r.Host, false, false)
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func (s *Server) handleDataLossResolve(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, dataguard.ErrUnknownChoice):
-			writeDataLossError(w, http.StatusBadRequest, "Unknown choice. Use restore, revert or dismiss.")
+			writeDataLossError(w, http.StatusBadRequest, "Unknown choice. Use restore, put-back, revert or dismiss.")
 		case errors.Is(err, dataguard.ErrNoEvent):
 			writeDataLossError(w, http.StatusNotFound, "There is no pending data-loss event for this document.")
 		case errors.Is(err, dataguard.ErrEventMismatch):

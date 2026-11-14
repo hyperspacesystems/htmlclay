@@ -44,6 +44,21 @@ func textField(obj *dataapi.Object, key string) string {
 	return text
 }
 
+// IsSheet reports whether an island carries a non-empty top-level codecs map, the
+// mark of a sheet page.
+func IsSheet(island dataapi.Value) bool {
+	obj, ok := island.(*dataapi.Object)
+	if !ok {
+		return false
+	}
+	all, ok := obj.Get(CodecsKey)
+	if !ok {
+		return false
+	}
+	codecs, ok := all.(*dataapi.Object)
+	return ok && codecs.Len() > 0
+}
+
 func HasCodecs(island dataapi.Value) bool {
 	all, _ := objectLookup(island, CodecsKey)
 	for _, name := range objectKeyList(all) {

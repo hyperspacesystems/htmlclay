@@ -55,7 +55,12 @@ func (w *writer) listDiff(ctx *html.Node, selector, shape Value, newItems []Valu
 	var template *html.Node
 	if needsTemplate && templateSource != nil {
 		template = w.cloneNode(templateSource)
+		seed := hasAttribute(templateSource, cmsTemplateAttr)
 		removeAttr(template, cmsTemplateAttr)
+		// A seed is often hidden with the hidden attribute; its clones are real items.
+		if seed {
+			removeAttr(template, "hidden")
+		}
 		w.dirty[template] = true
 		w.stripIds(template)
 	}
