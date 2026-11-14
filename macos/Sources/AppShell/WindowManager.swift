@@ -108,7 +108,9 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         guard PanelControls.showsAnswer(can: model.can(HostActionType.requestAnswer)) else { return }
         let hosting = NSHostingView(rootView: KilnRoot {
             RequestView(itemID: item.id, actions: RequestActions(
-                answer: { [weak self] answered, allow in self?.answer(answered, allow: allow) },
+                answer: { [weak self] answered, request, answer, path in
+                    self?.answer(answered, request: request, answer: answer, path: path)
+                },
                 close: { [weak self] in self?.request?.close() }))
         }.environment(model).ignoresSafeArea())
         hosting.sizingOptions = [.minSize, .intrinsicContentSize, .maxSize]
@@ -135,10 +137,16 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         present(panel)
     }
 
-    private func answer(_ item: WaitingItem, allow: Bool) {
-        let next = RequestQueue.next(after: item.id, in: model.snapshot)
-        model.send(.answerRequest(waitingID: item.id, allow: allow))
-        if let next { showRequest(next) } else { request?.close() }
+    private func answer(_ item: WaitingItem, request answered: ProgramRequest, answer: String, path: String) {
+        Task { [weak self] in
+            guard let self else { return }
+            switch await RequestFlow.answer(answer, path: path, request: answered, item: item, model: model) {
+            case .stay:
+                return
+            case let .next(next):
+                if let next { showRequest(next) } else { request?.close() }
+            }
+        }
     }
 
     public func showNotificationFallback(_ note: SampleNotification) {

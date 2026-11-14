@@ -50,8 +50,10 @@ public enum HostActionWire {
             return WireActionRequest(type: "file.open", args: ["path": .string(path)])
         case let .openDashboard(route):
             return WireActionRequest(type: "dashboard.open", args: route.isEmpty ? [:] : ["route": .string(route)])
-        case let .answer(requestID, revision, answer):
-            return WireActionRequest(type: "request.answer", args: ["id": .string(requestID), "revision": .int(revision), "answer": .string(answer)])
+        case let .answer(requestID, revision, answer, path):
+            var args: [String: WireValue] = ["id": .string(requestID), "revision": .int(revision), "answer": .string(answer)]
+            if !path.isEmpty { args["path"] = .string(path) }
+            return WireActionRequest(type: "request.answer", args: args)
         case let .setSyncPaused(paused):
             return WireActionRequest(type: "sync.setPaused", args: ["paused": .bool(paused)])
         case let .connect(username, key):
@@ -89,7 +91,7 @@ public enum HostActionWire {
             return WireActionRequest(type: "waiting.markSeen", args: ["ids": .strings(waitingIDs)])
         case let .quit(force):
             return WireActionRequest(type: "host.quit", args: force ? ["force": .bool(true)] : [:])
-        case .answerRequest, .connectSample, .finishUpdate:
+        case .connectSample, .finishUpdate:
             return nil
         }
     }

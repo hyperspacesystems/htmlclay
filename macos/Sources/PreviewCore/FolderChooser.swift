@@ -10,6 +10,13 @@ public protocol FolderChooser: AnyObject {
     func chooseToTrust(after current: String?, in snapshot: HostSnapshot) async -> String?
     /// The file the person picks to open, or nil when they cancel.
     func chooseFile() async -> String?
+    /// The program file the person picks for a request, or nil when they cancel.
+    func chooseProgram() async -> String?
+}
+
+public extension FolderChooser {
+    /// The preview has no program files, so a request's Choose a file… does nothing there.
+    func chooseProgram() async -> String? { nil }
 }
 
 /// The preview's chooser: cycles SampleData.servePaths, starting at the first one ServeRules accepts.

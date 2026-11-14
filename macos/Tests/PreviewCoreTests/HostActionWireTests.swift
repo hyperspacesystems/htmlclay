@@ -17,7 +17,7 @@ final class HostActionWireTests: XCTestCase {
         .setSynced(folderID: "f1", on: true),
         .stopTrusting(folderID: "f1"),
         .mergeIntoParent(folderID: "f1"),
-        .answerRequest(waitingID: "w1", allow: true),
+        .answer(requestID: "r1", revision: 3, answer: "choose-file", path: "/tmp/resize"),
         .setSyncPaused(true),
         .setOpenAtLogin(true),
         .setAIEditing(false),
@@ -89,7 +89,6 @@ final class HostActionWireTests: XCTestCase {
     }
 
     func testSampleOnlyActionsDoNotMap() {
-        XCTAssertNil(HostActionWire.wire(.answerRequest(waitingID: "w1", allow: true)))
         XCTAssertNil(HostActionWire.wire(.connectSample))
         XCTAssertNil(HostActionWire.wire(.finishUpdate))
         XCTAssertNil(HostActionWire.wire(.restartHost))

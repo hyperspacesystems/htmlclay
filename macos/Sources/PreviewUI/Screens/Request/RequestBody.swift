@@ -36,7 +36,7 @@ struct RequestBody: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
     @State private var expanded = false
-    @State private var allTrusted = false
+    @State private var chosen = String()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -73,10 +73,8 @@ struct RequestBody: View {
             moreOptions
                 .padding(.top, 12)
             buttonsRow {
-                Button(Strings.Request.dontAllow) { actions.answer(item, false) }
-                    .buttonStyle(KilnButtonStyle(.large))
-                Button(Strings.Request.allowFile(fileName)) { allowFile() }
-                    .buttonStyle(KilnButtonStyle(.large))
+                if let deny = choice(RequestAnswer.deny) { button(deny) }
+                if let allow = choice(RequestAnswer.allowDocument) { button(allow, sending: chosenAnswer) }
             }
         }
     }
@@ -86,10 +84,8 @@ struct RequestBody: View {
             titleLine(Strings.Request.runNamed(document: request.document, program: request.program))
             leadLine(Strings.Request.noFileLead)
             buttonsRow {
-                Button(Strings.Request.dontAllow) { actions.answer(item, false) }
-                    .buttonStyle(KilnButtonStyle(.plain))
-                Button(Strings.Request.chooseAFile) { model.say(Strings.Request.wouldChooseFile) }
-                    .buttonStyle(KilnButtonStyle(.plain))
+                if let deny = choice(RequestAnswer.deny) { button(deny) }
+                if let pick = choice(RequestAnswer.chooseFile) { button(pick) }
             }
         }
     }
@@ -103,10 +99,8 @@ struct RequestBody: View {
             }
             noteLine(Strings.Request.teamAsksEachTime)
             buttonsRow {
-                Button(Strings.Request.dontAllow) { actions.answer(item, false) }
-                    .buttonStyle(KilnButtonStyle(.plain))
-                Button(Strings.Request.allowForThisDocument) { actions.answer(item, true) }
-                    .buttonStyle(KilnButtonStyle(.plain))
+                if let deny = choice(RequestAnswer.deny) { button(deny) }
+                if let allow = choice(RequestAnswer.allowDocument) { button(allow) }
             }
         }
     }
@@ -115,14 +109,13 @@ struct RequestBody: View {
         VStack(alignment: .leading, spacing: 0) {
             titleLine(Strings.Request.useThisFile)
             card(warn: true) {
-                RequestFileRow(color: .amber, symbol: Symbols.program, title: fileName, path: request.path, extra: request.detail.isEmpty ? nil : request.detail, warn: true)
+                RequestFileRow(color: .amber, symbol: Symbols.program, title: fileName, path: request.path,
+                              extra: Strings.Request.detailText(request.detail), warn: true)
             }
             noteLine(Strings.Request.riskyNote)
             buttonsRow {
-                Button(Strings.Request.chooseAnother) { model.say(Strings.Request.wouldChooseFile) }
-                    .buttonStyle(KilnButtonStyle(.plain))
-                Button(Strings.Request.allowAnyway) { actions.answer(item, true) }
-                    .buttonStyle(KilnButtonStyle(.plain))
+                if let pick = choice(RequestAnswer.chooseFile) { button(pick) }
+                if let anyway = choice(RequestAnswer.allowAnyway) { button(anyway) }
             }
         }
     }
@@ -135,17 +128,9 @@ struct RequestBody: View {
             }
             noteLine(Strings.Request.readNote(request.folder))
             buttonsRow {
-                Button(Strings.Request.dontAllow) { actions.answer(item, false) }
-                    .buttonStyle(KilnButtonStyle(.plain))
-                Button(Strings.Request.allowOnce) { actions.answer(item, true) }
-                    .buttonStyle(KilnButtonStyle(.plain))
-                if RequestBody.showsTrust(request) {
-                    Button(Strings.Request.trustThisFolder) {
-                        actions.answer(item, true)
-                        model.say(Strings.Request.wouldTrust(request.folder))
-                    }
-                    .buttonStyle(KilnButtonStyle(.plain))
-                }
+                if let deny = choice(RequestAnswer.deny) { button(deny) }
+                if let once = choice(RequestAnswer.allowOnce) { button(once) }
+                if let trust = choice(RequestAnswer.trustFolder) { button(trust) }
             }
         }
     }
@@ -160,44 +145,47 @@ struct RequestBody: View {
             }
             noteLine(Strings.Request.ownFolderNote)
             buttonsRow {
-                Button(Strings.Request.dontAllow) { actions.answer(item, false) }
-                    .buttonStyle(KilnButtonStyle(.plain))
-                Button(Strings.Request.trustNamed(request.folder)) {
-                    actions.answer(item, true)
-                    model.say(Strings.Request.wouldTrust(request.folder))
-                }
-                .buttonStyle(KilnButtonStyle(.plain))
+                if let deny = choice(RequestAnswer.deny) { button(deny) }
+                if let trust = choice(RequestAnswer.trustFolder) { button(trust) }
             }
         }
     }
 
     private var moreOptions: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                expanded.toggle()
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: expanded ? Symbols.chevronDown : Symbols.chevronRight)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(kiln.ink2)
-                    Text(Strings.Request.moreOptions)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(kiln.ink2)
+            if !options.isEmpty || chooseAnother {
+                Button {
+                    expanded.toggle()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: expanded ? Symbols.chevronDown : Symbols.chevronRight)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(kiln.ink2)
+                        Text(Strings.Request.moreOptions)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(kiln.ink2)
+                    }
                 }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             if expanded {
                 KilnCard {
-                    choiceRow(on: !allTrusted, title: Strings.Request.only(request.document)) { allTrusted = false }
-                    KilnRowDivider()
-                    choiceRow(on: allTrusted, title: Strings.ProgramPage.allTrustedTitle) { allTrusted = true }
-                    KilnRowDivider()
-                    HStack(spacing: 0) {
-                        KilnLink(Strings.ProgramPage.chooseAnotherFile) { model.say(Strings.ProgramPage.wouldChooseFile) }
-                        Spacer()
+                    if let only = option(RequestAnswer.allowDocument) {
+                        choiceRow(on: chosenAnswer == only.answer, title: only.title) { chosen = only.answer }
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    if let trusted = option(RequestAnswer.allowAllTrusted) {
+                        KilnRowDivider()
+                        choiceRow(on: chosenAnswer == trusted.answer, title: trusted.title) { chosen = trusted.answer }
+                    }
+                    if chooseAnother {
+                        KilnRowDivider()
+                        HStack(spacing: 0) {
+                            KilnLink(Strings.ProgramPage.chooseAnotherFile) { chooseFile() }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                    }
                 }
                 .padding(.top, 8)
             }
@@ -258,20 +246,52 @@ struct RequestBody: View {
 
     private var fileName: String { RequestBody.fileName(request) }
 
-    private func allowFile() {
-        if allTrusted, let program = model.snapshot.programs.first(where: { $0.name == request.program }) {
-            model.send(.setProgramAllTrusted(programID: program.id, on: true))
-        }
-        actions.answer(item, true)
+    private var isSample: Bool { model.isSample }
+
+    private var options: [String] { RequestControls.options(request, isSample: isSample) }
+
+    private var chooseAnother: Bool {
+        RequestControls.offers(RequestAnswer.chooseFile, in: request, isSample: isSample)
     }
 
-    static func showsTrust(_ request: ProgramRequest) -> Bool {
-        !Strings.Request.mainFolders.contains(request.path)
+    /// The answer the Allow button sends: the chosen option, or one document alone.
+    private var chosenAnswer: String {
+        options.contains(chosen) ? chosen : RequestAnswer.allowDocument
+    }
+
+    private func choice(_ answer: String) -> RequestChoice? {
+        RequestControls.choice(answer, in: request, isSample: isSample)
+    }
+
+    private func option(_ answer: String) -> RequestChoice? {
+        guard options.contains(answer) else { return nil }
+        return RequestChoice(answer: answer, title: RequestControls.optionTitle(answer, in: request))
+    }
+
+    private func button(_ choice: RequestChoice, sending answer: String? = nil) -> some View {
+        Button(choice.title) {
+            if choice.answer == RequestAnswer.chooseFile {
+                chooseFile()
+            } else {
+                send(answer ?? choice.answer)
+            }
+        }
+        .buttonStyle(choice.look == .large ? KilnButtonStyle(.large) : KilnButtonStyle(.plain))
+    }
+
+    private func send(_ answer: String, path: String = String()) {
+        actions.answer(item, request, answer, path)
+    }
+
+    private func chooseFile() {
+        Task {
+            guard let path = await model.folderChooser?.chooseProgram(), !path.isEmpty else { return }
+            send(RequestAnswer.chooseFile, path: path)
+        }
     }
 
     static func fileName(_ request: ProgramRequest) -> String {
-        let name = (request.path as NSString).lastPathComponent
-        return name.isEmpty ? request.program : name
+        RequestControls.fileName(request)
     }
 }
 

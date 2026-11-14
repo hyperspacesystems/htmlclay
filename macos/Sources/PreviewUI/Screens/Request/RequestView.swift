@@ -2,9 +2,10 @@ import SwiftUI
 import PreviewCore
 
 public struct RequestActions {
-    public var answer: (WaitingItem, Bool) -> Void
+    public var answer: (WaitingItem, ProgramRequest, String, String) -> Void
     public var close: () -> Void
-    public init(answer: @escaping (WaitingItem, Bool) -> Void = { _, _ in }, close: @escaping () -> Void = {}) {
+    public init(answer: @escaping (WaitingItem, ProgramRequest, String, String) -> Void = { _, _, _, _ in },
+                close: @escaping () -> Void = {}) {
         self.answer = answer; self.close = close
     }
 }
@@ -23,6 +24,7 @@ public struct RequestView: View {
            let request = model.snapshot.requests.first(where: { $0.id == item.subjectID }) {
             let p = RequestQueue.position(of: itemID, in: model.snapshot)
             RequestBody(request: request, item: item, position: p.position, total: p.total, actions: actions)
+                .id(RequestIdentity(request))
         } else {
             VStack(spacing: 0) {
                 RequestTitleBar(position: 1, total: 1)

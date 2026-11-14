@@ -404,7 +404,6 @@ public enum HostAction: Equatable, Sendable {
     case setSynced(folderID: String, on: Bool)
     case stopTrusting(folderID: String)
     case mergeIntoParent(folderID: String)
-    case answerRequest(waitingID: String, allow: Bool)
     case setSyncPaused(Bool)
     case setOpenAtLogin(Bool)
     case setAIEditing(Bool)
@@ -433,7 +432,7 @@ public enum HostAction: Equatable, Sendable {
     case openDashboard(route: String)
     case revealFolder(id: String)
     case copyAddress(folderID: String)
-    case answer(requestID: String, revision: Int, answer: String)
+    case answer(requestID: String, revision: Int, answer: String, path: String = String())
     case connect(username: String, key: String)
     case quit(force: Bool)
 }

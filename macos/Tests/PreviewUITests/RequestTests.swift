@@ -26,8 +26,8 @@ final class RequestTests: XCTestCase {
     func testTrustIsHiddenForMainFolders() {
         var download = SampleData.request(.folderRead).request
         download.path = "~/Downloads"
-        XCTAssertFalse(RequestBody.showsTrust(download))
-        XCTAssertTrue(RequestBody.showsTrust(SampleData.request(.folderRead).request))
+        XCTAssertFalse(RequestControls.offers(RequestAnswer.trustFolder, in: download, isSample: true))
+        XCTAssertTrue(RequestControls.offers(RequestAnswer.trustFolder, in: SampleData.request(.folderRead).request, isSample: true))
     }
 
     func testFileNameComesFromPath() {

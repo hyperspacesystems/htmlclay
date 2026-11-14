@@ -15,6 +15,17 @@ public final class OpenPanelFolderChooser: FolderChooser {
 
     public func chooseFile() async -> String? { pickFile() }
 
+    public func chooseProgram() async -> String? { pickProgram() }
+
+    private func pickProgram() -> String? {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK else { return nil }
+        return panel.url?.path
+    }
+
     private func pickFile() -> String? {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = false

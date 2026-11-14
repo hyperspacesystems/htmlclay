@@ -31,18 +31,17 @@ public enum SampleReducer {
             next.folders[p].documentCount += child.documentCount
             next.folders.removeAll { $0.id == folderID }
             for i in next.waiting.indices where next.waiting[i].subjectID == folderID { next.waiting[i].subjectID = parentID }
-        case let .answerRequest(waitingID, allow):
-            guard let item = next.waiting.first(where: { $0.id == waitingID }) else { return snapshot }
-            next.waiting.removeAll { $0.id == waitingID }
-            if let request = next.requests.first(where: { $0.id == item.subjectID }) {
-                next.requests.removeAll { $0.id == request.id }
-                if allow, let p = next.programs.firstIndex(where: { $0.name == request.program }),
-                   !next.programs[p].allowedDocuments.contains(request.document) {
+        case let .answer(requestID, revision, answer, _):
+            guard let request = next.requests.first(where: { $0.id == requestID }),
+                  request.revision == revision else { return snapshot }
+            let allow = answer != RequestAnswer.deny
+            next.requests.removeAll { $0.id == request.id }
+            next.waiting.removeAll { $0.subjectID == request.id }
+            if allow, let p = next.programs.firstIndex(where: { $0.name == request.program }) {
+                if !next.programs[p].allowedDocuments.contains(request.document) {
                     next.programs[p].allowedDocuments.append(request.document)
                 }
-                if allow, let p = next.programs.firstIndex(where: { $0.name == request.program }) {
-                    next.programs[p].removedDocuments.removeAll { $0 == request.document }
-                }
+                next.programs[p].removedDocuments.removeAll { $0 == request.document }
             }
         case let .setSyncPaused(paused):
             guard next.sync.connected else { return snapshot }
@@ -131,7 +130,7 @@ public enum SampleReducer {
             while next.program(id) != nil { id = name + "-" + String(n); n += 1 }
             next.programs.append(Program(id: id, name: name, path: path))
         case .openDocument, .revealDocument, .forgetDocument, .openFile, .openDashboard,
-             .revealFolder, .copyAddress, .answer, .connect, .quit:
+             .revealFolder, .copyAddress, .connect, .quit:
             return snapshot
         }
         return next

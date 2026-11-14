@@ -303,10 +303,36 @@ public enum Strings {
         public static func trustOwnFolder(_ document: String) -> String { "Trust the folder \(document) is in?" }
         public static let ownFolderNote = "Documents there will save, link to each other and keep one address."
         public static func trustNamed(_ folder: String) -> String { "Trust \(folder)" }
-        public static func folderLine(path: String, detail: String) -> String { detail.isEmpty ? path : "\(path) · \(detail)" }
+        public static func folderLine(path: String, detail: String) -> String {
+            guard let sentence = detailText(detail) else { return path }
+            return "\(path) \u{00b7} \(sentence)"
+        }
         public static let mainFolders = ["~", "~/Desktop", "~/Documents", "~/Downloads"]
-        public static let wouldChooseFile = "Build 1: this would ask you to choose a program file."
-        public static func wouldTrust(_ folder: String) -> String { "Build 1: this would also add \(folder) to your trusted folders." }
+        /// The sentence for one of the host's detail codes, or the prose sample
+        /// data sends instead. nil when there is nothing to say.
+        public static func detailText(_ detail: String) -> String? {
+            if detail.isEmpty { return nil }
+            switch detail {
+            case "in-downloads":
+                return "It's in Downloads, where files from the internet land." // TODO-COPY: why a program file is risky, max 70 chars
+            case "in-temp":
+                return "It's in the temporary folder, where installers leave files." // TODO-COPY: why a program file is risky, max 70 chars
+            case "just-arrived":
+                return "It changed a moment ago." // TODO-COPY: why a program file is risky, max 70 chars
+            case "downloaded":
+                return "It came from the internet." // TODO-COPY: why a program file is risky, max 70 chars
+            case "not-executable":
+                return "It isn't marked as runnable." // TODO-COPY: why a program file is risky, max 70 chars
+            case "script-interpreter":
+                return "It's a script another program runs for you." // TODO-COPY: why a program file is risky, max 70 chars
+            case "scope-unknown":
+                return "HTML Clay can't tell which folder this program may touch." // TODO-COPY: why a program file is risky, max 70 chars
+            case "main-folder":
+                return "This is one of your main folders." // TODO-COPY: beside a folder path, max 70 chars
+            default:
+                return detail
+            }
+        }
     }
     public enum Sheets {
         public static let cancel = "Cancel"

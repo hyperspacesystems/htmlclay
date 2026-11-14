@@ -88,13 +88,13 @@ final class CoreTests: XCTestCase {
 
     func testAnsweringARequestClearsItEverywhere() {
         let s = SampleData.snapshot(for: .syncedWithTeams)
-        let after = SampleReducer.apply(.answerRequest(waitingID: "w-req-todo", allow: true), to: s)
+        let after = SampleReducer.apply(.answer(requestID: "req-todo", revision: 0, answer: "allow-document"), to: s)
         XCTAssertEqual(after.count(in: .programs), 0)
         XCTAssertEqual(after.totalCount, 2)
         XCTAssertTrue(after.requests.isEmpty)
         XCTAssertEqual(after.program("todo-search")?.allowedDocuments, ["todo.htmlclay"])
-        XCTAssertEqual(SampleReducer.apply(.answerRequest(waitingID: "w-req-todo", allow: true), to: after), after)
-        let denied = SampleReducer.apply(.answerRequest(waitingID: "w-req-todo", allow: false), to: s)
+        XCTAssertEqual(SampleReducer.apply(.answer(requestID: "req-todo", revision: 0, answer: "allow-document"), to: after), after)
+        let denied = SampleReducer.apply(.answer(requestID: "req-todo", revision: 0, answer: "deny"), to: s)
         XCTAssertEqual(denied.program("todo-search")?.allowedDocuments, [])
     }
 
