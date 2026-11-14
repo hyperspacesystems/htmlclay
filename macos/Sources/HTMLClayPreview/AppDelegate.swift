@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         host = SampleHost(persona: .newPerson)
         model = AppModel(host: host, initial: host.current)
+        model.folderChooser = SampleFolderChooser()
         alerts = AppAlerts(model: model)
         windows = WindowManager(model: model)
         statusItem = StatusItemController(model: model, windows: windows)

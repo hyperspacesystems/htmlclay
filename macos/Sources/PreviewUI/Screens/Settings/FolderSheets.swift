@@ -4,58 +4,69 @@ import PreviewCore
 struct ServeSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
-    private let folderID: String?
-    @State private var pick: Int
-    @State private var name: String
+    @State private var sheet: ServeSheetModel
 
-    init(folderID: String?, snapshot: HostSnapshot) {
-        self.folderID = folderID
-        _pick = State(initialValue: ServeRules.firstPick(in: snapshot))
-        _name = State(initialValue: ServeRules.startName(folderID: folderID, in: snapshot))
+    init(folderID: String?, model: AppModel) {
+        _sheet = State(initialValue: ServeSheetModel(folderID: folderID, model: model))
     }
 
     var body: some View {
-        let path = ServeRules.path(folderID: folderID, pick: pick, in: model.snapshot)
-        let pathProblem = ServeRules.pathProblem(path, folderID: folderID, in: model.snapshot)
-        let nameProblem = ServeRules.nameProblem(name, folderID: folderID, in: model.snapshot)
-        let ready = ServeRules.canServe(path: path, name: name, folderID: folderID, in: model.snapshot)
+        let ready = sheet.ready
         KilnDialog(Strings.ServeSheet.title) {
             KilnLead(Text(Strings.ServeSheet.leadStart) + Text(Strings.ServeSheet.leadMono).monospaced() + Text(Strings.ServeSheet.leadEnd))
                 .padding(.top, 6)
             KilnField(Strings.ServeSheet.folder) {
-                KilnInputBox(path)
-                if folderID == nil {
+                if sheet.path.isEmpty {
+                    KilnInput(text: .constant(""), placeholder: Strings.Sheets.choose)
+                } else {
+                    KilnInputBox(sheet.path)
+                }
+                if sheet.nameEditable {
                     Button(Strings.Sheets.choose) {
-                        pick += 1
-                        name = ServeRules.defaultName(for: ServeRules.path(folderID: nil, pick: pick, in: model.snapshot))
+                        Task {
+                            await sheet.choose()
+                            await sheet.check()
+                        }
                     }
                     .buttonStyle(KilnButtonStyle(.plain))
                 }
             }
             .padding(.top, 14)
-            if let pathProblem {
+            if let pathProblem = sheet.pathProblem {
                 KilnFieldNote(Text(pathProblem), error: true)
             }
             KilnField(Strings.ServeSheet.name) {
-                KilnInput(text: $name, placeholder: Strings.ServeSheet.name, mono: true)
+                if sheet.nameEditable {
+                    KilnInput(text: Bindable(sheet).name, placeholder: Strings.ServeSheet.name, mono: true)
+                } else {
+                    KilnInputBox(sheet.name)
+                }
             }
             .padding(.top, 10)
-            if let nameProblem {
+            if let nameProblem = sheet.nameProblem {
                 KilnFieldNote(Text(nameProblem), error: true)
             }
-            KilnFieldNote(Text(Strings.ServeSheet.addressPrefix) + Text(ServeRules.address(for: name)).monospaced())
+            if let otherProblem = sheet.otherProblem {
+                KilnFieldNote(Text(otherProblem), error: true)
+            }
+            KilnFieldNote(Text(Strings.ServeSheet.addressPrefix) + Text(sheet.address.isEmpty ? ServeRules.address(for: sheet.name) : sheet.address).monospaced())
         } buttons: {
             Button(Strings.Sheets.cancel) {
                 model.sheet = nil
             }
             .buttonStyle(KilnButtonStyle(.plain))
             Button(Strings.ServeSheet.serve) {
-                model.send(.serveFolder(path: path, name: name.lowercased()))
-                model.sheet = nil
+                Task {
+                    if await sheet.serve() { model.sheet = nil }
+                }
             }
             .buttonStyle(KilnButtonStyle(.primary))
             .disabled(!ready)
             .opacity(ready ? 1 : 0.42)
+        }
+        .task(id: sheet.path + "\u{0}" + sheet.name) {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            await sheet.check()
         }
     }
 }

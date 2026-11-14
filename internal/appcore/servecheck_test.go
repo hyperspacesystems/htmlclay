@@ -194,3 +194,28 @@ func TestCheckServe(t *testing.T) {
 		})
 	}
 }
+
+// TestCheckServeNamesTheFieldAtFault proves a serve refusal says which field a
+// form should mark: the name when it is taken, the path when it is outside home.
+func TestCheckServeNamesTheFieldAtFault(t *testing.T) {
+	taken := CheckServe(ServeFacts{
+		Path:    "/home/u/Sites/site",
+		Exists:  true,
+		IsDir:   true,
+		Home:    pathrel.Inside,
+		NameErr: config.ErrServedNameTaken,
+	})
+	if taken == nil || taken.Code != RefuseNameTaken || taken.Field != "name" {
+		t.Fatalf("taken name = %+v, want code %q with field %q", taken, RefuseNameTaken, "name")
+	}
+
+	outside := CheckServe(ServeFacts{
+		Path:   "/elsewhere/site",
+		Exists: true,
+		IsDir:  true,
+		Home:   pathrel.Unrelated,
+	})
+	if outside == nil || outside.Code != RefuseOutsideHome || outside.Field != "path" {
+		t.Fatalf("outside home = %+v, want code %q with field %q", outside, RefuseOutsideHome, "path")
+	}
+}

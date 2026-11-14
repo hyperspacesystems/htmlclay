@@ -9,7 +9,7 @@ struct SettingsSheetView: View {
     var body: some View {
         Group {
             switch sheet {
-            case let .serveFolder(folderID): ServeSheet(folderID: folderID, snapshot: model.snapshot)
+            case let .serveFolder(folderID): ServeSheet(folderID: folderID, model: model)
             case let .trustFolder(name, path): TrustSheet(name: name, path: path)
             case .connect: ConnectSheet()
             case let .accountFolder(username): AccountFolderSheet(username: username)

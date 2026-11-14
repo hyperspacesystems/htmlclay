@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         relay = RelayHostClient()
         model = AppModel(host: relay, initial: relay.last)
+        model.folderChooser = OpenPanelFolderChooser()
         alerts = AppAlerts(model: model)
         windows = WindowManager(model: model)
         statusItem = StatusItemController(model: model, windows: windows)

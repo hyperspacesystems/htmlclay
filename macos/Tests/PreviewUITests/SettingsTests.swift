@@ -186,6 +186,7 @@ final class SettingsTests: XCTestCase {
         for persona in [Persona.trustedFolder, .syncedWithTeams] {
             let host = SampleHost(persona: persona)
             let model = AppModel(host: host, initial: host.current)
+            model.folderChooser = SampleFolderChooser()
             for sheet in sheets {
                 let hosting = NSHostingView(rootView: KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))
                 hosting.layoutSubtreeIfNeeded()

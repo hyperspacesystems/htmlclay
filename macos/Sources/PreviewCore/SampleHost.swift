@@ -187,8 +187,17 @@ public final class SampleHost: HostClient {
 
     public func check(_ action: HostAction) async -> Result<HostCheckAnswer, HostRefusal> {
         switch action {
-        case let .serveFolder(_, name):
-            return .success(HostCheckAnswer(address: "http://\(name).htmlclay.localhost:1212/", name: name))
+        case let .serveFolder(path, name):
+            if let problem = ServeRules.pathProblem(path, folderID: nil, in: current) {
+                return .failure(HostRefusal(code: "path", text: problem, field: "path"))
+            }
+            if let problem = ServeRules.nameProblem(name, folderID: nil, in: current) {
+                return .failure(HostRefusal(code: "name-taken", text: problem, field: "name"))
+            }
+            return .success(HostCheckAnswer(address: ServeRules.address(for: name), name: name))
+        case let .setServed(folderID, on) where on:
+            let name = ServeRules.startName(folderID: folderID, in: current)
+            return .success(HostCheckAnswer(address: ServeRules.address(for: name), name: name))
         case let .trustFolder(name, path):
             return .success(HostCheckAnswer(name: name, path: path))
         default:

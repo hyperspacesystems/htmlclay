@@ -10,6 +10,8 @@ public final class AppModel {
     public var sheet: PreviewSheet?
     public private(set) var note: String?
     public private(set) var lastRefusal: HostRefusal?
+    /// How sheets pick folders: the preview cycles sample folders, the real app opens a folder panel.
+    public var folderChooser: FolderChooser?
     private var noteToken = 0
     private var inFlight: [String: HostAction] = [:]
     private var queued: [String: HostAction] = [:]
@@ -64,6 +66,9 @@ public final class AppModel {
     public func submit(_ action: HostAction) async -> HostOutcome {
         await run(action, announce: false)
     }
+
+    /// Asks the host whether an action would work, without doing it.
+    public func check(_ action: HostAction) async -> Result<HostCheckAnswer, HostRefusal> { await host.check(action) }
 
     /// Ends every pending action as interrupted; nothing is resent. The live app calls this
     /// from LoopbackHostClient.onNewEpoch.

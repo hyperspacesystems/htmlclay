@@ -13,6 +13,17 @@ private enum LiveHostFailure: Error, CustomStringConvertible {
 }
 
 @MainActor
+private final class FixedFolderChooser: FolderChooser {
+    private let path: String?
+
+    init(_ path: String?) { self.path = path }
+
+    func first(in snapshot: HostSnapshot) -> String? { path }
+
+    func choose(after current: String?, in snapshot: HostSnapshot) async -> String? { path }
+}
+
+@MainActor
 private final class LiveHost {
     let home: URL
     let base: URL
@@ -52,6 +63,7 @@ private final class LiveHost {
         let process = HostProcess(launch: HostLaunch(binary: binary, environment: [
             "HOME": homePath,
             "HTMLCLAY_CONFIG_BASE": basePath,
+            "HTMLCLAY_OPEN_LOG": homePath + "/open.log",
         ]))
         var handed: (ready: HostReady, client: LoopbackHostClient)?
         process.onReady = { ready, client in handed = (ready, client) }
@@ -260,6 +272,54 @@ final class LiveHostTests: XCTestCase {
             return
         }
         XCTAssertEqual(answer.path, notes.path)
+    }
+
+    func testTheServeSheetAsksTheHostAndKeepsARefusal() async throws {
+        let host = try await LiveHost.start()
+        let notes = host.home.appendingPathComponent("notes")
+        let blog = host.home.appendingPathComponent("blog")
+        try makeFolder(notes)
+        try makeFolder(blog)
+
+        let model = AppModel(host: host.client, initial: try await host.client.load())
+        model.folderChooser = FixedFolderChooser(notes.path)
+
+        let first = ServeSheetModel(folderID: nil, model: model)
+        XCTAssertEqual(first.path, notes.path)
+        XCTAssertEqual(first.name, "notes")
+        await first.check()
+        XCTAssertTrue(first.address.contains("notes.htmlclay.localhost"), "address = \(first.address)")
+        XCTAssertNil(first.pathProblem)
+        XCTAssertNil(first.nameProblem)
+        let firstServed = await first.serve()
+        XCTAssertTrue(firstServed)
+        let served = try XCTUnwrap(model.snapshot.folders.first { $0.fullPath == notes.path })
+        XCTAssertTrue(served.served)
+
+        model.folderChooser = FixedFolderChooser(blog.path)
+        let second = ServeSheetModel(folderID: nil, model: model)
+        XCTAssertEqual(second.path, blog.path)
+        second.name = "notes"
+        await second.check()
+        XCTAssertNotNil(second.nameProblem, "the host said nothing about the taken name")
+        XCTAssertNil(second.pathProblem)
+        let secondServed = await second.serve()
+        XCTAssertFalse(secondServed)
+        XCTAssertEqual(second.name, "notes")
+
+        _ = try done(await model.submit(.setServed(folderID: served.id, on: false)),
+                     "stopping notes was refused")
+        XCTAssertEqual(model.snapshot.folders.first { $0.id == served.id }?.served, false)
+
+        let known = ServeSheetModel(folderID: served.id, model: model)
+        XCTAssertFalse(known.nameEditable)
+        XCTAssertEqual(known.name, "notes")
+        let resumedServe = await known.serve()
+        XCTAssertTrue(resumedServe)
+        let resumed = try XCTUnwrap(model.snapshot.folders.first { $0.id == served.id })
+        XCTAssertTrue(resumed.served)
+        XCTAssertEqual(resumed.address, served.address)
+        XCTAssertTrue(resumed.address.contains("notes.htmlclay.localhost"), "address = \(resumed.address)")
     }
 
     func testWrongSecretIsRefused() async throws {

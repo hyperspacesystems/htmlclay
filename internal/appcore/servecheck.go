@@ -104,29 +104,29 @@ type ServeFacts struct {
 // in the order below.
 func CheckServe(f ServeFacts) *Refusal {
 	if !f.Exists || !f.IsDir {
-		return &Refusal{Code: RefuseNotAFolder}
+		return &Refusal{Code: RefuseNotAFolder, Field: "path"}
 	}
 	if f.Home == pathrel.Same {
-		return &Refusal{Code: RefuseIsHome}
+		return &Refusal{Code: RefuseIsHome, Field: "path"}
 	}
 	if f.Home != pathrel.Inside {
-		return &Refusal{Code: RefuseOutsideHome}
+		return &Refusal{Code: RefuseOutsideHome, Field: "path"}
 	}
 	if other, ok := touching(f.Protected); ok {
-		return &Refusal{Code: RefuseProtectedFolder, OtherPath: other.Path, OtherName: other.Name}
+		return &Refusal{Code: RefuseProtectedFolder, OtherPath: other.Path, OtherName: other.Name, Field: "path"}
 	}
 	if other, ok := touching(f.Served); ok {
-		return &Refusal{Code: RefuseOverlapsServed, OtherPath: other.Path, OtherName: other.Name}
+		return &Refusal{Code: RefuseOverlapsServed, OtherPath: other.Path, OtherName: other.Name, Field: "path"}
 	}
 	if other, ok := touching(f.LocalServed); ok {
-		return &Refusal{Code: RefuseServedByLocal, OtherPath: other.Path, OtherName: other.Name}
+		return &Refusal{Code: RefuseServedByLocal, OtherPath: other.Path, OtherName: other.Name, Field: "path"}
 	}
 	if f.HasSyncMarker {
-		return &Refusal{Code: RefuseBoundToLocalSync}
+		return &Refusal{Code: RefuseBoundToLocalSync, Field: "path"}
 	}
 	for _, other := range f.Trusted {
 		if other.Relation == pathrel.Contains || other.Relation == pathrel.Inside {
-			return &Refusal{Code: RefuseNestedTrusted, OtherPath: other.Path, OtherName: other.Name}
+			return &Refusal{Code: RefuseNestedTrusted, OtherPath: other.Path, OtherName: other.Name, Field: "path"}
 		}
 	}
 	return NameRefusal(f.NameErr)
@@ -138,13 +138,13 @@ func CheckServe(f ServeFacts) *Refusal {
 func NameRefusal(err error) *Refusal {
 	switch {
 	case errors.Is(err, config.ErrServedNameInvalid):
-		return &Refusal{Code: RefuseNameInvalid}
+		return &Refusal{Code: RefuseNameInvalid, Field: "name"}
 	case errors.Is(err, config.ErrServedNameTaken):
-		return &Refusal{Code: RefuseNameTaken}
+		return &Refusal{Code: RefuseNameTaken, Field: "name"}
 	case errors.Is(err, config.ErrServedNameRetired):
-		return &Refusal{Code: RefuseNameRetired}
+		return &Refusal{Code: RefuseNameRetired, Field: "name"}
 	case err != nil:
-		return &Refusal{Code: RefuseNameInvalid}
+		return &Refusal{Code: RefuseNameInvalid, Field: "name"}
 	}
 	return nil
 }
