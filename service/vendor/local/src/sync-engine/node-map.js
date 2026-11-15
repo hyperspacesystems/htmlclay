@@ -147,6 +147,35 @@ function getInodeSync(filePath) {
   }
 }
 
+// A FAT disk keeps modification times to 2 s, so a save there can read up to 2 s early.
+const MTIME_SLACK_MS = 2000;
+
+/**
+ * When the bytes at filePath were seen here: the earlier of `before` (this computer's clock, read
+ * before the read or write) and the file's change time after it (the disk's clock). Every later
+ * save stamps a time no earlier than this on either clock, so a disk whose clock runs behind
+ * never makes an edit look older.
+ */
+async function seenSince(filePath, before) {
+  try {
+    const { ctimeMs } = await fs.stat(filePath);
+    return Number.isFinite(ctimeMs) ? Math.min(before, Math.floor(ctimeMs)) : before;
+  } catch {
+    return before;
+  }
+}
+
+/**
+ * A local change whose file was modified before the entry's bytes were last seen here is an older
+ * file put back, not an edit: a save stamps the time it saves, and a copy that keeps times
+ * (Finder, Explorer, cp -p, rsync -a, tar, Time Machine, Previous Versions) keeps the old one. A
+ * seen time later than now means the clock was set back since, which proves nothing.
+ */
+function olderThanSeen(mtimeMs, entry, now = Date.now()) {
+  const seen = entry ? entry.localSeenAt : null;
+  return Number.isFinite(seen) && seen <= now && mtimeMs < seen - MTIME_SLACK_MS;
+}
+
 async function upgradeIdentities(map, syncFolder) {
   for (const entry of map.values()) {
     if (!entry.path) continue;
@@ -214,6 +243,8 @@ module.exports = {
   getInode,
   getInodeSync,
   identityOf,
+  seenSince,
+  olderThanSeen,
   upgradeIdentities,
   walkDescendants,
   loadTombstones,

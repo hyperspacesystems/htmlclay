@@ -141,12 +141,20 @@ async function writeLocal(engine, rel, content, { modifiedAt = null, gen, expect
   return { localPath, refused, checksum };
 }
 
-/** Merge baseline fields into an entry (or a brand-new one) and persist. */
-async function saveEntry(engine, nodeId, entry, fields, extra = {}) {
+/**
+ * Merge baseline fields into an entry (or a brand-new one) and persist. `seenBefore` is the time
+ * taken just before the local bytes the fields record were read or written; the entry keeps when
+ * they were seen here (node-map.js seenSince), which tells an older file put back from an edit.
+ */
+async function saveEntry(engine, nodeId, entry, fields, extra = {}, seenBefore = null) {
   const merged = { ...(entry || {}), ...extra };
-  if (merged.path && merged.type !== 'folder' && extra.inode === undefined) {
-    const identity = await nodeMap.getInode(await localPathFor(engine, merged.path));
-    if (identity) merged.inode = identity;
+  if (merged.path && merged.type !== 'folder' && (extra.inode === undefined || seenBefore !== null)) {
+    const localPath = await localPathFor(engine, merged.path);
+    if (extra.inode === undefined) {
+      const identity = await nodeMap.getInode(localPath);
+      if (identity) merged.inode = identity;
+    }
+    if (seenBefore !== null) merged.localSeenAt = await nodeMap.seenSince(localPath, seenBefore);
   }
   const next = nodeMap.applyBaseline(merged, fields);
   await engine.repo.set(nodeId, next);
@@ -260,13 +268,20 @@ async function upload(engine, nodeId, entry, context, gen) {
   const localPath = await localPathFor(engine, rel);
   const size = (await fs.stat(localPath)).size;
   if (overLimit(engine, isSite, size)) return keepLocal(engine, rel, size, engine.uploadLimit);
+  const seenBefore = Date.now();
   const { buffer, checksum: localChecksum } = await readLocalBytes(engine, localPath);
   if (overLimit(engine, isSite, buffer.length)) return keepLocal(engine, rel, buffer.length, engine.uploadLimit);
   if (isSite && Buffer.isBuffer(buffer) && !isUtf8(buffer)) return keepNotText(engine, rel);
+  const { mtime, mtimeMs } = await fs.stat(localPath);
+  // Older than the bytes last seen here: a backup or an older copy put back. It waits for the
+  // person as a conflict instead of replacing newer work online; Keep mine still sends it.
+  if (nodeMap.olderThanSeen(mtimeMs, entry)) {
+    return conflicted(engine, nodeId, entry, context, { conflictKind: store.KINDS.UNBOUND, older: true });
+  }
   const content = isSite ? buffer.toString('utf8') : buffer;
   const baseline = engine.repo.getBaseline(nodeId) || {};
 
-  const options = { modifiedAt: (await fs.stat(localPath)).mtime, ifMatch: baseline.remoteEtag };
+  const options = { modifiedAt: mtime, ifMatch: baseline.remoteEtag };
   const snap = engine.snapshots && engine.snapshots.take ? await engine.snapshots.take(rel) : null;
   if (snap) {
     options.snapshotHtml = snap.html;
@@ -288,7 +303,7 @@ async function upload(engine, nodeId, entry, context, gen) {
       return { action: A.CONFLICT, kind: store.KINDS.REJECTED, record };
     }
     if (!error.statusCode) {
-      const settled = await settleUpload(engine, nodeId, entry, context, localChecksum);
+      const settled = await settleUpload(engine, nodeId, entry, context, localChecksum, seenBefore);
       if (settled) return settled;
     }
     if (!isSite && error.statusCode === 413 && error.code === 'too-large') {
@@ -304,7 +319,7 @@ async function upload(engine, nodeId, entry, context, gen) {
     remoteEtag: etag,
     localChecksum: etag,
     structureVersion: response.structureVersion,
-  });
+  }, {}, seenBefore);
   await engine.clearUploadBlock(rel);
   engine.emit('file-synced', { file: rel, action: 'upload', type: typeOf(entry, context, rel) });
   return { action: A.UPLOAD, etag, checksum: etag };
@@ -314,7 +329,7 @@ async function upload(engine, nodeId, entry, context, gen) {
  * A request that left but never answered: refetch the node before treating it
  * as failed. Remote bytes that now match ours mean the write landed.
  */
-async function settleUpload(engine, nodeId, entry, context, localChecksum) {
+async function settleUpload(engine, nodeId, entry, context, localChecksum, seenBefore) {
   let response;
   try {
     response = await getNodeContent(engine.conn, idOf(nodeId));
@@ -331,7 +346,7 @@ async function settleUpload(engine, nodeId, entry, context, localChecksum) {
     remoteEtag: etag,
     localChecksum: etag,
     structureVersion: response.structureVersion,
-  }, extra);
+  }, extra, seenBefore);
   return { action: A.UPLOAD, etag, checksum: etag, recovered: true };
 }
 
@@ -383,6 +398,7 @@ async function download(engine, nodeId, entry, context, gen) {
   const blockeditorRecord = await readPageRecord(engine, idOf(nodeId), rel);
   if (gen !== engine.generation) return { action: A.DOWNLOAD, stale: true };
 
+  const seenBefore = Date.now();
   const written = await writeLocal(engine, rel, response.content, { modifiedAt: response.modifiedAt, gen, expectLocal, claim, explicitCreate: !entry || entry.path === rel, blockeditorRecord });
   if (written.refused === STALE) return { action: A.DOWNLOAD, stale: true };
   if (written.refused === CHANGED) {
@@ -399,7 +415,7 @@ async function download(engine, nodeId, entry, context, gen) {
     remoteEtag: response.etag || response.checksum || context.etag || null,
     localChecksum,
     structureVersion: response.structureVersion !== undefined ? response.structureVersion : context.structureVersion,
-  }, await entryMeta(engine, rel, type, parentId));
+  }, await entryMeta(engine, rel, type, parentId), seenBefore);
 
   await releaseFileLimitHold(engine, rel);
   engine.emit('file-synced', { file: rel, action: 'download', type });
@@ -430,6 +446,7 @@ async function releaseFileLimitHold(engine, rel) {
 
 async function adopt(engine, nodeId, entry, context) {
   const rel = relPathOf(entry, context, nodeId);
+  const seenBefore = Date.now();
   const localChecksum = await localChecksumOf(engine, rel);
   const type = typeOf(entry, context, rel);
   const parentId = entry ? entry.parentId : context.parentId;
@@ -438,7 +455,7 @@ async function adopt(engine, nodeId, entry, context) {
     remoteEtag: context.etag || localChecksum,
     localChecksum,
     structureVersion: context.structureVersion === undefined ? null : context.structureVersion,
-  }, await entryMeta(engine, rel, type, parentId));
+  }, await entryMeta(engine, rel, type, parentId), seenBefore);
 
   await releaseFileLimitHold(engine, rel);
   return { action: A.ADOPT, checksum: localChecksum };
@@ -525,6 +542,7 @@ async function createRemote(engine, nodeId, entry, context, gen) {
   const localPath = await localPathFor(engine, rel);
   const size = (await fs.stat(localPath)).size;
   if (overLimit(engine, isSite, size)) return keepLocal(engine, rel, size, engine.uploadLimit);
+  const seenBefore = Date.now();
   const { buffer, checksum: localChecksum } = await readLocalBytes(engine, localPath);
   if (overLimit(engine, isSite, buffer.length)) return keepLocal(engine, rel, buffer.length, engine.uploadLimit);
   if (isSite && Buffer.isBuffer(buffer) && !isUtf8(buffer)) return keepNotText(engine, rel);
@@ -578,7 +596,7 @@ async function createRemote(engine, nodeId, entry, context, gen) {
     remoteEtag: etag,
     localChecksum: etag,
     structureVersion: created.structureVersion,
-  }, await entryMeta(engine, rel, type, created.parentId));
+  }, await entryMeta(engine, rel, type, created.parentId), seenBefore);
 
   // The cached list predates this node; a later event must not read its absence as a delete.
   if (typeof engine.invalidateServerNodesCache === 'function') engine.invalidateServerNodesCache();
@@ -606,10 +624,10 @@ async function conflicted(engine, nodeId, entry, context, decision) {
     localChecksum: await localChecksumOf(engine, rel),
     fetchRemote: kind !== store.KINDS.REMOTE_DELETED,
   });
-  // A recheck's unbound conflict compares a copy with no baseline of its own: the node's
-  // baseline goes, as for every unbound conflict, so a local delete downloads the page
-  // again instead of reading as a delete to send.
-  if (engine.recheckPass && kind === store.KINDS.UNBOUND && nodeId !== null && nodeId !== undefined) {
+  // A recheck's unbound conflict, or one over an older file put back here, compares bytes the
+  // baseline cannot vouch for: the node's baseline goes, as for every unbound conflict, so a
+  // local delete downloads the page again instead of reading as a delete to send.
+  if ((engine.recheckPass || decision.older) && kind === store.KINDS.UNBOUND && nodeId !== null && nodeId !== undefined) {
     await engine.repo.delete(nodeId);
   }
   return { action: A.CONFLICT, kind, record };
@@ -741,12 +759,13 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
       // A save that lands after the choice is not replaced: the write expects the bytes the
       // choice was made over (for Keep both, the bytes it just copied aside).
       const expectLocal = copy ? copiedAside : await localChecksumOf(engine, found.path);
+      const seenBefore = Date.now();
       const restored = await writeLocal(engine, found.path, isSite ? other.toString('utf8') : other, { expectLocal });
       if (restored.refused) return { ok: false, error: 'changed' };
       await saveEntry(engine, found.key, known, {
         remoteEtag: found.remoteEtag,
         localChecksum: restored.checksum,
-      }, extra);
+      }, extra, seenBefore);
     }
     await engine.clearUploadBlock(found.path);
     await store.clear(engine.metaDir, found.key);
@@ -759,6 +778,7 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
     await keepLocal(engine, found.path, size, engine.uploadLimit);
     return { ok: false, error: 'too-large' };
   }
+  const seenBefore = Date.now();
   const { buffer, checksum: localChecksum } = await readLocalBytes(engine, localPath);
   if (overLimit(engine, isSite, buffer.length)) {
     await keepLocal(engine, found.path, buffer.length, engine.uploadLimit);
@@ -801,7 +821,7 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
       remoteEtag: etag,
       localChecksum: etag,
       structureVersion: created.structureVersion,
-    }, await entryMeta(engine, found.path, type, created.parentId));
+    }, await entryMeta(engine, found.path, type, created.parentId), seenBefore);
     await store.clear(engine.metaDir, found.key);
     await removeCopy(engine, found);
     return { ok: true };
@@ -826,7 +846,7 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
     remoteEtag: etag,
     localChecksum: etag,
     structureVersion: response.structureVersion,
-  }, extra);
+  }, extra, seenBefore);
   await store.clear(engine.metaDir, found.key);
   await removeCopy(engine, found);
   return { ok: true };

@@ -6,6 +6,8 @@
 //                     the session is compared (Find it on the same path), then the older pages land
 //   second-find-it    Find it on an older copy (recheck holds notes.html as a conflict), then
 //                     Find it on another older copy that has no notes.html
+//   in-place-copy     a backup's pages are copied over the folder's own while the app runs, keeping
+//                     their times (rsync -a, Previous Versions): the folder itself is never replaced
 //
 //   node scripts/probes/review855-restore-races.mjs --out <dir> [--only <case>]
 import { execFileSync } from 'node:child_process';
@@ -315,6 +317,25 @@ async function progressiveRestart(world) {
   return report(world, since, "a backup was copied into the folder's own path, and the app restarted before the copy finished");
 }
 
+async function inPlaceCopy(world) {
+  const { name, folder } = world;
+  const copy = copyFolder(world, { marked: true });
+  // The work since the backup comes later than the files in it, as it does when a backup is restored.
+  await wait(5000);
+  const since = await workSinceTheCopy(world);
+  const from = world.server.calls.length;
+
+  cpSync(path.join(copy, 'notes.html'), path.join(folder, 'notes.html'), { preserveTimestamps: true });
+  cpSync(path.join(copy, 'plan.html'), path.join(folder, 'plan.html'), { preserveTimestamps: true });
+  console.log(`${name}: the backup's notes.html and plan.html copied over the folder's own, keeping their times`);
+  await wait(15000);
+  console.log(`${name}: 15 s later: conflicts [${world.conflicts().join(', ')}], server writes: ${serverWrites(world, from).join(', ') || 'none'}`);
+  await world.fullPass().catch((error) => console.log(`${name}: ${error.message}`));
+  await wait(5000);
+  console.log(`${name}: after a restart, server writes in all: ${serverWrites(world, from).join(', ') || 'none'}`);
+  return report(world, since, "a backup's pages were copied over the folder's own while the app ran");
+}
+
 async function deleteConflicted(world) {
   const { name, base } = world;
   const copyA = copyFolder(world, { marked: true });
@@ -342,6 +363,7 @@ const cases = {
   'delete-conflicted': { run: deleteConflicted },
   'progressive-copy': { run: progressiveCopy },
   'second-find-it': { run: secondFindIt },
+  'in-place-copy': { run: inPlaceCopy },
 };
 
 const built = build(out);

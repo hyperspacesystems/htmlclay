@@ -175,9 +175,11 @@ module.exports = {
     const deferred = key !== null
       ? (this.pathUnresolved && this.pathUnresolved.has(key)) || (this.caseHeld && this.caseHeld.has(key))
       : !entry && this.caseHeldPaths && this.caseHeldPaths.has(rel);
+    const seenBefore = Date.now();
+    const local = localPresent && !deferred ? await this.localView(rel) : null;
     const decision = deferred ? { action: A.DEFER } : decide({
       baseline,
-      local: localPresent ? await this.localView(rel) : null,
+      local,
       remote: remote ? { etag: remote.etag } : null,
       complete: complete === undefined ? this.completeForNode(remote, baseline) : complete,
       // A bootstrap pass (a legacy import, a lost map) must not delete on the
@@ -189,11 +191,15 @@ module.exports = {
       recheck: this.recheckPass === true
     });
 
+    const stored = key === null ? null : this.repo.get(key);
+    const unseen = local && stored && stored.localSeenAt == null && baseline.localChecksum === local.checksum;
+
     return {
       nodeId: nodeId === undefined ? null : nodeId,
       type: nodeType,
       path: rel,
       decision,
+      seen: unseen ? { at: await nodeMap.seenSince(path.join(this.syncFolder, rel), seenBefore), checksum: local.checksum } : undefined,
       context: {
         path: rel,
         type: nodeType,
@@ -225,6 +231,24 @@ module.exports = {
       if (this.sessionStale()) return;
       await this.runPlanItem(item, pass);
     }
+    await this.recordSeen(plan);
+  },
+
+  /**
+   * An entry recorded before entries kept `localSeenAt` gets the time this pass found its bytes
+   * here, in one write, so an older file put back later is held instead of uploaded (execute.js).
+   */
+  async recordSeen(plan) {
+    const seen = plan.filter((item) => item.seen);
+    if (seen.length === 0) return;
+    await this.repo.apply(async (map) => {
+      for (const { nodeId, seen: { at, checksum } } of seen) {
+        const entry = map.get(String(nodeId));
+        if (entry && entry.localSeenAt == null && nodeMap.readBaseline(entry).localChecksum === checksum) {
+          map.set(String(nodeId), { ...entry, localSeenAt: at });
+        }
+      }
+    });
   },
 
   async runPlanItem(item, pass, isRetry = false) {
