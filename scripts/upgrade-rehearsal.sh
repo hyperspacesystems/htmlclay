@@ -121,6 +121,7 @@ VERDICT_OK="no"
 PORT_BEFORE=""
 WATCH_PID=""
 KILLER_PID=""
+LOG_PID=""
 FIRST_SITE=""
 SERVING_SECONDS=""
 HANDOFF_AGE=""
@@ -183,10 +184,10 @@ kill_pid() {
 }
 
 cleanup() {
+  local status=$?
   case "com.htmlclay.HTMLClay" in
     "$ID"*) echo "[rehearsal] cleanup refused for bundle id '$ID'" >&2; return 1 ;;
   esac
-  local status=$?
   trap - EXIT
   say "cleaning up"
   kill_pid "$CANARY_PID"
@@ -194,6 +195,7 @@ cleanup() {
   kill_pid "$APP_PID"
   kill_pid "$WATCH_PID"
   kill_pid "$KILLER_PID"
+  kill_pid "$LOG_PID"
 
   local pid
   for pid in $(ps -axo pid=,comm= | awk -v p="$SCRATCH/" 'index($2, p) == 1 { print $1 }'); do
@@ -698,14 +700,16 @@ wait_old_back() {
 # kill_new_app: cases rollback-app and rollback-early. It finds the 9.0.1 Swift app
 # (the process at the bundle path that is not the old app this script started),
 # then the moment that app's host appears it freezes one of them, so the order
-# never depends on a race with the app's update-confirm:
+# never depends on a race with the app's update-confirm. The host goes from start
+# to serving in about 50 ms, so the child is caught by a Python loop calling
+# proc_listchildpids every half millisecond, not by pgrep.
 # - rollback-app freezes the app, waits until the host has finished starting and
 #   run its config upgrade, then kills the app. The host loses its parent after
 #   startup and must exit without reporting serving.
 # - rollback-early freezes the host before it takes the lock, kills the app, then
 #   lets the host go on. CR-2 must make it exit before it serves.
 kill_new_app() {
-  local app="" host="" pid start=$SECONDS limit=$((DEADLINE + OBSERVE))
+  local app="" pid start=$SECONDS limit=$((DEADLINE + OBSERVE))
   while [ -z "$app" ] && [ $((SECONDS - start)) -lt "$limit" ]; do
     for pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay"); do
       [ "$pid" != "$APP_PID" ] && { app="$pid"; break; }
@@ -713,26 +717,46 @@ kill_new_app() {
     sleep 0.01
   done
   [ -n "$app" ] || return 0
-  while [ -z "$host" ] && kill -0 "$app" 2>/dev/null && [ $((SECONDS - start)) -lt "$limit" ]; do
-    host="$(pgrep -P "$app" | head -n 1)"
-  done
-  [ -n "$host" ] || { say "the 9.0.1 app $app started no host"; return 0; }
-  if [ "$CASE" = "rollback-early" ]; then
-    kill -STOP "$host" 2>/dev/null
-    kill -KILL "$app" 2>/dev/null
-    say "froze host $host, killed the 9.0.1 app $app, then let the host go on"
-    kill -CONT "$host" 2>/dev/null
-    return 0
-  fi
-  kill -STOP "$app" 2>/dev/null
-  say "froze the 9.0.1 app $app once its host $host appeared"
-  local i
-  for i in $(seq 1 150); do
-    grep -q "Serving the Mac app" "$CONFIG/htmlclay.log" 2>/dev/null && break
-    sleep 0.1
-  done
-  kill -KILL "$app" 2>/dev/null
-  say "killed the 9.0.1 app $app after its host started"
+  python3 -I - "$app" "$CASE" "$CONFIG/htmlclay.log" "$limit" <<'PY'
+import ctypes, os, signal, sys, time
+app, case, log, limit = int(sys.argv[1]), sys.argv[2], sys.argv[3], float(sys.argv[4])
+lib = ctypes.CDLL("/usr/lib/libproc.dylib")
+buf = (ctypes.c_int * 16)()
+def say(m): print("[rehearsal] " + m, file=sys.stderr, flush=True)
+deadline = time.monotonic() + limit
+host = 0
+while not host and time.monotonic() < deadline:
+    if lib.proc_listchildpids(app, buf, ctypes.sizeof(buf)) > 0 and buf[0] > 0:
+        host = buf[0]
+        break
+    try:
+        os.kill(app, 0)
+    except ProcessLookupError:
+        break
+    time.sleep(0.0005)
+if not host:
+    say(f"the 9.0.1 app {app} started no host")
+    sys.exit(0)
+if case == "rollback-early":
+    os.kill(host, signal.SIGSTOP)
+    os.kill(app, signal.SIGKILL)
+    time.sleep(0.2)
+    say(f"froze host {host}, killed the 9.0.1 app {app}, then let the host go on")
+    os.kill(host, signal.SIGCONT)
+    sys.exit(0)
+os.kill(app, signal.SIGSTOP)
+say(f"froze the 9.0.1 app {app} once its host {host} appeared")
+end = time.monotonic() + 15
+while time.monotonic() < end:
+    try:
+        if "Serving the Mac app" in open(log, errors="replace").read()[-4000:]:
+            break
+    except OSError:
+        pass
+    time.sleep(0.05)
+os.kill(app, signal.SIGKILL)
+say(f"killed the 9.0.1 app {app} after its host started")
+PY
 }
 
 launch_old() {
