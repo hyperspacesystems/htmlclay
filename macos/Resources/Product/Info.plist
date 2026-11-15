@@ -37,7 +37,7 @@
 	<key>CFBundleExecutable</key>
 	<string>htmlclay</string>
 	<key>CFBundleIconFile</key>
-	<string>htmlclay</string>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.htmlclay.HTMLClay</string>
 	<key>CFBundleName</key>
