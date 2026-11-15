@@ -569,6 +569,12 @@ func (a *app) initConfig() {
 	fmt.Fprintf(os.Stderr, "[htmlclay] Config loaded: %d trusted folder(s)\n", len(cfg.TrustedFolderList()))
 	a.rt.cfg = cfg
 	a.loaded = res
+	// Set here, not in startRuntime: holdSavesWhileUnjudged runs before
+	// startRuntime and reads the update state under this folder.
+	a.rt.configDir = configDir
+	if resolved, rErr := resolveSymlinks(configDir); rErr == nil {
+		a.rt.configDir = resolved
+	}
 }
 
 func (a *app) initLogger() {
@@ -602,10 +608,6 @@ func (a *app) startRuntime() {
 	configDir, err := config.Dir()
 	if err != nil {
 		fatal("Error resolving config dir: %v", err)
-	}
-	a.rt.configDir = configDir
-	if resolved, rErr := resolveSymlinks(configDir); rErr == nil {
-		a.rt.configDir = resolved
 	}
 
 	// An unresolved lock directory is left empty on purpose: serving then refuses

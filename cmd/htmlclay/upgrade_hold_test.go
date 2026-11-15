@@ -60,3 +60,35 @@ func TestUpgradeSavesWaitForTheVerdict(t *testing.T) {
 		})
 	}
 }
+
+// TestStartupHoldsSavesWhileUnjudged runs main's own startup steps in main's
+// order, so the hold sees the config folder before finishUpgrade saves.
+func TestStartupHoldsSavesWhileUnjudged(t *testing.T) {
+	// A short base keeps the single-instance socket path under the Unix limit.
+	base, err := os.MkdirTemp("/tmp", "hc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(base) })
+	t.Setenv("HTMLCLAY_CONFIG_BASE", base)
+	dir, err := config.Dir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeUpdateState(t, dir, update.PhaseApplying)
+
+	a := &app{rt: &appRuntime{}}
+	a.initConfig()
+	t.Cleanup(func() { a.rt.si.Unlock() })
+	a.initLogger()
+	t.Cleanup(func() { a.rt.logger.Close() })
+	a.holdSavesWhileUnjudged()
+
+	a.rt.cfg.SetStartOnLogin(!a.rt.cfg.StartOnLoginEnabled())
+	if err := a.rt.cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "config.json")); !os.IsNotExist(err) {
+		t.Fatalf("a save during the trial wrote config.json (stat err %v)", err)
+	}
+}
