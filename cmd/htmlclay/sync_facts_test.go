@@ -153,4 +153,69 @@ func TestM4SyncFacts(t *testing.T) {
 			t.Fatalf("a revoked key made folderMissing items: %+v", snapshot.Waiting)
 		}
 	})
+
+	clearKeyRefused := func(t *testing.T) {
+		a.rt.syncMu.Lock()
+		defer a.rt.syncMu.Unlock()
+		record, err := a.syncRecordLocked()
+		if err != nil {
+			t.Fatal(err)
+		}
+		record.KeyRefused = nil
+		if err := record.Save(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	revoked := func(r *served.SyncSessionReport) {
+		r.Paused = json.RawMessage(`{"reason":"key-revoked","since":"2026-11-15T07:00:00Z"}`)
+	}
+
+	t.Run("a stream ended with key-revoked refuses the key, once and only when it is new", func(t *testing.T) {
+		report(20, false, row(personal.FolderID, nil), row(team.FolderID, nil))
+		clearKeyRefused(t)
+		report(21, false, row(personal.FolderID, revoked), row(team.FolderID, nil))
+		if got := waitingOfKind(a.snapshot(), appcore.WaitingSyncKeyRefused); got != 1 {
+			t.Fatalf("a key-revoked pause made %d syncKeyRefused items, want 1", got)
+		}
+		// A new key clears the refusal; a report sent before it took over, still
+		// paused, does not bring it back.
+		clearKeyRefused(t)
+		report(22, false, row(personal.FolderID, revoked), row(team.FolderID, nil))
+		if got := waitingOfKind(a.snapshot(), appcore.WaitingSyncKeyRefused); got != 0 {
+			t.Fatalf("a pause already reported refused the key again: %d items", got)
+		}
+	})
+
+	t.Run("a demotion shows view only at once, and a report's accounts carry the role", func(t *testing.T) {
+		report(30, false, row(personal.FolderID, nil), row(team.FolderID, func(r *served.SyncSessionReport) {
+			r.Paused = json.RawMessage(`{"reason":"viewer","since":"2026-11-15T07:00:00Z"}`)
+		}))
+		folder := folderInSnapshot(t, a, team.FolderID)
+		if folder.State != appcore.FolderViewer || folder.Sync.Role != "viewer" || folder.Sync.State != appcore.FolderSyncPaused {
+			t.Fatalf("a viewer pause: state %s, role %s, sync %s", folder.State, folder.Sync.Role, folder.Sync.State)
+		}
+
+		accounts := `[{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}},` +
+			`{"id":40,"kind":"team","username":"studio","displayName":"Studio","role":"viewer","sync":{"enabled":true,"reason":null}}]`
+		a.takeSyncReport(served.SyncReport{Seq: 31, Accounts: json.RawMessage(accounts), Sessions: []served.SyncSessionReport{row(personal.FolderID, nil), row(team.FolderID, nil)}})
+		var role string
+		for _, r := range savedSync(t, a).Accounts {
+			if r.FolderID == team.FolderID {
+				role = r.Role
+			}
+		}
+		if role != "viewer" {
+			t.Fatalf("the team row's role after a report with accounts = %q", role)
+		}
+		if folder := folderInSnapshot(t, a, team.FolderID); folder.State != appcore.FolderViewer {
+			t.Fatalf("a viewer row's folder state = %s", folder.State)
+		}
+
+		// A team gone from the answer keeps its row while its folder still syncs.
+		onlyPersonal := `[{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}}]`
+		a.takeSyncReport(served.SyncReport{Seq: 32, Accounts: json.RawMessage(onlyPersonal), Sessions: []served.SyncSessionReport{row(personal.FolderID, nil), row(team.FolderID, nil)}})
+		if rows := savedSync(t, a).Accounts; len(rows) != 2 {
+			t.Fatalf("a team left the answer and its synced row went with it: %+v", rows)
+		}
+	})
 }

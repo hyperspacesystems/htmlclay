@@ -411,6 +411,15 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 					reason = pause
 				}
 			}
+			// A demotion pauses the session with viewer at once; the account rows
+			// learn the new role only at the next discovery, up to five minutes later.
+			role := row.Role
+			if reason == "viewer" && !viewer {
+				viewer, role = true, "viewer"
+				if team {
+					facts.ViewOnlyTeams++
+				}
+			}
 			state := appcore.FolderSyncUpToDate
 			switch {
 			case !enabled[row.FolderID]:
@@ -422,7 +431,7 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 			case hasReport && (report.Status == "syncing" || report.PendingCount > 0):
 				state = appcore.FolderSyncSyncing
 			}
-			folderSync := appcore.FolderSync{State: state, Role: row.Role}
+			folderSync := appcore.FolderSync{State: state, Role: role}
 			if hasReport {
 				folderSync.LastFinishedAt = syncTime(report.LastSyncAt)
 			}
@@ -627,6 +636,7 @@ func (a *app) takeSyncReport(report served.SyncReport) {
 	stop := false
 	a.rt.syncMu.Lock()
 	rereadConflicts := conflictsChanged(a.rt.syncLast, report)
+	keyRevoked := newlyKeyRevoked(a.rt.syncLast, report)
 	a.rt.syncLast = &report
 	record, err := a.syncRecordLocked()
 	if err != nil {
@@ -664,7 +674,11 @@ func (a *app) takeSyncReport(report served.SyncReport) {
 			}
 		}
 	}
-	if report.KeyRefused && record.Account != nil && record.KeyRefused == nil {
+	if rows, ok := a.reportedAccountRows(record, report.Accounts); ok {
+		record.Accounts = rows
+		changed = true
+	}
+	if (report.KeyRefused || keyRevoked) && record.Account != nil && record.KeyRefused == nil {
 		record.KeyRefused = &config.SyncKeyRefused{Since: time.Now().UTC().Format(time.RFC3339)}
 		changed = true
 		stop = true
@@ -684,6 +698,60 @@ func (a *app) takeSyncReport(report served.SyncReport) {
 	// Folder states, counts and waiting items come from the report, so every
 	// open screen gets a new snapshot.
 	a.changed()
+}
+
+// newlyKeyRevoked reports whether a session in report has just paused with
+// key-revoked. The server ends a revoked key's streams that way, which pauses
+// each session without a refused discovery: it is the same news. Only the
+// change counts, so a report sent before a new key took over sets nothing again.
+func newlyKeyRevoked(previous *served.SyncReport, report served.SyncReport) bool {
+	before := map[string]bool{}
+	if previous != nil {
+		for _, session := range previous.Sessions {
+			before[session.SessionID] = syncPauseReason(session.Paused) == "key-revoked"
+		}
+	}
+	for _, session := range report.Sessions {
+		if syncPauseReason(session.Paused) == "key-revoked" && !before[session.SessionID] {
+			return true
+		}
+	}
+	return false
+}
+
+// reportedAccountRows merges a report's new discovery answer into the account
+// rows, as a connect does, so a role the server changed reaches the folder's row.
+// A row whose account left the answer stays while a session syncs its folder: the
+// session's own pause says why. ok is false when nothing changed.
+func (a *app) reportedAccountRows(record *config.Sync, raw json.RawMessage) ([]config.SyncAccountRow, bool) {
+	if record.Account == nil || len(raw) == 0 || string(raw) == "null" {
+		return nil, false
+	}
+	var found syncDiscovery
+	if err := json.Unmarshal(raw, &found.Accounts); err != nil {
+		a.rt.logger.Printf("A sync report's accounts did not read: %v", err)
+		return nil, false
+	}
+	rows := a.mergeAccountRows(record.Accounts, found)
+	listed := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		listed[row.FolderID] = true
+	}
+	for _, previous := range record.Accounts {
+		if listed[previous.FolderID] {
+			continue
+		}
+		for _, session := range record.SyncSessions {
+			if session.RootID == previous.FolderID {
+				rows = append(rows, previous)
+				break
+			}
+		}
+	}
+	if reflect.DeepEqual(rows, record.Accounts) {
+		return nil, false
+	}
+	return rows, true
 }
 
 // setFolderSynced is folder.setSynced: off keeps the folder's session row with
