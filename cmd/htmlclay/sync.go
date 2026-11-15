@@ -170,11 +170,12 @@ func (a *app) runningService() *service.Process {
 // who it belongs to; only a key the server accepts, for the account the person
 // named (if they named one), is stored. Any failure leaves the service holding
 // the key it held before and stores nothing.
+// connectSync sends the wanted sessions whatever the outcome: the service stops
+// every engine when it is handed a different key, so a connect that fails after
+// sending the new key and puts the previous one back must start them again.
 func (a *app) connectSync(ctx context.Context, e appcore.Effect) *appcore.Refusal {
 	refusal := a.connectSyncKey(ctx, e)
-	if refusal == nil {
-		a.sendSyncWanted()
-	}
+	a.sendSyncWanted()
 	return refusal
 }
 

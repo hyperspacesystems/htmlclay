@@ -36,7 +36,12 @@ func (s *rootServer) serveTheirs(w http.ResponseWriter, r *http.Request) error {
 	}
 	copyRel = path.Clean(filepath.ToSlash(copyRel))
 	name, inside := strings.CutPrefix(copyRel, conflictsFolder+"/")
-	if !inside || name == "" || strings.Contains(name, "/") {
+	// A conflict in a subfolder keeps its server copy in the same subfolder of
+	// .hyperclay/conflicts/; containment below is checked on the resolved path.
+	if !inside || name == "" {
+		return fileNotFoundError()
+	}
+	if _, err := validateSegments(name); err != nil {
 		return fileNotFoundError()
 	}
 	folderReal, err := filepath.EvalSymlinks(filepath.Join(s.baseDir, filepath.FromSlash(conflictsFolder)))

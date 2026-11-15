@@ -184,7 +184,7 @@ func TestM4ConflictRoutes(t *testing.T) {
 		if board.MineURL == nil || *board.MineURL != base+"board.html" || board.TheirsURL == nil || *board.TheirsURL != base+"_/sync/theirs/board.html" {
 			t.Fatalf("urls = %v %v", board.MineURL, board.TheirsURL)
 		}
-		if unbound.Path != "notes/new.html" || strings.Join(unbound.Keep, ",") != "mine,theirs" || unbound.MineURL != nil || unbound.TheirsURL != nil {
+		if unbound.Path != "notes/new.html" || strings.Join(unbound.Keep, ",") != "mine,theirs,both" || unbound.MineURL != nil || unbound.TheirsURL != nil {
 			t.Fatalf("a conflict with no file here and no kept copy = %+v", unbound)
 		}
 	})

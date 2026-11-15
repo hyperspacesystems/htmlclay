@@ -339,7 +339,10 @@ function createSync({ gate, service = null, dataDir = null }) {
       if (typeof message.key !== 'string' || !KEY.test(message.key) || origin === null) {
         return 'SYNC KEY REFUSED';
       }
-      if (held && held.serverOrigin !== origin) await stopAll();
+      // Engines read the key they started with. A new key, even for the same server,
+      // stops them all; Go's next configure starts the wanted sessions on it, so no
+      // engine keeps writing to the previous key's account.
+      if (held && (held.serverOrigin !== origin || held.key !== message.key)) await stopAll();
       if (!held || held.key !== message.key) keyRefused = false;
       held = { key: message.key, serverOrigin: origin };
       gate.hold(origin);

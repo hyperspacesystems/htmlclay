@@ -71,6 +71,17 @@ test('sync sessions in the service', { skip: SKIP }, async (t) => {
     assert.deepEqual(answer.body.sessions.map((row) => [row.sessionId, row.rootId]), [['s1', ROOT_ID]]);
   });
 
+  await t.test('a different key stops the sessions until the next configure', async () => {
+    const other = `hcsk_${'b'.repeat(64)}`;
+    s.send({ sync: { v: 1, key: other, serverUrl: fake.url } });
+    await s.line('SYNC KEY HELD');
+    const answer = await call(s, 'POST', '/sync/v1/status', { body: {} });
+    assert.deepEqual(answer.body.sessions, [], 'no engine kept running on the previous key');
+    s.send({ sync: { v: 1, key: KEY, serverUrl: fake.url } });
+    await s.line('SYNC KEY HELD');
+    assert.deepEqual((await configure()).body, { ok: true, running: ['s1'] });
+  });
+
   await t.test('a cleared key stops the sessions', async () => {
     s.send({ sync: { v: 1, key: null } });
     await s.line('SYNC KEY CLEARED');

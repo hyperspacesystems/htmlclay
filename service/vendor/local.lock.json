@@ -1,8 +1,8 @@
 {
   "local": {
-    "ref": "9385c8a",
-    "commit": "9385c8ae6fe6c2d328925fb7a994c2a72251ef6e",
-    "committedAt": "2026-11-15T09:41:13-05:00"
+    "ref": "a41e09d",
+    "commit": "a41e09d95c1977b19dce67ce45afbc9a3b41b6b4",
+    "committedAt": "2026-11-15T10:19:54-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -930,7 +930,7 @@
     "src/sync-engine/reconcile/conflicts.js": "223db23ff89b8a707e3ff593e6b0cbd353cb1b1963d78e2234f46ce61efdadec",
     "src/sync-engine/reconcile/decide.js": "fa4d7deb7916eb9c6ec45569cff326c0b1763ebb53ce22bf3828b4cd0197b097",
     "src/sync-engine/reconcile/disk-snapshot.js": "6171a66799a0fc12dbc6d4c313ff0b0503d37eccb5afad9c2d87a76aad8c8336",
-    "src/sync-engine/reconcile/execute.js": "f075cfb55eb3d077fd4a6d0216461736c85c69a623adbdc36c5fa36706e4d6a5",
+    "src/sync-engine/reconcile/execute.js": "dde46cf8a95829e907b0631373952e1aa7c1f589d05a6334c52e0507dc89751e",
     "src/sync-engine/reconcile/first-bind.js": "b707155ff13d07414bb2ddfa3fdbe35544ada9af3ce1b3c7c2cd12c2841a3aba",
     "src/sync-engine/reconcile/legacy-import.js": "c77eaba92ed424d84ae8b16743f382b5cb0e06a54f28500be1a32c8663b88b76",
     "src/sync-engine/reconcile/session-runner.js": "b3ed6bab043e0fc13b71c373d0181d3d0a281403c7ab25ec882dcd3d9a68a28a",

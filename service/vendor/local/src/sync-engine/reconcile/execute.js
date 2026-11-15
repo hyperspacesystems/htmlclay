@@ -67,9 +67,11 @@ function dirOf(rel) {
   return dir === '.' ? '' : dir;
 }
 
+// A node id is all digits. A record keyed by its path ("11-notes.html") has
+// none, and must never be read as node 11.
 function idOf(nodeId) {
-  const id = parseInt(nodeId, 10);
-  return Number.isNaN(id) ? null : id;
+  const text = String(nodeId ?? '');
+  return /^\d+$/.test(text) ? Number(text) : null;
 }
 
 async function localPathFor(engine, rel) {
@@ -625,7 +627,9 @@ async function removeCopy(engine, record) {
  * @param {{path:string, choice:'mine'|'theirs'}} input
  * @returns {Promise<{ok:boolean, error?:string}>}
  */
-const KEEP_BOTH_KINDS = new Set([store.KINDS.BOTH_EDITED, store.KINDS.REJECTED]);
+// An unbound file (one already here when the folder was linked) keeps a server
+// copy too, and linking promises that nothing is lost either way.
+const KEEP_BOTH_KINDS = new Set([store.KINDS.BOTH_EDITED, store.KINDS.REJECTED, store.KINDS.UNBOUND]);
 
 async function conflictedCopyPath(engine, rel) {
   const remote = new Set((engine.serverNodesCache || []).map(n => (n.path ? `${n.path}/${n.name}` : n.name)));
@@ -713,6 +717,9 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
       modifiedAt,
     });
     const etag = created.etag || created.checksum || localChecksum;
+    // The deleted node's entry goes: left beside the new one, it would claim the
+    // same path and send later saves to a node that no longer exists.
+    if (known && String(created.id) !== String(found.key)) await engine.repo.delete(found.key);
     await saveEntry(engine, created.id, null, {
       remoteEtag: etag,
       localChecksum: etag,

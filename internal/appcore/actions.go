@@ -212,7 +212,7 @@ var conflictChoices = map[string][]string{
 	"both-edited":    {"mine", "theirs", "both"},
 	"rejected":       {"mine", "theirs", "both"},
 	"remote-deleted": {"mine", "theirs"},
-	"unbound":        {"mine", "theirs"},
+	"unbound":        {"mine", "theirs", "both"},
 	"name-taken":     {"mine"},
 }
 
