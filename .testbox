@@ -64,4 +64,4 @@ TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 MANAGED_TRIAL_
 TESTBOX_TIMEOUT=${TESTBOX_TIMEOUT:-45m}
 # The sync soak's seed (08-sync.md 8.50): SOAK_SEED=<absolute archive> ships one
 # archive to the same path on the box, for `node scripts/soak-sync.mjs --seed "$SOAK_SEED"`.
-[ -n "${SOAK_SEED:-}" ] && TESTBOX_EXTRA_FILES+=("$SOAK_SEED")
+if [ -n "${SOAK_SEED:-}" ]; then TESTBOX_EXTRA_FILES+=("$SOAK_SEED"); fi
