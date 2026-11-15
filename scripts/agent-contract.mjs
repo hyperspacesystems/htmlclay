@@ -28,7 +28,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { READY_TIMEOUT_MS, STOP_TIMEOUT_MS, freePort } from './served-product.mjs';
+import { freePort, shellRequest, startShellHost } from './served-product.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixtures = path.join(repo, 'scripts', 'agent-contract');
@@ -149,71 +149,13 @@ function tail(file, lines = 40) {
   }
 }
 
-// The host as the Mac app starts it: the secret on stdin, the READY line on
-// stdout, and stdin held open, because its end is what shuts the host down.
-async function startHost(bin, world) {
-  const secret = randomBytes(32).toString('hex');
-  const child = spawn(bin, ['--shell-stdin'], {
-    cwd: world.root,
-    env: environment(world.home, { HTMLCLAY_OPEN_LOG: world.openLog }),
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  const gone = new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })));
-  child.stdin.on('error', () => {});
-  child.stdin.write(`${JSON.stringify({ v: 1, secret })}\n`);
-
-  let scan = '';
-  const ready = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`the host printed no READY line within ${READY_TIMEOUT_MS}ms; its last lines:\n${tail(world.hostLog)}`));
-    }, READY_TIMEOUT_MS);
-    const finish = (error, value) => {
-      clearTimeout(timer);
-      if (error) reject(error);
-      else resolve(value);
-    };
-    child.stdout.on('data', (chunk) => {
-      const text = chunk.toString('utf8');
-      appendFileSync(world.hostLog, text);
-      scan += text;
-      const line = scan.split('\n').find((entry) => entry.startsWith('READY ') || entry.startsWith('FAILED '));
-      if (!line || !scan.includes(`${line}\n`)) return;
-      if (line.startsWith('FAILED ')) finish(new Error(`the host refused to start: ${line}`));
-      else finish(null, JSON.parse(line.slice('READY '.length)));
-    });
-    child.stderr.on('data', (chunk) => appendFileSync(world.hostLog, chunk.toString('utf8')));
-    gone.then(({ code, signal }) => finish(new Error(`the host exited before it was ready (${signal ?? `exit ${code}`}):\n${tail(world.hostLog)}`)));
-  });
-
-  const stop = async () => {
-    if (exited(child)) return;
-    child.stdin.end();
-    if (await Promise.race([gone, wait(STOP_TIMEOUT_MS).then(() => null)])) return;
-    child.kill('SIGKILL');
-    await gone;
-  };
-  return { ready, secret, stop };
+// The host as the Mac app starts it (served-product.mjs startShellHost).
+function startHost(bin, world) {
+  return startShellHost({ bin, cwd: world.root, env: environment(world.home, { HTMLCLAY_OPEN_LOG: world.openLog }), log: world.hostLog });
 }
 
-// One action on the host's private listener, the way the Mac app sends it. Not
-// fetch: Node's fetch adds Sec-Fetch-Mode, and that listener refuses any request
-// carrying a header a browser sends.
 function shellAction(host, id, type, args) {
-  const body = JSON.stringify({ id, type, args });
-  return new Promise((resolve, reject) => {
-    const request = http.request(`${host.ready.shell}/shell/v1/actions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${host.secret}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-      timeout: CALL_TIMEOUT_MS,
-    }, (response) => {
-      const chunks = [];
-      response.on('data', (chunk) => chunks.push(chunk));
-      response.on('end', () => resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString('utf8') }));
-    });
-    request.on('timeout', () => request.destroy(new Error(`${type} got no answer`)));
-    request.on('error', reject);
-    request.end(body);
-  });
+  return shellRequest(host, 'POST', '/shell/v1/actions', { id, type, args }, CALL_TIMEOUT_MS);
 }
 
 function connections(trace) {

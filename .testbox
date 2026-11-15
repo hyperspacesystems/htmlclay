@@ -57,7 +57,8 @@ fi
 # set, so they run here as a second step. MANAGED_TRIAL_LOCAL_SOURCE points the served host's golden
 # tests at the Hyperclay Local commit they were recorded from (scripts/served-golden-local.sh), so
 # they run instead of skipping. The last step builds the Linux service blob (service/build.mjs) and
-# runs the packaged-folder check and the app against it. The service's own Node tests run before it. The goldens name versions in the recorder's time zone,
+# runs the packaged-folder check and the app against it. The service's own Node tests and the sync
+# product driver's test (08-sync.md 8.27) run before it. The goldens name versions in the recorder's time zone,
 # America/New_York, so the tests run in it. Linux builds ship with CGO_ENABLED=0.
-TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 MANAGED_TRIAL_LOCAL_SOURCE=$HOME/served-golden-local HTMLCLAY_SYNC_LOCAL=$HOME/sync-local TZ=America/New_York && go test ./... -count=1 && go test -tags managedtrial ./internal/served/ -count=1 && (cd service && node --test test/*.test.cjs) && bash cmd/managed-trial/release-contents.sh && node service/build.mjs --goos linux --goarch amd64 && go test -tags service_bundle ./internal/service/ ./cmd/htmlclay/ -run '"'"'TestInstall|TestExtracted|TestServiceBundled|TestServiceStarts'"'"' -count=1 -v'
+TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 MANAGED_TRIAL_LOCAL_SOURCE=$HOME/served-golden-local HTMLCLAY_SYNC_LOCAL=$HOME/sync-local TZ=America/New_York && go test ./... -count=1 && go test -tags managedtrial ./internal/served/ -count=1 && (cd service && node --test test/*.test.cjs) && node --test scripts/tests/sync-product-driver.test.mjs && bash cmd/managed-trial/release-contents.sh && node service/build.mjs --goos linux --goarch amd64 && go test -tags service_bundle ./internal/service/ ./cmd/htmlclay/ -run '"'"'TestInstall|TestExtracted|TestServiceBundled|TestServiceStarts'"'"' -count=1 -v'
 TESTBOX_TIMEOUT=${TESTBOX_TIMEOUT:-45m}
