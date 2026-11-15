@@ -1008,8 +1008,14 @@ func TestShellStdin(t *testing.T) {
 		if err := json.Unmarshal(body, &outcome); err != nil {
 			t.Fatalf("decode the answer: %v\n%s", err, body)
 		}
-		if response.StatusCode != http.StatusConflict || outcome.Ok || outcome.Error.Code != appcore.RefuseNotYet {
-			t.Fatalf("prefs.set openAtLogin = %d %s, want a %q refusal", response.StatusCode, body, appcore.RefuseNotYet)
+		if response.StatusCode != http.StatusOK || !outcome.Ok {
+			t.Fatalf("prefs.set openAtLogin = %d %s, want done", response.StatusCode, body)
+		}
+		var saved struct {
+			StartOnLogin bool `json:"startOnLogin"`
+		}
+		if data, err := os.ReadFile(filepath.Join(base, "htmlclay", "config.json")); err != nil || json.Unmarshal(data, &saved) != nil || !saved.StartOnLogin {
+			t.Fatalf("config.json does not record startOnLogin=true after prefs.set (err %v)", err)
 		}
 		if _, err := os.Stat(launchAgents); err == nil {
 			t.Fatalf("%s exists after prefs.set; a host the Mac app started must not write the login item", launchAgents)

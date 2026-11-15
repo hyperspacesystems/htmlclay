@@ -741,13 +741,16 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 		a.saveConfig("preference appearance")
 		return nil
 	case "openAtLogin":
-		// The Mac app takes over Open at Login in milestone 7; until then a host it started never writes the login item.
-		if a.shell {
-			return &appcore.Refusal{Code: appcore.RefuseNotYet}
-		}
 		var on bool
 		if json.Unmarshal(e.Value, &on) != nil {
 			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+		}
+		// The Mac app owns the login item (CR-5): a host it started, or any host inside
+		// its bundle, records the choice and the app's reconciler applies it.
+		if _, mac := bundledMacHost(); a.shell || mac {
+			a.rt.cfg.SetStartOnLogin(on)
+			a.saveConfig("preference openAtLogin")
+			return nil
 		}
 		if err := a.setLoginItem(on); err != nil {
 			a.rt.logger.Printf("Could not set Start on Login: %v", err)
