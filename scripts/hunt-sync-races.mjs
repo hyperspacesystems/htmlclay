@@ -249,7 +249,7 @@ async function runCase(name, offset, { out, built, breakCase }) {
     if (half.length) problems.push(`half files ${half.join(', ')}`);
     if (after.length) problems.push(`folder and server differ at ${JSON.stringify(after.slice(0, 3))}`);
     const stray = conflicts.filter((c) => !result.mayConflict.includes(c.path));
-    if (stray.length) problems.push(`conflicts with no reason: ${stray.map((c) => c.path).join(', ')}`);
+    if (stray.length) problems.push(`conflicts with no reason: ${stray.map((c) => `${c.path} (${c.kind}${c.reason ? `, ${c.reason}` : ''})`).join(', ')}`);
     if (most > 1) problems.push(`${most} services ran at once`);
     if (result.rule) {
       const verdict = result.rule(conflicts);
