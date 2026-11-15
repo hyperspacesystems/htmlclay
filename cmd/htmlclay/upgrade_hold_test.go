@@ -92,3 +92,45 @@ func TestStartupHoldsSavesWhileUnjudged(t *testing.T) {
 		t.Fatalf("a save during the trial wrote config.json (stat err %v)", err)
 	}
 }
+
+// TestUpdateHandoffOutlivesTheTrial: during an update's trial the new version
+// restores the handoff but leaves the file for the previous version's
+// supervisor, which reads it on a rollback. A kept update removes it; a rolled
+// back one leaves it; a launch outside a trial removes it on read as before.
+func TestUpdateHandoffOutlivesTheTrial(t *testing.T) {
+	for _, tc := range []struct {
+		name, before, verdict string
+		afterRestore, afterSettle bool
+	}{
+		{"kept", update.PhaseApplying, update.PhaseDone, true, false},
+		{"rolled back", update.PhaseApplying, update.PhaseRolledBack, true, true},
+		{"no trial", "", "", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := newTestAppWithConfigDir(t, t.TempDir(), t.TempDir())
+			t.Cleanup(a.shutdown)
+			path := filepath.Join(a.rt.configDir, updateHandoffFile)
+			if err := os.MkdirAll(a.rt.configDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(`{"schema":0}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if tc.before != "" {
+				writeUpdateState(t, a.rt.configDir, tc.before)
+			}
+			_, _ = a.restoreUpdateHandoff(path)
+			if _, err := os.Stat(path); (err == nil) != tc.afterRestore {
+				t.Fatalf("after restore: file present = %v, want %v", err == nil, tc.afterRestore)
+			}
+			if tc.verdict == "" {
+				return
+			}
+			writeUpdateState(t, a.rt.configDir, tc.verdict)
+			a.settleUpgradeSave()
+			if _, err := os.Stat(path); (err == nil) != tc.afterSettle {
+				t.Fatalf("after the %s verdict: file present = %v, want %v", tc.verdict, err == nil, tc.afterSettle)
+			}
+		})
+	}
+}

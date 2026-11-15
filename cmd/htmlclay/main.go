@@ -857,7 +857,8 @@ func (a *app) holdSavesWhileUnjudged() {
 }
 
 // settleUpgradeSave waits up to 10 s for the verdict. On done the held changes are
-// saved; on a rollback, or no verdict, they stay in memory only.
+// saved and the update handoff is removed; on a rollback, or no verdict, the
+// changes stay in memory only and the handoff stays for the previous version.
 func (a *app) settleUpgradeSave() {
 	dir := update.UpdatesDir(a.rt.configDir)
 	for i := 0; i < 40 && update.Unjudged(dir); i++ {
@@ -867,6 +868,9 @@ func (a *app) settleUpgradeSave() {
 	write := st == nil || (st.Phase != update.PhaseRolledBack && st.Phase != update.PhaseApplying)
 	if err := a.rt.cfg.ReleaseSaves(write); err != nil {
 		a.rt.logger.Printf("config save after the update verdict failed: %v", err)
+	}
+	if write {
+		a.removeUpdateHandoff(filepath.Join(a.rt.configDir, updateHandoffFile))
 	}
 }
 

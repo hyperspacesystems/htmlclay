@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/update"
 	"os"
 	"path/filepath"
 	"time"
@@ -176,8 +177,11 @@ func (a *app) restoreUpdateHandoff(path string) (int, error) {
 	if errors.Is(err, os.ErrNotExist) {
 		return 0, nil
 	}
-	if rmErr := os.Remove(path); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
-		a.rt.logger.Printf("Could not delete the update handoff %s: %v", path, rmErr)
+	// While an update is judged, the previous version's supervisor may still need
+	// the file to hand the tabs back on a rollback, and it may read it after this
+	// process starts: settleUpgradeSave removes it once the update is kept.
+	if !update.Unjudged(update.UpdatesDir(a.rt.configDir)) {
+		a.removeUpdateHandoff(path)
 	}
 	if err != nil {
 		return 0, fmt.Errorf("cannot read the update handoff: %w", err)
@@ -209,6 +213,13 @@ func (a *app) restoreUpdateHandoff(path string) (int, error) {
 	}
 	a.rt.logger.Printf("Update handoff %s restored %d registration(s)", h.Transaction, restored)
 	return restored, nil
+}
+
+// removeUpdateHandoff deletes the handoff file; a file already gone is fine.
+func (a *app) removeUpdateHandoff(path string) {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		a.rt.logger.Printf("Could not delete the update handoff %s: %v", path, err)
+	}
 }
 
 // restoreHandoffSite brings one site back and returns how many of its
