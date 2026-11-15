@@ -15,11 +15,14 @@ if [ "$(~/.local/go/bin/go env GOVERSION 2>/dev/null)" != "go$v" ]; then
 fi
 mkdir -p ~/.local/bin
 ln -sf ~/.local/go/bin/go ~/.local/go/bin/gofmt ~/.local/bin/
+# The Secret Service test (internal/secret) starts a private session bus, and
+# scripts/sync-pair-box.sh traces the packaged service with strace.
+{ command -v dbus-daemon && command -v strace; } >/dev/null || { sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq dbus strace; } >/dev/null 2>&1
 npm ci --no-audit --no-fund
 (cd service && npm ci --ignore-scripts --no-audit --no-fund)
 bash scripts/served-golden-local.sh ~/served-golden-local
 # The service'"'"'s sync tests run Local'"'"'s engine against its fake server (trial/fake-sync-http.cjs).
-sync_local=18a4eac89d7dec65a95587f1690314630a072f13
+sync_local=c9eb3ef87da851534aaa91f66433907a633cf2c8
 if [ "$(cat ~/sync-local/.commit 2>/dev/null)" != "$sync_local" ]; then
   rm -rf ~/sync-local && mkdir -p ~/sync-local
   git -C ~/sync-local init -q

@@ -79,6 +79,11 @@ type appRuntime struct {
 	syncActionMu sync.Mutex
 	syncMu       sync.Mutex
 	syncRecord   *config.Sync
+	// syncHeld is whether a sync key is held, and syncConnecting counts connects
+	// in progress: either keeps the service running with no folder served, since
+	// sync runs inside it (serviceRunner.want).
+	syncHeld       atomic.Bool
+	syncConnecting atomic.Int32
 	// syncLast is the service's last sync report (C4), nil until one arrives.
 	syncLast *served.SyncReport
 	// syncWantedMu keeps configure sends one at a time (sendSyncWanted).
@@ -619,6 +624,11 @@ func (a *app) startRuntime() {
 	a.rt.portCandidates = defaultPorts
 
 	a.rt.syncStore = a.openSyncStore()
+	a.rt.syncMu.Lock()
+	if _, err := a.syncRecordLocked(); err != nil {
+		a.rt.logger.Printf("sync.json could not be read: %v", err)
+	}
+	a.rt.syncMu.Unlock()
 	a.service = newServiceRunner(a)
 
 	a.rt.logger.Printf("Runtime ready (home=%s)", a.rt.home)

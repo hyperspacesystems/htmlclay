@@ -25,6 +25,17 @@ type Refusal struct {
 	// Text is the sentence to show instead of the one copy.go gives Code, for a
 	// refusal made from a folder rule's reason.
 	Text string
+	// Counts is what syncing into a folder that has files would do, for
+	// confirm-needed: the person sees it and sends the action again confirmed.
+	Counts *SyncCounts
+}
+
+// SyncCounts is a first sync of an existing folder: files going up, files coming
+// down, and files on both sides that differ, which are kept both ways.
+type SyncCounts struct {
+	ToUpload   int `json:"toUpload"`
+	ToDownload int `json:"toDownload"`
+	Differ     int `json:"differ"`
 }
 
 const (
@@ -71,6 +82,9 @@ const (
 	RefuseSyncServerUpdate = "sync-server-update"
 	// RefuseSyncFolderNotEmpty is a team's first sync into a folder that has files.
 	RefuseSyncFolderNotEmpty = "sync-folder-not-empty"
+	// RefuseConfirmNeeded is syncing into a folder that has files, before the
+	// person has seen what it will do (its Counts).
+	RefuseConfirmNeeded = "confirm-needed"
 	// RefuseServiceNeeded is a sync action with no live-room service running:
 	// sync runs inside it, and it runs while a folder is served.
 	RefuseServiceNeeded = "service-needed"

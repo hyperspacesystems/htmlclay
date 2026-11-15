@@ -155,8 +155,10 @@ type Effect struct {
 	Route      string          `json:"route,omitempty"`
 	Username   string          `json:"username,omitempty"`
 	Force      bool            `json:"force,omitempty"`
-	// Existing is folder.setUpTeam syncing into a folder that already has files.
-	Existing bool `json:"existing,omitempty"`
+	// Existing is folder.setUpTeam syncing into a folder that already has files;
+	// Confirmed is the person having seen what that will do.
+	Existing  bool `json:"existing,omitempty"`
+	Confirmed bool `json:"confirmed,omitempty"`
 	// Acknowledged is what the sheet showed about the file or the folder: a code
 	// the effect finds and this list does not hold refuses needs-confirmation.
 	Acknowledged []string `json:"acknowledged,omitempty"`
@@ -185,6 +187,7 @@ type actionArgs struct {
 	FolderIDs   []string        `json:"folderIDs"`
 	Destination string          `json:"destination"`
 	Existing    bool            `json:"existing"`
+	Confirmed   bool            `json:"confirmed"`
 	// Acknowledged is the warnings a sheet showed, for the two actions that
 	// register a program file, for a folder relink, and for trusting a folder.
 	Acknowledged []string `json:"acknowledged"`
@@ -462,7 +465,7 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if args.Path == "" {
 			return nil, &Refusal{Code: RefuseBadArguments, Field: "path"}
 		}
-		return one(Effect{Type: a.Type, FolderID: ff.ID, Path: args.Path, Existing: args.Existing})
+		return one(Effect{Type: a.Type, FolderID: ff.ID, Path: args.Path, Existing: args.Existing, Confirmed: args.Confirmed})
 	case "move.start":
 		if f.Move == nil || f.Move.State != MoveOffered {
 			return nil, &Refusal{Code: RefuseNothingToMove}

@@ -11,8 +11,8 @@
 //
 // Usage: main.cjs --data-dir <absolute dir>
 // The data dir is the only place the service may keep files of its own: sync's
-// metadata and logs, under <data dir>/sync. Every write in a served folder goes
-// through Go.
+// metadata (<data dir>/sync-meta) and logs (<data dir>/logs). Every write in a
+// served folder goes through Go.
 //
 // Exit codes: 0 after end of stdin, 2 for bad arguments, 3 for a bad bootstrap line
 // or a failure while running.
@@ -62,7 +62,7 @@ async function run(dataDir) {
     throw new BootstrapError('the bootstrap line needs v 1 and a 64-hex secret');
   }
   const service = createTrialService({ secret: boot.secret });
-  const sync = createSync({ gate: installGate(), service, dataDir: path.join(dataDir, 'sync') });
+  const sync = createSync({ gate: installGate(), service, dataDir });
   keepUnsavedEdits(service);
   // The bundle's bootstrap type carries appVersion but nothing reads it.
   const shell = mountShell(service, { appVersion: '' });

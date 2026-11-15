@@ -116,7 +116,7 @@ func (a *app) handleInstanceCommand(cmd string) string {
 		return a.handleServeCommand(fields[1:])
 	case "stop-serving":
 		return a.handleStopServingCommand(fields[1:])
-	case "sync-connect", "sync-disconnect", "sync-pause", "sync-resume":
+	case "sync-connect", "sync-disconnect", "sync-pause", "sync-resume", "sync-preview", "sync-setup":
 		return a.handleSyncCommand(fields[0], fields[1:])
 	}
 	return "refused unknown command"

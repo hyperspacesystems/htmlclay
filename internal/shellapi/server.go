@@ -257,6 +257,9 @@ func errorBody(r *appcore.Refusal) map[string]any {
 	if len(r.Documents) > 0 {
 		body["documents"] = r.Documents
 	}
+	if r.Counts != nil {
+		body["counts"] = r.Counts
+	}
 	return body
 }
 

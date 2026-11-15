@@ -370,7 +370,8 @@ func (r *serviceRunner) roots() []service.Root {
 	return roots
 }
 
-// want tells the machine whether any folder is served now.
+// want tells the machine whether the service is needed now: a folder is served,
+// a sync key is held, or a connect is waiting for it.
 func (r *serviceRunner) want() {
 	if !r.enabled() {
 		return
@@ -378,6 +379,7 @@ func (r *serviceRunner) want() {
 	r.a.servedMu.RLock()
 	on := len(r.a.servedByName) > 0
 	r.a.servedMu.RUnlock()
+	on = on || r.a.rt.syncHeld.Load() || r.a.rt.syncConnecting.Load() > 0
 	r.step(service.Event{Kind: service.Want, On: on})
 }
 

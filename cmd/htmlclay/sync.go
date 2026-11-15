@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,12 +26,20 @@ import (
 // syncKeyName is the sync key's item name in the secret store.
 const syncKeyName = "sync-key"
 
-// defaultSyncServer is where sync goes. HTMLCLAY_SYNC_SERVER points a test at a
-// stand-in; the service accepts plain http only on loopback.
+// defaultSyncServer is where sync goes, fixed in the build: an override a shipped
+// binary honoured would let anything that can set an environment variable send
+// the key elsewhere. Tests in this package set syncServerForTest; only a binary
+// built with the tag synctest also reads an address from its environment
+// (sync_server_synctest.go). The service accepts plain http only on loopback.
 const defaultSyncServer = "https://hyperclay.com"
 
+var syncServerForTest string
+
 func syncServerURL() string {
-	if v := os.Getenv("HTMLCLAY_SYNC_SERVER"); v != "" {
+	if syncServerForTest != "" {
+		return syncServerForTest
+	}
+	if v := syncServerFromBuild(); v != "" {
 		return v
 	}
 	return defaultSyncServer
@@ -124,8 +133,27 @@ func (a *app) syncRecordLocked() (*config.Sync, error) {
 			return nil, err
 		}
 		a.rt.syncRecord = record
+		a.rt.syncHeld.Store(record.Account != nil)
 	}
 	return a.rt.syncRecord, nil
+}
+
+// startServiceForSync asks for the service while a connect holds syncConnecting
+// and waits for it to run, or answers nil when this build has none or it does not
+// start in time.
+func (a *app) startServiceForSync() *service.Process {
+	if !a.service.enabled() {
+		return nil
+	}
+	a.service.want()
+	deadline := time.Now().Add(serviceSpawnTimeout)
+	for time.Now().Before(deadline) {
+		if proc := a.runningService(); proc != nil {
+			return proc
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return nil
 }
 
 // runningService answers the live-room service process when it is running, or
@@ -157,7 +185,17 @@ func (a *app) connectSyncKey(ctx context.Context, e appcore.Effect) *appcore.Ref
 		a.rt.logger.Printf("Could not connect sync: there is no secret store")
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
+	// A first connect may come before any folder is served, when the service is
+	// not running: it starts for the connect and stays while the key is held.
+	a.rt.syncConnecting.Add(1)
+	defer func() {
+		a.rt.syncConnecting.Add(-1)
+		a.service.want()
+	}()
 	proc := a.runningService()
+	if proc == nil {
+		proc = a.startServiceForSync()
+	}
 	if proc == nil {
 		return &appcore.Refusal{Code: appcore.RefuseServiceNeeded}
 	}
@@ -231,6 +269,7 @@ func (a *app) connectSyncKey(ctx context.Context, e appcore.Effect) *appcore.Ref
 		ConnectedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	record.KeyRefused = nil
+	a.rt.syncHeld.Store(true)
 	record.Accounts = a.mergeAccountRows(record.Accounts, found)
 	if err := record.Save(); err != nil {
 		a.rt.logger.Printf("Could not connect sync: sync.json: %v", err)
@@ -275,6 +314,8 @@ func (a *app) mergeAccountRows(previous []config.SyncAccountRow, found syncDisco
 // forgets it, and the account goes. Every session row stays, switched off, so
 // each folder's marker stays known for a later reconnect.
 func (a *app) disconnectSync() *appcore.Refusal {
+	// With no folder served, the service is no longer needed once the key is gone.
+	defer a.service.want()
 	a.rt.syncActionMu.Lock()
 	defer a.rt.syncActionMu.Unlock()
 	if proc := a.runningService(); proc != nil {
@@ -298,6 +339,7 @@ func (a *app) disconnectSync() *appcore.Refusal {
 	}
 	record.Account = nil
 	record.KeyRefused = nil
+	a.rt.syncHeld.Store(false)
 	for i := range record.SyncSessions {
 		record.SyncSessions[i].Enabled = false
 	}
@@ -312,12 +354,12 @@ func (a *app) disconnectSync() *appcore.Refusal {
 // team rows as folders not on this computer, and the events sync owes the
 // person (a team to set up, a refused key). A sync.json this build cannot read
 // reads as not connected.
-func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.EventFact) {
+func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.EventFact, map[string]syncedFolder) {
 	a.rt.syncMu.Lock()
 	defer a.rt.syncMu.Unlock()
 	record, err := a.syncRecordLocked()
 	if err != nil || record.Account == nil {
-		return appcore.SyncFacts{}, nil, nil
+		return appcore.SyncFacts{}, nil, nil, nil
 	}
 	facts := appcore.SyncFacts{
 		Connected: true,
@@ -326,12 +368,29 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 		KeySuffix: record.Account.KeySuffix,
 		Paused:    record.Paused,
 	}
-	bound := make(map[int64]bool, len(record.SyncSessions))
+	// A session row puts its account's folder on this computer, synced or stopped:
+	// that folder is listed from the config, so the row is not listed again.
+	onComputer := make(map[string]bool, len(record.SyncSessions))
+	enabled := make(map[string]bool, len(record.SyncSessions))
+	pausedRow := make(map[string]string, len(record.SyncSessions))
 	for _, session := range record.SyncSessions {
-		if session.Enabled {
-			bound[session.AccountID] = true
+		onComputer[session.RootID] = true
+		enabled[session.RootID] = enabled[session.RootID] || session.Enabled
+		if session.Paused != nil {
+			pausedRow[session.RootID] = session.Paused.Reason
 		}
 	}
+	reported := make(map[string]served.SyncSessionReport)
+	if a.rt.syncLast != nil {
+		for _, session := range a.rt.syncLast.Sessions {
+			reported[session.RootID] = session
+			facts.SyncingFiles += session.PendingCount
+			if at := syncTime(session.LastSyncAt); at != nil && (facts.LastFinishedAt == nil || at.After(*facts.LastFinishedAt)) {
+				facts.LastFinishedAt = at
+			}
+		}
+	}
+	synced := make(map[string]syncedFolder, len(onComputer))
 	var folders []appcore.FolderFact
 	var events []appcore.EventFact
 	for _, row := range record.Accounts {
@@ -340,12 +399,46 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 		if team && viewer {
 			facts.ViewOnlyTeams++
 		}
-		if bound[row.AccountID] {
-			continue
-		}
 		origin := appcore.Origin{Kind: appcore.OriginAccount, Username: row.Username}
 		if team {
 			origin = appcore.Origin{Kind: appcore.OriginTeam, Username: record.Account.Username, Team: row.Username}
+		}
+		if onComputer[row.FolderID] {
+			report, hasReport := reported[row.FolderID]
+			reason := pausedRow[row.FolderID]
+			if hasReport {
+				if pause := syncPauseReason(report.Paused); pause != "" {
+					reason = pause
+				}
+			}
+			state := appcore.FolderSyncUpToDate
+			switch {
+			case !enabled[row.FolderID]:
+				state = appcore.FolderSyncOff
+			case record.Paused || reason != "":
+				state = appcore.FolderSyncPaused
+			case hasReport && report.Conflicts > 0:
+				state = appcore.FolderSyncConflicts
+			case hasReport && (report.Status == "syncing" || report.PendingCount > 0):
+				state = appcore.FolderSyncSyncing
+			}
+			folderSync := appcore.FolderSync{State: state, Role: row.Role}
+			if hasReport {
+				folderSync.LastFinishedAt = syncTime(report.LastSyncAt)
+			}
+			synced[row.FolderID] = syncedFolder{Enabled: enabled[row.FolderID], Origin: origin, Viewer: viewer, Sync: folderSync}
+			name := row.DisplayName
+			if name == "" {
+				name = row.Username
+			}
+			// A file too big for the plan waits for the person once per folder. A
+			// missing folder is already a waiting item from the folder facts (the disk
+			// check), so its pause only sets the state here; a revoked key is one item
+			// for the whole app, below, however many folders it paused.
+			if enabled[row.FolderID] && hasReport && report.Blocked > 0 {
+				events = append(events, appcore.EventFact{ID: "fileTooBig:" + row.FolderID, Kind: appcore.WaitingFileTooBig, SubjectID: row.FolderID, Name: name, Detail: strconv.Itoa(report.Blocked)})
+			}
+			continue
 		}
 		name := row.DisplayName
 		if name == "" {
@@ -365,7 +458,39 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 	if record.KeyRefused != nil {
 		events = append(events, appcore.EventFact{ID: "syncKeyRefused:" + record.KeyRefused.Since, Kind: appcore.WaitingSyncKeyRefused})
 	}
-	return facts, folders, events
+	return facts, folders, events, synced
+}
+
+// syncedFolder is what sync knows about a folder on this computer that has a
+// session row: whether it syncs now, and the account it belongs to.
+type syncedFolder struct {
+	Enabled bool
+	Origin  appcore.Origin
+	Viewer  bool
+	Sync    appcore.FolderSync
+}
+
+// syncTime reads a report's ISO time, or nil.
+func syncTime(value *string) *time.Time {
+	if value == nil {
+		return nil
+	}
+	at, err := time.Parse(time.RFC3339Nano, *value)
+	if err != nil {
+		return nil
+	}
+	return &at
+}
+
+// syncPauseReason reads a report's paused field: null, or {"reason": "…"}.
+func syncPauseReason(raw json.RawMessage) string {
+	var pause struct {
+		Reason string `json:"reason"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &pause) != nil {
+		return ""
+	}
+	return pause.Reason
 }
 
 // setSyncPaused is sync.setPaused: the switch every session follows. Sessions
@@ -549,4 +674,37 @@ func (a *app) takeSyncReport(report served.SyncReport) {
 	if stop {
 		go a.sendSyncWanted()
 	}
+}
+
+// setFolderSynced is folder.setSynced: off keeps the folder's session row with
+// enabled false, so its held conflicts and its metadata stay for a later on; on
+// turns the same row back on. Neither ever binds: the folder's files are already
+// there, and the session starts with an ordinary comparison.
+func (a *app) setFolderSynced(folderID string, on bool) *appcore.Refusal {
+	a.rt.syncMu.Lock()
+	record, err := a.syncRecordLocked()
+	if err != nil {
+		a.rt.syncMu.Unlock()
+		a.rt.logger.Printf("Could not change sync for folder %s: sync.json: %v", folderID, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	found := false
+	for i := range record.SyncSessions {
+		if record.SyncSessions[i].RootID == folderID {
+			record.SyncSessions[i].Enabled = on
+			found = true
+		}
+	}
+	if !found {
+		a.rt.syncMu.Unlock()
+		return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow, SubjectID: folderID}
+	}
+	err = record.Save()
+	a.rt.syncMu.Unlock()
+	if err != nil {
+		a.rt.logger.Printf("Could not change sync for folder %s: sync.json: %v", folderID, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	a.sendSyncWanted()
+	return nil
 }

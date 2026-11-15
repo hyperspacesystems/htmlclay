@@ -27,10 +27,10 @@ function stubGo(t) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`)));
 }
 
-async function startService(t, { attach = true, go = null, roots = [] } = {}) {
+async function startService(t, { attach = true, go = null, roots = [], env = {} } = {}) {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-roots-')));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
-  const child = spawn(process.execPath, [MAIN, '--data-dir', path.join(tmp, 'data')], { stdio: ['pipe', 'pipe', 'inherit'] });
+  const child = spawn(process.execPath, [MAIN, '--data-dir', path.join(tmp, 'data')], { stdio: ['pipe', 'pipe', 'inherit'], env: { ...process.env, ...env } });
   t.after(() => child.exitCode === null && child.kill('SIGKILL'));
   let out = '';
   child.stdout.on('data', (b) => { out += b; });

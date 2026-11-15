@@ -67,13 +67,19 @@ func TestM4SetUpFolder(t *testing.T) {
 	t.Setenv("HTMLCLAY_STUB_BIND_LOG", bindLog)
 	t.Setenv("HTMLCLAY_STUB_BIND_HOLD", hold)
 	t.Setenv("HTMLCLAY_STUB_BIND", answer)
-	a, _, _ := connectTestApp(t, true)
+	preview := filepath.Join(scratch, "preview")
+	t.Setenv("HTMLCLAY_STUB_PREVIEW", preview)
+	a, setDiscovery, _ := connectTestApp(t, true)
+	setDiscovery(`{"ok":true,"actor":{"id":12,"username":"maya","fullName":"Maya Lin"},"accounts":[` +
+		`{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}},` +
+		`{"id":40,"kind":"team","username":"studio","displayName":"Studio","role":"editor","sync":{"enabled":true,"reason":null}},` +
+		`{"id":41,"kind":"team","username":"lab","displayName":"Lab","role":"editor","sync":{"enabled":true,"reason":null}}]}`)
 	if refusal := connectThroughDo(t, a, "c1", "", connectKeyOne); refusal != nil {
 		t.Fatalf("connect refused: %+v", refusal)
 	}
 	rows := savedSync(t, a).Accounts
-	personal, team := rows[0], rows[1]
-	if personal.Kind != "personal" || team.Kind != "team" || team.AccountID != 40 {
+	personal, team, lab := rows[0], rows[1], rows[2]
+	if personal.Kind != "personal" || team.Kind != "team" || team.AccountID != 40 || lab.AccountID != 41 {
 		t.Fatalf("fixture rows = %+v", rows)
 	}
 
@@ -159,19 +165,55 @@ func TestM4SetUpFolder(t *testing.T) {
 		}
 	})
 
+	t.Run("no upload before the person confirms", func(t *testing.T) {
+		writeTestFile(t, preview, `{"ok":true,"files":3,"bytes":30,"toUpload":2,"toDownload":1,"differ":1}`)
+		dir := filepath.Join(a.rt.home, "Maya")
+		writeTestFile(t, filepath.Join(dir, "notes.html"), "<p>mine</p>")
+		bindsBefore := len(bindsSent(t, bindLog))
+		_, refusal := a.do(context.Background(), coreAction(t, "s3", "folder.setUpTeam", map[string]any{"id": personal.FolderID, "path": dir, "existing": true}), ChannelTray)
+		if refusal == nil || refusal.Code != appcore.RefuseConfirmNeeded || refusal.Counts == nil ||
+			*refusal.Counts != (appcore.SyncCounts{ToUpload: 2, ToDownload: 1, Differ: 1}) {
+			t.Fatalf("refusal = %+v", refusal)
+		}
+		if got := len(bindsSent(t, bindLog)); got != bindsBefore {
+			t.Fatalf("a bind was sent before the person confirmed")
+		}
+		if _, ok := a.rt.cfg.ServedFolderByID(personal.FolderID); ok {
+			t.Fatal("the folder was served before the person confirmed")
+		}
+		for _, row := range savedSync(t, a).SyncSessions {
+			if row.RootID == personal.FolderID {
+				t.Fatalf("a row was added before the person confirmed: %+v", row)
+			}
+		}
+
+		_, refusal = a.do(context.Background(), coreAction(t, "s4", "folder.setUpTeam", map[string]any{"id": personal.FolderID, "path": dir, "existing": true, "confirmed": true}), ChannelTray)
+		if refusal != nil {
+			t.Fatalf("confirmed set up refused: %+v", refusal)
+		}
+		waitForBinds(t, a)
+		binds := bindsSent(t, bindLog)
+		if len(binds) != bindsBefore+1 || binds[len(binds)-1].Mode != "existing" || binds[len(binds)-1].Root.ID != personal.FolderID {
+			t.Fatalf("binds = %+v", binds[bindsBefore:])
+		}
+		if data, err := os.ReadFile(filepath.Join(dir, "notes.html")); err != nil || string(data) != "<p>mine</p>" {
+			t.Fatalf("the file changed: %q %v", data, err)
+		}
+	})
+
 	t.Run("a bind that cannot resume drops its row and stops serving, keeping the folder", func(t *testing.T) {
 		writeTestFile(t, answer, `{"ok":false,"error":"inventory-incomplete","resumable":false}`)
-		dir := filepath.Join(a.rt.home, "Maya")
-		if refusal := setUpThroughDo(t, a, "s3", personal.FolderID, dir); refusal != nil {
+		dir := filepath.Join(a.rt.home, "Lab")
+		if refusal := setUpThroughDo(t, a, "s5", lab.FolderID, dir); refusal != nil {
 			t.Fatalf("set up refused: %+v", refusal)
 		}
 		waitForBinds(t, a)
 		for _, row := range savedSync(t, a).SyncSessions {
-			if row.RootID == personal.FolderID {
+			if row.RootID == lab.FolderID {
 				t.Fatalf("the row stayed: %+v", row)
 			}
 		}
-		if served, ok := a.rt.cfg.ServedFolderByID(personal.FolderID); ok && served.Serving {
+		if served, ok := a.rt.cfg.ServedFolderByID(lab.FolderID); ok && served.Serving {
 			t.Fatalf("the folder is still served: %+v", served)
 		}
 		if info, err := os.Stat(dir); err != nil || !info.IsDir() {

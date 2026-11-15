@@ -102,6 +102,15 @@ func (a *app) setUpSyncFolder(e appcore.Effect) *appcore.Refusal {
 	if _, refusal := a.serveFacts(resolved, name); refusal != nil {
 		return refusal
 	}
+	// Syncing into files already there waits until the person has seen what it
+	// will do (8.21): until then nothing is trusted, served or bound.
+	if e.Existing && !e.Confirmed {
+		counts, refusal := a.previewExisting(row.AccountID, resolved)
+		if refusal != nil {
+			return refusal
+		}
+		return &appcore.Refusal{Code: appcore.RefuseConfirmNeeded, SubjectID: e.FolderID, Counts: counts}
+	}
 
 	identity := platform.DirIdentity(resolved)
 	if team {
@@ -163,6 +172,35 @@ func (a *app) setUpSyncFolder(e appcore.Effect) *appcore.Refusal {
 	a.rt.syncBinds.Add(1)
 	go a.runSyncBind(request)
 	return nil
+}
+
+// previewExisting asks the service what syncing account into the folder at path
+// would do. It reads the folder and the server and writes nothing.
+func (a *app) previewExisting(accountID int64, path string) (*appcore.SyncCounts, *appcore.Refusal) {
+	ctx, cancel := context.WithTimeout(context.Background(), syncCallTimeout)
+	defer cancel()
+	body := struct {
+		AccountID int64          `json:"accountId"`
+		Root      syncWantedRoot `json:"root"`
+	}{AccountID: accountID, Root: syncWantedRoot{Path: path}}
+	var answer struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error"`
+		appcore.SyncCounts
+	}
+	if err := a.served.CallService(ctx, "/sync/v1/preview", body, &answer); err != nil {
+		a.rt.logger.Printf("Could not count what syncing %s would do: %v", path, err)
+		return nil, &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	if !answer.OK {
+		if answer.Error == "offline" {
+			return nil, &appcore.Refusal{Code: appcore.RefuseSyncOffline}
+		}
+		a.rt.logger.Printf("Could not count what syncing %s would do: %s", path, answer.Error)
+		return nil, &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	counts := answer.SyncCounts
+	return &counts, nil
 }
 
 // runSyncBind asks the service for the first download and acts on its answer. A

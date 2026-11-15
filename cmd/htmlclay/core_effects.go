@@ -38,6 +38,8 @@ var implementedActions = []string{
 	"folder.reveal",
 	"folder.serve",
 	"folder.setFraming",
+	"folder.setSynced",
+	"folder.setUpTeam",
 	"folder.stopServing",
 	"folder.stopTrusting",
 	"folder.trust",
@@ -116,6 +118,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return nil
 	case "folder.setUpTeam":
 		return a.setUpSyncFolder(e)
+	case "folder.setSynced":
+		return a.setFolderSynced(e.FolderID, e.On)
 	case "folder.setFraming":
 		return a.setFolderAllowFraming(e)
 	case "folder.stopServing":

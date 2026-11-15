@@ -190,7 +190,16 @@ func (a *app) facts() appcore.Facts {
 	f.Requests = a.requestFacts()
 	f.Folders = a.folderFacts()
 	var syncFolders []appcore.FolderFact
-	f.Sync, syncFolders, f.Events = a.syncFacts()
+	var synced map[string]syncedFolder
+	f.Sync, syncFolders, f.Events, synced = a.syncFacts()
+	for i := range f.Folders {
+		if s, ok := synced[f.Folders[i].ID]; ok {
+			f.Folders[i].Synced = s.Enabled
+			f.Folders[i].Origin = s.Origin
+			f.Folders[i].Viewer = s.Viewer
+			f.Folders[i].Sync = s.Sync
+		}
+	}
 	f.Folders = append(f.Folders, syncFolders...)
 	f.Documents = a.documentFacts()
 	f.Programs = a.programFacts()

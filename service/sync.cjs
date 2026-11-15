@@ -8,6 +8,10 @@ const path = require('path');
 const { randomBytes } = require('crypto');
 const { getAccounts, listNodes } = require('./vendor/local/src/sync-engine/api-client.js');
 const { inventoryTotals } = require('./vendor/local/src/sync-engine/reconcile/first-bind.js');
+const { snapshotDisk } = require('./vendor/local/src/sync-engine/reconcile/disk-snapshot.js');
+const { isIgnoredRel } = require('./vendor/local/src/sync-engine/ignored-paths.js');
+const { calculateChecksum } = require('./vendor/local/src/sync-engine/utils.js');
+const fs = require('fs/promises');
 
 const KEY = /^hcsk_[0-9a-f]{64}$/;
 const PREFIX = '/sync/v1/';
@@ -23,12 +27,46 @@ const EVENT_ACTIONS = new Set(['download', 'upload', 'create', 'delete', 'reloca
 const REPORTED = ['status-changed', 'file-synced', 'sync-complete', 'sync-error', 'sync-failed', 'accounts', 'credentials-rejected'];
 const RETRY_MS = [1000, 2000, 5000, 10000, 30000];
 const SESSION_KINDS = new Set(['personal', 'team']);
+// Discovery runs again this often while sync is on, as Local's does, so a team
+// added or a plan changed online reaches this computer. A test shortens it.
+const DISCOVERY_MS = Number(process.env.HTMLCLAY_SYNC_DISCOVERY_MS) > 0 ? Number(process.env.HTMLCLAY_SYNC_DISCOVERY_MS) : 5 * 60 * 1000;
 
 // syncBaseOf is where an account's sync routes live: discovery names it, and Local's
 // rule gives it for an older answer that does not.
 function syncBaseOf(account) {
   if (account.syncBase) return account.syncBase;
   return account.kind === 'personal' ? '/_/sync' : `/_/team/${account.username}/sync`;
+}
+
+const relPathOf = (node) => (node.path ? `${node.path}/${node.name}` : node.name);
+
+// compareFolder counts what a first sync of an existing folder would do, read-only:
+// files only here go up, files only there come down, and files on both sides with
+// different bytes become conflicts that keep both. Nothing is ever deleted.
+async function compareFolder(folder, nodes) {
+  const { entries } = await snapshotDisk(folder, { ignore: isIgnoredRel });
+  const local = new Map([...entries].filter(([, entry]) => entry.type === 'file'));
+  let toDownload = 0;
+  let differ = 0;
+  for (const node of nodes) {
+    if (!node || node.type === 'folder') continue;
+    const rel = relPathOf(node);
+    if (isIgnoredRel(rel)) continue;
+    if (!local.has(rel)) {
+      toDownload += 1;
+      continue;
+    }
+    local.delete(rel);
+    let bytes;
+    try {
+      bytes = await fs.readFile(path.join(folder, ...rel.split('/')));
+    } catch {
+      differ += 1;
+      continue;
+    }
+    if (!node.checksum || (await calculateChecksum(bytes)) !== node.checksum) differ += 1;
+  }
+  return { toUpload: local.size, toDownload, differ };
 }
 
 function validSession(session) {
@@ -146,6 +184,21 @@ function createSync({ gate, service = null, dataDir = null }) {
   const binding = new Set();
   let keyRefused = false;
   let accounts = null;
+  let discoveryTimer = null;
+
+  function startDiscovery() {
+    if (discoveryTimer || !manager) return;
+    const sync = manager;
+    discoveryTimer = setInterval(() => {
+      sync.refreshAccounts().catch((error) => console.error('[htmlclay-service] sync discovery failed:', error && error.message));
+    }, DISCOVERY_MS);
+    discoveryTimer.unref();
+  }
+
+  function stopDiscovery() {
+    if (discoveryTimer) clearInterval(discoveryTimer);
+    discoveryTimer = null;
+  }
   // Event ids are "<session id>:<n>"; n carries this process's own prefix, so ids a
   // restarted service makes never repeat ones Go already stored and drops.
   const runId = randomBytes(4).toString('hex');
@@ -242,6 +295,7 @@ function createSync({ gate, service = null, dataDir = null }) {
   }
 
   async function stopAll() {
+    stopDiscovery();
     if (!manager) return;
     const stopping = manager;
     manager = null;
@@ -285,6 +339,15 @@ function createSync({ gate, service = null, dataDir = null }) {
         .map((root) => [root.id, root]));
       const wanted = body.paused === true ? [] : body.sessions.filter((session) => session && session.enabled !== false && roots.has(session.rootId));
       const sync = managerFor(body.deviceId);
+      // Paused: every session stops, a first download too, and nothing asks the
+      // server anything until sync is switched back on.
+      if (body.paused === true) {
+        stopDiscovery();
+        for (const id of [...sync.sessions.keys()]) await sync.stop(id);
+        settings = { ...settings, roots: [], syncSessions: [] };
+        reporter.schedule();
+        return { ok: true, running: [] };
+      }
       const wantedIds = new Set(wanted.map((session) => session.id));
       for (const id of [...sync.sessions.keys()]) {
         if (!wantedIds.has(id) && !binding.has(id)) await sync.stop(id);
@@ -297,6 +360,7 @@ function createSync({ gate, service = null, dataDir = null }) {
       }
       settings = { ...settings, syncEnabled: true, roots: [...usedRoots.values()], syncSessions: [...wanted.map((session) => ({ ...session })), ...bound] };
       await sync.startEnabledSessions();
+      startDiscovery();
       reporter.schedule();
       return { ok: true, running: [...sync.sessions.keys()] };
     },
@@ -314,7 +378,17 @@ function createSync({ gate, service = null, dataDir = null }) {
         return { ok: false, error: 'offline' };
       }
       if (!inventory || inventory.complete !== true) return { ok: false, error: 'inventory-incomplete' };
-      return { ok: true, ...inventoryTotals([...inventory]) };
+      const nodes = [...inventory];
+      const answer = { ok: true, ...inventoryTotals(nodes) };
+      // With a folder, the counts for syncing into what is already there.
+      if (body.root && typeof body.root.path === 'string' && path.isAbsolute(body.root.path)) {
+        try {
+          Object.assign(answer, await compareFolder(body.root.path, nodes));
+        } catch {
+          return { ok: false, error: 'not-found' };
+        }
+      }
+      return answer;
     },
 
     // bind is C3's first download into one folder Go already serves. A team's first
@@ -383,6 +457,7 @@ function createSync({ gate, service = null, dataDir = null }) {
       await stopAll();
     },
     close() {
+      stopDiscovery();
       if (reporter) reporter.stop();
     },
   };

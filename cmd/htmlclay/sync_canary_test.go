@@ -47,7 +47,7 @@ func TestM4KeyCanary(t *testing.T) {
 			`"actor":{"id":12,"username":"maya","person":{"id":"a1","name":"Maya Lin"}},"accounts":[{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}}]}`)
 	}))
 	t.Cleanup(fake.Close)
-	t.Setenv("HTMLCLAY_SYNC_SERVER", fake.URL)
+	setSyncServer(t, fake.URL)
 
 	home := evalTempHome(t)
 	dir := filepath.Join(home, "notes")

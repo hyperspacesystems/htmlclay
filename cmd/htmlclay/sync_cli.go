@@ -2,10 +2,13 @@ package main
 
 import (
 	"bufio"
+	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/panphora/htmlclay/internal/appcore"
@@ -18,7 +21,7 @@ import (
 // codes. connect reads the key from stdin, never from an argument, so it never
 // shows in a process list or a shell history. status reads sync.json itself, so
 // it answers whether or not the app is running.
-const syncUsage = "usage: htmlclay sync status | connect [username] | disconnect | pause | resume\n" +
+const syncUsage = "usage: htmlclay sync status | connect [username] | disconnect | pause | resume | setup <username> <folder> [--existing]\n" +
 	"htmlclay sync connect reads the sync key from stdin."
 
 func syncDispatch(argv []string) (int, bool) {
@@ -74,9 +77,42 @@ func runSync(si platform.SingleInstance, configDir string, args []string, stdin 
 	case args[0] == "connect":
 		fmt.Fprintln(stderr, appcore.TextSyncKeyNoArgument)
 		return serveExitUsage
+	case args[0] == "setup" && (len(args) == 3 || (len(args) == 4 && args[3] == "--existing")):
+		return syncSetup(si, strings.TrimPrefix(args[1], "@"), args[2], len(args) == 4, stdin, stdout, stderr)
 	}
 	fmt.Fprintln(stderr, syncUsage)
 	return serveExitUsage
+}
+
+// syncSetup is htmlclay sync setup: it prints what the first sync would do, asks,
+// and only on yes sends folder.setUpTeam, confirmed. The folder travels base64
+// encoded, so a path with spaces stays one frame field.
+func syncSetup(si platform.SingleInstance, username, folder string, existing bool, stdin io.Reader, stdout, stderr io.Writer) int {
+	if username == "" || strings.ContainsAny(username, " \t") {
+		fmt.Fprintln(stderr, syncUsage)
+		return serveExitUsage
+	}
+	abs, err := filepath.Abs(folder)
+	if err != nil {
+		fmt.Fprintf(stderr, "htmlclay sync setup: %v\n", err)
+		return serveExitUsage
+	}
+	mode := "empty"
+	if existing {
+		mode = "existing"
+	}
+	fields := username + " " + mode + " " + base64.RawURLEncoding.EncodeToString([]byte(abs))
+	if code := sendInstanceFrame(si, "sync-preview "+fields, "sync", stdout, stderr); code != serveExitOK {
+		return code
+	}
+	fmt.Fprint(stdout, appcore.TextSyncSetupAsk)
+	line, _ := bufio.NewReader(stdin).ReadString('\n')
+	answer := strings.ToLower(strings.TrimSpace(line))
+	if answer != "y" && answer != "yes" {
+		fmt.Fprintln(stdout)
+		return serveExitRefused
+	}
+	return sendInstanceFrame(si, "sync-setup "+fields, "sync", stdout, stderr)
 }
 
 // readSyncKey reads one line. On a terminal it asks, with echo off for the line.
@@ -175,6 +211,17 @@ func (a *app) handleSyncCommand(verb string, fields []string) string {
 		default:
 			refusal, done = a.trayDo("sync.setPaused", map[string]any{"paused": false}), appcore.TextSyncResumedLine
 		}
+	case "sync-preview", "sync-setup":
+		row, path, existing, bad := a.syncSetupFields(fields)
+		if bad != "" {
+			return bad
+		}
+		if verb == "sync-preview" {
+			done, refusal = a.syncSetupPreview(row, path, existing)
+		} else {
+			refusal = a.trayDo("folder.setUpTeam", map[string]any{"id": row.FolderID, "path": path, "existing": existing, "confirmed": existing})
+			done = appcore.TextSyncSetupStarted
+		}
 	default:
 		return "refused unknown command"
 	}
@@ -187,4 +234,80 @@ func (a *app) handleSyncCommand(verb string, fields []string) string {
 	}
 	a.rt.logger.Printf("%s: %s", verb, answer)
 	return answer
+}
+
+// syncSetupFields reads a setup frame's fields: username, mode and the base64 path.
+func (a *app) syncSetupFields(fields []string) (config.SyncAccountRow, string, bool, string) {
+	if len(fields) != 3 || (fields[1] != "empty" && fields[1] != "existing") {
+		return config.SyncAccountRow{}, "", false, "refused unknown command"
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(fields[2])
+	if err != nil || !filepath.IsAbs(string(raw)) {
+		return config.SyncAccountRow{}, "", false, "refused unknown command"
+	}
+	a.rt.syncMu.Lock()
+	record, err := a.syncRecordLocked()
+	var rows []config.SyncAccountRow
+	if err == nil {
+		rows = append(rows, record.Accounts...)
+	}
+	a.rt.syncMu.Unlock()
+	for _, row := range rows {
+		if strings.EqualFold(row.Username, fields[0]) {
+			return row, string(raw), fields[1] == "existing", ""
+		}
+	}
+	return config.SyncAccountRow{}, "", false, "refused " + appcore.RefuseNoSuchFolder + " " + oneLine(fmt.Sprintf(appcore.TextSyncSetupNoAccount, fields[0]))
+}
+
+// syncSetupPreview answers the sentence htmlclay sync setup prints before it asks:
+// the size of a first download, or what syncing into files already there does.
+func (a *app) syncSetupPreview(row config.SyncAccountRow, path string, existing bool) (string, *appcore.Refusal) {
+	if a.runningService() == nil {
+		return "", &appcore.Refusal{Code: appcore.RefuseServiceNeeded}
+	}
+	if existing {
+		counts, refusal := a.previewExisting(row.AccountID, path)
+		if refusal != nil {
+			return "", refusal
+		}
+		return fmt.Sprintf(appcore.TextSyncSetupExisting, counts.ToUpload, counts.ToDownload, counts.Differ), nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), syncCallTimeout)
+	defer cancel()
+	var answer struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error"`
+		Files int    `json:"files"`
+		Bytes int64  `json:"bytes"`
+	}
+	body := struct {
+		AccountID int64 `json:"accountId"`
+	}{AccountID: row.AccountID}
+	if err := a.served.CallService(ctx, "/sync/v1/preview", body, &answer); err != nil || !answer.OK {
+		if answer.Error == "offline" {
+			return "", &appcore.Refusal{Code: appcore.RefuseSyncOffline}
+		}
+		return "", &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	return fmt.Sprintf(appcore.TextSyncSetupDownload, answer.Files, humanBytes(answer.Bytes), path), nil
+}
+
+// humanBytes is a size as a person reads it: 482 KB, 3.1 MB.
+func humanBytes(n int64) string {
+	const unit = 1000
+	if n < unit {
+		return fmt.Sprintf("%d bytes", n)
+	}
+	value, suffix := float64(n)/unit, "KB"
+	for _, next := range []string{"MB", "GB", "TB"} {
+		if value < unit {
+			break
+		}
+		value, suffix = value/unit, next
+	}
+	if value < 10 {
+		return fmt.Sprintf("%.1f %s", value, suffix)
+	}
+	return fmt.Sprintf("%.0f %s", value, suffix)
 }

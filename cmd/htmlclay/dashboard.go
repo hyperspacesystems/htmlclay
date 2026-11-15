@@ -610,6 +610,9 @@ func (d *dashboardApp) act(w http.ResponseWriter, r *http.Request) {
 		if refusal.Field != "" {
 			body["field"] = refusal.Field
 		}
+		if refusal.Counts != nil {
+			body["counts"] = refusal.Counts
+		}
 		writeDashboardJSON(w, http.StatusConflict, map[string]any{"refusal": body})
 		return
 	}

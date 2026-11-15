@@ -36,7 +36,7 @@ func connectTestApp(t *testing.T, serve bool) (a *app, setDiscovery func(string)
 	}
 	setDiscovery(discoverMaya)
 	t.Setenv("HTMLCLAY_STUB_DISCOVER", answer)
-	t.Setenv("HTMLCLAY_SYNC_SERVER", "http://127.0.0.1:9")
+	setSyncServer(t, "http://127.0.0.1:9")
 	home := evalTempHome(t)
 	dir := filepath.Join(home, "notes")
 	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
@@ -200,8 +200,27 @@ func TestM4Connect(t *testing.T) {
 		}
 	})
 
-	t.Run("with no service running connect needs one", func(t *testing.T) {
+	t.Run("with no folder served connect starts the service, and disconnect lets it stop", func(t *testing.T) {
 		a, _, _ := connectTestApp(t, false)
+		if state := a.service.state(); state == appcore.ServiceRunning {
+			t.Fatalf("the service runs with nothing served: %s", state)
+		}
+		if refusal := connectThroughDo(t, a, "c1", "", connectKeyOne); refusal != nil {
+			t.Fatalf("connect refused: %+v", refusal)
+		}
+		if storedKey(t, a) != connectKeyOne {
+			t.Fatal("the key was not stored")
+		}
+		waitForServiceState(t, a, appcore.ServiceRunning, 5*time.Second)
+		if refusal := a.disconnectSync(); refusal != nil {
+			t.Fatalf("disconnect refused: %+v", refusal)
+		}
+		waitForServiceState(t, a, appcore.ServiceOff, 20*time.Second)
+	})
+
+	t.Run("with no service program connect needs one", func(t *testing.T) {
+		a, _, _ := connectTestApp(t, false)
+		a.service.command = nil
 		refusal := connectThroughDo(t, a, "c1", "", connectKeyOne)
 		if refusal == nil || refusal.Code != appcore.RefuseServiceNeeded {
 			t.Fatalf("refusal = %+v, want %s", refusal, appcore.RefuseServiceNeeded)

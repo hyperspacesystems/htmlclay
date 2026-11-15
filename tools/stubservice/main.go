@@ -187,6 +187,16 @@ func (s stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		writeJSON(w, map[string]any{"ok": true, "running": []string{}})
+	case "/sync/v1/preview":
+		// The answer is the file HTMLCLAY_STUB_PREVIEW names, or nothing to sync.
+		answer := []byte(`{"ok":true,"files":0,"bytes":0,"toUpload":0,"toDownload":0,"differ":0}`)
+		if name := os.Getenv("HTMLCLAY_STUB_PREVIEW"); name != "" {
+			if data, err := os.ReadFile(name); err == nil {
+				answer = data
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(answer)
 	case "/sync/v1/bind":
 		// The body goes to HTMLCLAY_STUB_BIND_LOG; while the file HTMLCLAY_STUB_BIND_HOLD
 		// names exists the answer waits, as a first download does; the answer is the
