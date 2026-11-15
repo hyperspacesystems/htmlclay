@@ -52,9 +52,12 @@ func servedWireReadFrames(t *testing.T, body io.Reader) *servedWireFrames {
 	return frames
 }
 
+// waitFor reads the stream until the frame typ for id arrives. The limit covers a
+// program starting cold: on Windows each test program is a freshly copied
+// executable the system scans before it runs.
 func (f *servedWireFrames) waitFor(t *testing.T, typ, id string) wire.Envelope {
 	t.Helper()
-	deadline := time.After(2 * time.Second)
+	deadline := time.After(10 * time.Second)
 	for {
 		select {
 		case env, ok := <-f.ch:
