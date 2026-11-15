@@ -348,7 +348,7 @@ func TestM3TrustInsideTrusted(t *testing.T) {
 			t.Fatal("approving a listed folder again gave it its own address")
 		}
 		oneSiteAnchoredAt(t, a, f.parent)
-		nestedEditable(t, a, nestedHost("htmlclay1"), f.address(f.cdoc))
+		nestedEditable(t, a, nestedHost("htmlclay2"), f.address(f.cdoc))
 	})
 
 	t.Run("a folder around that is no longer the one that was trusted asks for no acknowledgement", func(t *testing.T) {

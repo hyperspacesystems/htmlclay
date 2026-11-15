@@ -227,7 +227,7 @@ public enum Strings {
         public static let appearanceLight = "Light"
         public static let appearanceDark = "Dark"
         public static let dashboard = "Dashboard"
-        public static let dashboardAddress = "dashboard.localhost:1212"
+        public static let dashboardAddress = "htmlclay.localhost:1212"
         public static let open = "Open"
         public static let welcome = "Welcome window"
         public static let showAgain = "Show again"

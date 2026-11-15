@@ -117,8 +117,8 @@ final class SettingsControlsTests: XCTestCase {
     }
 
     func testTheDashboardAddressDropsTheSchemeAndTrailingSlash() {
-        XCTAssertEqual(SettingsControls.dashboardAddress("http://dashboard.htmlclay.localhost:1212/"),
-                       "dashboard.htmlclay.localhost:1212")
+        XCTAssertEqual(SettingsControls.dashboardAddress("http://htmlclay.localhost:1212/"),
+                       "htmlclay.localhost:1212")
         XCTAssertEqual(SettingsControls.dashboardAddress("https://example.test:4000"),
                        "example.test:4000")
         XCTAssertEqual(SettingsControls.dashboardAddress(""), "")

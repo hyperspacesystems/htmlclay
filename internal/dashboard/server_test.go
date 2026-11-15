@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const host = "dashboard.htmlclay.localhost:1212"
+const host = "htmlclay.localhost:1212"
 
 type clock struct{ at time.Time }
 
@@ -194,9 +194,13 @@ func TestTheAPI(t *testing.T) {
 	if w := do(s, "GET", "/api/bootstrap", map[string]string{"X-Workspace-Token": s.token}); w.Code != http.StatusOK || reached != 2 {
 		t.Fatalf("no origin headers = %d", w.Code)
 	}
+	wrong := "x" + s.token[1:]
+	if wrong == s.token {
+		wrong = "y" + s.token[1:]
+	}
 	refused := map[string]map[string]string{
 		"no token":         {"Sec-Fetch-Site": "same-origin"},
-		"a wrong token":    {"X-Workspace-Token": "x" + s.token[1:]},
+		"a wrong token":    {"X-Workspace-Token": wrong},
 		"a folder origin":  {"X-Workspace-Token": s.token, "Origin": "http://notes.htmlclay.localhost:1212", "Sec-Fetch-Site": "same-site"},
 		"another site":     {"X-Workspace-Token": s.token, "Sec-Fetch-Site": "cross-site"},
 		"only the origin":  {"X-Workspace-Token": s.token, "Origin": "http://notes.htmlclay.localhost:1212"},
@@ -243,5 +247,40 @@ func TestStaticFiles(t *testing.T) {
 	}
 	if w := do(s, "POST", "/", nil); w.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST / = %d", w.Code)
+	}
+}
+
+// Owns names exactly the paths the server answers itself: every other path gets
+// the missing answer, so the app may send it on without taking it from the
+// dashboard.
+func TestOwnsIsWhatTheServerAnswers(t *testing.T) {
+	s, _ := newTestServer(t, nil)
+	own := []string{
+		"/", "/recent", "/needs-you", "/roots/r1/files", "/roots/r1/document", "/roots/r1/new",
+		"/recent/d1/versions", "/trusted/t1/files", "/enter",
+		"/api/roots", "/api/notes.htmlclay", "/api/app/snapshot",
+		"/" + s.manifest.Entry.JavaScript, "/" + s.manifest.Assets[0].Path,
+	}
+	for _, css := range s.manifest.Entry.CSS {
+		own = append(own, "/"+css)
+	}
+	for _, p := range own {
+		if !s.Owns(p) {
+			t.Errorf("Owns(%q) = false for a path the server answers", p)
+		}
+		if w := do(s, "GET", p, nil); w.Code == http.StatusNotFound && strings.Contains(w.Body.String(), `"missing"`) {
+			t.Errorf("GET %s is missing, so this proves nothing about it", p)
+		}
+	}
+	for _, p := range []string{
+		"/notes/a.htmlclay", "/a.htmlclay", "/recent/a.htmlclay", "/roots/r1/files/a.htmlclay",
+		"/api.htmlclay", "/apis/a.htmlclay", "/enter/a.htmlclay", "/assets/a.htmlclay", "/manifest.json",
+	} {
+		if s.Owns(p) {
+			t.Errorf("Owns(%q) = true for a path the server does not answer", p)
+		}
+		if w := do(s, "GET", p, nil); w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), `"missing"`) {
+			t.Errorf("GET %s = %d %s, want the missing answer", p, w.Code, w.Body.String())
+		}
 	}
 }

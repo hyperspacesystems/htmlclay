@@ -35,7 +35,7 @@ func newMergeFixture(t *testing.T) *mergeFixture {
 		t.Fatalf("trust the parent: %v", err)
 	}
 	childID := snapshotFolderAt(t, a.snapshot(), f.child).ID
-	return &mergeFixture{nestedFixture: f, a: a, childHost: nestedHost("htmlclay"), parentHost: nestedHost("htmlclay1"), childID: childID}
+	return &mergeFixture{nestedFixture: f, a: a, childHost: nestedHost("htmlclay1"), parentHost: nestedHost("htmlclay2"), childID: childID}
 }
 
 func (m *mergeFixture) merge(t *testing.T, ch Channel) *appcore.Refusal {
@@ -175,7 +175,7 @@ func TestM3Merge(t *testing.T) {
 		if ownAddress(t, m.a, m.child) {
 			t.Fatal("the merge left the child keeping its own address")
 		}
-		if slug := m.a.rt.cfg.SiteSlug(m.child); slug != "htmlclay" {
+		if slug := m.a.rt.cfg.SiteSlug(m.child); slug != "htmlclay1" {
 			t.Fatalf("the child's slug = %q, want it kept as the old address that redirects", slug)
 		}
 		oneSiteAnchoredAt(t, m.a, m.parent)

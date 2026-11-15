@@ -652,7 +652,7 @@ func (a *app) finishUpgrade() {
 		a.rt.logger.Printf("Helper config normalization dropped records: programs=%d decisions=%d", a.loaded.DroppedHelperPrograms, a.loaded.DroppedHelperDecisions)
 	}
 	repinned := a.repinTrustedFolders()
-	if a.loaded.PromotedLegacy || a.loaded.PinnedIdentities || a.loaded.AssignedFolderIDs || repinned {
+	if a.loaded.PromotedLegacy || a.loaded.PinnedIdentities || a.loaded.AssignedFolderIDs || a.loaded.MovedFirstSite || repinned {
 		if err := a.rt.cfg.Save(); err != nil {
 			a.rt.logger.Printf("Could not persist the upgraded config: %v", err)
 		}
@@ -665,6 +665,10 @@ func (a *app) finishUpgrade() {
 	}
 	if a.loaded.AssignedFolderIDs {
 		a.rt.logger.Printf("Gave trusted folders the id each one keeps")
+	}
+	if a.loaded.MovedFirstSite {
+		key := a.rt.cfg.MovedFirstSiteKey()
+		a.rt.logger.Printf("Moved %s from htmlclay.localhost to %s.localhost: the old address is the dashboard's now", key, a.rt.cfg.SiteSlug(key))
 	}
 	if !a.loaded.HadAppMode {
 		return

@@ -22,7 +22,7 @@ func TestGateByName(t *testing.T) {
 		{"own origin write", "POST", "/_/save/index.html", map[string]string{"Host": own, "Origin": "http://" + own, "Sec-Fetch-Site": "same-origin"}, true, ""},
 		{"another folder's origin write", "POST", "/_/save/index.html", map[string]string{"Host": own, "Origin": "http://journal.htmlclay.localhost:1212"}, false, "cross"},
 		{"a loose file's origin write", "POST", "/_/save/index.html", map[string]string{"Host": own, "Origin": "http://htmlclay3.localhost:1212"}, false, "cross"},
-		{"the dashboard's origin write", "POST", "/_/save/index.html", map[string]string{"Host": own, "Origin": "http://dashboard.htmlclay.localhost:1212"}, false, "cross"},
+		{"the dashboard's origin write", "POST", "/_/save/index.html", map[string]string{"Host": own, "Origin": "http://htmlclay.localhost:1212"}, false, "cross"},
 		{"own name on another port", "POST", "/_/save/index.html", map[string]string{"Host": own, "Origin": "http://notes.htmlclay.localhost:4321"}, false, "cross"},
 		{"a bare loopback origin", "POST", "/_/save/index.html", map[string]string{"Host": own, "Origin": "http://127.0.0.1:1212"}, false, "cross"},
 		{"Origin null", "POST", "/_/save/index.html", map[string]string{"Host": own, "Origin": "null"}, false, "cross"},

@@ -44,10 +44,15 @@ type Config struct {
 	// untrusted, or the entry was evicted). They are never issued again, so no folder can
 	// inherit another's browser storage, and their addresses answer the recovery page.
 	RetiredSlugs []string `json:"retiredSlugs,omitempty"`
-	// NextSiteNumber is the number the next new slug gets: 1 is htmlclay, 2 is htmlclay1, and so
-	// on. It only grows, so a label is never issued twice and no folder inherits another's
-	// browser storage.
+	// NextSiteNumber is the number the next new slug gets: 2 is htmlclay1, 3 is htmlclay2, and so
+	// on. 1 was htmlclay, whose address is the dashboard's now, so it is never issued. It only
+	// grows, so a label is never issued twice and no folder inherits another's browser storage.
 	NextSiteNumber int `json:"nextSiteNumber,omitempty"`
+	// MovedFirstSite is the origin key that was served under htmlclay before
+	// htmlclay.localhost became the dashboard's address. The dashboard's host sends a
+	// navigation for a document under this key to the address the key has now. Written
+	// once, by moveFirstSite.
+	MovedFirstSite string `json:"movedFirstSite,omitempty"`
 	// SitePorts is the pre-hostname record of the loopback port each origin was served on.
 	// Kept so an old bookmark can be redirected: startup binds each remembered port that is
 	// still free with a redirect to the folder's hostname, and drops the entry the first
@@ -104,6 +109,7 @@ type Config struct {
 	// machine that never had a team folder. Written by MarkTeamFolder alone.
 	TeamRecord bool `json:"teamRecord,omitempty"`
 	baseDir    string
+	writes     int
 }
 
 // TrustedFolder is one declared folder. Identity is the folder's device+inode
@@ -804,12 +810,18 @@ func (c *Config) slugInUseLocked(slug string) bool {
 	return false
 }
 
-// AllocateSiteSlug records and returns key's slug: the next label in the htmlclay, htmlclay1,
-// htmlclay2, ... sequence, skipping any label already issued or retired. The counter only grows.
+// AllocateSiteSlug records and returns key's slug: the next label in the htmlclay1, htmlclay2,
+// ... sequence, skipping any label already issued or retired. The counter only grows.
 func (c *Config) AllocateSiteSlug(key string) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	n := max(c.NextSiteNumber, 1)
+	return c.allocateSiteSlugLocked(key)
+}
+
+// allocateSiteSlugLocked is AllocateSiteSlug for a caller holding c.mu. It starts at 2,
+// so it never issues firstSiteLabel.
+func (c *Config) allocateSiteSlugLocked(key string) string {
+	n := max(c.NextSiteNumber, 2)
 	for {
 		slug := numberedSlugFor(n)
 		n++
@@ -874,6 +886,13 @@ func (c *Config) RestoreSiteSlug(key, slug string) {
 	c.RetiredSlugs = kept
 }
 
+// MovedFirstSiteKey returns the origin key moveFirstSite moved off htmlclay, or "".
+func (c *Config) MovedFirstSiteKey() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.MovedFirstSite
+}
+
 // SiteSlugList returns a copy of the slug map.
 func (c *Config) SiteSlugList() map[string]string {
 	c.mu.Lock()
@@ -899,12 +918,32 @@ func (c *Config) retireLocked(slug string) {
 
 var numberedSlug = regexp.MustCompile(`^htmlclay([1-9][0-9]*)?$`)
 
+// firstSiteLabel is the label counter value 1 stood for. Its address, htmlclay.localhost,
+// is the dashboard's, so no site is served under it.
+const firstSiteLabel = "htmlclay"
+
 // numberedSlugFor maps counter value n (from 1) to its label: htmlclay, htmlclay1, htmlclay2, ...
 func numberedSlugFor(n int) string {
 	if n == 1 {
-		return "htmlclay"
+		return firstSiteLabel
 	}
-	return "htmlclay" + strconv.Itoa(n-1)
+	return firstSiteLabel + strconv.Itoa(n-1)
+}
+
+// moveFirstSite moves a config written while the first site answered at htmlclay.localhost:
+// the key served under that label gets the next free numbered one, and the key is recorded
+// so the dashboard's host can send an old link to it. It reports whether a key moved.
+func (c *Config) moveFirstSite() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for key, slug := range c.SiteSlugs {
+		if slug == firstSiteLabel {
+			c.allocateSiteSlugLocked(key)
+			c.MovedFirstSite = key
+			return true
+		}
+	}
+	return false
 }
 
 // retireNamedSlugs moves a config from the earlier <folder>-<4 hex> labels to numbered
@@ -1282,6 +1321,10 @@ type Result struct {
 	// one they keep, which is what every config written before ids existed, and
 	// every config whose served folders predate them, looks like.
 	AssignedFolderIDs bool
+	// MovedFirstSite is true when the site served under htmlclay moved to a
+	// numbered label, which is what a config written before htmlclay.localhost
+	// became the dashboard's address looks like.
+	MovedFirstSite bool
 	// DroppedHelperPrograms and DroppedHelperDecisions report malformed,
 	// duplicate, dangling, or over-cap helper records removed during Load.
 	DroppedHelperPrograms  int
@@ -1355,6 +1398,8 @@ func LoadFrom(baseDir string, identity func(string) string) (*Config, Result, er
 	cfg.retireNamedSlugs()
 	cfg.dedupeSiteSlugs()
 	cfg.capSiteSlugs()
+	// After the dedupe and the cap, so the key that moves is the one that keeps a label.
+	res.MovedFirstSite = cfg.moveFirstSite()
 	return cfg, res, nil
 }
 
@@ -1397,5 +1442,16 @@ func (c *Config) saveLocked() error {
 	if err := os.Chmod(tmpPath, 0600); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, path)
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	c.writes++
+	return nil
+}
+
+// Writes is how many times this Config has reached the disk since it was loaded.
+func (c *Config) Writes() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.writes
 }

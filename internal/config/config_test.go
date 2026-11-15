@@ -592,8 +592,8 @@ func TestPortAndSlugsRoundTrip(t *testing.T) {
 	one := filepath.Join(base, "one")
 	two := filepath.Join(base, "two")
 	cfg.SetPort(24190)
-	cfg.RememberSiteSlug(one, "htmlclay")
-	cfg.RememberSiteSlug(two, "htmlclay1")
+	cfg.RememberSiteSlug(one, "htmlclay1")
+	cfg.RememberSiteSlug(two, "htmlclay2")
 	if err := cfg.Save(); err != nil {
 		t.Fatal(err)
 	}
@@ -605,7 +605,7 @@ func TestPortAndSlugsRoundTrip(t *testing.T) {
 	if got := loaded.Port(); got != 24190 {
 		t.Fatalf("remembered port = %d, want 24190", got)
 	}
-	for key, slug := range map[string]string{one: "htmlclay", two: "htmlclay1"} {
+	for key, slug := range map[string]string{one: "htmlclay1", two: "htmlclay2"} {
 		got, ok := loaded.SiteKeyForSlug(slug)
 		if !ok || got != key {
 			t.Fatalf("SiteKeyForSlug(%q) = %q, %v; want %q, true", slug, got, ok, key)
@@ -615,22 +615,22 @@ func TestPortAndSlugsRoundTrip(t *testing.T) {
 		}
 	}
 
-	if got := loaded.ForgetSiteSlug(one); got != "htmlclay" {
-		t.Fatalf("ForgetSiteSlug returned %q, want %q", got, "htmlclay")
+	if got := loaded.ForgetSiteSlug(one); got != "htmlclay1" {
+		t.Fatalf("ForgetSiteSlug returned %q, want %q", got, "htmlclay1")
 	}
-	if !loaded.SlugInUse("htmlclay") {
+	if !loaded.SlugInUse("htmlclay1") {
 		t.Error("a forgotten slug must stay in use, or the next folder inherits its browser storage")
 	}
-	if _, ok := loaded.SiteKeyForSlug("htmlclay"); ok {
+	if _, ok := loaded.SiteKeyForSlug("htmlclay1"); ok {
 		t.Error("a forgotten slug must have no key")
 	}
 
-	loaded.RestoreSiteSlug(one, "htmlclay")
-	if got, ok := loaded.SiteKeyForSlug("htmlclay"); !ok || got != one {
-		t.Errorf("after RestoreSiteSlug, SiteKeyForSlug(\"htmlclay\") = %q, %v; want %q, true", got, ok, one)
+	loaded.RestoreSiteSlug(one, "htmlclay1")
+	if got, ok := loaded.SiteKeyForSlug("htmlclay1"); !ok || got != one {
+		t.Errorf("after RestoreSiteSlug, SiteKeyForSlug(\"htmlclay1\") = %q, %v; want %q, true", got, ok, one)
 	}
 	for _, s := range loaded.RetiredSlugs {
-		if s == "htmlclay" {
+		if s == "htmlclay1" {
 			t.Error("a restored slug must not be retired")
 		}
 	}
@@ -648,11 +648,11 @@ func TestSiteSlugsAreCappedButTrustedFoldersSurvive(t *testing.T) {
 
 	trusted := t.TempDir()
 	cfg.AddTrustedFolder(trusted, "")
-	cfg.RememberSiteSlug(trusted, "htmlclay")
+	cfg.RememberSiteSlug(trusted, "htmlclay1")
 	adHoc := map[string]string{}
 	for i := 0; i < 70; i++ {
 		key := filepath.Join(base, fmt.Sprintf("adhoc-%02d", i))
-		slug := numberedSlugFor(i + 2)
+		slug := numberedSlugFor(i + 3)
 		adHoc[key] = slug
 		cfg.RememberSiteSlug(key, slug)
 	}
@@ -668,8 +668,8 @@ func TestSiteSlugsAreCappedButTrustedFoldersSurvive(t *testing.T) {
 	if got := len(slugs); got != siteSlugCap {
 		t.Errorf("remembered slugs = %d, want %d", got, siteSlugCap)
 	}
-	if got := slugs[trusted]; got != "htmlclay" {
-		t.Errorf("a trusted folder's slug must never be evicted: got %q, want %q", got, "htmlclay")
+	if got := slugs[trusted]; got != "htmlclay1" {
+		t.Errorf("a trusted folder's slug must never be evicted: got %q, want %q", got, "htmlclay1")
 	}
 	for key, slug := range adHoc {
 		if _, kept := slugs[key]; kept {
@@ -751,8 +751,8 @@ func TestCounterIsTheRecordOfADroppedLabel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load error: %v", err)
 	}
-	if got := cfg.AllocateSiteSlug("/a"); got != "htmlclay" {
-		t.Fatalf("first label = %q, want htmlclay", got)
+	if got := cfg.AllocateSiteSlug("/a"); got != "htmlclay1" {
+		t.Fatalf("first label = %q, want htmlclay1", got)
 	}
 	cfg.DropSiteSlug("/a")
 	if err := cfg.Save(); err != nil {
@@ -762,8 +762,76 @@ func TestCounterIsTheRecordOfADroppedLabel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload error: %v", err)
 	}
-	if got := reloaded.AllocateSiteSlug("/b"); got != "htmlclay1" {
-		t.Fatalf("after a dropped htmlclay and a reload the next label = %q, want htmlclay1", got)
+	if got := reloaded.AllocateSiteSlug("/b"); got != "htmlclay2" {
+		t.Fatalf("after a dropped htmlclay1 and a reload the next label = %q, want htmlclay2", got)
+	}
+}
+
+// A config written while the first site answered at htmlclay.localhost moves on load:
+// the key under htmlclay gets the next free numbered label and is recorded, and a
+// saved config has nothing left to move.
+func TestFirstSiteMovesOffHTMLClay(t *testing.T) {
+	base := t.TempDir()
+	writeConfigJSON(t, base, `{"siteSlugs":{"/a":"htmlclay","/b":"htmlclay1"},"retiredSlugs":["htmlclay2"],"nextSiteNumber":4}`)
+
+	cfg, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatalf("load error: %v", err)
+	}
+	if !res.MovedFirstSite {
+		t.Fatal("Load did not report moving the site at htmlclay")
+	}
+	if got := cfg.SiteSlug("/a"); got != "htmlclay3" {
+		t.Errorf("SiteSlug(/a) = %q, want htmlclay3, the next free label", got)
+	}
+	if got := cfg.SiteSlug("/b"); got != "htmlclay1" {
+		t.Errorf("SiteSlug(/b) = %q, want htmlclay1", got)
+	}
+	if key, ok := cfg.SiteKeyForSlug("htmlclay"); ok {
+		t.Errorf("%q still answers at htmlclay", key)
+	}
+	if got := cfg.MovedFirstSiteKey(); got != "/a" {
+		t.Errorf("MovedFirstSiteKey() = %q, want /a", got)
+	}
+	if got := cfg.Writes(); got != 0 {
+		t.Errorf("Load wrote the config %d times; the caller saves", got)
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	reloaded, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatalf("reload error: %v", err)
+	}
+	if res.MovedFirstSite {
+		t.Error("a saved move was made again on the next load")
+	}
+	if got := reloaded.SiteSlug("/a"); got != "htmlclay3" {
+		t.Errorf("after a reload SiteSlug(/a) = %q, want htmlclay3", got)
+	}
+	if got := reloaded.MovedFirstSiteKey(); got != "/a" {
+		t.Errorf("after a reload MovedFirstSiteKey() = %q, want /a", got)
+	}
+	if got := reloaded.AllocateSiteSlug("/c"); got != "htmlclay4" {
+		t.Errorf("AllocateSiteSlug(/c) = %q, want htmlclay4", got)
+	}
+}
+
+// A config whose htmlclay label was retired has no site to move.
+func TestARetiredFirstLabelMovesNothing(t *testing.T) {
+	base := t.TempDir()
+	writeConfigJSON(t, base, `{"siteSlugs":{"/b":"htmlclay1"},"retiredSlugs":["htmlclay"],"nextSiteNumber":3}`)
+
+	cfg, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatalf("load error: %v", err)
+	}
+	if res.MovedFirstSite || cfg.MovedFirstSiteKey() != "" {
+		t.Errorf("a retired htmlclay moved a site: %v, %q", res.MovedFirstSite, cfg.MovedFirstSiteKey())
+	}
+	if got := cfg.AllocateSiteSlug("/c"); got != "htmlclay2" {
+		t.Errorf("AllocateSiteSlug(/c) = %q, want htmlclay2", got)
 	}
 }
 
@@ -772,12 +840,12 @@ func TestNamedSlugsDoNotCrowdOutNumberedOnesUnderTheCap(t *testing.T) {
 	base := t.TempDir()
 	slugs := map[string]string{}
 	for i := 1; i <= 10; i++ {
-		slugs[fmt.Sprintf("/n%02d", i)] = numberedSlugFor(i)
+		slugs[fmt.Sprintf("/n%02d", i)] = numberedSlugFor(i + 1)
 	}
 	for i := 0; i < siteSlugCap; i++ {
 		slugs[fmt.Sprintf("/old%02d", i)] = fmt.Sprintf("old-%04x", i)
 	}
-	raw, err := json.Marshal(map[string]any{"siteSlugs": slugs, "nextSiteNumber": 11})
+	raw, err := json.Marshal(map[string]any{"siteSlugs": slugs, "nextSiteNumber": 12})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -787,8 +855,8 @@ func TestNamedSlugsDoNotCrowdOutNumberedOnesUnderTheCap(t *testing.T) {
 		t.Fatalf("load error: %v", err)
 	}
 	for i := 1; i <= 10; i++ {
-		if got := cfg.SiteSlug(fmt.Sprintf("/n%02d", i)); got != numberedSlugFor(i) {
-			t.Errorf("numbered label /n%02d = %q, want %q", i, got, numberedSlugFor(i))
+		if got := cfg.SiteSlug(fmt.Sprintf("/n%02d", i)); got != numberedSlugFor(i+1) {
+			t.Errorf("numbered label /n%02d = %q, want %q", i, got, numberedSlugFor(i+1))
 		}
 	}
 }
@@ -1477,23 +1545,23 @@ func TestDuplicateSlugsKeepTheTrustedOwner(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	writeConfigJSON(t, base, fmt.Sprintf(`{"workspaceFolders":[{"path":%q}],"siteSlugs":{%q:"htmlclay",%q:"htmlclay",%q:"htmlclay1"}}`,
+	writeConfigJSON(t, base, fmt.Sprintf(`{"workspaceFolders":[{"path":%q}],"siteSlugs":{%q:"htmlclay1",%q:"htmlclay1",%q:"htmlclay2"}}`,
 		beta, alpha, beta, gamma))
 
 	cfg, _, err := LoadFrom(base, noIdentity)
 	if err != nil {
 		t.Fatalf("load error: %v", err)
 	}
-	if got := cfg.SiteSlug(beta); got != "htmlclay" {
-		t.Errorf("trusted folder slug = %q, want htmlclay", got)
+	if got := cfg.SiteSlug(beta); got != "htmlclay1" {
+		t.Errorf("trusted folder slug = %q, want htmlclay1", got)
 	}
 	if got := cfg.SiteSlug(alpha); got != "" {
 		t.Errorf("the losing key kept its slug: %q, want none", got)
 	}
-	if got := cfg.SiteSlug(gamma); got != "htmlclay1" {
-		t.Errorf("an unrelated key lost its slug: %q, want htmlclay1", got)
+	if got := cfg.SiteSlug(gamma); got != "htmlclay2" {
+		t.Errorf("an unrelated key lost its slug: %q, want htmlclay2", got)
 	}
-	if !cfg.SlugInUse("htmlclay") {
+	if !cfg.SlugInUse("htmlclay1") {
 		t.Error("the label is still issued, so it must stay in use")
 	}
 }

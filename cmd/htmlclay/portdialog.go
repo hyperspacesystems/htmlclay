@@ -305,7 +305,7 @@ func (a *app) afterStartup(next http.Handler) http.Handler {
 // announceHostnames is the one-time notice for a config upgraded from per-folder ports or
 // from the old default port: the addresses changed, and page data does not follow.
 func (a *app) announceHostnames(port int) {
-	msg := fmt.Sprintf("HTML Clay now serves every folder from port %d, each at its own address, such as http://htmlclay.localhost:%d/.\n\n"+
+	msg := fmt.Sprintf("HTML Clay now serves every folder from port %d, each at its own address, such as http://htmlclay1.localhost:%d/.\n\n"+
 		"Bookmarks to older addresses may stop working, and anything a page stored in the browser (localStorage) under an old address is not carried over.", port, port)
 	go func() {
 		if err := a.informUser("HTML Clay", msg); err != nil {

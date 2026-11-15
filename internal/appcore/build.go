@@ -10,11 +10,10 @@ import (
 // ServedParent is the name every served folder sits under: <name>.htmlclay.localhost.
 const ServedParent = "htmlclay.localhost"
 
-// DashboardHost is the dashboard's host name. It sits under ServedParent so its
-// frames of served documents are same-site; "dashboard" is a reserved served
-// name, and the bare parent is already the first document site's address
-// (htmlclay, htmlclay1, ... in config.AllocateSiteSlug).
-const DashboardHost = "dashboard." + ServedParent
+// DashboardHost is the dashboard's host name: the served folders' parent itself,
+// so its frames of served documents are same-site. No document site answers
+// there, because config.AllocateSiteSlug numbers them from htmlclay1.
+const DashboardHost = ServedParent
 
 // Build turns facts into the snapshot every shell renders. It is pure: no I/O,
 // no clock other than f.Now.

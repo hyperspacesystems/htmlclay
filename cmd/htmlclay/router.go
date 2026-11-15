@@ -17,6 +17,11 @@ import (
 	"github.com/panphora/htmlclay/internal/trust"
 )
 
+// oldDashboardHost is where the dashboard answered before it moved to
+// appcore.DashboardHost. It answers a redirect to the same path there, so a bookmark
+// still opens the dashboard.
+const oldDashboardHost = "dashboard." + appcore.ServedParent
+
 // serveHost is the one handler on the one port. It routes by the Host header and nothing
 // else: an issued slug reaches its site, a retired slug reaches the recovery flow, the
 // bare loopback names reach a fixed page, and every other name is refused, which is the
@@ -67,7 +72,21 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 		w.Write(indexPage)
 		return
 	}
+	if name == oldDashboardHost {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Location", "http://"+appcore.DashboardHost+":"+port+r.URL.RequestURI())
+		w.WriteHeader(http.StatusFound)
+		return
+	}
 	if name == appcore.DashboardHost {
+		if target, ok := a.movedSiteTarget(r); ok {
+			recoveryHeaders(w)
+			w.Header().Set("Referrer-Policy", "strict-origin")
+			w.Header().Set("Location", target)
+			w.WriteHeader(http.StatusFound)
+			return
+		}
 		if a.dashboard == nil {
 			http.Error(w, "The workspace is unavailable", http.StatusServiceUnavailable)
 			return

@@ -200,16 +200,16 @@ func oneSiteMaySave(t *testing.T, a *app, abs, anchor string) {
 
 // childOnly is the config of a person who has trusted the child folder alone.
 func (f *nestedFixture) childOnly() string {
-	return fmt.Sprintf(`{ "siteSlugs": { %q: "htmlclay" },
-  "retiredSlugs": [], "nextSiteNumber": 2,
+	return fmt.Sprintf(`{ "siteSlugs": { %q: "htmlclay1" },
+  "retiredSlugs": [], "nextSiteNumber": 3,
   "workspaceFolders": [ { "path": %q } ] }`, f.child, f.child)
 }
 
 // bothAddresses is the config child-trusted-then-parent leaves behind: both
 // folders have a remembered address, and neither says it owns one.
 func (f *nestedFixture) bothAddresses() string {
-	return fmt.Sprintf(`{ "siteSlugs": { %q: "htmlclay", %q: "htmlclay1" },
-  "retiredSlugs": [], "nextSiteNumber": 3,
+	return fmt.Sprintf(`{ "siteSlugs": { %q: "htmlclay1", %q: "htmlclay2" },
+  "retiredSlugs": [], "nextSiteNumber": 4,
   "workspaceFolders": [ { "path": %q }, { "path": %q } ] }`,
 		f.child, f.parent, f.child, f.parent)
 }
@@ -221,12 +221,12 @@ func (f *nestedFixture) bothAddresses() string {
 func TestM3NestedOwnership(t *testing.T) {
 	t.Run("state 1: the parent alone", func(t *testing.T) {
 		f := newNestedFixture(t)
-		f.config(t, fmt.Sprintf(`{ "siteSlugs": { %q: "htmlclay" },
-  "retiredSlugs": [], "nextSiteNumber": 2,
+		f.config(t, fmt.Sprintf(`{ "siteSlugs": { %q: "htmlclay1" },
+  "retiredSlugs": [], "nextSiteNumber": 3,
   "workspaceFolders": [ { "path": %q } ] }`, f.parent, f.parent))
 
 		f.upgradeThenRestart(t, func(t *testing.T, a *app) {
-			host := nestedHost("htmlclay")
+			host := nestedHost("htmlclay1")
 			if nestedEditable(t, a, host, f.address(f.pdoc)) == nestedEditable(t, a, host, f.address(f.cdoc)) {
 				t.Fatal("two documents were served the same save token")
 			}
@@ -246,10 +246,10 @@ func TestM3NestedOwnership(t *testing.T) {
 			t.Fatalf("trust the parent: %v", err)
 		}
 
-		nestedEditable(t, a, nestedHost("htmlclay1"), f.address(f.pdoc))
+		nestedEditable(t, a, nestedHost("htmlclay2"), f.address(f.pdoc))
 		// The child already answered here, so its document stays here rather
 		// than being handed to the folder that now encloses it.
-		nestedEditable(t, a, nestedHost("htmlclay"), f.address(f.cdoc))
+		nestedEditable(t, a, nestedHost("htmlclay1"), f.address(f.cdoc))
 		if !ownAddress(t, a, f.child) {
 			t.Fatalf("trusting the parent left %s without its address", f.child)
 		}
@@ -260,7 +260,7 @@ func TestM3NestedOwnership(t *testing.T) {
 		f.config(t, f.bothAddresses())
 
 		check := func(t *testing.T, a *app) {
-			parentHost, childHost := nestedHost("htmlclay1"), nestedHost("htmlclay")
+			parentHost, childHost := nestedHost("htmlclay2"), nestedHost("htmlclay1")
 			nestedEditable(t, a, parentHost, f.address(f.pdoc))
 			nestedEditable(t, a, parentHost, f.address(f.cdoc))
 			nestedRedirect(t, a, childHost, f.address(f.cdoc), fileURL(parentHost, f.address(f.cdoc)))
@@ -276,7 +276,7 @@ func TestM3NestedOwnership(t *testing.T) {
 		f.config(t, f.childOnly())
 
 		a := f.launch(t)
-		childHost, parentHost := nestedHost("htmlclay"), nestedHost("htmlclay1")
+		childHost, parentHost := nestedHost("htmlclay1"), nestedHost("htmlclay2")
 		before := nestedEditable(t, a, childHost, f.address(f.cdoc))
 
 		if err := a.trustFolder(f.parent); err != nil {
@@ -296,7 +296,7 @@ func TestM3NestedOwnership(t *testing.T) {
 		f.config(t, f.bothAddresses())
 
 		f.upgradeThenRestart(t, func(t *testing.T, a *app) {
-			parentHost, childHost := nestedHost("htmlclay1"), nestedHost("htmlclay")
+			parentHost, childHost := nestedHost("htmlclay2"), nestedHost("htmlclay1")
 			nestedEditable(t, a, parentHost, f.address(f.cdoc))
 			nestedRedirect(t, a, childHost, f.address(f.cdoc), fileURL(parentHost, f.address(f.cdoc)))
 			nestedRecovery(t, a, childHost, f.address(f.cdoc))
@@ -307,12 +307,12 @@ func TestM3NestedOwnership(t *testing.T) {
 
 	t.Run("state 6: a retired child address", func(t *testing.T) {
 		f := newNestedFixture(t)
-		f.config(t, fmt.Sprintf(`{ "siteSlugs": { %q: "htmlclay1" },
-  "retiredSlugs": [ "htmlclay" ], "nextSiteNumber": 3,
+		f.config(t, fmt.Sprintf(`{ "siteSlugs": { %q: "htmlclay2" },
+  "retiredSlugs": [ "htmlclay1" ], "nextSiteNumber": 4,
   "workspaceFolders": [ { "path": %q }, { "path": %q } ] }`, f.parent, f.child, f.parent))
 
 		f.upgradeThenRestart(t, func(t *testing.T, a *app) {
-			parentHost, childHost := nestedHost("htmlclay1"), nestedHost("htmlclay")
+			parentHost, childHost := nestedHost("htmlclay2"), nestedHost("htmlclay1")
 			nestedEditable(t, a, parentHost, f.address(f.pdoc))
 			nestedEditable(t, a, parentHost, f.address(f.cdoc))
 			// A retired label never relocates, not even for a typed address.
@@ -334,7 +334,7 @@ func TestM3NestedOwnership(t *testing.T) {
 		f.config(t, f.childOnly())
 
 		first := f.launch(t)
-		childHost := nestedHost("htmlclay")
+		childHost := nestedHost("htmlclay1")
 		token := nestedEditable(t, first, childHost, f.address(f.cdoc))
 		if err := first.trustFolder(f.parent); err != nil {
 			t.Fatalf("trust the parent: %v", err)
@@ -381,7 +381,7 @@ func TestM3NestedOwnership(t *testing.T) {
 		first.shutdown()
 
 		a := f.launch(t)
-		childHost, parentHost := nestedHost("htmlclay"), nestedHost("htmlclay1")
+		childHost, parentHost := nestedHost("htmlclay1"), nestedHost("htmlclay2")
 		token := nestedEditable(t, a, childHost, f.address(f.cdoc))
 		before, err := os.ReadFile(f.cdoc)
 		if err != nil {
@@ -431,12 +431,12 @@ func TestM3NestedOwnership(t *testing.T) {
 		first.shutdown()
 
 		a := f.launch(t)
-		nestedEditable(t, a, nestedHost("htmlclay"), f.address(f.cdoc))
-		nestedEditable(t, a, nestedHost("htmlclay1"), f.address(f.pdoc))
+		nestedEditable(t, a, nestedHost("htmlclay1"), f.address(f.cdoc))
+		nestedEditable(t, a, nestedHost("htmlclay2"), f.address(f.pdoc))
 		// Asking for the child's document at the parent's address changes nothing:
 		// the page moves, the registration does not.
-		nestedRedirect(t, a, nestedHost("htmlclay1"), f.address(f.cdoc),
-			fileURL(nestedHost("htmlclay"), f.address(f.cdoc)))
+		nestedRedirect(t, a, nestedHost("htmlclay2"), f.address(f.cdoc),
+			fileURL(nestedHost("htmlclay1"), f.address(f.cdoc)))
 
 		oneSiteMaySave(t, a, f.pdoc, f.parent)
 		oneSiteMaySave(t, a, f.cdoc, f.child)

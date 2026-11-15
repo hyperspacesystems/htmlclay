@@ -233,11 +233,11 @@ extraction rules as the [Hyperclay](https://hyperclay.com) platform. Two ways in
 
 ```bash
 # You supply the rules
-curl --get 'http://htmlclay.localhost:1212/notes.htmlclay' \
+curl --get 'http://htmlclay1.localhost:1212/notes.htmlclay' \
   --data-urlencode 'data={title:"h1",items:".todo[]"}'
 
 # The file supplies its own, from a tag inside it
-curl 'http://htmlclay.localhost:1212/_/api/notes.htmlclay'
+curl 'http://htmlclay1.localhost:1212/_/api/notes.htmlclay'
 ```
 
 Replace `htmlclay` with the hostname in your tab's address bar; the port is the same for every
@@ -298,11 +298,11 @@ of the refusal is written down rather than guessed at.
 Caller supplied rules work on both URL forms, for GET and POST. No embedded tag is required:
 
 ```bash
-curl --get 'http://htmlclay.localhost:1212/soup.htmlclay' \
+curl --get 'http://htmlclay1.localhost:1212/soup.htmlclay' \
   --data-urlencode 'data={title:h1}'
 
 curl --request POST \
-  'http://htmlclay.localhost:1212/soup.htmlclay?data=%7Btitle%3Ah1%7D' \
+  'http://htmlclay1.localhost:1212/soup.htmlclay?data=%7Btitle%3Ah1%7D' \
   --header 'Content-Type: application/json' \
   --data '{"title":"Lunch"}'
 ```
@@ -322,7 +322,7 @@ POST JSON to the same `/_/api/` address and HTML Clay writes it into the file th
 `api` rules tag. The body has the same shape a GET returns:
 
 ```bash
-curl -X POST 'http://htmlclay.localhost:1212/_/api/notes.htmlclay' \
+curl -X POST 'http://htmlclay1.localhost:1212/_/api/notes.htmlclay' \
   -H 'Content-Type: application/json' \
   -d '{"title":"Groceries","items":[{"text":"eggs","done":"no"}]}'
 ```

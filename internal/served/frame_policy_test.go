@@ -12,7 +12,7 @@ import (
 	"github.com/panphora/htmlclay/internal/served/assets"
 )
 
-const framePolicyDashboard = "http://dashboard.htmlclay.localhost:1212"
+const framePolicyDashboard = "http://htmlclay.localhost:1212"
 
 const framePolicyHost = "frames.htmlclay.localhost:1212"
 

@@ -309,7 +309,7 @@ final class LiveHostTests: XCTestCase {
         _ = try done(await host.client.perform(.openDashboard(route: String())),
                      "opening the dashboard was refused")
         await waitUntil("the open log never got the dashboard") {
-            openLog(log).contains { $0.contains("dashboard.htmlclay.localhost") }
+            openLog(log).contains { $0.contains("//htmlclay.localhost:") }
         }
 
         XCTAssertTrue(model.can(HostActionType.documentForget))

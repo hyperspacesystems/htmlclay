@@ -200,6 +200,14 @@ func personStarted(r *http.Request) bool {
 	return r.Method == http.MethodGet && (site == "" || site == "none") && (dest == "" || dest == "document")
 }
 
+// Owns reports whether p is an address the dashboard answers itself: its API,
+// the entry, a page of the bundle, or one of the bundle's files. Its host was a
+// document site's address once, and only a path that is none of these may be
+// sent on to that site.
+func (s *Server) Owns(p string) bool {
+	return strings.HasPrefix(p, "/api/") || p == "/enter" || pagePath.MatchString(p) || s.assetPaths[p]
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Content-Type-Options", "nosniff")

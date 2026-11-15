@@ -164,24 +164,60 @@ func (a *app) parkPortMode(anchor string, port int, page []byte, kind recoveryKi
 	return true
 }
 
+// relocatable answers the document an eligible navigation names, as its path on any
+// site and as a file, when an address that no longer serves it may send the navigation
+// on: an .htmlclay file under home that is not hidden and not the app's own. It never
+// touches the disk, so it cannot be asked which files exist.
+func (a *app) relocatable(r *http.Request) (rel, abs string, ok bool) {
+	if !server.EligibleNavigation(r, a.ownsOrigin) {
+		return "", "", false
+	}
+	rel = strings.TrimPrefix(r.URL.Path, "/")
+	if strings.Contains(rel, "\\") || strings.HasPrefix(rel, "_/") || !strings.EqualFold(filepath.Ext(rel), ".htmlclay") {
+		return "", "", false
+	}
+	for _, part := range strings.Split(rel, "/") {
+		if part == ".." || part == "." {
+			return "", "", false
+		}
+	}
+	abs, err := server.ValidatePath(rel, a.rt.home)
+	if err != nil || session.HasHiddenComponent(a.rt.home, abs) || session.EqualOrUnder(abs, a.rt.configDir) || a.rt.versions.Contains(abs) {
+		return "", "", false
+	}
+	return rel, abs, true
+}
+
+// movedSiteTarget answers where a navigation to the dashboard's host goes when it names
+// a document of the site that answered there before the dashboard did: the same path at
+// the address that site's key has now. The dashboard's own paths are never sent on. Like
+// every relocation it registers nothing, and the address it names decides what is served.
+func (a *app) movedSiteTarget(r *http.Request) (string, bool) {
+	key := a.rt.cfg.MovedFirstSiteKey()
+	if key == "" || (a.dashboard != nil && a.dashboard.Owns(r.URL.Path)) {
+		return "", false
+	}
+	rel, abs, ok := a.relocatable(r)
+	if !ok || !session.EqualOrUnder(abs, key) {
+		return "", false
+	}
+	slug := a.rt.cfg.SiteSlug(key)
+	if slug == "" {
+		return "", false
+	}
+	target := fileURL(siteHost(slug, a.rt.port), rel)
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	return target, true
+}
+
 // Relocation registers nothing; the destination performs authorization and file lookup.
 // The caller's gate or the router has already validated Host, and a retired address has
 // no live site, so the same-port refusals that used to live here have nothing to refuse.
 func (a *app) recoveryTargetFor(anchor string, r *http.Request, requireSource bool) (string, bool) {
-	if !server.EligibleNavigation(r, a.ownsOrigin) {
-		return "", false
-	}
-	rel := strings.TrimPrefix(r.URL.Path, "/")
-	if strings.Contains(rel, "\\") || strings.HasPrefix(rel, "_/") || !strings.EqualFold(filepath.Ext(rel), ".htmlclay") {
-		return "", false
-	}
-	for _, part := range strings.Split(rel, "/") {
-		if part == ".." || part == "." {
-			return "", false
-		}
-	}
-	abs, err := server.ValidatePath(rel, a.rt.home)
-	if err != nil || !session.EqualOrUnder(abs, anchor) || session.HasHiddenComponent(a.rt.home, abs) || session.EqualOrUnder(abs, a.rt.configDir) || a.rt.versions.Contains(abs) {
+	rel, abs, ok := a.relocatable(r)
+	if !ok || !session.EqualOrUnder(abs, anchor) {
 		return "", false
 	}
 	// A document that is served now is reached at its served address, however old
