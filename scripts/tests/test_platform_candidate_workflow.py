@@ -18,8 +18,8 @@ import platform_candidate_io as transport
 import release_candidate as core
 
 
-def load_workflow():
-    source = ROOT / '.github/workflows/platform-candidate.yml'
+def load_workflow(name='platform-candidate.yml'):
+    source = ROOT / '.github/workflows' / name
     try:
         import yaml
     except ImportError:
@@ -27,6 +27,31 @@ def load_workflow():
             'ruby', '-ryaml', '-rjson', '-e',
             'puts JSON.generate(YAML.load_file(ARGV[0]))', str(source)], text=True))
     return yaml.safe_load(source.read_text())
+
+
+def sparkle_step(jobs):
+    return next(step for job in jobs.values() for step in job['steps']
+                if step.get('name') == 'Sign the Sparkle update')
+
+
+def assert_macos_release_build(case, jobs):
+    steps = jobs['build-macos']['steps']
+    build = next(step for step in steps if step.get('name') == 'Build, sign & notarize (universal)')
+    case.assertEqual(build['env']['HTMLCLAY_RELEASE_BUILD'], '1')
+    verify = steps[steps.index(build) + 1]
+    case.assertEqual(verify['name'], 'Verify the signed bundle')
+    case.assertEqual(verify['env'], {'VERSION': build['env']['VERSION'],
+                                     'HTMLCLAY_RELEASE_BUILD': '1'})
+    case.assertEqual(verify['run'], 'bash packaging/macos/verify-bundle.sh --universal --hardened '
+                                    'HTMLClay.app "$VERSION" com.htmlclay.HTMLClay')
+    case.assertIn('--hardened', verify['run'])
+    case.assertIn('com.htmlclay.HTMLClay', verify['run'])
+
+
+def assert_sparkle_legacy_item_policy(case, jobs):
+    script = sparkle_step(jobs)['run']
+    case.assertIn('SPARKLE_LEGACY_ITEM', script)
+    case.assertIn('capture-legacy-item.sh', script)
 
 
 class PlatformWorkflowTests(unittest.TestCase):
@@ -113,6 +138,13 @@ class PlatformWorkflowTests(unittest.TestCase):
                 self.assertEqual(evidence, [])
             diagnostics = job['steps'][-1]
             self.assertEqual(diagnostics['if'], 'always()')
+
+    def test_macos_build_is_a_release_build_and_verified(self):
+        assert_macos_release_build(self, self.jobs)
+
+    def test_sparkle_step_requires_the_legacy_item_for_2_x(self):
+        assert_sparkle_legacy_item_policy(self, self.jobs)
+        self.assertIn('[ "${VERSION%%.*}" -ge 2 ]', sparkle_step(self.jobs)['run'])
 
     def test_no_publication_and_private_retention_of_every_output(self):
         text = json.dumps(self.workflow)
@@ -343,6 +375,19 @@ class CandidateTransportTests(unittest.TestCase):
                 os.chdir(previous)
             self.assertIn('PUB_DATE="Sun, 01 Nov 2026 10:00:00 +0000"', target.read_text())
         self.assertEqual(original.read_bytes(), contents)
+
+
+class ReleaseWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.workflow = load_workflow('release.yml')
+        self.jobs = self.workflow['jobs']
+
+    def test_macos_build_is_a_release_build_and_verified(self):
+        assert_macos_release_build(self, self.jobs)
+
+    def test_sparkle_step_requires_the_legacy_item_for_2_x(self):
+        assert_sparkle_legacy_item_policy(self, self.jobs)
+        self.assertIn('[ "${VERSION%%.*}" -ge 2 ]', sparkle_step(self.jobs)['run'])
 
 
 if __name__ == '__main__':

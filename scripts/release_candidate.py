@@ -61,13 +61,20 @@ def job_graph():
                       "command": "go run ./cmd/fetchtailwind -goos darwin -goarch arm64\n"
                                  "go test -tags tailwind_bundle ./internal/tailwind/ -count=1"},
                      {"kind": "build-sign-notarize", "name": "Build, sign & notarize (universal)",
-                      "command": "bash packaging/macos/build.sh --universal"}],
+                      "command": "bash packaging/macos/build.sh --universal",
+                      "env": {"HTMLCLAY_RELEASE_BUILD": "1"}},
+                     {"kind": "verify", "name": "Verify the signed bundle",
+                      "command": 'bash packaging/macos/verify-bundle.sh --universal --hardened '
+                                 'HTMLClay.app "$VERSION" com.htmlclay.HTMLClay',
+                      "env": {"HTMLCLAY_RELEASE_BUILD": "1"}}],
                  "artifacts": ["HTMLClay-{version}-universal.dmg",
                                "HTMLClay-{version}-universal.app.zip"]})
     jobs.append({"id": "sparkle", "kind": "prepare", "needs": ["verify", "build-macos"],
                  "command": 'bash packaging/macos/sparkle-appcast.sh "$VERSION" '
                             '"HTMLClay-${VERSION}-universal.app.zip" sparkle-out',
                  "optional_key_policy": "neither key: SKIPPED; one key: fail; both keys: sign",
+                 "legacy_item": "packaging/macos/appcast-legacy-item.xml",
+                 "legacy_item_policy": "present: second item; missing for 2.x: fail",
                  "artifacts": ["sparkle-out/"],
                  "required_when_enabled": ["HTMLClay-{version}-universal.app.zip", "appcast.xml"]})
     jobs.append({"id": "update-feed", "kind": "prepare",

@@ -355,7 +355,14 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           UPDATE_CHANNEL: stable
           SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+          HTMLCLAY_RELEASE_BUILD: "1"
         run: bash packaging/macos/build.sh --universal
+
+      - name: Verify the signed bundle
+        env:
+          VERSION: ${{ inputs.version }}
+          HTMLCLAY_RELEASE_BUILD: "1"
+        run: bash packaging/macos/verify-bundle.sh --universal --hardened HTMLClay.app "$VERSION" com.htmlclay.HTMLClay
 
       - uses: actions/upload-artifact@v4
         with:
@@ -382,6 +389,13 @@ jobs:
           fi
           if [ -z "$SPARKLE_ED_PRIVATE_KEY" ] || [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
             echo "::error::Set both the SPARKLE_ED_PRIVATE_KEY secret and the SPARKLE_PUBLIC_ED_KEY repository variable, or neither."
+            exit 1
+          fi
+          LEGACY=packaging/macos/appcast-legacy-item.xml
+          if [ -f "$LEGACY" ]; then
+            export SPARKLE_LEGACY_ITEM="$LEGACY"
+          elif [ "${VERSION%%.*}" -ge 2 ]; then
+            echo "::error::$LEGACY is missing. Run packaging/macos/capture-legacy-item.sh at the release candidate and commit it, so Macs below macOS 14 keep the last 1.x."
             exit 1
           fi
           bash packaging/macos/sparkle-appcast.sh "$VERSION" "HTMLClay-${VERSION}-universal.app.zip" sparkle-out

@@ -166,7 +166,9 @@ class ReleaseCandidateTests(unittest.TestCase):
         mac = jobs["build-macos"]
         self.assertEqual(mac["architectures"], ["amd64", "arm64"])
         self.assertIn("build-sign-notarize", [step["kind"] for step in mac["steps"]])
-        self.assertEqual(mac["steps"][-1]["command"], "bash packaging/macos/build.sh --universal")
+        self.assertEqual(next(step for step in mac["steps"]
+                              if step["kind"] == "build-sign-notarize")["command"],
+                         "bash packaging/macos/build.sh --universal")
         for platform in ("linux", "windows"):
             for arch in ("amd64", "arm64"):
                 job = jobs[f"build-{platform}-{arch}"]
@@ -180,6 +182,26 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn("appcast.xml", jobs["sparkle"]["required_when_enabled"])
         self.assertTrue(jobs["update-feed"]["frozen_date_required"])
         self.assertIn("seed without key id: fail", jobs["update-feed"]["optional_key_policy"])
+
+    def test_macos_build_is_a_release_build_and_verified(self):
+        mac = next(job for job in candidate.job_graph() if job["id"] == "build-macos")
+        kinds = [step["kind"] for step in mac["steps"]]
+        self.assertEqual(kinds.count("build-sign-notarize"), 1)
+        build = mac["steps"][kinds.index("build-sign-notarize")]
+        self.assertEqual(build["command"], "bash packaging/macos/build.sh --universal")
+        self.assertEqual(build["env"], {"HTMLCLAY_RELEASE_BUILD": "1"})
+        verify = mac["steps"][kinds.index("build-sign-notarize") + 1]
+        self.assertEqual(verify["kind"], "verify")
+        self.assertEqual(verify["env"], {"HTMLCLAY_RELEASE_BUILD": "1"})
+        self.assertRegex(verify["command"],
+                         r"^bash packaging/macos/verify-bundle\.sh .*--hardened "
+                         r'HTMLClay\.app "\$VERSION" com\.htmlclay\.HTMLClay$')
+
+    def test_sparkle_job_names_the_legacy_item(self):
+        sparkle = next(job for job in candidate.job_graph() if job["id"] == "sparkle")
+        self.assertEqual(sparkle["legacy_item"], "packaging/macos/appcast-legacy-item.xml")
+        self.assertEqual(sparkle["legacy_item_policy"],
+                         "present: second item; missing for 2.x: fail")
 
     def test_identity_contract(self):
         artifact = candidate.identity_artifact(INPUTS)
