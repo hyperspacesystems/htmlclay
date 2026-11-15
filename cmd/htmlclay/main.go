@@ -354,6 +354,9 @@ func main() {
 	if code, handled := serveDispatch(os.Args); handled {
 		os.Exit(code)
 	}
+	if code, handled := syncDispatch(os.Args); handled {
+		os.Exit(code)
+	}
 
 	releaseOwnConsole()
 

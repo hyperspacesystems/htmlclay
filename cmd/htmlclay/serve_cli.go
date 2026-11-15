@@ -148,9 +148,15 @@ func stopServingCmd(si platform.SingleInstance, args []string, stdout, stderr io
 
 // sendServeFrame sends one frame and prints the app's answer as people read it.
 func sendServeFrame(si platform.SingleInstance, frame string, stdout, stderr io.Writer) int {
+	return sendInstanceFrame(si, frame, "serve", stdout, stderr)
+}
+
+// sendInstanceFrame sends one frame for the htmlclay <command> command line. The
+// error it prints names only the frame's first word, which never carries a key.
+func sendInstanceFrame(si platform.SingleInstance, frame, command string, stdout, stderr io.Writer) int {
 	answer, err := si.SendCommand(frame)
 	if errors.Is(err, platform.ErrNoAnswer) {
-		fmt.Fprintln(stdout, "the running HTML Clay predates htmlclay serve")
+		fmt.Fprintf(stdout, "the running HTML Clay predates htmlclay %s\n", command)
 		return serveExitTooOld
 	}
 	if err != nil {
@@ -167,6 +173,9 @@ func servePrintAnswer(answer string, stdout, stderr io.Writer) int {
 	switch {
 	case parts[0] == "served" && len(parts) == 3:
 		fmt.Fprintln(stdout, fmt.Sprintf(appcore.TextNowServed, parts[1], parts[2]))
+		return serveExitOK
+	case parts[0] == "done" && len(parts) >= 2:
+		fmt.Fprintln(stdout, strings.TrimPrefix(answer, "done "))
 		return serveExitOK
 	case parts[0] == "stopped" && len(parts) == 2:
 		fmt.Fprintln(stdout, fmt.Sprintf(appcore.TextStopped, parts[1]))

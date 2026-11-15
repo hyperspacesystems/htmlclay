@@ -355,3 +355,21 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 	}
 	return facts, folders, events
 }
+
+// setSyncPaused is sync.setPaused: the switch every session follows. Sessions
+// read it when /sync/v1/configure arrives in slice 2.
+func (a *app) setSyncPaused(paused bool) *appcore.Refusal {
+	a.rt.syncMu.Lock()
+	defer a.rt.syncMu.Unlock()
+	record, err := a.syncRecordLocked()
+	if err != nil {
+		a.rt.logger.Printf("Could not pause sync: sync.json: %v", err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	record.Paused = paused
+	if err := record.Save(); err != nil {
+		a.rt.logger.Printf("Could not pause sync: sync.json: %v", err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	return nil
+}
