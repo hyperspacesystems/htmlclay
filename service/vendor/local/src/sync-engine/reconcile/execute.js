@@ -419,6 +419,12 @@ async function deleteRemote(engine, nodeId, entry, context) {
   engine.assertRootPresent();
   const type = typeOf(entry, context, rel);
   const id = idOf(nodeId);
+  // A scan that stopped early reads a file it never reached as deleted. Only a
+  // name that is really gone is deleted on the server; anything still there, or
+  // that cannot be checked, waits for the next comparison.
+  if (!(await goneFromDisk(path.join(engine.syncFolder, rel)))) {
+    return { action: A.NOOP, blocked: true };
+  }
   // A folder is deleted against the version the decision was made from: the server refuses a
   // cascade when anything under the folder changed since.
   const decidedVersion = type === 'folder' && engine.protocol === 2 ? context.structureVersion : undefined;
@@ -439,6 +445,15 @@ async function deleteRemote(engine, nodeId, entry, context) {
 
   await finishDelete(engine, nodeId, rel, type);
   return { action: A.DELETE_REMOTE, path: rel };
+}
+
+async function goneFromDisk(fullPath) {
+  try {
+    await fs.lstat(fullPath);
+    return false;
+  } catch (error) {
+    return error.code === 'ENOENT' || error.code === 'ENOTDIR';
+  }
 }
 
 async function deleteLanded(engine, id) {

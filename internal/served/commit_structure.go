@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/panphora/htmlclay/internal/dataapi"
 )
@@ -29,6 +31,11 @@ type structurePolicy struct {
 	// checks names before Go's structure lock, so another tab or a save can
 	// take a name in between; a move or copy onto it would lose those bytes.
 	exclusive bool
+	// freeName moves to <to>.<unix ms> when the destination is another entry,
+	// the fallback Local's engine uses for a trashed folder. Sync trashes a file
+	// at one fixed name, so a second trash of the same path would otherwise
+	// replace the first, and the engine forgets a trashed file at once.
+	freeName bool
 }
 
 var structureKinds = map[string]structurePolicy{
@@ -39,7 +46,7 @@ var structureKinds = map[string]structurePolicy{
 	// lock it shares with this host (it holds no boundary across the call), so the
 	// move itself must refuse a destination taken in between.
 	"sync-move":  {crossDevice: true, exclusive: true},
-	"sync-trash": {retire: true, crossDevice: true},
+	"sync-trash": {retire: true, crossDevice: true, freeName: true},
 }
 
 // structureEntry is one resolved step: the canonical path a name is at now, the
@@ -155,7 +162,14 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 	}
 
 	var copiedSteps []int
-	for index, entry := range entries {
+	for index := range entries {
+		if policy.freeName {
+			if err := moveAsideFromTaken(&entries[index]); err != nil {
+				failure = err
+				break
+			}
+		}
+		entry := entries[index]
 		if err := destinationFree(policy, entry); err != nil {
 			failure = err
 			break
@@ -368,6 +382,31 @@ func destinationFree(policy structurePolicy, entry structureEntry) error {
 		return nil
 	}
 	return &fs.PathError{Op: "rename", Path: entry.ToPath, Err: fs.ErrExist}
+}
+
+// moveAsideFromTaken points entry at <to>.<unix ms> (counting up past any name
+// also taken) when its destination is another entry, never the source itself.
+func moveAsideFromTaken(entry *structureEntry) error {
+	taken, err := os.Lstat(entry.ToPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if source, err := os.Lstat(entry.FromPath); err == nil && os.SameFile(source, taken) {
+		return nil
+	}
+	for stamp := time.Now().UnixMilli(); ; stamp++ {
+		suffix := "." + strconv.FormatInt(stamp, 10)
+		if _, err := os.Lstat(entry.ToPath + suffix); errors.Is(err, fs.ErrNotExist) {
+			entry.ToPath += suffix
+			entry.ToName += suffix
+			return nil
+		} else if err != nil {
+			return err
+		}
+	}
 }
 
 // moveEntry is Local's moveEntry: a rename, and on a cross-device rename a copy

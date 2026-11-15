@@ -1,8 +1,8 @@
 {
   "local": {
-    "ref": "02d3487ca7b0057c318d2e1406117dc54893d171",
-    "commit": "02d3487ca7b0057c318d2e1406117dc54893d171",
-    "committedAt": "2026-11-15T06:28:10-05:00"
+    "ref": "9385c8a",
+    "commit": "9385c8ae6fe6c2d328925fb7a994c2a72251ef6e",
+    "committedAt": "2026-11-15T09:41:13-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -917,7 +917,7 @@
     "src/sync-engine/engine-uploader.js": "e51ee6a70f2c97d6eb9ae810c0d3b50f6b9b0158550795108f29c1345d170fe3",
     "src/sync-engine/engine-watcher.js": "06aba4c2da0286fdc5e693e9ce71507f2adb766968abebb2795fa1d94435c050",
     "src/sync-engine/error-handler.js": "602aa50565eaeaf81072c7111f62ca8a0af41c0c0e184024527c2a8db4242330",
-    "src/sync-engine/file-operations.js": "5ac3fc9adb2ab5886a253dd383765f8983f355dff27294ef997a60a307d013ff",
+    "src/sync-engine/file-operations.js": "1d0b0677209f9e60c2af0822dcb5b6decfdb5946d0c301c54a44cd9758c227fd",
     "src/sync-engine/ignored-paths.js": "906179f4e7645a0c3cd3cfc8c638a40a167aa4fd762ed511a478b2a0ae9c10f3",
     "src/sync-engine/index.js": "a2650f5f2731faaf7745ff2e874749f93552fd9450171cf7cbc9066bccabc921",
     "src/sync-engine/local-boundary.js": "68760c8b2bae504bd21f1c283b440f941ae5849c73ead2e9d4517a4935f3a570",
@@ -930,7 +930,7 @@
     "src/sync-engine/reconcile/conflicts.js": "223db23ff89b8a707e3ff593e6b0cbd353cb1b1963d78e2234f46ce61efdadec",
     "src/sync-engine/reconcile/decide.js": "fa4d7deb7916eb9c6ec45569cff326c0b1763ebb53ce22bf3828b4cd0197b097",
     "src/sync-engine/reconcile/disk-snapshot.js": "6171a66799a0fc12dbc6d4c313ff0b0503d37eccb5afad9c2d87a76aad8c8336",
-    "src/sync-engine/reconcile/execute.js": "2527e766065423db7cb17d238fd51fe1b188bb385dc0e75b8c4f978163970efe",
+    "src/sync-engine/reconcile/execute.js": "f075cfb55eb3d077fd4a6d0216461736c85c69a623adbdc36c5fa36706e4d6a5",
     "src/sync-engine/reconcile/first-bind.js": "b707155ff13d07414bb2ddfa3fdbe35544ada9af3ce1b3c7c2cd12c2841a3aba",
     "src/sync-engine/reconcile/legacy-import.js": "c77eaba92ed424d84ae8b16743f382b5cb0e06a54f28500be1a32c8663b88b76",
     "src/sync-engine/reconcile/session-runner.js": "b3ed6bab043e0fc13b71c373d0181d3d0a281403c7ab25ec882dcd3d9a68a28a",

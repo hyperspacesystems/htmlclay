@@ -394,3 +394,40 @@ func TestHuntSyncFaultSweep(t *testing.T) {
 		t.Fatalf("the sweep ran %d cases, want %d (at least 36)", ran, want)
 	}
 }
+
+// A path sync trashes twice keeps both trashed copies: the second trash of
+// doc.html moves to a free name instead of replacing the first in .trash/.
+func TestHuntSyncTrashKeepsEarlierTrash(t *testing.T) {
+	dir := huntTempDir(t)
+	site := huntOpen(t, huntLane{name: "sync-trash-twice", control: true}, dir)
+	for round, words := range []string{"First edits", "Second edits"} {
+		if answer := huntSyncCommit(t, site, fmt.Sprintf("6a0000000000000%d", 2*round), "doc.html", huntDoc(words)); !huntCommitted(answer) {
+			t.Fatalf("round %d: writing doc.html: %s", round, answer)
+		}
+		if answer := huntRestructure(t, site, fmt.Sprintf("6a0000000000000%d", 2*round+1), "sync-trash", []map[string]any{{"from": "doc.html", "to": ".trash/doc.html"}}); !huntCommitted(answer) {
+			t.Fatalf("round %d: trashing doc.html: %s", round, answer)
+		}
+	}
+	entries, err := os.ReadDir(filepath.Join(dir, ".trash"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, entry := range entries {
+		data, err := os.ReadFile(filepath.Join(dir, ".trash", entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, words := range []string{"First edits", "Second edits"} {
+			if strings.Contains(string(data), words) {
+				found[words] = true
+			}
+		}
+	}
+	if !found["First edits"] || !found["Second edits"] {
+		t.Fatalf("after trashing doc.html twice, .trash holds %d entries with first=%v second=%v; both trashed copies must be kept", len(entries), found["First edits"], found["Second edits"])
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".trash", "doc.html")); err != nil {
+		t.Fatalf("the first trashed copy is not at .trash/doc.html: %v", err)
+	}
+}

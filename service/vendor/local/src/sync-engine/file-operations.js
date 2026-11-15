@@ -20,6 +20,17 @@ function shouldSkipEntry(name) {
 /**
  * Get all local HTML files recursively with relative paths
  */
+// One entry that vanished or cannot be read is left out on its own, so the
+// scan still sees every other file in its folder.
+async function statOrSkip(fullPath, logger) {
+  try {
+    return await fs.stat(fullPath);
+  } catch (error) {
+    if (logger) logger.warn('SYNC', 'Skipped a file the scan could not read', { path: fullPath, code: error.code });
+    return null;
+  }
+}
+
 async function getLocalFiles(syncFolder, logger = null) {
   const files = new Map();
 
@@ -38,7 +49,8 @@ async function getLocalFiles(syncFolder, logger = null) {
             await scanDirectory(fullPath, relPath);
           }
         } else if (entry.isFile() && (entry.name.endsWith('.html') || entry.name.endsWith('.htmlclay'))) {
-          const stats = await fs.stat(fullPath);
+          const stats = await statOrSkip(fullPath, logger);
+          if (!stats) continue;
 
           // relPath is already normalized by upath.join() to forward slashes
           files.set(relPath, {
@@ -134,7 +146,8 @@ async function getLocalUploads(syncFolder, logger = null) {
         if (entry.isDirectory()) {
           await scanDirectory(fullPath, relPath);
         } else if (entry.isFile() && !entry.name.endsWith('.html') && !entry.name.endsWith('.htmlclay')) {
-          const stats = await fs.stat(fullPath);
+          const stats = await statOrSkip(fullPath, logger);
+          if (!stats) continue;
           files.set(relPath, {
             path: fullPath,
             relativePath: relPath,
