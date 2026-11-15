@@ -471,7 +471,7 @@ func moveHistoryPath(baseDir, store, fromBase, toBase string, isDir bool) error 
 		return nil
 	}
 	if !isDir {
-		return moveHistoryDir(from, to)
+		return moveHistoryFiles(from, to)
 	}
 	children, err := os.ReadDir(from)
 	if err != nil {
@@ -508,10 +508,78 @@ func moveHistoryDir(from, to string) error {
 	return nil
 }
 
+// moveHistoryFiles moves one document's own history: the files directly in from.
+// The directories beside them hold the history of documents inside a folder of
+// the same name (notes/ beside notes.html), which did not move. Files to already
+// holds are set aside first.
+func moveHistoryFiles(from, to string) error {
+	entries, err := os.ReadDir(from)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if err := setAsideHistoryFiles(to); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(to, 0o777); err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if err := os.Rename(filepath.Join(from, entry.Name()), filepath.Join(to, entry.Name())); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
+}
+
 // setAsideHistory keeps history a rename would land on, under a dated sibling
 // name: nothing is deleted, and the renamed document's history never shares a
 // directory with it.
 func setAsideHistory(dir string) error {
+	aside, err := asideName(dir)
+	if err != nil {
+		return err
+	}
+	return os.Rename(dir, aside)
+}
+
+// setAsideHistoryFiles is setAsideHistory for the files directly in dir only,
+// leaving the history directories of the documents inside a folder of that name.
+func setAsideHistoryFiles(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	var aside string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if aside == "" {
+			if aside, err = asideName(dir); err != nil {
+				return err
+			}
+			if err := os.MkdirAll(aside, 0o777); err != nil {
+				return err
+			}
+		}
+		if err := os.Rename(filepath.Join(dir, entry.Name()), filepath.Join(aside, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// asideName answers a dated sibling of dir that does not exist yet.
+func asideName(dir string) (string, error) {
 	base := dir + "-" + clockTime().Format("2006-01-02-15-04-05")
 	for attempt := 0; ; attempt++ {
 		candidate := base
@@ -520,10 +588,10 @@ func setAsideHistory(dir string) error {
 		}
 		_, err := os.Lstat(candidate)
 		if errors.Is(err, fs.ErrNotExist) {
-			return os.Rename(dir, candidate)
+			return candidate, nil
 		}
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 }
