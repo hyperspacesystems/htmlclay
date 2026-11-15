@@ -128,9 +128,11 @@ func TestCheckServe(t *testing.T) {
 			otherPath: "/home/u/Local",
 		},
 		{
-			name:  "bound to local sync",
-			facts: with(func(f *ServeFacts) { f.SyncMarkers = []SyncMarker{{Folder: "/home/sam/notes", RootID: "abcdef0123456789"}} }),
-			code:  RefuseBoundToLocalSync,
+			name: "bound to local sync",
+			facts: with(func(f *ServeFacts) {
+				f.SyncMarkers = []SyncMarker{{Folder: "/home/sam/notes", RootID: "abcdef0123456789"}}
+			}),
+			code: RefuseBoundToLocalSync,
 		},
 		{
 			name: "nested trusted: asked folder inside a trusted folder",

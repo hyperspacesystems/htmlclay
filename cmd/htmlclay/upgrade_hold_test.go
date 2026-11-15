@@ -99,7 +99,7 @@ func TestStartupHoldsSavesWhileUnjudged(t *testing.T) {
 // back one leaves it; a launch outside a trial removes it on read as before.
 func TestUpdateHandoffOutlivesTheTrial(t *testing.T) {
 	for _, tc := range []struct {
-		name, before, verdict string
+		name, before, verdict     string
 		afterRestore, afterSettle bool
 	}{
 		{"kept", update.PhaseApplying, update.PhaseDone, true, false},
