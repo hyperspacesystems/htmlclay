@@ -299,6 +299,28 @@ fsyncs the file, its blockeditor-state sidecar and their directories; the JS ser
 uses it to prove a checkpoint durable after an `indeterminate` write. `changed`
 answers when the file holds other bytes or is not there, and changes nothing.
 
+## `POST /v1/sync/file`
+
+```json
+{ "opId": "<16 to 64 hex>", "root": "root-0", "op": "put" | "remove",
+  "rel": ".hyperclay/sync-root.json",
+  "bytes": { "encoding": "utf8" | "base64", "data": "…" } }
+```
+
+```json
+{ "outcome": "committed", "sha256": "<hex, put only>", "opId": "…" } |
+{ "outcome": "refused", "reason": "not-allowed" | "<errno name>", "opId": "…" }
+```
+
+The files sync keeps for itself in a served folder, written by Go like every other
+write. `rel` is exactly `.hyperclay/sync-root.json` (put only), or starts with
+`.hyperclay/conflicts/` followed by one or more segments that are not empty, not
+`.` or `..`, not hidden, and at most 255 UTF-16 units. Anything else, and any path
+whose existing folders lead out of the root once links are followed, is
+`not-allowed`; the versions folder is never written here. A put writes a temporary
+file and renames it, making missing folders under `.hyperclay/`; a remove of a file
+that is not there is `committed`. A reused opId answers 409 `op-reused`.
+
 ## `GET /v1/op/<opId>`
 
 ```json

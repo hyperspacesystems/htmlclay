@@ -100,6 +100,8 @@ func (a *controlAPI) route(r *http.Request) http.HandlerFunc {
 		return a.serveRead
 	case r.URL.Path == "/v1/durable" && r.Method == http.MethodPost:
 		return a.serveDurable
+	case r.URL.Path == "/v1/sync/file" && r.Method == http.MethodPost:
+		return a.serveSyncFile
 	}
 	if handler := a.faultRoute(r); handler != nil {
 		return handler
