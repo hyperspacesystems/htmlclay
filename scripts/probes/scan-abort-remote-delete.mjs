@@ -85,7 +85,10 @@ const cases = {
     },
   },
   churn: {
-    attempts: 5,
+    // Each attempt kills the service, as does the control comparison; five kills
+    // in two minutes makes the host stop restarting it (internal/service/state.go
+    // failExits), so stay under.
+    attempts: 3,
     idleMs: 20000,
     stop(world) {
       world.churn = spawn(process.execPath, ['-e', churnLoop, world.folder], { stdio: 'ignore' });
