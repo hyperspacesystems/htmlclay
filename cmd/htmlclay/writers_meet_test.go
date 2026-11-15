@@ -495,7 +495,15 @@ func TestM3WritersMeet(t *testing.T) {
 		// The page's edit is now in no file and no version: the recovered copy is
 		// where the person can get it back. What is left to check is that every way
 		// the page can offer it again is answered with a refusal the page can act on.
-		if status, answer := tab.sendEdit(t, tab.conn, tab.epoch); status != http.StatusServiceUnavailable || answer.Code != "not-connected" {
+		// The service is running once its handshake carried the folders, a moment
+		// before it answers for them; a slow machine can send the edit in between
+		// and hear 404. The refusal checked is the one once the folder is back.
+		status, answer := tab.sendEdit(t, tab.conn, tab.epoch)
+		for deadline := time.Now().Add(10 * time.Second); status == http.StatusNotFound && time.Now().Before(deadline); {
+			time.Sleep(50 * time.Millisecond)
+			status, answer = tab.sendEdit(t, tab.conn, tab.epoch)
+		}
+		if status != http.StatusServiceUnavailable || answer.Code != "not-connected" {
 			t.Fatalf("the edit sent again on the lost connection = %d %+v, want 503 not-connected", status, answer)
 		}
 		back := openWritersTab(t, server, host, "index.html")
