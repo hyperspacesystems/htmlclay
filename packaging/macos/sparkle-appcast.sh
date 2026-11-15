@@ -51,6 +51,15 @@ if [ ! -f "$PRODUCT_INFO" ]; then
   exit 1
 fi
 MIN_OS="$(plutil -extract LSMinimumSystemVersion raw "$PRODUCT_INFO")"
+# The floor rehearsal (scripts/upgrade-rehearsal.sh floor) raises the floor
+# above this Mac's macOS. It can only raise it: a lower value is refused.
+if [ -n "${SPARKLE_FLOOR_RAISE:-}" ]; then
+  if [ "$(printf '%s\n%s\n' "$MIN_OS" "$SPARKLE_FLOOR_RAISE" | sort -V | tail -n 1)" != "$SPARKLE_FLOOR_RAISE" ]; then
+    echo "SPARKLE_FLOOR_RAISE=$SPARKLE_FLOOR_RAISE is below the product floor $MIN_OS" >&2
+    exit 1
+  fi
+  MIN_OS="$SPARKLE_FLOOR_RAISE"
+fi
 PUB_DATE="$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')"
 
 mkdir -p "$OUT"

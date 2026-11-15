@@ -9,6 +9,8 @@
 # make the new app fail to serve, and check that the old app comes back as it was.
 # `quit` is the plain quit: the old app downloads 2.0 on its scheduled check and
 # Sparkle installs it when the person quits.
+# `floor` is the same update as `first` with the new item's floor raised to 99.0,
+# so Sparkle reads the feed, skips the item and leaves the 1.x app as it was.
 #
 # Both bundles carry the throwaway id com.htmlclay.SparkleCheck and claim no
 # file types or URL schemes, everything runs on a scratch HOME and config base
@@ -16,7 +18,7 @@
 # item, its config, its process and the app LaunchServices opens .htmlclay with
 # are compared before and after.
 #
-# Usage: scripts/upgrade-rehearsal.sh first|quit|rollback-nohost|rollback-app|rollback-early|rollback-version [--old-tag <tag>] [--welcome]
+# Usage: scripts/upgrade-rehearsal.sh first|floor|quit|rollback-nohost|rollback-app|rollback-early|rollback-version [--old-tag <tag>] [--welcome]
 #
 # Exit codes: 0 every check passed, 1 one of them did not, 2 usage.
 # The last line on stdout is one JSON object and the last line on stderr is the
@@ -61,13 +63,13 @@ say() { echo "[rehearsal] $*" >&2; }
 
 # The case comes first.
 usage() {
-  say "usage: upgrade-rehearsal.sh first|quit|rollback-nohost|rollback-app|rollback-early|rollback-version [--old-tag <tag>] [--welcome]"
+  say "usage: upgrade-rehearsal.sh first|floor|quit|rollback-nohost|rollback-app|rollback-early|rollback-version [--old-tag <tag>] [--welcome]"
   exit 2
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    first|quit|rollback-nohost|rollback-app|rollback-early|rollback-version)
+    first|floor|quit|rollback-nohost|rollback-app|rollback-early|rollback-version)
       [ -z "$CASE" ] || usage
       CASE="$1"
       shift
@@ -92,10 +94,14 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$CASE" ] || usage
 
-if [ "$CASE" = "first" ] && [ "$OLD_TAG" = "v1.13.4" ]; then
-  say "first needs the update-now command, which v1.13.4 does not have; run quit --old-tag v1.13.4"
-  exit 2
-fi
+case "$CASE" in
+  first|floor)
+    if [ "$OLD_TAG" = "v1.13.4" ]; then
+      say "$CASE needs the update-now command, which v1.13.4 does not have; run quit --old-tag v1.13.4"
+      exit 2
+    fi
+    ;;
+esac
 
 PIDS=()
 CANARY_PID=""
@@ -681,11 +687,61 @@ if [ ! -f "$NEW_ZIP" ]; then
   exit 1
 fi
 
+# check_floor_feed FILE: the floor rehearsal's feed must hold two items and the
+# 9.0.1 item's floor must be 99.0, or the run would prove nothing. Says why not.
+check_floor_feed() {
+  local path="$1"
+  python3 - "$path" "$NEW_VERSION" <<'PY' 2>&1
+import sys, xml.etree.ElementTree as ET
+SPARKLE = "{http://www.andymatuschak.org/xml-namespaces/sparkle}"
+path, version = sys.argv[1], sys.argv[2]
+try:
+    root = ET.parse(path).getroot()
+except Exception as error:
+    print(f"{path} is not readable xml: {error}")
+    sys.exit(1)
+items = root.findall("channel/item")
+if len(items) != 2:
+    print(f"{path} holds {len(items)} items, wanted 2")
+    sys.exit(1)
+for item in items:
+    if (item.findtext(SPARKLE + "shortVersionString") or "") != version:
+        continue
+    floor = item.findtext(SPARKLE + "minimumSystemVersion") or ""
+    if floor != "99.0":
+        print(f"the {version} item's floor is {floor or 'absent'}, wanted 99.0")
+        sys.exit(1)
+    sys.exit(0)
+print(f"{path} has no item for {version}")
+sys.exit(1)
+PY
+}
+
 make_appcast() {
-  local zip="$1" base="$2" out="$3"
+  local zip="$1" base="$2" out="$3" why
   mkdir -p "$out"
-  SPARKLE_ED_PRIVATE_KEY="$PRIV" SPARKLE_PUBLIC_ED_KEY="$PUB" SPARKLE_BASE_URL="$base" \
-    bash "$ROOT/packaging/macos/sparkle-appcast.sh" "$NEW_VERSION" "$zip" "$out" >>"$LOGS/appcast.log" 2>&1 || return 1
+  if [ "$CASE" = "floor" ]; then
+    cat >"$SCRATCH/legacy-item.xml" <<XML
+<item xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <title>HTML Clay $OLD_VERSION</title>
+  <sparkle:version>$OLD_VERSION</sparkle:version>
+  <sparkle:shortVersionString>$OLD_VERSION</sparkle:shortVersionString>
+  <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+  <enclosure url="http://127.0.0.1:$HTTP_PORT/$OLD_VERSION/HTMLClay-$OLD_VERSION.app.zip" length="1" type="application/octet-stream" sparkle:edSignature="bm90LXVzZWQ="/>
+</item>
+XML
+    SPARKLE_ED_PRIVATE_KEY="$PRIV" SPARKLE_PUBLIC_ED_KEY="$PUB" SPARKLE_BASE_URL="$base" \
+      SPARKLE_FLOOR_RAISE=99.0 SPARKLE_LEGACY_ITEM="$SCRATCH/legacy-item.xml" \
+      bash "$ROOT/packaging/macos/sparkle-appcast.sh" "$NEW_VERSION" "$zip" "$out" >>"$LOGS/appcast.log" 2>&1 || return 1
+    why="$(check_floor_feed "$out/appcast.xml")"
+    if [ -n "$why" ]; then
+      record_check feed no "$why"
+      finish "never triggered" "$why"
+    fi
+  else
+    SPARKLE_ED_PRIVATE_KEY="$PRIV" SPARKLE_PUBLIC_ED_KEY="$PUB" SPARKLE_BASE_URL="$base" \
+      bash "$ROOT/packaging/macos/sparkle-appcast.sh" "$NEW_VERSION" "$zip" "$out" >>"$LOGS/appcast.log" 2>&1 || return 1
+  fi
   mkdir -p "$out/$NEW_VERSION"
   cp "$zip" "$out/$NEW_VERSION/"
 }
@@ -1124,6 +1180,90 @@ attempt() {
   return 1
 }
 
+# attempt_floor: the floor case, where the feed's 9.0.1 item needs macOS 99.0.
+# The old app asks for the update once; Sparkle reads the feed, skips the item,
+# downloads nothing, and the 1.x app keeps serving as it was.
+attempt_floor() {
+  local url="$1" line code listen gets start
+  ATTEMPT_FEED="$url"
+  PROOF="no"
+  FEED_ERROR=""
+  GATE=""
+  CHECKS_RAN=yes
+  : >"$CONFIG/htmlclay.log"
+  say "attempt floor: feed $url"
+  if ! set_feed "$url"; then
+    record_check feed no "could not point the old bundle at $url"
+    return 1
+  fi
+  launch_old floor
+  if ! wait_gate; then
+    record_check gate no "the app never reported its update gate; see logs/floor-app.out"
+    return 1
+  fi
+  say "gate: $GATE"
+  if [ "${GATE#*Self-update is on}" = "$GATE" ]; then
+    record_check gate no "$GATE"
+    return 1
+  fi
+  record_check gate yes "$GATE"
+  wait_sparkle || say "Sparkle did not report started within 45 s"
+
+  PORT_BEFORE="$(plutil -extract port raw -o - "$CONFIG/config.json" 2>/dev/null)"
+  say "the old app's port: ${PORT_BEFORE:-unknown}"
+
+  (
+    export HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support"
+    export PATH="$STUB_PATH" HTMLCLAY_STUB_OPEN_LOG="$OPEN_LOG"
+    "$OLD/Contents/MacOS/htmlclay" update-now --version "$NEW_VERSION"
+  ) >"$LOGS/floor-update-now.out" 2>"$LOGS/floor-update-now.err"
+  code=$?
+  line="$(tail -n 1 "$LOGS/floor-update-now.out" 2>/dev/null)"
+  say "asked for $NEW_VERSION once: exit $code, answer ${line:-none}"
+
+  say "waiting 90 s for a download that must never start"
+  start=$SECONDS
+  while [ $((SECONDS - start)) -lt 90 ]; do
+    sleep 1
+  done
+
+  if grep -q "GET /appcast.xml" "$LOGS/http.server.log" 2>/dev/null; then
+    record_check fetched yes "the feed server answered a GET /appcast.xml"
+  else
+    record_check fetched no "the feed server logged no GET /appcast.xml"
+  fi
+
+  gets="$(grep -E "GET /($NEW_VERSION|$OLD_VERSION)/" "$LOGS/http.server.log" 2>/dev/null)"
+  if [ -z "$gets" ]; then
+    record_check not-downloaded yes "no GET for $NEW_VERSION or $OLD_VERSION"
+  else
+    record_check not-downloaded no "the feed server was asked for an archive: $(printf '%s' "$gets" | tr '\n' ' ')"
+  fi
+
+  line="$(plist_key "$OLD/Contents/Info.plist" CFBundleShortVersionString)"
+  if [ "$line" = "$OLD_VERSION" ]; then
+    record_check bundle yes "$line"
+  else
+    record_check bundle no "$OLD carries ${line:-no version}, wanted $OLD_VERSION"
+  fi
+
+  if [ -e "$CONFIG/updates/state.json" ]; then
+    record_check no-state no "$CONFIG/updates/state.json exists"
+  else
+    record_check no-state yes
+  fi
+
+  listen=""
+  if [ -n "$APP_PID" ] && kill -0 "$APP_PID" 2>/dev/null; then
+    listen="$(listen_port "$APP_PID")"
+  fi
+  if [ -n "$PORT_BEFORE" ] && [ "$listen" = "$PORT_BEFORE" ]; then
+    record_check serving yes "htmlclay=$APP_PID listens on $listen"
+  else
+    record_check serving no "htmlclay=${APP_PID:-none} listens on ${listen:-nothing}, the old app was on ${PORT_BEFORE:-unknown}"
+  fi
+}
+
 # watch_supervisor: after proof, record what the recovery supervisor does.
 watch_supervisor() {
   local start=$SECONDS phase
@@ -1194,6 +1334,9 @@ below() { awk -v v="$1" -v limit="$2" 'BEGIN { exit !(v < limit) }'; }
 # run_checks: the pass checks for the case. installed-unchanged is recorded by
 # cleanup, when the before and after fingerprints are both in hand.
 run_checks() {
+  if [ "$CASE" = "floor" ]; then
+    return 0
+  fi
   if [ "$CASE" = "first" ]; then
     run_first_checks
   elif [ "$CASE" = "quit" ]; then
@@ -1503,20 +1646,27 @@ for _ in $(seq 1 40); do
   sleep 0.25
 done
 say "http feed ready: ${FEED_UP:-no}"
-attempt http "http://127.0.0.1:$HTTP_PORT/appcast.xml" "$DEADLINE"
-HTTP_RESULT=$?
-PROOF_SECONDS_HTTP="$PROOF_SECONDS"
-PRIMARY_PROOF="$PROOF"
-PRIMARY_ERROR="$FEED_ERROR"
-PRIMARY_FAILED="$(plutil -extract failed.version raw -o - "$CONFIG/updates/state.json" 2>/dev/null)"
-say "the http:// feed: result $HTTP_RESULT, ${PRIMARY_ERROR:-no Sparkle error}"
+if [ "$CASE" = "floor" ]; then
+  attempt_floor "http://127.0.0.1:$HTTP_PORT/appcast.xml"
+  ATTEMPT_FEED="http://127.0.0.1:$HTTP_PORT/appcast.xml"
+  OUTCOME="skipped"
+  OUTCOME_REASON="the feed's $NEW_VERSION item needs macOS 99.0, so Sparkle skipped it and left $OLD_VERSION as it was"
+else
+  attempt http "http://127.0.0.1:$HTTP_PORT/appcast.xml" "$DEADLINE"
+  HTTP_RESULT=$?
+  PROOF_SECONDS_HTTP="$PROOF_SECONDS"
+  PRIMARY_PROOF="$PROOF"
+  PRIMARY_ERROR="$FEED_ERROR"
+  PRIMARY_FAILED="$(plutil -extract failed.version raw -o - "$CONFIG/updates/state.json" 2>/dev/null)"
+  say "the http:// feed: result $HTTP_RESULT, ${PRIMARY_ERROR:-no Sparkle error}"
 
-categorize "$PRIMARY_PROOF" "$PRIMARY_ERROR" "$PRIMARY_FAILED"
-OUTCOME="$CATEGORY"
-OUTCOME_REASON="$CATEGORY_REASON"
-PROOF="$PRIMARY_PROOF"
-PROOF_SECONDS="$PROOF_SECONDS_HTTP"
-ATTEMPT_FEED="http://127.0.0.1:$HTTP_PORT/appcast.xml"
+  categorize "$PRIMARY_PROOF" "$PRIMARY_ERROR" "$PRIMARY_FAILED"
+  OUTCOME="$CATEGORY"
+  OUTCOME_REASON="$CATEGORY_REASON"
+  PROOF="$PRIMARY_PROOF"
+  PROOF_SECONDS="$PROOF_SECONDS_HTTP"
+  ATTEMPT_FEED="http://127.0.0.1:$HTTP_PORT/appcast.xml"
+fi
 
 if [ "$CASE" = "first" ] && [ "$PROOF" = "yes" ]; then
   watch_supervisor
