@@ -14,6 +14,7 @@ import (
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/served"
+	"github.com/panphora/htmlclay/internal/shellapi"
 )
 
 // The engine keeps each session's held conflicts in conflicts.json in the
@@ -97,7 +98,6 @@ func (a *app) readHeldConflicts() {
 	}
 
 	a.rt.syncMu.Lock()
-	defer a.rt.syncMu.Unlock()
 	previous := a.rt.syncConflicts
 	next := syncConflicts{facts: make(map[string][]appcore.EventFact, len(reads)), badLogged: make(map[string]bool)}
 	for id, r := range reads {
@@ -112,6 +112,25 @@ func (a *app) readHeldConflicts() {
 		}
 	}
 	a.rt.syncConflicts = next
+	known := map[string]bool{}
+	for _, facts := range previous.facts {
+		for _, f := range facts {
+			known[f.ID] = true
+		}
+	}
+	var fresh []appcore.EventFact
+	for _, facts := range next.facts {
+		for _, f := range facts {
+			if !known[f.ID] {
+				fresh = append(fresh, f)
+			}
+		}
+	}
+	a.rt.syncMu.Unlock()
+	for _, f := range fresh {
+		folder := f.SubjectID
+		a.notice(shellapi.Notice{ID: f.ID, Kind: noticeConflict, FolderID: &folder, Name: f.Name, Detail: f.Detail})
+	}
 }
 
 func readConflictsFile(file string, session config.SyncSession) ([]appcore.EventFact, error) {

@@ -167,7 +167,7 @@ const handlers = {
       const records = JSON.parse(readFileSync(file, 'utf8'));
       for (const key of Object.keys(records).sort()) {
         const r = records[key];
-        held.push({ id: `${session.id}:${key}:${r.detectedAt}`, folderID: session.rootId, key, path: r.path, kind: r.kind });
+        held.push({ id: `${session.id}:${key}:${r.detectedAt}`, folderID: session.rootId, key, path: r.path, kind: r.kind, remoteCopy: r.remoteCopy || null });
       }
     }
     return held;
@@ -177,6 +177,13 @@ const handlers = {
     if (keep === 'theirs' && process.env.PRODUCT_SYNC_BREAK === 'keep-theirs') return { broken: true };
     await act('conflict.resolve', { id: conflict.id, path: conflict.path, keep });
     return { resolved: true };
+  },
+  // Turns one folder's sync off or on (folder.setSynced); on answers once the
+  // live-room service the folder syncs in runs.
+  async setSynced({ folderID, on, timeoutMs = 30000 }) {
+    await act('folder.setSynced', { id: folderID, on });
+    if (on) await until('the service to run for the folder', async () => (await snapshot()).host.service === 'running', timeoutMs);
+    return { synced: (await snapshot()).folders.find((f) => f.id === folderID)?.sync?.state !== 'off' };
   },
   async pause({ paused = true } = {}) {
     await act('sync.setPaused', { paused });

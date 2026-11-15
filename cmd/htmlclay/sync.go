@@ -21,6 +21,7 @@ import (
 	"github.com/panphora/htmlclay/internal/secret"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/service"
+	"github.com/panphora/htmlclay/internal/shellapi"
 )
 
 // syncKeyName is the sync key's item name in the secret store.
@@ -432,6 +433,7 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 				state = appcore.FolderSyncSyncing
 			}
 			folderSync := appcore.FolderSync{State: state, Role: role}
+			folderSync.UploadedToday, folderSync.DownloadedToday = a.historyStore().Today(row.FolderID, time.Now())
 			if hasReport {
 				folderSync.LastFinishedAt = syncTime(report.LastSyncAt)
 			}
@@ -680,7 +682,9 @@ func (a *app) takeSyncReport(report served.SyncReport) {
 			}
 		}
 	}
+	var notices []shellapi.Notice
 	if rows, ok := a.reportedAccountRows(record, report.Accounts); ok {
+		notices = append(notices, addedTeams(record.Accounts, rows)...)
 		record.Accounts = rows
 		changed = true
 	}
@@ -688,6 +692,7 @@ func (a *app) takeSyncReport(report served.SyncReport) {
 		record.KeyRefused = &config.SyncKeyRefused{Since: time.Now().UTC().Format(time.RFC3339)}
 		changed = true
 		stop = true
+		notices = append(notices, shellapi.Notice{ID: "keyStopped:" + record.KeyRefused.Since, Kind: noticeKeyStopped})
 	}
 	if changed {
 		if err := record.Save(); err != nil {
@@ -695,6 +700,10 @@ func (a *app) takeSyncReport(report served.SyncReport) {
 		}
 	}
 	a.rt.syncMu.Unlock()
+	for _, n := range notices {
+		a.notice(n)
+	}
+	a.keepSyncHistory(report.Events)
 	if rereadConflicts {
 		a.readHeldConflicts()
 	}

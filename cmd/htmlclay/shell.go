@@ -14,6 +14,7 @@ import (
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/shellapi"
+	"github.com/panphora/htmlclay/internal/synchistory"
 )
 
 // shellShutdownBudget is how long the private listener waits for its open event
@@ -25,6 +26,14 @@ const shellShutdownBudget = 2 * time.Second
 type shellBackend struct{ a *app }
 
 func (b shellBackend) Snapshot() appcore.Snapshot { return b.a.snapshot() }
+
+func (b shellBackend) SubscribeNotices() (<-chan shellapi.Notice, func()) {
+	return b.a.rt.notices.subscribe()
+}
+
+func (b shellBackend) FolderHistory(folderID, before string) (synchistory.Page, bool) {
+	return b.a.folderHistory(folderID, before)
+}
 
 func (b shellBackend) Do(ctx context.Context, act appcore.Action) (appcore.Snapshot, *appcore.Refusal) {
 	return b.a.do(ctx, act, ChannelShell)

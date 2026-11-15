@@ -145,6 +145,13 @@ func (d *dashboardApp) folder(w http.ResponseWriter, r *http.Request) {
 		d.list(w, r, id)
 	case "open":
 		d.open(w, r, id)
+	case "history":
+		page, ok := d.a.folderHistory(id, r.URL.Query().Get("before"))
+		if !ok {
+			writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+			return
+		}
+		writeDashboardJSON(w, http.StatusOK, page)
 	default:
 		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
 	}

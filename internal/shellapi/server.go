@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/synchistory"
 )
 
 // Backend is what the listener asks of the app. The app's core (cmd/htmlclay
@@ -28,6 +29,30 @@ type Backend interface {
 	// Answer is the remembered outcome of an action id in this epoch.
 	Answer(id string) (appcore.Snapshot, *appcore.Refusal, bool)
 	Subscribe() (<-chan appcore.Snapshot, func())
+}
+
+// Notice is contract C6's frame on the shell stream: a new conflict, a key the
+// server stopped accepting, or a team the person was added to. Type is always
+// "notice"; a client that does not know the frame ignores it.
+type Notice struct {
+	Type     string  `json:"type"`
+	ID       string  `json:"id"`
+	Kind     string  `json:"kind"`
+	FolderID *string `json:"folderID"`
+	Name     string  `json:"name"`
+	Detail   string  `json:"detail"`
+}
+
+// NoticeSource is the backend's notices, for a stream to pass on (08-sync.md
+// 8.40). A backend counts a notice delivered when a stream is subscribed.
+type NoticeSource interface {
+	SubscribeNotices() (<-chan Notice, func())
+}
+
+// HistoryReader is the backend's read of a synced folder's history (08-sync.md
+// 8.39): one page, and false for a folder no sync session keeps.
+type HistoryReader interface {
+	FolderHistory(folderID, before string) (synchistory.Page, bool)
 }
 
 // Preview is what an action would do, for a sheet to show before the person
@@ -109,6 +134,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleLookup(w, strings.TrimPrefix(path, "/shell/v1/actions/"))
 	case path == "/shell/v1/events" && r.Method == http.MethodGet:
 		s.handleEvents(w, r)
+	case strings.HasPrefix(path, "/shell/v1/folders/") && strings.HasSuffix(path, "/history") && r.Method == http.MethodGet:
+		s.handleHistory(w, r, strings.TrimSuffix(strings.TrimPrefix(path, "/shell/v1/folders/"), "/history"))
 	default:
 		writeStatus(w, http.StatusNotFound)
 	}
@@ -186,6 +213,12 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	since, _ := strconv.ParseUint(r.URL.Query().Get("since"), 10, 64)
 	updates, unsubscribe := s.backend.Subscribe()
 	defer unsubscribe()
+	var notices <-chan Notice
+	if source, ok := s.backend.(NoticeSource); ok {
+		ch, stop := source.SubscribeNotices()
+		defer stop()
+		notices = ch
+	}
 
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.WriteHeader(http.StatusOK)
@@ -217,6 +250,14 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if !send(snapshotEvent(snapshot)) {
+				return
+			}
+		case notice, open := <-notices:
+			if !open {
+				notices = nil
+				continue
+			}
+			if !send(notice) {
 				return
 			}
 		case <-ticker.C:
@@ -275,3 +316,19 @@ func writeStatus(w http.ResponseWriter, status int) {
 
 // ErrBadBootstrap is a bootstrap line that is not {"v":1,"secret":"<64 hex>"}.
 var ErrBadBootstrap = errors.New("shellapi: the bootstrap line must be {\"v\":1,\"secret\":\"<64 lowercase hex>\"}")
+
+// handleHistory answers one page of a synced folder's history, as the
+// dashboard's GET /api/app/folders/<id>/history does.
+func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request, folderID string) {
+	reader, ok := s.backend.(HistoryReader)
+	if !ok || folderID == "" || strings.Contains(folderID, "/") {
+		writeStatus(w, http.StatusNotFound)
+		return
+	}
+	page, ok := reader.FolderHistory(folderID, r.URL.Query().Get("before"))
+	if !ok {
+		writeStatus(w, http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}

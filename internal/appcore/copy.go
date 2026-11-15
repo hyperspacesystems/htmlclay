@@ -88,6 +88,10 @@ const (
 	TextWaitingFileTooBig      = "%s is too big to sync"             // copy: waiting item title, the file's name, max 70 chars
 	TextWaitingTeamToSetUp     = "%s is ready to set up"             // copy: waiting item title, the team folder's name, max 70 chars
 	TextWaitingRemovalHeld     = "TODO-COPY %s attachments were removed from %s at once"
+	TextNoticeConflictBody     = "TODO-COPY Choose which copy to keep in HTML Clay."
+	TextNoticeKeyStoppedBody   = "TODO-COPY Sync is paused. Add a new sync key in HTML Clay."
+	TextNoticeAddedToTeam      = "TODO-COPY You were added to %s"
+	TextNoticeAddedToTeamBody  = "TODO-COPY Set up its folder in HTML Clay."
 )
 
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.

@@ -24,6 +24,7 @@ import (
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/shellapi"
+	"github.com/panphora/htmlclay/internal/synchistory"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/trust"
 	"github.com/panphora/htmlclay/internal/update"
@@ -89,6 +90,12 @@ type appRuntime struct {
 	syncConflicts syncConflicts
 	// syncLast is the service's last sync report (C4), nil until one arrives.
 	syncLast *served.SyncReport
+	// syncHistory is each synced folder's stored history (sync_history.go),
+	// made on first use under configDir.
+	syncHistoryOnce sync.Once
+	syncHistory     *synchistory.Store
+	// notices is the attached Mac app streams that hear sync notices (8.40).
+	notices noticeHub
 	// syncWantedMu keeps configure sends one at a time (sendSyncWanted).
 	syncWantedMu sync.Mutex
 	// syncBinding is the sessions whose first download is running; configure leaves

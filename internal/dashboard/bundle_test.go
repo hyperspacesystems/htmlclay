@@ -86,3 +86,43 @@ func TestM3DashboardBundle(t *testing.T) {
 		}
 	})
 }
+
+// TestM4DashboardBundle is 08-sync.md step 8.36: the vendored build is lane W's,
+// which holds the conflict row's and the held removal's actions, and its folder
+// history page is admitted and served.
+func TestM4DashboardBundle(t *testing.T) {
+	lock, err := assets.LoadLock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var script string
+	for name := range lock.Files {
+		if strings.HasPrefix(name, "main-") && strings.HasSuffix(name, ".js") {
+			script = name
+		}
+	}
+
+	t.Run("the bundle holds the conflict row's and the held removal's actions", func(t *testing.T) {
+		s, _ := newTestServer(t, nil)
+		w := do(s, http.MethodGet, "/"+script, nil)
+		if w.Code != http.StatusOK {
+			t.Fatalf("/%s = %d", script, w.Code)
+		}
+		for _, action := range []string{"conflict.resolve", "folder.resolveRemoval", "/api/app/conflicts"} {
+			if !strings.Contains(w.Body.String(), action) {
+				t.Errorf("the bundle does not name %q", action)
+			}
+		}
+	})
+
+	t.Run("a folder's history page is admitted and served", func(t *testing.T) {
+		s, _ := newTestServer(t, nil)
+		c := enterWith(t, s, "/")
+		cookie := map[string]string{"Cookie": c.Name + "=" + c.Value}
+		root := do(s, http.MethodGet, "/", cookie)
+		page := do(s, http.MethodGet, "/synced/0dd3adfe2b553e75/history", cookie)
+		if page.Code != http.StatusOK || page.Body.String() != root.Body.String() {
+			t.Fatalf("the history page = %d, want the entry page", page.Code)
+		}
+	})
+}
