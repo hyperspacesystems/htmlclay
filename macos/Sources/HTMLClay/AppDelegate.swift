@@ -4,7 +4,8 @@ import AppShell
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    static let bundleID = "com.htmlclay.HTMLClayCandidate"
+    static let bundleID = Bundle.main.bundleIdentifier ?? AppIdentity.candidateBundleID
+    static let identity = AppIdentity.of(bundleID: Bundle.main.bundleIdentifier)
 
     private var relay: RelayHostClient!
     private var model: AppModel!
@@ -25,22 +26,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var seedError: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let home: URL
-        do {
-            home = try CandidateHome.resolve()
-            try CandidateHome.prepare(home)
-        } catch {
-            FileHandle.standardError.write(Data("HTML Clay Candidate: \(error)\n".utf8))
-            exit(1)
-        }
-        self.home = home
+        if Self.identity.usesCandidateHome {
+            let home: URL
+            do {
+                home = try CandidateHome.resolve()
+                try CandidateHome.prepare(home)
+            } catch {
+                FileHandle.standardError.write(Data("HTML Clay Candidate: \(error)\n".utf8))
+                exit(1)
+            }
+            self.home = home
 
-        do {
-            profile = try CandidateHome.profile(CommandLine.arguments)
-            if profile != nil { try CandidateHome.requireFresh(home) }
-        } catch {
-            FileHandle.standardError.write(Data("HTML Clay Candidate: \(error)\n".utf8))
-            exit(2)
+            do {
+                profile = try CandidateHome.profile(CommandLine.arguments)
+                if profile != nil { try CandidateHome.requireFresh(home) }
+            } catch {
+                FileHandle.standardError.write(Data("HTML Clay Candidate: \(error)\n".utf8))
+                exit(2)
+            }
         }
 
         relay = RelayHostClient()
@@ -71,9 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startHost() {
-        guard let home else { return }
+        if Self.identity.usesCandidateHome, home == nil { return }
         guard HostRestartPolicy.shouldStart(current: process?.state) else { return }
-        let launch = HostLaunch(binary: Self.hostBinary(), environment: CandidateHome.environment(home))
+        let candidateEnvironment = home.map(CandidateHome.environment) ?? [:]
+        let launch = HostLaunch(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: candidateEnvironment))
         let process = HostProcess(launch: launch)
         self.process = process
         coordinator = TerminationCoordinator(host: relay, process: process, presenter: alerts)

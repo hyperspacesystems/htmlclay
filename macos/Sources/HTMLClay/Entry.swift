@@ -19,8 +19,10 @@ enum Entry {
     private static func run(opening paths: [String]) {
         let app = NSApplication.shared
         let current = ProcessInfo.processInfo.processIdentifier
-        if let other = NSRunningApplication.runningApplications(withBundleIdentifier: AppDelegate.bundleID)
-            .first(where: { $0.processIdentifier != current }) {
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: AppDelegate.bundleID)
+        let running = others.map { AppIdentity.Running(pid: $0.processIdentifier, bundlePath: $0.bundleURL?.path) }
+        if let pid = AppIdentity.otherInstance(pid: current, bundlePath: Bundle.main.bundleURL.path, among: running),
+           let other = others.first(where: { $0.processIdentifier == pid }) {
             _ = other.activate()
             exit(0)
         }
