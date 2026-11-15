@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -210,6 +211,35 @@ func (a *app) movedSiteTarget(r *http.Request) (string, bool) {
 		target += "?" + r.URL.RawQuery
 	}
 	return target, true
+}
+
+// siteMovedMessage is what a page open on the first site before the update that
+// moved it shows when its save is refused at the dashboard's address.
+const siteMovedMessage = "Your latest change wasn't saved because this page's address moved when HTML Clay updated. Copy the text you just changed first, reload to go to the new address, and paste it back to save."
+
+// refuseMovedFirstSiteWrite answers a write from a page that was open on the
+// first site before an update moved it off the dashboard's address. The
+// dashboard cannot take it and the page's latest change is not saved, so the
+// answer says so, with the site's new address; a reload goes there through
+// movedSiteTarget. Only a same-origin POST under /_/ that the dashboard does not
+// own is answered, so no other page learns where the site went.
+func (a *app) refuseMovedFirstSiteWrite(w http.ResponseWriter, r *http.Request) bool {
+	key := a.rt.cfg.MovedFirstSiteKey()
+	if key == "" || r.Method != http.MethodPost || !strings.HasPrefix(r.URL.Path, "/_/") || r.Header.Get("Sec-Fetch-Site") != "same-origin" {
+		return false
+	}
+	if a.dashboard != nil && a.dashboard.Owns(r.URL.Path) {
+		return false
+	}
+	slug := a.rt.cfg.SiteSlug(key)
+	if slug == "" {
+		return false
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusConflict)
+	json.NewEncoder(w).Encode(map[string]string{"code": "site-moved", "msg": siteMovedMessage, "to": "http://" + siteHost(slug, a.rt.port) + "/"})
+	return true
 }
 
 // Relocation registers nothing; the destination performs authorization and file lookup.

@@ -87,6 +87,9 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusFound)
 			return
 		}
+		if a.refuseMovedFirstSiteWrite(w, r) {
+			return
+		}
 		if a.dashboard == nil {
 			http.Error(w, "The workspace is unavailable", http.StatusServiceUnavailable)
 			return

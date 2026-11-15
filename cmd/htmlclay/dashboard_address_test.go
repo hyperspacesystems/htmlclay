@@ -383,11 +383,12 @@ func TestM3DashboardAtHTMLClay(t *testing.T) {
 		dashboardKeeps(t, servedRequest(t, a, http.MethodGet, dashboardAddress, rel, "", nil), rel, http.StatusNotFound)
 		fetch := map[string]string{"Sec-Fetch-Mode": "cors", "Sec-Fetch-Dest": "empty", "Sec-Fetch-Site": "same-origin"}
 		dashboardKeeps(t, servedRequest(t, a, http.MethodGet, dashboardAddress, rel, "", fetch), rel, http.StatusNotFound)
-		// A save sent to the old address is not replayed anywhere.
+		// A save sent to the old address is not replayed anywhere: it is refused
+		// as site-moved (TestUpdateRefusesFirstSiteTabClearly).
 		save := servedRequest(t, a, http.MethodPost, dashboardAddress, "/_/save/token", "<html></html>", map[string]string{
 			"Origin": "http://" + dashboardAddress, "Sec-Fetch-Site": "same-origin",
 		})
-		dashboardKeeps(t, save, "/_/save/token", http.StatusMethodNotAllowed)
+		dashboardKeeps(t, save, "/_/save/token", http.StatusConflict)
 	})
 
 	t.Run("a start that cannot write the config still moves the site, and the next start records it", func(t *testing.T) {
