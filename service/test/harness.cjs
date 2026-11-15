@@ -27,7 +27,7 @@ function stubGo(t) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`)));
 }
 
-async function startService(t, { attach = true } = {}) {
+async function startService(t, { attach = true, go = null, roots = [] } = {}) {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-roots-')));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const child = spawn(process.execPath, [MAIN, '--data-dir', path.join(tmp, 'data')], { stdio: ['pipe', 'pipe', 'inherit'] });
@@ -50,7 +50,7 @@ async function startService(t, { attach = true } = {}) {
   child.stdin.write(`${JSON.stringify({ v: 1, secret })}\n`);
   const ready = JSON.parse((await line('READY ')).slice('READY '.length));
   if (attach) {
-    child.stdin.write(`${JSON.stringify({ host: { url: await stubGo(t), secret: randomBytes(32).toString('hex'), epoch: GO_EPOCH, roots: [] } })}\n`);
+    child.stdin.write(`${JSON.stringify({ host: { url: go || await stubGo(t), secret: randomBytes(32).toString('hex'), epoch: GO_EPOCH, roots } })}\n`);
     await line('ATTACHED');
   }
   const folder = (name) => {
@@ -59,7 +59,8 @@ async function startService(t, { attach = true } = {}) {
     fs.writeFileSync(path.join(dir, 'index.html'), '<!DOCTYPE html><html><body><p>x</p></body></html>');
     return dir;
   };
-  return { ready, secret, folder };
+  const send = (message) => child.stdin.write(`${JSON.stringify(message)}\n`);
+  return { ready, secret, folder, tmp, send, line, output: () => out };
 }
 
 function call(s, method, pathname, { body, headers = {}, stream = false } = {}) {

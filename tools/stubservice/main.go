@@ -8,8 +8,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -171,6 +173,51 @@ func (s stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(body)
+	case "/sync/v1/configure":
+		// Each body goes on its own line of the file HTMLCLAY_STUB_CONFIGURE_LOG names.
+		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if name := os.Getenv("HTMLCLAY_STUB_CONFIGURE_LOG"); name != "" {
+			if f, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+				_, _ = f.Write(append(bytes.TrimSpace(body), '\n'))
+				_ = f.Close()
+			}
+		}
+		writeJSON(w, map[string]any{"ok": true, "running": []string{}})
+	case "/sync/v1/bind":
+		// The body goes to HTMLCLAY_STUB_BIND_LOG; while the file HTMLCLAY_STUB_BIND_HOLD
+		// names exists the answer waits, as a first download does; the answer is the
+		// file HTMLCLAY_STUB_BIND names, or a finished empty download.
+		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if name := os.Getenv("HTMLCLAY_STUB_BIND_LOG"); name != "" {
+			if f, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+				_, _ = f.Write(append(bytes.TrimSpace(body), '\n'))
+				_ = f.Close()
+			}
+		}
+		if hold := os.Getenv("HTMLCLAY_STUB_BIND_HOLD"); hold != "" {
+			for {
+				if _, err := os.Stat(hold); err != nil {
+					break
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+		}
+		answer := []byte(`{"ok":true,"files":0,"bytes":0}`)
+		if name := os.Getenv("HTMLCLAY_STUB_BIND"); name != "" {
+			if data, err := os.ReadFile(name); err == nil {
+				answer = data
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(answer)
 	default:
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 	}

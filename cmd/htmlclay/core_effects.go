@@ -114,6 +114,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
 		}
 		return nil
+	case "folder.setUpTeam":
+		return a.setUpSyncFolder(e)
 	case "folder.setFraming":
 		return a.setFolderAllowFraming(e)
 	case "folder.stopServing":

@@ -166,6 +166,8 @@ func TestPlan(t *testing.T) {
 		{"sync a served account folder", synced, "folder.setSynced", `{"id":"panphora","on":true}`, "", RefuseNotAllowedNow},
 		{"set up a team folder", synced, "folder.setUpTeam", `{"id":"marketing","path":"/Users/sam/hyperclay/Marketing"}`, "folder.setUpTeam", ""},
 		{"set up a team folder already here", synced, "folder.setUpTeam", `{"id":"panphora"}`, "", RefuseNotAllowedNow},
+		{"a team never syncs into files already there", synced, "folder.setUpTeam", `{"id":"marketing","path":"/Users/sam/hyperclay/Marketing","existing":true}`, "", RefuseNotAllowedNow},
+		{"set up a team folder with no path", synced, "folder.setUpTeam", `{"id":"marketing"}`, "", RefuseBadArguments},
 		{"start the move", local, "move.start", `{"folderIDs":["panphora"]}`, "move.start", ""},
 		{"start a move with nothing offered", synced, "move.start", `{}`, "", RefuseNothingToMove},
 	}

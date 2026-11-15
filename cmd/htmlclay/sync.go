@@ -4,10 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -138,6 +142,14 @@ func (a *app) runningService() *service.Process {
 // named (if they named one), is stored. Any failure leaves the service holding
 // the key it held before and stores nothing.
 func (a *app) connectSync(ctx context.Context, e appcore.Effect) *appcore.Refusal {
+	refusal := a.connectSyncKey(ctx, e)
+	if refusal == nil {
+		a.sendSyncWanted()
+	}
+	return refusal
+}
+
+func (a *app) connectSyncKey(ctx context.Context, e appcore.Effect) *appcore.Refusal {
 	if !syncKeyShape.MatchString(e.Key) {
 		return &appcore.Refusal{Code: appcore.RefuseSyncKeyShape, Field: "key"}
 	}
@@ -359,6 +371,14 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 // setSyncPaused is sync.setPaused: the switch every session follows. Sessions
 // read it when /sync/v1/configure arrives in slice 2.
 func (a *app) setSyncPaused(paused bool) *appcore.Refusal {
+	refusal := a.saveSyncPaused(paused)
+	if refusal == nil {
+		a.sendSyncWanted()
+	}
+	return refusal
+}
+
+func (a *app) saveSyncPaused(paused bool) *appcore.Refusal {
 	a.rt.syncMu.Lock()
 	defer a.rt.syncMu.Unlock()
 	record, err := a.syncRecordLocked()
@@ -389,4 +409,144 @@ func (a *app) ownSyncRoots() []string {
 		roots = append(roots, session.RootID)
 	}
 	return roots
+}
+
+// syncWanted is C3's configure body: the whole wanted state. The service runs each
+// enabled session whose root is listed and stops every other one.
+type syncWanted struct {
+	DeviceID string               `json:"deviceId"`
+	Paused   bool                 `json:"paused"`
+	Sessions []config.SyncSession `json:"sessions"`
+	Roots    []syncWantedRoot     `json:"roots"`
+}
+
+type syncWantedRoot struct {
+	ID   string `json:"id"`
+	Path string `json:"path"`
+}
+
+// sendSyncWanted sends the service the wanted state, after an attach and after each
+// change. Sends are one at a time, each built when it starts, so the last one sent
+// is the newest state. A folder named in skip is left out of the roots: it is
+// about to stop being served. With no account nothing is sent; with a refused key
+// the sessions are empty, so every one stops while the key stays stored.
+func (a *app) sendSyncWanted(skip ...string) {
+	if a.served == nil || a.runningService() == nil {
+		return
+	}
+	a.rt.syncWantedMu.Lock()
+	defer a.rt.syncWantedMu.Unlock()
+	a.rt.syncMu.Lock()
+	record, err := a.syncRecordLocked()
+	if err != nil {
+		a.rt.syncMu.Unlock()
+		a.rt.logger.Printf("Could not send the sync state: sync.json: %v", err)
+		return
+	}
+	if record.Account == nil {
+		a.rt.syncMu.Unlock()
+		return
+	}
+	body := syncWanted{DeviceID: record.DeviceID, Paused: record.Paused, Sessions: []config.SyncSession{}, Roots: []syncWantedRoot{}}
+	if record.KeyRefused == nil {
+		for _, session := range record.SyncSessions {
+			if !a.rt.syncBinding[session.ID] {
+				body.Sessions = append(body.Sessions, session)
+			}
+		}
+	}
+	a.rt.syncMu.Unlock()
+	a.servedMu.RLock()
+	for _, m := range a.servedByName {
+		if !slices.Contains(skip, m.folder.ID) {
+			body.Roots = append(body.Roots, syncWantedRoot{ID: m.folder.ID, Path: m.folder.Path})
+		}
+	}
+	a.servedMu.RUnlock()
+	sort.Slice(body.Roots, func(i, j int) bool { return body.Roots[i].ID < body.Roots[j].ID })
+	ctx, cancel := context.WithTimeout(context.Background(), syncCallTimeout)
+	defer cancel()
+	var answer struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error"`
+	}
+	if err := a.served.CallService(ctx, "/sync/v1/configure", body, &answer); err != nil {
+		if !errors.Is(err, served.ErrServiceUnavailable) {
+			a.rt.logger.Printf("The live-room service did not take the sync state: %v", err)
+		}
+		return
+	}
+	if !answer.OK && answer.Error != "not-connected" {
+		a.rt.logger.Printf("The live-room service refused the sync state: %s", answer.Error)
+	}
+}
+
+// syncReportRecord is the part of a report's session row Go keeps. Every other
+// field of the row, enabled above all, is Go's own and a report never changes it.
+type syncReportRecord struct {
+	ID            string                    `json:"id"`
+	Paused        *config.SyncPause         `json:"paused"`
+	AccountID     int64                     `json:"accountId"`
+	Cached        *config.SyncSessionCached `json:"cached"`
+	LegacyMetaDir *string                   `json:"legacyMetaDir"`
+}
+
+// takeSyncReport is the served host's sink for the service's reports (C4). Each
+// session's record updates its row's paused, accountId, cached and legacyMetaDir.
+// keyRefused marks the key refused and stops every session; the key stays stored
+// until the person replaces it or disconnects.
+func (a *app) takeSyncReport(report served.SyncReport) {
+	stop := false
+	a.rt.syncMu.Lock()
+	a.rt.syncLast = &report
+	record, err := a.syncRecordLocked()
+	if err != nil {
+		a.rt.syncMu.Unlock()
+		a.rt.logger.Printf("Could not keep a sync report: sync.json: %v", err)
+		return
+	}
+	changed := false
+	for _, session := range report.Sessions {
+		if len(session.Record) == 0 || string(session.Record) == "null" {
+			continue
+		}
+		var row syncReportRecord
+		if err := json.Unmarshal(session.Record, &row); err != nil {
+			a.rt.logger.Printf("A sync report's row for session %s did not read: %v", session.SessionID, err)
+			continue
+		}
+		for i := range record.SyncSessions {
+			kept := &record.SyncSessions[i]
+			if kept.ID != session.SessionID || row.ID != session.SessionID {
+				continue
+			}
+			next := *kept
+			next.Paused = row.Paused
+			if row.AccountID != 0 {
+				next.AccountID = row.AccountID
+			}
+			if row.Cached != nil {
+				next.Cached = *row.Cached
+			}
+			next.LegacyMetaDir = row.LegacyMetaDir
+			if !reflect.DeepEqual(next, *kept) {
+				*kept = next
+				changed = true
+			}
+		}
+	}
+	if report.KeyRefused && record.Account != nil && record.KeyRefused == nil {
+		record.KeyRefused = &config.SyncKeyRefused{Since: time.Now().UTC().Format(time.RFC3339)}
+		changed = true
+		stop = true
+	}
+	if changed {
+		if err := record.Save(); err != nil {
+			a.rt.logger.Printf("Could not keep a sync report: sync.json: %v", err)
+		}
+	}
+	a.rt.syncMu.Unlock()
+	if stop {
+		go a.sendSyncWanted()
+	}
 }

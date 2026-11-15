@@ -57,6 +57,9 @@ type serviceLink struct {
 	// detached is set while the supervisor has switched the service off (it failed
 	// five times): requests then run as if there were no link at all.
 	detached atomic.Bool
+
+	// syncSink takes each accepted sync report (SetSyncSink).
+	syncSink atomic.Pointer[func(SyncReport)]
 }
 
 // active is the link when it is switched on, nil when there is no link or it is

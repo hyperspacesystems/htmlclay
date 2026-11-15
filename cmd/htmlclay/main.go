@@ -79,6 +79,15 @@ type appRuntime struct {
 	syncActionMu sync.Mutex
 	syncMu       sync.Mutex
 	syncRecord   *config.Sync
+	// syncLast is the service's last sync report (C4), nil until one arrives.
+	syncLast *served.SyncReport
+	// syncWantedMu keeps configure sends one at a time (sendSyncWanted).
+	syncWantedMu sync.Mutex
+	// syncBinding is the sessions whose first download is running; configure leaves
+	// them out until it ends. Guarded by syncMu.
+	syncBinding map[string]bool
+	// syncBinds counts the first downloads still running, for a clean shutdown and tests.
+	syncBinds sync.WaitGroup
 	// folderLockDir is where the per-folder serve locks live. It is shared by every
 	// profile on this account, so two HTML Clay processes never serve one folder.
 	folderLockDir string

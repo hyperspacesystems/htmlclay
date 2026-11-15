@@ -321,6 +321,35 @@ whose existing folders lead out of the root once links are followed, is
 file and renames it, making missing folders under `.hyperclay/`; a remove of a file
 that is not there is `committed`. A reused opId answers 409 `op-reused`.
 
+## `POST /v1/sync/report`
+
+The attached service's sync state (08-sync.md, C4). Only the service calls it: the
+request carries both epochs, and a detached service, or a host with no service link,
+answers 404 `{"error":"no service is attached"}`.
+
+```json
+{ "seq": 41,
+  "sessions": [ { "sessionId": "…", "rootId": "…", "accountId": 12, "status": "syncing",
+    "running": true, "paused": null, "pendingCount": 0, "conflicts": 0, "blocked": 0,
+    "lastSyncAt": null, "lastError": null, "progress": null, "removalHeld": null,
+    "record": { } } ],
+  "keyRefused": false,
+  "accounts": null,
+  "events": [ { "id": "<session id>:<n>", "sessionId": "…", "rootId": "…", "at": "<ISO time>",
+    "action": "download", "file": "apps/index.html", "type": "site" } ] }
+```
+
+- Go hands the report to the sink the app set (`Host.SetSyncSink`), then answers
+  `{"ok":true,"seq":41}`. The service treats only an answer naming the seq it sent
+  as an acknowledgement.
+- With no sink set yet, Go answers 503 `{"error":"not-ready"}` and keeps nothing, so
+  the service sends the newest state again later.
+- A body that does not decode, or a negative `seq`, answers 400.
+- The service keeps at most 1,000 unacknowledged events, dropping the oldest. An
+  event id is `<session id>:<n>`, where `n` starts with a prefix of the service
+  process, so a restarted service never repeats an id; the sink drops ids it already
+  stored.
+
 ## `GET /v1/op/<opId>`
 
 ```json

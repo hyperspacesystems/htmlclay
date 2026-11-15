@@ -10,8 +10,9 @@
 // a line that is not JSON is answered SYNC KEY REFUSED and never echoed.
 //
 // Usage: main.cjs --data-dir <absolute dir>
-// The data dir is the only place the service may keep files of its own; today it
-// keeps none, because every document write goes through Go.
+// The data dir is the only place the service may keep files of its own: sync's
+// metadata and logs, under <data dir>/sync. Every write in a served folder goes
+// through Go.
 //
 // Exit codes: 0 after end of stdin, 2 for bad arguments, 3 for a bad bootstrap line
 // or a failure while running.
@@ -47,7 +48,6 @@ async function run(dataDir) {
   const { keepUnsavedEdits } = require('./recover.cjs');
   const { installGate } = require('./sync-net.cjs');
   const { createSync, mountSync } = require('./sync.cjs');
-  const sync = createSync({ gate: installGate() });
 
   const lines = readline.createInterface({ input: process.stdin, crlfDelay: Infinity })[Symbol.asyncIterator]();
   const first = await lines.next();
@@ -62,6 +62,7 @@ async function run(dataDir) {
     throw new BootstrapError('the bootstrap line needs v 1 and a 64-hex secret');
   }
   const service = createTrialService({ secret: boot.secret });
+  const sync = createSync({ gate: installGate(), service, dataDir: path.join(dataDir, 'sync') });
   keepUnsavedEdits(service);
   // The bundle's bootstrap type carries appVersion but nothing reads it.
   const shell = mountShell(service, { appVersion: '' });
@@ -86,6 +87,8 @@ async function run(dataDir) {
       process.stdout.write(`${await sync.handle(message.sync)}\n`);
     }
   }
+  await sync.stopAll();
+  sync.close();
   await shell.close();
   await service.close();
 }

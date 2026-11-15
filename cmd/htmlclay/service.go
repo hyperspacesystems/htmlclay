@@ -306,6 +306,7 @@ func (r *serviceRunner) spawn() {
 	}
 	r.step(service.Event{Kind: service.Attached})
 	r.reconcileRoots(host.Roots)
+	r.a.sendSyncWanted()
 }
 
 // reconcileRoots sends the service the folders served or stopped while it was
@@ -438,7 +439,9 @@ func (r *serviceRunner) addRoot(m *servedMount) {
 	defer cancel()
 	if err := r.call(ctx, "/v1/roots", body, nil); err != nil {
 		r.a.rt.logger.Printf("The live-room service did not take folder %s: %v", m.folder.Path, err)
+		return
 	}
+	r.a.sendSyncWanted()
 }
 
 // removeRoot asks a running service to let go of one folder, flushing what it
@@ -448,6 +451,8 @@ func (r *serviceRunner) removeRoot(id string) ([]unsavedDoc, error) {
 	if !r.enabled() || r.state() != appcore.ServiceRunning {
 		return nil, nil
 	}
+	// The folder's sync session stops before the service lets go of the folder.
+	r.a.sendSyncWanted(id)
 	body := struct {
 		Remove     []string `json:"remove"`
 		DeadlineMs int      `json:"deadlineMs"`
@@ -460,6 +465,8 @@ func (r *serviceRunner) removeRoot(id string) ([]unsavedDoc, error) {
 	}
 	for _, kept := range answer.Kept {
 		if kept.ID == id {
+			// The service kept the folder, so it stays served and its sync runs again.
+			r.a.sendSyncWanted()
 			return kept.Unsaved, nil
 		}
 	}

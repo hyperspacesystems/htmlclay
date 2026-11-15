@@ -86,44 +86,45 @@ const (
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
 // %s, where present, is the other folder (OtherPath, or OtherName when set).
 var RefusalText = map[string]string{
-	RefuseNotAFolder:        "That is not a folder. Pick a folder instead.",                                                // copy: refusal, max 140 chars
-	RefuseOutsideHome:       "Only folders inside your home folder can be served. Pick a folder inside it.",                // copy: refusal, max 140 chars
-	RefuseIsHome:            "Your whole home folder can't be served. Pick a folder inside it.",                            // copy: refusal, max 140 chars
-	RefuseProtectedFolder:   "HTML Clay keeps its own files in this folder, so it can't be served. Pick another folder.",   // copy: refusal, max 140 chars
-	RefuseOverlapsServed:    "This folder overlaps %s, which is already served. Stop serving that one first.",              // copy: refusal, max 140 chars
-	RefuseServedByLocal:     "Hyperclay Local is serving this folder now. Stop it there first.",                            // copy: refusal, max 140 chars
-	RefuseBoundToLocalSync:  "This folder syncs with Hyperclay Local. Disconnect it there first.",                          // copy: refusal, max 140 chars
-	RefuseNestedTrusted:     "This folder overlaps the trusted folder %s. Stop trusting one of them first.",                // copy: refusal, max 140 chars
-	RefuseNameInvalid:       "That name can't be used. Use lowercase letters, numbers and hyphens.",                        // copy: refusal, max 140 chars
-	RefuseNameTaken:         "Another served folder already uses that name. Pick another.",                                 // copy: refusal, max 140 chars
-	RefuseNameRetired:       "That name was used before and can't be used again. Pick another.",                            // copy: refusal, max 140 chars
-	RefuseUnknownAction:     "HTML Clay doesn't know that action. Update HTML Clay and try again.",                         // copy: refusal, max 140 chars
-	RefuseBadArguments:      "Something was missing from that request. Try again.",                                         // copy: refusal, max 140 chars
-	RefuseNoSuchFolder:      "That folder is no longer listed. Add it again if you still want to use it.",                  // copy: refusal, max 140 chars
-	RefuseNoSuchProgram:     "That program is no longer listed. Look at the list again.",                                   // copy: refusal, max 140 chars
-	RefuseNoSuchDocument:    "That document is no longer listed. Open it again if you still need it.",                      // copy: refusal, max 140 chars
-	RefuseFileMissing:       "That file isn't there anymore. It may have moved, or you may have deleted it.",               // copy: refusal, max 140 chars
-	RefuseFileOutsideHome:   "HTML Clay only opens files inside your home folder. Move the file there and open it again.",  // copy: refusal, max 140 chars
-	RefuseDestinationExists: "A file with that name is already there. Choose another name.",                                // copy: refusal, max 140 chars
-	RefuseNoSuchRequest:     "That request has ended. Try again if you still need it.",                                     // copy: refusal, max 140 chars
-	RefuseRequestChanged:    "That request changed while you were answering. Look at it again.",                            // copy: refusal, max 140 chars
-	RefuseAnswerNotOffered:  "That answer isn't one this request offers. Choose one of the options shown.",                 // copy: refusal, max 140 chars
-	RefuseNotAllowedNow:     "That isn't possible for this folder right now. Check the folder in HTML Clay and try again.", // copy: refusal, max 140 chars
-	RefuseUnknownPreference: "HTML Clay doesn't have that setting. Check the setting name or update HTML Clay.",            // copy: refusal, max 140 chars
-	RefuseNothingToMove:     "There is nothing to move from Hyperclay Local. Pick a folder to serve instead.",              // copy: refusal, max 140 chars
-	RefuseNotConnected:      "Your Hyperclay account isn't connected. Connect it in HTML Clay first.",                      // copy: refusal, max 140 chars
-	RefuseSyncKeyShape:      "TODO-COPY That isn't a sync key. A sync key starts with hcsk_.",
-	RefuseSyncKeyRefused:    "TODO-COPY Hyperclay didn't accept that sync key. Make a new one on hyperclay.com.",
-	RefuseSyncWrongAccount:  "TODO-COPY That sync key belongs to a different account.",
-	RefuseSyncOffline:       "TODO-COPY HTML Clay couldn't reach Hyperclay. Check your connection and try again.",
-	RefuseSyncServerUpdate:  "TODO-COPY Hyperclay needs an update before HTML Clay can sync with it.",
-	RefuseServiceNeeded:     "TODO-COPY Sync starts once a folder is served. Serve a folder and try again.",
-	RefuseNothingReady:      "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
-	RefuseNeedsConfirmation: "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars
-	RefuseFailed:            "HTML Clay couldn't do that just now. Try again.",                                             // copy: refusal, max 140 chars
-	RefuseCannotTrust:       "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.", // copy: refusal, max 140 chars
-	RefuseStillRunning:      "HTML Clay is still working on that. Wait a moment.",                                          // copy: refusal, max 140 chars
-	RefuseNotYet:            "HTML Clay can't do that yet. Update HTML Clay and try again.",                                // copy: refusal, max 140 chars
+	RefuseNotAFolder:         "That is not a folder. Pick a folder instead.",                                                // copy: refusal, max 140 chars
+	RefuseOutsideHome:        "Only folders inside your home folder can be served. Pick a folder inside it.",                // copy: refusal, max 140 chars
+	RefuseIsHome:             "Your whole home folder can't be served. Pick a folder inside it.",                            // copy: refusal, max 140 chars
+	RefuseProtectedFolder:    "HTML Clay keeps its own files in this folder, so it can't be served. Pick another folder.",   // copy: refusal, max 140 chars
+	RefuseOverlapsServed:     "This folder overlaps %s, which is already served. Stop serving that one first.",              // copy: refusal, max 140 chars
+	RefuseServedByLocal:      "Hyperclay Local is serving this folder now. Stop it there first.",                            // copy: refusal, max 140 chars
+	RefuseBoundToLocalSync:   "This folder syncs with Hyperclay Local. Disconnect it there first.",                          // copy: refusal, max 140 chars
+	RefuseNestedTrusted:      "This folder overlaps the trusted folder %s. Stop trusting one of them first.",                // copy: refusal, max 140 chars
+	RefuseNameInvalid:        "That name can't be used. Use lowercase letters, numbers and hyphens.",                        // copy: refusal, max 140 chars
+	RefuseNameTaken:          "Another served folder already uses that name. Pick another.",                                 // copy: refusal, max 140 chars
+	RefuseNameRetired:        "That name was used before and can't be used again. Pick another.",                            // copy: refusal, max 140 chars
+	RefuseUnknownAction:      "HTML Clay doesn't know that action. Update HTML Clay and try again.",                         // copy: refusal, max 140 chars
+	RefuseBadArguments:       "Something was missing from that request. Try again.",                                         // copy: refusal, max 140 chars
+	RefuseNoSuchFolder:       "That folder is no longer listed. Add it again if you still want to use it.",                  // copy: refusal, max 140 chars
+	RefuseNoSuchProgram:      "That program is no longer listed. Look at the list again.",                                   // copy: refusal, max 140 chars
+	RefuseNoSuchDocument:     "That document is no longer listed. Open it again if you still need it.",                      // copy: refusal, max 140 chars
+	RefuseFileMissing:        "That file isn't there anymore. It may have moved, or you may have deleted it.",               // copy: refusal, max 140 chars
+	RefuseFileOutsideHome:    "HTML Clay only opens files inside your home folder. Move the file there and open it again.",  // copy: refusal, max 140 chars
+	RefuseDestinationExists:  "A file with that name is already there. Choose another name.",                                // copy: refusal, max 140 chars
+	RefuseNoSuchRequest:      "That request has ended. Try again if you still need it.",                                     // copy: refusal, max 140 chars
+	RefuseRequestChanged:     "That request changed while you were answering. Look at it again.",                            // copy: refusal, max 140 chars
+	RefuseAnswerNotOffered:   "That answer isn't one this request offers. Choose one of the options shown.",                 // copy: refusal, max 140 chars
+	RefuseNotAllowedNow:      "That isn't possible for this folder right now. Check the folder in HTML Clay and try again.", // copy: refusal, max 140 chars
+	RefuseUnknownPreference:  "HTML Clay doesn't have that setting. Check the setting name or update HTML Clay.",            // copy: refusal, max 140 chars
+	RefuseNothingToMove:      "There is nothing to move from Hyperclay Local. Pick a folder to serve instead.",              // copy: refusal, max 140 chars
+	RefuseNotConnected:       "Your Hyperclay account isn't connected. Connect it in HTML Clay first.",                      // copy: refusal, max 140 chars
+	RefuseSyncKeyShape:       "TODO-COPY That isn't a sync key. A sync key starts with hcsk_.",
+	RefuseSyncKeyRefused:     "TODO-COPY Hyperclay didn't accept that sync key. Make a new one on hyperclay.com.",
+	RefuseSyncWrongAccount:   "TODO-COPY That sync key belongs to a different account.",
+	RefuseSyncOffline:        "TODO-COPY HTML Clay couldn't reach Hyperclay. Check your connection and try again.",
+	RefuseSyncServerUpdate:   "TODO-COPY Hyperclay needs an update before HTML Clay can sync with it.",
+	RefuseServiceNeeded:      "TODO-COPY Sync starts once a folder is served. Serve a folder and try again.",
+	RefuseSyncFolderNotEmpty: "TODO-COPY A team folder starts empty. Pick an empty folder or a new one.",
+	RefuseNothingReady:       "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
+	RefuseNeedsConfirmation:  "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars
+	RefuseFailed:             "HTML Clay couldn't do that just now. Try again.",                                             // copy: refusal, max 140 chars
+	RefuseCannotTrust:        "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.", // copy: refusal, max 140 chars
+	RefuseStillRunning:       "HTML Clay is still working on that. Wait a moment.",                                          // copy: refusal, max 140 chars
+	RefuseNotYet:             "HTML Clay can't do that yet. Update HTML Clay and try again.",                                // copy: refusal, max 140 chars
 	// A folder rule's reason, when an action runs into it.
 	WhyIdentityChanged:    TextWhyServeIdentityChanged,
 	WhyNotOnComputer:      TextWhyNotOnComputer,

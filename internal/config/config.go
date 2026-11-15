@@ -208,6 +208,36 @@ func (c *Config) addTrustedFolderLocked(dir, identity string) bool {
 	return true
 }
 
+// ErrFolderIDHeld is TrustFolderWithID refusing an id another folder already holds,
+// or a path already trusted under another id.
+var ErrFolderIDHeld = errors.New("the folder id is held by another folder")
+
+// TrustFolderWithID trusts dir under id, the id a synced account's folder was given
+// before it was on this computer, so serving it later borrows that id. A path
+// already trusted under the same id is left as it is.
+func (c *Config) TrustFolderWithID(dir, identity, id string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, w := range c.TrustedFolders {
+		if w.Path == dir {
+			if w.ID == id {
+				return nil
+			}
+			return ErrFolderIDHeld
+		}
+		if w.ID == id {
+			return ErrFolderIDHeld
+		}
+	}
+	for _, f := range c.ServedFolders {
+		if f.ID == id {
+			return ErrFolderIDHeld
+		}
+	}
+	c.TrustedFolders = append(c.TrustedFolders, TrustedFolder{ID: id, Path: dir, Identity: identity})
+	return nil
+}
+
 // NewFolderID mints a folder id no folder in the config holds, for a folder that
 // is listed before it is on this computer, such as a synced account's.
 func (c *Config) NewFolderID() (string, error) {

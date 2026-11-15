@@ -155,6 +155,8 @@ type Effect struct {
 	Route      string          `json:"route,omitempty"`
 	Username   string          `json:"username,omitempty"`
 	Force      bool            `json:"force,omitempty"`
+	// Existing is folder.setUpTeam syncing into a folder that already has files.
+	Existing bool `json:"existing,omitempty"`
 	// Acknowledged is what the sheet showed about the file or the folder: a code
 	// the effect finds and this list does not hold refuses needs-confirmation.
 	Acknowledged []string `json:"acknowledged,omitempty"`
@@ -182,6 +184,7 @@ type actionArgs struct {
 	Username    string          `json:"username"`
 	FolderIDs   []string        `json:"folderIDs"`
 	Destination string          `json:"destination"`
+	Existing    bool            `json:"existing"`
 	// Acknowledged is the warnings a sheet showed, for the two actions that
 	// register a program file, for a folder relink, and for trusting a folder.
 	Acknowledged []string `json:"acknowledged"`
@@ -451,7 +454,15 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if ff.OnThisComputer {
 			return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: ff.ID}
 		}
-		return one(Effect{Type: a.Type, FolderID: ff.ID, Path: args.Path})
+		// A team's first sync always starts in an empty folder (08-sync.md, 8.20):
+		// only the person's own account may sync into files already there.
+		if args.Existing && ff.Origin.Kind == OriginTeam {
+			return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: ff.ID, Field: "existing"}
+		}
+		if args.Path == "" {
+			return nil, &Refusal{Code: RefuseBadArguments, Field: "path"}
+		}
+		return one(Effect{Type: a.Type, FolderID: ff.ID, Path: args.Path, Existing: args.Existing})
 	case "move.start":
 		if f.Move == nil || f.Move.State != MoveOffered {
 			return nil, &Refusal{Code: RefuseNothingToMove}

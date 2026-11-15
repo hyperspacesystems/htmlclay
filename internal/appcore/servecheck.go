@@ -69,6 +69,8 @@ const (
 	RefuseSyncWrongAccount = "sync-wrong-account"
 	RefuseSyncOffline      = "sync-offline"
 	RefuseSyncServerUpdate = "sync-server-update"
+	// RefuseSyncFolderNotEmpty is a team's first sync into a folder that has files.
+	RefuseSyncFolderNotEmpty = "sync-folder-not-empty"
 	// RefuseServiceNeeded is a sync action with no live-room service running:
 	// sync runs inside it, and it runs while a folder is served.
 	RefuseServiceNeeded = "service-needed"

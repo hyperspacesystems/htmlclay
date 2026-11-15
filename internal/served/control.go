@@ -77,6 +77,8 @@ func (a *controlAPI) serviceRoute(r *http.Request, link *serviceLink) http.Handl
 		return func(w http.ResponseWriter, r *http.Request) { a.serveReconciled(w, r, link) }
 	case r.URL.Path == "/v1/unconfirmed" && r.Method == http.MethodGet:
 		return func(w http.ResponseWriter, r *http.Request) { a.serveUnconfirmed(w, r, link) }
+	case r.URL.Path == "/v1/sync/report" && r.Method == http.MethodPost:
+		return func(w http.ResponseWriter, r *http.Request) { a.serveSyncReport(w, r, link.active()) }
 	}
 	return nil
 }

@@ -248,6 +248,7 @@ func relativeWithin(path, dir string) (string, bool) {
 // trusted folder.
 func (a *app) startServed() {
 	a.served = a.newServedHost()
+	a.served.SetSyncSink(a.takeSyncReport)
 	board, err := dashboard.New(dashboard.Options{
 		Host: fmt.Sprintf("%s:%d", appcore.DashboardHost, a.rt.port), ProductName: "HTML Clay", API: a.dashboardAPI(a.served.DashboardAPI()),
 		Detour:    fmt.Sprintf("%s:%d", oldDashboardHost, a.rt.port),
