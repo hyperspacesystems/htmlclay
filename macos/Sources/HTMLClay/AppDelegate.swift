@@ -75,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                     host: HostCLI(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: home.map(CandidateHome.environment) ?? [:])),
                                     presenter: alerts, appPID: getpid(), version: version)
         statusItem.updates = updates
+        updates?.onChange = { [weak self] in self?.writeState() }
         if let made = LoginItems.make(identity: Self.identity, candidateHome: home) {
             loginItems = LoginItemReconciler(service: made.service, legacyPlist: made.legacyPlist, defaults: .standard,
                                              bootout: Self.identity == .product ? LoginItems.bootout : { _ in })
@@ -235,6 +236,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "rev": relay?.last.rev ?? 0,
             "folders": relay?.last.folders.count ?? 0,
             "failure": failure,
+            "updateGate": updates?.gate ?? "",
+            "sparkle": updates?.sparkle ?? "",
+            "prepared": updates?.prepared ?? "",
         ]
         if let profile {
             body["profile"] = profile.rawValue

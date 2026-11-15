@@ -69,6 +69,10 @@ public final class UpdateCoordinator {
 
     public private(set) var prepared: String?
     public private(set) var started = false
+    /// For the candidate's state file: "" until decided, "on", or "off <reason>".
+    public private(set) var gate = ""
+    /// For the candidate's state file: "" until Sparkle answers, "started", or "failed <reason>".
+    public private(set) var sparkle = ""
     public var onChange: (() -> Void)?
 
     private var relaunch = false
@@ -100,18 +104,20 @@ public final class UpdateCoordinator {
     public func start(allowed: Bool) async {
         guard !started, offReason == nil else { return }
         guard allowed else {
-            offReason = "this copy of HTML Clay cannot update itself (no feed or key, not X.Y.Z, translocated or read-only)"
+            turnOff("this copy of HTML Clay cannot update itself (no feed or key, not X.Y.Z, translocated or read-only)")
             return
         }
         guard let driver else {
-            offReason = "Sparkle is not running"
+            turnOff("Sparkle is not running")
             return
         }
         guard let status = try? await host.status() else { return }
         if status.hasPrefix("off") {
-            offReason = String(status.dropFirst("off".count)).trimmingCharacters(in: .whitespaces)
+            turnOff(String(status.dropFirst("off".count)).trimmingCharacters(in: .whitespaces))
             return
         }
+        gate = "on"
+        onChange?()
         if status.hasPrefix("failed ") {
             let fields = status.split(separator: " ", maxSplits: 2).map(String.init)
             failedVersion = fields.count > 1 ? fields[1] : nil
@@ -120,6 +126,12 @@ public final class UpdateCoordinator {
         started = true
         driver.start(events: { [weak self] event in self?.handle(event) },
                      skipReason: { [weak self] version in self?.skipReason(version) })
+    }
+
+    private func turnOff(_ reason: String) {
+        offReason = reason
+        gate = "off \(reason)"
+        onChange?()
     }
 
     /// The row's action: Sparkle sends the quit, and beforeQuit prepares a restart.
@@ -238,10 +250,15 @@ public final class UpdateCoordinator {
             }
         case let .startFailed(reason):
             startFailed = reason
+            sparkle = "failed \(reason)"
+            onChange?()
+        case .started:
+            sparkle = "started"
+            onChange?()
         case .aborted, .installFailed:
             relaunch = false
             Task { @MainActor [weak self] in await self?.abortPrepared() }
-        case .started, .checkSkipped:
+        case .checkSkipped:
             break
         }
     }
