@@ -1,6 +1,7 @@
 package appcore
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,9 @@ type ServeInputs struct {
 	Trusted       []config.TrustedFolder
 	LocalServed   []string                // already filtered to a live Local process by the caller
 	NameAvailable func(name string) error // config.(*Config).ServedNameAvailable
+	// OwnSyncRoots is the rootId of every folder this app syncs (sync.json's
+	// syncSessions rows, stopped ones included): a marker naming one is this app's.
+	OwnSyncRoots []string
 }
 
 // GatherServeFacts resolves the asked-for path and relates it to every other folder.
@@ -56,7 +60,8 @@ func GatherServeFacts(in ServeInputs) ServeFacts {
 	for _, other := range in.LocalServed {
 		facts.LocalServed = append(facts.LocalServed, relateTo(resolved, other, ""))
 	}
-	facts.HasSyncMarker = hasSyncMarkerAbove(resolved, home) || hasSyncMarkerBelow(resolved)
+	facts.SyncMarkers = append(syncMarkersAbove(resolved, home), syncMarkersBelow(resolved)...)
+	facts.OwnSyncRoots = in.OwnSyncRoots
 	facts.NameErr = in.NameAvailable(in.Name)
 	return facts
 }
@@ -85,37 +90,36 @@ func servedAlready(served []string, path string) bool {
 	return false
 }
 
-// hasSyncMarkerAbove reports whether path or a folder between it and home holds
-// Hyperclay Local's sync marker.
-func hasSyncMarkerAbove(path, home string) bool {
+// syncMarkersAbove answers the sync markers in path and in every folder between
+// it and home.
+func syncMarkersAbove(path, home string) []SyncMarker {
+	var markers []SyncMarker
 	for dir := path; ; {
-		if isSyncMarker(filepath.Join(dir, ".hyperclay", "sync-root.json")) {
-			return true
+		if marker, ok := readSyncMarker(dir); ok {
+			markers = append(markers, marker)
 		}
 		if dir == home {
-			return false
+			return markers
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return false
+			return markers
 		}
 		dir = parent
 	}
 }
 
-// hasSyncMarkerBelow reports whether a folder at most three levels below path holds
-// Hyperclay Local's sync marker, so serving a wide folder does not swallow a synced
-// folder inside it.
-func hasSyncMarkerBelow(path string) bool {
-	found := false
+// syncMarkersBelow answers the sync markers in folders at most three levels below
+// path, so serving a wide folder does not swallow a synced folder inside it.
+func syncMarkersBelow(path string) []SyncMarker {
+	var markers []SyncMarker
 	var walk func(dir string, depth int)
 	walk = func(dir string, depth int) {
-		if found {
-			return
-		}
-		if isSyncMarker(filepath.Join(dir, ".hyperclay", "sync-root.json")) {
-			found = true
-			return
+		if depth > 0 {
+			if marker, ok := readSyncMarker(dir); ok {
+				markers = append(markers, marker)
+				return
+			}
 		}
 		if depth == 3 {
 			return
@@ -126,24 +130,34 @@ func hasSyncMarkerBelow(path string) bool {
 		}
 		for _, entry := range entries {
 			name := entry.Name()
-			if name == "node_modules" {
-				continue
-			}
-			if strings.HasPrefix(name, ".") {
-				continue
-			}
-			if !entry.IsDir() {
+			if name == "node_modules" || strings.HasPrefix(name, ".") || !entry.IsDir() {
 				continue
 			}
 			walk(filepath.Join(dir, name), depth+1)
 		}
 	}
 	walk(path, 0)
-	return found
+	return markers
 }
 
-// isSyncMarker reports whether path is a regular file.
-func isSyncMarker(path string) bool {
+// readSyncMarker answers dir's .hyperclay/sync-root.json when it is a regular
+// file, with the rootId it names, or "" when that cannot be read.
+func readSyncMarker(dir string) (SyncMarker, bool) {
+	path := filepath.Join(dir, ".hyperclay", "sync-root.json")
 	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular()
+	if err != nil || !info.Mode().IsRegular() {
+		return SyncMarker{}, false
+	}
+	marker := SyncMarker{Folder: dir}
+	if data, err := os.ReadFile(path); err == nil {
+		var body struct {
+			RootID any `json:"rootId"`
+		}
+		if json.Unmarshal(data, &body) == nil {
+			if id, ok := body.RootID.(string); ok {
+				marker.RootID = id
+			}
+		}
+	}
+	return marker, true
 }

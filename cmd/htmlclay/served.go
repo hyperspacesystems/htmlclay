@@ -378,6 +378,7 @@ func (a *app) serveFacts(resolved, name string) (appcore.ServeFacts, *appcore.Re
 		Trusted:       a.rt.cfg.TrustedFolderList(),
 		LocalServed:   localRoots,
 		NameAvailable: a.rt.cfg.ServedNameAvailable,
+		OwnSyncRoots:  a.ownSyncRoots(),
 	})
 	return facts, appcore.CheckServe(facts)
 }
@@ -474,6 +475,8 @@ func (a *app) resumeServedFolder(entry config.ServedFolder) (config.ServedFolder
 		Protected: []string{a.rt.configDir},
 		Served:    served,
 		Trusted:   a.rt.cfg.TrustedFolderList(),
+		// A folder this app syncs carries this app's own marker.
+		OwnSyncRoots: a.ownSyncRoots(),
 		// The resumed name is the entry's own, so it is not taken by it.
 		NameAvailable: func(name string) error {
 			if name == entry.Name {

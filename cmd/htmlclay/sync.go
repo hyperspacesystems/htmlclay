@@ -373,3 +373,20 @@ func (a *app) setSyncPaused(paused bool) *appcore.Refusal {
 	}
 	return nil
 }
+
+// ownSyncRoots answers the rootId of every folder this app syncs, stopped ones
+// included: their markers are this app's, not Hyperclay Local's. A sync.json this
+// build cannot read answers none, so every marker is treated as Local's.
+func (a *app) ownSyncRoots() []string {
+	a.rt.syncMu.Lock()
+	defer a.rt.syncMu.Unlock()
+	record, err := a.syncRecordLocked()
+	if err != nil {
+		return nil
+	}
+	roots := make([]string, 0, len(record.SyncSessions))
+	for _, session := range record.SyncSessions {
+		roots = append(roots, session.RootID)
+	}
+	return roots
+}

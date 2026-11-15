@@ -103,16 +103,45 @@ type OtherFolder struct {
 
 // ServeFacts is everything CheckServe needs, gathered by GatherServeFacts.
 type ServeFacts struct {
-	Path          string // the folder asked for, symlinks resolved
-	Exists        bool
-	IsDir         bool
-	Home          pathrel.Relation // how Path stands to the home folder
-	Protected     []OtherFolder    // the config folder, the uploads library
-	Served        []OtherFolder    // folders HTML Clay already serves
-	Trusted       []OtherFolder    // trusted folders that are not served
-	LocalServed   []OtherFolder    // folders Hyperclay Local serves now
-	HasSyncMarker bool             // Path or a folder above it holds .hyperclay/sync-root.json
-	NameErr       error            // config.ServedNameAvailable(name)
+	Path        string // the folder asked for, symlinks resolved
+	Exists      bool
+	IsDir       bool
+	Home        pathrel.Relation // how Path stands to the home folder
+	Protected   []OtherFolder    // the config folder, the uploads library
+	Served      []OtherFolder    // folders HTML Clay already serves
+	Trusted     []OtherFolder    // trusted folders that are not served
+	LocalServed []OtherFolder    // folders Hyperclay Local serves now
+	// SyncMarkers are the .hyperclay/sync-root.json files in Path, above it up to
+	// home, and up to three levels below it. OwnSyncRoots are the rootIds of the
+	// folders this app syncs.
+	SyncMarkers  []SyncMarker
+	OwnSyncRoots []string
+	NameErr      error // config.ServedNameAvailable(name)
+}
+
+// SyncMarker is one sync marker: the folder that holds it and the rootId it
+// names, "" when that cannot be read.
+type SyncMarker struct {
+	Folder string
+	RootID string
+}
+
+// boundToLocalSync reports a marker that is not this app's own: a folder
+// Hyperclay Local syncs. A marker whose rootId cannot be read is not this app's.
+func boundToLocalSync(f ServeFacts) bool {
+	for _, marker := range f.SyncMarkers {
+		own := false
+		for _, id := range f.OwnSyncRoots {
+			if marker.RootID != "" && marker.RootID == id {
+				own = true
+				break
+			}
+		}
+		if !own {
+			return true
+		}
+	}
+	return false
 }
 
 // CheckServe answers nil when the folder may be served, else the first rule it breaks,
@@ -136,7 +165,7 @@ func CheckServe(f ServeFacts) *Refusal {
 	if other, ok := touching(f.LocalServed); ok {
 		return &Refusal{Code: RefuseServedByLocal, OtherPath: other.Path, OtherName: other.Name, Field: "path"}
 	}
-	if f.HasSyncMarker {
+	if boundToLocalSync(f) {
 		return &Refusal{Code: RefuseBoundToLocalSync, Field: "path"}
 	}
 	for _, other := range f.Trusted {

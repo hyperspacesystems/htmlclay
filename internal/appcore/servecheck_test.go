@@ -129,7 +129,7 @@ func TestCheckServe(t *testing.T) {
 		},
 		{
 			name:  "bound to local sync",
-			facts: with(func(f *ServeFacts) { f.HasSyncMarker = true }),
+			facts: with(func(f *ServeFacts) { f.SyncMarkers = []SyncMarker{{Folder: "/home/sam/notes", RootID: "abcdef0123456789"}} }),
 			code:  RefuseBoundToLocalSync,
 		},
 		{
