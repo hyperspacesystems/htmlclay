@@ -101,6 +101,10 @@ type State struct {
 	Installer string `json:"installer,omitempty"`
 	// Executable is the app's binary relative to the bundle, set with Installer.
 	Executable string `json:"executable,omitempty"`
+	// Helpers are the other programs inside the bundle, relative to it, that
+	// keep it running: the Swift app's host owns the site servers, so it must
+	// die with the app before the bundle is swapped back.
+	Helpers []string `json:"helpers,omitempty"`
 	// Quit is set with Installer when Sparkle installs To on a plain quit. Then
 	// nothing relaunches To, so the supervisor starts it without its tray only to
 	// see it serve, stops it again, and relaunches nothing after a rollback: the

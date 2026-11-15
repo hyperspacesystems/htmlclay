@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,6 +56,15 @@ var updateNowOS = runtime.GOOS
 // request dies about a minute after the canary stops asking.
 var updateNowWindow = time.Minute
 
+// beginSparkle is update.BeginSparkle; tests replace it.
+var beginSparkle = update.BeginSparkle
+
+// shellUpdateStep is told each stage update-prepare passes; tests record it.
+var shellUpdateStep = func(stage string) {}
+
+// shellInstallPath is update.InstallPath; tests replace it with a fake bundle.
+var shellInstallPath = update.InstallPath
+
 // updateNowDispatch runs `htmlclay update-now ...` and reports whether it
 // handled argv. Like wireDispatch it runs before flag.Parse and the lock.
 func updateNowDispatch(argv []string) (int, bool) {
@@ -64,7 +74,7 @@ func updateNowDispatch(argv []string) (int, bool) {
 	switch argv[1] {
 	case "update-info":
 		return runUpdateInfo(argv[2:], os.Stdout, os.Stderr), true
-	case "update-now", "update-confirm":
+	case "update-now", "update-confirm", "update-prepare", "update-abort", "update-status":
 	default:
 		return 0, false
 	}
@@ -74,8 +84,23 @@ func updateNowDispatch(argv []string) (int, bool) {
 		return updateNowExitUsage, true
 	}
 	si := platform.NewSingleInstance(dir)
-	if argv[1] == "update-confirm" {
+	switch argv[1] {
+	case "update-confirm":
 		return runUpdateConfirm(si, argv[2:], os.Stdout, os.Stderr), true
+	case "update-prepare":
+		if len(argv) == 2 {
+			fmt.Fprintln(os.Stderr, "usage: htmlclay update-prepare X.Y.Z PID restart|quit [force]")
+			return updateNowExitUsage, true
+		}
+		return runHostCommand(si, argv[1], argv[2:], []string{"prepared"}, os.Stdout, os.Stderr), true
+	case "update-abort":
+		if len(argv) == 2 {
+			fmt.Fprintln(os.Stderr, "usage: htmlclay update-abort TXID")
+			return updateNowExitUsage, true
+		}
+		return runHostCommand(si, argv[1], argv[2:], []string{"aborted"}, os.Stdout, os.Stderr), true
+	case "update-status":
+		return runHostCommand(si, argv[1], argv[2:], []string{"ok", "off", "failed"}, os.Stdout, os.Stderr), true
 	}
 	return runUpdateNow(si, argv[2:], os.Stdout, os.Stderr), true
 }
@@ -165,6 +190,32 @@ func runUpdateConfirm(si platform.SingleInstance, args []string, stdout, stderr 
 	return updateNowExitRefused
 }
 
+// runHostCommand sends one of the update commands the Mac app drives and maps
+// the answer to an exit code. The host checks the arguments; the client only
+// knows which first words mean the host took the request.
+func runHostCommand(si platform.SingleInstance, name string, args []string, ok []string, stdout, stderr io.Writer) int {
+	answer, err := si.SendCommand(strings.Join(append([]string{name}, args...), " "))
+	if errors.Is(err, platform.ErrNoAnswer) {
+		fmt.Fprintf(stdout, "refused the running HTML Clay predates %s\n", name)
+		return updateNowExitTooOld
+	}
+	if err != nil {
+		fmt.Fprintf(stderr, "htmlclay %s: HTML Clay is not running: %v\n", name, err)
+		return updateNowExitNotRunning
+	}
+	fmt.Fprintln(stdout, answer)
+	if answer == platform.CommandStarting {
+		return updateNowExitStarting
+	}
+	first, _, _ := strings.Cut(answer, " ")
+	for _, word := range ok {
+		if first == word {
+			return updateNowExitOK
+		}
+	}
+	return updateNowExitRefused
+}
+
 // handleInstanceCommand answers one command frame from the single-instance
 // socket. The socket only carries frames from this user's own processes.
 func (a *app) handleInstanceCommand(cmd string) string {
@@ -187,6 +238,34 @@ func (a *app) handleInstanceCommand(cmd string) string {
 		markUpdateHealth(update.HealthServing)
 		go a.settleUpgradeSave()
 		return "confirmed"
+	case "update-prepare":
+		if len(fields) != 4 && len(fields) != 5 {
+			return "refused unknown command"
+		}
+		pid, err := strconv.Atoi(fields[2])
+		if err != nil || (fields[3] != "restart" && fields[3] != "quit") {
+			return "refused unknown command"
+		}
+		if len(fields) == 5 && fields[4] != "force" {
+			return "refused unknown command"
+		}
+		answer := a.prepareShellUpdate(fields[1], pid, fields[3] == "quit", len(fields) == 5)
+		a.rt.logger.Printf("update-prepare %s: %s", strings.Join(fields[1:], " "), answer)
+		return answer
+	case "update-abort":
+		if len(fields) != 2 {
+			return "refused unknown command"
+		}
+		answer := a.abortShellUpdate(fields[1])
+		a.rt.logger.Printf("update-abort %s: %s", fields[1], answer)
+		return answer
+	case "update-status":
+		if len(fields) != 1 {
+			return "refused unknown command"
+		}
+		answer := a.shellUpdateStatus()
+		a.rt.logger.Printf("update-status: %s", answer)
+		return answer
 	case "serve":
 		return a.handleServeCommand(fields[1:])
 	case "stop-serving":

@@ -12,6 +12,7 @@ type SparkleParams struct {
 	To          string
 	Bundle      string
 	Executable  string
+	Helpers     []string
 	OldPID      int
 	HandoffPath string
 	Quit        bool
