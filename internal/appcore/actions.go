@@ -43,24 +43,25 @@ type Action struct {
 // ActionClasses is every action type. An action type missing here is refused, and
 // TestPlanEveryTypeHasAClass fails when Plan knows a type this table does not.
 var ActionClasses = map[string]Class{
-	"app.openKeptPage":   ClassSafe,
-	"document.open":      ClassSafe,
-	"document.reveal":    ClassSafe,
-	"document.forget":    ClassSafe,
-	"document.export":    ClassSafe,
-	"document.versions":  ClassSafe,
-	"dashboard.open":     ClassSafe,
-	"folder.reveal":      ClassSafe,
-	"program.reveal":     ClassSafe,
-	"folder.copyAddress": ClassSafe,
-	"waiting.markSeen":   ClassSafe,
-	"request.show":       ClassSafe,
-	"prefs.set":          ClassSafe,
-	"sync.setPaused":     ClassSafe,
-	"conflict.resolve":   ClassSafe,
-	"update.start":       ClassSafe,
-	"service.restart":    ClassSafe,
-	"host.quit":          ClassSafe,
+	"app.openKeptPage":      ClassSafe,
+	"document.open":         ClassSafe,
+	"document.reveal":       ClassSafe,
+	"document.forget":       ClassSafe,
+	"document.export":       ClassSafe,
+	"document.versions":     ClassSafe,
+	"dashboard.open":        ClassSafe,
+	"folder.reveal":         ClassSafe,
+	"program.reveal":        ClassSafe,
+	"folder.copyAddress":    ClassSafe,
+	"waiting.markSeen":      ClassSafe,
+	"request.show":          ClassSafe,
+	"prefs.set":             ClassSafe,
+	"sync.setPaused":        ClassSafe,
+	"conflict.resolve":      ClassSafe,
+	"folder.resolveRemoval": ClassSafe,
+	"update.start":          ClassSafe,
+	"service.restart":       ClassSafe,
+	"host.quit":             ClassSafe,
 
 	"folder.stopServing":   ClassRevoke,
 	"folder.stopTrusting":  ClassRevoke,
@@ -164,6 +165,9 @@ type Effect struct {
 	// starts with the sync session's id) and Keep the copy the person chose.
 	Conflict string `json:"conflict,omitempty"`
 	Keep     string `json:"keep,omitempty"`
+	// Choice is folder.resolveRemoval's: restore the attachments here, or
+	// delete them on the server too.
+	Choice string `json:"choice,omitempty"`
 	// Acknowledged is what the sheet showed about the file or the folder: a code
 	// the effect finds and this list does not hold refuses needs-confirmation.
 	Acknowledged []string `json:"acknowledged,omitempty"`
@@ -194,6 +198,7 @@ type actionArgs struct {
 	Existing    bool            `json:"existing"`
 	Confirmed   bool            `json:"confirmed"`
 	Keep        string          `json:"keep"`
+	Choice      string          `json:"choice"`
 	// Acknowledged is the warnings a sheet showed, for the two actions that
 	// register a program file, for a folder relink, and for trusting a folder.
 	Acknowledged []string `json:"acknowledged"`
@@ -307,6 +312,21 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return nil, &Refusal{Code: RefuseSyncPaused, SubjectID: held.SubjectID}
 		}
 		return one(Effect{Type: a.Type, FolderID: held.SubjectID, Path: held.Name, Conflict: held.ID, Keep: args.Keep})
+	case "folder.resolveRemoval":
+		held := false
+		for _, e := range f.Events {
+			held = held || (e.Kind == WaitingRemovalHeld && e.SubjectID == args.ID)
+		}
+		if !held {
+			return nil, &Refusal{Code: RefuseRemovalGone, SubjectID: args.ID}
+		}
+		if args.Choice != "restore" && args.Choice != "delete" {
+			return bad("choice")
+		}
+		if f.Sync.Paused {
+			return nil, &Refusal{Code: RefuseSyncPaused, SubjectID: args.ID}
+		}
+		return one(Effect{Type: a.Type, FolderID: args.ID, Choice: args.Choice})
 	case "sync.setPaused":
 		if args.Paused == nil {
 			return bad("paused")

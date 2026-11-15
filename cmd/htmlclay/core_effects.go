@@ -59,6 +59,7 @@ var implementedActions = []string{
 	"sync.disconnect",
 	"sync.setPaused",
 	"conflict.resolve",
+	"folder.resolveRemoval",
 	"waiting.markSeen",
 }
 
@@ -144,6 +145,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.setSyncPaused(e.On)
 	case "conflict.resolve":
 		return a.resolveConflict(e)
+	case "folder.resolveRemoval":
+		return a.resolveRemoval(e)
 	case "host.quit":
 		if !e.Force {
 			names, answered := a.unsavedDocuments()

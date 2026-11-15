@@ -229,27 +229,9 @@ func (s stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(answer)
 	case "/sync/v1/resolve":
-		// The body goes to HTMLCLAY_STUB_RESOLVE_LOG; the answer is the file
-		// HTMLCLAY_STUB_RESOLVE names, or the choice kept.
-		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if name := os.Getenv("HTMLCLAY_STUB_RESOLVE_LOG"); name != "" {
-			if f, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
-				_, _ = f.Write(append(bytes.TrimSpace(body), '\n'))
-				_ = f.Close()
-			}
-		}
-		answer := []byte(`{"ok":true}`)
-		if name := os.Getenv("HTMLCLAY_STUB_RESOLVE"); name != "" {
-			if data, err := os.ReadFile(name); err == nil {
-				answer = data
-			}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(answer)
+		recordAndAnswer(w, r, "HTMLCLAY_STUB_RESOLVE_LOG", "HTMLCLAY_STUB_RESOLVE")
+	case "/sync/v1/removal":
+		recordAndAnswer(w, r, "HTMLCLAY_STUB_REMOVAL_LOG", "HTMLCLAY_STUB_REMOVAL")
 	default:
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 	}
@@ -273,4 +255,29 @@ func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// recordAndAnswer appends the request body to the file logEnv names and answers
+// the file answerEnv names, or {"ok":true}: a choice route that a test checks by
+// what was sent.
+func recordAndAnswer(w http.ResponseWriter, r *http.Request, logEnv, answerEnv string) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if name := os.Getenv(logEnv); name != "" {
+		if f, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+			_, _ = f.Write(append(bytes.TrimSpace(body), '\n'))
+			_ = f.Close()
+		}
+	}
+	answer := []byte(`{"ok":true}`)
+	if name := os.Getenv(answerEnv); name != "" {
+		if data, err := os.ReadFile(name); err == nil {
+			answer = data
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(answer)
 }

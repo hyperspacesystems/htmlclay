@@ -189,7 +189,7 @@ type Request struct {
 	Answers    []string `json:"answers"`
 }
 
-// Waiting kinds, the preview's eight.
+// Waiting kinds: the preview's eight, and a removal sync holds (08-sync.md 8.34).
 const (
 	WaitingConflict           = "conflict"
 	WaitingProgramRequest     = "programRequest"
@@ -198,6 +198,7 @@ const (
 	WaitingServiceFailed      = "serviceFailed"
 	WaitingProgramFileMissing = "programFileMissing"
 	WaitingFileTooBig         = "fileTooBig"
+	WaitingRemovalHeld        = "removalHeld"
 	WaitingTeamToSetUp        = "teamToSetUp"
 )
 

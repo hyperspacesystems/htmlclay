@@ -12,6 +12,7 @@ var waitingPane = map[string]string{
 	WaitingFolderMissing:      PaneFolders,
 	WaitingFileTooBig:         PaneFolders,
 	WaitingTeamToSetUp:        PaneFolders,
+	WaitingRemovalHeld:        PaneFolders,
 	WaitingProgramRequest:     PanePrograms,
 	WaitingProgramFileMissing: PanePrograms,
 	WaitingSyncKeyRefused:     PaneSync,
@@ -24,6 +25,7 @@ var waitingEarnsDot = map[string]bool{
 	WaitingSyncKeyRefused: true,
 	WaitingFolderMissing:  true,
 	WaitingServiceFailed:  true,
+	WaitingRemovalHeld:    true,
 }
 
 // waitingCounts says which kinds the red counts include: only what a person must
@@ -36,6 +38,7 @@ var waitingCounts = map[string]bool{
 	WaitingSyncKeyRefused:     true,
 	WaitingFolderMissing:      true,
 	WaitingServiceFailed:      true,
+	WaitingRemovalHeld:        true,
 }
 
 // countedPanes are the panes that can hold a waiting item; each appears in
@@ -75,6 +78,8 @@ func waiting(f Facts) []WaitingItem {
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingFileTooBig, e.Name), e.Detail, e.SubjectID)
 		case WaitingTeamToSetUp:
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingTeamToSetUp, e.Name), e.Detail, e.SubjectID)
+		case WaitingRemovalHeld:
+			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingRemovalHeld, e.Detail, e.Name), e.Detail, e.SubjectID)
 		}
 	}
 	for _, r := range f.Requests {

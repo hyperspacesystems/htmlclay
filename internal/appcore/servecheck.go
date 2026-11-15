@@ -96,7 +96,9 @@ const (
 	// RefuseConflictChanged is a choice for a conflict whose file or server
 	// copy changed since the person looked at it; nothing was changed.
 	RefuseConflictChanged = "conflict-changed"
-	RefuseNothingReady  = "nothing-ready"
+	// RefuseRemovalGone is a choice for a held removal that is no longer held.
+	RefuseRemovalGone  = "removal-gone"
+	RefuseNothingReady = "nothing-ready"
 	// RefuseUnsavedEdits is a stop serving the live-room service kept, because
 	// the folder still has edits that are not saved.
 	RefuseUnsavedEdits = "unsaved-edits"

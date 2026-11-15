@@ -447,6 +447,12 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 			if enabled[row.FolderID] && hasReport && report.Blocked > 0 {
 				events = append(events, appcore.EventFact{ID: "fileTooBig:" + row.FolderID, Kind: appcore.WaitingFileTooBig, SubjectID: row.FolderID, Name: name, Detail: strconv.Itoa(report.Blocked)})
 			}
+			// Many attachments removed at once stay on the server until the person
+			// chooses. A new hold is a new item, so its id names the paths.
+			if held := report.RemovalHeld; enabled[row.FolderID] && hasReport && held != nil && held.Files > 0 {
+				sum := sha256.Sum256([]byte(strings.Join(held.Paths, "\x00")))
+				events = append(events, appcore.EventFact{ID: "removalHeld:" + row.FolderID + ":" + hex.EncodeToString(sum[:6]), Kind: appcore.WaitingRemovalHeld, SubjectID: row.FolderID, Name: name, Detail: strconv.Itoa(held.Files)})
+			}
 			continue
 		}
 		name := row.DisplayName

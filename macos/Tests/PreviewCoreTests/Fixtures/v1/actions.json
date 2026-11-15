@@ -54,6 +54,10 @@
       "class": "grant"
     },
     {
+      "type": "folder.resolveRemoval",
+      "class": "safe"
+    },
+    {
       "type": "folder.reveal",
       "class": "safe"
     },

@@ -204,6 +204,14 @@ function createSync({ gate, service = null, dataDir = null }) {
   const runId = randomBytes(4).toString('hex');
   let eventCount = 0;
 
+  // heldRemoval is a session's removal of many attachments at once that the
+  // engine holds for the person (engine-structure.js _holdMassDelete), or null.
+  function heldRemoval(sessionId) {
+    const entry = manager && manager.sessions.get(sessionId);
+    const held = entry && entry.engine && entry.engine._structureState().massDelete;
+    return held ? { files: held.files, paths: held.paths } : null;
+  }
+
   function sessionsNow() {
     const rows = new Map((settings.syncSessions || []).map((row) => [row.id, row]));
     return manager ? manager.statuses().map((entry) => ({
@@ -219,7 +227,7 @@ function createSync({ gate, service = null, dataDir = null }) {
       lastSyncAt: entry.lastSyncAt,
       lastError: entry.lastError,
       progress: null,
-      removalHeld: null,
+      removalHeld: heldRemoval(entry.sessionId),
       record: changedRows.get(entry.sessionId) || rows.get(entry.sessionId) || null,
     })) : [];
   }
@@ -466,6 +474,18 @@ function createSync({ gate, service = null, dataDir = null }) {
       return result;
     },
 
+    // removal is the person's choice for a held removal: restore puts the
+    // attachments back here, delete removes them on the server too.
+    async removal(body) {
+      if (!held) return { ok: false, error: 'not-connected' };
+      const choice = body && body.choice;
+      if (choice !== 'restore' && choice !== 'delete') return { ok: false, error: 'bad-choice' };
+      if (typeof body.sessionId !== 'string' || !heldRemoval(body.sessionId)) return { ok: false, error: 'no-removal' };
+      const result = await manager.resolveMassDelete({ sessionId: body.sessionId, choice });
+      if (reporter) reporter.schedule();
+      return result;
+    },
+
     async stopAll() {
       await stopAll();
     },
@@ -542,6 +562,7 @@ function mountSync(service, sync) {
     [`${PREFIX}preview`, (body) => sync.preview(body)],
     [`${PREFIX}bind`, (body) => sync.bind(body)],
     [`${PREFIX}resolve`, (body) => sync.resolve(body)],
+    [`${PREFIX}removal`, (body) => sync.removal(body)],
   ]);
   service.mount(PREFIX, async (req, res) => {
     const { pathname } = new URL(req.url, 'http://service');

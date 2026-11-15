@@ -23,6 +23,7 @@
       "folder.copyAddress": true,
       "folder.merge": true,
       "folder.relink": true,
+      "folder.resolveRemoval": false,
       "folder.reveal": true,
       "folder.serve": true,
       "folder.setFraming": true,

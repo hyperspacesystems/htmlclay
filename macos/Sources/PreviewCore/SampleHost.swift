@@ -101,7 +101,7 @@ public enum SampleReducer {
                 next.folders.append(Folder(id: id, name: folderName, path: path, parentID: nearestParent(of: path, in: next), served: true, address: name + addressSuffix, status: Strings.Folders.onlyOnThisMac, versionsSize: "0 MB"))
                 adopt(id, path: path, in: &next)
             }
-        case .resolveConflict:
+        case .resolveConflict, .resolveRemoval:
             // The sample keeps no held conflicts; the real host's list is the
             // waiting items it sends.
             return snapshot

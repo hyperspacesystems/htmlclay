@@ -87,6 +87,7 @@ const (
 	TextWaitingSyncKeyRefused  = "Your sync key was refused"         // copy: waiting item title, max 70 chars
 	TextWaitingFileTooBig      = "%s is too big to sync"             // copy: waiting item title, the file's name, max 70 chars
 	TextWaitingTeamToSetUp     = "%s is ready to set up"             // copy: waiting item title, the team folder's name, max 70 chars
+	TextWaitingRemovalHeld     = "TODO-COPY %s attachments were removed from %s at once"
 )
 
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
@@ -128,6 +129,7 @@ var RefusalText = map[string]string{
 	RefuseSyncPaused:         "TODO-COPY Sync is paused. Turn sync back on, then choose which copy to keep.",
 	RefuseConflictGone:       "TODO-COPY That file isn't in conflict any more. Nothing was changed.",
 	RefuseConflictChanged:    "TODO-COPY That file changed since you looked. Look at both copies again, then choose.",
+	RefuseRemovalGone:        "TODO-COPY Those attachments aren't waiting for you any more. Nothing was changed.",
 	RefuseConfirmNeeded:      "TODO-COPY This folder already has files. Check what will sync, then confirm.",
 	RefuseNothingReady:       "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
 	RefuseNeedsConfirmation:  "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars

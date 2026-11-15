@@ -31,6 +31,7 @@ public enum HostActionType {
     public static let updateStart = "update.start"
     public static let syncSetPaused = "sync.setPaused"
     public static let conflictResolve = "conflict.resolve"
+    public static let folderResolveRemoval = "folder.resolveRemoval"
     public static let requestAnswer = "request.answer"
     public static let programAdd = "program.add"
     public static let programSetAllTrusted = "program.setAllTrusted"

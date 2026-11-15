@@ -243,18 +243,18 @@ public struct ProgramRequest: Codable, Equatable, Identifiable, Sendable {
 public struct WaitingItem: Codable, Equatable, Identifiable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
         case conflict, programRequest, syncKeyRefused, folderMissing, serviceFailed
-        case programFileMissing, fileTooBig, teamToSetUp
+        case programFileMissing, fileTooBig, teamToSetUp, removalHeld
 
         public var earnsDot: Bool {
             switch self {
-            case .conflict, .programRequest, .syncKeyRefused, .folderMissing, .serviceFailed: return true
+            case .conflict, .programRequest, .syncKeyRefused, .folderMissing, .serviceFailed, .removalHeld: return true
             case .programFileMissing, .fileTooBig, .teamToSetUp: return false
             }
         }
 
         public var pane: SettingsPane {
             switch self {
-            case .conflict, .folderMissing, .fileTooBig, .teamToSetUp: return .folders
+            case .conflict, .folderMissing, .fileTooBig, .teamToSetUp, .removalHeld: return .folders
             case .programRequest, .programFileMissing: return .programs
             case .syncKeyRefused: return .sync
             case .serviceFailed: return .advanced
@@ -430,6 +430,9 @@ public enum HostAction: Equatable, Sendable {
     /// A held conflict's choice: the conflict's id and path as the host listed
     /// it, and "mine", "theirs" or "both".
     case resolveConflict(id: String, path: String, keep: String)
+    /// A held removal of many attachments in a folder: "restore" puts them back
+    /// here, "delete" removes them on the server too.
+    case resolveRemoval(id: String, choice: String)
     case setProgramAllTrusted(programID: String, on: Bool)
     case setUseName(Bool)
     case setAutoUpdate(Bool)
