@@ -3,8 +3,10 @@
 # Swift app that runs a Go host beside it, judged by named pass checks rather
 # than by a report alone.
 #
-# The one case so far, `first`, is the plain update: no welcome screen and
-# nothing open. Later cases add rollback, quit and open tabs to this script.
+# The cases: `first` is the plain update, with one document open in the old app
+# before the update so the config has a first site the 2.0 host would rename.
+# `rollback-nohost`, `rollback-app`, `rollback-early` and `rollback-version` each
+# make the new app fail to serve, and check that the old app comes back as it was.
 #
 # Both bundles carry the throwaway id com.htmlclay.SparkleCheck and claim no
 # file types or URL schemes, everything runs on a scratch HOME and config base
@@ -21,6 +23,9 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ID="com.htmlclay.SparkleCheck"
+case "com.htmlclay.HTMLClay" in
+  "$ID"*) echo "[rehearsal] refusing bundle id '$ID': it is the installed HTML Clay's id or a prefix of it" >&2; exit 2 ;;
+esac
 CASE=""
 WELCOME="no"
 OLD_VERSION="9.0.0"
@@ -43,6 +48,8 @@ PROBE="$SCRATCH/probe/probe.htmlclay"
 KEY="$SCRATCH/keys/ed25519.seed"
 REPORT="$SCRATCH/report.md"
 REAL_HOME="$HOME"
+STUB_PATH="$SCRATCH/stub:/usr/bin:/bin:/usr/sbin:/sbin"
+OPEN_LOG="$SCRATCH/open.log"
 HTTP_PORT=""
 PORT=""
 DEADLINE="${HTMLCLAY_SPARKLE_CHECK_DEADLINE:-240}"
@@ -50,17 +57,17 @@ OBSERVE="${HTMLCLAY_SPARKLE_CHECK_OBSERVE:-60}"
 
 say() { echo "[rehearsal] $*" >&2; }
 
-# The case comes first; only `first` exists so far.
+# The case comes first.
 usage() {
-  say "usage: upgrade-rehearsal.sh first [--old-tag <tag>] [--welcome]"
+  say "usage: upgrade-rehearsal.sh first|rollback-nohost|rollback-app|rollback-early|rollback-version [--old-tag <tag>] [--welcome]"
   exit 2
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    first)
+    first|rollback-nohost|rollback-app|rollback-early|rollback-version)
       [ -z "$CASE" ] || usage
-      CASE="first"
+      CASE="$1"
       shift
       ;;
     --old-tag)
@@ -81,7 +88,7 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
-[ "$CASE" = "first" ] || usage
+[ -n "$CASE" ] || usage
 
 PIDS=()
 CANARY_PID=""
@@ -113,6 +120,8 @@ VERDICT=""
 VERDICT_OK="no"
 PORT_BEFORE=""
 WATCH_PID=""
+KILLER_PID=""
+FIRST_SITE=""
 SERVING_SECONDS=""
 HANDOFF_AGE=""
 STARTED=$SECONDS
@@ -174,6 +183,9 @@ kill_pid() {
 }
 
 cleanup() {
+  case "com.htmlclay.HTMLClay" in
+    "$ID"*) echo "[rehearsal] cleanup refused for bundle id '$ID'" >&2; return 1 ;;
+  esac
   local status=$?
   trap - EXIT
   say "cleaning up"
@@ -181,6 +193,7 @@ cleanup() {
   kill_pid "$HTTP_PID"
   kill_pid "$APP_PID"
   kill_pid "$WATCH_PID"
+  kill_pid "$KILLER_PID"
 
   local pid
   for pid in $(ps -axo pid=,comm= | awk -v p="$SCRATCH/" 'index($2, p) == 1 { print $1 }'); do
@@ -400,10 +413,18 @@ finish() {
 
 # --- setup -----------------------------------------------------------------
 
-mkdir -p "$SCRATCH" "$LOGS" "$BIN" "$(dirname "$PROBE")" "$(dirname "$KEY")" "$CONFIG" "$FAKE_HOME"
+mkdir -p "$SCRATCH" "$LOGS" "$BIN" "$SCRATCH/stub" "$(dirname "$PROBE")" "$(dirname "$KEY")" "$CONFIG" "$FAKE_HOME"
 printf '<!doctype html><title>probe</title><p>probe</p>\n' >"$PROBE"
 : >"$LOGS/cleanup.log"
 say "run folder: $SCRATCH"
+
+# Neither app may open the real browser: 1.x calls a bare `open`, so a stub
+# ahead of /usr/bin on PATH records every URL it was handed.
+cat >"$SCRATCH/stub/open" <<'STUB'
+#!/bin/bash
+printf '%s\n' "$*" >> "${HTMLCLAY_STUB_OPEN_LOG:?}"
+STUB
+chmod +x "$SCRATCH/stub/open"
 
 cat >"$BIN/handler.swift" <<'SWIFT'
 import AppKit
@@ -521,7 +542,7 @@ resign() {
 }
 
 set_bundle_id "$OLD" "$ID"
-plutil -insert LSEnvironment -json "{\"HOME\":\"$FAKE_HOME\",\"HTMLCLAY_CONFIG_BASE\":\"$FAKE_HOME/Library/Application Support\"}" "$OLD/Contents/Info.plist"
+plutil -insert LSEnvironment -json "{\"HOME\":\"$FAKE_HOME\",\"HTMLCLAY_CONFIG_BASE\":\"$FAKE_HOME/Library/Application Support\",\"PATH\":\"$STUB_PATH\",\"HTMLCLAY_STUB_OPEN_LOG\":\"$OPEN_LOG\"}" "$OLD/Contents/Info.plist"
 plutil -insert HCUpdateNowCommand -integer 1 "$OLD/Contents/Info.plist" 2>/dev/null ||
   plutil -replace HCUpdateNowCommand -integer 1 "$OLD/Contents/Info.plist"
 [ "$(plist_key "$OLD/Contents/Info.plist" SUPublicEDKey)" = "$PUB" ] || say "warning: the old bundle does not carry the throwaway key"
@@ -541,17 +562,24 @@ set_feed() {
 
 # --- new bundle ------------------------------------------------------------
 
-say "building the Swift bundle $NEW_VERSION"
+BUILD_VERSION="$NEW_VERSION"
+[ "$CASE" = "rollback-version" ] && BUILD_VERSION="9.0.2"
+say "building the Swift bundle $NEW_VERSION (host built as $BUILD_VERSION)"
 mkdir -p "$SCRATCH/new"
-if ! bash "$ROOT/scripts/build-candidate.sh" --unsigned --output "$SCRATCH/new" --version "$NEW_VERSION" --bundle-id "$ID" >"$LOGS/build-new.log" 2>&1; then
+if ! bash "$ROOT/scripts/build-candidate.sh" --unsigned --output "$SCRATCH/new" --version "$BUILD_VERSION" --bundle-id "$ID" >"$LOGS/build-new.log" 2>&1; then
   say "build-candidate.sh failed"
   OUTCOME="never triggered"
   OUTCOME_REASON="scripts/build-candidate.sh failed; see logs/build-new.log"
   exit 1
 fi
+if [ "$CASE" = "rollback-version" ]; then
+  plutil -replace CFBundleVersion -string "$NEW_VERSION" "$NEW_SRC/Contents/Info.plist"
+  plutil -replace CFBundleShortVersionString -string "$NEW_VERSION" "$NEW_SRC/Contents/Info.plist"
+  say "set the new bundle's plist back to $NEW_VERSION over a $BUILD_VERSION host"
+fi
 set_bundle_id "$NEW_SRC" "$ID"
 plutil -insert SUPublicEDKey -string "$PUB" "$NEW_SRC/Contents/Info.plist"
-plutil -insert LSEnvironment -json "{\"HTMLCLAY_CANDIDATE_HOME\":\"$FAKE_HOME\",\"HTMLCLAY_CONFIG_BASE\":\"$FAKE_HOME/Library/Application Support\"}" "$NEW_SRC/Contents/Info.plist"
+plutil -insert LSEnvironment -json "{\"HTMLCLAY_CANDIDATE_HOME\":\"$FAKE_HOME\",\"HTMLCLAY_CONFIG_BASE\":\"$FAKE_HOME/Library/Application Support\",\"HTMLCLAY_OPEN_LOG\":\"$OPEN_LOG\"}" "$NEW_SRC/Contents/Info.plist"
 if [ "$WELCOME" = "yes" ]; then
   defaults delete "$ID" welcomeDone 2>/dev/null || true
 else
@@ -562,6 +590,17 @@ if ! resign "$NEW_SRC"; then
   OUTCOME="never triggered"
   OUTCOME_REASON="the new bundle could not be signed"
   exit 1
+fi
+
+if [ "$CASE" = "rollback-nohost" ]; then
+  rm -f "$NEW_SRC/Contents/MacOS/htmlclay-host"
+  say "removed htmlclay-host from the new bundle"
+  if ! resign "$NEW_SRC"; then
+    say "could not re-sign the new bundle without its host"
+    OUTCOME="never triggered"
+    OUTCOME_REASON="could not re-sign the new bundle after removing htmlclay-host"
+    exit 1
+  fi
 fi
 
 mkdir -p "$SCRATCH/zip"
@@ -587,8 +626,117 @@ make_appcast() {
 
 # --- running the old bundle ------------------------------------------------
 
+is_rollback() { [ "$CASE" != "first" ]; }
+
+state_phase() { plutil -extract phase raw -o - "$CONFIG/updates/state.json" 2>/dev/null; }
+
+rolled_back() {
+  local phase
+  phase="$(state_phase)"
+  [ "$phase" = "rolledBack" ] || [ "$phase" = "rollbackFailed" ]
+}
+
+# open_first_site: hand a document to the running old app the way a double-click
+# hands one to a running instance, so the config has a first site for the 2.0
+# host to rename.
+open_first_site() {
+  local i line
+  FIRST_SITE="no"
+  mkdir -p "$FAKE_HOME/docs"
+  printf '%s\n' '<!DOCTYPE html><html><body><p>rehearsal</p></body></html>' >"$FAKE_HOME/docs/a.htmlclay"
+  : >"$OPEN_LOG"
+  env HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support" PATH="$STUB_PATH" HTMLCLAY_STUB_OPEN_LOG="$OPEN_LOG" \
+    "$OLD/Contents/MacOS/htmlclay" "$FAKE_HOME/docs/a.htmlclay" >"$LOGS/first-site.out" 2>&1 &
+  PIDS+=("$!")
+  for i in $(seq 1 40); do
+    line="$(grep -m 1 htmlclay.localhost "$OPEN_LOG" 2>/dev/null)"
+    if [ -n "$line" ]; then
+      FIRST_SITE="yes"
+      say "the old app opened the document: $line"
+      break
+    fi
+    sleep 0.25
+  done
+  if [ "$FIRST_SITE" != "yes" ]; then
+    record_check first-site no "the old app never opened the document"
+    OUTCOME="never triggered"
+    OUTCOME_REASON="the old app never opened $FAKE_HOME/docs/a.htmlclay"
+    exit 1
+  fi
+  cp "$CONFIG/config.json" "$LOGS/config-before.json"
+  python3 - "$LOGS/config-before.json" "$LOGS/slugs-before.json" <<'PY'
+import json, sys
+obj = json.load(open(sys.argv[1]))
+open(sys.argv[2], "w").write(json.dumps(obj.get("siteSlugs"), sort_keys=True) + "\n")
+PY
+  if ! python3 -c 'import json,sys; sys.exit(0 if "htmlclay" in json.load(open(sys.argv[1])).values() else 1)' "$LOGS/slugs-before.json" 2>/dev/null; then
+    record_check first-site no "the old app never opened the document"
+    OUTCOME="never triggered"
+    OUTCOME_REASON="siteSlugs in config.json has no htmlclay label"
+    exit 1
+  fi
+  say "first site in the config: $(cat "$LOGS/slugs-before.json")"
+}
+
+# wait_old_back: after a rollback, give the relaunched old app 15 s to serve the
+# port it was serving before the update.
+wait_old_back() {
+  local start=$SECONDS pid listen
+  while [ $((SECONDS - start)) -lt 15 ]; do
+    for pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay"); do
+      listen="$(lsof -nP -a -iTCP -sTCP:LISTEN -p "$pid" 2>/dev/null | awk 'NR == 2 { print $9 }' | sed 's/.*://')"
+      if [ -n "$PORT_BEFORE" ] && [ "$listen" = "$PORT_BEFORE" ]; then
+        say "the old app is back as $pid on $listen after $((SECONDS - start)) s"
+        return 0
+      fi
+    done
+    sleep 0.5
+  done
+  return 1
+}
+
+# kill_new_app: cases rollback-app and rollback-early. It finds the 9.0.1 Swift app
+# (the process at the bundle path that is not the old app this script started),
+# then the moment that app's host appears it freezes one of them, so the order
+# never depends on a race with the app's update-confirm:
+# - rollback-app freezes the app, waits until the host has finished starting and
+#   run its config upgrade, then kills the app. The host loses its parent after
+#   startup and must exit without reporting serving.
+# - rollback-early freezes the host before it takes the lock, kills the app, then
+#   lets the host go on. CR-2 must make it exit before it serves.
+kill_new_app() {
+  local app="" host="" pid start=$SECONDS limit=$((DEADLINE + OBSERVE))
+  while [ -z "$app" ] && [ $((SECONDS - start)) -lt "$limit" ]; do
+    for pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay"); do
+      [ "$pid" != "$APP_PID" ] && { app="$pid"; break; }
+    done
+    sleep 0.01
+  done
+  [ -n "$app" ] || return 0
+  while [ -z "$host" ] && kill -0 "$app" 2>/dev/null && [ $((SECONDS - start)) -lt "$limit" ]; do
+    host="$(pgrep -P "$app" | head -n 1)"
+  done
+  [ -n "$host" ] || { say "the 9.0.1 app $app started no host"; return 0; }
+  if [ "$CASE" = "rollback-early" ]; then
+    kill -STOP "$host" 2>/dev/null
+    kill -KILL "$app" 2>/dev/null
+    say "froze host $host, killed the 9.0.1 app $app, then let the host go on"
+    kill -CONT "$host" 2>/dev/null
+    return 0
+  fi
+  kill -STOP "$app" 2>/dev/null
+  say "froze the 9.0.1 app $app once its host $host appeared"
+  local i
+  for i in $(seq 1 150); do
+    grep -q "Serving the Mac app" "$CONFIG/htmlclay.log" 2>/dev/null && break
+    sleep 0.1
+  done
+  kill -KILL "$app" 2>/dev/null
+  say "killed the 9.0.1 app $app after its host started"
+}
+
 launch_old() {
-  env HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support" "$OLD/Contents/MacOS/htmlclay" \
+  env HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support" PATH="$STUB_PATH" HTMLCLAY_STUB_OPEN_LOG="$OPEN_LOG" "$OLD/Contents/MacOS/htmlclay" \
     >"$LOGS/$1-app.out" 2>&1 &
   APP_PID=$!
   PIDS+=("$APP_PID")
@@ -674,6 +822,10 @@ attempt() {
   fi
   wait_sparkle || say "Sparkle did not report started within 45 s"
 
+  if [ -z "$FIRST_SITE" ]; then
+    open_first_site
+  fi
+
   PORT_BEFORE="$(plutil -extract port raw -o - "$CONFIG/config.json" 2>/dev/null)"
   say "the old app's port: ${PORT_BEFORE:-unknown}"
 
@@ -683,6 +835,7 @@ attempt() {
 
   (
     export HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support"
+    export PATH="$STUB_PATH" HTMLCLAY_STUB_OPEN_LOG="$OPEN_LOG"
     export HTMLCLAY_CANARY_APP="$OLD" HTMLCLAY_CANARY_CONFIG_DIR="$CONFIG"
     export HTMLCLAY_CANARY_INSTALL=/usr/bin/false HTMLCLAY_CANARY_DEADLINE="$deadline"
     exec bash "$ROOT/scripts/update-canary.sh" "$NEW_VERSION"
@@ -690,16 +843,28 @@ attempt() {
   CANARY_PID=$!
   PIDS+=("$CANARY_PID")
 
-  local start=$SECONDS line
-  while [ $((SECONDS - start)) -lt "$deadline" ]; do
-    if proof_ok; then
+  if [ "$CASE" = "rollback-app" ] || [ "$CASE" = "rollback-early" ]; then
+    kill_new_app &
+    KILLER_PID=$!
+    PIDS+=("$KILLER_PID")
+  fi
+
+  local start=$SECONDS line limit="$deadline"
+  is_rollback && limit=$((deadline + OBSERVE))
+  while [ $((SECONDS - start)) -lt "$limit" ]; do
+    if is_rollback && rolled_back; then
+      say "state.json reached $(state_phase) after $((SECONDS - start)) s"
+      wait_old_back || say "the old app did not come back on ${PORT_BEFORE:-unknown} within 15 s"
+      return 0
+    fi
+    if ! is_rollback && proof_ok; then
       PROOF="yes"
       PROOF_SECONDS=$((SECONDS - start))
       say "proof after $PROOF_SECONDS s: $PROOF_VERSION at the old path, htmlclay=$PROOF_APP_PIDS host=$PROOF_HOST_PIDS"
       return 0
     fi
     line="$(grep -E "Sparkle stopped an update|Sparkle could not start" "$CONFIG/htmlclay.log" 2>/dev/null | tail -n 1)"
-    if [ -n "$line" ]; then
+    if [ -n "$line" ] && ! is_rollback; then
       FEED_ERROR="$line"
       say "Sparkle gave up: $line"
       stop_old_run
@@ -707,12 +872,28 @@ attempt() {
     fi
     if ! kill -0 "$CANARY_PID" 2>/dev/null; then
       sleep 1
-      proof_ok && { PROOF="yes"; PROOF_SECONDS=$((SECONDS - start)); say "proof after $PROOF_SECONDS s"; return 0; }
-      say "the canary finished without proof"
-      break
+      if is_rollback; then
+        if rolled_back; then
+          say "state.json reached $(state_phase)"
+          wait_old_back || say "the old app did not come back on ${PORT_BEFORE:-unknown} within 15 s"
+          return 0
+        fi
+      else
+        proof_ok && { PROOF="yes"; PROOF_SECONDS=$((SECONDS - start)); say "proof after $PROOF_SECONDS s"; return 0; }
+        say "the canary finished without proof"
+        break
+      fi
     fi
     sleep 1
   done
+  if is_rollback; then
+    if rolled_back; then
+      say "state.json reached $(state_phase)"
+      wait_old_back || say "the old app did not come back on ${PORT_BEFORE:-unknown} within 15 s"
+      return 0
+    fi
+    return 1
+  fi
   proof_ok && { PROOF="yes"; PROOF_SECONDS=$((SECONDS - start)); return 0; }
   return 1
 }
@@ -795,9 +976,17 @@ PY
 
 below() { awk -v v="$1" -v limit="$2" 'BEGIN { exit !(v < limit) }'; }
 
-# run_checks: the pass checks. installed-unchanged is recorded by cleanup, when
-# the before and after fingerprints are both in hand.
+# run_checks: the pass checks for the case. installed-unchanged is recorded by
+# cleanup, when the before and after fingerprints are both in hand.
 run_checks() {
+  if [ "$CASE" = "first" ]; then
+    run_first_checks
+  else
+    run_rollback_checks
+  fi
+}
+
+run_first_checks() {
   local phase hv hp hid host_pids app_pids known listen previous
   local seen_ms served_ms created_ms handoff_ms
 
@@ -868,6 +1057,74 @@ run_checks() {
     record_check handoff-age no "no handoff seen"
   else
     record_check handoff-age no "${HANDOFF_AGE:-the handoff was never consumed} s"
+  fi
+
+  if [ "$FIRST_SITE" = "yes" ]; then
+    record_check first-site yes "docs/a.htmlclay opened, slugs-before.json holds htmlclay"
+  else
+    record_check first-site no "the old app never opened the document"
+  fi
+
+  CHECKS_RAN=yes
+}
+
+# run_rollback_checks: the 1.x supervisor put 1.x back. The bundle, the app on
+# the old port and the person's config are all as they were before the update.
+run_rollback_checks() {
+  local phase failed_version version app_pids host_pids listen_pids pid bad listen
+
+  phase="$(state_phase)"
+  failed_version="$(plutil -extract failed.version raw -o - "$CONFIG/updates/state.json" 2>/dev/null)"
+  if [ "$phase" = "rolledBack" ] && [ "$failed_version" = "$NEW_VERSION" ]; then
+    record_check rolled-back yes "$phase, $failed_version failed"
+  else
+    record_check rolled-back no "state.json phase is ${phase:-absent}, failed.version is ${failed_version:-absent}"
+  fi
+
+  version="$(plist_key "$OLD/Contents/Info.plist" CFBundleVersion)"
+  if [ "$version" = "$OLD_VERSION" ]; then
+    record_check bundle yes "$version"
+  else
+    record_check bundle no "$OLD carries ${version:-no version}"
+  fi
+
+  app_pids="$(pids_comm "$OLD/Contents/MacOS/htmlclay")"
+  listen=""
+  for pid in $app_pids; do
+    listen="$(lsof -nP -a -iTCP -sTCP:LISTEN -p "$pid" 2>/dev/null | awk 'NR == 2 { print $9 }' | sed 's/.*://')"
+    if [ -n "$PORT_BEFORE" ] && [ "$listen" = "$PORT_BEFORE" ]; then break; fi
+    listen=""
+  done
+  if [ -n "${app_pids// /}" ] && [ -n "$listen" ]; then
+    record_check old-app yes "htmlclay=$app_pids listens on $listen"
+  else
+    record_check old-app no "htmlclay=${app_pids:-none} listens on ${listen:-nothing}, the old app was on ${PORT_BEFORE:-unknown}"
+  fi
+
+  host_pids="$(pids_comm "$OLD/Contents/MacOS/htmlclay-host")"
+  listen_pids=""
+  if [ -n "$PORT_BEFORE" ]; then
+    listen_pids="$(lsof -nP -a -iTCP:"$PORT_BEFORE" -sTCP:LISTEN -t 2>/dev/null | sort -u)"
+  fi
+  bad=""
+  for pid in $listen_pids; do
+    [ "$(ps -p "$pid" -o comm= 2>/dev/null)" = "$OLD/Contents/MacOS/htmlclay" ] || bad="$bad $pid"
+  done
+  if [ -z "${host_pids// /}" ] && [ -z "${bad// /}" ]; then
+    record_check no-host yes "port ${PORT_BEFORE:-unknown} is the old app's alone"
+  else
+    record_check no-host no "htmlclay-host=${host_pids:-none}, other listeners on ${PORT_BEFORE:-unknown}: ${bad:-none}"
+  fi
+
+  python3 - "$CONFIG/config.json" "$LOGS/slugs-after.json" <<'PY' 2>/dev/null
+import json, sys
+obj = json.load(open(sys.argv[1]))
+open(sys.argv[2], "w").write(json.dumps(obj.get("siteSlugs"), sort_keys=True) + "\n")
+PY
+  if [ -s "$LOGS/slugs-after.json" ] && cmp -s "$LOGS/slugs-before.json" "$LOGS/slugs-after.json"; then
+    record_check config yes "$(cat "$LOGS/slugs-after.json")"
+  else
+    record_check config no "siteSlugs was $(cat "$LOGS/slugs-before.json" 2>/dev/null || echo absent), is $(cat "$LOGS/slugs-after.json" 2>/dev/null || echo absent)"
   fi
 
   CHECKS_RAN=yes
@@ -943,7 +1200,7 @@ PROOF="$PRIMARY_PROOF"
 PROOF_SECONDS="$PROOF_SECONDS_HTTP"
 ATTEMPT_FEED="http://127.0.0.1:$HTTP_PORT/appcast.xml"
 
-if [ "$PROOF" = "yes" ]; then
+if [ "$CASE" = "first" ] && [ "$PROOF" = "yes" ]; then
   watch_supervisor
 fi
 run_checks
