@@ -1,8 +1,8 @@
 {
   "local": {
-    "ref": "1645965",
-    "commit": "16459658e217e9b988d596b1e9fdf34a7e1c82db",
-    "committedAt": "2026-11-15T15:48:45-05:00"
+    "ref": "68c31a1",
+    "commit": "68c31a1d06cdca235892c30f11e9aa3c30c5a731",
+    "committedAt": "2026-11-15T16:36:50-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -908,10 +908,10 @@
     "src/sync-engine/control-lane-core.cjs": "33ea1023ff5d8b2d53375325e72cda2227141b466085e604394963bc7f7c7b54",
     "src/sync-engine/control-lane.js": "fbb124b390c5e368320f2fa34b7499a6185f002ac32fb5e904b6e2d8633b0d14",
     "src/sync-engine/engine-cache.js": "7c92bc90e6ccf1efa176997b570c8669155e77eab3f64b9dae19bace5729e528",
-    "src/sync-engine/engine-initial-sync.js": "7d73dc1a186a0724954e04ccac45b3ef4d488dfab4ed5d48ce0510fa692bff1d",
+    "src/sync-engine/engine-initial-sync.js": "36c1342a1c26d820f9f81e6473ffec6dc2b02b74562546d39d69facefa01ae54",
     "src/sync-engine/engine-mutations.js": "248592a419a80e02f06b96092142340ba611b9ddc71580fdba20781049f929e6",
     "src/sync-engine/engine-queue.js": "279680a0a05ab5a976e31a27b2b6afdf390d55a09b6dd926c064b1fc2b551705",
-    "src/sync-engine/engine-session.js": "682a6501f82f223b40c543814b9b2d1d9a38d8d3e6c7a5a8a21259647bb6466d",
+    "src/sync-engine/engine-session.js": "d10b1c64904cb88704a1ac3b0e72613131feb95e5bbab715e70c1670a6179aef",
     "src/sync-engine/engine-sse.js": "a31cb232450c02e0b2886dd1d14b7efe611e0c8a66efee072e4d7202aaf3de6f",
     "src/sync-engine/engine-structure.js": "3f74924ea4ae7b64deddfa17fbfc31e655b97f3a8d4db4930a48d9ba02ba609b",
     "src/sync-engine/engine-uploader.js": "d99b490ef47ac87f14357b87d0dc335090e2679405519c5c0d2f3c039f57b6a6",

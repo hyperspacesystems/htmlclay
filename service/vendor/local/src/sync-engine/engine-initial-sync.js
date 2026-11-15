@@ -258,7 +258,8 @@ module.exports = {
     try {
       await executeDecision(this, item.nodeId, item.decision, item.context);
     } catch (error) {
-      if (this.recheckPass) this.recheckFailed = true;
+      // A write a recheck could not make is a recheck that did not settle, whichever pass hit it.
+      if (this.recheckPass || error?.code === 'folder-unproven') this.recheckFailed = true;
       const { kind } = classifySyncError(error);
       console.error(`[SYNC] ${item.decision.action} failed for ${item.path} (${kind}):`, error.message);
       if (this.logger) {

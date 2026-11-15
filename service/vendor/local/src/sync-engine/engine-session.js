@@ -85,7 +85,7 @@ module.exports = {
   },
 
   /**
-   * Every request that changes the server passes here (api-client calls `conn.guard`). A
+   * Every request that changes the server passes here (it is sent on `writeConn`). A
    * missing or replaced folder pauses the session, as before. A folder the marker names but
    * the directory does not is refused too: the write is skipped and a live session starts
    * again, so its next pass is a recheck.
@@ -111,12 +111,17 @@ module.exports = {
     // Deletes the live structure job is holding were measured against the folder that left:
     // none of them may reach the server once this folder is proven.
     this.clearStructureState({ forgetDeletes: true });
+    const owner = {};
+    this.recheckOwner = owner;
     this.recheckPass = true;
     this.recheckFailed = false;
     try {
       await this.reconcileAll(inventory, { generation, signal });
     } finally {
-      this.recheckPass = false;
+      if (this.recheckOwner === owner) {
+        this.recheckPass = false;
+        this.recheckOwner = null;
+      }
     }
     if (this.recheckFailed || (signal && signal.aborted) || rootDirIdentity(this.syncFolder) !== checked) return false;
     if (!(await this.rootStaysQuiet(signal))) {
