@@ -128,6 +128,8 @@ VERDICT_OK="no"
 PORT_BEFORE=""
 WATCH_PID=""
 KILLER_PID=""
+LEDGER_PID=""
+LEDGER_STOP=""
 SAMPLER_PID=""
 LOG_PID=""
 PREPARED=""
@@ -195,6 +197,18 @@ kill_pid() {
   return 0
 }
 
+# listen_port: the port pid listens on. A 2.0 host also listens on a private port
+# for its Mac app, in no fixed order, so PORT_BEFORE wins when it is among them.
+listen_port() {
+  local ports
+  ports="$(lsof -nP -a -iTCP -sTCP:LISTEN -p "$1" 2>/dev/null | awk 'NR > 1 { sub(/.*:/, "", $9); print $9 }')"
+  if [ -n "$PORT_BEFORE" ] && printf '%s\n' "$ports" | grep -qx "$PORT_BEFORE"; then
+    echo "$PORT_BEFORE"
+  else
+    printf '%s\n' "$ports" | head -n 1
+  fi
+}
+
 record_check() {
   local name="$1" pass="$2" detail="${3:-}"
   if [ "$pass" = "yes" ]; then
@@ -235,6 +249,7 @@ cleanup() {
   kill_pid "$APP_PID"
   kill_pid "$WATCH_PID"
   kill_pid "$KILLER_PID"
+  kill_pid "$LEDGER_PID"
   kill_pid "$SAMPLER_PID"
   kill_pid "$LOG_PID"
 
@@ -515,8 +530,11 @@ INSTALLED_PORT="$(plutil -extract port raw -o - "$REAL_HOME/Library/Application 
 say "installed port: ${INSTALLED_PORT:-none}, scratch port: $PORT"
 START_ON_LOGIN=false
 [ "$CASE" = "quit" ] && START_ON_LOGIN=true
+mkdir -p "$FAKE_HOME/docs" "$FAKE_HOME/docs2"
+printf '%s\n' '<!DOCTYPE html><html><body><p>rehearsal</p></body></html>' >"$FAKE_HOME/docs/a.htmlclay"
+printf '%s\n' '<!DOCTYPE html><html><body><p>second</p></body></html>' >"$FAKE_HOME/docs2/b.htmlclay"
 cat >"$CONFIG/config.json" <<JSON
-{"startOnLogin": $START_ON_LOGIN, "port": $PORT}
+{"startOnLogin": $START_ON_LOGIN, "port": $PORT, "workspaceFolders": [{"path": "$FAKE_HOME/docs"}, {"path": "$FAKE_HOME/docs2"}]}
 JSON
 
 PUB="$(swift "$BIN/genkey.swift" "$KEY" 2>>"$LOGS/keys.log")"
@@ -688,10 +706,8 @@ rolled_back() {
 # hands one to a running instance, so the config has a first site for the 2.0
 # host to rename.
 open_first_site() {
-  local i line
+  local i line loose="no"
   FIRST_SITE="no"
-  mkdir -p "$FAKE_HOME/docs"
-  printf '%s\n' '<!DOCTYPE html><html><body><p>rehearsal</p></body></html>' >"$FAKE_HOME/docs/a.htmlclay"
   : >"$OPEN_LOG"
   env HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support" PATH="$STUB_PATH" HTMLCLAY_STUB_OPEN_LOG="$OPEN_LOG" \
     "$OLD/Contents/MacOS/htmlclay" "$FAKE_HOME/docs/a.htmlclay" >"$LOGS/first-site.out" 2>&1 &
@@ -709,6 +725,26 @@ open_first_site() {
     record_check first-site no "the old app never opened the document"
     OUTCOME="never triggered"
     OUTCOME_REASON="the old app never opened $FAKE_HOME/docs/a.htmlclay"
+    exit 1
+  fi
+  mkdir -p "$FAKE_HOME/loose"
+  printf '%s\n' '<!DOCTYPE html><html><body><p>loose</p></body></html>' >"$FAKE_HOME/loose/c.htmlclay"
+  env HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support" PATH="$STUB_PATH" HTMLCLAY_STUB_OPEN_LOG="$OPEN_LOG" \
+    "$OLD/Contents/MacOS/htmlclay" "$FAKE_HOME/loose/c.htmlclay" >"$LOGS/loose-site.out" 2>&1 &
+  PIDS+=("$!")
+  for i in $(seq 1 40); do
+    line="$(grep -m 1 c.htmlclay "$OPEN_LOG" 2>/dev/null)"
+    if [ -n "$line" ]; then
+      loose="yes"
+      say "the old app opened the loose file: $line"
+      break
+    fi
+    sleep 0.25
+  done
+  if [ "$loose" != "yes" ]; then
+    record_check first-site no "the old app never opened the loose file"
+    OUTCOME="never triggered"
+    OUTCOME_REASON="the old app never opened $FAKE_HOME/loose/c.htmlclay"
     exit 1
   fi
   cp "$CONFIG/config.json" "$LOGS/config-before.json"
@@ -732,7 +768,7 @@ wait_old_back() {
   local start=$SECONDS pid listen
   while [ $((SECONDS - start)) -lt 15 ]; do
     for pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay"); do
-      listen="$(lsof -nP -a -iTCP -sTCP:LISTEN -p "$pid" 2>/dev/null | awk 'NR == 2 { print $9 }' | sed 's/.*://')"
+      listen="$(listen_port "$pid")"
       if [ -n "$PORT_BEFORE" ] && [ "$listen" = "$PORT_BEFORE" ]; then
         say "the old app is back as $pid on $listen after $((SECONDS - start)) s"
         return 0
@@ -741,6 +777,14 @@ wait_old_back() {
     sleep 0.5
   done
   return 1
+}
+
+# wait_back_and_stop_ledger: a rollback has put the old app back on its port; the
+# tabs save against it for 5 s, then the ledger stops and writes its verdict.
+wait_back_and_stop_ledger() {
+  wait_old_back || say "the old app did not come back on ${PORT_BEFORE:-unknown} within 15 s"
+  sleep 5
+  stop_ledger
 }
 
 # kill_new_app: cases rollback-app and rollback-early. It finds the 9.0.1 Swift app
@@ -848,7 +892,28 @@ proof_ok() {
     [ -n "${PROOF_HOST_PIDS// /}" ]
 }
 
+# stop_ledger stops the ledger's tabs and waits for its verdict. It runs once:
+# the first stop clears LEDGER_PID, so every path that stops a run early can call
+# it without knowing which one got there first.
+stop_ledger() {
+  local start
+  [ -n "$LEDGER_PID" ] || return 0
+  : >"$LEDGER_STOP"
+  start=$SECONDS
+  while [ $((SECONDS - start)) -lt 30 ]; do
+    if ! kill -0 "$LEDGER_PID" 2>/dev/null; then
+      LEDGER_PID=""
+      return 0
+    fi
+    sleep 0.25
+  done
+  say "the ledger did not stop within 30 s"
+  kill_pid "$LEDGER_PID"
+  LEDGER_PID=""
+}
+
 stop_old_run() {
+  stop_ledger
   stop_run_pids
   kill_pid "$CANARY_PID"
   CANARY_PID=""
@@ -899,6 +964,25 @@ attempt() {
   PORT_BEFORE="$(plutil -extract port raw -o - "$CONFIG/config.json" 2>/dev/null)"
   say "the old app's port: ${PORT_BEFORE:-unknown}"
 
+  local ledger_mode="$CASE" BREAK="" i
+  case "$CASE" in
+    rollback-*) ledger_mode="rollback" ;;
+  esac
+  [ "${HTMLCLAY_REHEARSAL_LEDGER_BREAK:-}" = "1" ] && BREAK="--break-version"
+  LEDGER_STOP="$LOGS/ledger.stop"
+  rm -f "$LEDGER_STOP" "$LOGS/ledger-ready"
+  node "$ROOT/scripts/upgrade-ledger.mjs" --port "$PORT_BEFORE" --config "$CONFIG" --out "$LOGS" --mode "$ledger_mode" --stop-file "$LEDGER_STOP" --times "$LOGS" $BREAK \
+    "$FAKE_HOME/docs/a.htmlclay" "$FAKE_HOME/docs2/b.htmlclay" "$FAKE_HOME/loose/c.htmlclay" >"$LOGS/ledger.out" 2>"$LOGS/ledger.err" &
+  LEDGER_PID=$!
+  PIDS+=("$LEDGER_PID")
+  for i in $(seq 1 200); do
+    [ -f "$LOGS/ledger-ready" ] && break
+    sleep 0.1
+  done
+  if [ ! -f "$LOGS/ledger-ready" ]; then
+    say "the ledger's tabs never saved"
+  fi
+
   watch_timing &
   WATCH_PID=$!
   PIDS+=("$WATCH_PID")
@@ -942,6 +1026,8 @@ attempt() {
     ) &
     SAMPLER_PID=$!
     PIDS+=("$SAMPLER_PID")
+
+    stop_ledger
 
     osascript -e "tell application \"$OLD\" to quit" >>"$LOGS/quit-osascript.log" 2>&1
     say "sent the quit Apple event"
@@ -994,7 +1080,7 @@ attempt() {
   while [ $((SECONDS - start)) -lt "$limit" ]; do
     if is_rollback && rolled_back; then
       say "state.json reached $(state_phase) after $((SECONDS - start)) s"
-      wait_old_back || say "the old app did not come back on ${PORT_BEFORE:-unknown} within 15 s"
+      wait_back_and_stop_ledger
       return 0
     fi
     if ! is_rollback && proof_ok; then
@@ -1015,7 +1101,7 @@ attempt() {
       if is_rollback; then
         if rolled_back; then
           say "state.json reached $(state_phase)"
-          wait_old_back || say "the old app did not come back on ${PORT_BEFORE:-unknown} within 15 s"
+          wait_back_and_stop_ledger
           return 0
         fi
       else
@@ -1029,7 +1115,7 @@ attempt() {
   if is_rollback; then
     if rolled_back; then
       say "state.json reached $(state_phase)"
-      wait_old_back || say "the old app did not come back on ${PORT_BEFORE:-unknown} within 15 s"
+      wait_back_and_stop_ledger
       return 0
     fi
     return 1
@@ -1115,6 +1201,20 @@ run_checks() {
   else
     run_rollback_checks
   fi
+  check_ledger
+}
+
+# check_ledger: the ledger's own verdict, which is the last line it printed. Its
+# per-tab lines go to this run's stderr so the reasons show beside the checks.
+check_ledger() {
+  local line
+  line="$(tail -n 1 "$LOGS/ledger.out" 2>/dev/null)"
+  grep '^\[ledger\]' "$LOGS/ledger.err" >&2 2>/dev/null || true
+  if [ "${line#LEDGER OK}" != "$line" ]; then
+    record_check ledger yes "$line"
+  else
+    record_check ledger no "${line:-no ledger output}"
+  fi
 }
 
 # run_quit_checks: the person quit, Sparkle installed 2.0, and the 1.x
@@ -1193,7 +1293,7 @@ run_quit_checks() {
   start=$SECONDS
   while [ $((SECONDS - start)) -lt 30 ]; do
     for pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay-host"); do
-      listen="$(lsof -nP -a -iTCP -sTCP:LISTEN -p "$pid" 2>/dev/null | awk 'NR == 2 { print $9 }' | sed 's/.*://')"
+      listen="$(listen_port "$pid")"
       if [ -n "$PORT_BEFORE" ] && [ "$listen" = "$PORT_BEFORE" ]; then
         record_check next-launch yes "htmlclay-host=$pid listens on $listen"
         next_launch="yes"
@@ -1244,7 +1344,7 @@ run_first_checks() {
 
   listen=""
   if [ -n "$hid" ]; then
-    listen="$(lsof -nP -a -iTCP -sTCP:LISTEN -p "$hid" 2>/dev/null | awk 'NR == 2 { print $9 }' | sed 's/.*://')"
+    listen="$(listen_port "$hid")"
   fi
   if [ -n "$PORT_BEFORE" ] && [ "$listen" = "$PORT_BEFORE" ]; then
     record_check port yes "$listen"
@@ -1324,7 +1424,7 @@ run_rollback_checks() {
   app_pids="$(pids_comm "$OLD/Contents/MacOS/htmlclay")"
   listen=""
   for pid in $app_pids; do
-    listen="$(lsof -nP -a -iTCP -sTCP:LISTEN -p "$pid" 2>/dev/null | awk 'NR == 2 { print $9 }' | sed 's/.*://')"
+    listen="$(listen_port "$pid")"
     if [ -n "$PORT_BEFORE" ] && [ "$listen" = "$PORT_BEFORE" ]; then break; fi
     listen=""
   done
@@ -1420,6 +1520,10 @@ ATTEMPT_FEED="http://127.0.0.1:$HTTP_PORT/appcast.xml"
 
 if [ "$CASE" = "first" ] && [ "$PROOF" = "yes" ]; then
   watch_supervisor
+fi
+if [ "$CASE" = "first" ]; then
+  sleep 5
+  stop_ledger
 fi
 run_checks
 stop_old_run
