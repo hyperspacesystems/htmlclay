@@ -16,7 +16,7 @@ function documentHostFor(engine) {
   if (!engine.documentHost) {
     engine.documentHost = createRootDocumentHost({
       ctx: { root: { id: engine.rootId, path: engine.syncFolder }, localAuthority: engine.localAuthority },
-      live: engine.live, emit: engine.emit.bind(engine), logger: engine.logger,
+      live: engine.live, emit: engine.emit?.bind(engine), logger: engine.logger,
       getObserver: () => engine._subscribedObserver ?? engine.observer,
     });
   }
@@ -66,29 +66,34 @@ async function withLocalDocumentWrite(engine, rel, fn, { generation = engine.gen
     return withFileLock(claimedPath, () => fn({ canonicalPath: claimedPath }, null));
   }
 
+  const admit = async (token) => {
+    if (generation !== engine.generation) throw new StaleLocalWriteError();
+    const currentPath = await canonicalPathFor(engine, rel);
+    if (currentPath !== claimedPath) throw new StaleLocalWriteError();
+    const location = { rootId: engine.rootId, logicalPath: rel, canonicalPath: currentPath };
+    const absent = explicitCreate &&
+      await fs.stat(currentPath).then(() => false, (error) => error.code === 'ENOENT');
+    if (explicitCreate && authority.isRetired(location) && !absent) throw new StaleLocalWriteError();
+    try {
+      return authority.admitWriteTarget(admitted.admissionClaim, {
+        ...location, origin: null, live: engine.live,
+      }, token, { explicitCreate: absent });
+    } catch (error) {
+      if (error instanceof LocalAuthorityError && error.code === 'moved') throw new StaleLocalWriteError();
+      throw error;
+    }
+  };
+  const boundary = (work) => withDocumentWrite(async () => ({ canonicalPath: claimedPath }), (_locked, token) => work(token));
   try {
-    return await withDocumentWrite(
-      async () => ({ canonicalPath: claimedPath }),
-      async (_locked, token) => {
-        if (generation !== engine.generation) throw new StaleLocalWriteError();
-        const currentPath = await canonicalPathFor(engine, rel);
-        if (currentPath !== claimedPath) throw new StaleLocalWriteError();
-        const location = { rootId: engine.rootId, logicalPath: rel, canonicalPath: currentPath };
-        const absent = explicitCreate &&
-          await fs.stat(currentPath).then(() => false, (error) => error.code === 'ENOENT');
-        if (explicitCreate && authority.isRetired(location) && !absent) throw new StaleLocalWriteError();
-        let target;
-        try {
-          target = authority.admitWriteTarget(admitted.admissionClaim, {
-            ...location, origin: null, live: engine.live,
-          }, token, { explicitCreate: absent });
-        } catch (error) {
-          if (error instanceof LocalAuthorityError && error.code === 'moved') throw new StaleLocalWriteError();
-          throw error;
-        }
-        return fn(target, token);
-      },
-    );
+    // A host that consults the service back (releasesBoundary) must be called with
+    // no boundary held, or its settle waits on this one (protocol v1: the service
+    // never holds a lock or boundary of its own across a call to Go). The admission
+    // checks still run under the boundary; the write runs after it, under Go's lock.
+    if (documentHostFor(engine).releasesBoundary) {
+      const target = await boundary(admit);
+      return await fn(target, null);
+    }
+    return await boundary(async (token) => fn(await admit(token), token));
   } catch (error) {
     if (error instanceof StaleLocalWriteError) return { stale: true };
     throw error;
@@ -102,18 +107,30 @@ async function withLocalDirectoryChange(engine, rel, fn, { generation = engine.g
 
   const location = { rootId: engine.rootId, logicalPath: rel, canonicalPath: claimedPath };
   const claim = authority.captureAdmission(location);
+  const check = async (token) => {
+    assertStructureContext(token);
+    if (generation !== engine.generation) throw new StaleLocalWriteError();
+    const currentPath = await canonicalPathFor(engine, rel);
+    if (currentPath !== claimedPath) throw new StaleLocalWriteError();
+    try {
+      authority.validateAdmission(claim, location, token, { allowRetired: true });
+    } catch (error) {
+      if (error instanceof LocalAuthorityError && error.code === 'moved') throw new StaleLocalWriteError();
+      throw error;
+    }
+    return currentPath;
+  };
+  const settle = async (currentPath, before, token) => {
+    const after = await fs.stat(currentPath).then((stat) => stat, (error) => {
+      if (error.code === 'ENOENT') throw new StaleLocalWriteError();
+      throw error;
+    });
+    if (!after.isDirectory()) throw new StaleLocalWriteError();
+    if (!before) authority.setAdmission(token, { ...location, active: true, prefix: true });
+  };
   try {
-    return await withStructureChange(async (token) => {
-      assertStructureContext(token);
-      if (generation !== engine.generation) throw new StaleLocalWriteError();
-      const currentPath = await canonicalPathFor(engine, rel);
-      if (currentPath !== claimedPath) throw new StaleLocalWriteError();
-      try {
-        authority.validateAdmission(claim, location, token, { allowRetired: true });
-      } catch (error) {
-        if (error instanceof LocalAuthorityError && error.code === 'moved') throw new StaleLocalWriteError();
-        throw error;
-      }
+    const planned = await withStructureChange(async (token) => {
+      const currentPath = await check(token);
       const retired = authority.isRetired(location);
       const before = await fs.stat(currentPath).then((stat) => stat, (error) => {
         if (error.code === 'ENOENT') return null;
@@ -121,15 +138,20 @@ async function withLocalDirectoryChange(engine, rel, fn, { generation = engine.g
         throw error;
       });
       if (retired && before) throw new StaleLocalWriteError();
+      if (documentHostFor(engine).releasesBoundary) return { currentPath, before };
       const result = await fn({ canonicalPath: currentPath }, token);
-      const after = await fs.stat(currentPath).then((stat) => stat, (error) => {
-        if (error.code === 'ENOENT') throw new StaleLocalWriteError();
-        throw error;
-      });
-      if (!after.isDirectory()) throw new StaleLocalWriteError();
-      if (!before) authority.setAdmission(token, { ...location, active: true, prefix: true });
-      return result;
+      await settle(currentPath, before, token);
+      return { done: true, result };
     });
+    if (planned.done) return planned.result;
+    // Released: the folder is made with no boundary held (Go's structure lock
+    // orders it), then the boundary is taken again to record what landed.
+    const result = await fn({ canonicalPath: planned.currentPath }, null);
+    await withStructureChange(async (token) => {
+      await check(token);
+      await settle(planned.currentPath, planned.before, token);
+    });
+    return result;
   } catch (error) {
     if (error instanceof StaleLocalWriteError) return { stale: true };
     throw error;
@@ -194,12 +216,26 @@ function requireCommitted(result) {
   throw result.error ?? new Error(`the document host reported this structure change as ${result.outcome}`);
 }
 
+// A structure change in two halves: plan runs under the structure boundary and
+// answers { done } to stop there, or what act needs. With a host that releases
+// the boundary, act runs after the boundary ends (token null), so Go's prepare
+// can take it; with any other host, act runs inside it as before.
+async function withLocalStructurePlan(engine, plan, act) {
+  const released = Boolean(documentHostFor(engine).releasesBoundary);
+  const step = await withStructureChange(async (token) => {
+    assertStructureContext(token);
+    const planned = await plan(token);
+    if (planned.done) return { result: planned.done };
+    return released ? { planned } : { result: await act(planned, token) };
+  });
+  return step.planned ? act(step.planned, null) : step.result;
+}
+
 async function withLocalStructureDelete(engine, rel, trashRel, { generation = engine.generation, isDir = false, fallbackRel = null } = {}) {
   const authority = engine.localAuthority;
   if (!authority) return { legacy: true };
-  return withStructureChange(async (token) => {
-    assertStructureContext(token);
-    if (generation !== engine.generation) return { stale: true };
+  const plan = async (token) => {
+    if (generation !== engine.generation) return { done: { stale: true } };
     const source = await structureEntryFor(engine, rel);
     if (!source.exists) {
       authority.setAdmission(token, {
@@ -209,8 +245,11 @@ async function withLocalStructureDelete(engine, rel, trashRel, { generation = en
         active: false,
         prefix: isDir,
       });
-      return { missing: true };
+      return { done: { missing: true } };
     }
+    return { source };
+  };
+  return withLocalStructurePlan(engine, plan, async ({ source }, token) => {
     const trash = async (toRel) => {
       const destination = relocateEntryFor(engine, toRel);
       return documentHostFor(engine).restructure({
@@ -229,4 +268,4 @@ async function withLocalStructureDelete(engine, rel, trashRel, { generation = en
   });
 }
 
-module.exports = { withLocalDocumentWrite, withLocalDirectoryChange, withLocalStructureDelete, claimLocalDocumentTarget, structureEntryFor, documentHostFor, restructureMove, restructureTrash, requireCommitted, putSyncFile, removeSyncFile, ensureLocalFolder };
+module.exports = { withLocalDocumentWrite, withLocalDirectoryChange, withLocalStructureDelete, withLocalStructurePlan, claimLocalDocumentTarget, structureEntryFor, documentHostFor, restructureMove, restructureTrash, requireCommitted, putSyncFile, removeSyncFile, ensureLocalFolder };

@@ -25,8 +25,7 @@ const { decide, A } = require('./reconcile/decide');
 const { SYNC_CONFIG } = require('./constants');
 const nodeMap = require('./node-map');
 const { getConsentRegistry, resolveWritePath } = require('../main/utils/path-resolver');
-const { withStructureChange } = require('../main/utils/write-queue');
-const { withLocalDocumentWrite, withLocalDirectoryChange, withLocalStructureDelete, claimLocalDocumentTarget, structureEntryFor, documentHostFor, restructureMove, restructureTrash, requireCommitted, ensureLocalFolder } = require('./local-boundary');
+const { withLocalDocumentWrite, withLocalDirectoryChange, withLocalStructureDelete, withLocalStructurePlan, claimLocalDocumentTarget, structureEntryFor, documentHostFor, restructureMove, restructureTrash, requireCommitted, ensureLocalFolder } = require('./local-boundary');
 const {
   readPageRecord, applyPageRecord, moveDocumentPageState, moveFolderPageState,
   dropDocumentPageState, dropFolderPageState
@@ -477,19 +476,19 @@ module.exports = {
   async _authorityRelocate(fromRel, toRel, { isDir = false, refuseOccupied = false } = {}) {
     const generation = this.generation;
     const authority = this.localAuthority;
-    const result = await withStructureChange(async (token) => {
-      if (generation !== this.generation) return { stale: true };
+    const plan = async (token) => {
+      if (generation !== this.generation) return { done: { stale: true } };
       const destination = await structureEntryFor(this, toRel);
-      if (refuseOccupied && destination.exists) return { occupied: true };
+      if (refuseOccupied && destination.exists) return { done: { occupied: true } };
       const source = await structureEntryFor(this, fromRel);
       if (!source.exists) {
         authority.setAdmission(token, {
           rootId: this.rootId, logicalPath: fromRel, canonicalPath: source.canonical,
           active: false, prefix: isDir,
         });
-        return { missing: true };
+        return { done: { missing: true } };
       }
-      if (fromRel === toRel) return { unchanged: true };
+      if (fromRel === toRel) return { done: { unchanged: true } };
       const sameEntry = destination.exists && await this._isSameEntry(fromRel, toRel);
       let asideRel = null;
       let aside = null;
@@ -521,7 +520,12 @@ module.exports = {
         from: source,
         to: { location: destination.location, canonical: destination.location },
       });
-      if (aside) this.cascade.mark([toRel, asideRel]);
+      return { steps, entries, asideRel };
+    };
+    // With a host that releases the boundary, the move runs after it ends; the
+    // host refuses a destination taken in between (sync-move is exclusive).
+    const result = await withLocalStructurePlan(this, plan, async ({ steps, entries, asideRel }, token) => {
+      if (asideRel) this.cascade.mark([toRel, asideRel]);
       this.cascade.mark([fromRel, toRel]);
       const restructured = await documentHostFor(this).restructure({
         kind: 'sync-move',

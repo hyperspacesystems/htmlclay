@@ -1,8 +1,8 @@
 {
   "local": {
-    "ref": "main",
-    "commit": "f2e99a8f05c9225ae45f2af58810065c82a51c08",
-    "committedAt": "2026-11-15T03:28:12-05:00"
+    "ref": "88f9200f256b6d71e8922667e92d7eb1b25138a5",
+    "commit": "88f9200f256b6d71e8922667e92d7eb1b25138a5",
+    "committedAt": "2026-11-15T04:45:00-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -911,7 +911,7 @@
     "src/sync-engine/engine-mutations.js": "835ff51371510a15dc1220aee1b3c9fe0812f9fac0a4730127611201921289fc",
     "src/sync-engine/engine-queue.js": "223381a0a86d18a8441f90c12f3c8232868157f33bb42027e5f817e24af219e8",
     "src/sync-engine/engine-session.js": "16668b8e1d998fef26095b9c36cb1929cfcd446d26467bc0656122292cd30918",
-    "src/sync-engine/engine-sse.js": "3fc96d6ff229ef06e1b3aec39f873056108b06691abacbe9f0eef0a9e2b0b091",
+    "src/sync-engine/engine-sse.js": "b145d431d003d0ffde2ef94c29748a06d74696bfdaa2410fdcc4be5acd40aec7",
     "src/sync-engine/engine-structure.js": "7545aad6c65bcf6626cf4de791dde859f5c1cf6d36c982dfd7d0f09a3536bb3a",
     "src/sync-engine/engine-uploader.js": "e51ee6a70f2c97d6eb9ae810c0d3b50f6b9b0158550795108f29c1345d170fe3",
     "src/sync-engine/engine-watcher.js": "06aba4c2da0286fdc5e693e9ce71507f2adb766968abebb2795fa1d94435c050",
@@ -919,7 +919,7 @@
     "src/sync-engine/file-operations.js": "5ac3fc9adb2ab5886a253dd383765f8983f355dff27294ef997a60a307d013ff",
     "src/sync-engine/ignored-paths.js": "906179f4e7645a0c3cd3cfc8c638a40a167aa4fd762ed511a478b2a0ae9c10f3",
     "src/sync-engine/index.js": "a2650f5f2731faaf7745ff2e874749f93552fd9450171cf7cbc9066bccabc921",
-    "src/sync-engine/local-boundary.js": "1f34245c171e3dd9de65562365eb58212a33d29e8dedf4096dc75cde0a6242ac",
+    "src/sync-engine/local-boundary.js": "68760c8b2bae504bd21f1c283b440f941ae5849c73ead2e9d4517a4935f3a570",
     "src/sync-engine/locked-folder.js": "fb201db3e7d8c68e7304c52a88d7e6015983c3d832f2a3add9f137a7a8a42d02",
     "src/sync-engine/logger.js": "2a27651b6c0123f4e99e811c03f6f63aca9922047f12b373bac9b5172763919e",
     "src/sync-engine/node-map.js": "388fea4c9ad06b432e5d61d34707cfb7302f6138c0644b44e1c61bb4bb7af7f8",
@@ -946,10 +946,10 @@
     "src/sync-engine/utils.js": "268fed86c24423f974f6a355a93ba7a0975fd2920025f585d81101588c641e6d",
     "src/sync-engine/validation.js": "acc79a86f78aaaccb90cf3ff5d5d7927ed16ea47318c2d1c82fed4bfd1bc035a",
     "trial/fs-guard.cjs": "e266890274ef6f0d2e4c1248618efa0d7b910ec54153b4a6a1a917306097cac3",
-    "trial/go-document-host.cjs": "94c0d8a204a71ae3228a4c601450bc4165dd01d36afcb37e20667d6f0700fa20",
+    "trial/go-document-host.cjs": "400daf218abf5fad8cee97512404f1d9bd263f82408ba4150a56ccf81779612c",
     "trial/go-process.cjs": "339b773a7653c25f88e6a7708f4f53adeef6eacbd4bd35eea4d560090e4671fd",
     "trial/service-main.cjs": "f75c6c5acc3fff9e3afdd1685ea0e774b8efb5986f7914724214212501230247",
-    "trial/service.cjs": "48cb2f63f3d2257ab4fc42c3dd8392f56bc6f6132df273c3296391384e90a4ae",
+    "trial/service.cjs": "7081159485f69ca07143f6e1dbdc271eaed18762f87c2130588b337714db60a8",
     "trial/sync-observer.cjs": "608adb786d6d12dc4943f3baea5cf09e23f636fd20f0cc096ba1cf701ceaae99"
   },
   "packages": {

@@ -32,10 +32,13 @@ type structurePolicy struct {
 }
 
 var structureKinds = map[string]structurePolicy{
-	"move":       {crossDevice: true, exclusive: true},
-	"trash":      {retire: true, crossDevice: true, exclusive: true},
-	"duplicate":  {copy: true, exclusive: true},
-	"sync-move":  {crossDevice: true},
+	"move":      {crossDevice: true, exclusive: true},
+	"trash":     {retire: true, crossDevice: true, exclusive: true},
+	"duplicate": {copy: true, exclusive: true},
+	// The engine checks a sync move's destination before the move, outside any
+	// lock it shares with this host (it holds no boundary across the call), so the
+	// move itself must refuse a destination taken in between.
+	"sync-move":  {crossDevice: true, exclusive: true},
 	"sync-trash": {retire: true, crossDevice: true},
 }
 

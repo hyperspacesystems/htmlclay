@@ -276,7 +276,7 @@ func TestConsultedExact(t *testing.T) {
 	}
 	settle := script.only(t, "/v1/settle").Body
 	for key, want := range map[string]any{
-		"lane": "exact", "origin": "sync-download", "sender": "sync-engine",
+		"lane": "exact", "origin": "sync-download", "sender": "sync-engine", "explicitCreate": false,
 	} {
 		if settle[key] != want {
 			t.Fatalf("settle %s = %v, want %v", key, settle[key], want)
@@ -367,6 +367,33 @@ func TestConsultedExactBinarySkipsService(t *testing.T) {
 	}
 	if onDisk := consultTestDisk(t, filepath.Join(dir, "a.png")); onDisk != string(content) {
 		t.Fatalf("a.png = %q, want the downloaded bytes", onDisk)
+	}
+}
+
+// TestConsultedExactCreate is a sync download of a document that was absent:
+// its settle says explicitCreate, so the service admits a path that a trash or
+// move retired earlier (08-sync.md step 8.26).
+func TestConsultedExactCreate(t *testing.T) {
+	consultShortAborts(t)
+	script := newConsultScript(func(path string, body map[string]any, call int) any {
+		if path == "/v1/settle" {
+			return map[string]any{"ok": true}
+		}
+		return nil
+	})
+	_, handler, _ := consultSaveServer(t, consultSavePeer(t, script))
+	control := controlTestServer(t, handler.control)
+	status, answer := consultLaneCommit(t, control, map[string]any{
+		"root":  "root-consult",
+		"name":  "new.html",
+		"kind":  "sync-download",
+		"bytes": consultLaneUTF8(consultSavePage),
+	})
+	if status != http.StatusOK || answer["outcome"] != "committed" {
+		t.Fatalf("commit answered %d: %v, want committed", status, answer)
+	}
+	if settle := script.only(t, "/v1/settle").Body; settle["explicitCreate"] != true {
+		t.Fatalf("settle explicitCreate = %v, want true for a file that was absent", settle["explicitCreate"])
 	}
 }
 

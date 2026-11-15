@@ -98,7 +98,9 @@ func (h *commitHost) commitExact(request *commitRequest, filePath string) (commi
 		// indeterminate, as Local's does, and the document unconfirmed.
 		logical := string(request.Bytes)
 		file := stored.(string)
-		if err := consult.settle(settleArgs{Outcome: "committed", Logical: &logical, File: &file, Sender: "sync-engine"}); err != nil {
+		// A download that made a file where none was is an explicit create, so a
+		// document re-created at a path trashed or moved earlier settles.
+		if err := consult.settle(settleArgs{Outcome: "committed", Logical: &logical, File: &file, Sender: "sync-engine", ExplicitCreate: previous == nil}); err != nil {
 			return commitResult{}, indefinite(err)
 		}
 	}

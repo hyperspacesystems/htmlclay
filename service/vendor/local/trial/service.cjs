@@ -571,7 +571,9 @@ function createTrialService({
     const claim = authority.captureAdmission(location);
     await withReader(reader, () => withDocumentWrite(async () => ({ canonicalPath: body.canonicalPath }), async (_locked, token) => {
       const target = authority.admitWriteTarget(claim, { ...location, origin: root.origin, live: root.live }, token,
-        { explicitCreate: body.lane === 'create' });
+        // Go sends explicitCreate when the download made a file that was absent, so a
+        // document re-created at a path trashed or moved earlier settles.
+        { explicitCreate: body.lane === 'create' || Boolean(body.explicitCreate) });
       if (body.lane === 'exact') await root.lanes.settleExact({ name: body.name, stored: text(body.file), target, token });
       else await root.lanes.settleCreate({ bytes: text(body.logical), target, token });
       consultation.answer({ ok: true });

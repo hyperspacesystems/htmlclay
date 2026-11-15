@@ -22,7 +22,7 @@ npm ci --no-audit --no-fund
 (cd service && npm ci --ignore-scripts --no-audit --no-fund)
 bash scripts/served-golden-local.sh ~/served-golden-local
 # The service'"'"'s sync tests run Local'"'"'s engine against its fake server (trial/fake-sync-http.cjs).
-sync_local=c9eb3ef87da851534aaa91f66433907a633cf2c8
+sync_local=88f9200f256b6d71e8922667e92d7eb1b25138a5
 if [ "$(cat ~/sync-local/.commit 2>/dev/null)" != "$sync_local" ]; then
   rm -rf ~/sync-local && mkdir -p ~/sync-local
   git -C ~/sync-local init -q

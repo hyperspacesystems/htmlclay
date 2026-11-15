@@ -5,6 +5,7 @@ const path = require('path');
 const { realpathSync } = require('fs');
 const { randomBytes } = require('crypto');
 const { getConnection } = require('./go-process.cjs');
+const { assertOutsideWriteBoundary } = require('../src/main/utils/write-queue');
 
 // Local's KINDS: the write kinds its document host knows, and refuses the rest
 // with the same message the in-process host uses.
@@ -209,6 +210,9 @@ function createGoDocumentHost({ ctx, checkpointClaim = serviceMode ? serviceMode
       throw new TypeError(`Unknown document write kind: ${request_ && request_.kind}`);
     }
     if (request_.hooks) throw new TypeError('hooks ended in M16');
+    // In service mode Go consults the service back under its own lock, so a caller
+    // holding a boundary would wait on itself until Go's deadline.
+    if (serviceMode) assertOutsideWriteBoundary();
     const opId = randomBytes(16).toString('hex');
     countKind(request_.kind).adapter += 1;
     let answer;
@@ -296,6 +300,7 @@ function createGoDocumentHost({ ctx, checkpointClaim = serviceMode ? serviceMode
 
   async function restructure({ kind, steps = [] } = {}) {
     if (!Object.hasOwn(STRUCTURE_KINDS, kind)) throw new TypeError(`Unknown structure kind: ${kind}`);
+    if (serviceMode) assertOutsideWriteBoundary();
     const opId = randomBytes(16).toString('hex');
     const answer = await request('POST', '/v1/restructure', {
       body: {

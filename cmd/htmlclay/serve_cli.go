@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
@@ -155,6 +156,17 @@ func sendServeFrame(si platform.SingleInstance, frame string, stdout, stderr io.
 // error it prints names only the frame's first word, which never carries a key.
 func sendInstanceFrame(si platform.SingleInstance, frame, command string, stdout, stderr io.Writer) int {
 	answer, err := si.SendCommand(frame)
+	// "starting": the app holds the lock but runs no command yet, so this one ran
+	// nothing and is safe to send again. Someone who opens HTML Clay and types a
+	// command a moment later waits for it instead of reading "starting".
+	for deadline := time.Now().Add(instanceStartingWait); err == nil && answer == platform.CommandStarting && time.Now().Before(deadline); {
+		time.Sleep(100 * time.Millisecond)
+		answer, err = si.SendCommand(frame)
+	}
+	if err == nil && answer == platform.CommandStarting {
+		fmt.Fprintf(stderr, "htmlclay %s: HTML Clay is still starting; try again in a moment\n", command)
+		return serveExitNotRunning
+	}
 	if errors.Is(err, platform.ErrNoAnswer) {
 		fmt.Fprintf(stdout, "the running HTML Clay predates htmlclay %s\n", command)
 		return serveExitTooOld
@@ -165,6 +177,10 @@ func sendInstanceFrame(si platform.SingleInstance, frame, command string, stdout
 	}
 	return servePrintAnswer(answer, stdout, stderr)
 }
+
+// instanceStartingWait is how long a command keeps resending while the app
+// answers "starting". Tests shorten it.
+var instanceStartingWait = 10 * time.Second
 
 // servePrintAnswer turns one answer line into the sentence a person reads and the
 // exit code that goes with it.

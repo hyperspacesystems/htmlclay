@@ -91,7 +91,8 @@ func TestRestructureLocksEveryPath(t *testing.T) {
 	}
 }
 
-// TestRestructureRefusesATakenName proves a workspace move or duplicate onto a
+// TestRestructureRefusesATakenName proves a workspace move or duplicate, or a
+// sync move, onto a
 // name another tab took after the workspace checked it keeps both files, while
 // a case-only rename (the source itself) still goes through.
 func TestRestructureRefusesATakenName(t *testing.T) {
@@ -102,7 +103,9 @@ func TestRestructureRefusesATakenName(t *testing.T) {
 	writeCommitFile(t, root, "a.txt", []byte("A bytes"))
 	writeCommitFile(t, root, "dest.txt", []byte("other tab's bytes"))
 	host := newCommitHost(root, "root-taken-name", newConsentRegistry(root, nil), nil, nil)
-	for _, kind := range []string{"move", "duplicate"} {
+	// sync-move too: the sync engine checks the destination before it calls,
+	// holding no lock this host shares (08-sync.md step 8.26).
+	for _, kind := range []string{"move", "duplicate", "sync-move"} {
 		result, _ := host.restructure(kind, []structureEntry{{
 			FromPath: filepath.Join(root, "a.txt"),
 			ToPath:   filepath.Join(root, "dest.txt"),
