@@ -42,6 +42,7 @@ async function run(dataDir) {
   process.env.HYPERCLAY_PAGE_COMPACTION = '0';
   const { createTrialService } = require('./vendor/local/trial/service.cjs');
   const { mountShell } = require('./shell.cjs');
+  const { keepUnsavedEdits } = require('./recover.cjs');
 
   const lines = readline.createInterface({ input: process.stdin, crlfDelay: Infinity })[Symbol.asyncIterator]();
   const first = await lines.next();
@@ -56,6 +57,7 @@ async function run(dataDir) {
     throw new BootstrapError('the bootstrap line needs v 1 and a 64-hex secret');
   }
   const service = createTrialService({ secret: boot.secret });
+  keepUnsavedEdits(service);
   // The bundle's bootstrap type carries appVersion but nothing reads it.
   const shell = mountShell(service, { appVersion: '' });
   const url = await service.listen();

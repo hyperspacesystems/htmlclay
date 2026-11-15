@@ -183,6 +183,9 @@ type admitArgs struct {
 	Edit           bool
 	Safety         bool
 	ExplicitCreate bool
+	// Recover asks the service to keep the open room's unsaved edits as a
+	// recovered copy before it admits the write.
+	Recover bool
 }
 
 // admitHeaders are the request headers Local's lanes read, every one present.
@@ -217,6 +220,7 @@ func (c *consultation) admit(args admitArgs) (serviceAnswer, error) {
 		kv{Key: "edit", Value: args.Edit},
 		kv{Key: "safety", Value: args.Safety},
 		kv{Key: "explicitCreate", Value: args.ExplicitCreate},
+		kv{Key: "recover", Value: args.Recover},
 	)
 	answer, err := c.call("/v1/admit", body)
 	if err != nil {

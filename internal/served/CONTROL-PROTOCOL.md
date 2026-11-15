@@ -455,6 +455,13 @@ unreachable service or an unconfirmed document is
 `503 {"reason":"service-unavailable"|"unconfirmed","retryable":true}` with
 `Retry-After: 1`, and nothing is written.
 
+A program's save-lane write (the agent lane's save, restore and data write, and a
+`POST /_/api` no page sent) sends `admit` with `recover: true`; every other
+`admit` sends `recover: false`. The service (`service/recover.cjs`) then keeps the
+unsaved edits of a room open on the document as a `recovered-copy` artifact of
+that consultation, one copy per room state, so the copy is on disk before the
+first byte of the document changes. The room stays open and still holds the edits.
+
 The other write lanes consult the service the same way:
 
 - a `replace` write (`restore`, `guard-restore`) to a page document asks `admit`

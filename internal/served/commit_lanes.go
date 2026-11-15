@@ -180,8 +180,15 @@ func (h *commitHost) commitSave(request *commitRequest, policy commitLane, fileP
 		// The full-host stage: the service supplies Local's normalization, the
 		// stale rebase and the room's admission, and confirms the write once it
 		// lands (protocol v1, admit and settle).
+		//
+		// A program's write has no page behind it, and the room of a document it
+		// replaces keeps its unsaved edits only in memory. The service writes them
+		// as a recovered copy inside this admit, so the copy is on disk before the
+		// first byte of the document changes.
 		var refusedAnswer *commitResult
-		content, fileContent, refusedAnswer = h.admitted(consult, admitArgs{Incoming: request.Bytes, DataLossPrev: request.DataLossPrev, Headers: request.Headers})
+		content, fileContent, refusedAnswer = h.admitted(consult, admitArgs{
+			Incoming: request.Bytes, DataLossPrev: request.DataLossPrev, Headers: request.Headers, Recover: request.Program,
+		})
 		if refusedAnswer != nil {
 			return *refusedAnswer, nil
 		}

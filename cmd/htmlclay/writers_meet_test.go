@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/fs"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -263,16 +265,32 @@ func writersPageSave(t *testing.T, a *app, path, body, ifMatch string) (int, wri
 	return rec.Code, answer
 }
 
-// writersKept answers the bytes of every version kept for the document at path.
-// It is the lane's list checked against the folder's own history, so bytes kept
-// where the lane does not list them fail the test.
-func writersKept(t *testing.T, a *app, dir, path string) []string {
+// writersHistory is what a folder keeps for one document besides the file: the
+// bytes of every version kept for it, and of every recovered copy of edits a
+// room had not saved.
+type writersHistory struct {
+	kept      []string
+	recovered []string
+}
+
+// writersKept answers the history of the document at path. It is the lane's list
+// checked against the folder's own history, so bytes kept where the lane does not
+// list them fail the test.
+func writersKept(t *testing.T, a *app, dir, path string) writersHistory {
 	t.Helper()
 	listed := map[string]string{}
+	var history writersHistory
 	for _, version := range agentLaneVersionsOf(t, a, path).Versions {
-		listed[version.ID] = agentLaneVersioned(t, a, path, version.ID)
+		html := agentLaneVersioned(t, a, path, version.ID)
+		listed[version.ID] = html
+		if version.Kind == "recovered" {
+			history.recovered = append(history.recovered, html)
+		} else {
+			history.kept = append(history.kept, html)
+		}
 	}
 	onDisk := 0
+	recoveredDir := filepath.Join(dir, ".hyperclay", "recovered") + string(filepath.Separator)
 	err := filepath.WalkDir(filepath.Join(dir, ".hyperclay"), func(file string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() || !strings.HasSuffix(file, ".html") {
 			return err
@@ -282,7 +300,12 @@ func writersKept(t *testing.T, a *app, dir, path string) []string {
 		if err != nil {
 			return err
 		}
-		if held, ok := listed[filepath.Base(file)]; !ok || held != string(data) {
+		// The lane names a recovered copy by its file name after "recovered-".
+		id := filepath.Base(file)
+		if strings.HasPrefix(file, recoveredDir) {
+			id = "recovered-" + id
+		}
+		if held, ok := listed[id]; !ok || held != string(data) {
 			t.Errorf("%s keeps %q, which the lane does not list", file, data)
 		}
 		return nil
@@ -293,12 +316,9 @@ func writersKept(t *testing.T, a *app, dir, path string) []string {
 	if onDisk != len(listed) {
 		t.Fatalf("the lane lists %d versions and the folder keeps %d", len(listed), onDisk)
 	}
-	kept := make([]string, 0, len(listed))
-	for _, html := range listed {
-		kept = append(kept, html)
-	}
-	slices.Sort(kept)
-	return kept
+	slices.Sort(history.kept)
+	slices.Sort(history.recovered)
+	return history
 }
 
 func wantWritersKept(t *testing.T, when string, kept []string, want ...string) {
@@ -306,6 +326,27 @@ func wantWritersKept(t *testing.T, when string, kept []string, want ...string) {
 	slices.Sort(want)
 	if !slices.Equal(kept, want) {
 		t.Fatalf("%s the kept versions are %q, want %q", when, kept, want)
+	}
+}
+
+// writersRecoveredStamp is what a recovered copy adds to the store it wrote a
+// room's value into: the room, the room's change the value is as of, and a hash
+// of the value.
+var writersRecoveredStamp = regexp.MustCompile(` live-at="([^":]*):(\d+):[0-9a-f]+"`)
+
+// wantWritersRecovered fails unless recovered is one copy that holds want, with
+// its store stamped as the first change of the room named.
+func wantWritersRecovered(t *testing.T, when string, recovered []string, epoch, want string) {
+	t.Helper()
+	if len(recovered) != 1 {
+		t.Fatalf("%s the recovered copies are %q, want one", when, recovered)
+	}
+	stamp := writersRecoveredStamp.FindStringSubmatch(recovered[0])
+	if stamp == nil || stamp[1] != epoch || stamp[2] != "1" {
+		t.Fatalf("%s the recovered copy is %q, want its store stamped as change 1 of room %s", when, recovered[0], epoch)
+	}
+	if got := writersRecoveredStamp.ReplaceAllString(recovered[0], ""); got != want {
+		t.Fatalf("%s the recovered copy holds %q, want %q", when, got, want)
 	}
 }
 
@@ -407,6 +448,18 @@ func TestM3WritersMeet(t *testing.T) {
 		if got := agentLaneFileBytes(t, path); got != original {
 			t.Fatalf("the file holds %q while the edit is only in the room, want the original", got)
 		}
+		if _, err := os.Stat(filepath.Join(dir, ".hyperclay", "recovered")); !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("the folder holds a recovered copy before any save replaced the document: %v", err)
+		}
+
+		// From the agent's save on, the folder keeps the versions named and one
+		// recovered copy: the page's edit in the document the page loaded.
+		wantHistory := func(when string, kept ...string) {
+			t.Helper()
+			history := writersKept(t, a, dir, path)
+			wantWritersKept(t, when, history.kept, kept...)
+			wantWritersRecovered(t, when, history.recovered, tab.epoch, pages)
+		}
 
 		read, _ := agentLaneGet(t, a, path)
 		if read.HTML != original {
@@ -425,7 +478,7 @@ func TestM3WritersMeet(t *testing.T) {
 		if room := tab.room(t); room.text() != writersPageText || !room.unsaved() || room.Epoch != tab.epoch {
 			t.Fatalf("after the agent's save the room holds %+v, want the page's edit still unsaved in the same room", room)
 		}
-		wantWritersKept(t, "after the agent's save", writersKept(t, a, dir, path), original, agents)
+		wantHistory("after the agent's save", original, agents)
 
 		restartWritersService(t, a)
 
@@ -437,11 +490,11 @@ func TestM3WritersMeet(t *testing.T) {
 		if got := agentLaneFileBytes(t, path); got != agents {
 			t.Fatalf("after the restart the file holds %q, want the agent's save", got)
 		}
-		wantWritersKept(t, "after the restart", writersKept(t, a, dir, path), original, agents)
+		wantHistory("after the restart", original, agents)
 
-		// The page's edit is now in no file and no version. What is left to check
-		// is that every way the page can offer it again is answered with a refusal
-		// the page can act on.
+		// The page's edit is now in no file and no version: the recovered copy is
+		// where the person can get it back. What is left to check is that every way
+		// the page can offer it again is answered with a refusal the page can act on.
 		if status, answer := tab.sendEdit(t, tab.conn, tab.epoch); status != http.StatusServiceUnavailable || answer.Code != "not-connected" {
 			t.Fatalf("the edit sent again on the lost connection = %d %+v, want 503 not-connected", status, answer)
 		}
@@ -463,7 +516,7 @@ func TestM3WritersMeet(t *testing.T) {
 		if got := agentLaneFileBytes(t, path); got != agents {
 			t.Fatalf("a refused save changed the file to %q", got)
 		}
-		wantWritersKept(t, "after the refusals", writersKept(t, a, dir, path), original, agents)
+		wantHistory("after the refusals", original, agents)
 
 		// The refusal names the stamp the stream named, so the page's edit lands on
 		// the agent's save and not instead of it.
@@ -483,7 +536,7 @@ func TestM3WritersMeet(t *testing.T) {
 		if got := agentLaneFileBytes(t, path); got != both {
 			t.Fatalf("the file ends as %q, want the agent's save with the page's edit %q", got, both)
 		}
-		wantWritersKept(t, "at the end", writersKept(t, a, dir, path), original, agents, both)
+		wantHistory("at the end", original, agents, both)
 		if room := back.room(t); room.text() != writersPageText || room.unsaved() || room.Epoch != back.epoch {
 			t.Fatalf("the room ends as %+v, want the page's edit, read from the file", room)
 		}

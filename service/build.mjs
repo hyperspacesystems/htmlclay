@@ -109,7 +109,7 @@ async function main() {
     extractNode(archivePath, entry, goos, root);
     fs.rmSync(archivePath);
 
-    for (const name of ['main.cjs', 'shell.cjs', 'package.json', 'package-lock.json']) {
+    for (const name of ['main.cjs', 'shell.cjs', 'recover.cjs', 'package.json', 'package-lock.json']) {
       fs.copyFileSync(path.join(serviceDir, name), path.join(app, name));
     }
     fs.cpSync(path.join(serviceDir, 'vendor'), path.join(app, 'vendor'), { recursive: true });
