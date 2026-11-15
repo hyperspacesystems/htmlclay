@@ -110,6 +110,12 @@ func (d *dashboardApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		d.events(w, r)
+	case "/api/app/conflicts":
+		if r.Method != http.MethodGet {
+			writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
+			return
+		}
+		writeDashboardJSON(w, http.StatusOK, map[string]any{"conflicts": d.a.dashboardConflicts()})
 	case "/api/app/actions":
 		if r.Method != http.MethodPost {
 			writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})

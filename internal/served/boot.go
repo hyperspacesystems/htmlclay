@@ -35,6 +35,8 @@ type config struct {
 	workspaceEntry func(rootID string) string
 	// onPageLoad hears about a document that answered a top-level page load.
 	onPageLoad func(rootID, rel string)
+	// heldCopy is Options.HeldCopy.
+	heldCopy func(rootID, rel string) (string, bool)
 	// beforePage hears about a top-level page load before the page is written.
 	beforePage func(rootID, absPath string)
 	// onStructure hears about a completed structure step that moved a name.

@@ -24,6 +24,8 @@ type rootServer struct {
 	// onPageLoad hears about a document that answered a top-level page load
 	// (Options.OnPageLoad). Nil hears nothing.
 	onPageLoad func(rootID, rel string)
+	// heldCopy finds a held conflict's kept server copy (Options.HeldCopy).
+	heldCopy func(rootID, rel string) (string, bool)
 	// beforePage hears about a top-level page load before any of the page is
 	// written (Options.BeforePage). Nil hears nothing.
 	beforePage func(rootID, absPath string)
@@ -123,6 +125,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		id:             root.id,
 		workspaceEntry: cfg.workspaceEntry,
 		onPageLoad:     cfg.onPageLoad,
+		heldCopy:       cfg.heldCopy,
 		beforePage:     cfg.beforePage,
 		baseDir:        baseDir,
 		publicHost:     root.publicHost,
@@ -235,6 +238,8 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = s.serveUpload(w, r)
 	case marked && r.Method == http.MethodPost && documentActionSegments[systemPath]:
 		err = s.serveDocumentAction(w, r)
+	case marked && getOrHead && strings.HasPrefix(rawPath, theirsPrefix) && len(rawPath) > len(theirsPrefix):
+		err = s.serveTheirs(w, r)
 	case marked && getOrHead && strings.HasPrefix(rawPath, "/_/uploads/") && len(rawPath) > len("/_/uploads/"):
 		err = s.serveUploadFile(w, r)
 	case marked && getOrHead && urlPath == "/meta":

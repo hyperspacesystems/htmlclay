@@ -51,6 +51,10 @@ type Options struct {
 	// InternalDir is the app's own data folder. Nothing under it, and nothing
 	// under a dot-prefixed folder of a root, is a wire target.
 	InternalDir string
+	// HeldCopy answers where sync kept the server's version of rel while a
+	// conflict over it is held: the record's remoteCopy, relative to the root.
+	// GET /_/sync/theirs/<rel> serves it. Nil serves nothing there.
+	HeldCopy func(rootID, rel string) (string, bool)
 }
 
 // RootSpec is one served folder.
@@ -94,6 +98,7 @@ func NewHost(o Options) *Host {
 		beforePage:      o.BeforePage,
 		onStructure:     o.OnStructure,
 		internalDir:     o.InternalDir,
+		heldCopy:        o.HeldCopy,
 		events:          newEventRing(),
 	}
 	if o.Service {

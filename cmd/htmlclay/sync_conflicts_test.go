@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,6 +124,86 @@ func TestM4ConflictsRead(t *testing.T) {
 		report(7, 0)
 		if got := len(conflictItems(a.snapshot())); got != 0 {
 			t.Fatalf("a missing file: %d items", got)
+		}
+	})
+}
+
+func TestM4ConflictRoutes(t *testing.T) {
+	scratch := t.TempDir()
+	t.Setenv("HTMLCLAY_STUB_BIND_LOG", filepath.Join(scratch, "bind"))
+	a, setDiscovery, _ := connectTestApp(t, true)
+	setDiscovery(`{"ok":true,"actor":{"id":12,"username":"maya","fullName":"Maya Lin"},"accounts":[` +
+		`{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}}]}`)
+	if refusal := connectThroughDo(t, a, "c1", "", connectKeyOne); refusal != nil {
+		t.Fatalf("connect refused: %+v", refusal)
+	}
+	row := savedSync(t, a).Accounts[0]
+	dir := filepath.Join(a.rt.home, "maya")
+	if refusal := setUpThroughDo(t, a, "s1", row.FolderID, dir); refusal != nil {
+		t.Fatalf("set up refused: %+v", refusal)
+	}
+	waitForBinds(t, a)
+	session := savedSync(t, a).SyncSessions[0]
+	writeTestFile(t, filepath.Join(a.conflictsMetaDir(session), "conflicts.json"), conflictsFixture)
+	writeTestFile(t, filepath.Join(dir, "board.html"), "<p>mine</p>")
+	writeTestFile(t, filepath.Join(dir, ".hyperclay", "conflicts", "board.remote-bb22bb22.html"), "<p>theirs</p>")
+	folder := folderInSnapshot(t, a, row.FolderID)
+	if folder.URL == "" {
+		t.Fatalf("the synced folder is not served: %+v", folder)
+	}
+	base := strings.TrimSuffix(folder.URL, "/") + "/"
+
+	get := func(method string) (int, map[string][]dashboardConflict) {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		(&dashboardApp{a: a}).ServeHTTP(rec, httptest.NewRequest(method, "/api/app/conflicts", nil))
+		var body map[string][]dashboardConflict
+		if rec.Code == http.StatusOK {
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatalf("GET /api/app/conflicts did not parse: %v: %s", err, rec.Body.String())
+			}
+		}
+		return rec.Code, body
+	}
+
+	t.Run("each held conflict, with both versions' addresses and its choices", func(t *testing.T) {
+		status, body := get(http.MethodGet)
+		if status != http.StatusOK || len(body["conflicts"]) != 2 {
+			t.Fatalf("GET = %d %+v", status, body)
+		}
+		board, unbound := body["conflicts"][0], body["conflicts"][1]
+		if board.ID != session.ID+":901:1790000000000" || board.FolderID != row.FolderID || board.FolderName != folder.Name || board.Path != "board.html" || board.Kind != "both-edited" {
+			t.Fatalf("board = %+v", board)
+		}
+		if board.DetectedAt != "2026-09-21T14:13:20.000Z" {
+			t.Fatalf("detectedAt = %q", board.DetectedAt)
+		}
+		if strings.Join(board.Keep, ",") != "mine,theirs,both" {
+			t.Fatalf("keep = %v", board.Keep)
+		}
+		if board.MineURL == nil || *board.MineURL != base+"board.html" || board.TheirsURL == nil || *board.TheirsURL != base+"_/sync/theirs/board.html" {
+			t.Fatalf("urls = %v %v", board.MineURL, board.TheirsURL)
+		}
+		if unbound.Path != "notes/new.html" || strings.Join(unbound.Keep, ",") != "mine,theirs" || unbound.MineURL != nil || unbound.TheirsURL != nil {
+			t.Fatalf("a conflict with no file here and no kept copy = %+v", unbound)
+		}
+	})
+
+	t.Run("the served host finds the kept copy, and only for a held conflict that has one", func(t *testing.T) {
+		if copy, ok := a.heldCopyFor(row.FolderID, "board.html"); !ok || copy != ".hyperclay/conflicts/board.remote-bb22bb22.html" {
+			t.Fatalf("heldCopyFor board = %q %v", copy, ok)
+		}
+		if _, ok := a.heldCopyFor(row.FolderID, "notes/new.html"); ok {
+			t.Fatal("a conflict with no kept copy answered one")
+		}
+		if _, ok := a.heldCopyFor("another-folder", "board.html"); ok {
+			t.Fatal("another folder's conflict answered")
+		}
+	})
+
+	t.Run("only GET", func(t *testing.T) {
+		if status, _ := get(http.MethodPost); status != http.StatusMethodNotAllowed {
+			t.Fatalf("POST = %d", status)
 		}
 	})
 }

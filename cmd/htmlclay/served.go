@@ -67,6 +67,7 @@ func (a *app) newServedHost() *served.Host {
 		BeforePage:      a.bindServedPage,
 		OnStructure:     a.noteServedStructure,
 		InternalDir:     a.rt.configDir,
+		HeldCopy:        a.heldCopyFor,
 	})
 }
 
