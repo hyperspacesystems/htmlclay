@@ -70,6 +70,8 @@ class SyncEngine extends EventEmitter {
     this.bootstrapPass = false; // reconcileAll({ bootstrap: true }) deletes nothing
     this.repo = new NodeRepository(); // nodeId → { type, path, checksum?, inode?, parentId? }
     this.uploadBlocks = { limit: null, files: {} };
+    this.foldsCase = process.platform === 'darwin' || process.platform === 'win32'; // one file for names that differ only by case
+    this.caseHeld = new Map(); // node id → path of a listed case twin this disk cannot hold
     this.fileLimitReached = false; // this pass already got a 403 file-limit
     // Convenience: `this.metaDir = x` forwards to `this.repo.attach(x)` so
     // tests and init() can set the metadata directory in one place instead
@@ -160,19 +162,36 @@ class SyncEngine extends EventEmitter {
     await this._saveUploadBlocks();
   }
 
-  /** Remember a site kept local because the plan's online file limit refused it. */
-  async blockFileLimit(rel) {
+  /** Remember a file kept here, with why: `file-limit`, `not-text` or `case-twin`. */
+  async holdFile(rel, reason) {
     const current = this.uploadBlocks.files[rel];
-    if (current && current.reason === 'file-limit') return;
+    if (current && current.reason === reason) return;
     this.uploadBlocks = {
       ...this.uploadBlocks,
-      files: { ...this.uploadBlocks.files, [rel]: { reason: 'file-limit', at: new Date().toISOString() } },
+      files: { ...this.uploadBlocks.files, [rel]: { reason, at: new Date().toISOString() } },
     };
     await this._saveUploadBlocks();
   }
 
+  /** Remember a site kept local because the plan's online file limit refused it. */
+  async blockFileLimit(rel) {
+    return this.holdFile(rel, 'file-limit');
+  }
+
+  /** The case twins held now: every older `case-twin` record not in rels is dropped. */
+  async holdCaseTwins(rels) {
+    const files = Object.fromEntries(Object.entries(this.uploadBlocks.files).filter(([, record]) => record.reason !== 'case-twin'));
+    for (const rel of rels) {
+      const current = this.uploadBlocks.files[rel];
+      files[rel] = current && current.reason === 'case-twin' ? current : { reason: 'case-twin', at: new Date().toISOString() };
+    }
+    if (JSON.stringify(files) === JSON.stringify(this.uploadBlocks.files)) return;
+    this.uploadBlocks = { ...this.uploadBlocks, files };
+    await this._saveUploadBlocks();
+  }
+
   /**
-   * A new pass asks the server again: every file-limit record is dropped first,
+   * A new pass asks again: every file-limit and not-text record is dropped first,
    * so a file deleted online or a plan upgraded syncs with no action here, and
    * only the files refused again are recorded.
    */
@@ -180,7 +199,7 @@ class SyncEngine extends EventEmitter {
     const files = { ...this.uploadBlocks.files };
     let changed = false;
     for (const [rel, record] of Object.entries(files)) {
-      if (record.reason === 'file-limit') {
+      if (record.reason === 'file-limit' || record.reason === 'not-text') {
         delete files[rel];
         changed = true;
       }

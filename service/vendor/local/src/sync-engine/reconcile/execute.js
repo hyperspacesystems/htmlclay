@@ -38,6 +38,7 @@ const store = require('./conflicts');
 const { A } = require('./decide');
 const { isUnderLockedFolder, lockedFolderError } = require('../locked-folder');
 const { sendPageState, readPageRecord, applyPageRecord } = require('../page-state');
+const { isUtf8 } = require('buffer');
 
 const SITE_PATTERN = /\.(html|htmlclay)$/i;
 
@@ -165,6 +166,29 @@ async function openConflict(engine, nodeId, rel) {
   return store.forNode(records, nodeId, rel);
 }
 
+// The node a fresh list shows at rel, as remoteViewOf reads it; null when there is none
+// or the list cannot be read.
+async function findHolder(engine, rel, type) {
+  engine.invalidateServerNodesCache();
+  let nodes;
+  try {
+    nodes = await engine.fetchAndCacheServerNodes(0);
+  } catch {
+    return null;
+  }
+  return (nodes || []).map((node) => engine.remoteViewOf(node)).find((remote) => remote.type === type && remote.path === rel) || null;
+}
+
+// The file meets the node holding its name as a pass meets a listed node it has
+// no baseline for: adopt on equal bytes, else an unbound conflict. Never a rename.
+async function meetHolder(engine, holder) {
+  const item = await engine.decideNode({
+    nodeId: holder.id, rel: holder.path, entry: engine.repo.get(String(holder.id)) || null,
+    remote: holder, localPresent: true, complete: true,
+  });
+  return executeDecision(engine, item.nodeId, item.decision, item.context);
+}
+
 /**
  * Park the remote bytes and write the record. `fetchRemote` is false for
  * `remote-deleted` (no remote bytes are left) and for `name-taken` (the node
@@ -189,6 +213,10 @@ async function recordConflict(engine, nodeId, rel, { kind, localChecksum = null,
     }
   }
 
+  if (nodeId !== null && nodeId !== undefined) {
+    const held = await store.load(engine.metaDir);
+    if (held[rel] && held[rel].path === rel) await store.clear(engine.metaDir, rel);
+  }
   const stored = await store.set(engine.metaDir, { ...record, nodeId });
   engine.emit('file-synced', { file: rel, action: 'conflict', kind });
   return { key: stored.key, ...stored.record };
@@ -216,6 +244,13 @@ async function refreshRemoteCopy(engine, nodeId, rel, open, gen) {
   return { action: A.CONFLICT, kind: open.kind, record: { key: updated.key, ...updated.record } };
 }
 
+// The server keeps a page as UTF-8 text: other bytes would reach it with every
+// character it cannot read replaced. The page stays here until it is UTF-8.
+async function keepNotText(engine, rel) {
+  await engine.holdFile(rel, 'not-text');
+  return { action: A.NOOP, blocked: true };
+}
+
 async function upload(engine, nodeId, entry, context, gen) {
   const rel = relPathOf(entry, context, nodeId);
   const open = await openConflict(engine, nodeId, rel);
@@ -227,6 +262,7 @@ async function upload(engine, nodeId, entry, context, gen) {
   if (overLimit(engine, isSite, size)) return keepLocal(engine, rel, size, engine.uploadLimit);
   const { buffer, checksum: localChecksum } = await readLocalBytes(engine, localPath);
   if (overLimit(engine, isSite, buffer.length)) return keepLocal(engine, rel, buffer.length, engine.uploadLimit);
+  if (isSite && Buffer.isBuffer(buffer) && !isUtf8(buffer)) return keepNotText(engine, rel);
   const content = isSite ? buffer.toString('utf8') : buffer;
   const baseline = engine.repo.getBaseline(nodeId) || {};
 
@@ -489,6 +525,7 @@ async function createRemote(engine, nodeId, entry, context, gen) {
   if (overLimit(engine, isSite, size)) return keepLocal(engine, rel, size, engine.uploadLimit);
   const { buffer, checksum: localChecksum } = await readLocalBytes(engine, localPath);
   if (overLimit(engine, isSite, buffer.length)) return keepLocal(engine, rel, buffer.length, engine.uploadLimit);
+  if (isSite && Buffer.isBuffer(buffer) && !isUtf8(buffer)) return keepNotText(engine, rel);
   const content = isSite ? buffer.toString('utf8') : buffer;
   const type = typeOf(entry, context, rel);
 
@@ -509,13 +546,14 @@ async function createRemote(engine, nodeId, entry, context, gen) {
       modifiedAt: (await fs.stat(localPath)).mtime,
     });
   } catch (error) {
-    if (error.statusCode === 409 && error.code === 'name-conflict') {
-      const record = await recordConflict(engine, nodeId, rel, {
-        kind: store.KINDS.NAME_TAKEN,
-        localChecksum,
-        fetchRemote: false,
-      });
-      return { action: A.CONFLICT, kind: store.KINDS.NAME_TAKEN, record };
+    if (error.statusCode === 409 && (!error.code || error.code === 'name-conflict')) {
+      const holder = await findHolder(engine, rel, type);
+      if (holder) return meetHolder(engine, holder);
+      if (error.code === 'name-conflict') {
+        const record = await recordConflict(engine, nodeId, rel, { kind: store.KINDS.NAME_TAKEN, localChecksum, fetchRemote: false });
+        return { action: A.CONFLICT, kind: store.KINDS.NAME_TAKEN, record };
+      }
+      throw error;
     }
     if (!isSite && error.statusCode === 413 && error.code === 'too-large') {
       if (Number.isFinite(error.limit)) await engine.setUploadLimit(error.limit);
@@ -649,6 +687,14 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
   const found = store.byPath(records, rel);
   if (!found) return { ok: false, error: 'no-conflict' };
 
+  // A conflict whose file is gone here has nothing left to keep: the record and
+  // its kept server copy go, and the next comparison decides the node afresh.
+  if (choice !== 'theirs' && await goneFromDisk(path.join(engine.syncFolder, found.path))) {
+    await store.clear(engine.metaDir, found.key);
+    await removeCopy(engine, found);
+    return { ok: false, error: 'no-conflict' };
+  }
+
   const id = idOf(found.key);
   const isSite = SITE_PATTERN.test(found.path);
   const type = isSite ? 'site' : 'upload';
@@ -663,6 +709,10 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
     copy = await conflictedCopyPath(engine, found.path);
     if (!copy) return { ok: false, error: 'no-free-name' };
     const { buffer, checksum: copiedChecksum } = await readLocalBytes(engine, localPath);
+    if (isSite && Buffer.isBuffer(buffer) && !isUtf8(buffer)) {
+      await engine.holdFile(found.path, 'not-text');
+      return { ok: false, error: 'not-text' };
+    }
     copiedAside = copiedChecksum;
     const written = await writeLocal(engine, copy, isSite ? buffer.toString('utf8') : buffer, { expectLocal: null, explicitCreate: true });
     if (written.refused) return { ok: false, error: 'copy-taken' };
@@ -705,17 +755,34 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
     await keepLocal(engine, found.path, buffer.length, engine.uploadLimit);
     return { ok: false, error: 'too-large' };
   }
+  if (isSite && Buffer.isBuffer(buffer) && !isUtf8(buffer)) {
+    await engine.holdFile(found.path, 'not-text');
+    return { ok: false, error: 'not-text' };
+  }
   const content = isSite ? buffer.toString('utf8') : buffer;
   const modifiedAt = (await fs.stat(localPath)).mtime;
 
   if (id === null || found.kind === store.KINDS.REMOTE_DELETED) {
-    const created = await createNode(engine.conn, {
-      type,
-      name: path.basename(found.path),
-      parentId: engine.resolveParentIdByPath(dirOf(found.path)),
-      content,
-      modifiedAt,
-    });
+    await engine.createMissingParentFolders(found.path);
+    let created;
+    try {
+      created = await createNode(engine.conn, {
+        type,
+        name: path.basename(found.path),
+        parentId: engine.resolveParentIdByPath(dirOf(found.path)),
+        content,
+        modifiedAt,
+      });
+    } catch (error) {
+      if (error.statusCode !== 409 || (error.code && error.code !== 'name-conflict')) throw error;
+      const holder = await findHolder(engine, found.path, type);
+      if (!holder) throw error;
+      if (known) await engine.repo.delete(found.key);
+      await store.clear(engine.metaDir, found.key);
+      await removeCopy(engine, found);
+      const met = await meetHolder(engine, holder);
+      return met.action === A.ADOPT ? { ok: true } : { ok: false, error: 'changed' };
+    }
     const etag = created.etag || created.checksum || localChecksum;
     // The deleted node's entry goes: left beside the new one, it would claim the
     // same path and send later saves to a node that no longer exists.

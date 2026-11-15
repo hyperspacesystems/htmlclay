@@ -255,6 +255,7 @@ async function firstBind(entry, options = {}) {
       return { ok: false, error: 'inventory-incomplete', resumable: false };
     }
     const nodes = [...inventory];
+    await engine.setCaseTwins(nodes);
     const totals = inventoryTotals(nodes);
     if (await freeBytes(root.path) < totals.bytes * DISK_HEADROOM + DISK_RESERVE) {
       return { ok: false, error: 'disk-full', resumable: false };

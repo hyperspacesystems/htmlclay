@@ -225,6 +225,7 @@ function createSync({ gate, service = null, dataDir = null }) {
       pendingCount: entry.pendingCount,
       conflicts: entry.conflicts.length,
       blocked: entry.blocked.length,
+      blockedBy: entry.blocked.reduce((counts, file) => ({ ...counts, [file.reason || 'too-large']: (counts[file.reason || 'too-large'] || 0) + 1 }), {}),
       lastSyncAt: entry.lastSyncAt,
       lastError: entry.lastError,
       progress: progress.get(entry.sessionId) || null,

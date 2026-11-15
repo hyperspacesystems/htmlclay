@@ -87,6 +87,32 @@ module.exports = {
   },
 
   /**
+   * Listed files whose paths differ only by case are one file on a disk that
+   * folds case. The one this disk holds at its path syncs, else the lowest node
+   * id; every other one is held until the team renames it.
+   */
+  async setCaseTwins(nodes) {
+    const held = new Map();
+    if (this.foldsCase) {
+      const groups = new Map();
+      for (const node of nodes || []) {
+        if (node.type === 'folder') continue;
+        const rel = relPathOf(node);
+        const key = rel.normalize('NFC').toLowerCase();
+        groups.set(key, [...(groups.get(key) || []), { id: String(node.id), rel }]);
+      }
+      for (const twins of groups.values()) {
+        if (twins.length < 2) continue;
+        const keep = twins.find(({ id, rel }) => this.repo.get(id)?.path === rel)
+          || twins.reduce((a, b) => (Number(a.id) < Number(b.id) ? a : b));
+        for (const twin of twins) if (twin !== keep) held.set(twin.id, twin.rel);
+      }
+    }
+    this.caseHeld = held;
+    await this.holdCaseTwins([...held.values()]);
+  },
+
+  /**
    * The inventory is evidence only about what it lists. A legacy (protocol 1)
    * list has no `complete` field, so decide turns every node it omits into
    * `defer` and an unproven list can never trash a local file. A node with no
@@ -114,7 +140,8 @@ module.exports = {
     const nodeType = type || (remote && remote.type) || typeFor(entry, rel);
     const baseline = nodeId === null || nodeId === undefined ? null : this.repo.getBaseline(nodeId);
     const key = nodeId === null || nodeId === undefined ? null : String(nodeId);
-    const decision = key && this.pathUnresolved && this.pathUnresolved.has(key) ? { action: A.DEFER } : decide({
+    const deferred = key !== null && ((this.pathUnresolved && this.pathUnresolved.has(key)) || (this.caseHeld && this.caseHeld.has(key)));
+    const decision = deferred ? { action: A.DEFER } : decide({
       baseline,
       local: localPresent ? await this.localView(rel) : null,
       remote: remote ? { etag: remote.etag } : null,

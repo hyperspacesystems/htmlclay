@@ -151,7 +151,7 @@ class SyncManager extends EventEmitter {
     if (!setup) {
       const refusal = await this.localRefusal(session, root, resumed);
       if (refusal) { this.persistPaused(session.id, refusal); refused = true; }
-      else if (['folder-missing', 'folder-replaced'].includes(this.pausedReasonFor(session))) this.persistPaused(session.id, null);
+      else if (['folder-missing', 'folder-replaced', 'identity-mismatch'].includes(this.pausedReasonFor(session))) this.persistPaused(session.id, null);
       rootMarker = (await this.readIdentity(session))?.rootMarker === true;
     }
     // A bind and an import own the session's first pass, so init runs no passes
@@ -301,7 +301,9 @@ class SyncManager extends EventEmitter {
       actorId: this.settingsStore.get().actor?.id,
       accountId: session.accountId,
       rootId: root.id,
-      rootRealpath: await fs.realpath(root.path),
+      // A marked folder is proved by its marker (classifyRoot, below), so one found
+      // again at a new path is still the folder its session synced.
+      rootRealpath: identity.rootMarker === true ? null : await fs.realpath(root.path),
     };
     for (const [field, value] of Object.entries(expected)) {
       if (value == null || identity[field] == null) continue;
@@ -501,14 +503,14 @@ class SyncManager extends EventEmitter {
   /**
    * Files kept here because the plan refused them: a `too-large` record counts
    * only while the file it names is still on disk, unchanged and over the cap it
-   * was recorded under; a `file-limit` record counts while the file is on disk.
+   * was recorded under; a `file-limit`, `not-text` or `case-twin` record counts while the file is on disk.
    * Any other record is stale and dropped here.
    */
   _blockedFor(entry) {
     const list = typeof entry.engine.blockedUploads === 'function' ? entry.engine.blockedUploads() : [];
     const blocked = [];
     for (const file of list) {
-      if (file.reason === 'file-limit') {
+      if (file.reason === 'file-limit' || file.reason === 'not-text' || file.reason === 'case-twin') {
         let present = false;
         try {
           present = fsSync.statSync(path.join(entry.root.path, file.path)).isFile();

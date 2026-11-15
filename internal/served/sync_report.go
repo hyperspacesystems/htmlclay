@@ -26,6 +26,7 @@ type SyncSessionReport struct {
 	PendingCount int              `json:"pendingCount"`
 	Conflicts    int              `json:"conflicts"`
 	Blocked      int              `json:"blocked"`
+	BlockedBy    map[string]int   `json:"blockedBy"`
 	LastSyncAt   *string          `json:"lastSyncAt"`
 	LastError    json.RawMessage  `json:"lastError"`
 	Progress     *SyncProgress    `json:"progress"`

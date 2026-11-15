@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 )
 
-// waitingPane and waitingEarnsDot are the preview's eight kinds
+// waitingPane and waitingEarnsDot are the preview's waiting kinds
 // (macos/Sources/PreviewCore/Model.swift WaitingItem.Kind).
 var waitingPane = map[string]string{
 	WaitingConflict:           PaneFolders,
 	WaitingFolderMissing:      PaneFolders,
 	WaitingFileTooBig:         PaneFolders,
 	WaitingTeamToSetUp:        PaneFolders,
+	WaitingFileNotText:        PaneFolders,
+	WaitingNameClash:          PaneFolders,
 	WaitingRemovalHeld:        PaneFolders,
 	WaitingProgramRequest:     PanePrograms,
 	WaitingProgramFileMissing: PanePrograms,
@@ -76,6 +78,10 @@ func waiting(f Facts) []WaitingItem {
 			}
 		case WaitingFileTooBig:
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingFileTooBig, e.Name), e.Detail, e.SubjectID)
+		case WaitingFileNotText:
+			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingFileNotText, e.Detail, e.Name), e.Detail, e.SubjectID)
+		case WaitingNameClash:
+			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingNameClash, e.Detail, e.Name), e.Detail, e.SubjectID)
 		case WaitingTeamToSetUp:
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingTeamToSetUp, e.Name), e.Detail, e.SubjectID)
 		case WaitingRemovalHeld:

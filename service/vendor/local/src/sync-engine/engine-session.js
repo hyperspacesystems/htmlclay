@@ -9,11 +9,12 @@
  * nothing. Methods here are installed onto SyncEngine.prototype.
  */
 
+const fsp = require('fs').promises;
 const path = require('upath');
 const { fileExists } = require('./file-operations');
 const { listNodes } = require('./api-client');
 const { classifyRoot, putRootMarker, flagIdentity } = require('./root-marker');
-const { decidePath } = require('./reconcile/decide');
+const { decidePath, A } = require('./reconcile/decide');
 
 module.exports = {
   /**
@@ -115,6 +116,7 @@ module.exports = {
 
     try {
       await this.clearFileLimitBlocks();
+      await this.setCaseTwins(nodes);
       await this.performInitialFolderSync(nodes);
       if (this.staleWork(generation, signal, work)) return;
       await this.performInitialSync();
@@ -166,6 +168,7 @@ module.exports = {
   },
 
   async refreshNodeInLane(id, inventory, { generation, signal, work }) {
+    await this.setCaseTwins(inventory);
     const node = (inventory || []).find((n) => String(n.id) === id);
     let entry = this.repo.get(id) || null;
     if (entry && entry.path && this.passLeavesToLiveJob(entry.path)) {
@@ -190,6 +193,12 @@ module.exports = {
         return 'create-folder';
       }
       if (!remote && entry && this.serverNodesComplete) {
+        const plan = await this.folderDeletePlan(id, entry.path);
+        if (this.staleWork(generation, signal, work)) return null;
+        if (plan) {
+          await this.runPlan(plan);
+          return 'keep-folder';
+        }
         await this._applyFolderDelete(id, entry.path);
         return 'trash-folder';
       }
@@ -210,6 +219,47 @@ module.exports = {
 
     await this.runPlanItem(item, { inventory, refreshed: new Set() });
     return item.decision.action;
+  },
+
+  /**
+   * A folder deleted online whose subtree holds work this disk has not sent is
+   * not trashed whole: each file is decided as a deleted file is, so a changed
+   * one stays as a remote-deleted conflict, and the folders are forgotten.
+   * Null when nothing under it is unsent.
+   */
+  async folderDeletePlan(folderId, rel) {
+    const descendants = this.repo.walkDescendants(rel);
+    const files = [];
+    for (const { nodeId, entry } of descendants) {
+      if (entry.type === 'folder') continue;
+      files.push(await this.decideNode({
+        nodeId,
+        rel: entry.path,
+        entry,
+        remote: null,
+        localPresent: fileExists(path.join(this.syncFolder, entry.path)),
+        complete: true,
+      }));
+    }
+    const unsent = files.some((item) => item.decision.action !== A.TRASH_LOCAL && item.decision.action !== A.FORGET)
+      || (await this.holdsUntrackedFile(rel));
+    if (!unsent) return null;
+    const folders = [
+      { nodeId: folderId, entry: this.repo.get(folderId) },
+      ...descendants.filter(({ entry }) => entry.type === 'folder'),
+    ];
+    return [...files, ...folders.map(({ nodeId, entry }) => this.folderItem(nodeId, entry.path, { action: A.FORGET }, { parentId: entry.parentId }))];
+  },
+
+  async holdsUntrackedFile(rel) {
+    let found;
+    try {
+      found = await fsp.readdir(path.join(this.syncFolder, rel), { recursive: true, withFileTypes: true });
+    } catch {
+      return false;
+    }
+    return found.some((dirent) => dirent.isFile() && !dirent.name.startsWith('.') &&
+      !this.repo.getByPath(path.relative(this.syncFolder, path.join(dirent.parentPath, dirent.name))));
   },
 
   /**

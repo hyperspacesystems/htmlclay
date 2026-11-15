@@ -46,6 +46,8 @@ func (a *app) resolveConflict(e appcore.Effect) *appcore.Refusal {
 		// stale-etag: the server's copy moved on; the engine has kept the newer
 		// one, so the person looks again before choosing.
 		return &appcore.Refusal{Code: appcore.RefuseConflictChanged, SubjectID: e.FolderID}
+	case "not-text":
+		return &appcore.Refusal{Code: appcore.RefuseNotText, SubjectID: e.FolderID}
 	}
 	a.rt.logger.Printf("Could not resolve the conflict on %s: %s", e.Path, answer.Error)
 	return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: e.FolderID}

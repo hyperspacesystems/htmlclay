@@ -871,6 +871,9 @@ func (a *app) relinkFolder(e appcore.Effect) *appcore.Refusal {
 	if refusal != nil {
 		return refusal
 	}
+	if a.syncDownloadRunning(entry.ID) {
+		return &appcore.Refusal{Code: appcore.RefuseSyncDownloading, SubjectID: entry.ID}
+	}
 	for _, warning := range a.relinkWarnings(canonical, a.relinkPin(entry)) {
 		if !slices.Contains(e.Acknowledged, warning.Code) {
 			return &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation, SubjectID: entry.ID}
@@ -912,6 +915,23 @@ func (a *app) relinkFolder(e appcore.Effect) *appcore.Refusal {
 	a.refreshHelperDispatchers()
 	a.changed()
 	return nil
+}
+
+// syncDownloadRunning: a folder's first download holds its old path in the
+// service until it ends, so the folder is found again only after that.
+func (a *app) syncDownloadRunning(folderID string) bool {
+	a.rt.syncMu.Lock()
+	defer a.rt.syncMu.Unlock()
+	record, err := a.syncRecordLocked()
+	if err != nil {
+		return false
+	}
+	for _, session := range record.SyncSessions {
+		if session.RootID == folderID && a.rt.syncBinding[session.ID] {
+			return true
+		}
+	}
+	return false
 }
 
 // relinkCanonical is the folder a relink would point an entry at, as it will be

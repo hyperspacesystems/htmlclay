@@ -109,6 +109,26 @@ func TestM4SyncFacts(t *testing.T) {
 		}
 	})
 
+	t.Run("held files are counted by reason", func(t *testing.T) {
+		report(10, false, row(personal.FolderID, nil), row(team.FolderID, func(r *served.SyncSessionReport) {
+			r.Blocked = 4
+			r.BlockedBy = map[string]int{"too-large": 1, "not-text": 2, "case-twin": 1}
+		}))
+		snapshot := a.snapshot()
+		if waitingOfKind(snapshot, appcore.WaitingFileTooBig) != 1 || waitingOfKind(snapshot, appcore.WaitingFileNotText) != 1 || waitingOfKind(snapshot, appcore.WaitingNameClash) != 1 {
+			t.Fatalf("waiting = %+v", snapshot.Waiting)
+		}
+		report(11, false, row(personal.FolderID, nil), row(team.FolderID, func(r *served.SyncSessionReport) {
+			r.Blocked = 2
+			r.BlockedBy = map[string]int{"not-text": 2}
+		}))
+		snapshot = a.snapshot()
+		if waitingOfKind(snapshot, appcore.WaitingFileTooBig) != 0 || waitingOfKind(snapshot, appcore.WaitingFileNotText) != 1 {
+			t.Fatalf("only pages that aren't UTF-8 are held, so nothing is too big: %+v", snapshot.Waiting)
+		}
+		report(12, false, row(personal.FolderID, nil), row(team.FolderID, nil))
+	})
+
 	t.Run("a report sends every open screen a new snapshot", func(t *testing.T) {
 		updates, stop := a.subscribe()
 		defer stop()

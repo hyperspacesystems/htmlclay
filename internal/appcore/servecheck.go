@@ -88,6 +88,10 @@ const (
 	// RefuseServiceNeeded is a sync action with no live-room service running:
 	// sync runs inside it, and it runs while a folder is served.
 	RefuseServiceNeeded = "service-needed"
+	// RefuseNotText is a conflict choice that would send a page not saved as UTF-8.
+	RefuseNotText = "not-text"
+	// RefuseSyncDownloading is Find it on a folder whose first sync download runs.
+	RefuseSyncDownloading = "sync-downloading"
 	// RefuseSyncPaused is a conflict choice while sync is paused: the choice
 	// uploads or downloads, which pause promises not to do.
 	RefuseSyncPaused = "sync-paused"

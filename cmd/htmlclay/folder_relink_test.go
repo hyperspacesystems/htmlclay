@@ -339,3 +339,34 @@ func TestM3FolderRelink(t *testing.T) {
 		}
 	})
 }
+
+// TestM4RelinkWaitsForFirstDownload is step D9: a folder whose first download
+// still runs keeps its old path in the service, so Find it is refused until it
+// ends.
+func TestM4RelinkWaitsForFirstDownload(t *testing.T) {
+	f := newM3RelinkFixture(t)
+	entry := f.trust(t)
+	moved := filepath.Join(f.app.rt.home, "moved")
+	if err := os.Rename(f.folder, moved); err != nil {
+		t.Fatal(err)
+	}
+	editSyncRecord(t, f.app, func(record *config.Sync) {
+		record.SyncSessions = []config.SyncSession{{ID: "s1", RootID: entry.ID, AccountID: 12, Kind: "personal", Enabled: true}}
+	})
+	f.app.rt.syncBinding = map[string]bool{"s1": true}
+	if refusal := m3ProgramDo(t, f.app, ChannelShell, "folder.relink", map[string]any{
+		"id": entry.ID, "path": moved, "acknowledged": []string{},
+	}); refusal == nil || refusal.Code != appcore.RefuseSyncDownloading {
+		t.Fatalf("Find it during the first download = %+v, want %s", refusal, appcore.RefuseSyncDownloading)
+	}
+	if stored := m3RelinkEntry(t, f.app, f.folder); stored.Path != f.folder {
+		t.Fatalf("the refused relink moved the entry to %s", stored.Path)
+	}
+
+	f.app.rt.syncBinding = map[string]bool{}
+	if refusal := m3ProgramDo(t, f.app, ChannelShell, "folder.relink", map[string]any{
+		"id": entry.ID, "path": moved, "acknowledged": []string{},
+	}); refusal != nil && refusal.Code == appcore.RefuseSyncDownloading {
+		t.Fatalf("Find it after the download ended = %+v", refusal)
+	}
+}

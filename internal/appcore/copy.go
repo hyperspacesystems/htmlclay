@@ -88,6 +88,8 @@ const (
 	TextWaitingFileTooBig      = "%s is too big to sync"             // copy: waiting item title, the file's name, max 70 chars
 	TextWaitingTeamToSetUp     = "%s is ready to set up"             // copy: waiting item title, the team folder's name, max 70 chars
 	TextWaitingRemovalHeld     = "TODO-COPY %s attachments were removed from %s at once"
+	TextWaitingFileNotText     = "TODO-COPY %s pages in %s aren't saved as UTF-8"          // copy: waiting item title, a count then the folder's name, max 70 chars; detail: they stay on this computer until saved as UTF-8
+	TextWaitingNameClash       = "TODO-COPY %s files in %s differ only in capital letters" // copy: waiting item title, a count then the folder's name, max 70 chars; detail: this computer keeps one; rename the other on hyperclay.com
 	TextNoticeConflictBody     = "TODO-COPY Choose which copy to keep in HTML Clay."
 	TextNoticeKeyStoppedBody   = "TODO-COPY Sync is paused. Add a new sync key in HTML Clay."
 	TextNoticeAddedToTeam      = "TODO-COPY You were added to %s"
@@ -137,6 +139,8 @@ var RefusalText = map[string]string{
 	RefuseSyncPaused:         "TODO-COPY Sync is paused. Turn sync back on, then choose which copy to keep.",
 	RefuseConflictGone:       "TODO-COPY That file isn't in conflict any more. Nothing was changed.",
 	RefuseConflictChanged:    "TODO-COPY That file changed since you looked. Look at both copies again, then choose.",
+	RefuseNotText:            "TODO-COPY This page isn't saved as UTF-8, so it can't be sent. Nothing was changed.",
+	RefuseSyncDownloading:    "TODO-COPY This folder's first sync is still running. Find it again when it finishes.",
 	RefuseRemovalGone:        "TODO-COPY Those attachments aren't waiting for you any more. Nothing was changed.",
 	RefuseConfirmNeeded:      "TODO-COPY This folder already has files. Check what will sync, then confirm.",
 	RefuseNothingReady:       "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars

@@ -451,8 +451,17 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 			// missing folder is already a waiting item from the folder facts (the disk
 			// check), so its pause only sets the state here; a revoked key is one item
 			// for the whole app, below, however many folders it paused.
-			if enabled[row.FolderID] && hasReport && report.Blocked > 0 {
-				events = append(events, appcore.EventFact{ID: "fileTooBig:" + row.FolderID, Kind: appcore.WaitingFileTooBig, SubjectID: row.FolderID, Name: name, Detail: strconv.Itoa(report.Blocked)})
+			if enabled[row.FolderID] && hasReport {
+				notText, nameClash := report.BlockedBy["not-text"], report.BlockedBy["case-twin"]
+				if tooBig := report.Blocked - notText - nameClash; tooBig > 0 {
+					events = append(events, appcore.EventFact{ID: "fileTooBig:" + row.FolderID, Kind: appcore.WaitingFileTooBig, SubjectID: row.FolderID, Name: name, Detail: strconv.Itoa(tooBig)})
+				}
+				if notText > 0 {
+					events = append(events, appcore.EventFact{ID: "fileNotText:" + row.FolderID, Kind: appcore.WaitingFileNotText, SubjectID: row.FolderID, Name: name, Detail: strconv.Itoa(notText)})
+				}
+				if nameClash > 0 {
+					events = append(events, appcore.EventFact{ID: "nameClash:" + row.FolderID, Kind: appcore.WaitingNameClash, SubjectID: row.FolderID, Name: name, Detail: strconv.Itoa(nameClash)})
+				}
 			}
 			// Many attachments removed at once stay on the server until the person
 			// chooses. A new hold is a new item, so its id names the paths.

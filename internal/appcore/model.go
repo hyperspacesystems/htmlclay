@@ -210,6 +210,8 @@ const (
 	WaitingFileTooBig         = "fileTooBig"
 	WaitingRemovalHeld        = "removalHeld"
 	WaitingTeamToSetUp        = "teamToSetUp"
+	WaitingFileNotText        = "fileNotText"
+	WaitingNameClash          = "nameClash"
 )
 
 // Settings panes a waiting item belongs to.
