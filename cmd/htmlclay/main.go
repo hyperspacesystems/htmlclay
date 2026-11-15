@@ -404,6 +404,11 @@ func main() {
 		os.Exit(runFinishUpdate())
 	}
 
+	// The Go host inside the Swift app's bundle never becomes the app itself.
+	if code, handled := handOffToMacApp(*shellStdin, *noTray, flag.Args()); handled {
+		os.Exit(code)
+	}
+
 	// The Mac app writes the secret on stdin and expects the private listener to
 	// come up, so a bad line ends the launch before anything binds.
 	var shellSecret string
@@ -417,6 +422,7 @@ func main() {
 		}
 		shellSecret, shellIn = bootstrap.Secret, in
 		shellFailures = os.Stdout
+		exitWithParent()
 	}
 
 	migrateConfigDir()
@@ -441,8 +447,9 @@ func main() {
 	a.startRuntime()
 	a.finishUpgrade()
 
-	// The Mac app owns the login item and file types; a host it started changes neither.
-	if !a.shell {
+	// The Mac app owns the login item and file types; a host it started, or any
+	// host inside its bundle, changes neither.
+	if a.ownsLoginItem() {
 		a.refreshLoginItem()
 		a.refreshFileTypes()
 		a.warnMissingDialogs()
@@ -887,6 +894,12 @@ func (a *app) refreshLoginItem() {
 	if err := platform.SetLoginItem(true, execPath); err != nil {
 		a.rt.logger.Printf("Could not refresh login item: %v", err)
 	}
+}
+
+// ownsLoginItem: only a Go-main HTML Clay keeps the login item and file types.
+func (a *app) ownsLoginItem() bool {
+	_, mac := bundledMacHost()
+	return !a.shell && !mac
 }
 
 // notifyUser sends a best-effort native message through the runtime seam, so a

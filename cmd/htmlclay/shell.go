@@ -229,6 +229,7 @@ func (a *app) startShell(secret string, in io.Reader) {
 		a.shutdown()
 		os.Exit(0)
 	}()
+	shellParentWatch.Store(false)
 }
 
 // endShellStreams closes done, so every open event stream answers with its bye
