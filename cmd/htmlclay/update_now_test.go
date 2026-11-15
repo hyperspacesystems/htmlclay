@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +13,9 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/service"
 	"github.com/panphora/htmlclay/internal/sparkle"
+	"github.com/panphora/htmlclay/internal/tailwind"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/update"
 )
@@ -80,6 +83,51 @@ func TestUpdateNowDispatchOnlyTakesItsOwnSubcommand(t *testing.T) {
 		if _, handled := updateNowDispatch(argv); handled {
 			t.Errorf("updateNowDispatch handled %q", argv)
 		}
+	}
+}
+
+func TestUpdateInfoPrintsWhatThisBinaryIs(t *testing.T) {
+	origVersion, origChannel := version, updateChannel
+	t.Cleanup(func() { version, updateChannel = origVersion, origChannel })
+	version, updateChannel = "7.8.9", "stable"
+
+	var out, errb bytes.Buffer
+	if code := runUpdateInfo(nil, &out, &errb); code != updateNowExitOK {
+		t.Fatalf("exit %d, stderr %q", code, errb.String())
+	}
+	var got updateInfo
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("not one JSON line: %q: %v", out.String(), err)
+	}
+	want := updateInfo{Version: "7.8.9", Channel: "stable", Service: service.Bundled(), Tailwind: tailwind.Bundled()}
+	if got != want {
+		t.Fatalf("update-info = %+v, want %+v", got, want)
+	}
+}
+
+func TestUpdateInfoRefusesArguments(t *testing.T) {
+	var out, errb bytes.Buffer
+	if code := runUpdateInfo([]string{"--version"}, &out, &errb); code != updateNowExitUsage {
+		t.Fatalf("exit %d, want %d", code, updateNowExitUsage)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("printed %q on a usage error", out.String())
+	}
+}
+
+func TestUpdateInfoDispatchTouchesNoConfigFolder(t *testing.T) {
+	base := t.TempDir()
+	t.Setenv("HTMLCLAY_CONFIG_BASE", base)
+	code, handled := updateNowDispatch([]string{"htmlclay", "update-info"})
+	if !handled || code != updateNowExitOK {
+		t.Fatalf("handled=%v code=%d", handled, code)
+	}
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("update-info wrote into the config base: %v", entries)
 	}
 }
 

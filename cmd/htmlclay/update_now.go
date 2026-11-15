@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/service"
+	"github.com/panphora/htmlclay/internal/tailwind"
 	"github.com/panphora/htmlclay/internal/update"
 )
 
@@ -55,7 +58,13 @@ var updateNowWindow = time.Minute
 // updateNowDispatch runs `htmlclay update-now ...` and reports whether it
 // handled argv. Like wireDispatch it runs before flag.Parse and the lock.
 func updateNowDispatch(argv []string) (int, bool) {
-	if len(argv) < 2 || argv[1] != "update-now" {
+	if len(argv) < 2 {
+		return 0, false
+	}
+	if argv[1] == "update-info" {
+		return runUpdateInfo(argv[2:], os.Stdout, os.Stderr), true
+	}
+	if argv[1] != "update-now" {
 		return 0, false
 	}
 	dir, err := config.Dir()
@@ -64,6 +73,33 @@ func updateNowDispatch(argv []string) (int, bool) {
 		return updateNowExitUsage, true
 	}
 	return runUpdateNow(platform.NewSingleInstance(dir), argv[2:], os.Stdout, os.Stderr), true
+}
+
+// updateInfo is what this binary is: the version and channel it was built
+// with, and whether it carries the live-room service and the Tailwind
+// compiler. The Mac build checks it against the bundle's Info.plist, because
+// the update supervisor only accepts a host whose version matches the feed.
+type updateInfo struct {
+	Version  string `json:"version"`
+	Channel  string `json:"channel"`
+	Service  bool   `json:"service"`
+	Tailwind bool   `json:"tailwind"`
+}
+
+// runUpdateInfo prints one JSON line and needs no running app and no config
+// folder.
+func runUpdateInfo(args []string, stdout, stderr io.Writer) int {
+	if len(args) != 0 {
+		fmt.Fprintln(stderr, "usage: htmlclay update-info")
+		return updateNowExitUsage
+	}
+	line, err := json.Marshal(updateInfo{Version: version, Channel: updateChannel, Service: service.Bundled(), Tailwind: tailwind.Bundled()})
+	if err != nil {
+		fmt.Fprintf(stderr, "htmlclay update-info: %v\n", err)
+		return updateNowExitUsage
+	}
+	fmt.Fprintln(stdout, string(line))
+	return updateNowExitOK
 }
 
 // runUpdateNow sends the request and prints the app's answer on stdout.

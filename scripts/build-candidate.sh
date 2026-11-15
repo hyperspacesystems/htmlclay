@@ -1,22 +1,31 @@
 #!/bin/bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUILD="$HOME/scratch/htmlclay-candidate-cache"
+BUILD="${HTMLCLAY_CANDIDATE_CACHE:-$HOME/scratch/htmlclay-candidate-cache}"
 ID="com.htmlclay.HTMLClayCandidate"
-USAGE="usage: scripts/build-candidate.sh --unsigned --output <dir>"
+USAGE="usage: scripts/build-candidate.sh --unsigned --output <dir> [--version X.Y.Z] [--bundle-id <id>]"
 UNSIGNED=""
 OUT=""
+VERSION="0.0.1"
 while [ $# -gt 0 ]; do
   case "$1" in
     --unsigned) UNSIGNED=1; shift ;;
     --output)
       [ $# -ge 2 ] || { echo "$USAGE" >&2; exit 1; }
       OUT="$2"; shift 2 ;;
+    --version)
+      [ $# -ge 2 ] || { echo "$USAGE" >&2; exit 1; }
+      VERSION="$2"; shift 2 ;;
+    --bundle-id)
+      [ $# -ge 2 ] || { echo "$USAGE" >&2; exit 1; }
+      ID="$2"; shift 2 ;;
     *) echo "$USAGE" >&2; exit 1 ;;
   esac
 done
 [ -n "$UNSIGNED" ] || { echo "BUILD FAILED: signing comes in milestone 7 (pass --unsigned)" >&2; exit 1; }
 [ -n "$OUT" ] || { echo "$USAGE" >&2; exit 1; }
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "BUILD FAILED: --version must be X.Y.Z ($VERSION)" >&2; exit 1; }
+[ "$ID" != "com.htmlclay.HTMLClay" ] || { echo "BUILD FAILED: a candidate never uses the installed app's id (com.htmlclay.HTMLClay)" >&2; exit 1; }
 case "$OUT" in
   /Applications|/Applications/*)
     echo "BUILD FAILED: the candidate must not be built into /Applications ($OUT)" >&2
@@ -41,8 +50,11 @@ BIN="$(swift build -c release --package-path "$ROOT/macos" --scratch-path "$BUIL
 STAGE="$(mktemp -d)/HTML Clay Candidate.app"
 mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 cp "$BIN" "$STAGE/Contents/MacOS/htmlclay"
-(cd "$ROOT" && go build -o "$STAGE/Contents/MacOS/htmlclay-host" ./cmd/htmlclay)
+(cd "$ROOT" && go build -ldflags "-X main.version=$VERSION" -o "$STAGE/Contents/MacOS/htmlclay-host" ./cmd/htmlclay)
 cp "$ROOT/macos/Resources/Candidate/Info.plist" "$STAGE/Contents/Info.plist"
+plutil -replace CFBundleIdentifier -string "$ID" "$STAGE/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$VERSION" "$STAGE/Contents/Info.plist"
+plutil -replace CFBundleShortVersionString -string "$VERSION" "$STAGE/Contents/Info.plist"
 find "$ROOT/macos/Resources" -type f ! -name Info.plist ! -name 'dashboard-preview*' ! -path '*/Candidate/*' -exec cp {} "$STAGE/Contents/Resources/" \;
 plutil -lint "$STAGE/Contents/Info.plist" >/dev/null
 for key in CFBundleDocumentTypes CFBundleURLTypes UTExportedTypeDeclarations; do
@@ -66,4 +78,6 @@ if [ -d "$APP" ]; then
   mv "$APP" "$HOME/scratch/htmlclay-candidate-old/$(date +%Y%m%d-%H%M%S).app"
 fi
 mv "$STAGE" "$APP"
+HOST_VERSION="$("$APP/Contents/MacOS/htmlclay-host" update-info | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+[ "$HOST_VERSION" = "$VERSION" ] || { echo "BUILD FAILED: the host reports $HOST_VERSION, the bundle says $VERSION" >&2; exit 1; }
 echo "CANDIDATE OK $APP"
