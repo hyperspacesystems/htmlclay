@@ -5,9 +5,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +24,9 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/shellapi"
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 var updateTranscript = flag.Bool("update", false, "rewrite testdata/shell/events.v1.ndjson from a recorded event stream")
@@ -31,6 +36,7 @@ const (
 	transcriptSecret  = "5f2b8c1d4e6a79035f2b8c1d4e6a7903"
 	transcriptHome    = "/Users/sam"
 	transcriptEpoch   = "0123456789abcdef"
+	transcriptVolume  = "0123456789ABCDEF0123456789ABCDEF"
 	transcriptPort    = 1212
 	transcriptVersion = "2.0.0"
 	transcriptTimeout = 5 * time.Second
@@ -38,7 +44,7 @@ const (
 
 var transcriptTimestamp = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z`)
 
-var transcriptHashID = regexp.MustCompile(`^(?:[td][0-9a-f]{15}|[0-9a-f]{16})$`)
+var transcriptHashID = regexp.MustCompile(`^(?:r[0-9a-f]{12}|[0-9a-f]{16}|[0-9a-f]{32})$`)
 
 // TestShellEventsTranscript records the event stream the host really sends while
 // the app does real actions, and checks the Swift tests' copy of it. A snapshot
@@ -128,20 +134,14 @@ func (s *transcriptStream) latestRev() (uint64, bool) {
 }
 
 // recordShellEvents runs the app the way the Mac app does and answers the event
-// stream it sent, with everything this run alone decided replaced.
+// stream it sent, with everything this run alone decided replaced. transcriptHost
+// builds the host and the home it starts on.
 func recordShellEvents(t *testing.T, home string) []string {
 	t.Helper()
 	notes := filepath.Join(home, "notes")
 	writeTestFile(t, filepath.Join(notes, "index.html"), servedTestDocument)
 
-	a := buildTestApp(t, home, t.TempDir())
-	a.rt.port = servedTestPort
-	a.startServed()
-	t.Cleanup(func() {
-		if a.served != nil {
-			a.served.Close()
-		}
-	})
+	a, asking := transcriptHost(t, home, notes)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -179,7 +179,16 @@ func recordShellEvents(t *testing.T, home string) []string {
 		}
 	}()
 
+	// The page asks only once the stream has opened, so the question is the
+	// first change the stream carries.
+	waitFor(t, "the snapshot the stream opens with", func() bool {
+		_, opened := stream.latestRev()
+		return opened
+	})
+	asked := startSetup(t, a, asking, transcriptProgram)
 	rev := stream.waitSnapshot(t, 0)
+	request := waitForSetupRequest(t, a, appcore.RequestFound)
+
 	do := func(id, actionType string, args any) {
 		t.Helper()
 		raw, err := json.Marshal(args)
@@ -191,8 +200,7 @@ func recordShellEvents(t *testing.T, home string) []string {
 		}
 		rev = stream.waitSnapshot(t, rev)
 	}
-	do("1", "folder.trust", map[string]string{"path": notes})
-	do("2", "folder.serve", map[string]string{"path": notes, "name": "notes"})
+	do("1", "folder.serve", map[string]string{"path": notes, "name": "notes"})
 	folderID := ""
 	for _, folder := range a.snapshot().Folders {
 		if folder.Path == notes {
@@ -202,7 +210,9 @@ func recordShellEvents(t *testing.T, home string) []string {
 	if folderID == "" {
 		t.Fatalf("the snapshot does not list %s", notes)
 	}
-	do("3", "folder.stopServing", map[string]string{"id": folderID})
+	do("2", "folder.setFraming", map[string]any{"id": folderID, "allow": true})
+	do("3", "request.answer", map[string]any{"id": request.ID, "revision": request.Revision, "answer": helperAnswerDeny})
+	testutil.Receive(t, transcriptTimeout, "the setup flow the answer ends", asked)
 
 	close(done)
 	select {
@@ -216,7 +226,7 @@ func recordShellEvents(t *testing.T, home string) []string {
 }
 
 // normalizeTranscript replaces what only this run decided — the temp home, the
-// epoch, the folder ids, the port, the version and the clock — with fixed values.
+// epoch, the ids, the port, the version and the clock — with fixed values.
 func normalizeTranscript(t *testing.T, lines []string, home string, port int, epoch, version string) []string {
 	t.Helper()
 	events := make([]any, len(lines))
@@ -225,12 +235,14 @@ func normalizeTranscript(t *testing.T, lines []string, home string, port int, ep
 			t.Fatalf("decode event %q: %v", line, err)
 		}
 	}
-	replacements := []string{
-		home, transcriptHome,
+	replacements := []string{home, transcriptHome}
+	// A file's identity ends in a number, so it is replaced before the port is.
+	replacements = append(replacements, transcriptFileIDs(t, home)...)
+	replacements = append(replacements,
 		epoch, transcriptEpoch,
 		version, transcriptVersion,
-		":" + strconv.Itoa(port), ":" + strconv.Itoa(transcriptPort),
-	}
+		":"+strconv.Itoa(port), ":"+strconv.Itoa(transcriptPort),
+	)
 	for id, stable := range transcriptIDs(events, home) {
 		replacements = append(replacements, id, stable)
 	}
@@ -251,8 +263,9 @@ func normalizeTranscript(t *testing.T, lines []string, home string, port int, ep
 	return out
 }
 
-// transcriptIDs maps the folder ids this run minted — a hash of the temp home, or
-// an id the config minted — to ids derived from the folder's path.
+// transcriptIDs maps the ids this run minted to ids derived from what each one
+// names: a folder or a program from its path, a request from its document and
+// the program it asks for.
 func transcriptIDs(events []any, home string) map[string]string {
 	ids := map[string]string{}
 	var walk func(any)
@@ -260,9 +273,13 @@ func transcriptIDs(events []any, home string) map[string]string {
 		switch value := v.(type) {
 		case map[string]any:
 			id, _ := value["id"].(string)
-			path, _ := value["path"].(string)
-			if transcriptHashID.MatchString(id) && strings.HasPrefix(path, home) {
-				ids[id] = transcriptID(id, transcriptHome+strings.TrimPrefix(path, home))
+			named, _ := value["path"].(string)
+			if document, asked := value["document"].(string); asked {
+				program, _ := value["program"].(string)
+				named = document + " " + program
+			}
+			if transcriptHashID.MatchString(id) && strings.HasPrefix(named, home) {
+				ids[id] = transcriptID(id, transcriptHome+strings.TrimPrefix(named, home))
 			}
 			for _, item := range value {
 				walk(item)
@@ -279,13 +296,37 @@ func transcriptIDs(events []any, home string) map[string]string {
 	return ids
 }
 
-func transcriptID(id, path string) string {
-	sum := sha256.Sum256([]byte(path))
+func transcriptID(id, named string) string {
+	sum := sha256.Sum256([]byte(named))
 	h := hex.EncodeToString(sum[:])
-	if id[0] == 't' || id[0] == 'd' {
-		return id[:1] + h[:15]
+	if id[0] == 'r' {
+		return "r" + h[:len(id)-1]
 	}
-	return h[:16]
+	return h[:len(id)]
+}
+
+// transcriptFileIDs pairs what the host derives from each file in the temp home,
+// a recent document's id and a document's identity, with the same thing derived
+// from the file's path under the fixed home.
+func transcriptFileIDs(t *testing.T, home string) []string {
+	t.Helper()
+	var pairs []string
+	err := filepath.WalkDir(home, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		stable := transcriptHome + strings.TrimPrefix(path, home)
+		pairs = append(pairs, recentID(path), recentID(stable))
+		if identity := platform.DirIdentity(path); identity != "" {
+			sum := sha256.Sum256([]byte(stable))
+			pairs = append(pairs, identity, fmt.Sprintf("v2:%s:%d", transcriptVolume, binary.BigEndian.Uint32(sum[:4])))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pairs
 }
 
 // transcriptFix walks one decoded event, fixing every string and the host's port.

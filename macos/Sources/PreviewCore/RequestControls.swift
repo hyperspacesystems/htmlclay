@@ -62,7 +62,12 @@ public enum RequestControls {
     public static func optionTitle(_ answer: String, in request: ProgramRequest) -> String {
         answer == RequestAnswer.allowAllTrusted
             ? Strings.ProgramPage.allTrustedTitle
-            : Strings.Request.only(request.document)
+            : Strings.Request.only(documentName(request))
+    }
+
+    /// The document that asks, shown by its file name: the host names it by its path.
+    public static func documentName(_ request: ProgramRequest) -> String {
+        ProgramControls.documentLabel(request.document)
     }
 
     public static func fileName(_ request: ProgramRequest) -> String {

@@ -133,7 +133,7 @@ public final class ProgramSheetModel {
         }
     }
 
-    private static func nextSampleFile(after path: String) -> String {
+    static func nextSampleFile(after path: String) -> String {
         let files = SampleData.programFiles
         let index = files.firstIndex(of: path) ?? -1
         return files[(index + 1) % files.count]
@@ -143,11 +143,15 @@ public final class ProgramSheetModel {
 /// The programs pane and page clicks a person makes without a sheet.
 @MainActor
 public enum ProgramFlow {
-    /// Find it… and Choose another file…: the native panel picks the file, then
-    /// the relink sheet checks it and shows what the person has to acknowledge.
+    /// Find it… and Choose another file…: the native panel picks the file in the
+    /// real app, the sample list in the preview, then the relink sheet checks it
+    /// and shows what the person has to acknowledge.
     public static func chooseFile(_ program: Program, model: AppModel) {
         Task {
-            guard let picked = await model.folderChooser?.chooseProgram(), !picked.isEmpty else { return }
+            let picked = model.isSample
+                ? ProgramSheetModel.nextSampleFile(after: program.path)
+                : await model.folderChooser?.chooseProgram()
+            guard let picked, !picked.isEmpty else { return }
             model.sheet = .relinkProgram(programID: program.id, path: picked)
         }
     }

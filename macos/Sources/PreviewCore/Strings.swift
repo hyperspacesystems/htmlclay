@@ -189,7 +189,6 @@ public enum Strings {
         public static let findIt = "Find it…"
         public static let allTrusted = "All documents in trusted folders"
         public static let noneYet = "No document may run it until you allow one."
-        public static let wouldChooseFile = "Build 1: this would ask you to choose a different file for this program."
         public static func wants(document: String, program: String) -> String { "\(document) wants “\(program)”" }
         public static func mayRun(_ document: String) -> String { "\(document) may run it" }
         public static func mayRunCount(_ count: Int) -> String { "\(count) documents may run it" }
@@ -213,11 +212,9 @@ public enum Strings {
         public static let chooseAnotherFile = "Choose another file…"
         public static let removeAllAccess = "Remove all access"
         public static let showInFinder = Menu.showInFinder
-        public static let wouldChooseFile = "Build 1: this would ask you to choose a different file for this program."
         public static func pathLine(path: String, ready: Bool, name: String) -> String {
             "\(path) · \(ready ? "ready" : "file missing") · documents ask for it as “\(name)”"
         }
-        public static func wouldAllowAgain(_ document: String) -> String { "Build 1: this would ask before \(document) may run it again." }
     }
     public enum General {
         public static let title = "General"
@@ -413,7 +410,6 @@ public enum Strings {
         public static func wouldShowInFinder(_ name: String) -> String { "Build 1: this would show \(name) in Finder." }
         public static func wouldExport(_ name: String) -> String { "Build 1: this would export \(name) as a zip file." }
         public static func wouldRecover(_ name: String) -> String { "Build 1: this would ask where to save a recovered copy of \(name)." }
-        public static func wouldRemove(_ name: String) -> String { "Build 1: this would remove \(name) from Recent." }
         public static let wouldOpenKeptCopies = "Build 1: this would open Kept Copies in your browser."
         public static func persona(_ persona: Persona) -> String {
             switch persona {

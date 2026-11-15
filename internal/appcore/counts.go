@@ -1,6 +1,9 @@
 package appcore
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+)
 
 // waitingPane and waitingEarnsDot are the preview's eight kinds
 // (macos/Sources/PreviewCore/Model.swift WaitingItem.Kind).
@@ -75,15 +78,16 @@ func waiting(f Facts) []WaitingItem {
 		}
 	}
 	for _, r := range f.Requests {
-		title := fmt.Sprintf(TextWaitingProgramRequest, r.Document, r.Program)
+		document := documentName(r.Document)
+		title := fmt.Sprintf(TextWaitingProgramRequest, document, r.Program)
 		if r.Program == AIEditProgram {
-			title = fmt.Sprintf(TextWaitingAIEditRequest, r.Document)
+			title = fmt.Sprintf(TextWaitingAIEditRequest, document)
 		}
 		switch r.Kind {
 		case RequestFolderRead:
-			title = fmt.Sprintf(TextWaitingFolderRead, r.Document, r.Folder)
+			title = fmt.Sprintf(TextWaitingFolderRead, document, r.Folder)
 		case RequestFolderReadAgain:
-			title = fmt.Sprintf(TextWaitingFolderReadAgain, r.Document, r.Folder)
+			title = fmt.Sprintf(TextWaitingFolderReadAgain, document, r.Folder)
 		}
 		add(r.ID, WaitingProgramRequest, title, r.Folder, r.ID)
 	}
@@ -101,6 +105,15 @@ func waiting(f Facts) []WaitingItem {
 		add("service", WaitingServiceFailed, TextWaitingServiceFailed, "", "")
 	}
 	return items
+}
+
+// documentName is the name a waiting row shows for a document, which the host
+// names by its path.
+func documentName(document string) string {
+	if document == "" {
+		return ""
+	}
+	return filepath.Base(document)
 }
 
 // counts is the total, the count per pane (a subset of the total) and the dot: an

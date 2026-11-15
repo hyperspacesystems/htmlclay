@@ -135,11 +135,7 @@ struct ProgramPage: View {
         HStack {
             if Self.showsFileControls(program), model.isSample || model.can(HostActionType.programRelink) {
                 KilnLink(Strings.ProgramPage.chooseAnotherFile) {
-                    if model.isSample {
-                        model.say(Strings.ProgramPage.wouldChooseFile)
-                    } else {
-                        ProgramFlow.chooseFile(program, model: model)
-                    }
+                    ProgramFlow.chooseFile(program, model: model)
                 }
             }
             Spacer(minLength: 0)
@@ -153,10 +149,6 @@ struct ProgramPage: View {
     }
 
     private func allowAgain(_ document: String, program: Program) {
-        if model.isSample {
-            model.say(Strings.ProgramPage.wouldAllowAgain(document))
-            return
-        }
         Task { _ = await ProgramFlow.allowAgain(document, program: program, model: model) }
     }
 }

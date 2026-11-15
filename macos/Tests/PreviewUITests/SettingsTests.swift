@@ -188,7 +188,7 @@ final class SettingsTests: XCTestCase {
         let snapshot = HostSnapshotAdapter.snapshot(from: wire)
         let model = AppModel(host: SampleHost(persona: .servedFolder), initial: snapshot)
         XCTAssertFalse(model.isSample)
-        XCTAssertFalse(SettingsControls.showsPane(.programs, in: snapshot))
+        XCTAssertTrue(SettingsControls.showsPane(.programs, in: snapshot))
         XCTAssertFalse(SettingsControls.showsPane(.sync, in: snapshot))
 
         let settings = NSHostingView(rootView: KilnRoot { SettingsView() }.environment(model))

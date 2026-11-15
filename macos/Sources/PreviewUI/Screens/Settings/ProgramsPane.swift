@@ -12,8 +12,9 @@ struct ProgramsPane: View {
 
     static func waitingTitle(_ item: WaitingItem, snapshot: HostSnapshot) -> String {
         guard let request = snapshot.requests.first(where: { $0.id == item.subjectID }), !request.program.isEmpty else { return item.title }
-        if request.program == ProgramControls.aiEditID { return Strings.Programs.aiEditWaiting(document: request.document) }
-        return Strings.Programs.wants(document: request.document, program: request.program)
+        let document = RequestControls.documentName(request)
+        if request.program == ProgramControls.aiEditID { return Strings.Programs.aiEditWaiting(document: document) }
+        return Strings.Programs.wants(document: document, program: request.program)
     }
 
     var body: some View {
@@ -140,11 +141,7 @@ struct ProgramRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             if model.isSample || model.can(HostActionType.programRelink) {
                 Button(Strings.Programs.findIt) {
-                    if model.isSample {
-                        model.say(Strings.Programs.wouldFind(Self.fileName(program)))
-                    } else {
-                        ProgramFlow.chooseFile(program, model: model)
-                    }
+                    ProgramFlow.chooseFile(program, model: model)
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
             }

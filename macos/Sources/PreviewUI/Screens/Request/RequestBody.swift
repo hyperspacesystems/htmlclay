@@ -64,7 +64,7 @@ struct RequestBody: View {
 
     private var foundContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            titleLine(Strings.Request.title(request.document))
+            titleLine(Strings.Request.title(RequestControls.documentName(request)))
             leadLine(Strings.Request.callsIt(request.program))
             card(warn: false) {
                 RequestFileRow(color: .amber, symbol: Symbols.program, title: fileName, path: request.path, extra: Strings.Request.foundHere, warn: false)
@@ -81,7 +81,7 @@ struct RequestBody: View {
 
     private var noFileContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            titleLine(Strings.Request.runNamed(document: request.document, program: request.program))
+            titleLine(Strings.Request.runNamed(document: RequestControls.documentName(request), program: request.program))
             leadLine(Strings.Request.noFileLead)
             buttonsRow {
                 if let deny = choice(RequestAnswer.deny) { button(deny) }
@@ -124,7 +124,7 @@ struct RequestBody: View {
 
     private var folderReadContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            titleLine(Strings.Request.readFolder(request.document))
+            titleLine(Strings.Request.readFolder(RequestControls.documentName(request)))
             card(warn: false) {
                 RequestFileRow(color: .sky, symbol: Symbols.folder, title: request.folder, path: request.path, extra: nil, warn: false)
             }
@@ -139,7 +139,7 @@ struct RequestBody: View {
 
     private var folderReadAgainContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            titleLine(Strings.Request.trustOwnFolder(request.document))
+            titleLine(Strings.Request.trustOwnFolder(RequestControls.documentName(request)))
             card(warn: false) {
                 RequestFileRow(color: .sky, symbol: Symbols.folder, title: request.folder,
                               path: Strings.Request.folderLine(path: request.path, detail: request.detail),
@@ -300,8 +300,8 @@ struct RequestBody: View {
 
     static func teamTitle(_ request: ProgramRequest) -> String {
         isAIEditing(request)
-            ? Strings.Request.useAIEditing(document: request.document)
-            : Strings.Request.runNamed(document: request.document, program: request.program)
+            ? Strings.Request.useAIEditing(document: RequestControls.documentName(request))
+            : Strings.Request.runNamed(document: RequestControls.documentName(request), program: request.program)
     }
 
     static func teamLead(_ request: ProgramRequest) -> String {

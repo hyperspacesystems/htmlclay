@@ -156,7 +156,10 @@ public enum SampleReducer {
         case let .removeProgram(programID):
             guard next.program(programID) != nil else { return snapshot }
             next.programs.removeAll { $0.id == programID }
-        case .openDocument, .revealDocument, .forgetDocument, .openFile, .openDashboard,
+        case let .forgetDocument(id):
+            guard next.documents.contains(where: { $0.id == id }) else { return snapshot }
+            next.documents.removeAll { $0.id == id }
+        case .openDocument, .revealDocument, .openFile, .openDashboard,
              .revealFolder, .copyAddress, .connect, .quit, .revealProgram,
              .exportDocument, .recoverDocument, .openVersions, .openKeptPage, .showRequest:
             return snapshot

@@ -183,7 +183,7 @@ public struct PanelView: View {
 
     private func documentName(for item: WaitingItem) -> String {
         if let request = model.snapshot.requests.first(where: { $0.id == item.subjectID }) {
-            return request.document
+            return RequestControls.documentName(request)
         }
         if let range = item.title.range(of: Strings.Panel.wantsSuffix) {
             return String(item.title[..<range.lowerBound])
@@ -266,11 +266,7 @@ public struct PanelView: View {
                 if PanelControls.showsDocumentAction(HostActionType.documentForget, in: snapshot) {
                     Divider()
                     Button(Strings.Menu.removeFromRecent) {
-                        if snapshot.isSample {
-                            model.say(Strings.Preview.wouldRemove(document.name))
-                        } else {
-                            model.send(.forgetDocument(id: document.id))
-                        }
+                        model.send(.forgetDocument(id: document.id))
                     }
                 }
             } label: {
