@@ -339,10 +339,13 @@ final class LiveHostTests: XCTestCase {
         XCTAssertEqual(sharing.preferences.yourName, "Ada")
         XCTAssertTrue(sharing.preferences.useName)
 
-        guard case let .refused(loginRefusal) = await host.client.perform(.setOpenAtLogin(true)) else {
-            return XCTFail("the host wrote the login item the Mac app owns")
-        }
-        XCTAssertEqual(loginRefusal.code, "not-yet")
+        // CR-5: the host records the choice and the app's reconciler owns the login item.
+        let login = try done(await host.client.perform(.setOpenAtLogin(true)),
+                             "recording Open at Login was refused")
+        XCTAssertTrue(login.preferences.openAtLogin)
+        let agents = host.home.appendingPathComponent("Library/LaunchAgents")
+        XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: agents.path)) ?? [], [],
+                       "the host wrote the login item the Mac app owns")
         let model = AppModel(host: host.client, initial: sharing)
         XCTAssertTrue(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
 
@@ -351,6 +354,7 @@ final class LiveHostTests: XCTestCase {
         XCTAssertEqual(reloaded.preferences.yourName, "Ada")
         XCTAssertTrue(reloaded.preferences.useName)
         XCTAssertFalse(reloaded.preferences.aiEditing)
+        XCTAssertTrue(reloaded.preferences.openAtLogin)
     }
 
     func testAFolderInsideAServedFolderFollowsTheHostsSwitch() async throws {
