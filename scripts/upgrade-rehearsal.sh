@@ -7,6 +7,8 @@
 # before the update so the config has a first site the 2.0 host would rename.
 # `rollback-nohost`, `rollback-app`, `rollback-early` and `rollback-version` each
 # make the new app fail to serve, and check that the old app comes back as it was.
+# `quit` is the plain quit: the old app downloads 2.0 on its scheduled check and
+# Sparkle installs it when the person quits.
 #
 # Both bundles carry the throwaway id com.htmlclay.SparkleCheck and claim no
 # file types or URL schemes, everything runs on a scratch HOME and config base
@@ -14,7 +16,7 @@
 # item, its config, its process and the app LaunchServices opens .htmlclay with
 # are compared before and after.
 #
-# Usage: scripts/upgrade-rehearsal.sh first [--old-tag <tag>] [--welcome]
+# Usage: scripts/upgrade-rehearsal.sh first|quit|rollback-nohost|rollback-app|rollback-early|rollback-version [--old-tag <tag>] [--welcome]
 #
 # Exit codes: 0 every check passed, 1 one of them did not, 2 usage.
 # The last line on stdout is one JSON object and the last line on stderr is the
@@ -59,13 +61,13 @@ say() { echo "[rehearsal] $*" >&2; }
 
 # The case comes first.
 usage() {
-  say "usage: upgrade-rehearsal.sh first|rollback-nohost|rollback-app|rollback-early|rollback-version [--old-tag <tag>] [--welcome]"
+  say "usage: upgrade-rehearsal.sh first|quit|rollback-nohost|rollback-app|rollback-early|rollback-version [--old-tag <tag>] [--welcome]"
   exit 2
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    first|rollback-nohost|rollback-app|rollback-early|rollback-version)
+    first|quit|rollback-nohost|rollback-app|rollback-early|rollback-version)
       [ -z "$CASE" ] || usage
       CASE="$1"
       shift
@@ -89,6 +91,11 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$CASE" ] || usage
+
+if [ "$CASE" = "first" ] && [ "$OLD_TAG" = "v1.13.4" ]; then
+  say "first needs the update-now command, which v1.13.4 does not have; run quit --old-tag v1.13.4"
+  exit 2
+fi
 
 PIDS=()
 CANARY_PID=""
@@ -121,7 +128,12 @@ VERDICT_OK="no"
 PORT_BEFORE=""
 WATCH_PID=""
 KILLER_PID=""
+SAMPLER_PID=""
 LOG_PID=""
+PREPARED=""
+PHASES=""
+LOGIN_PLIST=""
+LOGIN_BEFORE=""
 FIRST_SITE=""
 SERVING_SECONDS=""
 HANDOFF_AGE=""
@@ -183,6 +195,34 @@ kill_pid() {
   return 0
 }
 
+record_check() {
+  local name="$1" pass="$2" detail="${3:-}"
+  if [ "$pass" = "yes" ]; then
+    CHECKS+=("$name: ok${detail:+ $detail}")
+    say "CHECK $name: ok${detail:+ $detail}"
+  else
+    CHECKS+=("$name: FAILED${detail:+ $detail}")
+    FAILED+=("$name")
+    say "CHECK $name: FAILED${detail:+ $detail}"
+  fi
+}
+
+# verdict_line: one verdict from the checks, printed as the last stderr line.
+verdict_line() {
+  local name names=""
+  if [ "$CHECKS_RAN" = "yes" ] && [ ${#FAILED[@]} -eq 0 ]; then
+    VERDICT_OK=yes
+    VERDICT="OK $CASE"
+    return 0
+  fi
+  VERDICT_OK=no
+  for name in "${FAILED[@]:-}"; do
+    [ -n "$name" ] || continue
+    names="${names:+$names, }$name"
+  done
+  VERDICT="FAILED $CASE: ${names:-no checks ran}"
+}
+
 cleanup() {
   local status=$?
   case "com.htmlclay.HTMLClay" in
@@ -195,6 +235,7 @@ cleanup() {
   kill_pid "$APP_PID"
   kill_pid "$WATCH_PID"
   kill_pid "$KILLER_PID"
+  kill_pid "$SAMPLER_PID"
   kill_pid "$LOG_PID"
 
   local pid
@@ -472,8 +513,10 @@ fi
 PORT="$(free_port)"
 INSTALLED_PORT="$(plutil -extract port raw -o - "$REAL_HOME/Library/Application Support/htmlclay/config.json" 2>/dev/null)"
 say "installed port: ${INSTALLED_PORT:-none}, scratch port: $PORT"
+START_ON_LOGIN=false
+[ "$CASE" = "quit" ] && START_ON_LOGIN=true
 cat >"$CONFIG/config.json" <<JSON
-{"startOnLogin": false, "port": $PORT}
+{"startOnLogin": $START_ON_LOGIN, "port": $PORT}
 JSON
 
 PUB="$(swift "$BIN/genkey.swift" "$KEY" 2>>"$LOGS/keys.log")"
@@ -587,6 +630,9 @@ if [ "$WELCOME" = "yes" ]; then
 else
   defaults write "$ID" welcomeDone -bool true
 fi
+if [ "$CASE" = "quit" ]; then
+  defaults write "$ID" SULastCheckTime -date "${HTMLCLAY_REHEARSAL_LAST_CHECK:-$(date -u -v-1d '+%Y-%m-%d %H:%M:%S +0000')}"
+fi
 if ! resign "$NEW_SRC"; then
   say "could not sign the new bundle"
   OUTCOME="never triggered"
@@ -628,7 +674,7 @@ make_appcast() {
 
 # --- running the old bundle ------------------------------------------------
 
-is_rollback() { [ "$CASE" != "first" ]; }
+is_rollback() { case "$CASE" in rollback-*) return 0 ;; esac; return 1; }
 
 state_phase() { plutil -extract phase raw -o - "$CONFIG/updates/state.json" 2>/dev/null; }
 
@@ -857,6 +903,76 @@ attempt() {
   WATCH_PID=$!
   PIDS+=("$WATCH_PID")
 
+  if [ "$CASE" = "quit" ]; then
+    LOGIN_PLIST="$FAKE_HOME/Library/LaunchAgents/com.htmlclay.plist"
+    LOGIN_BEFORE="$(plutil -extract ProgramArguments.0 raw -o - "$LOGIN_PLIST" 2>/dev/null)"
+    say "login item before: ${LOGIN_BEFORE:-none}"
+
+    PREPARED="no"
+    local i prepared_line
+    for i in $(seq 1 120); do
+      prepared_line="$(grep "is downloaded and prepared by Sparkle" "$CONFIG/htmlclay.log" 2>/dev/null | tail -n 1)"
+      if [ -n "$prepared_line" ]; then
+        PREPARED="yes"
+        say "$prepared_line"
+        break
+      fi
+      sleep 1
+    done
+    if [ "$PREPARED" != "yes" ]; then
+      say "Sparkle never prepared the update within 120 s"
+      stop_old_run
+      return 1
+    fi
+
+    : >"$LOGS/quit-ps.txt"
+    (
+      sampler_start=$SECONDS
+      sampler_limit=$((DEADLINE + OBSERVE))
+      while [ $((SECONDS - sampler_start)) -lt "$sampler_limit" ]; do
+        for sampler_pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay"); do
+          [ "$sampler_pid" = "$APP_PID" ] && continue
+          echo "$(date +%s) $sampler_pid $OLD/Contents/MacOS/htmlclay" >>"$LOGS/quit-ps.txt"
+        done
+        for sampler_pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay-host"); do
+          echo "$(date +%s) $sampler_pid $OLD/Contents/MacOS/htmlclay-host" >>"$LOGS/quit-ps.txt"
+        done
+        sleep 0.25
+      done
+    ) &
+    SAMPLER_PID=$!
+    PIDS+=("$SAMPLER_PID")
+
+    osascript -e "tell application \"$OLD\" to quit" >>"$LOGS/quit-osascript.log" 2>&1
+    say "sent the quit Apple event"
+
+    local phase last="" quit_start=$SECONDS quit_limit=$((DEADLINE + OBSERVE)) left
+    PHASES=""
+    while [ $((SECONDS - quit_start)) -lt "$quit_limit" ]; do
+      phase="$(state_phase)"
+      if [ -n "$phase" ] && [ "$phase" != "$last" ]; then
+        say "state.json phase: $phase"
+        cp "$CONFIG/updates/state.json" "$LOGS/state-$phase.json" 2>/dev/null
+        PHASES="${PHASES:+$PHASES, }$phase"
+        last="$phase"
+      fi
+      case "$phase" in
+        done|rolledBack|rollbackFailed) break ;;
+      esac
+      sleep 1
+    done
+
+    quit_start=$SECONDS
+    while [ $((SECONDS - quit_start)) -lt 15 ]; do
+      left="$(pids_comm "$OLD/Contents/MacOS/htmlclay") $(pids_comm "$OLD/Contents/MacOS/htmlclay-host")"
+      [ -z "${left// /}" ] && break
+      sleep 0.5
+    done
+    kill_pid "$SAMPLER_PID"
+    APP_PID=""
+    return 0
+  fi
+
   (
     export HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support"
     export PATH="$STUB_PATH" HTMLCLAY_STUB_OPEN_LOG="$OPEN_LOG"
@@ -968,17 +1084,6 @@ watch_timing() {
   done
 }
 
-record_check() {
-  local name="$1" pass="$2" detail="${3:-}"
-  if [ "$pass" = "yes" ]; then
-    CHECKS+=("$name: ok${detail:+ $detail}")
-    say "CHECK $name: ok${detail:+ $detail}"
-  else
-    CHECKS+=("$name: FAILED${detail:+ $detail}")
-    FAILED+=("$name")
-    say "CHECK $name: FAILED${detail:+ $detail}"
-  fi
-}
 
 # iso_ms ISO8601: the epoch milliseconds of a timestamp Go wrote as JSON.
 iso_ms() {
@@ -1005,9 +1110,113 @@ below() { awk -v v="$1" -v limit="$2" 'BEGIN { exit !(v < limit) }'; }
 run_checks() {
   if [ "$CASE" = "first" ]; then
     run_first_checks
+  elif [ "$CASE" = "quit" ]; then
+    run_quit_checks
   else
     run_rollback_checks
   fi
+}
+
+# run_quit_checks: the person quit, Sparkle installed 2.0, and the 1.x
+# supervisor judged it done without starting 2.0 by itself. The login item still
+# names the same executable, which 2.0 now is, and 2.0 serves when it is next
+# launched at that path.
+run_quit_checks() {
+  local phase version pids login_now pid listen host_pid file quit_flag="" start next_launch="no"
+
+  if [ "$PREPARED" = "yes" ]; then
+    record_check prepared yes
+  else
+    record_check prepared no "not exercised: Sparkle never prepared $NEW_VERSION within 120 s"
+    CHECKS_RAN=yes
+    return 0
+  fi
+
+  for file in "$CONFIG/updates/state.json" "$LOGS"/state-*.json; do
+    [ -f "$file" ] || continue
+    if [ "$(plutil -extract quit raw -o - "$file" 2>/dev/null)" = "true" ]; then
+      quit_flag="yes"
+      break
+    fi
+  done
+  if [ "$quit_flag" = "yes" ]; then
+    record_check quit-flag yes
+  else
+    record_check quit-flag no "state.json never carried quit true; phases seen: ${PHASES:-none}"
+  fi
+
+  phase="$(state_phase)"
+  if [ "$phase" = "done" ]; then
+    record_check done yes
+  else
+    record_check done no "state.json phase is ${phase:-absent}; phases seen: ${PHASES:-none}"
+  fi
+
+  version="$(plist_key "$OLD/Contents/Info.plist" CFBundleVersion)"
+  if [ "$version" = "$NEW_VERSION" ]; then
+    record_check bundle yes "$version"
+  else
+    record_check bundle no "$OLD carries ${version:-no version}, wanted $NEW_VERSION"
+  fi
+
+  # The 1.x supervisor checks a quit-install by starting the new version with
+  # --no-tray, which the Swift app hands straight to its host, and stops it once it
+  # serves. That check is the only 2.0 process allowed while the install runs.
+  local sup="$CONFIG/updates/supervisor.log" launched seen stray="" p
+  launched="$(sed -n "s/.*launched $NEW_VERSION as pid \([0-9]*\)$/\1/p" "$sup" 2>/dev/null | tr '\n' ' ')"
+  seen="$(awk '{print $2}' "$LOGS/quit-ps.txt" 2>/dev/null | sort -u | tr '\n' ' ')"
+  for p in $seen; do
+    case " $launched " in *" $p "*) ;; *) stray="$stray $p" ;; esac
+  done
+  if [ -n "$launched" ] && [ -z "$stray" ] && grep -q "$NEW_VERSION started and served; stopped it again" "$sup" 2>/dev/null; then
+    record_check verify-only yes "the supervisor's check pid ${launched% } served and was stopped; sampled: ${seen:-none}"
+  else
+    record_check verify-only no "supervisor launched: ${launched:-none}; sampled: ${seen:-none}; not the check: ${stray:-none}"
+  fi
+
+  pids="$(pids_comm "$OLD/Contents/MacOS/htmlclay")"
+  host_pid="$(pids_comm "$OLD/Contents/MacOS/htmlclay-host")"
+  if [ -z "${pids// /}" ] && [ -z "${host_pid// /}" ]; then
+    record_check no-process yes
+  else
+    record_check no-process no "htmlclay=${pids:-none} htmlclay-host=${host_pid:-none}"
+  fi
+
+  login_now="$(plutil -extract ProgramArguments.0 raw -o - "$LOGIN_PLIST" 2>/dev/null)"
+  if [ "$LOGIN_BEFORE" = "$OLD/Contents/MacOS/htmlclay" ] && [ "$login_now" = "$LOGIN_BEFORE" ]; then
+    record_check login-item yes "$login_now"
+  else
+    record_check login-item no "login item was ${LOGIN_BEFORE:-none} and is now ${login_now:-none}, wanted $OLD/Contents/MacOS/htmlclay"
+  fi
+
+  open -n "$OLD" >>"$LOGS/next-launch.log" 2>&1
+  start=$SECONDS
+  while [ $((SECONDS - start)) -lt 30 ]; do
+    for pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay-host"); do
+      listen="$(lsof -nP -a -iTCP -sTCP:LISTEN -p "$pid" 2>/dev/null | awk 'NR == 2 { print $9 }' | sed 's/.*://')"
+      if [ -n "$PORT_BEFORE" ] && [ "$listen" = "$PORT_BEFORE" ]; then
+        record_check next-launch yes "htmlclay-host=$pid listens on $listen"
+        next_launch="yes"
+        break 2
+      fi
+    done
+    sleep 0.5
+  done
+  if [ "$next_launch" != "yes" ]; then
+    record_check next-launch no "htmlclay-host ${host_pid:-none} lists ${listen:-nothing}, the old app was on ${PORT_BEFORE:-unknown} after 30 s"
+  fi
+
+  if [ "$next_launch" = "yes" ]; then
+    sleep 5
+  fi
+  login_now="$(plutil -extract ProgramArguments.0 raw -o - "$LOGIN_PLIST" 2>/dev/null)"
+  if [ "$login_now" = "$OLD/Contents/MacOS/htmlclay" ]; then
+    record_check login-item-after yes "$login_now"
+  else
+    record_check login-item-after no "login item is now ${login_now:-none}, wanted $OLD/Contents/MacOS/htmlclay"
+  fi
+
+  CHECKS_RAN=yes
 }
 
 run_first_checks() {
@@ -1154,21 +1363,6 @@ PY
   CHECKS_RAN=yes
 }
 
-# verdict_line: one verdict from the checks, printed as the last stderr line.
-verdict_line() {
-  local name names=""
-  if [ "$CHECKS_RAN" = "yes" ] && [ ${#FAILED[@]} -eq 0 ]; then
-    VERDICT_OK=yes
-    VERDICT="OK $CASE"
-    return 0
-  fi
-  VERDICT_OK=no
-  for name in "${FAILED[@]:-}"; do
-    [ -n "$name" ] || continue
-    names="${names:+$names, }$name"
-  done
-  VERDICT="FAILED $CASE: ${names:-no checks ran}"
-}
 
 # categorize PROOF FEED_ERROR FAILED_VERSION: the outcome names the handoff asks for.
 categorize() {

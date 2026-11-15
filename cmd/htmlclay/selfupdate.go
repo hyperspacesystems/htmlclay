@@ -294,8 +294,9 @@ func (a *app) reopenWrites() {
 }
 
 // refuseWriteWhileRestarting answers a write that arrived after the restart
-// closed admission. ClayJS treats a 503 like a lost connection: the page stays
-// dirty and the next save sends it again, by then to the new version.
+// closed admission. ClayJS waits Retry-After and sends the same save again, also
+// through the refused connections while no version listens, so it lands on the
+// new version a few seconds later (clayjs src/core/save-core.js, `restarting`).
 func refuseWriteWhileRestarting(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Retry-After", "2")
