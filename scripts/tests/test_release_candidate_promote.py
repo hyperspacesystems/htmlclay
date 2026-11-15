@@ -440,12 +440,26 @@ class PromotionTests(unittest.TestCase):
         python = port / 'python3'
         python.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
         python.chmod(0o755)
+        # A copy outside the checkout: the private fork's FORK.md guard would refuse first.
+        release = self.root / 'scripts/release.sh'
+        release.parent.mkdir(exist_ok=True)
+        release.write_text((ROOT / 'scripts/release.sh').read_text())
         for options in ([], ['--no-install']):
             with self.subTest(options=options):
-                result = subprocess.run(['/bin/bash', str(ROOT / 'scripts/release.sh'), '--from-candidate=' + str(record), *options],
+                result = subprocess.run(['/bin/bash', str(release), '--from-candidate=' + str(record), *options],
                                         env=dict(os.environ, PATH=str(port)+':'+os.environ['PATH']), text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout.splitlines(), ['scripts/promote_candidate.py', str(record), *options])
+
+    def test_release_refuses_while_fork_marker_exists(self):
+        release = self.root / 'scripts/release.sh'
+        release.parent.mkdir(exist_ok=True)
+        release.write_text((ROOT / 'scripts/release.sh').read_text())
+        (self.root / 'FORK.md').write_text('private fork\n')
+        result = subprocess.run(['/bin/bash', str(release), '--from-candidate=' + str(self.root / 'record.json')],
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('This is the private fork (FORK.md)', result.stderr)
 
 
 if __name__ == '__main__':
