@@ -1,7 +1,7 @@
 import XCTest
 @testable import PreviewCore
 
-private final class Log: @unchecked Sendable {
+final class Log: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: [String] = []
 
@@ -25,7 +25,7 @@ private final class Log: @unchecked Sendable {
 }
 
 @MainActor
-private final class FakeDriver: UpdateDriver {
+final class FakeDriver: UpdateDriver {
     private let log: Log
     private var events: (@MainActor (UpdateEvent) -> Void)?
     private var skip: (@MainActor (String) -> String?)?
@@ -47,7 +47,7 @@ private final class FakeDriver: UpdateDriver {
     func skipReason(_ version: String) -> String? { skip?(version) }
 }
 
-private final class FakeHost: HostCommands, @unchecked Sendable {
+final class FakeHost: HostCommands, @unchecked Sendable {
     private let log: Log
     private let lock = NSLock()
     private var answers: [String]
@@ -84,7 +84,7 @@ private final class FakeHost: HostCommands, @unchecked Sendable {
 }
 
 @MainActor
-private final class FakePresenter: UpdatePresenter {
+final class FakePresenter: UpdatePresenter {
     private let log: Log
     private var unsaved: [QuitChoice]
     private var running: [Bool]

@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var process: HostProcess?
     private var coordinator: TerminationCoordinator?
     private var updates: UpdateCoordinator?
+    private var updateNowObserver: NSObjectProtocol?
     private var updateAllowed = false
     private var quitting = false
     private var home: URL?
@@ -70,8 +71,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateAllowed = allowed
         updates = UpdateCoordinator(driver: allowed ? SparkleDriver.make() : nil,
                                     host: HostCLI(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: home.map(CandidateHome.environment) ?? [:])),
-                                    presenter: alerts, appPID: getpid())
+                                    presenter: alerts, appPID: getpid(), version: version)
         statusItem.updates = updates
+        updateNowObserver = DistributedNotificationCenter.default().addObserver(forName: UpdateNowWire.request, object: nil, queue: .main) { [weak self] note in
+            guard let object = note.object as? String else { return }
+            MainActor.assumeIsolated {
+                guard let self,
+                      let (reply, line) = UpdateNowWire.answer(object: object, ownBundlePath: Bundle.main.bundlePath,
+                                                             decide: { self.updates?.updateNow($0) ?? HostCLI.starting }) else { return }
+                FileHandle.standardError.write(Data("HTML Clay: update-now \(object.split(separator: "\n").dropFirst().first ?? ""): \(line)\n".utf8))
+                DistributedNotificationCenter.default().postNotificationName(Notification.Name(reply), object: line, userInfo: nil, deliverImmediately: true)
+            }
+        }
         NSApp.mainMenu = MainMenu.build(settingsTarget: self, settingsAction: #selector(openSettings(_:)),
                                         openTarget: self, openAction: #selector(openAFile(_:)))
         _ = relay.subscribe { [weak self] _ in self?.writeState() }

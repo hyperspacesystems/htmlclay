@@ -9,7 +9,9 @@ enum Entry {
     static func main() {
         let arguments = CommandLine.arguments
         switch LaunchArguments.role(arguments, fileExists: { FileManager.default.fileExists(atPath: $0) }) {
-        case .host, .updateNow, .unregister:
+        case let .updateNow(rest):
+            exit(UpdateNowClient.run(rest))
+        case .host, .unregister:
             HostExec.replace(arguments)
         case let .app(open):
             run(opening: open)

@@ -12,6 +12,10 @@ set -uo pipefail
 # recovery state in updates/ is the record of what went wrong. A version the
 # recovery supervisor rolled back is never installed again, by either path.
 #
+# On 2.x the Swift program at Contents/MacOS/htmlclay answers update-now itself
+# (a distributed notification to the running app, C4 in
+# real-app/11-macos-packaging.md); the answers and exit codes are the 1.x ones.
+#
 # Usage: scripts/update-canary.sh X.Y.Z
 #
 # Exit codes: 0 updated itself, 10 fell back to an install that succeeded,

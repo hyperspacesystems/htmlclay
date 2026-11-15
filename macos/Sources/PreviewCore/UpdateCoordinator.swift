@@ -40,6 +40,14 @@ public enum UpdateGate {
         return isStrictVersion(version)
     }
 
+    /// True when a is a newer strict X.Y.Z than b.
+    public static func isNewer(_ a: String, than b: String) -> Bool {
+        guard isStrictVersion(a), isStrictVersion(b) else { return false }
+        let x = a.split(separator: ".").compactMap { Int($0) }
+        let y = b.split(separator: ".").compactMap { Int($0) }
+        return x.lexicographicallyPrecedes(y) == false && x != y
+    }
+
     public static func isStrictVersion(_ version: String) -> Bool {
         let parts = version.split(separator: ".", omittingEmptySubsequences: false)
         return parts.count == 3 && parts.allSatisfy { !$0.isEmpty && $0.allSatisfy(\.isASCII) && $0.allSatisfy(\.isNumber) }
@@ -56,6 +64,8 @@ public final class UpdateCoordinator {
     private let presenter: UpdatePresenter
     private let appPID: Int32
     private let notStartedAfter: TimeInterval
+    private let version: String
+    private let now: () -> Date
 
     public private(set) var prepared: String?
     public private(set) var started = false
@@ -66,21 +76,42 @@ public final class UpdateCoordinator {
     private var quitAsked = false
     private var failedVersion: String?
     private var failedReason = ""
+    private var offReason: String?
+    private var startFailed: String?
+    private var declined: String?
+    private var requested: String?
+    private var requestedAt = Date.distantPast
+
+    /// How long an update-now request waits for Sparkle to prepare the version. The canary resends every 30 s.
+    public static let updateNowWindow: TimeInterval = 60
 
     public init(driver: UpdateDriver?, host: HostCommands, presenter: UpdatePresenter, appPID: Int32,
-                notStartedAfter: TimeInterval = 40) {
+                version: String = "", notStartedAfter: TimeInterval = 40, now: @escaping () -> Date = Date.init) {
         self.driver = driver
         self.host = host
         self.presenter = presenter
         self.appPID = appPID
+        self.version = version
         self.notStartedAfter = notStartedAfter
+        self.now = now
     }
 
     /// Call on every host ready. Starts Sparkle once, when the gate allows it and the host does not say off.
     public func start(allowed: Bool) async {
-        guard allowed, !started, let driver else { return }
+        guard !started, offReason == nil else { return }
+        guard allowed else {
+            offReason = "this copy of HTML Clay cannot update itself (no feed or key, not X.Y.Z, translocated or read-only)"
+            return
+        }
+        guard let driver else {
+            offReason = "Sparkle is not running"
+            return
+        }
         guard let status = try? await host.status() else { return }
-        if status.hasPrefix("off") { return }
+        if status.hasPrefix("off") {
+            offReason = String(status.dropFirst("off".count)).trimmingCharacters(in: .whitespaces)
+            return
+        }
         if status.hasPrefix("failed ") {
             let fields = status.split(separator: " ", maxSplits: 2).map(String.init)
             failedVersion = fields.count > 1 ? fields[1] : nil
@@ -106,6 +137,30 @@ public final class UpdateCoordinator {
     }
 
     public func checkNow() { driver?.checkNow() }
+
+    /// The answer to `htmlclay update-now --version target` (C4), ported branch by branch from
+    /// `(a *app) updateNow` in cmd/htmlclay/update_now.go.
+    public func updateNow(_ target: String) -> String {
+        guard UpdateGate.isStrictVersion(target) else { return "refused \"\(target)\" is not X.Y.Z" }
+        if target == version { return "already \(version)" }
+        guard UpdateGate.isNewer(target, than: version) else {
+            return "refused v\(target) is not newer than the running v\(version)"
+        }
+        if let offReason { return "refused self-update is off: \(offReason)" }
+        guard started else { return HostCLI.starting }
+        if let reason = skipReason(target) { return "refused \(reason)" }
+        if let startFailed { return "refused Sparkle could not start: \(startFailed)" }
+        if declined == target { return "failed the restart to v\(target) was cancelled on screen" }
+        if prepared == target {
+            if !relaunch { restartToUpdate() }
+            return "accepted"
+        }
+        if let prepared { return "failed Sparkle holds v\(prepared) prepared, which installs at the next quit" }
+        requested = target
+        requestedAt = now()
+        driver?.checkNow()
+        return "accepted"
+    }
 
     /// The whole quit: prepare, then the host's quit through quitter (which answers only after the host
     /// exited), then abort a prepared update if the quit was cancelled. True means reply yes to AppKit.
@@ -161,6 +216,7 @@ public final class UpdateCoordinator {
     }
 
     private func cancel() -> QuitPlan {
+        if relaunch { declined = prepared }
         relaunch = false
         return .cancel
     }
@@ -176,10 +232,16 @@ public final class UpdateCoordinator {
         case let .ready(version):
             prepared = version
             onChange?()
+            if requested == version {
+                requested = nil
+                if now().timeIntervalSince(requestedAt) <= Self.updateNowWindow { restartToUpdate() }
+            }
+        case let .startFailed(reason):
+            startFailed = reason
         case .aborted, .installFailed:
             relaunch = false
             Task { @MainActor [weak self] in await self?.abortPrepared() }
-        case .started, .startFailed, .checkSkipped:
+        case .started, .checkSkipped:
             break
         }
     }
