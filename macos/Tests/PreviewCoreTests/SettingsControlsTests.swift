@@ -61,7 +61,7 @@ final class SettingsControlsTests: XCTestCase {
         XCTAssertEqual(SettingsControls.visibleRoute(.pane(.sync), in: model.snapshot), .pane(.general))
         XCTAssertEqual(SettingsControls.visibleRoute(.folder("notes"), in: model.snapshot), .folder("notes"))
 
-        XCTAssertFalse(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
+        XCTAssertTrue(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
         XCTAssertFalse(SettingsControls.showsAccountChange(isSample: model.isSample))
         XCTAssertFalse(SettingsControls.showsUpdateControls(can: model.can(HostActionType.updateStart)))
         XCTAssertFalse(SettingsControls.showsTroubleshooting(isSample: model.isSample))
@@ -73,7 +73,7 @@ final class SettingsControlsTests: XCTestCase {
         let model = AppModel(host: relay, initial: relay.last)
 
         XCTAssertFalse(model.isSample)
-        XCTAssertFalse(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
+        XCTAssertTrue(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
         XCTAssertFalse(SettingsControls.showsAccountChange(isSample: model.isSample))
         XCTAssertFalse(SettingsControls.showsTroubleshooting(isSample: model.isSample))
     }

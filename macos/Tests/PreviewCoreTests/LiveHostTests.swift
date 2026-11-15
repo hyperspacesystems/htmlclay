@@ -344,7 +344,7 @@ final class LiveHostTests: XCTestCase {
         }
         XCTAssertEqual(loginRefusal.code, "not-yet")
         let model = AppModel(host: host.client, initial: sharing)
-        XCTAssertFalse(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
+        XCTAssertTrue(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
 
         let reloaded = try await host.client.load()
         XCTAssertEqual(reloaded.preferences.appearance, .dark)

@@ -22,5 +22,7 @@ export SAMPLE_ONLY_PERSONAS
 xcrun swift test --package-path "$ROOT" --scratch-path "$BUILD" 2>&1 | /usr/bin/grep -E 'error:|failed|Executed|Fatal error' | tail -15
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 
+if [ "$(/usr/bin/grep -rn 'SMAppServiceLoginItem()' "$ROOT/Sources" | /usr/bin/grep -vc 'LoginItems.swift')" != "0" ]; then echo "CHECK FAILED: SMAppServiceLoginItem constructed outside LoginItems.make"; fail=1; fi
+
 if [ "$fail" -eq 0 ]; then echo "CHECK OK"; else echo "CHECK FAILED"; fi
 exit "$fail"

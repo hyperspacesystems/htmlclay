@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var updates: UpdateCoordinator?
     private var updateNowObserver: NSObjectProtocol?
     private var updateAllowed = false
+    private var loginItems: LoginItemReconciler?
+    private var hostReadyOnce = false
     private var quitting = false
     private var home: URL?
     private var opener: FileOpener?
@@ -73,6 +75,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                     host: HostCLI(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: home.map(CandidateHome.environment) ?? [:])),
                                     presenter: alerts, appPID: getpid(), version: version)
         statusItem.updates = updates
+        if let made = LoginItems.make(identity: Self.identity, candidateHome: home) {
+            loginItems = LoginItemReconciler(service: made.service, legacyPlist: made.legacyPlist, defaults: .standard,
+                                             bootout: Self.identity == .product ? LoginItems.bootout : { _ in })
+        }
         updateNowObserver = DistributedNotificationCenter.default().addObserver(forName: UpdateNowWire.request, object: nil, queue: .main) { [weak self] note in
             guard let object = note.object as? String else { return }
             MainActor.assumeIsolated {
@@ -85,7 +91,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSApp.mainMenu = MainMenu.build(settingsTarget: self, settingsAction: #selector(openSettings(_:)),
                                         openTarget: self, openAction: #selector(openAFile(_:)))
-        _ = relay.subscribe { [weak self] _ in self?.writeState() }
+        _ = relay.subscribe { [weak self] snapshot in
+            self?.writeState()
+            if self?.hostReadyOnce == true { self?.loginItems?.update(wanted: snapshot.preferences.openAtLogin) }
+        }
         relay.onRestart = { [model] in model?.hostRestarted() }
         relay.onRestartRequested = { [weak self] in self?.startHost() }
         notifier = HostNotifier(windows: windows, model: model)
@@ -109,6 +118,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, let process, self.process === process else { return }
             Task {
                 await self.relay.attach(client)
+                self.hostReadyOnce = true
+                self.loginItems?.update(wanted: self.relay.last.preferences.openAtLogin)
                 await self.confirmUpdate(environment: launch.environment)
                 await self.updates?.start(allowed: self.updateAllowed)
                 self.opener?.hostReady()

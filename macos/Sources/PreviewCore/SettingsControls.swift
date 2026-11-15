@@ -20,9 +20,8 @@ public enum SettingsControls {
         HostActionType.syncDisconnect,
     ]
 
-    /// Open at Login moves to the Mac app in milestone 7; until then the host the
-    /// Mac app started refuses it.
-    public static func showsOpenAtLogin(isSample: Bool) -> Bool { isSample }
+    /// Open at Login shows on a live host too: the host saves the preference and the app's login item follows it (11.16).
+    public static func showsOpenAtLogin(isSample: Bool) -> Bool { true }
 
     /// The account row's Change link opens hyperclay.com, which has no host action.
     public static func showsAccountChange(isSample: Bool) -> Bool { isSample }

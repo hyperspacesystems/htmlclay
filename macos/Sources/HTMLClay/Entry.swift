@@ -1,5 +1,6 @@
 import AppKit
 import PreviewCore
+import ServiceManagement
 
 @main
 @MainActor
@@ -11,7 +12,12 @@ enum Entry {
         switch LaunchArguments.role(arguments, fileExists: { FileManager.default.fileExists(atPath: $0) }) {
         case let .updateNow(rest):
             exit(UpdateNowClient.run(rest))
-        case .host, .unregister:
+        case .unregister:
+            if AppIdentity.of(bundleID: Bundle.main.bundleIdentifier) == .product {
+                try? SMAppService.mainApp.unregister()
+            }
+            HostExec.replace(arguments)
+        case .host:
             HostExec.replace(arguments)
         case let .app(open):
             run(opening: open)
