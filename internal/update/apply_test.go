@@ -400,3 +400,31 @@ func TestApplyKeepsTheStagedBinaryWhenTheSupervisorCannotStart(t *testing.T) {
 		t.Fatalf("state %+v, want done", done)
 	}
 }
+
+func TestUnjudgedOnlyWhileAFreshUpdateIsApplying(t *testing.T) {
+	dir := t.TempDir()
+	if Unjudged(dir) {
+		t.Fatal("no state file counts as unjudged")
+	}
+	cases := []struct {
+		phase string
+		age   time.Duration
+		want  bool
+	}{
+		{PhaseApplying, 0, true},
+		{PhaseApplying, stateMaxAge / 2, true},
+		{PhaseApplying, stateMaxAge + time.Minute, false},
+		{PhaseApplying, -time.Hour, false},
+		{PhaseDone, 0, false},
+		{PhaseRolledBack, 0, false},
+	}
+	for _, c := range cases {
+		st := &State{Schema: StateSchema, Phase: c.phase, From: "1.0.0", To: "2.0.0", Txid: "abc", Time: time.Now().Add(-c.age)}
+		if err := writeJSONAtomic(filepath.Join(dir, stateFile), st); err != nil {
+			t.Fatal(err)
+		}
+		if got := Unjudged(dir); got != c.want {
+			t.Errorf("phase %s age %s: Unjudged = %v, want %v", c.phase, c.age, got, c.want)
+		}
+	}
+}

@@ -307,6 +307,18 @@ func ClearState(dir, txid string) bool {
 }
 
 // ReadState returns updates/state.json, or nil when there is none.
+// Unjudged reports whether an update is applying and a supervisor may still be
+// judging it. A new version holds back config changes the version it replaced
+// could not read until the verdict is in.
+func Unjudged(dir string) bool {
+	st, err := ReadState(dir)
+	if err != nil || st == nil || st.Phase != PhaseApplying {
+		return false
+	}
+	age := time.Since(st.Time)
+	return age >= 0 && age <= stateMaxAge
+}
+
 func ReadState(dir string) (*State, error) {
 	var st State
 	ok, err := readJSON(filepath.Join(dir, stateFile), &st)
