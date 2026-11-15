@@ -51,7 +51,7 @@ class SessionRunner extends EventEmitter {
     const rootRefusal = this.engine.rootRefusal();
     if (rootRefusal) return this.pause(rootRefusal);
     // Not awaited: the start keeps its order, and the marker lands beside it (it is never scanned).
-    this.engine.adoptRootMarker?.()?.catch(() => {});
+    this.engine.adoptRoot?.()?.catch(() => {});
     // C3.11: every path into a live session comes through here — a resume, a
     // rediscover, the restart a backoff ends in, and the first start of a
     // session whose init ran no passes (paused at launch, or offline). A
@@ -129,6 +129,15 @@ class SessionRunner extends EventEmitter {
   async #firstPass(inventory, gen) {
     const pending = this.engine.legacyImport;
     if (!pending) {
+      // A folder the marker names but the directory does not (a copy, a restore, another
+      // disk) is compared first with nothing sent; only a proven folder runs the normal pass.
+      if (this.engine.rootUnproven?.()) {
+        const proven = await this.engine.recheckRoot(inventory, { generation: gen, signal: this.abort.signal });
+        if (gen !== this.generation) return;
+        if (!proven) throw Object.assign(new Error('the folder could not be compared yet'), { statusCode: 503, code: 'recheck-incomplete' });
+        inventory = await this.api.listNodes({ signal: this.abort.signal });
+        if (gen !== this.generation) return;
+      }
       await this.engine.reconcileAll(inventory, { generation: gen, signal: this.abort.signal });
       return;
     }

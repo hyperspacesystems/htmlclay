@@ -77,6 +77,8 @@ module.exports = {
     }
 
     const known = this.repo.getByPath(item.filename);
+    // A name the server holds in another case waits with its twin (setCaseTwins).
+    if (!known && this.caseHeldPaths && this.caseHeldPaths.has(item.filename)) return;
     const type = (known && known.entry.type) || classifyPath(item.filename, item.type);
     if (type === 'folder') {
       await this.createFolderOnServer(item.filename);

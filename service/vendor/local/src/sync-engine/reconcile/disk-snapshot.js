@@ -1,6 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const { identityOf } = require('../node-map');
+const { isNestedSyncRoot } = require('../file-operations');
 
 const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 
@@ -28,6 +29,7 @@ async function snapshotDisk(root, { ignore = () => false } = {}) {
         continue;
       }
       if (stat.isDirectory()) {
+        if (isNestedSyncRoot(path.join(root, childRel))) continue;
         entries.set(childRel, { type: 'folder', inode: identityOf(stat) });
         await walk(childRel);
       } else if (stat.isFile()) {

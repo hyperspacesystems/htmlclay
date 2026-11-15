@@ -16,7 +16,8 @@ const {
   readFile,
   readFileBuffer,
   calculateBufferChecksum,
-  fileExists
+  fileExists,
+  isNestedSyncRoot
 } = require('./file-operations');
 const { calculateChecksum } = require('./utils');
 const { classifyPath } = require('./path-helpers');
@@ -70,10 +71,21 @@ module.exports = {
 
   // --- Observer feed ---
 
+  // A path inside another synced folder nested in this one is that folder's (file-operations.js
+  // isNestedSyncRoot), whatever event names it.
+  underNestedRoot(rel) {
+    const parts = String(rel).split('/');
+    for (let i = 1; i <= parts.length; i += 1) {
+      if (isNestedSyncRoot(path.join(this.syncFolder, ...parts.slice(0, i)))) return true;
+    }
+    return false;
+  },
+
   _dispatchRaw(event, rel) {
     // C3.11: a runner that cannot act on the event drops it. An edit made while
     // the session is paused is reconciled by the pass that resumes it instead.
     if (this.runner && GATED_RUNNER_STATES.has(this.runner.state)) return;
+    if (this.underNestedRoot(rel)) return;
 
     switch (event) {
       case 'add': return this._onAdd(rel);

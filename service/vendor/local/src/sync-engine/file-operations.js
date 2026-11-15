@@ -18,6 +18,14 @@ function shouldSkipEntry(name) {
 }
 
 /**
+ * A folder inside a synced folder that holds its own root marker is another synced folder (or a
+ * copy of one): it belongs to its own session, so this one never scans, creates or uploads it.
+ */
+function isNestedSyncRoot(dirPath) {
+  return fsSync.existsSync(path.join(dirPath, '.hyperclay', 'sync-root.json'));
+}
+
+/**
  * Get all local HTML files recursively with relative paths
  */
 // One entry that vanished or cannot be read is left out on its own, so the
@@ -45,7 +53,7 @@ async function getLocalFiles(syncFolder, logger = null) {
           : entry.name;
 
         if (entry.isDirectory()) {
-          if (!shouldSkipEntry(entry.name)) {
+          if (!shouldSkipEntry(entry.name) && !isNestedSyncRoot(fullPath)) {
             await scanDirectory(fullPath, relPath);
           }
         } else if (entry.isFile() && (entry.name.endsWith('.html') || entry.name.endsWith('.htmlclay'))) {
@@ -144,7 +152,7 @@ async function getLocalUploads(syncFolder, logger = null) {
           : entry.name;
 
         if (entry.isDirectory()) {
-          await scanDirectory(fullPath, relPath);
+          if (!isNestedSyncRoot(fullPath)) await scanDirectory(fullPath, relPath);
         } else if (entry.isFile() && !entry.name.endsWith('.html') && !entry.name.endsWith('.htmlclay')) {
           const stats = await statOrSkip(fullPath, logger);
           if (!stats) continue;
@@ -206,6 +214,7 @@ async function getLocalFolders(syncFolder, logger = null) {
 
         const fullPath = path.join(dirPath, entry.name);
         const relPath = relativePath ? path.join(relativePath, entry.name) : entry.name;
+        if (isNestedSyncRoot(fullPath)) continue;
 
         folders.set(relPath, { fullPath });
         await scanDirectory(fullPath, relPath);
@@ -228,6 +237,7 @@ async function getLocalFolders(syncFolder, logger = null) {
 
 module.exports = {
   shouldSkipEntry,
+  isNestedSyncRoot,
   getLocalFolders,
   getLocalFiles,
   readFile,

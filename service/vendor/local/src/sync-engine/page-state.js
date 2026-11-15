@@ -27,7 +27,7 @@ async function sendPageState(engine, nodeId, rel) {
     const rev = require('@panphora/clayjs/server/rooms').pageRev(file.bytes.toString('utf8'));
     const record = await readPageState(engine.syncFolder, rel, { rev, exact: true });
     if (!record) return false;
-    return await putPageState(engine.conn, nodeId, record);
+    return await putPageState(engine.writeConn, nodeId, record);
   } catch (error) {
     console.warn(`[SYNC] Could not send the page state for ${rel}:`, reasonOf(error));
     return false;

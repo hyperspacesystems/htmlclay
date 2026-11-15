@@ -13,7 +13,9 @@ const fsp = require('fs').promises;
 const path = require('upath');
 const { fileExists } = require('./file-operations');
 const { listNodes } = require('./api-client');
-const { classifyRoot, putRootMarker, flagIdentity } = require('./root-marker');
+const nodeMap = require('./node-map');
+const conflictStore = require('./reconcile/conflicts');
+const { classifyRoot, putRootMarker, recordIdentity, rootDirIdentity } = require('./root-marker');
 const { decidePath, A } = require('./reconcile/decide');
 
 module.exports = {
@@ -35,30 +37,85 @@ module.exports = {
   },
 
   /**
-   * Write the marker for a session that had none yet. The check above only reads; this is
-   * the write, made through the root's document host when a session starts.
+   * The marker says this folder belongs to the session; only the directory's own identity
+   * says it is the folder the baseline was recorded in. A copy (a backup put back, Find it
+   * pointed at an older copy, a move to another disk) carries the marker but not the
+   * directory: its pages are neither newer nor older than the server's until a recheck
+   * compares them. Nothing recorded yet proves nothing either way, so it is not unproven.
    */
-  markerToAdopt() {
-    if (!fileExists(this.syncFolder)) return false;
+  rootUnproven() {
+    if (this.rootDir == null) return false;
+    return rootDirIdentity(this.syncFolder) !== this.rootDir;
+  },
+
+  /**
+   * Record the folder as the session's: the marker when it has none, then `identity.json`
+   * with the marker flag and the directory's identity. Runs when a session starts on a
+   * folder the marker proves, and after a recheck proved it. An unproven folder is left to
+   * the recheck.
+   */
+  async adoptRoot() {
+    if (!fileExists(this.syncFolder) || this.rootUnproven()) return;
     const { refusal, adopt } = classifyRoot(this.syncFolder, {
       rootId: this.rootId ?? null,
       required: this.rootMarkerRequired === true,
       baselineSize: this.repo ? this.repo.size : 0,
     });
-    return !refusal && adopt;
+    if (refusal || this.rootId == null) return;
+    const dir = rootDirIdentity(this.syncFolder);
+    if (!adopt && this.rootMarkerRequired && this.rootDir === dir) return;
+    if (adopt) {
+      try {
+        await putRootMarker(require('./local-boundary').documentHostFor(this), this.rootId);
+      } catch {
+        // A root the app cannot write into (read-only mount, permissions) syncs as it did
+        // before the marker: the marker is not required until it has been written.
+        return;
+      }
+    }
+    recordIdentity(this.metaDir, { rootMarker: true, rootDir: dir });
+    this.rootMarkerRequired = true;
+    this.rootDir = dir;
   },
 
-  async adoptRootMarker() {
-    if (!this.markerToAdopt()) return;
+  /**
+   * Every request that changes the server passes here (api-client calls `conn.guard`). A
+   * missing or replaced folder pauses the session, as before. A folder the marker names but
+   * the directory does not is refused too: the write is skipped and a live session starts
+   * again, so its next pass is a recheck.
+   */
+  assertRootWritable() {
+    this.assertRootPresent();
+    if (!this.rootUnproven()) return;
+    if (!this.recheckPass && this.runner && this.runner.state === 'live') this.requestReconcile();
+    throw Object.assign(new Error('The sync folder is not the one last synced'), { code: 'folder-unproven' });
+  },
+
+  /**
+   * One pass over a folder the session cannot prove is its own: the baseline may change this
+   * computer (download, adopt, trash a file deleted online) but never the server, so a page
+   * that differs from the baseline is held as a conflict, a page missing here is downloaded,
+   * and a file only here waits. A pass that completes with every item settled proves the
+   * folder: its identity is recorded, and the caller runs the normal pass next.
+   *
+   * @returns {Promise<boolean>} true when the folder is now proven
+   */
+  async recheckRoot(inventory, { generation, signal } = {}) {
+    const checked = rootDirIdentity(this.syncFolder);
+    // Deletes the live structure job is holding were measured against the folder that left:
+    // none of them may reach the server once this folder is proven.
+    this.clearStructureState({ forgetDeletes: true });
+    this.recheckPass = true;
+    this.recheckFailed = false;
     try {
-      await putRootMarker(require('./local-boundary').documentHostFor(this), this.rootId);
-    } catch {
-      // A root the app cannot write into (read-only mount, permissions) syncs as it did
-      // before the marker: the marker is not required until it has been written.
-      return;
+      await this.reconcileAll(inventory, { generation, signal });
+    } finally {
+      this.recheckPass = false;
     }
-    flagIdentity(this.metaDir);
-    this.rootMarkerRequired = true;
+    if (this.recheckFailed || (signal && signal.aborted) || rootDirIdentity(this.syncFolder) !== checked) return false;
+    this.rootDir = null;
+    await this.adoptRoot();
+    return true;
   },
 
   rootPresent() {
@@ -170,6 +227,7 @@ module.exports = {
   async refreshNodeInLane(id, inventory, { generation, signal, work }) {
     await this.setCaseTwins(inventory);
     const node = (inventory || []).find((n) => String(n.id) === id);
+    if (!node) await this.markDeletedConflicts(inventory || []);
     let entry = this.repo.get(id) || null;
     if (entry && entry.path && this.passLeavesToLiveJob(entry.path)) {
       this._structureState().refreshDeferred = true;
@@ -263,6 +321,31 @@ module.exports = {
   },
 
   /**
+   * A conflict held against a node that a complete list no longer has: the node, or its folder,
+   * was deleted online after the conflict was found. It is held as remote-deleted from now on, so
+   * Keep mine creates the page again and Keep theirs moves this copy to the trash.
+   */
+  async markDeletedConflicts(nodes) {
+    if (this.serverNodesComplete !== true || !this.metaDir) return;
+    const listed = new Set(nodes.map((node) => String(node.id)));
+    const records = await conflictStore.load(this.metaDir);
+    for (const [key, record] of Object.entries(records)) {
+      if (!/^\d+$/.test(key) || listed.has(key) || record.kind === conflictStore.KINDS.REMOTE_DELETED) continue;
+      await conflictStore.update(this.metaDir, key, { kind: conflictStore.KINDS.REMOTE_DELETED });
+      this.emit('file-synced', { file: record.path, action: 'conflict', kind: conflictStore.KINDS.REMOTE_DELETED });
+    }
+  },
+
+  /**
+   * Whether the file at `rel` is the one the entry's baseline was recorded for: the same inode
+   * and birth time. A weak identity (no birth time) proves nothing.
+   */
+  isTrackedFile(entry, rel) {
+    const identity = nodeMap.getInodeSync(path.join(this.syncFolder, rel));
+    return identity !== null && !String(identity).endsWith(':0') && String(entry.inode) === String(identity);
+  },
+
+  /**
    * A node whose listed path differs from its baseline path moved on one side. The local file is
    * either still at the baseline path (a teammate moved it: apply the move here) or already at the
    * listed path (adopt it). A local move is the watcher's to send, so it is never undone here.
@@ -271,6 +354,11 @@ module.exports = {
     const atBase = fileExists(path.join(this.syncFolder, entry.path));
     const atRemote = fileExists(path.join(this.syncFolder, remote.path));
     const localPath = atBase || !atRemote ? entry.path : remote.path;
+    if (!isFolder && !atBase && atRemote && !this.isTrackedFile(entry, remote.path)) {
+      // Another file at the node's new path, the node's own gone: compared, never uploaded.
+      await this.repo.delete(id);
+      return 'unbound';
+    }
     const { action } = decidePath({ basePath: entry.path, localPath, remotePath: remote.path });
     if (action === 'adopt-path') {
       await this.repo.set(id, { ...entry, path: remote.path, parentId: remote.parentId ?? entry.parentId });

@@ -277,7 +277,7 @@ async function upload(engine, nodeId, entry, context, gen) {
   engine.outbox.markInFlight('save', idOf(nodeId));
   await sendPageState(engine, idOf(nodeId), rel);
   try {
-    response = await putNodeContent(engine.conn, idOf(nodeId), content, options);
+    response = await putNodeContent(engine.writeConn, idOf(nodeId), content, options);
   } catch (error) {
     if (error.statusCode === 412) {
       const record = await recordConflict(engine, nodeId, rel, {
@@ -472,7 +472,7 @@ async function deleteRemote(engine, nodeId, entry, context) {
 
   engine.outbox.markInFlight('delete', id);
   try {
-    await deleteNode(engine.conn, id, options);
+    await deleteNode(engine.writeConn, id, options);
   } catch (error) {
     if (!error.statusCode && (await deleteLanded(engine, id))) {
       await finishDelete(engine, nodeId, rel, type);
@@ -519,6 +519,8 @@ async function finishDelete(engine, nodeId, rel, type) {
 
 async function createRemote(engine, nodeId, entry, context, gen) {
   const rel = relPathOf(entry, context, nodeId);
+  const open = await openConflict(engine, nodeId, rel);
+  if (open) return { action: A.CONFLICT, kind: open.kind, record: open };
   const isSite = SITE_PATTERN.test(rel);
   const localPath = await localPathFor(engine, rel);
   const size = (await fs.stat(localPath)).size;
@@ -538,7 +540,8 @@ async function createRemote(engine, nodeId, entry, context, gen) {
 
   let created;
   try {
-    created = await createNode(engine.conn, {
+    await engine.createMissingParentFolders(rel);
+    created = await createNode(engine.writeConn, {
       type,
       name: path.basename(rel),
       parentId: engine.resolveParentIdByPath(dirOf(rel)),
@@ -762,11 +765,12 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
   const content = isSite ? buffer.toString('utf8') : buffer;
   const modifiedAt = (await fs.stat(localPath)).mtime;
 
-  if (id === null || found.kind === store.KINDS.REMOTE_DELETED) {
+  // Mine as a new node: the conflict has no node, or its node was deleted online.
+  const createMine = async () => {
     await engine.createMissingParentFolders(found.path);
     let created;
     try {
-      created = await createNode(engine.conn, {
+      created = await createNode(engine.writeConn, {
         type,
         name: path.basename(found.path),
         parentId: engine.resolveParentIdByPath(dirOf(found.path)),
@@ -795,17 +799,19 @@ async function resolveConflict(session, { path: rel, choice } = {}) {
     await store.clear(engine.metaDir, found.key);
     await removeCopy(engine, found);
     return { ok: true };
-  }
+  };
+  if (id === null || found.kind === store.KINDS.REMOTE_DELETED) return createMine();
 
   let response;
   engine.outbox.markInFlight('save', id);
   try {
-    response = await putNodeContent(engine.conn, id, content, { modifiedAt, ifMatch: found.remoteEtag });
+    response = await putNodeContent(engine.writeConn, id, content, { modifiedAt, ifMatch: found.remoteEtag });
   } catch (error) {
     if (error.statusCode === 412) {
       await refreshRemoteCopy(engine, id, found.path, found);
       return { ok: false, error: 'stale-etag' };
     }
+    if (error.statusCode === 404) return createMine();
     throw error;
   }
 

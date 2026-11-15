@@ -321,6 +321,38 @@ func TestM3FolderRelink(t *testing.T) {
 		}
 	})
 
+	t.Run("a served folder moved inside another served folder is refused, sheet and click", func(t *testing.T) {
+		f := newM3RelinkFixture(t)
+		entry := f.trust(t)
+		if _, err := f.app.rt.cfg.AddServedFolder(f.folder, platform.DirIdentity(f.folder), "docs"); err != nil {
+			t.Fatal(err)
+		}
+		team := filepath.Join(f.app.rt.home, "team")
+		if err := os.MkdirAll(team, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.app.rt.cfg.AddServedFolder(team, platform.DirIdentity(team), "team"); err != nil {
+			t.Fatal(err)
+		}
+		f.save(t)
+		moved := filepath.Join(team, "docs")
+		if err := os.Rename(f.folder, moved); err != nil {
+			t.Fatal(err)
+		}
+
+		if _, refusal := f.app.folderRelinkPreview(entry.ID, moved); refusal == nil || refusal.Code != appcore.RefuseOverlapsServed {
+			t.Fatalf("the Find it sheet for a folder inside another served folder = %+v, want %s", refusal, appcore.RefuseOverlapsServed)
+		}
+		if refusal := m3ProgramDo(t, f.app, ChannelShell, "folder.relink", map[string]any{
+			"id": entry.ID, "path": moved, "acknowledged": []string{warnDifferentFolder},
+		}); refusal == nil || refusal.Code != appcore.RefuseOverlapsServed {
+			t.Fatalf("a relink inside another served folder = %+v, want %s", refusal, appcore.RefuseOverlapsServed)
+		}
+		if served, _ := f.app.rt.cfg.ServedFolderByID(entry.ID); served.Path != f.folder {
+			t.Fatalf("the refused relink moved the served entry to %s", served.Path)
+		}
+	})
+
 	t.Run("a failed save changes nothing", func(t *testing.T) {
 		f := newM3RelinkFixture(t)
 		entry := f.trust(t)

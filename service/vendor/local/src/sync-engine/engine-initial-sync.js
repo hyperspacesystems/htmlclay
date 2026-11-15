@@ -12,6 +12,7 @@
  * chooses content by mtime any more.
  */
 
+const fsp = require('fs').promises;
 const path = require('upath');
 const { classifyError, formatErrorForLog } = require('./error-handler');
 const {
@@ -93,6 +94,7 @@ module.exports = {
    */
   async setCaseTwins(nodes) {
     const held = new Map();
+    const heldPaths = new Set();
     if (this.foldsCase) {
       const groups = new Map();
       for (const node of nodes || []) {
@@ -107,9 +109,39 @@ module.exports = {
           || twins.reduce((a, b) => (Number(a.id) < Number(b.id) ? a : b));
         for (const twin of twins) if (twin !== keep) held.set(twin.id, twin.rel);
       }
+      // A listed file whose name this disk holds only in another case (logo.png against the
+      // server's Logo.png) is the same file here: the node is not downloaded over it and the
+      // local name is not created beside it until one of them is renamed.
+      const names = new Map();
+      for (const twins of groups.values()) {
+        const kept = twins.filter(({ id }) => !held.has(id));
+        if (kept.length !== 1) continue;
+        const { id, rel } = kept[0];
+        const onDisk = await this.nameOnDisk(rel, names);
+        if (!onDisk || onDisk === rel || this.repo.get(id)?.path === onDisk) continue;
+        held.set(id, rel);
+        heldPaths.add(onDisk);
+      }
     }
     this.caseHeld = held;
-    await this.holdCaseTwins([...held.values()]);
+    this.caseHeldPaths = heldPaths;
+    await this.holdCaseTwins([...held.values(), ...heldPaths]);
+  },
+
+  /** The name this disk holds for rel in any case, or null; directory listings are kept in names. */
+  async nameOnDisk(rel, names) {
+    const dir = dirOf(rel);
+    if (!names.has(dir)) {
+      let list = [];
+      try {
+        list = await fsp.readdir(path.join(this.syncFolder, dir));
+      } catch {
+        list = [];
+      }
+      names.set(dir, new Map(list.map((name) => [name.normalize('NFC').toLowerCase(), name])));
+    }
+    const name = names.get(dir).get(path.basename(rel).normalize('NFC').toLowerCase());
+    return name ? (dir ? `${dir}/${name}` : name) : null;
   },
 
   /**
@@ -140,7 +172,9 @@ module.exports = {
     const nodeType = type || (remote && remote.type) || typeFor(entry, rel);
     const baseline = nodeId === null || nodeId === undefined ? null : this.repo.getBaseline(nodeId);
     const key = nodeId === null || nodeId === undefined ? null : String(nodeId);
-    const deferred = key !== null && ((this.pathUnresolved && this.pathUnresolved.has(key)) || (this.caseHeld && this.caseHeld.has(key)));
+    const deferred = key !== null
+      ? (this.pathUnresolved && this.pathUnresolved.has(key)) || (this.caseHeld && this.caseHeld.has(key))
+      : !entry && this.caseHeldPaths && this.caseHeldPaths.has(rel);
     const decision = deferred ? { action: A.DEFER } : decide({
       baseline,
       local: localPresent ? await this.localView(rel) : null,
@@ -151,7 +185,8 @@ module.exports = {
       // delete anything under a folder it is restoring, or under the root's
       // uploads folder: a missing attachment is always restored by download.
       bootstrap: this.bootstrapPass === true || this.isUnderRestoredFolder(rel) || isUnderLockedFolder(rel) ||
-        (key !== null && this.movedRemotely && this.movedRemotely.has(key))
+        (key !== null && this.movedRemotely && this.movedRemotely.has(key)),
+      recheck: this.recheckPass === true
     });
 
     return {
@@ -197,9 +232,9 @@ module.exports = {
     if (item.decision.action === A.NOOP || item.decision.action === A.DEFER) return;
 
     try {
-      if (item.decision.action === A.CREATE_REMOTE) await this.createMissingParentFolders(item.path);
       await executeDecision(this, item.nodeId, item.decision, item.context);
     } catch (error) {
+      if (this.recheckPass) this.recheckFailed = true;
       const { kind } = classifySyncError(error);
       console.error(`[SYNC] ${item.decision.action} failed for ${item.path} (${kind}):`, error.message);
       if (this.logger) {
@@ -308,6 +343,7 @@ module.exports = {
       const serverFiles = await this.fetchAndCacheServerFiles(30_000);
       if (gen !== this.generation) return;
       const allServerNodes = this.serverNodesCache;
+      await this.markDeletedConflicts(allServerNodes || []);
 
       const localFiles = await getLocalFiles(this.syncFolder, this.logger);
 
@@ -487,6 +523,11 @@ module.exports = {
         console.error(`[SYNC] Failed to move ${knownPath} → ${relativePath}:`, error.message);
         (this.movedRemotely ||= new Set()).add(nid);
       }
+    } else if (localFiles.has(relativePath) && !this.isTrackedFile(entry, relativePath)) {
+      // The node's file is gone from its old path and another file sits at its new one: that file
+      // has no baseline against the node, so it is compared (adopted or held), never uploaded.
+      map.delete(nid);
+      return;
     }
 
     map.set(nid, { ...entry, path: relativePath });
@@ -677,6 +718,7 @@ module.exports = {
       this.emit('sync-complete', { type: 'initial-uploads', stats: this.stats });
 
     } catch (error) {
+      if (this.recheckPass) this.recheckFailed = true;
       console.error('[SYNC] Initial upload sync failed:', error);
       this.stats.errors.push(formatErrorForLog(error, { action: 'initial-upload-sync' }));
       // A failure about the session (auth, server down, offline) ends the pass like the
@@ -702,7 +744,8 @@ module.exports = {
     this.assertRootPresent();
 
     let allServerNodes = inventory || await this.fetchAndCacheServerNodes(0);
-    if (await this.runStructureCatchupInLane(allServerNodes)) {
+    // A recheck sends nothing: a local rename is paired once the folder is proven.
+    if (!this.recheckPass && await this.runStructureCatchupInLane(allServerNodes)) {
       allServerNodes = await this.fetchAndCacheServerNodes(0);
     }
     const complete = this.serverNodesComplete === true || (Array.isArray(allServerNodes) && allServerNodes.complete === true);
@@ -713,7 +756,7 @@ module.exports = {
 
     const localFolders = await getLocalFolders(this.syncFolder, this.logger);
     const firstPass = !this.lastSyncedAt;
-    const bootstrap = this.bootstrapPass === true;
+    const bootstrap = this.bootstrapPass === true || this.recheckPass === true;
     const plan = [];
     const deleting = [];
     const restoring = [];
@@ -817,7 +860,12 @@ module.exports = {
     await this.runPlan(plan);
 
     // Folders made on this disk that the server has never listed: created there,
-    // parents first, so an empty one is not left behind until it gets a file.
+    // parents first, so an empty one is not left behind until it gets a file. A recheck
+    // leaves them to the normal pass that follows it.
+    if (this.recheckPass) {
+      console.log('[SYNC] Initial folder sync complete');
+      return;
+    }
     const listedPaths = new Set([...listed.values()].map(relPathOf));
     const created = [...localFolders.keys()]
       .filter((rel) => !this.repo.getByPath(rel) && !listedPaths.has(rel) && !this.holdsPath(rel))
@@ -843,8 +891,12 @@ module.exports = {
     };
   },
 
-  /** A path the live structure job is deciding, unless this reconcile restores a folder above it. */
+  /**
+   * A path the live structure job is deciding, unless this reconcile restores a folder above it.
+   * A recheck decides every path itself: what the job saw was measured against another folder.
+   */
   passLeavesToLiveJob(rel) {
+    if (this.recheckPass) return false;
     return this.holdsPath(rel) && !this.isUnderRestoredFolder(rel);
   },
 

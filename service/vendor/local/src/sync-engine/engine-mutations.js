@@ -57,7 +57,7 @@ module.exports = {
     if (gen !== this.generation) return false;
     this.outbox.markInFlight('rename', parseInt(nodeId));
     const options = expectedVersion ? [{ expectedVersion }] : [];
-    await renameNode(this.conn, parseInt(nodeId), newName, ...options);
+    await renameNode(this.writeConn, parseInt(nodeId), newName, ...options);
     this._mutationSeq = (this._mutationSeq || 0) + 1;
     if (gen !== this.generation) return true;
     this.invalidateServerNodesCache();
@@ -74,7 +74,7 @@ module.exports = {
     const args = expectedVersion
       ? [newName === undefined ? null : newName, { expectedVersion }]
       : (newName === undefined ? [] : [newName]);
-    await moveNode(this.conn, parseInt(nodeId), parentId, ...args);
+    await moveNode(this.writeConn, parseInt(nodeId), parentId, ...args);
     this._mutationSeq = (this._mutationSeq || 0) + 1;
     if (gen !== this.generation) return true;
     this.invalidateServerNodesCache();
@@ -89,7 +89,7 @@ module.exports = {
     const expectedVersion = await this._expectedVersion(nodeId);
     if (gen !== this.generation) return false;
     this.outbox.markInFlight('delete', parseInt(nodeId));
-    await deleteNode(this.conn, parseInt(nodeId), { cascade, expectedVersion });
+    await deleteNode(this.writeConn, parseInt(nodeId), { cascade, expectedVersion });
     this._mutationSeq = (this._mutationSeq || 0) + 1;
     if (gen !== this.generation) return true;
     this.invalidateServerNodesCache();

@@ -336,7 +336,7 @@ module.exports = {
     if (recent && underLocked(op.path) && Date.now() - recent.at < RECENT_DELETE_MS && (op.kind === 'folder' || marked.has(op.path))) {
       state.recentDeletes.delete(op.path);
       try {
-        await restoreNode(this.conn, parseInt(recent.id));
+        await restoreNode(this.writeConn, parseInt(recent.id));
         this._mutationSeq = (this._mutationSeq || 0) + 1;
         const back = recent.subtree || [[recent.id, recent.entry]];
         await this.repo.apply(async (map) => {

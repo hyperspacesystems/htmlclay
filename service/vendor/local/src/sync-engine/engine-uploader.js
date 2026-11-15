@@ -210,7 +210,7 @@ module.exports = {
         this.outbox.markInFlight('save', existingNodeId);
         await sendPageState(this, existingNodeId, filename);
         result = await putNodeContent(
-          this.conn,
+          this.writeConn,
           existingNodeId,
           content,
           {
@@ -228,7 +228,7 @@ module.exports = {
         const folderPath = pathParts.slice(0, -1).join('/');
         const parentId = this.resolveParentIdByPath(folderPath);
 
-        const createdNode = await createNode(this.conn, {
+        const createdNode = await createNode(this.writeConn, {
           type: 'site',
           name,
           parentId,
@@ -426,7 +426,7 @@ module.exports = {
       if (existingNodeId) {
         this.outbox.markInFlight('save', existingNodeId);
         await putNodeContent(
-          this.conn,
+          this.writeConn,
           existingNodeId,
           content,
           { modifiedAt: stat.mtime }
@@ -438,7 +438,7 @@ module.exports = {
         const folderPath = pathParts.slice(0, -1).join('/');
         const parentId = this.resolveParentIdByPath(folderPath);
 
-        const createdNode = await createNode(this.conn, {
+        const createdNode = await createNode(this.writeConn, {
           type: 'upload',
           name,
           parentId,
@@ -502,7 +502,7 @@ module.exports = {
       }
 
       console.log(`[SYNC] Creating folder on server: ${relativePath} (parentId=${parentId})`);
-      const createdNode = await createNode(this.conn, {
+      const createdNode = await createNode(this.writeConn, {
         type: 'folder',
         name,
         parentId

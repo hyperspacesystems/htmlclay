@@ -848,6 +848,11 @@ func (a *app) folderRelinkPreview(folderID, path string) (shellapi.Preview, *app
 	if refusal != nil {
 		return shellapi.Preview{}, refusal
 	}
+	if served, isServed := a.rt.cfg.ServedFolderByID(entry.ID); isServed {
+		if _, refusal := a.serveFactsFor(canonical, served); refusal != nil {
+			return shellapi.Preview{}, refusal
+		}
+	}
 	return shellapi.Preview{
 		Path:     canonical,
 		Name:     filepath.Base(canonical),
@@ -873,6 +878,13 @@ func (a *app) relinkFolder(e appcore.Effect) *appcore.Refusal {
 	}
 	if a.syncDownloadRunning(entry.ID) {
 		return &appcore.Refusal{Code: appcore.RefuseSyncDownloading, SubjectID: entry.ID}
+	}
+	// A served folder is served from its new path, so the new path obeys every rule a folder
+	// served there for the first time would: never inside or around another served folder.
+	if isServed {
+		if _, refusal := a.serveFactsFor(canonical, served); refusal != nil {
+			return refusal
+		}
 	}
 	for _, warning := range a.relinkWarnings(canonical, a.relinkPin(entry)) {
 		if !slices.Contains(e.Acknowledged, warning.Code) {

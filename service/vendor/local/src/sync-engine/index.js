@@ -68,6 +68,9 @@ class SyncEngine extends EventEmitter {
     this.sessionInvalidated = false;
     this.nodeListInFlight = null;
     this.bootstrapPass = false; // reconcileAll({ bootstrap: true }) deletes nothing
+    this.recheckPass = false; // recheckRoot: the baseline changes this computer only
+    this.recheckFailed = false;
+    this.rootDir = null;
     this.repo = new NodeRepository(); // nodeId → { type, path, checksum?, inode?, parentId? }
     this.uploadBlocks = { limit: null, files: {} };
     this.foldsCase = process.platform === 'darwin' || process.platform === 'win32'; // one file for names that differ only by case
@@ -125,6 +128,16 @@ class SyncEngine extends EventEmitter {
       accountId: this.accountId ?? null,
       protocol: this.protocol || 1,
     };
+  }
+
+  /**
+   * The connection for a request that changes the server. Asking for it is the check
+   * (engine-session.js assertRootWritable): a folder that is missing, replaced, or not
+   * proven to be the one last synced sends nothing.
+   */
+  get writeConn() {
+    if (this.syncFolder) this.assertRootWritable();
+    return this.conn;
   }
 
   /** The account's per-file cap in bytes, or null when the server has not said. */
@@ -307,6 +320,8 @@ class SyncEngine extends EventEmitter {
     // second once it has written the marker.
     this.rootId = opts.rootId ?? null;
     this.rootMarkerRequired = opts.rootMarker === true;
+    // identity.json's rootDir: the directory the baseline was recorded in (rootUnproven).
+    this.rootDir = opts.rootDir ?? null;
     // C3.7: a team session's first bind owns its first pass (progress, disk
     // check, marker, identity), so init defers the passes and the stream to it.
     this.firstBind = opts.firstBind === true;
@@ -399,7 +414,9 @@ class SyncEngine extends EventEmitter {
 
       await this.serial(() => this.repo.apply((map) => nodeMap.upgradeIdentities(map, this.syncFolder)));
 
-      if (!this.firstBind && !offline) {
+      // A folder that is not proven to be the session's own is compared by its runner's
+      // recheck instead (engine-session.js recheckRoot).
+      if (!this.firstBind && !offline && !this.rootUnproven()) {
         await this.serial(() => this.performInitialFolderSync());
 
         // Perform initial sync for sites

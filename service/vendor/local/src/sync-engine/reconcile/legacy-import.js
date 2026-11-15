@@ -22,7 +22,7 @@ const path = require('upath');
 
 const { getAccounts, listNodes } = require('../api-client');
 const nodeMap = require('../node-map');
-const { putRootMarker } = require('../root-marker');
+const { putRootMarker, rootDirIdentity } = require('../root-marker');
 const { documentHostFor } = require('../local-boundary');
 
 const IDENTITY_FILE = 'identity.json';
@@ -177,8 +177,10 @@ async function importLegacyMeta(entry, options = {}) {
     rootId: session.rootId ?? null,
     rootRealpath: await realpathOr(rootPath),
     rootMarker: true,
+    rootDir: rootDirIdentity(rootPath),
   });
   engine.rootMarkerRequired = true;
+  engine.rootDir = rootDirIdentity(rootPath);
   await engine.repo.saveState({ ...state, migratedAt: new Date(now()).toISOString() });
   engine.startUnifiedWatcher();
   if (options.persist) options.persist({ accountId: found.account.id, actorId: found.actorId });

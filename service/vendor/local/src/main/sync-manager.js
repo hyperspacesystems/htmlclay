@@ -10,7 +10,7 @@ const { getAccounts, listNodes } = require('../sync-engine/api-client');
 const { SessionRunner } = require('../sync-engine/reconcile/session-runner');
 const { firstBind, inventoryTotals, BIND_MARKER } = require('../sync-engine/reconcile/first-bind');
 const nodeMap = require('../sync-engine/node-map');
-const { classifyRoot } = require('../sync-engine/root-marker');
+const { classifyRoot, recordIdentity, rootDirIdentity } = require('../sync-engine/root-marker');
 const { validateRootPath, defaultTeamFolder, allocateTeamPort } = require('./roots');
 const { realpathNearestParent } = require('./utils/path-resolver');
 const { getServerBaseUrl } = require('./utils/utils');
@@ -147,12 +147,15 @@ class SyncManager extends EventEmitter {
     // CONTRACTS §6-7: a missing folder or another identity's metadata pauses the session before
     // anything reads its baseline or its disk; a folder that came back clears its own pause.
     let rootMarker = false;
+    let rootDir = null;
     let refused = false;
     if (!setup) {
       const refusal = await this.localRefusal(session, root, resumed);
       if (refusal) { this.persistPaused(session.id, refusal); refused = true; }
       else if (['folder-missing', 'folder-replaced', 'identity-mismatch'].includes(this.pausedReasonFor(session))) this.persistPaused(session.id, null);
-      rootMarker = (await this.readIdentity(session))?.rootMarker === true;
+      const identity = await this.readIdentity(session);
+      rootMarker = identity?.rootMarker === true;
+      rootDir = identity?.rootDir ?? null;
     }
     // A bind and an import own the session's first pass, so init runs no passes
     // and opens no stream of its own. Both read the complete inventory only
@@ -246,7 +249,7 @@ class SyncManager extends EventEmitter {
     try {
       const result = await engine.init(apiKey, session.cached?.username, root.path, this.serverUrl,
         this.deviceId, resumed === 'import' ? this.v2MetaDir(session) : metaDir, {
-          sessionId: session.id, accountId, rootId: root.id, rootMarker,
+          sessionId: session.id, accountId, rootId: root.id, rootMarker, rootDir,
           syncBase, protocol: effectiveProtocol, firstBind: noInitPasses, uploadLimit,
           createFolder: setup,
           live: createRootLive(root),
@@ -921,6 +924,18 @@ class SyncManager extends EventEmitter {
     this.emit('roots-changed', { roots: settings.roots });
 
     const firstBind = mode !== 'existing';
+    // A folder linked with its files already in it is this session's from now on: the
+    // identity is written before anything runs, and the runner marks the folder as it starts.
+    if (!firstBind) {
+      recordIdentity(this.metaDirFor(session), {
+        serverUrl: this.serverUrl,
+        actorId: actorId ?? null,
+        accountId: session.accountId ?? null,
+        rootId: root.id ?? null,
+        rootRealpath: await fs.realpath(root.path).catch(() => root.path),
+        rootDir: rootDirIdentity(root.path),
+      });
+    }
     // On a first bind the engine exists but reconciles nothing: the bind is its first pass.
     const started = await this.start(session, root, { syncBase: account.syncBase, protocol: 2, firstBind, uploadLimit: account?.limits?.uploadBytes });
     if (!started.success) {

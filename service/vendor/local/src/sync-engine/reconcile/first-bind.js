@@ -20,7 +20,7 @@ const path = require('upath');
 const { getAccounts, listNodes } = require('../api-client');
 const { fileExists } = require('../file-operations');
 const { executeDecision } = require('./execute');
-const { putRootMarker } = require('../root-marker');
+const { putRootMarker, rootDirIdentity } = require('../root-marker');
 const { documentHostFor } = require('../local-boundary');
 
 const BIND_MARKER = 'bind-in-progress.json';
@@ -270,7 +270,9 @@ async function firstBind(entry, options = {}) {
     });
     markerWritten = true;
 
-    // 5. Folders, then sites, then uploads.
+    // 5. Folders, then sites, then uploads. A first download only ever changes this
+    // computer: a file missing here comes down, one that differs is a conflict.
+    engine.recheckPass = true;
     await engine.serial(() => engine.performInitialFolderSync(nodes));
     const files = nodes.filter((node) => node.type !== 'folder').sort((a, b) => rankOf(a) - rankOf(b));
     let done = 0;
@@ -303,6 +305,7 @@ async function firstBind(entry, options = {}) {
       await engine.refreshNode(nodeId, { signal });
     }
 
+    engine.recheckPass = false;
     if (aborted()) return { ok: false, error: 'cancelled', resumable: true };
 
     // 6. The baseline first, then identity, then the marker: only a session
@@ -316,8 +319,10 @@ async function firstBind(entry, options = {}) {
       rootId: session.rootId ?? null,
       rootRealpath,
       rootMarker: true,
+      rootDir: rootDirIdentity(root.path),
     });
     engine.rootMarkerRequired = true;
+    engine.rootDir = rootDirIdentity(root.path);
     await clearBindMarker(metaDir);
 
     // 7. The session is live: watch the folder from now on. Its state machine
@@ -329,6 +334,7 @@ async function firstBind(entry, options = {}) {
     if (engine.logger) engine.logger.error('SYNC', 'First bind failed', { error: error.message });
     return { ok: false, error: errorToken(error), reason: error.message, resumable: markerWritten };
   } finally {
+    engine.recheckPass = false;
     if (opened) opened.close();
   }
 }

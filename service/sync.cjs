@@ -46,6 +46,11 @@ const relPathOf = (node) => (node.path ? `${node.path}/${node.name}` : node.name
 async function compareFolder(folder, nodes) {
   const { entries } = await snapshotDisk(folder, { ignore: isIgnoredRel });
   const local = new Map([...entries].filter(([, entry]) => entry.type === 'file'));
+  // On a disk that folds case, logo.png here and Logo.png there are one file: it waits as a
+  // name clash, so it is counted with the files that differ, not as one up and one down.
+  const folds = process.platform === 'darwin' || process.platform === 'win32';
+  const foldKey = (rel) => rel.normalize('NFC').toLowerCase();
+  const localByFold = new Map([...local.keys()].map((rel) => [foldKey(rel), rel]));
   let toDownload = 0;
   let differ = 0;
   for (const node of nodes) {
@@ -53,6 +58,12 @@ async function compareFolder(folder, nodes) {
     const rel = relPathOf(node);
     if (isIgnoredRel(rel)) continue;
     if (!local.has(rel)) {
+      const twin = folds ? localByFold.get(foldKey(rel)) : undefined;
+      if (twin !== undefined && local.has(twin)) {
+        local.delete(twin);
+        differ += 1;
+        continue;
+      }
       toDownload += 1;
       continue;
     }

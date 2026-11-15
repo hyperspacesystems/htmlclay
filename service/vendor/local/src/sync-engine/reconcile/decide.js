@@ -18,9 +18,11 @@ const A = Object.freeze({
  * @param {null|{etag:string}} input.remote       null = absent from the inventory
  * @param {boolean} input.complete                the inventory said complete: true
  * @param {boolean} input.bootstrap               first pass after a legacy import or lost map
+ * @param {boolean} input.recheck                 the folder is not proven to be the one the
+ *   baseline was recorded in: the baseline may change this computer, never the server
  * @returns {{action:string, conflictKind?:string}}
  */
-function decide({ baseline, local, remote, complete, bootstrap = false }) {
+function decide({ baseline, local, remote, complete, bootstrap = false, recheck = false }) {
   if (!remote && !complete) return { action: A.DEFER };
 
   const known = baseline && baseline.remoteEtag && baseline.localChecksum;
@@ -31,7 +33,7 @@ function decide({ baseline, local, remote, complete, bootstrap = false }) {
         ? { action: A.ADOPT }
         : { action: A.CONFLICT, conflictKind: 'unbound' };
     }
-    if (local) return { action: A.CREATE_REMOTE };
+    if (local) return recheck ? { action: A.DEFER } : { action: A.CREATE_REMOTE };
     if (remote) return { action: A.DOWNLOAD };
     return { action: A.FORGET };
   }
@@ -42,7 +44,8 @@ function decide({ baseline, local, remote, complete, bootstrap = false }) {
   if (local && remote) {
     if (!localChanged && !remoteChanged) return { action: A.NOOP };
     if (localChanged && !remoteChanged) {
-      return baseline.uploadBlocked ? { action: A.NOOP } : { action: A.UPLOAD };
+      if (baseline.uploadBlocked) return { action: A.NOOP };
+      return recheck ? { action: A.CONFLICT, conflictKind: 'unbound' } : { action: A.UPLOAD };
     }
     if (!localChanged && remoteChanged) return { action: A.DOWNLOAD };
     return local.checksum === remote.etag
@@ -57,7 +60,7 @@ function decide({ baseline, local, remote, complete, bootstrap = false }) {
   }
 
   if (!local && remote) {
-    if (remoteChanged || bootstrap) return { action: A.DOWNLOAD };
+    if (remoteChanged || bootstrap || recheck) return { action: A.DOWNLOAD };
     return { action: A.DELETE_REMOTE };
   }
 

@@ -87,19 +87,37 @@ function classifyRoot(rootPath, { rootId, required, baselineSize }) {
   return { refusal: null, adopt: true };
 }
 
-/** Record in `identity.json` that the session's folder is marked. No identity, nothing written. */
-function flagIdentity(metaDir) {
+/**
+ * The root directory's own identity: its inode and birth time, the form the node map keeps
+ * for files. A copy, a restore and a move to another volume all get a new one; a rename or
+ * a move on the same volume keeps it. Null when the root cannot be read.
+ */
+function rootDirIdentity(rootPath) {
+  try {
+    const stat = fsSync.statSync(rootPath, { bigint: true });
+    return `${stat.ino}:${stat.birthtimeNs}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Merge `fields` into the session's `identity.json`, creating it when the session has none
+ * yet (a folder linked with its files already in it). Returns false when there is no metaDir.
+ */
+function recordIdentity(metaDir, fields) {
   if (!metaDir) return false;
   const file = path.join(metaDir, IDENTITY_FILE);
-  let identity;
+  let identity = {};
   try {
-    identity = JSON.parse(fsSync.readFileSync(file, 'utf8'));
+    const parsed = JSON.parse(fsSync.readFileSync(file, 'utf8'));
+    if (parsed && typeof parsed === 'object') identity = parsed;
   } catch {
-    return false;
+    identity = {};
   }
-  if (!identity || typeof identity !== 'object' || identity.rootMarker === true) return false;
-  fsSync.writeFileSync(file, JSON.stringify({ ...identity, rootMarker: true }, null, 2));
+  fsSync.mkdirSync(metaDir, { recursive: true });
+  fsSync.writeFileSync(file, JSON.stringify({ ...identity, ...fields }, null, 2));
   return true;
 }
 
-module.exports = { MARKER_DIR, MARKER_FILE, markerPath, readRootMarker, writeRootMarker, rootIsEmpty, classifyRoot, flagIdentity, putRootMarker, markerBytes, MARKER_REL };
+module.exports = { MARKER_DIR, MARKER_FILE, markerPath, readRootMarker, writeRootMarker, rootIsEmpty, classifyRoot, recordIdentity, rootDirIdentity, putRootMarker, markerBytes, MARKER_REL };

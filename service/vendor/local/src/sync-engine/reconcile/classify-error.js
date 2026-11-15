@@ -8,6 +8,8 @@ function classifyError(error) {
   // The root's `uploads` folder is never sent a rename, move or delete: the item is skipped, not retried.
   if (error && error.code === 'locked-folder') return { kind: 'skip', reason: 'locked-folder' };
   if (error && (error.code === 'folder-missing' || error.code === 'folder-replaced')) return { kind: 'pause', reason: error.code };
+  // A write from a folder the session cannot prove is its own is skipped; the guard that refused it restarts the session.
+  if (error && error.code === 'folder-unproven') return { kind: 'skip', reason: 'folder-unproven' };
   const status = error.statusCode;
   const code = error.code;
   if (!status) return { kind: 'offline' };

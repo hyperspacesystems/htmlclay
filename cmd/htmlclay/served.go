@@ -385,6 +385,47 @@ func (a *app) serveFacts(resolved, name string) (appcore.ServeFacts, *appcore.Re
 	return facts, appcore.CheckServe(facts)
 }
 
+// serveFactsFor is serveFacts for a folder that is already served as entry, at path (its
+// own, or the one Find it would move it to): the entry is left out of the folders path may
+// not overlap, and its name stays its own.
+func (a *app) serveFactsFor(path string, entry config.ServedFolder) (appcore.ServeFacts, *appcore.Refusal) {
+	served := []config.ServedFolder{}
+	for _, f := range a.rt.cfg.ServedFolderList() {
+		if f.ID != entry.ID {
+			served = append(served, f)
+		}
+	}
+	trusted := []config.TrustedFolder{}
+	for _, f := range a.rt.cfg.TrustedFolderList() {
+		if f.ID != entry.ID {
+			trusted = append(trusted, f)
+		}
+	}
+	localRoots := []string{}
+	for _, root := range wireLocalRoots(wireLocalRootsPath()) {
+		localRoots = append(localRoots, root.Path)
+	}
+
+	facts := appcore.GatherServeFacts(appcore.ServeInputs{
+		Path:      path,
+		Name:      entry.Name,
+		Home:      a.rt.home,
+		Protected: []string{a.rt.configDir},
+		Served:    served,
+		Trusted:   trusted,
+		// A folder this app syncs carries this app's own marker.
+		OwnSyncRoots: a.ownSyncRoots(),
+		NameAvailable: func(name string) error {
+			if name == entry.Name {
+				return nil
+			}
+			return a.rt.cfg.ServedNameAvailable(name)
+		},
+		LocalServed: localRoots,
+	})
+	return facts, appcore.CheckServe(facts)
+}
+
 // checkServe answers what serving path under name would do, without serving it: the
 // entry it would create, and the first rule that refuses it. Nothing is written and
 // no lock is taken, so a sheet can show the address before the person confirms.
@@ -459,36 +500,8 @@ func (a *app) resumeServedFolder(entry config.ServedFolder) (config.ServedFolder
 		return config.ServedFolder{}, &appcore.Refusal{Code: appcore.RefuseOverlapsServed, OtherPath: entry.Path, OtherName: entry.Name}, nil
 	}
 
-	served := []config.ServedFolder{}
-	for _, f := range a.rt.cfg.ServedFolderList() {
-		if f.ID != entry.ID {
-			served = append(served, f)
-		}
-	}
-	localRoots := []string{}
-	for _, root := range wireLocalRoots(wireLocalRootsPath()) {
-		localRoots = append(localRoots, root.Path)
-	}
-
-	facts := appcore.GatherServeFacts(appcore.ServeInputs{
-		Path:      entry.Path,
-		Name:      entry.Name,
-		Home:      a.rt.home,
-		Protected: []string{a.rt.configDir},
-		Served:    served,
-		Trusted:   a.rt.cfg.TrustedFolderList(),
-		// A folder this app syncs carries this app's own marker.
-		OwnSyncRoots: a.ownSyncRoots(),
-		// The resumed name is the entry's own, so it is not taken by it.
-		NameAvailable: func(name string) error {
-			if name == entry.Name {
-				return nil
-			}
-			return a.rt.cfg.ServedNameAvailable(name)
-		},
-		LocalServed: localRoots,
-	})
-	if refusal := appcore.CheckServe(facts); refusal != nil {
+	facts, refusal := a.serveFactsFor(entry.Path, entry)
+	if refusal != nil {
 		return config.ServedFolder{}, refusal, nil
 	}
 
