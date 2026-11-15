@@ -99,6 +99,10 @@ try {
     const f = snap.folders.find((x) => x.id === row.id);
     return f && f.synced && f.sync?.state === 'up-to-date';
   });
+  // The row can read up to date just before the first download writes its marker; a folder
+  // moved then leaves the marker behind (F-8.55h). Wait for the host to say the download finished.
+  await until('the first download finished', () =>
+    readFileSync(path.join(configDir, 'htmlclay.log'), 'utf8').includes('The first download for folder'));
 
   // User moves/renames their synced folder in Finder / Explorer (`maya` -> `Projects/maya`)
   // and clicks "Find it" (`folder.relink`) in HTML Clay:
@@ -107,7 +111,17 @@ try {
   const newFolder = path.join(projectsDir, 'maya');
   renameSync(oldFolder, newFolder);
 
-  await act('folder.relink', { id: row.id, path: newFolder });
+  // A Find it during the last moments of the first download is refused with sync-downloading;
+  // a person clicks again, so the probe does too.
+  await until('Find it accepted after the first download', async () => {
+    try {
+      await act('folder.relink', { id: row.id, path: newFolder });
+      return true;
+    } catch (error) {
+      if (String(error.message).includes('"sync-downloading"')) return false;
+      throw error;
+    }
+  });
 
   // Immediately on `folder.relink`, `moveRelinkedMount` -> `removeRoot` stops the session
   // and `mountServed` -> `addRoot` calls `sendSyncWanted()`, which runs `SyncManager.start` ->

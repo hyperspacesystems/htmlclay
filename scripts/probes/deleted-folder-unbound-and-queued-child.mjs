@@ -98,8 +98,9 @@ try {
   }
   const specUploadedAfterKeepMine = fake.server.hasPath('projects/spec.html');
 
-  // 2) Maya clicks Keep both on projects/roadmap.html -> writes serverRoadmap to projects/roadmap.html bound to dead node 42,
-  //    then the next comparison sees node 42 deleted on server with local == baseline and TRASHES projects/roadmap.html!
+  // 2) Decided (8.55 round 2): once its folder is deleted online the roadmap conflict is held as
+  //    deleted online, which offers Keep mine and Keep theirs only. Keep both is refused, and
+  //    Maya's own roadmap.html stays in the folder, still held, after a service restart.
   let keepBothError = null;
   try {
     await d.send('resolve', { conflict: roadmapConflict, keep: 'both' });
@@ -110,10 +111,10 @@ try {
   await d.send('idle', { timeoutMs: 45000 });
   await wait(2000);
 
-  const roadmapTheirsStillInFolder = existsSync(path.join(folder, 'projects', 'roadmap.html')) &&
-    sha(readFileSync(path.join(folder, 'projects', 'roadmap.html'))) === sha(serverRoadmap);
-  const roadmapTheirsOnServer = [...fake.server.nodes.values()].some((n) =>
-    n.content && sha(Buffer.from(n.content)) === sha(serverRoadmap));
+  const roadmapMineStillInFolder = existsSync(path.join(folder, 'projects', 'roadmap.html')) &&
+    sha(readFileSync(path.join(folder, 'projects', 'roadmap.html'))) === sha(mayaRoadmap);
+  const roadmapHeldDeleted = Boolean((await d.send('conflicts')).find((c) =>
+    c.path === 'projects/roadmap.html' && c.kind === 'remote-deleted'));
 
   // --- Case B: New child file queued in notes/ right before teammate deletes notes/ online ---
   writeFileSync(path.join(folder, 'notes', 'fresh.html'), freshDoc);
@@ -132,20 +133,20 @@ try {
 
   console.log(
     `Case A: keepMineError=${keepMineError} specUploadedAfterKeepMine=${specUploadedAfterKeepMine} ` +
-    `keepBothError=${keepBothError} roadmapTheirsStillInFolder=${roadmapTheirsStillInFolder} roadmapTheirsOnServer=${roadmapTheirsOnServer}`,
+    `keepBothError=${keepBothError} roadmapMineStillInFolder=${roadmapMineStillInFolder} roadmapHeldDeleted=${roadmapHeldDeleted}`,
   );
   console.log(
     `Case B: freshExistsLocally=${freshExistsLocally} freshUploadedToServer=${freshUploadedToServer} missingParentLogged=${missingParentLogged}`,
   );
 
-  const caseAFailed = Boolean(keepMineError) || !specUploadedAfterKeepMine || !roadmapTheirsStillInFolder || !roadmapTheirsOnServer;
+  const caseAFailed = Boolean(keepMineError) || !specUploadedAfterKeepMine || keepBothError !== 'bad-arguments' || !roadmapMineStillInFolder || !roadmapHeldDeleted;
   const caseBFailed = freshExistsLocally && !freshUploadedToServer;
 
   if (caseAFailed || caseBFailed) {
     console.log(
       `FAILED deleted-folder-unbound-and-queued-child: after online folder delete, ` +
       `unbound Keep mine failed (${keepMineError}, uploaded=${specUploadedAfterKeepMine}), ` +
-      `unbound Keep both self-trashed theirs (inFolder=${roadmapTheirsStillInFolder}, onServer=${roadmapTheirsOnServer}), ` +
+      `roadmap not held as deleted online with Maya's copy kept (keepBoth=${keepBothError}, mine=${roadmapMineStillInFolder}, held=${roadmapHeldDeleted}), ` +
       `and new child notes/fresh.html stranded unsynced=${caseBFailed} (missingParentLogged=${missingParentLogged})`,
     );
     process.exit(1);
