@@ -1,7 +1,8 @@
 // Command stubservice is a stand-in live-room service for the Mac app's Quit
 // tests. The host runs it through HTMLCLAY_SERVICE_CMD, speaks the service's
 // bootstrap, attach and HTTP protocol with it, and it reports one unsaved
-// document while the file HTMLCLAY_STUB_HOLD exists. It is test-only: it is
+// document while the file HTMLCLAY_STUB_HOLD exists, and it answers the sync key
+// lines. It is test-only: it is
 // never bundled with the app.
 package main
 
@@ -99,12 +100,42 @@ func main() {
 		next, err := in.ReadString('\n')
 		if strings.Contains(next, `"host"`) {
 			fmt.Println("ATTACHED")
+		} else if strings.Contains(next, `"sync"`) {
+			fmt.Println(syncAnswer(next))
 		}
 		if err != nil {
 			break
 		}
 	}
 	os.Exit(0)
+}
+
+// syncAnswer answers one sync key line as the service does (08-sync.md, C2),
+// and appends the line to HTMLCLAY_STUB_SYNC_LOG when that is set, so a test can
+// see what the host sent. Only a test's own key ever reaches it.
+func syncAnswer(line string) string {
+	if path := os.Getenv("HTMLCLAY_STUB_SYNC_LOG"); path != "" {
+		if f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+			_, _ = f.WriteString(strings.TrimRight(line, "\n") + "\n")
+			_ = f.Close()
+		}
+	}
+	var message struct {
+		Sync *struct {
+			V   int     `json:"v"`
+			Key *string `json:"key"`
+		} `json:"sync"`
+	}
+	if json.Unmarshal([]byte(line), &message) != nil || message.Sync == nil || message.Sync.V != 1 {
+		return "SYNC KEY REFUSED"
+	}
+	if message.Sync.Key == nil {
+		return "SYNC KEY CLEARED"
+	}
+	if !strings.HasPrefix(*message.Sync.Key, "hcsk_") {
+		return "SYNC KEY REFUSED"
+	}
+	return "SYNC KEY HELD"
 }
 
 // stub is the service's HTTP side: the supervisor's bearer, then one answer per

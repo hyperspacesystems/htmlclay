@@ -297,6 +297,13 @@ func (r *serviceRunner) spawn() {
 		proc.Kill()
 		return
 	}
+	// Every new process starts with no key, so it gets the key again before it
+	// counts as running.
+	if serverURL, key, ok := r.a.syncKey(); ok {
+		if err := proc.SendSyncKey(serverURL, key, serviceSpawnTimeout); err != nil {
+			r.a.rt.logger.Printf("The live-room service did not take the sync key: %v", err)
+		}
+	}
 	r.step(service.Event{Kind: service.Attached})
 	r.reconcileRoots(host.Roots)
 }

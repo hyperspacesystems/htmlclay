@@ -19,6 +19,7 @@ import (
 	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/secret"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
@@ -69,6 +70,9 @@ type appRuntime struct {
 	// start; agentTokenFile is where it lives. Never logged or put in a snapshot.
 	agentToken     string
 	agentTokenFile string
+	// syncStore is the system's secret store holding the sync key; nil when it
+	// could not be opened, and in tests that do not set one.
+	syncStore secret.Store
 	// folderLockDir is where the per-folder serve locks live. It is shared by every
 	// profile on this account, so two HTML Clay processes never serve one folder.
 	folderLockDir string
@@ -596,6 +600,7 @@ func (a *app) startRuntime() {
 
 	a.rt.portCandidates = defaultPorts
 
+	a.rt.syncStore = a.openSyncStore()
 	a.service = newServiceRunner(a)
 
 	a.rt.logger.Printf("Runtime ready (home=%s)", a.rt.home)

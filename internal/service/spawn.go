@@ -62,6 +62,9 @@ type Process struct {
 	cmd     *exec.Cmd
 	stdin   io.WriteCloser
 	writeMu sync.Mutex
+	// exchangeMu holds one stdin line and the stdout answer it waits for, so a
+	// sync key line sent from an action never reads the runner's ATTACHED.
+	exchangeMu sync.Mutex
 	// lines carries stdout lines to Start and Attach; a reader never blocks on
 	// it, so a full queue makes lines go to Log instead.
 	lines   chan string
@@ -183,26 +186,78 @@ func (p *Process) Attach(host Host, timeout time.Duration) error {
 		// The service iterates roots, so it needs a list, not null.
 		host.Roots = []Root{}
 	}
-	if err := p.writeLine(struct {
+	_, err := p.exchange(struct {
 		Host Host `json:"host"`
-	}{Host: host}); err != nil {
-		return fmt.Errorf("attach: writing the host line: %w; %s", err, p.stderrText())
+	}{Host: host}, "attach", "the host line", timeout, "ATTACHED")
+	return err
+}
+
+// ErrSyncKeyRefused is the service's SYNC KEY REFUSED answer: the line did not
+// carry a key and server it accepts.
+var ErrSyncKeyRefused = errors.New("the service refused the sync key line")
+
+// syncLine is C2's stdin line. It is marshalled only inside writeLine and never
+// logged; no error built here carries any part of it.
+type syncLine struct {
+	Sync struct {
+		V         int     `json:"v"`
+		ServerURL string  `json:"serverUrl,omitempty"`
+		Key       *string `json:"key"`
+	} `json:"sync"`
+}
+
+// SendSyncKey hands the service the sync key and waits for SYNC KEY HELD.
+func (p *Process) SendSyncKey(serverURL, key string, timeout time.Duration) error {
+	var line syncLine
+	line.Sync.V = 1
+	line.Sync.ServerURL = serverURL
+	line.Sync.Key = &key
+	answer, err := p.exchange(line, "sync key", "the sync key line", timeout, "SYNC KEY HELD", "SYNC KEY REFUSED")
+	if err != nil {
+		return err
 	}
+	if answer == "SYNC KEY REFUSED" {
+		return ErrSyncKeyRefused
+	}
+	return nil
+}
+
+// ClearSyncKey tells the service to drop the key and waits for SYNC KEY CLEARED,
+// which it prints after every session has stopped.
+func (p *Process) ClearSyncKey(timeout time.Duration) error {
+	var line syncLine
+	line.Sync.V = 1
+	_, err := p.exchange(line, "sync key", "the sync key line", timeout, "SYNC KEY CLEARED")
+	return err
+}
+
+// exchange writes one line and waits for one of the answers. Other stdout lines
+// go to the log.
+func (p *Process) exchange(v any, what, line string, timeout time.Duration, answers ...string) (string, error) {
+	p.exchangeMu.Lock()
+	defer p.exchangeMu.Unlock()
+	if err := p.writeLine(v); err != nil {
+		return "", fmt.Errorf("%s: writing %s: %w; %s", what, line, err, p.stderrText())
+	}
+	want := strings.Join(answers, " or ")
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	for {
 		select {
-		case line := <-p.lines:
-			if strings.TrimSpace(line) == "ATTACHED" {
-				return nil
+		case out := <-p.lines:
+			trimmed := strings.TrimSpace(out)
+			for _, answer := range answers {
+				if trimmed == answer {
+					return answer, nil
+				}
 			}
-			p.logLine("stdout: " + line)
+			p.logLine("stdout: " + out)
 		case <-p.done:
-			return p.diedError("ATTACHED")
+			return "", p.diedError(want)
 		case <-p.outDone:
-			return p.diedError("ATTACHED")
+			return "", p.diedError(want)
 		case <-timer.C:
-			return fmt.Errorf("attach: timeout: the service printed no ATTACHED line within %v; %s", timeout, p.stderrText())
+			return "", fmt.Errorf("%s: timeout: the service printed no %s line within %v; %s", what, want, timeout, p.stderrText())
 		}
 	}
 }
