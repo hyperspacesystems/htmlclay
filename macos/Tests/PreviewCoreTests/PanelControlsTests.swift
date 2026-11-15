@@ -100,4 +100,13 @@ final class PanelWaitingKindsTests: XCTestCase {
         XCTAssertTrue(WaitingItem.Kind.removalHeld.earnsDot)
         XCTAssertEqual(WaitingItem.Kind.removalHeld.pane, .folders)
     }
+
+    func testSyncedFolderWaitingKindsDecodeToFoldersWithoutADot() throws {
+        let kinds = try JSONDecoder().decode([WaitingItem.Kind].self, from: Data(#"["fileNotText","nameClash"]"#.utf8))
+        XCTAssertEqual(kinds, [.fileNotText, .nameClash])
+        for kind in kinds {
+            XCTAssertFalse(kind.earnsDot, kind.rawValue)
+            XCTAssertEqual(kind.pane, .folders, kind.rawValue)
+        }
+    }
 }

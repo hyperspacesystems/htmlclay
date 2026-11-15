@@ -257,18 +257,18 @@ public struct ProgramRequest: Codable, Equatable, Identifiable, Sendable {
 public struct WaitingItem: Codable, Equatable, Identifiable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
         case conflict, programRequest, syncKeyRefused, folderMissing, serviceFailed
-        case programFileMissing, fileTooBig, teamToSetUp, removalHeld
+        case programFileMissing, fileTooBig, teamToSetUp, removalHeld, fileNotText, nameClash
 
         public var earnsDot: Bool {
             switch self {
             case .conflict, .programRequest, .syncKeyRefused, .folderMissing, .serviceFailed, .removalHeld: return true
-            case .programFileMissing, .fileTooBig, .teamToSetUp: return false
+            case .programFileMissing, .fileTooBig, .teamToSetUp, .fileNotText, .nameClash: return false
             }
         }
 
         public var pane: SettingsPane {
             switch self {
-            case .conflict, .folderMissing, .fileTooBig, .teamToSetUp, .removalHeld: return .folders
+            case .conflict, .folderMissing, .fileTooBig, .teamToSetUp, .removalHeld, .fileNotText, .nameClash: return .folders
             case .programRequest, .programFileMissing: return .programs
             case .syncKeyRefused: return .sync
             case .serviceFailed: return .advanced
