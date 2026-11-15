@@ -228,7 +228,7 @@ func (h *commitHost) commit(request *commitRequest) (commitResult, error) {
 	if request.Hooks {
 		return commitResult{}, errors.New("hooks ended in M16")
 	}
-	filePath, err := h.resolveWrite(request.Name)
+	filePath, err := resolveControlWritePath(h.registry, request.Name)
 	if err != nil {
 		return commitResult{}, err
 	}

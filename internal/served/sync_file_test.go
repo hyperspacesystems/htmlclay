@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -124,4 +125,66 @@ func TestM4SyncFile(t *testing.T) {
 			t.Fatalf("second = %d %v, want 409 op-reused", status, answer)
 		}
 	})
+}
+
+// TestM4ControlWritesStayOutOfBookkeeping is hunt finding H2-c (8.54): a server
+// folder named .hyperclay made the engine send a sync download named
+// .hyperclay/versions/x.html, and Go wrote it among the kept versions. Every
+// control write now refuses .hyperclay/, in any case and through a link.
+func TestM4ControlWritesStayOutOfBookkeeping(t *testing.T) {
+	root := controlTestRoot(t, "root-0")
+	server := controlTestServer(t, root)
+	if err := os.MkdirAll(filepath.Join(root.baseDir, ".hyperclay", "versions"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" {
+		if err := os.Symlink(filepath.Join(root.baseDir, ".hyperclay"), filepath.Join(root.baseDir, "lnk")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seq := 0
+	opID := func() string {
+		seq++
+		return hex.EncodeToString([]byte{0x7a, 0, 0, 0, 0, 0, 0, byte(seq)})
+	}
+	download := func(name string) (int, map[string]any) {
+		return controlJSON(t, server, controlSecret, http.MethodPost, "/v1/commit", map[string]any{
+			"opId": opID(), "root": "root-0", "name": name, "kind": "sync-download",
+			"bytes": map[string]any{"encoding": "utf8", "data": "<p>planted</p>"},
+		})
+	}
+
+	if status, answer := download("fine.html"); status != http.StatusOK || answer["outcome"] != "committed" {
+		t.Fatalf("an ordinary download answered %d %v", status, answer)
+	}
+	names := []string{".hyperclay/versions/x.html", ".HyperClay/versions/x.html", "a/.hyperclay/x.html"}
+	if runtime.GOOS != "windows" {
+		names = append(names, "lnk/versions/y.html")
+	}
+	for _, name := range names {
+		if status, answer := download(name); status == http.StatusOK && answer["outcome"] == "committed" {
+			t.Errorf("a download named %s was committed: %v", name, answer)
+		}
+	}
+	status, answer := controlJSON(t, server, controlSecret, http.MethodPost, "/v1/restructure", map[string]any{
+		"opId": opID(), "root": "root-0", "kind": "sync-move",
+		"steps": []map[string]any{{"from": "fine.html", "to": ".hyperclay/versions/fine.html"}},
+	})
+	if status == http.StatusOK && answer["outcome"] == "committed" {
+		t.Errorf("a move into .hyperclay/ was committed: %v", answer)
+	}
+	err := filepath.WalkDir(filepath.Join(root.baseDir, ".hyperclay"), func(path string, entry os.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() {
+			if data, readErr := os.ReadFile(path); readErr == nil && strings.Contains(string(data), "planted") {
+				t.Errorf("server bytes landed in Go's bookkeeping at %s", path)
+			}
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root.baseDir, "fine.html")); err != nil {
+		t.Errorf("the refused move took fine.html away: %v", err)
+	}
 }

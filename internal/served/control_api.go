@@ -455,14 +455,14 @@ func (a *controlAPI) serveRestructure(w http.ResponseWriter, r *http.Request) {
 	for _, step := range body.Steps {
 		fromPath := ""
 		if step.From != "" {
-			resolved, err := resolveWritePath(root.registry, step.From)
+			resolved, err := resolveControlWritePath(root.registry, step.From)
 			if err != nil {
 				writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
 				return
 			}
 			fromPath = resolved
 		}
-		toPath, err := resolveWritePath(root.registry, step.To)
+		toPath, err := resolveControlWritePath(root.registry, step.To)
 		if err != nil {
 			writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
 			return
@@ -539,7 +539,7 @@ func (a *controlAPI) servePageState(w http.ResponseWriter, r *http.Request) {
 	var unlock func()
 	switch body.Op {
 	case "write":
-		filePath, resolveErr := resolveWritePath(root.registry, body.Name)
+		filePath, resolveErr := resolveControlWritePath(root.registry, body.Name)
 		if resolveErr != nil {
 			writeControlJSON(w, controlErrorStatus(resolveErr), controlError{Error: resolveErr.Error()})
 			return

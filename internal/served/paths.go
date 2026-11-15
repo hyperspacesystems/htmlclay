@@ -457,6 +457,32 @@ func resolveWritePath(registry *consentRegistry, relPath string) (string, error)
 	return real, nil
 }
 
+// resolveControlWritePath is resolveWritePath for a write the live-room service
+// asks for. .hyperclay/ is Go's own (kept versions, guard records, the sync
+// marker), so a name inside it, or one that reaches it through a link, is
+// refused; sync's own files there go through /v1/sync/file's allow list.
+func resolveControlWritePath(registry *consentRegistry, relPath string) (string, error) {
+	real, err := resolveWritePath(registry, relPath)
+	if err != nil {
+		return "", err
+	}
+	if inside, ok := strings.CutPrefix(real, registry.BaseReal()+"/"); ok && namesBookkeeping(inside) {
+		return "", accessDeniedError()
+	}
+	return real, nil
+}
+
+// namesBookkeeping reports whether a slash path has a .hyperclay segment, in any
+// case, since a folder that folds case reaches the same directory.
+func namesBookkeeping(relPath string) bool {
+	for _, segment := range strings.Split(relPath, "/") {
+		if strings.EqualFold(segment, ".hyperclay") {
+			return true
+		}
+	}
+	return false
+}
+
 type resolvedRequest struct {
 	RelPath  string
 	RealPath string

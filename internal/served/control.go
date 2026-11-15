@@ -127,7 +127,7 @@ func (a *controlAPI) serveReconciled(w http.ResponseWriter, r *http.Request, lin
 	if !ok {
 		return
 	}
-	filePath, err := resolveWritePath(root.registry, body.Name)
+	filePath, err := resolveControlWritePath(root.registry, body.Name)
 	if err != nil {
 		writeControlJSON(w, controlErrorStatus(err), controlError{Error: err.Error()})
 		return

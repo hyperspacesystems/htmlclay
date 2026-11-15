@@ -152,8 +152,9 @@ export function save({ port, host, doc, body }) {
 
 // One synced, served folder for the account maya on L1's fake, seeded with nodes.
 // Answers once the first download has landed, unless waitForFirst is false (the
-// kill sweep watches it land itself).
-export async function startWorld({ out, built, nodes, waitForFirst = true, log = 'host.log' }) {
+// kill sweep watches it land itself). beforeSetUp(folder) runs just before the
+// folder is set up, for a folder that needs preparing (a small disk).
+export async function startWorld({ out, built, nodes, waitForFirst = true, log = 'host.log', beforeSetUp = null }) {
   if (!existsSync(FAKE)) throw new Error(`no Hyperclay Local checkout at ${LOCAL} (set HTMLCLAY_SYNC_LOCAL)`);
   const key = `hcsk_${randomBytes(32).toString('hex')}`;
   const require = createRequire(import.meta.url);
@@ -173,6 +174,7 @@ export async function startWorld({ out, built, nodes, waitForFirst = true, log =
   await d.ready;
   await d.send('start', { bin: built.bin, configBase: path.join(base, 'config'), log: path.join(out, log), syncServer: fake.url, serviceCmd: built.serviceCmd });
   await d.send('connect', { key });
+  if (beforeSetUp) await beforeSetUp(folder);
   await d.send('setUp', { account: 'maya', folder });
   const world = {
     d, fake, server, folder, base,
