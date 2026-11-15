@@ -46,7 +46,7 @@ async function run(dataDir) {
   const { mountShell } = require('./shell.cjs');
   const { keepUnsavedEdits } = require('./recover.cjs');
   const { installGate } = require('./sync-net.cjs');
-  const { createSync } = require('./sync.cjs');
+  const { createSync, mountSync } = require('./sync.cjs');
   const sync = createSync({ gate: installGate() });
 
   const lines = readline.createInterface({ input: process.stdin, crlfDelay: Infinity })[Symbol.asyncIterator]();
@@ -65,6 +65,7 @@ async function run(dataDir) {
   keepUnsavedEdits(service);
   // The bundle's bootstrap type carries appVersion but nothing reads it.
   const shell = mountShell(service, { appVersion: '' });
+  mountSync(service, sync);
   const url = await service.listen();
   process.stdout.write(`READY ${JSON.stringify({ url, epoch: service.epoch, pid: process.pid })}\n`);
   for (;;) {
