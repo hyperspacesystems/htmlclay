@@ -31,23 +31,35 @@ func (h *commitHost) commitExact(request *commitRequest, filePath string) (commi
 			return *refusal, nil
 		}
 	}
+	// What a download replaces is kept as a version first, as a save's is. Bytes
+	// that could not be kept are not replaced: the download is refused and the
+	// file stays as it is (08-sync.md defect D-A).
 	var previous *string
 	if isDocument {
-		if data, err := os.ReadFile(filePath); err == nil {
+		data, err := os.ReadFile(filePath)
+		if err == nil {
 			text := string(data)
 			previous = &text
 		}
-	}
-
-	if isDocument {
-		CreateBackupIfExists(filePath, backupSiteName(request.Name), h.baseDir, h.observer())
+		kept := errors.Is(err, fs.ErrNotExist) ||
+			(err == nil && CreateBackup(h.baseDir, backupSiteName(request.Name), data, h.observer()) != nil)
+		if !kept {
+			if consult != nil {
+				consult.end(errReplacedNotKept)
+			}
+			return refused("backup-failed"), nil
+		}
 		if request.PageRecord != nil {
 			if err := writePageState(h.baseDir, request.Name, request.PageRecord, false); err != nil {
 				return commitResult{}, err
 			}
 		}
-	} else {
-		CreateBinaryBackupIfExists(filePath, request.Name, h.baseDir, h.observer())
+	} else if data, err := os.ReadFile(filePath); err == nil {
+		if CreateBinaryBackup(h.baseDir, request.Name, data, h.observer()) == nil {
+			return refused("backup-failed"), nil
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return refused("backup-failed"), nil
 	}
 
 	stored := any(request.Bytes)

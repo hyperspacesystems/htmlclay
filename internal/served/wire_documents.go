@@ -1,6 +1,8 @@
 package served
 
 import (
+	"errors"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -76,7 +78,18 @@ func (d *wireDocuments) OpenHistory(doc wire.Document) error {
 	// A save keys this lock on the path with forward slashes.
 	unlock := fileLocks.lock(filepath.ToSlash(doc.Path))
 	defer unlock()
-	CreateBackupIfExists(doc.Path, backupSiteName(doc.Name), d.root.baseDir, nil)
+	// The state before a program's first edit is the one worth keeping: when it
+	// cannot be kept, the edit is refused rather than run with no way back.
+	data, err := os.ReadFile(doc.Path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if CreateBackup(d.root.baseDir, backupSiteName(doc.Name), data, nil) == nil {
+		return errReplacedNotKept
+	}
 	return nil
 }
 
