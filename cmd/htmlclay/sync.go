@@ -50,8 +50,13 @@ func syncProfile(configDir string) string {
 }
 
 // openSyncStore answers this install's secret store, or nil with the failure
-// logged: sync then stays off, and nothing else changes.
+// logged: sync then stays off, and nothing else changes. HTMLCLAY_SECRET_STORE=file
+// keeps the key in a private file in the config folder instead, so a test or a
+// throwaway profile never touches the system's store.
 func (a *app) openSyncStore() secret.Store {
+	if os.Getenv("HTMLCLAY_SECRET_STORE") == "file" {
+		return secret.NewFile(filepath.Join(a.rt.configDir, "secrets"))
+	}
 	store, err := secret.Open(syncProfile(a.rt.configDir), a.rt.configDir)
 	if err != nil {
 		a.rt.logger.Printf("The sync key store could not be opened: %v", err)
