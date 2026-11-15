@@ -23,9 +23,9 @@ enum CandidateHome {
         return try real(URL(fileURLWithPath: path))
     }
 
-    /// Writes <home>/c/htmlclay/config.json = {"startOnLogin": false, "port": <free loopback port>, "updates": "off"} unless it exists.
+    /// Writes <config base>/htmlclay/config.json = {"startOnLogin": false, "port": <free loopback port>, "updates": "off"} unless it exists.
     static func prepare(_ home: URL) throws {
-        let directory = home.appendingPathComponent("c/htmlclay", isDirectory: true)
+        let directory = configBase(home).appendingPathComponent("htmlclay", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let file = directory.appendingPathComponent("config.json")
         guard !FileManager.default.fileExists(atPath: file.path) else { return }
@@ -90,7 +90,15 @@ enum CandidateHome {
     }
 
     static func environment(_ home: URL) -> [String: String] {
-        ["HOME": home.path, "HTMLCLAY_CONFIG_BASE": home.appendingPathComponent("c", isDirectory: true).path]
+        ["HOME": home.path, "HTMLCLAY_CONFIG_BASE": configBase(home).path]
+    }
+
+    /// HTMLCLAY_CONFIG_BASE when set and absolute, so an update rehearsal can put the host on the config folder the old app uses; else <home>/c.
+    static func configBase(_ home: URL) -> URL {
+        if let given = ProcessInfo.processInfo.environment["HTMLCLAY_CONFIG_BASE"], given.hasPrefix("/") {
+            return URL(fileURLWithPath: given, isDirectory: true)
+        }
+        return home.appendingPathComponent("c", isDirectory: true)
     }
 
     private static func real(_ url: URL) throws -> URL {

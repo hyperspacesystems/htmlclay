@@ -20,6 +20,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ID="com.htmlclay.SparkleCheck"
 OLD_VERSION="9.0.0"
 NEW_VERSION="9.0.1"
+OLD_TAG="${HTMLCLAY_SPARKLE_CHECK_OLD_TAG:-v1.16.4}"
+PUBLIC_REPO="${HTMLCLAY_PUBLIC_REPO:-$HOME/Documents/GitHub/hyper/htmlclay}"
+export HTMLCLAY_CANDIDATE_CACHE="${HTMLCLAY_CANDIDATE_CACHE:-$HOME/scratch/htmlclay-candidate-cache}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
@@ -29,8 +32,8 @@ NEW_SRC="$SCRATCH/new/HTML Clay Candidate.app"
 NEW_ZIP="$SCRATCH/zip/HTMLClay-$NEW_VERSION.app.zip"
 FEED_FILE="$SCRATCH/feed-file"
 FEED_HTTP="$SCRATCH/feed-http"
-CONFIG="$SCRATCH/c/htmlclay"
 FAKE_HOME="$SCRATCH/home"
+CONFIG="$SCRATCH/home/Library/Application Support/htmlclay"
 LOGS="$SCRATCH/logs"
 BIN="$SCRATCH/bin"
 PROBE="$SCRATCH/probe/probe.htmlclay"
@@ -58,6 +61,8 @@ PROOF_VERSION=""
 PROOF_SHORT=""
 PROOF_HOST_BIN="no"
 PROOF_APP_PIDS=""
+SUPERVISOR_PHASE="unknown"
+HEALTH_LINE=""
 PROOF_HOST_PIDS=""
 ROLLBACK=""
 FEED_ERROR=""
@@ -235,6 +240,7 @@ write_report() {
     echo "- Proof, the handoff's recipe (attempts 1 and 2): ${PROOF}"
     echo "- Proof, the diagnostic (attempt 3): ${PROBE_OUTCOME:-not run}, after ${PROBE_SECONDS:-n/a} s; bundle at the old path ${PROOF_VERSION:-} / ${PROOF_SHORT:-}, htmlclay-host ${PROOF_HOST_BIN}, processes htmlclay=${PROBE_APP_PIDS:-none} htmlclay-host=${PROBE_HOST_PIDS:-none}"
     echo "- Recovery supervisor: ${ROLLBACK:-unknown}"
+    echo "- Supervisor phase at the end: $SUPERVISOR_PHASE"
     echo "- Sparkle feed error: ${FEED_ERROR:-none}"
     echo "- file:// feed: ${FILE_ERROR:-no Sparkle error}"
     echo
@@ -329,6 +335,10 @@ print_json() {
 finish() {
   OUTCOME="$1"
   OUTCOME_REASON="$2"
+  SUPERVISOR_PHASE="$(plutil -extract phase raw -o - "$CONFIG/updates/state.json" 2>/dev/null || echo absent)"
+  HEALTH_LINE="$(cat "$CONFIG/updates/health.json" 2>/dev/null || echo absent)"
+  say "supervisor phase: $SUPERVISOR_PHASE"
+  say "health.json: $HEALTH_LINE"
   if [ "$OUTCOME" = "updated" ]; then exit 0; fi
   exit 1
 }
@@ -416,21 +426,28 @@ exit 1
 STUB
 chmod +x "$BIN/npx"
 
-say "building the Go bundle $OLD_VERSION"
-mkdir -p "$SCRATCH/old"
-if ! PATH="$BIN:$PATH" VERSION="$OLD_VERSION" UPDATE_CHANNEL=stable SPARKLE_PUBLIC_ED_KEY="$PUB" \
-  bash "$ROOT/packaging/macos/build.sh" --unsigned >"$LOGS/build-old.log" 2>&1; then
-  say "build.sh exited non-zero (the npx stub is expected); checking the bundle"
-fi
-rm -f "$ROOT/HTMLClay-$OLD_VERSION"-*.dmg "$ROOT/HTMLClay-$OLD_VERSION"-*.app.zip
-if [ ! -x "$ROOT/HTMLClay.app/Contents/MacOS/htmlclay" ]; then
-  say "no old bundle was built"
+OLD_SRC="$SCRATCH/old-src"
+rm -rf "$OLD_SRC"
+mkdir -p "$OLD_SRC"
+if ! git -C "$PUBLIC_REPO" archive "$OLD_TAG" | tar -x -C "$OLD_SRC"; then
+  say "could not export $OLD_TAG from $PUBLIC_REPO"
   OUTCOME="never triggered"
-  OUTCOME_REASON="packaging/macos/build.sh did not produce HTMLClay.app"
+  OUTCOME_REASON="could not export $OLD_TAG"
   exit 1
 fi
-mv "$ROOT/HTMLClay.app" "$OLD"
-rm -rf "$ROOT/HTMLClay.app"
+say "building the Go bundle $OLD_VERSION from $OLD_TAG"
+mkdir -p "$SCRATCH/old"
+if ! PATH="$BIN:$PATH" VERSION="$OLD_VERSION" UPDATE_CHANNEL=stable SPARKLE_PUBLIC_ED_KEY="$PUB" \
+  bash "$OLD_SRC/packaging/macos/build.sh" --unsigned >"$LOGS/build-old.log" 2>&1; then
+  say "build.sh exited non-zero (the npx stub is expected); checking the bundle"
+fi
+if [ ! -x "$OLD_SRC/HTMLClay.app/Contents/MacOS/htmlclay" ]; then
+  say "no old bundle was built"
+  OUTCOME="never triggered"
+  OUTCOME_REASON="$OLD_TAG packaging/macos/build.sh did not produce HTMLClay.app; see logs/build-old.log"
+  exit 1
+fi
+mv "$OLD_SRC/HTMLClay.app" "$OLD"
 
 set_bundle_id() {
   local app="$1" id="$2"
@@ -449,6 +466,7 @@ resign() {
 }
 
 set_bundle_id "$OLD" "$ID"
+plutil -insert LSEnvironment -json "{\"HOME\":\"$FAKE_HOME\",\"HTMLCLAY_CONFIG_BASE\":\"$FAKE_HOME/Library/Application Support\"}" "$OLD/Contents/Info.plist"
 plutil -insert HCUpdateNowCommand -integer 1 "$OLD/Contents/Info.plist" 2>/dev/null ||
   plutil -replace HCUpdateNowCommand -integer 1 "$OLD/Contents/Info.plist"
 [ "$(plist_key "$OLD/Contents/Info.plist" SUPublicEDKey)" = "$PUB" ] || say "warning: the old bundle does not carry the throwaway key"
@@ -470,15 +488,16 @@ set_feed() {
 
 say "building the Swift bundle $NEW_VERSION"
 mkdir -p "$SCRATCH/new"
-if ! bash "$ROOT/scripts/build-candidate.sh" --unsigned --output "$SCRATCH/new" >"$LOGS/build-new.log" 2>&1; then
+if ! bash "$ROOT/scripts/build-candidate.sh" --unsigned --output "$SCRATCH/new" --version "$NEW_VERSION" --bundle-id "$ID" >"$LOGS/build-new.log" 2>&1; then
   say "build-candidate.sh failed"
   OUTCOME="never triggered"
   OUTCOME_REASON="scripts/build-candidate.sh failed; see logs/build-new.log"
   exit 1
 fi
 set_bundle_id "$NEW_SRC" "$ID"
-plutil -replace CFBundleVersion -string "$NEW_VERSION" "$NEW_SRC/Contents/Info.plist"
-plutil -replace CFBundleShortVersionString -string "$NEW_VERSION" "$NEW_SRC/Contents/Info.plist"
+plutil -insert SUPublicEDKey -string "$PUB" "$NEW_SRC/Contents/Info.plist"
+plutil -insert LSEnvironment -json "{\"HTMLCLAY_CANDIDATE_HOME\":\"$FAKE_HOME\",\"HTMLCLAY_CONFIG_BASE\":\"$FAKE_HOME/Library/Application Support\"}" "$NEW_SRC/Contents/Info.plist"
+defaults write "$ID" welcomeDone -bool true
 if ! resign "$NEW_SRC"; then
   say "could not sign the new bundle"
   OUTCOME="never triggered"
@@ -510,7 +529,7 @@ make_appcast() {
 # --- running the old bundle ------------------------------------------------
 
 launch_old() {
-  env HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$SCRATCH/c" "$OLD/Contents/MacOS/htmlclay" \
+  env HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support" "$OLD/Contents/MacOS/htmlclay" \
     >"$LOGS/$1-app.out" 2>&1 &
   APP_PID=$!
   PIDS+=("$APP_PID")
@@ -597,7 +616,7 @@ attempt() {
   wait_sparkle || say "Sparkle did not report started within 45 s"
 
   (
-    export HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$SCRATCH/c"
+    export HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support"
     export HTMLCLAY_CANARY_APP="$OLD" HTMLCLAY_CANARY_CONFIG_DIR="$CONFIG"
     export HTMLCLAY_CANARY_INSTALL=/usr/bin/false HTMLCLAY_CANARY_DEADLINE="$deadline"
     exec bash "$ROOT/scripts/update-canary.sh" "$NEW_VERSION"
