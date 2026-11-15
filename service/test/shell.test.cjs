@@ -69,6 +69,18 @@ test('bootstrap lists the roots Go sent, and the tree and list answer from the f
   assert.match(document.body.frameUrl, /^http:\/\/notes\.htmlclay\.localhost:1212\/sub\/b\.html\?workspace-frame=\d+$/);
 });
 
+test('a document opens: its consents read answers with no decisions, and a consent write stays refused', async (t) => {
+  const { s, dir } = await servedNotes(t);
+  const consents = await shell(s, '/api/roots/notes/consents?path=sub%2Fb.html');
+  assert.equal(consents.status, 200, JSON.stringify(consents.body));
+  assert.deepEqual(consents.body, { granted: [], denied: [] });
+  assert.equal((await shell(s, '/api/roots/notes/consents?path=missing.html')).status, 404, 'a missing document');
+  const before = fs.readdirSync(dir).sort();
+  const write = await shell(s, '/api/roots/notes/consents', { method: 'POST', body: { path: 'sub/b.html', permission: 'camera', decision: 'grant' } });
+  assert.equal(write.status, 501, 'a consent write is not switched on');
+  assert.deepEqual(fs.readdirSync(dir).sort(), before, 'nothing was written');
+});
+
 test('commands not switched on answer 501, and a request must come through Go for the dashboard', async (t) => {
   const { s, dir } = await servedNotes(t);
   const before = fs.readdirSync(dir).sort();

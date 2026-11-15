@@ -20,7 +20,7 @@ const { createShellServer } = require('./vendor/local/src/main/workspace/shell-s
 const { IGNORED } = require('./vendor/local/src/main/root-observer.js');
 
 const PREFIX = '/v1/shell';
-const READ = /^\/api\/(bootstrap|roots|events|roots\/[^/]+\/(tree|list|search|document|source|versions|version|download))$/;
+const READ = /^\/api\/(bootstrap|roots|events|roots\/[^/]+\/(tree|list|search|document|source|versions|version|download|consents))$/;
 // The routes that change a document, each answered by Go's own route for it.
 const WRITES = { PUT: /^\/api\/roots\/[^/]+\/source$/, POST: /^\/api\/roots\/[^/]+\/restore$/ };
 const COMMANDS_PATH = /^\/api\/roots\/[^/]+\/commands$/;
