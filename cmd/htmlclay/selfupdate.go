@@ -69,7 +69,9 @@ func (a *app) startSelfUpdater(updateCh chan<- tray.UpdateInfo) bool {
 		return false
 	}
 	if runtime.GOOS == "darwin" {
-		return a.startSparkleUpdater(updateCh)
+		// On macOS the HTML Clay app runs Sparkle; a host started on its own keeps the download-page link.
+		a.updateOff = "on macOS the HTML Clay app updates itself"
+		return false
 	}
 	installPath, err := update.InstallPath()
 	if err == nil {

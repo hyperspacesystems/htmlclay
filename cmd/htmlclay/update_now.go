@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
@@ -50,11 +49,6 @@ const (
 
 // updateNowOS is the platform update-now runs on. Tests change it.
 var updateNowOS = runtime.GOOS
-
-// updateNowWindow is how long a request waits for Sparkle to prepare the
-// version. The canary resends every 30 s and each resend starts it again, so a
-// request dies about a minute after the canary stops asking.
-var updateNowWindow = time.Minute
 
 // beginSparkle is update.BeginSparkle; tests replace it.
 var beginSparkle = update.BeginSparkle
@@ -276,14 +270,8 @@ func (a *app) handleInstanceCommand(cmd string) string {
 	return "refused unknown command"
 }
 
-// updateNow starts the update to target through the tray's own click, or says
-// why it cannot. It never waits on the update: the canary watches for the new
-// version, so the answer only says whether the app took the request.
-//
-// When Sparkle already holds target prepared it clicks at once. Otherwise it
-// records the request and asks Sparkle for a check now; the Ready event clicks
-// when target arrives. A resent request repeats the check, which is what
-// catches an appcast that had not caught up with the release yet.
+// updateNow says why this host cannot update to target. On macOS the app owns
+// Sparkle and answers update-now itself; on Windows and Linux the tray does.
 func (a *app) updateNow(target string) string {
 	if !update.IsStrictVersion(target) {
 		return fmt.Sprintf("refused %q is not X.Y.Z", target)
@@ -300,58 +288,5 @@ func (a *app) updateNow(target string) string {
 	if a.updateOff != "" {
 		return "refused self-update is off: " + a.updateOff
 	}
-	st := a.rt.sparkle
-	if st == nil {
-		return "refused self-update is off: Sparkle is not running"
-	}
-	if reason := a.failedSparkleUpdate(target); reason != "" {
-		return "refused " + reason
-	}
-
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	switch {
-	case st.startFailed != "":
-		return "refused Sparkle could not start: " + st.startFailed
-	case st.declined == target:
-		return fmt.Sprintf("failed the restart to v%s was cancelled on screen", target)
-	case st.prepared == target:
-		if !st.clicking && !a.updating.Load() {
-			st.clicking = true
-			go a.clickForUpdateNow(target)
-		}
-		return "accepted"
-	case st.prepared != "":
-		return fmt.Sprintf("failed Sparkle holds v%s prepared, which installs at the next quit", st.prepared)
-	}
-	st.requested, st.requestedAt = target, time.Now()
-	st.fw.CheckNow()
-	return "accepted"
-}
-
-// takeRequest reports whether update-now is waiting on target, and if so
-// claims the click for it. An expired request is dropped. Call with s.mu held.
-func (s *sparkleState) takeRequest(target string) bool {
-	if s.requested != "" && time.Since(s.requestedAt) > updateNowWindow {
-		s.requested = ""
-	}
-	if s.requested != target || s.clicking {
-		return false
-	}
-	s.requested = ""
-	s.clicking = true
-	return true
-}
-
-// clickForUpdateNow is the tray click on update-now's behalf. A restart the
-// person cancelled at the running-work prompt is not tried again for target.
-func (a *app) clickForUpdateNow(target string) {
-	err := a.clickSparkleUpdate(target)
-	st := a.rt.sparkle
-	st.mu.Lock()
-	st.clicking = false
-	if errors.Is(err, errUpdateCancelled) {
-		st.declined = target
-	}
-	st.mu.Unlock()
+	return "refused update-now is answered by the HTML Clay app, not by htmlclay-host"
 }

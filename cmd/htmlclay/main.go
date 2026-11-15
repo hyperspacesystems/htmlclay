@@ -186,10 +186,6 @@ type appRuntime struct {
 	// quitForUpdate overrides how an applied update ends the process. Production
 	// leaves it nil and quits the tray, which runs the ordinary shutdown.
 	quitForUpdate func()
-	// sparkle is the macOS updater: the framework seam and the install waiting
-	// on Sparkle's quit event. Production leaves it nil and startSparkleUpdater
-	// fills in the real framework; tests set a fake.
-	sparkle *sparkleState
 	// held, while set, holds every request until startup has built the sites
 	// and restored the update handoff, so a request can never register a file
 	// under a fresh token before its old one comes back. main sets it before
@@ -762,7 +758,6 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 	}
 	a.rt.logger.Printf("Starting system tray...")
 	tray.Run(a.rt.cfg, version, a.openExample, a.openBackups, a.openKeptPage, func() {
-		a.prepareSparkleQuit()
 		a.shutdown()
 	}, updateCh, &tray.TrustedFolderHooks{
 		List:   a.trustedFolderRows,

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,9 +14,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/service"
-	"github.com/panphora/htmlclay/internal/sparkle"
 	"github.com/panphora/htmlclay/internal/tailwind"
-	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/update"
 )
 
@@ -132,24 +129,11 @@ func TestUpdateInfoDispatchTouchesNoConfigFolder(t *testing.T) {
 	}
 }
 
-// updateNowTestApp is sparkleTestApp on macOS terms, whatever the host is.
-func updateNowTestApp(t *testing.T) (*app, *fakeSparkle, chan string) {
-	t.Helper()
+func TestUpdateNowRefusesWithAReason(t *testing.T) {
 	orig := updateNowOS
 	t.Cleanup(func() { updateNowOS = orig })
 	updateNowOS = "darwin"
-	return sparkleTestApp(t)
-}
-
-func endPendingInstall(a *app) {
-	a.mu.Lock()
-	a.stopping = true
-	a.mu.Unlock()
-	a.rt.sparkle.fail("test over")
-}
-
-func TestUpdateNowRefusesWithAReason(t *testing.T) {
-	a, fw, _ := updateNowTestApp(t)
+	a, _ := updateTestApp(t)
 	cases := []struct {
 		target string
 		want   string
@@ -175,171 +159,26 @@ func TestUpdateNowRefusesWithAReason(t *testing.T) {
 		t.Errorf("on Windows: %q", got)
 	}
 	updateNowOS = "darwin"
-
-	if fw.checkCount() != 0 || fw.installCount() != 0 {
-		t.Fatal("a refused request reached Sparkle")
-	}
 }
 
-func TestUpdateNowRefusesAfterSparkleFailedToStart(t *testing.T) {
-	a, fw, _ := updateNowTestApp(t)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"latest":"1.0.0","url":"https://htmlclay.com/#downloads"}`))
-	}))
-	defer srv.Close()
-	defer func(u string) { releaseInfoURL = u }(releaseInfoURL)
-	releaseInfoURL = srv.URL
-
-	a.onSparkleEvent(sparkle.Event{Kind: sparkle.StartFailed, Text: "bad key"}, make(chan tray.UpdateInfo, 1))
-	if got := a.updateNow("9.9.9"); got != "refused Sparkle could not start: bad key" {
+// On macOS the HTML Clay app runs Sparkle and answers update-now itself, so a
+// host started on its own refuses and points at the app.
+func TestUpdateNowOnMacIsTheAppsJob(t *testing.T) {
+	orig := updateNowOS
+	t.Cleanup(func() { updateNowOS = orig })
+	updateNowOS = "darwin"
+	a, _ := updateTestApp(t)
+	a.updateOff = "on macOS the HTML Clay app updates itself"
+	if got := a.updateNow("9.9.9"); got != "refused self-update is off: on macOS the HTML Clay app updates itself" {
 		t.Fatalf("updateNow = %q", got)
-	}
-	if fw.checkCount() != 0 {
-		t.Fatal("a request reached a Sparkle that never started")
-	}
-}
-
-func TestUpdateNowRefusesAVersionThatFailedBefore(t *testing.T) {
-	a, fw, _ := updateNowTestApp(t)
-	dir := update.UpdatesDir(a.rt.configDir)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	st := `{"schema":1,"phase":"rolledBack","from":"1.0.0","to":"9.9.9","failed":{"version":"9.9.9","reason":"never served"}}`
-	if err := os.WriteFile(filepath.Join(dir, "state.json"), []byte(st), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if got := a.updateNow("9.9.9"); !strings.HasPrefix(got, "refused v9.9.9 did not start after an earlier update") {
-		t.Fatalf("updateNow = %q", got)
-	}
-	if fw.checkCount() != 0 {
-		t.Fatal("a version that rolled back was checked for again")
-	}
-}
-
-func TestUpdateNowClicksAnUpdateSparkleAlreadyPrepared(t *testing.T) {
-	a, fw, notices := updateNowTestApp(t)
-	a.rt.sparkle.prepared = "9.9.9"
-	if got := a.updateNow("9.9.9"); got != "accepted" {
-		t.Fatalf("updateNow = %q", got)
-	}
-	waitFor(t, "the install request", func() bool { return fw.installCount() == 1 })
-	if _, err := os.Stat(filepath.Join(a.rt.configDir, updateHandoffFile)); err != nil {
-		t.Fatalf("update-now skipped the tray click's handoff: %v", err)
-	}
-	if got := a.updateNow("9.9.9"); got != "accepted" {
-		t.Fatalf("resent updateNow = %q", got)
-	}
-	time.Sleep(50 * time.Millisecond)
-	if fw.installCount() != 1 || fw.checkCount() != 0 {
-		t.Fatalf("a resent request installed %d times and checked %d times", fw.installCount(), fw.checkCount())
-	}
-	if len(notices) != 0 {
-		t.Fatalf("a resent request started a second restart: %s", <-notices)
-	}
-	endPendingInstall(a)
-}
-
-func TestUpdateNowChecksAndInstallsOnlyTheVersionAskedFor(t *testing.T) {
-	a, fw, _ := updateNowTestApp(t)
-	updateCh := make(chan tray.UpdateInfo, 4)
-	if got := a.updateNow("9.9.9"); got != "accepted" {
-		t.Fatalf("updateNow = %q", got)
-	}
-	if fw.checkCount() != 1 || fw.installCount() != 0 {
-		t.Fatalf("checks %d, installs %d; want one check and no install", fw.checkCount(), fw.installCount())
-	}
-	if got := a.updateNow("9.9.9"); got != "accepted" || fw.checkCount() != 2 {
-		t.Fatalf("a resent request gave %q and %d checks; want a second check", got, fw.checkCount())
-	}
-
-	a.onSparkleEvent(sparkle.Event{Kind: sparkle.Ready, Text: "9.9.8"}, updateCh)
-	a.rt.sparkle.mu.Lock()
-	clicking, requested := a.rt.sparkle.clicking, a.rt.sparkle.requested
-	a.rt.sparkle.prepared = ""
-	a.rt.sparkle.mu.Unlock()
-	if clicking || requested != "9.9.9" {
-		t.Fatal("update-now clicked for a version it did not ask for")
-	}
-
-	a.onSparkleEvent(sparkle.Event{Kind: sparkle.Ready, Text: "9.9.9"}, updateCh)
-	waitFor(t, "the install request", func() bool { return fw.installCount() == 1 })
-	if len(updateCh) != 2 {
-		t.Fatalf("%d tray rows offered, want one per Ready", len(updateCh))
-	}
-	endPendingInstall(a)
-}
-
-func TestUpdateNowRequestExpires(t *testing.T) {
-	a, fw, _ := updateNowTestApp(t)
-	defer func(d time.Duration) { updateNowWindow = d }(updateNowWindow)
-	updateNowWindow = 10 * time.Millisecond
-	a.updateNow("9.9.9")
-	time.Sleep(30 * time.Millisecond)
-	a.onSparkleEvent(sparkle.Event{Kind: sparkle.Ready, Text: "9.9.9"}, make(chan tray.UpdateInfo, 1))
-	a.rt.sparkle.mu.Lock()
-	clicking := a.rt.sparkle.clicking
-	a.rt.sparkle.mu.Unlock()
-	if clicking || fw.installCount() != 0 {
-		t.Fatal("a stale update-now request clicked when a scheduled check prepared the version")
-	}
-}
-
-func TestUpdateNowRequestLivesAMinuteFromTheLastResend(t *testing.T) {
-	a, fw, _ := updateNowTestApp(t)
-	updateCh := make(chan tray.UpdateInfo, 4)
-	age := func(d time.Duration) {
-		a.rt.sparkle.mu.Lock()
-		a.rt.sparkle.requestedAt = time.Now().Add(-d)
-		a.rt.sparkle.mu.Unlock()
-	}
-
-	a.updateNow("9.9.9")
-	age(61 * time.Second)
-	a.onSparkleEvent(sparkle.Event{Kind: sparkle.Ready, Text: "9.9.9"}, updateCh)
-	a.rt.sparkle.mu.Lock()
-	clicking, requested := a.rt.sparkle.clicking, a.rt.sparkle.requested
-	a.rt.sparkle.prepared = ""
-	a.rt.sparkle.mu.Unlock()
-	if clicking || requested != "" || fw.installCount() != 0 {
-		t.Fatalf("a request last sent 61 s ago clicked %v and is still recorded as %q", clicking, requested)
-	}
-
-	a.updateNow("9.9.9")
-	age(50 * time.Second)
-	a.updateNow("9.9.9")
-	age(50 * time.Second)
-	a.onSparkleEvent(sparkle.Event{Kind: sparkle.Ready, Text: "9.9.9"}, updateCh)
-	waitFor(t, "the install request", func() bool { return fw.installCount() == 1 })
-	endPendingInstall(a)
-}
-
-func TestUpdateNowFailsWhileAnotherVersionIsPrepared(t *testing.T) {
-	a, fw, _ := updateNowTestApp(t)
-	a.rt.sparkle.prepared = "9.9.8"
-	if got := a.updateNow("9.9.9"); got != "failed Sparkle holds v9.9.8 prepared, which installs at the next quit" {
-		t.Fatalf("updateNow = %q", got)
-	}
-	if fw.checkCount() != 0 || fw.installCount() != 0 {
-		t.Fatal("a refused request reached Sparkle")
-	}
-}
-
-func TestUpdateNowAfterACancelledRestartFails(t *testing.T) {
-	a, fw, _ := updateNowTestApp(t)
-	a.rt.sparkle.prepared = "9.9.9"
-	a.rt.sparkle.declined = "9.9.9"
-	if got := a.updateNow("9.9.9"); got != "failed the restart to v9.9.9 was cancelled on screen" {
-		t.Fatalf("updateNow = %q", got)
-	}
-	time.Sleep(50 * time.Millisecond)
-	if fw.installCount() != 0 {
-		t.Fatal("a restart the person cancelled was started again")
 	}
 }
 
 func TestUpdateNowCommandParsing(t *testing.T) {
-	a, _, _ := updateNowTestApp(t)
+	orig := updateNowOS
+	t.Cleanup(func() { updateNowOS = orig })
+	updateNowOS = "darwin"
+	a, _ := updateTestApp(t)
 	for _, cmd := range []string{"", "update-now", "update-now 9.9.9 extra", "install 9.9.9"} {
 		if got := a.handleInstanceCommand(cmd); got != "refused unknown command" {
 			t.Errorf("handleInstanceCommand(%q) = %q", cmd, got)
