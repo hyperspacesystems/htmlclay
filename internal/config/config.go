@@ -27,7 +27,11 @@ type Config struct {
 	// ("concurrent map iteration and write") and a slice append tears under marshal.
 	// Every exported mutator and Save take it; callers must not touch the fields
 	// directly. Lock order is a.mu -> cfg.mu (nothing takes cfg.mu then a.mu).
-	mu           sync.Mutex
+	mu sync.Mutex
+	// holdSaves keeps every write in memory while an update is judged; saveOwed
+	// records that one was asked for (HoldSaves, ReleaseSaves).
+	holdSaves    bool
+	saveOwed     bool
 	StartOnLogin bool `json:"startOnLogin"`
 	// ListenPort is the one loopback port every site is served on, held on 127.0.0.1 and
 	// ::1 for as long as the app runs. 0 until the first launch chooses one. The port is
@@ -1489,8 +1493,33 @@ func (c *Config) Save() error {
 	return c.saveLocked()
 }
 
+// HoldSaves keeps every later write in memory until ReleaseSaves: a version on
+// trial must not change the file the version it replaced reads after a rollback.
+func (c *Config) HoldSaves() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.holdSaves = true
+}
+
+// ReleaseSaves ends a hold. With write, a save asked for during the hold happens
+// once now; without, the held changes stay in memory only.
+func (c *Config) ReleaseSaves(write bool) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	owed := c.saveOwed
+	c.holdSaves, c.saveOwed = false, false
+	if !write || !owed {
+		return nil
+	}
+	return c.saveLocked()
+}
+
 // saveLocked writes the config. The caller holds c.mu.
 func (c *Config) saveLocked() error {
+	if c.holdSaves {
+		c.saveOwed = true
+		return nil
+	}
 	dir := DirFrom(c.baseDir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err

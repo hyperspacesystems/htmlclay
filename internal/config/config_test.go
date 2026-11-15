@@ -1631,3 +1631,62 @@ func TestDuplicateSlugsKeepTheTrustedOwner(t *testing.T) {
 		t.Error("the label is still issued, so it must stay in use")
 	}
 }
+
+func TestHeldSavesWriteOnlyOnRelease(t *testing.T) {
+	base := t.TempDir()
+	cfg, _, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(DirFrom(base), "config.json")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.HoldSaves()
+	cfg.SetStartOnLogin(!cfg.StartOnLoginEnabled())
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := os.ReadFile(path); string(after) != string(before) {
+		t.Fatal("a held save wrote the file")
+	}
+	if err := cfg.ReleaseSaves(false); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := os.ReadFile(path); string(after) != string(before) {
+		t.Fatal("a release without write wrote the file")
+	}
+
+	cfg.HoldSaves()
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.ReleaseSaves(true); err != nil {
+		t.Fatal(err)
+	}
+	owed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(owed) == string(before) {
+		t.Fatal("the owed save never happened")
+	}
+
+	if err := cfg.ReleaseSaves(true); err != nil {
+		t.Fatal(err)
+	}
+	cfg.SetStartOnLogin(!cfg.StartOnLoginEnabled())
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	// Compared against the owed write, not the first one: the flip above restores
+	// the value the first file carried, so the bytes would match it again.
+	if after, _ := os.ReadFile(path); string(after) == string(owed) {
+		t.Fatal("saves after the release must write")
+	}
+}

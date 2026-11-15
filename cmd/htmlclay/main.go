@@ -443,6 +443,7 @@ func main() {
 
 	a.initLogger()
 	defer a.rt.logger.Close()
+	a.holdSavesWhileUnjudged()
 
 	a.startRuntime()
 	a.finishUpgrade()
@@ -487,6 +488,7 @@ func main() {
 	}
 	a.releaseRequests()
 	markUpdateHealth(update.HealthServing)
+	go a.settleUpgradeSave()
 
 	args := flag.Args()
 	if len(args) > 0 {
@@ -838,6 +840,29 @@ func markUpdateHealth(phase string) {
 	}
 	if err := update.MarkHealth(update.UpdatesDir(configDir), version, phase); err != nil {
 		fmt.Fprintf(os.Stderr, "[htmlclay] Could not report update health (%s): %v\n", phase, err)
+	}
+}
+
+// holdSavesWhileUnjudged: a host started by an update that is still being judged
+// keeps its config changes in memory until the verdict (settleUpgradeSave).
+func (a *app) holdSavesWhileUnjudged() {
+	if update.Unjudged(update.UpdatesDir(a.rt.configDir)) {
+		a.rt.cfg.HoldSaves()
+		a.rt.logger.Printf("An update is being judged; config changes wait for its verdict")
+	}
+}
+
+// settleUpgradeSave waits up to 10 s for the verdict. On done the held changes are
+// saved; on a rollback, or no verdict, they stay in memory only.
+func (a *app) settleUpgradeSave() {
+	dir := update.UpdatesDir(a.rt.configDir)
+	for i := 0; i < 40 && update.Unjudged(dir); i++ {
+		time.Sleep(250 * time.Millisecond)
+	}
+	st, _ := update.ReadState(dir)
+	write := st == nil || (st.Phase != update.PhaseRolledBack && st.Phase != update.PhaseApplying)
+	if err := a.rt.cfg.ReleaseSaves(write); err != nil {
+		a.rt.logger.Printf("config save after the update verdict failed: %v", err)
 	}
 }
 
