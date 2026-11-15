@@ -24,6 +24,7 @@ const {
   fileExists,
 } = require('../file-operations');
 const { calculateChecksum } = require('../utils');
+const { conflictedCopyName } = require('../conflicted-copy-name');
 const {
   createNode,
   deleteNode,
@@ -168,7 +169,11 @@ async function openConflict(engine, nodeId, rel) {
  * that answered is a different one).
  */
 async function recordConflict(engine, nodeId, rel, { kind, localChecksum = null, remoteEtag = null, fetchRemote = true }) {
-  const record = { kind, path: rel, localChecksum, remoteEtag, remoteCopy: null, detectedAt: Date.now() };
+  // The same conflict found again (a restart compares from scratch) keeps the time it was first
+  // found: that time is part of the id a shell shows the person and resolves by.
+  const open = await openConflict(engine, nodeId, rel);
+  const detectedAt = open && open.kind === kind && open.path === rel ? open.detectedAt : Date.now();
+  const record = { kind, path: rel, localChecksum, remoteEtag, remoteCopy: null, detectedAt };
 
   if (fetchRemote && nodeId !== null && nodeId !== undefined) {
     try {
@@ -608,11 +613,9 @@ async function removeCopy(engine, record) {
 const KEEP_BOTH_KINDS = new Set([store.KINDS.BOTH_EDITED, store.KINDS.REJECTED]);
 
 async function conflictedCopyPath(engine, rel) {
-  const ext = path.extname(rel);
-  const stem = rel.slice(0, rel.length - ext.length);
   const remote = new Set((engine.serverNodesCache || []).map(n => (n.path ? `${n.path}/${n.name}` : n.name)));
   for (let n = 1; n <= 100; n++) {
-    const candidate = `${stem} (conflicted copy${n === 1 ? '' : ` ${n}`})${ext}`;
+    const candidate = conflictedCopyName(rel, n);
     if (remote.has(candidate)) continue;
     if (!(await fileExists(path.join(engine.syncFolder, candidate)))) return candidate;
   }

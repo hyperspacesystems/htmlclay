@@ -1,8 +1,8 @@
 {
   "local": {
-    "ref": "88f9200f256b6d71e8922667e92d7eb1b25138a5",
-    "commit": "88f9200f256b6d71e8922667e92d7eb1b25138a5",
-    "committedAt": "2026-11-15T04:45:00-05:00"
+    "ref": "02d3487ca7b0057c318d2e1406117dc54893d171",
+    "commit": "02d3487ca7b0057c318d2e1406117dc54893d171",
+    "committedAt": "2026-11-15T06:28:10-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -903,6 +903,7 @@
     "src/main/workspace/tree.js": "59c9a9abade06af1a4549c4733158db6e611cfd83f2e95d14ed0ae8c8c4bcf71",
     "src/main/write-contexts.js": "e6ff761606a17f4806a3f2130328f2393f0884ee1592bdc8703ca8b8a7b48918",
     "src/sync-engine/api-client.js": "784305b4c2f3d16ead91b10655c0e86961117d0c0610e0d9fe13da4acc3641e2",
+    "src/sync-engine/conflicted-copy-name.js": "93baa5ae1d49fa5728147e33d0b096307f9591e965c536588c1d8aa1c420c642",
     "src/sync-engine/constants.js": "59040a79d637ac3cad444889ef13557869403b69c9bb15ee0485473f50a016b0",
     "src/sync-engine/control-lane-core.cjs": "33ea1023ff5d8b2d53375325e72cda2227141b466085e604394963bc7f7c7b54",
     "src/sync-engine/control-lane.js": "fbb124b390c5e368320f2fa34b7499a6185f002ac32fb5e904b6e2d8633b0d14",
@@ -911,7 +912,7 @@
     "src/sync-engine/engine-mutations.js": "835ff51371510a15dc1220aee1b3c9fe0812f9fac0a4730127611201921289fc",
     "src/sync-engine/engine-queue.js": "223381a0a86d18a8441f90c12f3c8232868157f33bb42027e5f817e24af219e8",
     "src/sync-engine/engine-session.js": "16668b8e1d998fef26095b9c36cb1929cfcd446d26467bc0656122292cd30918",
-    "src/sync-engine/engine-sse.js": "b145d431d003d0ffde2ef94c29748a06d74696bfdaa2410fdcc4be5acd40aec7",
+    "src/sync-engine/engine-sse.js": "a31cb232450c02e0b2886dd1d14b7efe611e0c8a66efee072e4d7202aaf3de6f",
     "src/sync-engine/engine-structure.js": "7545aad6c65bcf6626cf4de791dde859f5c1cf6d36c982dfd7d0f09a3536bb3a",
     "src/sync-engine/engine-uploader.js": "e51ee6a70f2c97d6eb9ae810c0d3b50f6b9b0158550795108f29c1345d170fe3",
     "src/sync-engine/engine-watcher.js": "06aba4c2da0286fdc5e693e9ce71507f2adb766968abebb2795fa1d94435c050",
@@ -929,7 +930,7 @@
     "src/sync-engine/reconcile/conflicts.js": "223db23ff89b8a707e3ff593e6b0cbd353cb1b1963d78e2234f46ce61efdadec",
     "src/sync-engine/reconcile/decide.js": "fa4d7deb7916eb9c6ec45569cff326c0b1763ebb53ce22bf3828b4cd0197b097",
     "src/sync-engine/reconcile/disk-snapshot.js": "6171a66799a0fc12dbc6d4c313ff0b0503d37eccb5afad9c2d87a76aad8c8336",
-    "src/sync-engine/reconcile/execute.js": "bcf54cdf2a172c1e430bfe7ed54eec8353a90cad953b114737be705bed487a37",
+    "src/sync-engine/reconcile/execute.js": "2527e766065423db7cb17d238fd51fe1b188bb385dc0e75b8c4f978163970efe",
     "src/sync-engine/reconcile/first-bind.js": "b707155ff13d07414bb2ddfa3fdbe35544ada9af3ce1b3c7c2cd12c2841a3aba",
     "src/sync-engine/reconcile/legacy-import.js": "c77eaba92ed424d84ae8b16743f382b5cb0e06a54f28500be1a32c8663b88b76",
     "src/sync-engine/reconcile/session-runner.js": "b3ed6bab043e0fc13b71c373d0181d3d0a281403c7ab25ec882dcd3d9a68a28a",
@@ -1072,6 +1073,7 @@
       "src/main/workspace/search-worker.js",
       "src/main/workspace/shell-server.js",
       "src/main/workspace/tree.js",
+      "src/sync-engine/conflicted-copy-name.js",
       "src/sync-engine/engine-initial-sync.js",
       "src/sync-engine/engine-queue.js",
       "src/sync-engine/engine-session.js",

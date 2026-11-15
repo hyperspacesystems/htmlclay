@@ -30,7 +30,8 @@ function configDir() {
 }
 
 function environment() {
-  const env = { ...process.env, HTMLCLAY_CONFIG_BASE: world.configBase, HTMLCLAY_SECRET_STORE: 'file' };
+  // A synctest build's release check goes to a closed local port instead of htmlclay.com.
+  const env = { ...process.env, HTMLCLAY_CONFIG_BASE: world.configBase, HTMLCLAY_SECRET_STORE: 'file', HTMLCLAY_RELEASE_INFO_URL: 'http://127.0.0.1:1/' };
   if (world.syncServer) env.HTMLCLAY_SYNC_SERVER = world.syncServer;
   if (world.serviceCmd) env.HTMLCLAY_SERVICE_CMD = world.serviceCmd;
   else delete env.HTMLCLAY_SERVICE_CMD;
@@ -126,8 +127,8 @@ const handlers = {
     await act('folder.setUpTeam', { id: row.id, path: folder, existing, confirmed: true });
     return { folderID: row.id };
   },
-  // Every synced folder up to date (or holding conflicts) with nothing syncing,
-  // twice in a row a quarter second apart. A live edit does not move a folder's
+  // Every synced folder up to date, holding conflicts or paused, with nothing
+  // syncing, twice in a row a quarter second apart. A live edit does not move a folder's
   // last finished time (that is the engine's last full pass), so waiting for a
   // change to arrive is landed's job.
   async idle({ timeoutMs = 60000 } = {}) {
@@ -136,7 +137,7 @@ const handlers = {
       const snap = await snapshot();
       const synced = snap.folders.filter((f) => f.synced);
       const settled = synced.length > 0 && snap.sync.syncingFiles === 0 &&
-        synced.every((f) => f.sync.state === 'up-to-date' || f.sync.state === 'conflicts');
+        synced.every((f) => ['up-to-date', 'conflicts', 'paused'].includes(f.sync.state));
       quiet = settled ? quiet + 1 : 0;
       return quiet >= 2 ? { folders: synced.map((f) => ({ id: f.id, state: f.sync.state, lastFinishedAt: f.sync.lastFinishedAt })) } : null;
     }, timeoutMs);
@@ -193,14 +194,19 @@ const handlers = {
     }, timeoutMs);
     return { before, after };
   },
-  // Kills the host the way a crash would and starts it again on the same config.
-  async restartHost() {
+  // Kills the host the way a crash would and starts it again on the same config;
+  // answers once its live-room service runs again, if a folder syncs.
+  async restartHost({ timeoutMs = 30000 } = {}) {
     const before = host.child.pid;
     host.child.kill('SIGKILL');
     await new Promise((resolve) => (host.child.exitCode !== null || host.child.signalCode !== null ? resolve() : host.child.once('exit', resolve)));
     const stray = servicePid();
     if (stray) await until('the orphaned service to exit', async () => !servicePid(), 15000).catch(() => process.kill(stray, 'SIGKILL'));
     await boot();
+    await until('the service to start after the host', async () => {
+      const snap = await snapshot();
+      return !snap.folders.some((f) => f.synced) || snap.host.service === 'running';
+    }, timeoutMs);
     return { before, after: host.child.pid };
   },
   async stop() {

@@ -24,6 +24,7 @@ const { calculateChecksum } = require('./utils');
 const { decide, A } = require('./reconcile/decide');
 const { SYNC_CONFIG } = require('./constants');
 const nodeMap = require('./node-map');
+const { conflictedCopyName } = require('./conflicted-copy-name');
 const { getConsentRegistry, resolveWritePath } = require('../main/utils/path-resolver');
 const { withLocalDocumentWrite, withLocalDirectoryChange, withLocalStructureDelete, withLocalStructurePlan, claimLocalDocumentTarget, structureEntryFor, documentHostFor, restructureMove, restructureTrash, requireCommitted, ensureLocalFolder } = require('./local-boundary');
 const {
@@ -458,12 +459,10 @@ module.exports = {
     this.resolveContainedPath(relPath);
     const full = path.join(this.syncFolder, relPath);
     if (!(await fileExists(full))) return null;
-    const ext = path.extname(relPath);
-    const stem = relPath.slice(0, relPath.length - ext.length);
-    let aside = `${stem} (conflicted copy)${ext}`;
+    let aside = conflictedCopyName(relPath);
     for (let n = 2; n <= 100; n++) {
       if (!(await fileExists(path.join(this.syncFolder, aside)))) break;
-      aside = `${stem} (conflicted copy ${n})${ext}`;
+      aside = conflictedCopyName(relPath, n);
     }
     this.cascade.mark([relPath, aside]);
     const result = await restructureMove(this, relPath, aside);
@@ -493,10 +492,8 @@ module.exports = {
       let asideRel = null;
       let aside = null;
       if (destination.exists && !sameEntry) {
-        const ext = path.extname(toRel);
-        const stem = toRel.slice(0, toRel.length - ext.length);
         for (let n = 1; n <= 100; n++) {
-          const candidate = `${stem} (conflicted copy${n === 1 ? '' : ` ${n}`})${ext}`;
+          const candidate = conflictedCopyName(toRel, n);
           const candidateEntry = await structureEntryFor(this, candidate);
           if (!candidateEntry.exists) {
             asideRel = candidate;
