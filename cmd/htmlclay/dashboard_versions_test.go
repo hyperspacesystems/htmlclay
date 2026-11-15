@@ -52,6 +52,7 @@ func versionBytes(t *testing.T, c *dashboardNoService, id, version string) (int,
 	}
 	r.Host = c.host
 	r.Header.Set("Cookie", c.cookie)
+	r.Header.Set("X-Workspace-Token", c.token)
 	r.Header.Set("Origin", "http://"+c.host)
 	r.Header.Set("Sec-Fetch-Site", "same-origin")
 	res, err := http.DefaultClient.Do(r)
@@ -70,7 +71,7 @@ func versionBytes(t *testing.T, c *dashboardNoService, id, version string) (int,
 // person last saw. An empty ifMatch sends no If-Match at all.
 func restoreVersion(t *testing.T, c *dashboardNoService, id, version, ifMatch string) (int, string) {
 	t.Helper()
-	headers := map[string]string{"Cookie": c.cookie, "Origin": "http://" + c.host, "Sec-Fetch-Site": "same-origin"}
+	headers := map[string]string{"Cookie": c.cookie, "X-Workspace-Token": c.token, "Origin": "http://" + c.host, "Sec-Fetch-Site": "same-origin"}
 	if ifMatch != "" {
 		headers["If-Match"] = ifMatch
 	}

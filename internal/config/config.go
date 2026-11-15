@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,6 +54,12 @@ type Config struct {
 	// navigation for a document under this key to the address the key has now. Written
 	// once, by moveFirstSite.
 	MovedFirstSite string `json:"movedFirstSite,omitempty"`
+	// DashboardCleanMark is made once for a config that ever served a site at
+	// htmlclay.localhost. What that site stored in a browser sits at the dashboard's
+	// address now, so each browser's first entry to the dashboard clears it and keeps
+	// this value in a cookie as the record that it was cleared. Written by
+	// markFirstSiteOrigin alone.
+	DashboardCleanMark string `json:"dashboardCleanMark,omitempty"`
 	// SitePorts is the pre-hostname record of the loopback port each origin was served on.
 	// Kept so an old bookmark can be redirected: startup binds each remembered port that is
 	// still free with a redirect to the folder's hostname, and drops the entry the first
@@ -893,6 +900,14 @@ func (c *Config) MovedFirstSiteKey() string {
 	return c.MovedFirstSite
 }
 
+// CleanMark returns the mark markFirstSiteOrigin made, or "" for a config that
+// never served a site at the dashboard's address.
+func (c *Config) CleanMark() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.DashboardCleanMark
+}
+
 // SiteSlugList returns a copy of the slug map.
 func (c *Config) SiteSlugList() map[string]string {
 	c.mu.Lock()
@@ -944,6 +959,24 @@ func (c *Config) moveFirstSite() bool {
 		}
 	}
 	return false
+}
+
+// markFirstSiteOrigin gives a config its DashboardCleanMark when a site was ever served
+// under htmlclay: one that moved off it, or one whose label was retired while it was
+// still issued. No build issues that label now, so no other config needs a mark. It
+// reports whether it made one.
+func (c *Config) markFirstSiteOrigin() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.DashboardCleanMark != "" || (c.MovedFirstSite == "" && !slices.Contains(c.RetiredSlugs, firstSiteLabel)) {
+		return false
+	}
+	var raw [32]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return false
+	}
+	c.DashboardCleanMark = hex.EncodeToString(raw[:])
+	return true
 }
 
 // retireNamedSlugs moves a config from the earlier <folder>-<4 hex> labels to numbered
@@ -1325,6 +1358,10 @@ type Result struct {
 	// numbered label, which is what a config written before htmlclay.localhost
 	// became the dashboard's address looks like.
 	MovedFirstSite bool
+	// MarkedFirstSiteOrigin is true when the config gained its DashboardCleanMark:
+	// with the move above, or on the first load by a build that clears the
+	// dashboard's address.
+	MarkedFirstSiteOrigin bool
 	// DroppedHelperPrograms and DroppedHelperDecisions report malformed,
 	// duplicate, dangling, or over-cap helper records removed during Load.
 	DroppedHelperPrograms  int
@@ -1400,6 +1437,7 @@ func LoadFrom(baseDir string, identity func(string) string) (*Config, Result, er
 	cfg.capSiteSlugs()
 	// After the dedupe and the cap, so the key that moves is the one that keeps a label.
 	res.MovedFirstSite = cfg.moveFirstSite()
+	res.MarkedFirstSiteOrigin = cfg.markFirstSiteOrigin()
 	return cfg, res, nil
 }
 

@@ -250,6 +250,8 @@ func (a *app) startServed() {
 	a.served = a.newServedHost()
 	board, err := dashboard.New(dashboard.Options{
 		Host: fmt.Sprintf("%s:%d", appcore.DashboardHost, a.rt.port), ProductName: "HTML Clay", API: a.dashboardAPI(a.served.DashboardAPI()),
+		Detour:    fmt.Sprintf("%s:%d", oldDashboardHost, a.rt.port),
+		CleanMark: a.rt.cfg.CleanMark(),
 	})
 	if err != nil {
 		a.rt.logger.Printf("The workspace is unavailable: %v", err)

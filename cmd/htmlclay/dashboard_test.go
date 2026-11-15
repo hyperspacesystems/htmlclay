@@ -121,10 +121,11 @@ func (c *dashboardNoService) request(method, target string, body any, headers ma
 }
 
 // api calls one of the app's own routes as the entry page's script on the
-// dashboard does: with the session cookie and from the dashboard's own origin.
+// dashboard does: with the session cookie, the page's token, and from the
+// dashboard's own origin.
 func (c *dashboardNoService) api(method, target string, body any) (int, string) {
 	c.t.Helper()
-	headers := map[string]string{"Cookie": c.cookie, "Origin": "http://" + c.host, "Sec-Fetch-Site": "same-origin"}
+	headers := map[string]string{"Cookie": c.cookie, "X-Workspace-Token": c.token, "Origin": "http://" + c.host, "Sec-Fetch-Site": "same-origin"}
 	if body != nil {
 		headers["Content-Type"] = "application/json"
 	}
@@ -205,6 +206,7 @@ func TestM3DashboardWithoutService(t *testing.T) {
 		r, _ := http.NewRequest(http.MethodGet, c.server.URL+"/api/app/events", nil)
 		r.Host = c.host
 		r.Header.Set("Cookie", c.cookie)
+		r.Header.Set("X-Workspace-Token", c.token)
 		r.Header.Set("Origin", "http://"+c.host)
 		r.Header.Set("Sec-Fetch-Site", "same-origin")
 		res, err := http.DefaultClient.Do(r)

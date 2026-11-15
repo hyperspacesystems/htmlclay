@@ -835,6 +835,72 @@ func TestARetiredFirstLabelMovesNothing(t *testing.T) {
 	}
 }
 
+// A config that ever served a site at htmlclay.localhost gets one mark, which a save
+// keeps; a config that never did gets none.
+func TestFirstSiteOriginIsMarkedOnce(t *testing.T) {
+	served := map[string]string{
+		"a site that moves on this load": `{"siteSlugs":{"/a":"htmlclay","/b":"htmlclay1"},"retiredSlugs":["htmlclay2"],"nextSiteNumber":4}`,
+		"a site an earlier build moved":  `{"siteSlugs":{"/a":"htmlclay3","/b":"htmlclay1"},"retiredSlugs":["htmlclay2"],"nextSiteNumber":5,"movedFirstSite":"/a"}`,
+		"a site whose label was retired": `{"siteSlugs":{"/b":"htmlclay1"},"retiredSlugs":["htmlclay2","htmlclay"],"nextSiteNumber":4}`,
+	}
+	marks := map[string]bool{}
+	for name, body := range served {
+		base := t.TempDir()
+		writeConfigJSON(t, base, body)
+		cfg, res, err := LoadFrom(base, noIdentity)
+		if err != nil {
+			t.Fatalf("%s: load error: %v", name, err)
+		}
+		mark := cfg.CleanMark()
+		if !res.MarkedFirstSiteOrigin || !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(mark) {
+			t.Fatalf("%s: marked %v, mark %q, want 64 hex", name, res.MarkedFirstSiteOrigin, mark)
+		}
+		if marks[mark] {
+			t.Fatalf("%s: two configs were given the same mark", name)
+		}
+		marks[mark] = true
+		if got := cfg.Writes(); got != 0 {
+			t.Errorf("%s: Load wrote the config %d times; the caller saves", name, got)
+		}
+		if err := cfg.Save(); err != nil {
+			t.Fatal(err)
+		}
+		reloaded, res, err := LoadFrom(base, noIdentity)
+		if err != nil {
+			t.Fatalf("%s: reload error: %v", name, err)
+		}
+		if res.MarkedFirstSiteOrigin || reloaded.CleanMark() != mark {
+			t.Errorf("%s: a saved mark was made again on the next load: %v, %q", name, res.MarkedFirstSiteOrigin, reloaded.CleanMark())
+		}
+	}
+
+	never := map[string]string{
+		"an empty config":                 `{}`,
+		"a config with only later labels": `{"siteSlugs":{"/b":"htmlclay1"},"retiredSlugs":["htmlclay2","htmlclay10"],"nextSiteNumber":12}`,
+	}
+	for name, body := range never {
+		base := t.TempDir()
+		writeConfigJSON(t, base, body)
+		cfg, res, err := LoadFrom(base, noIdentity)
+		if err != nil {
+			t.Fatalf("%s: load error: %v", name, err)
+		}
+		if res.MarkedFirstSiteOrigin || cfg.CleanMark() != "" {
+			t.Errorf("%s was marked: %v, %q", name, res.MarkedFirstSiteOrigin, cfg.CleanMark())
+		}
+		if err := cfg.Save(); err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(filepath.Join(DirFrom(base), "config.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(data), "dashboardCleanMark") {
+			t.Errorf("%s: the saved config names a mark: %s", name, data)
+		}
+	}
+}
+
 // Old-shape labels are retired before the cap runs, so they never push numbered labels out.
 func TestNamedSlugsDoNotCrowdOutNumberedOnesUnderTheCap(t *testing.T) {
 	base := t.TempDir()
