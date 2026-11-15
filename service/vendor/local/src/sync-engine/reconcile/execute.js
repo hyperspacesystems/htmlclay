@@ -606,6 +606,12 @@ async function conflicted(engine, nodeId, entry, context, decision) {
     localChecksum: await localChecksumOf(engine, rel),
     fetchRemote: kind !== store.KINDS.REMOTE_DELETED,
   });
+  // A recheck's unbound conflict compares a copy with no baseline of its own: the node's
+  // baseline goes, as for every unbound conflict, so a local delete downloads the page
+  // again instead of reading as a delete to send.
+  if (engine.recheckPass && kind === store.KINDS.UNBOUND && nodeId !== null && nodeId !== undefined) {
+    await engine.repo.delete(nodeId);
+  }
   return { action: A.CONFLICT, kind, record };
 }
 

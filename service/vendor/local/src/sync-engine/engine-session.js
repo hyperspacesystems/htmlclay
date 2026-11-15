@@ -17,6 +17,12 @@ const nodeMap = require('./node-map');
 const conflictStore = require('./reconcile/conflicts');
 const { classifyRoot, putRootMarker, recordIdentity, rootDirIdentity } = require('./root-marker');
 const { decidePath, A } = require('./reconcile/decide');
+const { snapshotDisk } = require('./reconcile/disk-snapshot');
+const { isIgnoredRel } = require('./ignored-paths');
+
+// How long a rechecked folder has to stay unchanged before it is proven: a backup still
+// being copied into place keeps changing it.
+const RECHECK_QUIET_MS = 1500;
 
 module.exports = {
   /**
@@ -113,8 +119,30 @@ module.exports = {
       this.recheckPass = false;
     }
     if (this.recheckFailed || (signal && signal.aborted) || rootDirIdentity(this.syncFolder) !== checked) return false;
+    if (!(await this.rootStaysQuiet(signal))) {
+      console.log('[SYNC] The folder is still changing; it is compared again once it stops');
+      return false;
+    }
     this.rootDir = null;
     await this.adoptRoot();
+    return true;
+  },
+
+  /**
+   * Whether the folder stays unchanged for RECHECK_QUIET_MS: same names, and each file the
+   * same inode, size and modification time. A folder still being copied into fails, so a
+   * recheck never proves a half-copied backup whose remaining older pages would then upload.
+   */
+  async rootStaysQuiet(signal) {
+    const before = await snapshotDisk(this.syncFolder, { ignore: isIgnoredRel });
+    await new Promise((resolve) => setTimeout(resolve, this.recheckQuietMs ?? RECHECK_QUIET_MS));
+    if (signal && signal.aborted) return false;
+    const after = await snapshotDisk(this.syncFolder, { ignore: isIgnoredRel });
+    if (before.entries.size !== after.entries.size) return false;
+    for (const [rel, was] of before.entries) {
+      const now = after.entries.get(rel);
+      if (!now || now.inode !== was.inode || now.size !== was.size || now.mtimeMs !== was.mtimeMs) return false;
+    }
     return true;
   },
 
