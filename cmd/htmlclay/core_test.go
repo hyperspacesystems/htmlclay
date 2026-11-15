@@ -195,12 +195,12 @@ func TestCoreRefusals(t *testing.T) {
 		}
 	})
 
-	t.Run("nothing runs sync yet", func(t *testing.T) {
+	t.Run("a malformed sync key is refused before anything runs", func(t *testing.T) {
 		home := evalTempHome(t)
 		a := buildTestApp(t, home, t.TempDir())
 		_, refusal := a.do(context.Background(), coreAction(t, "connect", "sync.connect", map[string]string{"username": "sam", "key": "hcsk_x"}), ChannelTray)
-		if refusal == nil || refusal.Code != appcore.RefuseNotYet {
-			t.Fatalf("sync.connect = %+v, want %q", refusal, appcore.RefuseNotYet)
+		if refusal == nil || refusal.Code != appcore.RefuseSyncKeyShape {
+			t.Fatalf("sync.connect = %+v, want %q", refusal, appcore.RefuseSyncKeyShape)
 		}
 	})
 }

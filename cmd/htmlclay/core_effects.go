@@ -53,6 +53,8 @@ var implementedActions = []string{
 	"request.answer",
 	"request.show",
 	"service.restart",
+	"sync.connect",
+	"sync.disconnect",
 	"waiting.markSeen",
 }
 
@@ -126,6 +128,10 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 	case "service.restart":
 		a.service.restart()
 		return nil
+	case "sync.connect":
+		return a.connectSync(ctx, e)
+	case "sync.disconnect":
+		return a.disconnectSync()
 	case "host.quit":
 		if !e.Force {
 			names, answered := a.unsavedDocuments()

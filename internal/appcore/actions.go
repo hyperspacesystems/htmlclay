@@ -437,9 +437,8 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		}
 		return one(Effect{Type: a.Type, ProgramID: args.ProgramID, Path: args.Path, Acknowledged: args.Acknowledged})
 	case "sync.connect":
-		if args.Username == "" {
-			return bad("username")
-		}
+		// The username is optional (08-sync.md decision 9): blank takes the key's
+		// own account, and a typed one must match it, which only the server knows.
 		if args.Key == "" {
 			return bad("key")
 		}

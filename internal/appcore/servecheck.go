@@ -63,7 +63,16 @@ const (
 	RefuseUnknownPreference = "unknown-preference"
 	RefuseNothingToMove     = "nothing-to-move"
 	RefuseNotConnected      = "not-connected"
-	RefuseNothingReady      = "nothing-ready"
+	// The sync key refusals Connect answers (08-sync.md step 8.10).
+	RefuseSyncKeyShape     = "sync-key-shape"
+	RefuseSyncKeyRefused   = "sync-key-refused"
+	RefuseSyncWrongAccount = "sync-wrong-account"
+	RefuseSyncOffline      = "sync-offline"
+	RefuseSyncServerUpdate = "sync-server-update"
+	// RefuseServiceNeeded is a sync action with no live-room service running:
+	// sync runs inside it, and it runs while a folder is served.
+	RefuseServiceNeeded = "service-needed"
+	RefuseNothingReady  = "nothing-ready"
 	// RefuseUnsavedEdits is a stop serving the live-room service kept, because
 	// the folder still has edits that are not saved.
 	RefuseUnsavedEdits = "unsaved-edits"

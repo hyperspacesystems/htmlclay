@@ -189,6 +189,9 @@ func (a *app) facts() appcore.Facts {
 	}
 	f.Requests = a.requestFacts()
 	f.Folders = a.folderFacts()
+	var syncFolders []appcore.FolderFact
+	f.Sync, syncFolders, f.Events = a.syncFacts()
+	f.Folders = append(f.Folders, syncFolders...)
 	f.Documents = a.documentFacts()
 	f.Programs = a.programFacts()
 	f.Update = appcore.UpdateState{

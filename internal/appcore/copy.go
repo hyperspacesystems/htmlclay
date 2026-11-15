@@ -103,6 +103,12 @@ var RefusalText = map[string]string{
 	RefuseUnknownPreference: "HTML Clay doesn't have that setting. Check the setting name or update HTML Clay.",            // copy: refusal, max 140 chars
 	RefuseNothingToMove:     "There is nothing to move from Hyperclay Local. Pick a folder to serve instead.",              // copy: refusal, max 140 chars
 	RefuseNotConnected:      "Your Hyperclay account isn't connected. Connect it in HTML Clay first.",                      // copy: refusal, max 140 chars
+	RefuseSyncKeyShape:      "TODO-COPY That isn't a sync key. A sync key starts with hcsk_.",
+	RefuseSyncKeyRefused:    "TODO-COPY Hyperclay didn't accept that sync key. Make a new one on hyperclay.com.",
+	RefuseSyncWrongAccount:  "TODO-COPY That sync key belongs to a different account.",
+	RefuseSyncOffline:       "TODO-COPY HTML Clay couldn't reach Hyperclay. Check your connection and try again.",
+	RefuseSyncServerUpdate:  "TODO-COPY Hyperclay needs an update before HTML Clay can sync with it.",
+	RefuseServiceNeeded:     "TODO-COPY Sync starts once a folder is served. Serve a folder and try again.",
 	RefuseNothingReady:      "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
 	RefuseNeedsConfirmation: "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars
 	RefuseFailed:            "HTML Clay couldn't do that just now. Try again.",                                             // copy: refusal, max 140 chars

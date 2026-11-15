@@ -162,6 +162,7 @@ func TestPlan(t *testing.T) {
 		{"turn on all trusted folders for a program", synced, "program.setAllTrusted", `{"programID":"todo-search","on":true}`, "program.setAllTrusted", ""},
 		{"connect", trusted, "sync.connect", `{"username":"sam","key":"hcsk_x"}`, "sync.connect", ""},
 		{"connect with no key", trusted, "sync.connect", `{"username":"sam"}`, "", RefuseBadArguments},
+		{"connect with no username takes the key's account", trusted, "sync.connect", `{"key":"hcsk_x"}`, "sync.connect", ""},
 		{"sync a served account folder", synced, "folder.setSynced", `{"id":"panphora","on":true}`, "", RefuseNotAllowedNow},
 		{"set up a team folder", synced, "folder.setUpTeam", `{"id":"marketing","path":"/Users/sam/hyperclay/Marketing"}`, "folder.setUpTeam", ""},
 		{"set up a team folder already here", synced, "folder.setUpTeam", `{"id":"panphora"}`, "", RefuseNotAllowedNow},

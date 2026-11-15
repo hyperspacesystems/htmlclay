@@ -208,6 +208,14 @@ func (c *Config) addTrustedFolderLocked(dir, identity string) bool {
 	return true
 }
 
+// NewFolderID mints a folder id no folder in the config holds, for a folder that
+// is listed before it is on this computer, such as a synced account's.
+func (c *Config) NewFolderID() (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.newFolderIDLocked()
+}
+
 // newFolderIDLocked mints a folder id: 16 lowercase hex, the shape served folders
 // have always used, never one any folder in the config already holds. The caller
 // holds c.mu.

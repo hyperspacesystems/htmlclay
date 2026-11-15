@@ -161,6 +161,16 @@ func (s stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, s.flush())
 	case "/v1/roots":
 		writeJSON(w, rootsAnswer{Added: []string{}, Removed: []string{}, Kept: []keptRoot{}})
+	case "/sync/v1/discover":
+		// The answer is the file HTMLCLAY_STUB_DISCOVER names, read on every call so
+		// a test can change it between calls.
+		body, err := os.ReadFile(os.Getenv("HTMLCLAY_STUB_DISCOVER"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
 	default:
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 	}

@@ -73,6 +73,12 @@ type appRuntime struct {
 	// syncStore is the system's secret store holding the sync key; nil when it
 	// could not be opened, and in tests that do not set one.
 	syncStore secret.Store
+	// syncActionMu makes connect and disconnect take turns. syncMu holds
+	// syncRecord, sync.json as read once, only while it is read or changed, so a
+	// snapshot never waits on a network call.
+	syncActionMu sync.Mutex
+	syncMu       sync.Mutex
+	syncRecord   *config.Sync
 	// folderLockDir is where the per-folder serve locks live. It is shared by every
 	// profile on this account, so two HTML Clay processes never serve one folder.
 	folderLockDir string
