@@ -61,18 +61,23 @@ func updateNowDispatch(argv []string) (int, bool) {
 	if len(argv) < 2 {
 		return 0, false
 	}
-	if argv[1] == "update-info" {
+	switch argv[1] {
+	case "update-info":
 		return runUpdateInfo(argv[2:], os.Stdout, os.Stderr), true
-	}
-	if argv[1] != "update-now" {
+	case "update-now", "update-confirm":
+	default:
 		return 0, false
 	}
 	dir, err := config.Dir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlclay update-now: cannot resolve the config dir: %v\n", err)
+		fmt.Fprintf(os.Stderr, "htmlclay %s: cannot resolve the config dir: %v\n", argv[1], err)
 		return updateNowExitUsage, true
 	}
-	return runUpdateNow(platform.NewSingleInstance(dir), argv[2:], os.Stdout, os.Stderr), true
+	si := platform.NewSingleInstance(dir)
+	if argv[1] == "update-confirm" {
+		return runUpdateConfirm(si, argv[2:], os.Stdout, os.Stderr), true
+	}
+	return runUpdateNow(si, argv[2:], os.Stdout, os.Stderr), true
 }
 
 // updateInfo is what this binary is: the version and channel it was built
@@ -133,6 +138,33 @@ func runUpdateNow(si platform.SingleInstance, args []string, stdout, stderr io.W
 	}
 }
 
+// runUpdateConfirm is how the Mac app tells its host it is up: the host then
+// reports serving to an update supervisor and settles the config saves it held
+// while the update was being judged. It answers "confirmed" and exits 0.
+func runUpdateConfirm(si platform.SingleInstance, args []string, stdout, stderr io.Writer) int {
+	if len(args) != 0 {
+		fmt.Fprintln(stderr, "usage: htmlclay update-confirm")
+		return updateNowExitUsage
+	}
+	answer, err := si.SendCommand("update-confirm")
+	if errors.Is(err, platform.ErrNoAnswer) {
+		fmt.Fprintln(stdout, "refused the running HTML Clay predates update-confirm")
+		return updateNowExitTooOld
+	}
+	if err != nil {
+		fmt.Fprintf(stderr, "htmlclay update-confirm: HTML Clay is not running: %v\n", err)
+		return updateNowExitNotRunning
+	}
+	fmt.Fprintln(stdout, answer)
+	switch answer {
+	case "confirmed":
+		return updateNowExitOK
+	case platform.CommandStarting:
+		return updateNowExitStarting
+	}
+	return updateNowExitRefused
+}
+
 // handleInstanceCommand answers one command frame from the single-instance
 // socket. The socket only carries frames from this user's own processes.
 func (a *app) handleInstanceCommand(cmd string) string {
@@ -148,6 +180,13 @@ func (a *app) handleInstanceCommand(cmd string) string {
 		answer := a.updateNow(fields[1])
 		a.rt.logger.Printf("update-now %s: %s", fields[1], answer)
 		return answer
+	case "update-confirm":
+		if len(fields) != 1 {
+			return "refused unknown command"
+		}
+		markUpdateHealth(update.HealthServing)
+		go a.settleUpgradeSave()
+		return "confirmed"
 	case "serve":
 		return a.handleServeCommand(fields[1:])
 	case "stop-serving":

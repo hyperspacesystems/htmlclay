@@ -85,6 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, let process, self.process === process else { return }
             Task {
                 await self.relay.attach(client)
+                await self.confirmUpdate(environment: launch.environment)
                 self.opener?.hostReady()
                 self.writeState()
                 await self.seedProfile()
@@ -109,6 +110,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         writeState()
         Task { _ = await process.start() }
+    }
+
+    private func confirmUpdate(environment: [String: String]) async {
+        let host = HostCLI(binary: Self.hostBinary(), environment: environment)
+        do {
+            let answer = try await host.confirm()
+            if answer != "confirmed" {
+                FileHandle.standardError.write(Data("HTML Clay: update-confirm answered \(answer)\n".utf8))
+            }
+        } catch {
+            FileHandle.standardError.write(Data("HTML Clay: update-confirm failed: \(error)\n".utf8))
+        }
     }
 
     /// Runs the persona's real actions over the relay once, on the first ready host.

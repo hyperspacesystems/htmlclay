@@ -487,8 +487,10 @@ func main() {
 		a.rt.logger.Printf("Update handoff ignored: %v", err)
 	}
 	a.releaseRequests()
-	markUpdateHealth(update.HealthServing)
-	go a.settleUpgradeSave()
+	if !a.shell {
+		markUpdateHealth(update.HealthServing)
+		go a.settleUpgradeSave()
+	}
 
 	args := flag.Args()
 	if len(args) > 0 {
