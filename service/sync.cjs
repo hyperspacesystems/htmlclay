@@ -453,6 +453,19 @@ function createSync({ gate, service = null, dataDir = null }) {
       return { idle };
     },
 
+    // resolve is C3's conflict choice: the engine keeps mine, theirs or both for
+    // one held conflict, writing through Go as every engine write does.
+    async resolve(body) {
+      if (!held) return { ok: false, error: 'not-connected' };
+      const keep = body && body.keep;
+      if (!['mine', 'theirs', 'both'].includes(keep)) return { ok: false, error: 'bad-choice' };
+      if (!manager || typeof body.sessionId !== 'string' || typeof body.path !== 'string') return { ok: false, error: 'no-conflict' };
+      const result = await manager.resolveConflict({ sessionId: body.sessionId, path: body.path, choice: keep });
+      if (reporter) reporter.schedule();
+      if (!result.ok && result.error === 'unknown') return { ok: false, error: 'no-conflict' };
+      return result;
+    },
+
     async stopAll() {
       await stopAll();
     },
@@ -528,6 +541,7 @@ function mountSync(service, sync) {
     [`${PREFIX}idle`, (body) => sync.idle(body)],
     [`${PREFIX}preview`, (body) => sync.preview(body)],
     [`${PREFIX}bind`, (body) => sync.bind(body)],
+    [`${PREFIX}resolve`, (body) => sync.resolve(body)],
   ]);
   service.mount(PREFIX, async (req, res) => {
     const { pathname } = new URL(req.url, 'http://service');

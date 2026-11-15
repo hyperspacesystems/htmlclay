@@ -88,6 +88,14 @@ const (
 	// RefuseServiceNeeded is a sync action with no live-room service running:
 	// sync runs inside it, and it runs while a folder is served.
 	RefuseServiceNeeded = "service-needed"
+	// RefuseSyncPaused is a conflict choice while sync is paused: the choice
+	// uploads or downloads, which pause promises not to do.
+	RefuseSyncPaused = "sync-paused"
+	// RefuseConflictGone is a choice for a conflict that is no longer held.
+	RefuseConflictGone = "conflict-gone"
+	// RefuseConflictChanged is a choice for a conflict whose file or server
+	// copy changed since the person looked at it; nothing was changed.
+	RefuseConflictChanged = "conflict-changed"
 	RefuseNothingReady  = "nothing-ready"
 	// RefuseUnsavedEdits is a stop serving the live-room service kept, because
 	// the folder still has edits that are not saved.

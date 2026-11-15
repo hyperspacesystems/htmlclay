@@ -125,6 +125,9 @@ var RefusalText = map[string]string{
 	RefuseSyncServerUpdate:   "TODO-COPY Hyperclay needs an update before HTML Clay can sync with it.",
 	RefuseServiceNeeded:      "TODO-COPY Sync starts once a folder is served. Serve a folder and try again.",
 	RefuseSyncFolderNotEmpty: "TODO-COPY A team folder starts empty. Pick an empty folder or a new one.",
+	RefuseSyncPaused:         "TODO-COPY Sync is paused. Turn sync back on, then choose which copy to keep.",
+	RefuseConflictGone:       "TODO-COPY That file isn't in conflict any more. Nothing was changed.",
+	RefuseConflictChanged:    "TODO-COPY That file changed since you looked. Look at both copies again, then choose.",
 	RefuseConfirmNeeded:      "TODO-COPY This folder already has files. Check what will sync, then confirm.",
 	RefuseNothingReady:       "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
 	RefuseNeedsConfirmation:  "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars

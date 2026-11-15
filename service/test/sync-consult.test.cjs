@@ -77,6 +77,13 @@ test('the engine with a Go that consults back', { skip: SKIP }, async (t) => {
     assert.deepEqual(failedConsults(), []);
   });
 
+  await t.test('resolve answers for a file with no conflict and a choice it does not know', async () => {
+    const resolve = (body) => call(s, 'POST', '/sync/v1/resolve', { body });
+    assert.deepEqual((await resolve({ sessionId: 's-consult', path: 'apps/renamed.html', keep: 'mine' })).body, { ok: false, error: 'no-conflict' });
+    assert.deepEqual((await resolve({ sessionId: 's-consult', path: 'apps/renamed.html', keep: 'all' })).body, { ok: false, error: 'bad-choice' });
+    assert.deepEqual((await resolve({ sessionId: 'nobody', path: 'apps/renamed.html', keep: 'mine' })).body, { ok: false, error: 'no-conflict' });
+  });
+
   s.send({ sync: { v: 1, key: null } });
   await s.line('SYNC KEY CLEARED');
 });

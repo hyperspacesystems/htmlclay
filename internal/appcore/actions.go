@@ -57,6 +57,7 @@ var ActionClasses = map[string]Class{
 	"request.show":       ClassSafe,
 	"prefs.set":          ClassSafe,
 	"sync.setPaused":     ClassSafe,
+	"conflict.resolve":   ClassSafe,
 	"update.start":       ClassSafe,
 	"service.restart":    ClassSafe,
 	"host.quit":          ClassSafe,
@@ -159,6 +160,10 @@ type Effect struct {
 	// Confirmed is the person having seen what that will do.
 	Existing  bool `json:"existing,omitempty"`
 	Confirmed bool `json:"confirmed,omitempty"`
+	// Conflict is conflict.resolve's held conflict (its EventFact id, which
+	// starts with the sync session's id) and Keep the copy the person chose.
+	Conflict string `json:"conflict,omitempty"`
+	Keep     string `json:"keep,omitempty"`
 	// Acknowledged is what the sheet showed about the file or the folder: a code
 	// the effect finds and this list does not hold refuses needs-confirmation.
 	Acknowledged []string `json:"acknowledged,omitempty"`
@@ -188,10 +193,26 @@ type actionArgs struct {
 	Destination string          `json:"destination"`
 	Existing    bool            `json:"existing"`
 	Confirmed   bool            `json:"confirmed"`
+	Keep        string          `json:"keep"`
 	// Acknowledged is the warnings a sheet showed, for the two actions that
 	// register a program file, for a folder relink, and for trusting a folder.
 	Acknowledged []string `json:"acknowledged"`
 }
+
+// conflictChoices is which copies Local's resolveConflict can keep for each
+// held conflict kind (08-sync.md 8.0h; execute.js resolveConflict): both
+// copies only where a server copy is kept beside the file.
+var conflictChoices = map[string][]string{
+	"both-edited":    {"mine", "theirs", "both"},
+	"rejected":       {"mine", "theirs", "both"},
+	"remote-deleted": {"mine", "theirs"},
+	"unbound":        {"mine", "theirs"},
+	"name-taken":     {"mine"},
+}
+
+// ConflictChoices answers the choices a held conflict of kind offers, in the
+// order a screen shows them; an unknown kind offers none.
+func ConflictChoices(kind string) []string { return slices.Clone(conflictChoices[kind]) }
 
 // Plan decides an action against the facts: the effects to run, or why not. It
 // checks what the snapshot can show (a folder exists, can.serve is true, a request
@@ -266,6 +287,26 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return bad("value")
 		}
 		return one(Effect{Type: a.Type, Key: args.Key, Value: args.Value})
+	case "conflict.resolve":
+		var held *EventFact
+		for i := range f.Events {
+			if f.Events[i].Kind == WaitingConflict && f.Events[i].ID == args.ID {
+				held = &f.Events[i]
+			}
+		}
+		if held == nil {
+			return nil, &Refusal{Code: RefuseConflictGone}
+		}
+		if args.Path != "" && args.Path != held.Name {
+			return nil, &Refusal{Code: RefuseConflictChanged, SubjectID: held.SubjectID}
+		}
+		if !slices.Contains(ConflictChoices(held.Detail), args.Keep) {
+			return bad("keep")
+		}
+		if f.Sync.Paused {
+			return nil, &Refusal{Code: RefuseSyncPaused, SubjectID: held.SubjectID}
+		}
+		return one(Effect{Type: a.Type, FolderID: held.SubjectID, Path: held.Name, Conflict: held.ID, Keep: args.Keep})
 	case "sync.setPaused":
 		if args.Paused == nil {
 			return bad("paused")

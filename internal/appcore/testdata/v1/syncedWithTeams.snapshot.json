@@ -11,6 +11,7 @@
     "stopped": false,
     "can": {
       "app.openKeptPage": true,
+      "conflict.resolve": false,
       "dashboard.open": true,
       "document.export": true,
       "document.forget": true,

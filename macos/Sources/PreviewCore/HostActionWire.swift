@@ -38,6 +38,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "folder.trust", args: ["path": .string(path), "acknowledged": .strings(acknowledged)])
         case let .setUpTeamFolder(folderID):
             return WireActionRequest(type: "folder.setUpTeam", args: ["id": .string(folderID)])
+        case let .resolveConflict(id, path, keep):
+            return WireActionRequest(type: HostActionType.conflictResolve, args: ["id": .string(id), "path": .string(path), "keep": .string(keep)])
         case let .revealFolder(id):
             return WireActionRequest(type: "folder.reveal", args: ["id": .string(id)])
         case let .copyAddress(folderID):

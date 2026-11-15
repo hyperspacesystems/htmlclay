@@ -427,6 +427,9 @@ public enum HostAction: Equatable, Sendable {
     case connectSample
     case disconnect
     case setUpTeamFolder(folderID: String)
+    /// A held conflict's choice: the conflict's id and path as the host listed
+    /// it, and "mine", "theirs" or "both".
+    case resolveConflict(id: String, path: String, keep: String)
     case setProgramAllTrusted(programID: String, on: Bool)
     case setUseName(Bool)
     case setAutoUpdate(Bool)

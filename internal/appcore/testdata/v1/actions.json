@@ -6,6 +6,10 @@
       "class": "safe"
     },
     {
+      "type": "conflict.resolve",
+      "class": "safe"
+    },
+    {
       "type": "dashboard.open",
       "class": "safe"
     },

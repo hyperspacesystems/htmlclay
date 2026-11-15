@@ -228,6 +228,28 @@ func (s stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(answer)
+	case "/sync/v1/resolve":
+		// The body goes to HTMLCLAY_STUB_RESOLVE_LOG; the answer is the file
+		// HTMLCLAY_STUB_RESOLVE names, or the choice kept.
+		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if name := os.Getenv("HTMLCLAY_STUB_RESOLVE_LOG"); name != "" {
+			if f, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+				_, _ = f.Write(append(bytes.TrimSpace(body), '\n'))
+				_ = f.Close()
+			}
+		}
+		answer := []byte(`{"ok":true}`)
+		if name := os.Getenv("HTMLCLAY_STUB_RESOLVE"); name != "" {
+			if data, err := os.ReadFile(name); err == nil {
+				answer = data
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(answer)
 	default:
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 	}

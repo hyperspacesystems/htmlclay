@@ -9,7 +9,7 @@ final class HostActionWireTests: XCTestCase {
     private static let goArgumentNames: Set<String> = [
         "id", "ids", "path", "name", "route", "key", "value", "on", "allow", "paused", "force",
         "programID", "documentID", "revision", "answer", "username", "folderIDs", "acknowledged",
-        "destination",
+        "destination", "keep",
     ]
 
     private static let everyAction: [HostAction] = [
@@ -29,6 +29,7 @@ final class HostActionWireTests: XCTestCase {
         .connectSample,
         .disconnect,
         .setUpTeamFolder(folderID: "f1"),
+        .resolveConflict(id: "s1:901:1790000000000", path: "board.html", keep: "theirs"),
         .setProgramAllTrusted(programID: "p1", on: true),
         .setUseName(true),
         .setAutoUpdate(false),
