@@ -11,6 +11,7 @@ import (
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/shellapi"
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 // insideFixture is the home every subtest starts from: the folder around is
@@ -256,15 +257,10 @@ func TestM3TrustInsideTrusted(t *testing.T) {
 		f := newInsideFixture(t)
 		before := f.configBytes(t)
 		cfgDir := config.DirFrom(f.cfgBase)
-		if err := os.Chmod(cfgDir, 0500); err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { os.Chmod(cfgDir, 0755) })
+		allowWrites := testutil.RefuseReplace(t, filepath.Join(cfgDir, "config.json"))
 
 		refusal := f.trust(t, f.child, warnInsideTrusted)
-		if err := os.Chmod(cfgDir, 0755); err != nil {
-			t.Fatal(err)
-		}
+		allowWrites()
 		if refusal == nil || refusal.Code != appcore.RefuseFailed {
 			t.Fatalf("a trust the config write could not record = %+v, want %s", refusal, appcore.RefuseFailed)
 		}

@@ -64,8 +64,7 @@ func startSetup(t *testing.T, a *app, document, name string) <-chan helperOpenPl
 func newSetupConfirmationApp(t *testing.T) (*app, string, string) {
 	t.Helper()
 	home := t.TempDir()
-	a := newTestApp(t, home)
-	a.shell = true
+	a := newShellTestApp(t, home)
 	t.Cleanup(func() {
 		for _, p := range a.registry().Pending() {
 			a.registry().Close(p.ID)
@@ -201,8 +200,7 @@ func TestM3HelperConfirmation(t *testing.T) {
 
 	t.Run("a team document never reaches always", func(t *testing.T) {
 		home := t.TempDir()
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		t.Cleanup(func() {
 			for _, p := range a.registry().Pending() {
 				a.registry().Close(p.ID)
@@ -260,8 +258,7 @@ func TestM3HelperConfirmation(t *testing.T) {
 
 	t.Run("a second document's setup and Remove Access run while a question is open", func(t *testing.T) {
 		home := t.TempDir()
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		t.Cleanup(func() {
 			for _, p := range a.registry().Pending() {
 				a.registry().Close(p.ID)

@@ -35,6 +35,14 @@ type attachmentTerminal struct {
 // file name tells it which program it is.
 const attachmentHelperMode = "HTMLCLAY_ATTACHMENT_HELPER"
 
+// Two names make the copy another program: attachmentWaiter records that it
+// started and then stays alive until something stops it, and attachmentErrorer
+// answers a structured error.
+const (
+	attachmentWaiter  = "waiter"
+	attachmentErrorer = "errorer"
+)
+
 func TestMain(m *testing.M) {
 	if os.Getenv(attachmentHelperMode) != "" {
 		os.Exit(runAttachmentHelper())
@@ -60,6 +68,13 @@ func runAttachmentHelper() int {
 		return 1
 	}
 	label := strings.TrimSuffix(filepath.Base(self), ".exe")
+	switch label {
+	case attachmentWaiter:
+		time.Sleep(30 * time.Second)
+	case attachmentErrorer:
+		fmt.Println(`{"type":"error","code":"invalid_request","message":"bad request","details":{"field":"query"}}`)
+		return 0
+	}
 	result, err := json.Marshal(map[string]any{"type": "result", "value": map[string]string{"program": label}})
 	if err != nil {
 		return 1

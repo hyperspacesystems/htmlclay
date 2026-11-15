@@ -1,6 +1,7 @@
 package appcore
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -78,18 +79,18 @@ func TestFolderRules(t *testing.T) {
 			folder: present(FolderFact{Origin: local, Served: true, Missing: true}),
 			want:   FolderCan{StopServing: true, SetFraming: true}, syncWhy: WhyNotFromAccount, trustWhy: WhyStopServingFirst},
 		{name: "a trusted folder below a served one cannot be served",
-			folder: present(FolderFact{Origin: local, Name: "Journal", Path: "/Users/sam/Documents/Notes/Journal"}),
-			others: []FolderFact{present(FolderFact{ID: "notes", Origin: local, Name: "Notes", Served: true, ServedName: "notes", Path: "/Users/sam/Documents/Notes"})},
+			folder: present(FolderFact{Origin: local, Name: "Journal", Path: filepath.FromSlash("/Users/sam/Documents/Notes/Journal")}),
+			others: []FolderFact{present(FolderFact{ID: "notes", Origin: local, Name: "Notes", Served: true, ServedName: "notes", Path: filepath.FromSlash("/Users/sam/Documents/Notes")})},
 			want:   FolderCan{StopTrusting: true}, serveWhy: WhyOverlapsServed, serveWhyText: "notes", syncWhy: WhyNotFromAccount,
 		},
 		{name: "a trusted folder above a served one cannot be served",
-			folder: present(FolderFact{Origin: local, Name: "Notes", Path: "/Users/sam/Documents/Notes"}),
-			others: []FolderFact{present(FolderFact{ID: "journal", Origin: local, Name: "Journal", Served: true, Path: "/Users/sam/Documents/Notes/Journal"})},
+			folder: present(FolderFact{Origin: local, Name: "Notes", Path: filepath.FromSlash("/Users/sam/Documents/Notes")}),
+			others: []FolderFact{present(FolderFact{ID: "journal", Origin: local, Name: "Journal", Served: true, Path: filepath.FromSlash("/Users/sam/Documents/Notes/Journal")})},
 			want:   FolderCan{StopTrusting: true}, serveWhy: WhyOverlapsServed, serveWhyText: "Journal", syncWhy: WhyNotFromAccount,
 		},
 		{name: "a trusted folder beside a served one can be served",
-			folder: present(FolderFact{Origin: local, Name: "Journal", Path: "/Users/sam/Documents/Notes/Journal"}),
-			others: []FolderFact{present(FolderFact{ID: "clips", Origin: local, Name: "Clips", Served: true, ServedName: "clips", Path: "/Users/sam/Documents/Notes/Clips"})},
+			folder: present(FolderFact{Origin: local, Name: "Journal", Path: filepath.FromSlash("/Users/sam/Documents/Notes/Journal")}),
+			others: []FolderFact{present(FolderFact{ID: "clips", Origin: local, Name: "Clips", Served: true, ServedName: "clips", Path: filepath.FromSlash("/Users/sam/Documents/Notes/Clips")})},
 			want:   FolderCan{Serve: true, StopTrusting: true}, syncWhy: WhyNotFromAccount,
 		},
 	}

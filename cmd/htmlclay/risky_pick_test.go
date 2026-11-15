@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -13,10 +14,12 @@ import (
 // A file picked from the not-executable question gets the same risky-file check
 // as a file picked from the first question.
 func TestM3NotExecutablePickIsChecked(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no executable bit: a program there runs by its extension, so this question is never asked")
+	}
 	settledSetup(t)
 	home := t.TempDir()
-	a := newTestApp(t, home)
-	a.shell = true
+	a := newShellTestApp(t, home)
 	noDialog(t, a)
 	closePendingRequests(t, a)
 	document := writeHelperPage(t, home, "search")

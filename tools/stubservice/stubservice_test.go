@@ -402,6 +402,9 @@ func startBareStub(t *testing.T, stubBin string, env ...string) (string, string)
 // bootstrap line exits 3.
 func TestStubSpeaksTheServiceProtocol(t *testing.T) {
 	stubBin := filepath.Join(t.TempDir(), "stubservice")
+	if runtime.GOOS == "windows" {
+		stubBin += ".exe"
+	}
 	buildGo(t, repoRoot(t), stubBin, "./tools/stubservice")
 	hold := filepath.Join(t.TempDir(), "hold")
 	if err := os.WriteFile(hold, nil, 0600); err != nil {

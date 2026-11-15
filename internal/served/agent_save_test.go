@@ -623,7 +623,11 @@ func agentSaveOwner(t *testing.T, s *guardV2Stand) {
 	}
 
 	// The folder stops being served while the save waits for the lock.
-	unlock := s.root.commit.locks.lock(s.docPath())
+	resolved, err := resolveWritePath(s.root.registry, guardV2Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unlock := s.root.commit.locks.lock(resolved)
 	started := make(chan struct{})
 	done := make(chan error, 1)
 	go func() {

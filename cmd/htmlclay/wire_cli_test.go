@@ -1361,6 +1361,18 @@ func TestWireHelperProcess(t *testing.T) {
 	case "fail":
 		fmt.Fprintln(os.Stderr, "handler blew up")
 		code = 3
+	case "rewrite":
+		// The handler's own write of the document it was asked about.
+		data, err := os.ReadFile(os.Getenv("HTMLCLAY_WIRE_HELPER_FROM"))
+		if err == nil {
+			err = os.WriteFile(out, data, 0644)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			code = 1
+			break
+		}
+		fmt.Println("rewrote")
 	case "long":
 		// One line far past any reader's buffer, then a normal one. A handler
 		// printing a whole JSON result on one line is ordinary.

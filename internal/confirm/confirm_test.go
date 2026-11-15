@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
 )
 
 var requestIDPattern = regexp.MustCompile(`^r[0-9a-f]{12}$`)
+
+// chosenFile is absolute on every system, which is what choose-file requires.
+var chosenFile = filepath.Join(os.TempDir(), "note.html")
 
 type harness struct {
 	t       *testing.T
@@ -222,7 +227,7 @@ func TestM3RequestLifetime(t *testing.T) {
 		h := newHarness(t)
 		out := h.ask(context.Background(), Ask{Kind: "no-file", Answers: []string{"deny", "choose-file"}})
 		p := h.awaitOne()
-		if err := h.r.Answer(p.ID, p.Revision, "choose-file", "/tmp/note.html"); err != nil {
+		if err := h.r.Answer(p.ID, p.Revision, "choose-file", chosenFile); err != nil {
 			t.Fatalf("Answer: %v", err)
 		}
 		h.awaitAsk(out)
@@ -260,17 +265,17 @@ func TestM3RequestLifetime(t *testing.T) {
 		if err := h.r.Answer(p.ID, p.Revision, "choose-file", ""); !errors.Is(err, ErrBadPath) {
 			t.Fatalf("choose-file with no path = %v, want ErrBadPath", err)
 		}
-		if err := h.r.Answer(p.ID, p.Revision, "deny", "/tmp/note.html"); !errors.Is(err, ErrBadPath) {
+		if err := h.r.Answer(p.ID, p.Revision, "deny", chosenFile); !errors.Is(err, ErrBadPath) {
 			t.Fatalf("deny with a path = %v, want ErrBadPath", err)
 		}
 		if pending := h.r.Pending(); len(pending) != 1 || pending[0].Revision != p.Revision {
 			t.Fatalf("pending after bad paths = %+v, want the request unchanged", pending)
 		}
-		if err := h.r.Answer(p.ID, p.Revision, "choose-file", "/tmp/note.html"); err != nil {
+		if err := h.r.Answer(p.ID, p.Revision, "choose-file", chosenFile); err != nil {
 			t.Fatalf("Answer with an absolute path: %v", err)
 		}
 		res := h.awaitAsk(out)
-		if want := (Reply{ID: p.ID, Choice: "choose-file", Path: "/tmp/note.html"}); res.reply != want {
+		if want := (Reply{ID: p.ID, Choice: "choose-file", Path: chosenFile}); res.reply != want {
 			t.Fatalf("reply = %+v, want %+v", res.reply, want)
 		}
 	})
@@ -279,7 +284,7 @@ func TestM3RequestLifetime(t *testing.T) {
 		h := newHarness(t)
 		out := h.ask(context.Background(), Ask{Kind: "no-file", Answers: []string{"deny", "choose-file"}})
 		p := h.awaitOne()
-		if err := h.r.Answer(p.ID, p.Revision, "choose-file", "/tmp/note.html"); err != nil {
+		if err := h.r.Answer(p.ID, p.Revision, "choose-file", chosenFile); err != nil {
 			t.Fatalf("Answer: %v", err)
 		}
 		h.awaitAsk(out)

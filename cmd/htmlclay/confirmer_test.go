@@ -63,8 +63,7 @@ func TestM3ReadConfirmation(t *testing.T) {
 		writeTestFile(t, page, "<html><body>evil</body></html>")
 		writeTestFile(t, asset, "console.log('lib')")
 
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		s, _ := a.openForTest(t, page)
 
 		done := make(chan int, 1)
@@ -96,8 +95,7 @@ func TestM3ReadConfirmation(t *testing.T) {
 		writeTestFile(t, page, "<html><body>fable</body></html>")
 		writeTestFile(t, asset, "console.log('redpen')")
 
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		s, _ := a.openForTest(t, page)
 
 		type result struct {
@@ -136,8 +134,7 @@ func TestM3ReadConfirmation(t *testing.T) {
 		file := filepath.Join(proj, "index.htmlclay")
 		writeTestFile(t, file, "<html><body>doc</body></html>")
 
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 
 		type answer struct {
 			url string
@@ -204,8 +201,7 @@ func TestM3ReadConfirmation(t *testing.T) {
 		writeTestFile(t, page, "<html><body>fable</body></html>")
 		writeTestFile(t, asset, "console.log('redpen')")
 
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		s, _ := a.openForTest(t, page)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -281,7 +277,7 @@ func TestM3ReadConfirmation(t *testing.T) {
 		relAsset := filepath.Join("work", "review", "shared", "a.js")
 		waitFor(t, "the server to stop waiting for the read", func() bool {
 			logged, _ := os.ReadFile(logPath)
-			return strings.Contains(string(logged), "GET /"+relAsset+" 403")
+			return strings.Contains(string(logged), "GET /"+filepath.ToSlash(relAsset)+" 403")
 		})
 		<-gone
 		close(release)

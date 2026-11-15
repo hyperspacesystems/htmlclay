@@ -222,8 +222,8 @@ func TestPlanRequestAnswersMatchTheSnapshot(t *testing.T) {
 // filled in with an empty name.
 func TestPlanRefusalFromAFolderReasonCarriesItsText(t *testing.T) {
 	f := Facts{Folders: []FolderFact{
-		{ID: "work", Name: "work", Path: "/Users/sam/Work", Origin: Origin{Kind: OriginLocal}, Trusted: true, Served: true, ServedName: "work", OnThisComputer: true},
-		{ID: "inner", Name: "inner", Path: "/Users/sam/Work/inner", Origin: Origin{Kind: OriginLocal}, Trusted: true, OnThisComputer: true},
+		{ID: "work", Name: "work", Path: filepath.FromSlash("/Users/sam/Work"), Origin: Origin{Kind: OriginLocal}, Trusted: true, Served: true, ServedName: "work", OnThisComputer: true},
+		{ID: "inner", Name: "inner", Path: filepath.FromSlash("/Users/sam/Work/inner"), Origin: Origin{Kind: OriginLocal}, Trusted: true, OnThisComputer: true},
 	}}
 	_, refusal := Plan(f, Action{ID: "a1", Type: "folder.serve", Args: json.RawMessage(`{"id":"inner"}`)})
 	if refusal == nil || refusal.Code != RefuseOverlapsServed {

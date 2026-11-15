@@ -49,12 +49,15 @@ func (d *wireDocuments) At(p string) (wire.Document, bool) {
 		return wire.Document{}, false
 	}
 	d.root.registry.Ready()
+	// The registry keeps its base with forward slashes on every system, so a
+	// path is put in that form before it is compared; the wire itself keys a
+	// document on the path as the system writes it.
 	base := d.root.registry.baseReal
-	if !isContained(base, p) || d.Internal(p) {
+	if !isContained(base, filepath.ToSlash(p)) || d.Internal(p) {
 		return wire.Document{}, false
 	}
 	real, err := filepath.EvalSymlinks(p)
-	if err != nil || !isContained(base, real) || d.Internal(real) {
+	if err != nil || !isContained(base, filepath.ToSlash(real)) || d.Internal(real) {
 		return wire.Document{}, false
 	}
 	info, err := os.Stat(real)
@@ -70,7 +73,8 @@ func (d *wireDocuments) MayUsePrograms(doc wire.Document, isBrowser bool, presen
 }
 
 func (d *wireDocuments) OpenHistory(doc wire.Document) error {
-	unlock := fileLocks.lock(doc.Path)
+	// A save keys this lock on the path with forward slashes.
+	unlock := fileLocks.lock(filepath.ToSlash(doc.Path))
 	defer unlock()
 	CreateBackupIfExists(doc.Path, backupSiteName(doc.Name), d.root.baseDir, nil)
 	return nil

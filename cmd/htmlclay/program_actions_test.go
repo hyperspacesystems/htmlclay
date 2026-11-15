@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -200,6 +201,9 @@ func TestM3ProgramActions(t *testing.T) {
 	})
 
 	t.Run("add makes a file executable only when the sheet said so", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows has no executable bit: a program there runs by its extension, so this question is never asked")
+		}
 		f := newM3ProgramFixture(t)
 		plain := m3ProgramInHome(t, f.app, "second", 0o644)
 		if refusal := m3ProgramDo(t, f.app, ChannelShell, "program.add", map[string]any{
@@ -369,7 +373,12 @@ func TestM3ProgramActions(t *testing.T) {
 		for _, warning := range preview.Warnings {
 			codes = append(codes, warning.Code)
 		}
-		if want := []string{helperDetailInDownloads, helperDetailNotExecutable}; !slices.Equal(codes, want) {
+		want := []string{helperDetailInDownloads, helperDetailNotExecutable}
+		if runtime.GOOS == "windows" {
+			// No executable bit there: a program runs by its extension.
+			want = []string{helperDetailInDownloads}
+		}
+		if !slices.Equal(codes, want) {
 			t.Fatalf("relink warnings = %v, want %v", codes, want)
 		}
 		if preview.Path != risky {

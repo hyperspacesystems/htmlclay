@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/recents"
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 func m3At(t *testing.T) time.Time {
@@ -122,11 +123,11 @@ func TestM3RecentsStore(t *testing.T) {
 		if len(list) != 200 {
 			t.Fatalf("the record holds %d rows, want 200", len(list))
 		}
-		if got := list[0].Path; got != "/docs/204.clay" {
-			t.Fatalf("the newest row is %q, want /docs/204.clay", got)
+		if got, want := list[0].Path, filepath.Join("/docs", "204.clay"); got != want {
+			t.Fatalf("the newest row is %q, want %s", got, want)
 		}
-		if got := list[len(list)-1].Path; got != "/docs/5.clay" {
-			t.Fatalf("the oldest row is %q, want /docs/5.clay", got)
+		if got, want := list[len(list)-1].Path, filepath.Join("/docs", "5.clay"); got != want {
+			t.Fatalf("the oldest row is %q, want %s", got, want)
 		}
 		if got := len(m3Open(t, dir).List()); got != 200 {
 			t.Fatalf("the record on disk holds %d rows, want 200", got)
@@ -147,13 +148,10 @@ func TestM3RecentsStore(t *testing.T) {
 			t.Fatalf("read the record: %v", err)
 		}
 
-		if err := os.Chmod(dir, 0500); err != nil {
-			t.Fatalf("make the config folder read-only: %v", err)
-		}
-		t.Cleanup(func() { os.Chmod(dir, 0700) })
+		allowWrites := testutil.RefuseReplace(t, path)
 
 		if err := store.Touch(recents.Entry{Path: "/docs/b.clay"}, at.Add(time.Minute)); err == nil {
-			t.Fatal("Touch succeeded while the config folder was read-only")
+			t.Fatal("Touch succeeded while the record could not be written")
 		}
 
 		after, err := os.ReadFile(path)
@@ -169,7 +167,7 @@ func TestM3RecentsStore(t *testing.T) {
 			t.Fatalf("the list after the failed write is %v, want only /docs/a.clay", got)
 		}
 
-		os.Chmod(dir, 0700)
+		allowWrites()
 		if got := m3Paths(m3Open(t, dir).List()); len(got) != 1 || got[0] != "/docs/a.clay" {
 			t.Fatalf("the record on disk after the failed write is %v, want only /docs/a.clay", got)
 		}
@@ -263,24 +261,25 @@ func TestM3RecentsStore(t *testing.T) {
 	t.Run("find and rebind follow a moved folder", func(t *testing.T) {
 		dir := t.TempDir()
 		store := m3Open(t, dir)
-		m3Touch(t, store, recents.Entry{Path: "/work/site/a.clay"}, at)
-		m3Touch(t, store, recents.Entry{Path: "/work/site/pages/b.clay"}, at)
-		m3Touch(t, store, recents.Entry{Path: "/work/elsewhere.clay"}, at)
+		native := filepath.FromSlash
+		m3Touch(t, store, recents.Entry{Path: native("/work/site/a.clay")}, at)
+		m3Touch(t, store, recents.Entry{Path: native("/work/site/pages/b.clay")}, at)
+		m3Touch(t, store, recents.Entry{Path: native("/work/elsewhere.clay")}, at)
 
 		entry, ok := store.Find(store.List()[2].ID)
-		if !ok || entry.Path != "/work/site/a.clay" {
+		if !ok || entry.Path != native("/work/site/a.clay") {
 			t.Fatalf("Find gave %+v, %v", entry, ok)
 		}
 
-		if err := store.Rebind("/work/site", "/work/moved"); err != nil {
+		if err := store.Rebind(native("/work/site"), native("/work/moved")); err != nil {
 			t.Fatalf("Rebind: %v", err)
 		}
 		got := m3Paths(store.List())
-		want := []string{"/work/elsewhere.clay", "/work/moved/pages/b.clay", "/work/moved/a.clay"}
+		want := []string{native("/work/elsewhere.clay"), native("/work/moved/pages/b.clay"), native("/work/moved/a.clay")}
 		if strings.Join(got, ",") != strings.Join(want, ",") {
 			t.Fatalf("after the move the record is %v, want %v", got, want)
 		}
-		if entry, ok := store.Find(store.List()[2].ID); !ok || entry.Path != "/work/moved/a.clay" {
+		if entry, ok := store.Find(store.List()[2].ID); !ok || entry.Path != native("/work/moved/a.clay") {
 			t.Fatalf("the moved row's id no longer finds it: %+v, %v", entry, ok)
 		}
 		if got := m3Paths(m3Open(t, dir).List()); strings.Join(got, ",") != strings.Join(want, ",") {

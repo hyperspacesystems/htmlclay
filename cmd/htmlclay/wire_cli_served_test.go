@@ -79,20 +79,19 @@ func newWireServedFixture(t *testing.T) *wireServedFixture {
 	}
 }
 
-// rewriteScript is the handler command: it replaces the document with content.
-func (f *wireServedFixture) rewriteScript(t *testing.T, content string) []string {
+// rewriteCommand is the handler command: this test binary, replacing the
+// document with content.
+func (f *wireServedFixture) rewriteCommand(t *testing.T, content string) []string {
 	t.Helper()
-	dir := t.TempDir()
-	body := filepath.Join(dir, "rewritten.html")
+	body := filepath.Join(t.TempDir(), "rewritten.html")
 	if err := os.WriteFile(body, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	script := filepath.Join(dir, "rewrite.sh")
-	line := "#!/bin/sh\ncat '" + body + "' > '" + f.file + "'\necho rewrote\n"
-	if err := os.WriteFile(script, []byte(line), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return []string{script}
+	t.Setenv("HTMLCLAY_WIRE_HELPER", "1")
+	t.Setenv("HTMLCLAY_WIRE_HELPER_MODE", "rewrite")
+	t.Setenv("HTMLCLAY_WIRE_HELPER_FROM", body)
+	t.Setenv("HTMLCLAY_WIRE_HELPER_OUT", f.file)
+	return wireHelperCommand()
 }
 
 // wireServedHandlerRewrite attaches the CLI as the served document's handler,
@@ -100,7 +99,7 @@ func (f *wireServedFixture) rewriteScript(t *testing.T, content string) []string
 func (f *wireServedFixture) wireServedHandlerRewrite(t *testing.T, rewritten string) {
 	t.Helper()
 	server := newWireHarness(t, f.cfgBase)
-	serving := server.background(append([]string{"serve", f.file, "--"}, f.rewriteScript(t, rewritten)...)...)
+	serving := server.background(append([]string{"serve", f.file, "--"}, f.rewriteCommand(t, rewritten)...)...)
 	waitForText(t, server.errs, "attached as handler")
 
 	response, page := f.pageSubscribe(t, servedWireDocumentName)

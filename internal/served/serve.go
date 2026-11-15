@@ -325,7 +325,8 @@ func (s *rootServer) serve(w http.ResponseWriter, r *http.Request, marked bool) 
 	uploaded := refusedUploadPath(realPath) && inUploadsFolder(realPath)
 	if match != nil && !uploaded {
 		if pageLoad(r) && s.beforePage != nil && r.Header.Get("Clay-Source") != "1" {
-			s.beforePage(s.id, realPath)
+			// The app keys a document on the path as the system writes it.
+			s.beforePage(s.id, realOrSame(realPath))
 		}
 		err := s.serveHtml(w, r, realPath, match[1])
 		// A page a person asked for is a document they opened. Everything else

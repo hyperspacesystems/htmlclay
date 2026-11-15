@@ -16,6 +16,7 @@ import (
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 const servedProgramsDocumentName = "doc.html"
@@ -67,9 +68,8 @@ func servedProgramsOpenAs(t *testing.T, shell bool) *servedProgramsStand {
 		server: server,
 	}
 
-	programDir := t.TempDir()
-	marker := filepath.Join(programDir, "ran")
-	program, err := a.rt.cfg.AddHelperProgram("search", recordingHelperProgram(t, programDir, marker))
+	programPath, marker := attachmentProgram(t, "recorder")
+	program, err := a.rt.cfg.AddHelperProgram("search", programPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,18 +77,6 @@ func servedProgramsOpenAs(t *testing.T, shell bool) *servedProgramsStand {
 		t.Fatal(err)
 	}
 	return &servedProgramsStand{servedWireStand: stand, program: program, marker: marker}
-}
-
-// servedWaitingProgram is recordingHelperProgram's waiting variant: it records
-// that it started, then stays alive until Remove Access cancels it.
-func servedWaitingProgram(t *testing.T, dir, marker string) string {
-	t.Helper()
-	path := filepath.Join(dir, "waiter")
-	script := "#!/bin/sh\ncat > /dev/null\necho started >> '" + marker + "'\nsleep 30\nprintf '{\"type\":\"result\",\"value\":{\"ran\":true}}\\n'\n"
-	if err := os.WriteFile(path, []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
-	return path
 }
 
 // loadPage asks for the served document the way a browser asks for a page, which
@@ -406,8 +394,8 @@ func TestM3ServedPrograms(t *testing.T) {
 
 	t.Run("Remove Access stops a running served program", func(t *testing.T) {
 		stand := servedProgramsOpen(t)
-		marker := filepath.Join(t.TempDir(), "waiting")
-		if _, ok := stand.a.rt.cfg.SetHelperProgramPath(stand.program.ID, servedWaitingProgram(t, t.TempDir(), marker)); !ok {
+		waiter, started := attachmentProgram(t, attachmentWaiter)
+		if _, ok := stand.a.rt.cfg.SetHelperProgramPath(stand.program.ID, waiter); !ok {
 			t.Fatal("fixture could not relink the program")
 		}
 		if err := stand.a.rt.cfg.Save(); err != nil {
@@ -425,6 +413,13 @@ func TestM3ServedPrograms(t *testing.T) {
 			t.Fatalf("page request answered %d: %s", sent.StatusCode, servedWireReadBody(t, sent))
 		}
 		page.waitFor(t, "wire/ack", "r1")
+		// Remove Access is for a running program. On Windows a stop sent while
+		// the program is still loading does not reach it, and the host's kill
+		// comes seconds later.
+		testutil.Eventually(t, 10*time.Second, "the program to start", func() bool {
+			_, err := os.Stat(started)
+			return err == nil
+		})
 
 		if refusal := m3ProgramDo(t, stand.a, ChannelShell, "program.removeAccess", map[string]any{
 			"programID": stand.program.ID, "documentID": stand.document(t),

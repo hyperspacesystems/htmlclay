@@ -68,8 +68,7 @@ func newLooseAIEditStandAs(t *testing.T, shell bool) *aiEditStand {
 	t.Setenv("MOCK_MODEL", "1")
 	home := evalTempHome(t)
 	cfgBase := t.TempDir()
-	a := newTestAppWithConfigDir(t, home, cfgBase)
-	a.shell = shell
+	a := newTestAppAs(t, home, cfgBase, shell)
 	t.Cleanup(a.stopRequests)
 	folder := filepath.Join(home, "docs")
 	document := filepath.Join(folder, "roadmap.htmlclay")

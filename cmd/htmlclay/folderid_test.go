@@ -8,6 +8,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 // trustedFolderIDFor answers the id the config keeps for the trusted folder at path.
@@ -167,14 +168,7 @@ func TestM3FolderIDStaysWhenServed(t *testing.T) {
 			t.Error("Load did not report copying the served folder's id onto its trusted entry")
 		}
 
-		t.Cleanup(func() {
-			if err := os.Chmod(cfgDir, 0755); err != nil {
-				t.Errorf("restoring the config dir mode: %v", err)
-			}
-		})
-		if err := os.Chmod(cfgDir, 0500); err != nil {
-			t.Fatalf("chmod: %v", err)
-		}
+		testutil.RefuseReplace(t, configPath)
 
 		a.finishUpgrade()
 

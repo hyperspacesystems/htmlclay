@@ -145,6 +145,7 @@ func wireTestLogger(t *testing.T) *logging.Logger {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(logger.Close)
 	return logger
 }
 
@@ -278,6 +279,61 @@ func wireReadBody(t *testing.T, response *http.Response) string {
 		t.Fatal(err)
 	}
 	return string(body)
+}
+
+// The copy kept before a handler's first write is taken under the document's
+// one lock, the lock a save holds, so the two never run at once.
+func TestM3ServedWireHistoryWaitsForASave(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, wireDocumentName), []byte("<!doctype html><p>wire</p>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler, err := wireTestHost(t).AddRoot(RootSpec{
+		ID:         wireRootID,
+		Path:       dir,
+		PublicHost: wireRootHost,
+		WirePolicy: framesOnly{},
+		WireLogger: wireTestLogger(t),
+	})
+	if err != nil {
+		t.Fatalf("AddRoot: %v", err)
+	}
+	root, ok := handler.(*rootServer)
+	if !ok {
+		t.Fatalf("AddRoot returned %T, want *rootServer", handler)
+	}
+	docs := &wireDocuments{root: root, internalDir: root.internalDir}
+	real, err := filepath.EvalSymlinks(filepath.Join(dir, wireDocumentName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, ok := docs.At(real)
+	if !ok {
+		t.Fatal("the served document is not a wire document")
+	}
+	saving, err := resolveWriteTarget(root.registry, wireDocumentName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	unlock := root.commit.locks.lock(saving)
+	done := make(chan error, 1)
+	go func() { done <- docs.OpenHistory(doc) }()
+	select {
+	case <-done:
+		unlock()
+		t.Fatal("the copy was taken while a save held the document")
+	case <-time.After(150 * time.Millisecond):
+	}
+	unlock()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the copy never finished after the save let go")
+	}
 }
 
 // TestM3ServedWire proves a served folder carries the wire the way loose

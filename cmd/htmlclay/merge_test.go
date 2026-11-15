@@ -13,6 +13,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 // mergeFixture is the home every merge subtest starts from: the child folder is
@@ -134,15 +135,10 @@ func TestM3Merge(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Chmod(cfgDir, 0500); err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { os.Chmod(cfgDir, 0755) })
+		allowWrites := testutil.RefuseReplace(t, filepath.Join(cfgDir, "config.json"))
 
 		refusal := m.merge(t, ChannelShell)
-		if err := os.Chmod(cfgDir, 0755); err != nil {
-			t.Fatal(err)
-		}
+		allowWrites()
 		if refusal == nil || refusal.Code != appcore.RefuseFailed {
 			t.Fatalf("a merge the config write could not record = %+v, want %s", refusal, appcore.RefuseFailed)
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 	"time"
@@ -44,8 +45,7 @@ func TestM3ConfirmationEntryPoints(t *testing.T) {
 		writeTestFile(t, page, "<html><body>fable</body></html>")
 		writeTestFile(t, asset, "console.log('redpen')")
 
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		noDialog(t, a)
 		s, _ := a.openForTest(t, page)
 
@@ -72,8 +72,7 @@ func TestM3ConfirmationEntryPoints(t *testing.T) {
 		file := filepath.Join(proj, "index.htmlclay")
 		writeTestFile(t, file, "<html><body>doc</body></html>")
 
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		noDialog(t, a)
 
 		type answer struct {
@@ -169,8 +168,7 @@ func TestM3ConfirmationEntryPoints(t *testing.T) {
 	t.Run("the program file comes from the window, not a picker", func(t *testing.T) {
 		settledSetup(t)
 		home := t.TempDir()
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		noDialog(t, a)
 		closePendingRequests(t, a)
 		document := writeHelperPage(t, home, "search")
@@ -191,9 +189,11 @@ func TestM3ConfirmationEntryPoints(t *testing.T) {
 	})
 
 	t.Run("making a program executable waits for an answer", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows has no executable bit: a program there runs by its extension, so this question is never asked")
+		}
 		home := t.TempDir()
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		noDialog(t, a)
 		closePendingRequests(t, a)
 		document := writeHelperPage(t, home, "search")
@@ -239,8 +239,7 @@ func TestM3ConfirmationEntryPoints(t *testing.T) {
 
 	t.Run("a direct trust choice", func(t *testing.T) {
 		home := evalTempHome(t)
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		noDialog(t, a)
 		a.pickAndTrustFolder()
 		if trusted := a.rt.cfg.TrustedFolderList(); len(trusted) != 0 {
@@ -254,8 +253,7 @@ func TestM3ConfirmationEntryPoints(t *testing.T) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		a := newTestApp(t, home)
-		a.shell = true
+		a := newShellTestApp(t, home)
 		if err := a.trustFolder(dir); err != nil {
 			t.Fatal(err)
 		}

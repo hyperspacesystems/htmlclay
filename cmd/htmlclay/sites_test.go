@@ -65,12 +65,25 @@ func newTestApp(t *testing.T, home string) *app {
 	return newTestAppWithConfigDir(t, home, t.TempDir())
 }
 
-// newTestAppWithConfigDir is buildTestApp plus a bound listener. A test that only reads
-// or edits config while another app on the same cfgBase is still running uses
-// buildTestApp, so it never contends for that app's port.
+// newShellTestApp is newTestApp for a host the Mac app started.
+func newShellTestApp(t *testing.T, home string) *app {
+	t.Helper()
+	return newTestAppAs(t, home, t.TempDir(), true)
+}
+
+// newTestAppWithConfigDir is buildTestApp plus a bound listener.
 func newTestAppWithConfigDir(t *testing.T, home, cfgBase string) *app {
 	t.Helper()
+	return newTestAppAs(t, home, cfgBase, false)
+}
+
+// newTestAppAs is newTestAppWithConfigDir with shell chosen. Binding the
+// listener saves the port, which schedules a snapshot, and a snapshot reads
+// shell: so shell is set first, as main sets it before anything starts.
+func newTestAppAs(t *testing.T, home, cfgBase string, shell bool) *app {
+	t.Helper()
 	a := buildTestApp(t, home, cfgBase)
+	a.shell = shell
 	if !a.startListener() {
 		t.Fatal("test app could not bind a port")
 	}

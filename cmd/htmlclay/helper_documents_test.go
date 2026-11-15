@@ -74,18 +74,6 @@ func allowDocumentDialogs(path string, choice platform.ConfirmChoice, seen *[]st
 	}
 }
 
-// recordingHelperProgram is a harmless program that proves it ran by appending to
-// marker, and answers with one structured result.
-func recordingHelperProgram(t *testing.T, dir, marker string) string {
-	t.Helper()
-	path := filepath.Join(dir, "recorder")
-	script := "#!/bin/sh\ncat > /dev/null\necho ran >> '" + marker + "'\nprintf '{\"type\":\"result\",\"value\":{\"ran\":true}}\\n'\n"
-	if err := os.WriteFile(path, []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
 func wireHelperRequest(t *testing.T, s *site, token, id, document string) string {
 	t.Helper()
 	body := fmt.Sprintf(`{"v":1,"type":"wire/request","id":%q,"file":%q,"helper":"search","document":"none","payload":{"query":"clay"}}`, id, document)
@@ -236,17 +224,13 @@ func TestHelperDocumentConfigureReusesAnExistingRegistration(t *testing.T) {
 // Configuring has to reach the dispatcher that is already attached to the open
 // document, not only the config: the program must run.
 func TestHelperDocumentConfigureMakesTheOpenDispatcherRunTheProgram(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the fixture program is a POSIX shell script")
-	}
 	home, err := resolveSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := newTestApp(t, home)
 	document := writeHelperPage(t, home, "search")
-	marker := filepath.Join(t.TempDir(), "ran")
-	programPath := recordingHelperProgram(t, t.TempDir(), marker)
+	programPath, marker := attachmentProgram(t, "recorder")
 	if _, err := a.rt.cfg.AddHelperProgram("search", programPath); err != nil {
 		t.Fatal(err)
 	}

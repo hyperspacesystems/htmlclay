@@ -162,6 +162,8 @@ type conformanceHost struct {
 	streams     map[string]*conformanceStream
 	streamAs    map[string]string
 	refusals    []string
+	// started is the file the waiting program writes once it runs.
+	started string
 }
 
 func conformanceDocument(withHelper bool) string {
@@ -172,23 +174,19 @@ func conformanceDocument(withHelper bool) string {
 	return doc
 }
 
-func conformanceProgramPath(t *testing.T, kind string) string {
+// conformanceProgramPath answers the program a case names and, for the waiting
+// program, the file it writes once it runs.
+func conformanceProgramPath(t *testing.T, kind string) (path, started string) {
 	t.Helper()
-	switch kind {
-	case "echo":
-		return recordingHelperProgram(t, t.TempDir(), filepath.Join(t.TempDir(), "ran"))
-	case "wait":
-		return servedWaitingProgram(t, t.TempDir(), filepath.Join(t.TempDir(), "started"))
-	case "error":
-		path := filepath.Join(t.TempDir(), "errorer")
-		script := "#!/bin/sh\ncat > /dev/null\nprintf '{\"type\":\"error\",\"code\":\"invalid_request\",\"message\":\"bad request\",\"details\":{\"field\":\"query\"}}\\n'\n"
-		if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		return path
+	label, ok := map[string]string{"echo": "recorder", "wait": attachmentWaiter, "error": attachmentErrorer}[kind]
+	if !ok {
+		t.Fatalf("unknown program fixture %q", kind)
 	}
-	t.Fatalf("unknown program fixture %q", kind)
-	return ""
+	path, ran := attachmentProgram(t, label)
+	if kind == "wait" {
+		started = ran
+	}
+	return path, started
 }
 
 func conformanceLooseHost(t *testing.T, c conformanceCase) *conformanceHost {
@@ -207,8 +205,11 @@ func conformanceLooseHost(t *testing.T, c conformanceCase) *conformanceHost {
 		a.rt.cfg.SetAIEditEnabled(true)
 	}
 	var program config.HelperProgram
+	started := ""
 	if c.Setup.Program != "none" {
-		program, err = a.rt.cfg.AddHelperProgram("search", conformanceProgramPath(t, c.Setup.Program))
+		var programPath string
+		programPath, started = conformanceProgramPath(t, c.Setup.Program)
+		program, err = a.rt.cfg.AddHelperProgram("search", programPath)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -255,15 +256,19 @@ func conformanceLooseHost(t *testing.T, c conformanceCase) *conformanceHost {
 		baseURL:     "http://" + s.host,
 		streams:     map[string]*conformanceStream{},
 		streamAs:    map[string]string{},
+		started:     started,
 	}
 }
 
 func conformanceServedHost(t *testing.T, c conformanceCase) *conformanceHost {
 	t.Helper()
 	stand := servedWireOpen(t)
+	started := ""
 	if c.Setup.Program != "none" {
 		writeTestFile(t, filepath.Join(stand.dir, servedWireDocumentName), conformanceDocument(true))
-		program, err := stand.a.rt.cfg.AddHelperProgram("search", conformanceProgramPath(t, c.Setup.Program))
+		var programPath string
+		programPath, started = conformanceProgramPath(t, c.Setup.Program)
+		program, err := stand.a.rt.cfg.AddHelperProgram("search", programPath)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -306,6 +311,7 @@ func conformanceServedHost(t *testing.T, c conformanceCase) *conformanceHost {
 		baseURL:     stand.server.URL,
 		streams:     map[string]*conformanceStream{},
 		streamAs:    map[string]string{},
+		started:     started,
 	}
 }
 
@@ -471,6 +477,15 @@ func (h *conformanceHost) run(t *testing.T, c conformanceCase) []string {
 				t.Fatalf("stream %q was never opened", step.Stream)
 			}
 			s.see(t, step.Type, step.ID, step.Code)
+			if step.Type == "wire/ack" && h.started != "" {
+				// What follows stops the waiting program. On Windows a stop
+				// sent while the program is still loading does not reach it,
+				// and the host's kill comes seconds later.
+				testutil.Eventually(t, 10*time.Second, "the waiting program to start", func() bool {
+					_, err := os.Stat(h.started)
+					return err == nil
+				})
+			}
 		case "closed":
 			s := h.streams[step.Stream]
 			if s == nil {
@@ -581,6 +596,13 @@ func TestM3WireConformance(t *testing.T) {
 			t.Run(slug+"/"+kind, func(t *testing.T) {
 				if c.Skip != "" {
 					t.Skip(c.Skip)
+				}
+				if c.Setup.AIEdit == "on" {
+					// The fake model streams for seconds, so a request is still
+					// running when the next one arrives. Without it the outcome
+					// follows the machine: an installed engine really runs, and a
+					// missing one ends the request at once.
+					t.Setenv("MOCK_MODEL", "1")
 				}
 				var host *conformanceHost
 				switch kind {
