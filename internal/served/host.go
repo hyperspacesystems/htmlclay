@@ -1,10 +1,12 @@
 package served
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
+	"regexp"
 	"sync"
 
 	"github.com/panphora/htmlclay/internal/logging"
@@ -234,6 +236,32 @@ func (h *Host) SetServicePeer(url, secret, epoch string) error {
 	}
 	h.cfg.service.setPeer(peer)
 	return nil
+}
+
+// ErrServiceUnavailable is a service call that got no answer: no service
+// attached, the link switched off, a refused connection or an expired deadline.
+var ErrServiceUnavailable = errServiceUnavailable
+
+// ErrNotSyncRoute refuses a CallService path outside /sync/v1/.
+var ErrNotSyncRoute = errors.New("served: only /sync/v1/ routes may be called")
+
+// syncRoute is one route name under /sync/v1/. No dot, so no ".." can walk the
+// service's URL parser back to a control route.
+var syncRoute = regexp.MustCompile(`^/sync/v1/[a-z][a-z-]*$`)
+
+// CallService posts one JSON request to a route the service mounted under
+// /sync/v1/ and decodes its answer, with the bearer and both epochs a control
+// call carries. Only sync routes: every other route on that listener is the
+// service's half of the document protocol, which only the host itself drives.
+func (h *Host) CallService(ctx context.Context, path string, body, out any) error {
+	if !syncRoute.MatchString(path) {
+		return ErrNotSyncRoute
+	}
+	link := h.cfg.service.active()
+	if link == nil {
+		return ErrServiceUnavailable
+	}
+	return link.call(ctx, path, body, out)
 }
 
 // ClearServicePeer forgets the peer: the service is starting or restarting.
