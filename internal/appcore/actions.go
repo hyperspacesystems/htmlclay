@@ -57,6 +57,7 @@ var ActionClasses = map[string]Class{
 	"request.show":          ClassSafe,
 	"prefs.set":             ClassSafe,
 	"sync.setPaused":        ClassSafe,
+	"sync.revealLog":        ClassSafe,
 	"conflict.resolve":      ClassSafe,
 	"folder.resolveRemoval": ClassSafe,
 	"update.start":          ClassSafe,
@@ -267,6 +268,8 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		return one(Effect{Type: a.Type, DocumentID: args.ID, Path: args.Destination})
 	case "dashboard.open":
 		return one(Effect{Type: a.Type, Route: args.Route})
+	case "sync.revealLog":
+		return one(Effect{Type: a.Type})
 	case "app.openKeptPage":
 		return one(Effect{Type: a.Type})
 	case "folder.reveal", "folder.copyAddress":

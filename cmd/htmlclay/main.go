@@ -773,6 +773,9 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 	}, &tray.ExportHooks{
 		Documents: a.exportDocumentRows,
 		Export:    a.exportDocument,
+	}, &tray.SyncHooks{
+		Items: func() []tray.SyncItem { return syncTrayItems(a.snapshot()) },
+		Do:    a.doSyncTray,
 	}, a.dialogAdvice)
 	a.rt.logger.Printf("Tray exited")
 }

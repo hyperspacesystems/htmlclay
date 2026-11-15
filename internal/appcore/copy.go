@@ -92,6 +92,10 @@ const (
 	TextNoticeKeyStoppedBody   = "TODO-COPY Sync is paused. Add a new sync key in HTML Clay."
 	TextNoticeAddedToTeam      = "TODO-COPY You were added to %s"
 	TextNoticeAddedToTeamBody  = "TODO-COPY Set up its folder in HTML Clay."
+	TextTrayPauseSyncing       = "TODO-COPY Pause Syncing"  // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayResumeSyncing      = "TODO-COPY Resume Syncing" // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayOneConflict        = "TODO-COPY 1 Conflict…"    // copy: tray item opening Needs you, max 30 chars
+	TextTrayConflicts          = "TODO-COPY %d Conflicts…"  // copy: tray item opening Needs you, the count, max 30 chars
 )
 
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.

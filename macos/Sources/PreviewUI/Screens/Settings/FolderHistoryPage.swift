@@ -5,6 +5,7 @@ struct FolderHistoryPage: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
     private let folderID: String
+    @State private var history: FolderHistoryModel?
 
     init(folderID: String) {
         self.folderID = folderID
@@ -15,6 +16,8 @@ struct FolderHistoryPage: View {
         case .uploaded: return Symbols.uploaded
         case .downloaded: return Symbols.downloaded
         case .renamed: return Symbols.renamed
+        case .removed: return Symbols.removed
+        case .conflict: return Symbols.conflict
         case .settled: return Symbols.settled
         }
     }
@@ -26,6 +29,11 @@ struct FolderHistoryPage: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .task(id: folderID) {
+            let history = model.historyModel(folderID: folderID)
+            self.history = history
+            await history.loadFirst()
+        }
     }
 
     private func page(_ folder: Folder) -> some View {
@@ -38,17 +46,35 @@ struct FolderHistoryPage: View {
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(kiln.ink)
                 Spacer(minLength: 0)
-                Button(Strings.History.showSyncLog) {
-                    model.say(Strings.Advanced.wouldShowSyncLog)
+                if SettingsControls.showsSyncLog(isSample: model.isSample, can: model.can(HostActionType.syncRevealLog)) {
+                    Button(Strings.History.showSyncLog) {
+                        if model.isSample { model.say(Strings.Advanced.wouldShowSyncLog) } else { model.send(.revealSyncLog) }
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
                 }
-                .buttonStyle(KilnButtonStyle(.plain))
             }
             .padding(.bottom, 4)
-            KilnGroupTitle(Strings.History.today)
-            KilnCard {
-                ForEach(SampleData.history.indices, id: \.self) { index in
-                    if index > 0 { KilnRowDivider() }
-                    row(SampleData.history[index])
+            if let history, history.loaded {
+                if history.entries.isEmpty {
+                    Text(Strings.History.empty)
+                        .font(.system(size: 13))
+                        .foregroundStyle(kiln.muted)
+                        .padding(.top, 12)
+                }
+                let runs = FolderHistoryModel.days(history.entries)
+                ForEach(runs.indices, id: \.self) { run in
+                    KilnGroupTitle(runs[run].day)
+                    KilnCard {
+                        ForEach(runs[run].entries.indices, id: \.self) { index in
+                            if index > 0 { KilnRowDivider() }
+                            row(runs[run].entries[index])
+                                .onAppear {
+                                    if run == runs.count - 1 && index == runs[run].entries.count - 1 {
+                                        Task { await history.loadMore() }
+                                    }
+                                }
+                        }
+                    }
                 }
             }
         }

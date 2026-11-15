@@ -129,13 +129,7 @@ public struct PanelView: View {
     }
 
     private var conflictGroups: [(folder: String, count: Int)] {
-        var order: [String] = []
-        var counts: [String: Int] = [:]
-        for item in waitingItems where item.kind == .conflict {
-            if counts[item.detail] == nil { order.append(item.detail) }
-            counts[item.detail, default: 0] += 1
-        }
-        return order.map { (folder: $0, count: counts[$0] ?? 0) }
+        PanelControls.conflictGroups(in: model.snapshot)
     }
 
     private var settingsKinds: [WaitingItem.Kind] { [.folderMissing, .serviceFailed] }
@@ -145,6 +139,15 @@ public struct PanelView: View {
         for group in conflictGroups {
             rows.append(AnyView(
                 KilnRow(title: Strings.Panel.conflicts(folder: group.folder, count: group.count)) {
+                    Button(Strings.Panel.review, action: actions.openDashboard)
+                        .buttonStyle(KilnButtonStyle(.plain))
+                }
+            ))
+        }
+        // A held removal is answered on the dashboard's Needs you page.
+        for item in waitingItems where item.kind == .removalHeld {
+            rows.append(AnyView(
+                KilnRow(title: item.title) {
                     Button(Strings.Panel.review, action: actions.openDashboard)
                         .buttonStyle(KilnButtonStyle(.plain))
                 }

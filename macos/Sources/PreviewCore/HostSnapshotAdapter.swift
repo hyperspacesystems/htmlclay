@@ -62,7 +62,7 @@ public enum HostSnapshotAdapter {
         case "team": origin = .team(name: wire.origin.team ?? "")
         default: return nil
         }
-        return Folder(
+        var folder = Folder(
             id: wire.id,
             name: wire.name,
             path: wire.displayPath,
@@ -100,6 +100,8 @@ public enum HostSnapshotAdapter {
             ),
             storageBytes: wire.storageBytes
         )
+        folder.download = wire.sync.download
+        return folder
     }
 
     private static func reason(_ wire: WireReason?) -> HostReason? {
@@ -160,7 +162,8 @@ public enum HostSnapshotAdapter {
             viewOnlyTeams: wire.viewOnlyTeams,
             lastFinished: formatTime(wire.lastFinishedAt, now: now, calendar: calendar),
             fullName: wire.fullName,
-            offlineChanges: wire.offlineChanges
+            offlineChanges: wire.offlineChanges,
+            keyInFile: wire.keyStore == "file"
         )
     }
 

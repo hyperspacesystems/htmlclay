@@ -138,6 +138,18 @@ public enum FolderOrigin: Codable, Equatable, Sendable {
     public var canSync: Bool { self != .local }
 }
 
+/// The engine's own counts for a first download into a folder.
+public struct FirstDownload: Codable, Equatable, Sendable {
+    public var done: Int
+    public var total: Int
+    public var bytesDone: Int64
+    public var bytesTotal: Int64
+    public init(done: Int, total: Int, bytesDone: Int64 = 0, bytesTotal: Int64 = 0) {
+        self.done = done; self.total = total; self.bytesDone = bytesDone; self.bytesTotal = bytesTotal
+    }
+    public var fraction: Double { total > 0 ? Double(done) / Double(total) : 0 }
+}
+
 public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var id: String
     public var name: String
@@ -162,6 +174,8 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var can: FolderCan?
     public var why: FolderWhy
     public var storageBytes: Int
+    /// A first download's progress while it runs (08-sync.md decision 20).
+    public var download: FirstDownload? = nil
 
     public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, allowsFraming: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false, fullPath: String = "", url: String = "", state: String = "ok", can: FolderCan? = nil, why: FolderWhy = FolderWhy(), storageBytes: Int = 0) {
         self.id = id; self.name = name; self.path = path; self.origin = origin; self.parentID = parentID
@@ -287,9 +301,12 @@ public struct SyncState: Codable, Equatable, Sendable {
     public var lastFinished: String
     public var fullName: String
     public var offlineChanges: Int
-    public init(connected: Bool = false, username: String = "", keySuffix: String = "", syncingFiles: Int = 0, paused: Bool = false, viewOnlyTeams: Int = 0, lastFinished: String = "", fullName: String = "", offlineChanges: Int = 0) {
+    /// The key is in a file rather than the system's secret store (Linux without
+    /// a Secret Service); the Sync pane says so.
+    public var keyInFile: Bool
+    public init(connected: Bool = false, username: String = "", keySuffix: String = "", syncingFiles: Int = 0, paused: Bool = false, viewOnlyTeams: Int = 0, lastFinished: String = "", fullName: String = "", offlineChanges: Int = 0, keyInFile: Bool = false) {
         self.lastFinished = lastFinished; self.fullName = fullName
-        self.offlineChanges = offlineChanges
+        self.offlineChanges = offlineChanges; self.keyInFile = keyInFile
         self.connected = connected; self.username = username; self.keySuffix = keySuffix
         self.syncingFiles = syncingFiles; self.paused = paused; self.viewOnlyTeams = viewOnlyTeams
     }
@@ -426,7 +443,10 @@ public enum HostAction: Equatable, Sendable {
     case removeProgramAccess(programID: String, document: String)
     case connectSample
     case disconnect
-    case setUpTeamFolder(folderID: String)
+    /// Sets up an account or team folder at path. existing syncs into files
+    /// already there (own account only); confirmed is the person having seen
+    /// the counts the host answered for it.
+    case setUpTeamFolder(folderID: String, path: String = "", existing: Bool = false, confirmed: Bool = false)
     /// A held conflict's choice: the conflict's id and path as the host listed
     /// it, and "mine", "theirs" or "both".
     case resolveConflict(id: String, path: String, keep: String)
@@ -464,6 +484,7 @@ public enum HostAction: Equatable, Sendable {
     case answer(requestID: String, revision: Int, answer: String, path: String = String())
     case showRequest(requestID: String)
     case connect(username: String, key: String)
+    case revealSyncLog
     case quit(force: Bool)
 }
 
@@ -476,10 +497,23 @@ public enum SampleNotification: String, CaseIterable, Sendable {
 }
 
 public struct HistoryEntry: Equatable, Identifiable, Sendable {
-    public enum Kind: Sendable { case uploaded, downloaded, renamed, settled }
+    public enum Kind: String, Sendable { case uploaded, downloaded, renamed, removed, conflict, settled }
     public let id: String
     public let kind: Kind
     public let title: String
     public let detail: String
     public let time: String
+    /// The day the page groups the entry under ("Today", or a date).
+    public var day: String = Strings.History.today
+}
+
+/// One page of a folder's history, newest first. next is the cursor for older
+/// entries, nil when there are none (08-sync.md 8.39).
+public struct HistoryPage: Equatable, Sendable {
+    public var entries: [HistoryEntry]
+    public var next: String?
+    public init(entries: [HistoryEntry], next: String?) {
+        self.entries = entries
+        self.next = next
+    }
 }

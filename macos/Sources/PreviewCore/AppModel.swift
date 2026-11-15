@@ -19,6 +19,11 @@ public final class AppModel {
     private var queued: [String: HostAction] = [:]
     private var generation = 0
     private let host: HostClient
+
+    /// The folder history page's model, reading from this model's host.
+    public func historyModel(folderID: String) -> FolderHistoryModel {
+        FolderHistoryModel(folderID: folderID, host: host)
+    }
     private var subscription: HostSubscription?
 
     public init(host: HostClient, initial: HostSnapshot) {
@@ -42,6 +47,8 @@ public final class AppModel {
         case .setUseName: return "prefs.useName"
         case .setAutoUpdate: return "prefs.autoUpdate"
         case .setSyncPaused: return "sync.paused"
+        // A slot keeps the key out of the in-flight key, which names the action otherwise.
+        case .connect: return "sync.connect"
         case let .setServed(id, _): return "folder.served." + id
         case let .setSynced(id, _): return "folder.synced." + id
         case let .setFraming(id, _): return "folder.framing." + id

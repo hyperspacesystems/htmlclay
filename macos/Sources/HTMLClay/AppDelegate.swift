@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: WindowManager!
     private var statusItem: StatusItemController!
     private var alerts: AppAlerts!
+    private var notifier: HostNotifier!
     private var process: HostProcess?
     private var coordinator: TerminationCoordinator?
     private var quitting = false
@@ -60,6 +61,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = relay.subscribe { [weak self] _ in self?.writeState() }
         relay.onRestart = { [model] in model?.hostRestarted() }
         relay.onRestartRequested = { [weak self] in self?.startHost() }
+        notifier = HostNotifier(windows: windows, model: model)
+        relay.onNotice = { [notifier] notice in notifier?.show(notice) }
 
         let welcomeDone = UserDefaults.standard.bool(forKey: WindowManager.welcomeDoneKey)
         if profile == nil, !welcomeDone, !CommandLine.arguments.contains("--no-welcome") { windows.showWelcome() }

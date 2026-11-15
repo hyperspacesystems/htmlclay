@@ -5,13 +5,15 @@ public struct KilnInput: View {
     @Binding private var text: String
     private let placeholder: String
     private let mono: Bool
-    public init(text: Binding<String>, placeholder: String, mono: Bool = false) {
+    private let secure: Bool
+    public init(text: Binding<String>, placeholder: String, mono: Bool = false, secure: Bool = false) {
         self._text = text
         self.placeholder = placeholder
         self.mono = mono
+        self.secure = secure
     }
     public var body: some View {
-        TextField(placeholder, text: $text)
+        field
             .textFieldStyle(.plain)
             .font(.system(size: 13.5, design: mono ? .monospaced : .default))
             .foregroundStyle(kiln.ink)
@@ -20,6 +22,16 @@ public struct KilnInput: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(kiln.inputBg, in: RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(kiln.inputBorder, lineWidth: 1))
+    }
+}
+
+extension KilnInput {
+    @ViewBuilder fileprivate var field: some View {
+        if secure {
+            SecureField(placeholder, text: $text)
+        } else {
+            TextField(placeholder, text: $text)
+        }
     }
 }
 

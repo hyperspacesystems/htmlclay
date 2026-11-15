@@ -3,6 +3,7 @@ import PreviewCore
 
 struct FoldersPane: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.openURL) private var openURL
     @Environment(\.kiln) private var kiln
 
     static func orderedLocalFolders(_ snapshot: HostSnapshot) -> [String] {
@@ -162,7 +163,11 @@ struct FoldersPane: View {
                 .foregroundStyle(kiln.muted)
                 .frame(maxWidth: .infinity, alignment: .leading)
             KilnLink(Strings.Folders.openHyperclay) {
-                model.say(Strings.Folders.openHyperclayNote)
+                if model.isSample {
+                    model.say(Strings.Folders.openHyperclayNote)
+                } else if let url = URL(string: Strings.Connect.keyPageURL) {
+                    openURL(url)
+                }
             }
         }
         .padding(.horizontal, 14)

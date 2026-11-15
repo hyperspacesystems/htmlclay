@@ -1,6 +1,8 @@
 import Foundation
 
 public enum Symbols {
+    public static let removed = "trash"
+    public static let conflict = "exclamationmark.triangle"
     public static let back = "chevron.left"
     public static let gear = "gearshape"
     public static let folder = "folder"

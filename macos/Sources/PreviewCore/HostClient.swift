@@ -8,9 +8,22 @@ public struct HostRefusal: Error, Equatable, Sendable {
     public var field: String?
     public var subjectID: String?
     public var documents: [String]
-    public init(code: String, text: String, retryable: Bool = false, field: String? = nil, subjectID: String? = nil, documents: [String] = []) {
+    /// What syncing into a folder already there would do, on its confirm-needed refusal.
+    public var counts: SyncCounts?
+    public init(code: String, text: String, retryable: Bool = false, field: String? = nil, subjectID: String? = nil, documents: [String] = [], counts: SyncCounts? = nil) {
         self.code = code; self.text = text; self.retryable = retryable
         self.field = field; self.subjectID = subjectID; self.documents = documents
+        self.counts = counts
+    }
+}
+
+/// The files a first sync into a folder already there would move (08-sync.md 8.21).
+public struct SyncCounts: Equatable, Sendable, Decodable {
+    public var toUpload: Int
+    public var toDownload: Int
+    public var differ: Int
+    public init(toUpload: Int, toDownload: Int, differ: Int) {
+        self.toUpload = toUpload; self.toDownload = toDownload; self.differ = differ
     }
 }
 
@@ -57,4 +70,11 @@ public protocol HostClient: AnyObject {
     func perform(_ action: HostAction) async -> HostOutcome
     func check(_ action: HostAction) async -> Result<HostCheckAnswer, HostRefusal>
     func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) -> HostSubscription
+    /// A synced folder's history, older than before when given; nil when the host
+    /// has none for the folder or cannot be reached.
+    func folderHistory(_ folderID: String, before: String?) async -> HistoryPage?
+}
+
+public extension HostClient {
+    func folderHistory(_ folderID: String, before: String?) async -> HistoryPage? { nil }
 }

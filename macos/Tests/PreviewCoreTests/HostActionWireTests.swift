@@ -62,6 +62,7 @@ final class HostActionWireTests: XCTestCase {
         .answer(requestID: "r1", revision: 3, answer: "allow"),
         .showRequest(requestID: "r1"),
         .connect(username: "sam", key: "abc123"),
+        .revealSyncLog,
         .quit(force: true),
     ]
 

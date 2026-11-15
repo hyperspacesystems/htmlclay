@@ -53,6 +53,18 @@ test('the engine with a Go that consults back', { skip: SKIP }, async (t) => {
     const settles = go.consults.filter((c) => c.path === '/v1/settle');
     assert.ok(settles.length >= 2, `settles: ${JSON.stringify(go.consults)}`);
     assert.deepEqual(failedConsults(), []);
+    // 8.42: a report shows a download's progress only while files are still to
+    // come, and the last report after the download carries none.
+    const progressOf = (call) => (call.body.sessions || []).filter((row) => row.sessionId === 's-consult').map((row) => row.progress);
+    const reports = () => go.calls.filter((c) => c.path === '/v1/sync/report' && c.body);
+    for (const progress of reports().flatMap(progressOf)) {
+      if (progress) assert.ok(progress.phase === 'download' && progress.done < progress.total, JSON.stringify(progress));
+    }
+    await until('a report after the download', () => reports().some((c) => progressOf(c).length > 0), 10000);
+    await until('the last report without progress', () => {
+      const last = reports().filter((c) => progressOf(c).length > 0).at(-1);
+      return last && progressOf(last)[0] === null;
+    }, 10000);
   });
 
   await t.test('an edit on the server lands and settles', async () => {

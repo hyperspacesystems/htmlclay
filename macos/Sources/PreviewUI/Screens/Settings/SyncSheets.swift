@@ -1,23 +1,90 @@
+import AppKit
 import SwiftUI
 import PreviewCore
 
+/// The Connect sheet. With the live host it sends sync.connect and shows the
+/// host's refusal under the key field; the key field is secure and is cleared
+/// on a refusal and when the sheet closes. Sample data keeps the preview's walk.
 struct ConnectSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
+    @Environment(\.openURL) private var openURL
     @State private var username: String
     @State private var key = String()
     @State private var refused: Bool
+    @State private var form: ConnectSheetModel?
 
     init(refused: Bool = false) {
         _username = State(initialValue: SampleData.snapshot(for: .syncedWithTeams).sync.username)
         _refused = State(initialValue: refused)
     }
 
+    var body: some View {
+        Group {
+            if model.isSample {
+                sample
+            } else if let form {
+                live(form)
+            }
+        }
+        .onAppear {
+            if !model.isSample && form == nil { form = ConnectSheetModel(model: model) }
+        }
+        .onDisappear { form?.close() }
+    }
+
+    private func live(_ form: ConnectSheetModel) -> some View {
+        @Bindable var form = form
+        let wasConnected = model.snapshot.sync.connected
+        return KilnDialog(Strings.Connect.title) {
+            KilnField(Strings.Connect.username) {
+                KilnInput(text: $form.username, placeholder: Strings.Connect.username)
+            }
+            .padding(.top, 12)
+            KilnField(Strings.Connect.syncKey) {
+                KilnInput(text: $form.key, placeholder: Strings.Connect.keyPlaceholder, mono: true, secure: true)
+                Button(Strings.Connect.paste) {
+                    form.key = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? String()
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
+            }
+            .padding(.top, 10)
+            if let refusal = form.refusal {
+                KilnFieldNote(Text(refusal), error: true)
+            }
+            KilnLink(Strings.Connect.getKey) {
+                if let url = URL(string: Strings.Connect.keyPageURL) { openURL(url) }
+            }
+            .padding(.leading, 88)
+            .padding(.top, 6)
+            Text(Strings.Connect.nothingSent)
+                .font(.system(size: 13))
+                .foregroundStyle(kiln.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 14)
+        } buttons: {
+            Button(Strings.Sheets.cancel) {
+                form.close()
+                model.sheet = nil
+            }
+            .buttonStyle(KilnButtonStyle(.plain))
+            Button(form.connecting ? Strings.Connect.connecting : Strings.Connect.connect) {
+                Task {
+                    guard await form.connect() else { return }
+                    model.sheet = wasConnected ? nil : .accountFolder(username: form.username)
+                }
+            }
+            .buttonStyle(KilnButtonStyle(.primary))
+            .disabled(!form.ready)
+            .opacity(form.ready ? 1 : 0.42)
+        }
+    }
+
     private var ready: Bool {
         !username.isEmpty && !key.isEmpty
     }
 
-    var body: some View {
+    private var sample: some View {
         KilnDialog(Strings.Connect.title) {
             KilnField(Strings.Connect.username) {
                 KilnInput(text: $username, placeholder: Strings.Connect.username)
@@ -76,12 +143,100 @@ struct AccountFolderSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
     let username: String
+    @State private var form: SetUpSheetModel?
 
     static func path(_ username: String) -> String {
         TeamSetupRules.samplePaths(for: Folder(id: username, name: username, path: String())).first ?? String()
     }
 
+    /// The person's own account row, not on this Mac yet.
+    private var folderID: String? {
+        model.snapshot.folders.first { $0.origin == .account(username: username) && !$0.onThisMac }?.id
+    }
+
     var body: some View {
+        Group {
+            if model.isSample {
+                sample
+            } else if let form {
+                live(form)
+            }
+        }
+        .onAppear {
+            if !model.isSample && form == nil, let folderID {
+                form = SetUpSheetModel(folderID: folderID, path: AccountFolderSheet.path(username), model: model)
+            }
+        }
+    }
+
+    private func live(_ form: SetUpSheetModel) -> some View {
+        KilnDialog(Strings.AccountFolder.title(username)) {
+            KilnCard {
+                Button {
+                    form.chooseNew(AccountFolderSheet.path(username))
+                } label: {
+                    HStack(spacing: 11) {
+                        KilnRadio(on: !form.existing)
+                        Text(Strings.AccountFolder.newFolder) + Text(AccountFolderSheet.path(username)).monospaced()
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(kiln.ink)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                KilnRowDivider()
+                Button {
+                    Task { await form.chooseExisting() }
+                } label: {
+                    HStack(spacing: 11) {
+                        KilnRadio(on: form.existing)
+                        (form.existing ? Text(form.path).monospaced() : Text(Strings.AccountFolder.existing))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(kiln.ink)
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+            }
+            .padding(.top, 12)
+            if let counts = form.counts {
+                Text(Strings.AccountFolder.willSync(counts))
+                    .font(.system(size: 13))
+                    .foregroundStyle(kiln.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 12)
+            }
+            if let refusal = form.refusal {
+                KilnFieldNote(Text(refusal), error: true)
+            }
+            KilnLead(Text(Strings.AccountFolder.willStart) + Text(ServeRules.address(for: username)).monospaced() + Text(Strings.AccountFolder.willEnd))
+                .padding(.top, 6)
+            if form.following {
+                FirstDownloadFollow(folderID: form.folderID)
+            }
+        } buttons: {
+            Button(Strings.AccountFolder.back) {
+                model.sheet = .connect
+            }
+            .buttonStyle(KilnButtonStyle(.plain))
+            .disabled(form.following)
+            if !form.following {
+                Button(form.working ? Strings.AccountFolder.settingUp : (form.counts == nil ? Strings.AccountFolder.setUpAndSync : Strings.AccountFolder.syncThese)) {
+                    Task { _ = await form.setUp() }
+                }
+                .buttonStyle(KilnButtonStyle(.primary))
+                .disabled(form.working)
+            }
+        }
+    }
+
+    private var sample: some View {
         KilnDialog(Strings.AccountFolder.title(username)) {
             KilnCard {
                 HStack(spacing: 11) {
@@ -140,11 +295,65 @@ struct TeamSetupSheet: View {
     @State private var trust = true
     @State private var stage = 0
 
+    @State private var form: SetUpSheetModel?
+
     var body: some View {
         if let folder = model.snapshot.folder(folderID) {
-            sheet(folder)
+            if model.isSample {
+                sheet(folder)
+            } else {
+                live(folder)
+            }
         } else {
             EmptyView()
+        }
+    }
+
+    /// The live team sheet: a team's first sync starts in an empty folder, which
+    /// the host checks; while it sets the folder up the button says so.
+    @ViewBuilder private func live(_ folder: Folder) -> some View {
+        if let form {
+            KilnDialog(Strings.TeamSetup.title(folder.name)) {
+                HStack(spacing: 10) {
+                    KilnInputBox(form.path, mono: true)
+                    Button(Strings.Sheets.choose) {
+                        Task {
+                            if let picked = await model.folderChooser?.choose(after: form.path, in: model.snapshot), !picked.isEmpty {
+                                form.chooseNew(picked)
+                            }
+                        }
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                    .disabled(form.working)
+                }
+                .padding(.top, 12)
+                if let refusal = form.refusal {
+                    KilnFieldNote(Text(refusal), error: true)
+                }
+                (Text(Strings.TeamSetup.opensAt) + Text(TeamSetupRules.address(for: folder)).monospaced())
+                    .font(.system(size: 13))
+                    .foregroundStyle(kiln.muted)
+                    .padding(.top, 6)
+                if form.following {
+                    FirstDownloadFollow(folderID: folderID)
+                }
+            } buttons: {
+                Button(Strings.Sheets.cancel) {
+                    model.sheet = nil
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
+                if !form.following {
+                    Button(form.working ? Strings.AccountFolder.settingUp : Strings.TeamSetup.setUp) {
+                        Task { _ = await form.setUp() }
+                    }
+                    .buttonStyle(KilnButtonStyle(.primary))
+                    .disabled(form.working)
+                }
+            }
+        } else {
+            Color.clear.onAppear {
+                form = SetUpSheetModel(folderID: folderID, path: TeamSetupRules.samplePaths(for: folder).first ?? String(), model: model)
+            }
         }
     }
 

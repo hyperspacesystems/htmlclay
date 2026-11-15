@@ -212,6 +212,7 @@ function createSync({ gate, service = null, dataDir = null }) {
     return held ? { files: held.files, paths: held.paths } : null;
   }
 
+  const progress = new Map();
   function sessionsNow() {
     const rows = new Map((settings.syncSessions || []).map((row) => [row.id, row]));
     return manager ? manager.statuses().map((entry) => ({
@@ -226,7 +227,7 @@ function createSync({ gate, service = null, dataDir = null }) {
       blocked: entry.blocked.length,
       lastSyncAt: entry.lastSyncAt,
       lastError: entry.lastError,
-      progress: null,
+      progress: progress.get(entry.sessionId) || null,
       removalHeld: heldRemoval(entry.sessionId),
       record: changedRows.get(entry.sessionId) || rows.get(entry.sessionId) || null,
     })) : [];
@@ -241,6 +242,17 @@ function createSync({ gate, service = null, dataDir = null }) {
   }) : null;
 
   function listen(sync) {
+    // A first download's progress (first-bind.js onProgress): reported while it
+    // runs and dropped once the last file is in, so Go shows a bar only then.
+    sync.on('sync-progress', (data) => {
+      if (!data || !data.sessionId) return;
+      if (data.phase === 'download' && Number.isInteger(data.done) && Number.isInteger(data.total) && data.done < data.total) {
+        progress.set(data.sessionId, { phase: 'download', done: data.done, total: data.total, bytesDone: data.bytesDone || 0, bytesTotal: data.bytesTotal || 0 });
+      } else {
+        progress.delete(data.sessionId);
+      }
+      reporter.schedule();
+    });
     for (const name of REPORTED) {
       sync.on(name, (data) => {
         if (name === 'credentials-rejected') keyRefused = true;

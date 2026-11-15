@@ -36,6 +36,10 @@ public enum SettingsControls {
     /// The logs, the file-type removal and Show in Finder have no host action yet.
     public static func showsTroubleshooting(isSample: Bool) -> Bool { isSample }
 
+    /// The sync log row: sample data shows it, and a live host shows it once it
+    /// offers sync.revealLog (08-sync.md 8.43).
+    public static func showsSyncLog(isSample: Bool, can: Bool) -> Bool { isSample || can }
+
     /// The port every address on this Mac uses: sample data shows the designed one.
     public static func port(isSample: Bool, port: Int) -> String {
         isSample ? Strings.Advanced.portNumber : String(port)

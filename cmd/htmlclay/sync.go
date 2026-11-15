@@ -367,6 +367,7 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 		Username:  record.Account.Username,
 		FullName:  record.Account.FullName,
 		KeySuffix: record.Account.KeySuffix,
+		KeyStore:  record.Account.KeyStore,
 		Paused:    record.Paused,
 	}
 	// A session row puts its account's folder on this computer, synced or stopped:
@@ -436,6 +437,9 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 			folderSync.UploadedToday, folderSync.DownloadedToday = a.historyStore().Today(row.FolderID, time.Now())
 			if hasReport {
 				folderSync.LastFinishedAt = syncTime(report.LastSyncAt)
+				if p := report.Progress; p != nil && p.Phase == "download" && p.Total > 0 && p.Done < p.Total {
+					folderSync.Download = &appcore.SyncDownload{Done: p.Done, Total: p.Total, BytesDone: p.BytesDone, BytesTotal: p.BytesTotal}
+				}
 			}
 			synced[row.FolderID] = syncedFolder{Enabled: enabled[row.FolderID], Origin: origin, Viewer: viewer, Sync: folderSync}
 			name := row.DisplayName

@@ -163,6 +163,7 @@ func syncState(f SyncFacts) SyncState {
 		ViewOnlyTeams:  f.ViewOnlyTeams,
 		LastFinishedAt: f.LastFinishedAt,
 		FullName:       f.FullName,
+		KeyStore:       f.KeyStore,
 	}
 }
 

@@ -120,6 +120,16 @@ type FolderSync struct {
 	UploadedToday   int        `json:"uploadedToday"`
 	DownloadedToday int        `json:"downloadedToday"`
 	Role            string     `json:"role,omitempty"`
+	// Download is a first download's progress while it runs, from the engine's
+	// own counts (08-sync.md decision 20); null otherwise.
+	Download *SyncDownload `json:"download"`
+}
+
+type SyncDownload struct {
+	Done       int   `json:"done"`
+	Total      int   `json:"total"`
+	BytesDone  int64 `json:"bytesDone"`
+	BytesTotal int64 `json:"bytesTotal"`
 }
 
 // FolderCan is what a person may do to a folder now. A shell renders a control
@@ -240,6 +250,7 @@ type SyncState struct {
 	ViewOnlyTeams  int        `json:"viewOnlyTeams"`
 	LastFinishedAt *time.Time `json:"lastFinishedAt"`
 	FullName       string     `json:"fullName"`
+	KeyStore       string     `json:"keyStore"`
 }
 
 type UpdateState struct {

@@ -30,6 +30,7 @@ public enum HostActionType {
     public static let documentVersions = "document.versions"
     public static let updateStart = "update.start"
     public static let syncSetPaused = "sync.setPaused"
+    public static let syncRevealLog = "sync.revealLog"
     public static let conflictResolve = "conflict.resolve"
     public static let folderResolveRemoval = "folder.resolveRemoval"
     public static let requestAnswer = "request.answer"

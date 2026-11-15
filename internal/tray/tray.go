@@ -90,6 +90,22 @@ type ServedFolderHooks struct {
 	BeforeQuit func() bool
 }
 
+// SyncHooks drive the tray's sync items (08-sync.md 8.47): Items is polled and
+// says which to show, Do runs the one the person chose.
+type SyncHooks struct {
+	Items func() []SyncItem
+	Do    func(action string)
+}
+
+// SyncItem is one sync row in the tray menu: Action is passed back to Do.
+type SyncItem struct {
+	Action string
+	Title  string
+}
+
+// syncSlots is how many sync rows the menu keeps: pause or resume, and conflicts.
+const syncSlots = 2
+
 // HelperHooks are the app operations the Programs submenu drives. Each returns
 // the authoritative list so the tray always re-renders from config state.
 type HelperHooks struct {
@@ -156,13 +172,14 @@ type Tray struct {
 	helpersMenu         *listMenu
 	helperDocumentsMenu *listMenu
 	export              *ExportHooks
+	sync                *SyncHooks
 
 	// notice is a permanent row for something about this machine that HTML Clay
 	// cannot fix and the user can. Empty means there is nothing to say.
 	notice string
 }
 
-func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups func(), onOpenKept func(), onQuit func(), updateCh <-chan UpdateInfo, trusted *TrustedFolderHooks, served *ServedFolderHooks, helpers *HelperHooks, export *ExportHooks, notice string) {
+func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups func(), onOpenKept func(), onQuit func(), updateCh <-chan UpdateInfo, trusted *TrustedFolderHooks, served *ServedFolderHooks, helpers *HelperHooks, export *ExportHooks, sync *SyncHooks, notice string) {
 	t := &Tray{
 		cfg:           cfg,
 		version:       version,
@@ -175,6 +192,7 @@ func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups
 		served:        served,
 		helpers:       helpers,
 		export:        export,
+		sync:          sync,
 		notice:        notice,
 	}
 	systray.Run(t.onReady, t.onExit)
@@ -503,6 +521,9 @@ func (t *Tray) onReady() {
 
 	addServedItem := t.buildServedMenu()
 	systray.AddSeparator()
+	if t.sync != nil {
+		t.buildSyncItems()
+	}
 	addTrustedItem := t.buildTrustedMenu()
 	systray.AddSeparator()
 	addHelperItem := t.buildHelpersMenu()
@@ -847,4 +868,53 @@ func Quit() {
 
 func (t *Tray) onExit() {
 	t.onQuit()
+}
+
+// buildSyncItems adds the sync rows, hidden until Items says to show them. A row
+// is never removed (see slot); a row not needed is hidden, then shown again with
+// its new title when it is.
+func (t *Tray) buildSyncItems() {
+	var mu sync.Mutex
+	var current []SyncItem
+	items := make([]*systray.MenuItem, syncSlots)
+	for i := range items {
+		items[i] = systray.AddMenuItem("", "")
+		items[i].Hide()
+		go func(i int) {
+			for range items[i].ClickedCh {
+				mu.Lock()
+				var action string
+				if i < len(current) {
+					action = current[i].Action
+				}
+				mu.Unlock()
+				if action != "" {
+					t.sync.Do(action)
+				}
+			}
+		}(i)
+	}
+	render := func() {
+		next := t.sync.Items()
+		mu.Lock()
+		current = next
+		mu.Unlock()
+		for i, item := range items {
+			if i < len(next) {
+				item.SetTitle(next[i].Title)
+				item.Show()
+			} else {
+				item.Hide()
+			}
+		}
+	}
+	render()
+	go func() {
+		ticker := time.NewTicker(listPollInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			render()
+		}
+	}()
+	systray.AddSeparator()
 }

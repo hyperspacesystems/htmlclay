@@ -5,6 +5,7 @@ struct SyncPane: View {
     let actions: SettingsActions
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
+    @Environment(\.openURL) private var openURL
 
     static func orderedFolders(_ snapshot: HostSnapshot) -> [Folder] {
         snapshot.accountFolders.filter(\.onThisMac) + snapshot.accountFolders.filter { !$0.onThisMac }
@@ -106,7 +107,7 @@ struct SyncPane: View {
                     leading: { avatar }) {
                 HStack(spacing: 8) {
                     Button(Strings.Sync.replaceKey) {
-                        model.say(Strings.Sync.wouldReplaceKey)
+                        if model.isSample { model.say(Strings.Sync.wouldReplaceKey) } else { model.sheet = .connect }
                     }
                     .buttonStyle(KilnButtonStyle(.plain))
                     Button(Strings.Sync.disconnect) {
@@ -122,6 +123,10 @@ struct SyncPane: View {
                     model.send(.setSyncPaused(!model.snapshot.sync.paused))
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
+            }
+            if model.snapshot.sync.keyInFile {
+                KilnRowDivider()
+                KilnNoteRow(Strings.Sync.keyInFile) { EmptyView() }
             }
         }
     }
@@ -152,7 +157,11 @@ struct SyncPane: View {
                     KilnRowDivider()
                     KilnNoteRow(Strings.Folders.viewOnlyTeams(model.snapshot.sync.viewOnlyTeams)) {
                         KilnLink(Strings.Folders.openHyperclay) {
-                            model.say(Strings.Folders.openHyperclayNote)
+                            if model.isSample {
+                                model.say(Strings.Folders.openHyperclayNote)
+                            } else if let url = URL(string: Strings.Connect.keyPageURL) {
+                                openURL(url)
+                            }
                         }
                     }
                 }

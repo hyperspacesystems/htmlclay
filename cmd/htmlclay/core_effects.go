@@ -58,6 +58,7 @@ var implementedActions = []string{
 	"sync.connect",
 	"sync.disconnect",
 	"sync.setPaused",
+	"sync.revealLog",
 	"conflict.resolve",
 	"folder.resolveRemoval",
 	"waiting.markSeen",
@@ -143,6 +144,19 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.disconnectSync()
 	case "sync.setPaused":
 		return a.setSyncPaused(e.On)
+	case "sync.revealLog":
+		// The service's sync engine writes its logs here (service/sync.cjs logsDir,
+		// the engine's logger adds sync/); made first so Finder has a folder to show.
+		dir := a.syncLogDir()
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			a.rt.logger.Printf("Could not make the sync log folder: %v", err)
+			return &appcore.Refusal{Code: appcore.RefuseFailed}
+		}
+		if err := a.revealPath(dir); err != nil {
+			a.rt.logger.Printf("Could not show the sync log folder: %v", err)
+			return &appcore.Refusal{Code: appcore.RefuseFailed}
+		}
+		return nil
 	case "conflict.resolve":
 		return a.resolveConflict(e)
 	case "folder.resolveRemoval":

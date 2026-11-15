@@ -40,6 +40,17 @@ struct AdvancedPane: View {
                     }
                 }
             }
+            if !model.isSample && SettingsControls.showsSyncLog(isSample: false, can: model.can(HostActionType.syncRevealLog)) {
+                KilnGroupTitle(Strings.Advanced.troubleshooting)
+                KilnCard {
+                    KilnRow(title: Strings.Advanced.logs) {
+                        Button(Strings.Advanced.showSyncLog) {
+                            model.send(.revealSyncLog)
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
+                    }
+                }
+            }
             if SettingsControls.showsTroubleshooting(isSample: model.isSample) {
                 KilnGroupTitle(Strings.Advanced.troubleshooting)
                 KilnCard {

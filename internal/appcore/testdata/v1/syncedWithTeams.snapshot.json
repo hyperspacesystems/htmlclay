@@ -47,6 +47,7 @@
       "service.restart": true,
       "sync.connect": false,
       "sync.disconnect": false,
+      "sync.revealLog": false,
       "sync.setPaused": false,
       "update.start": false,
       "waiting.markSeen": true
@@ -111,7 +112,8 @@
         "files": 0,
         "lastFinishedAt": null,
         "uploadedToday": 0,
-        "downloadedToday": 0
+        "downloadedToday": 0,
+        "download": null
       },
       "can": {
         "serve": true,
@@ -153,7 +155,8 @@
         "files": 0,
         "lastFinishedAt": null,
         "uploadedToday": 0,
-        "downloadedToday": 0
+        "downloadedToday": 0,
+        "download": null
       },
       "can": {
         "serve": false,
@@ -200,7 +203,8 @@
         "files": 0,
         "lastFinishedAt": "2026-11-12T14:58:00Z",
         "uploadedToday": 12,
-        "downloadedToday": 3
+        "downloadedToday": 3,
+        "download": null
       },
       "can": {
         "serve": false,
@@ -244,7 +248,8 @@
         "lastFinishedAt": null,
         "uploadedToday": 4,
         "downloadedToday": 9,
-        "role": "editor"
+        "role": "editor",
+        "download": null
       },
       "can": {
         "serve": false,
@@ -287,7 +292,8 @@
         "files": 0,
         "lastFinishedAt": null,
         "uploadedToday": 0,
-        "downloadedToday": 0
+        "downloadedToday": 0,
+        "download": null
       },
       "can": {
         "serve": false,
@@ -403,7 +409,8 @@
     "offlineChanges": 0,
     "viewOnlyTeams": 1,
     "lastFinishedAt": "2026-11-12T14:58:00Z",
-    "fullName": "David Miranda"
+    "fullName": "David Miranda",
+    "keyStore": ""
   },
   "update": {
     "current": "2.0.3",

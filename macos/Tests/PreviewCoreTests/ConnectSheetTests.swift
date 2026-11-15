@@ -1,0 +1,75 @@
+import XCTest
+@testable import PreviewCore
+
+/// A host that answers sync.connect with a refusal or a connection, and records what it got.
+@MainActor
+private final class ConnectHost: HostClient {
+    var answer: HostOutcome = .refused(HostRefusal(code: "sync-key-refused", text: "Hyperclay didn't accept that sync key."))
+    private(set) var performed: [HostAction] = []
+
+    func load() async throws -> HostSnapshot { HostSnapshot() }
+    func perform(_ action: HostAction) async -> HostOutcome {
+        performed.append(action)
+        return answer
+    }
+    func check(_ action: HostAction) async -> Result<HostCheckAnswer, HostRefusal> { .failure(HostRefusal(code: "unsupported", text: "")) }
+    func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) -> HostSubscription { HostSubscription {} }
+}
+
+@MainActor
+final class ConnectSheetTests: XCTestCase {
+    private let key = "hcsk_" + String(repeating: "ab", count: 32)
+
+    private func sheet() -> (ConnectHost, AppModel, ConnectSheetModel) {
+        let host = ConnectHost()
+        let model = AppModel(host: host, initial: HostSnapshot())
+        let form = ConnectSheetModel(model: model)
+        form.username = "maya"
+        return (host, model, form)
+    }
+
+    func testConnectSendsSyncConnectWithTheKeyAndUsername() async {
+        let (host, _, form) = sheet()
+        form.key = key
+        _ = await form.connect()
+        XCTAssertEqual(host.performed, [.connect(username: "maya", key: key)])
+        XCTAssertEqual(HostActionWire.wire(HostAction.connect(username: "maya", key: key))?.type, "sync.connect")
+    }
+
+    func testARefusalShowsItsLineAndTheKeyIsCleared() async {
+        let (_, _, form) = sheet()
+        form.key = key
+        let connected = await form.connect()
+        XCTAssertFalse(connected)
+        XCTAssertEqual(form.refusal, "Hyperclay didn't accept that sync key.")
+        XCTAssertEqual(form.key, "", "the key is cleared")
+        XCTAssertFalse(form.ready)
+        form.key = key
+        XCTAssertNil(form.refusal, "typing again clears the refusal")
+    }
+
+    func testAConnectionAnswersTrueAndKeepsNoKey() async {
+        let (host, _, form) = sheet()
+        host.answer = .done(HostSnapshot())
+        form.key = key
+        let connected = await form.connect()
+        XCTAssertTrue(connected)
+        XCTAssertEqual(form.key, "")
+        XCTAssertNil(form.refusal)
+    }
+
+    func testClosingClearsTheKey() {
+        let (_, _, form) = sheet()
+        form.key = key
+        form.close()
+        XCTAssertEqual(form.key, "")
+    }
+
+    func testTheKeyIsNeverPartOfTheModelsInFlightKey() {
+        XCTAssertEqual(AppModel.slot(of: .connect(username: "maya", key: key)), "sync.connect")
+    }
+
+    func testTheKeyLinkGoesToHyperclay() {
+        XCTAssertEqual(URL(string: Strings.Connect.keyPageURL)?.host, "hyperclay.com")
+    }
+}

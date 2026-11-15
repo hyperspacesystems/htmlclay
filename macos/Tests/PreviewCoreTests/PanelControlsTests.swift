@@ -82,3 +82,22 @@ final class PanelControlsTests: XCTestCase {
         XCTAssertFalse(PanelControls.showsDocumentAction(HostActionType.documentForget, in: model.snapshot))
     }
 }
+
+@MainActor
+final class PanelWaitingKindsTests: XCTestCase {
+    /// 08-sync.md 8.46: conflicts group by the folder they are in, whatever the
+    /// item's detail holds, and a held removal earns the dot in the Folders pane.
+    func testConflictsGroupByTheirFolderAndAHeldRemovalEarnsTheDot() {
+        var snapshot = SampleData.snapshot(for: .syncedWithTeams)
+        let folder = snapshot.folders[0]
+        snapshot.waiting = [
+            WaitingItem(id: "w-1", kind: .conflict, title: "a.html changed in both places", detail: "both-edited", subjectID: folder.id),
+            WaitingItem(id: "w-2", kind: .conflict, title: "b.html changed in both places", detail: "remote-deleted", subjectID: folder.id),
+        ]
+        let groups = PanelControls.conflictGroups(in: snapshot)
+        XCTAssertEqual(groups.map(\.folder), [folder.name])
+        XCTAssertEqual(groups.map(\.count), [2])
+        XCTAssertTrue(WaitingItem.Kind.removalHeld.earnsDot)
+        XCTAssertEqual(WaitingItem.Kind.removalHeld.pane, .folders)
+    }
+}

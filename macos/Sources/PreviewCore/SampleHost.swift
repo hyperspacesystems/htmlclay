@@ -64,7 +64,7 @@ public enum SampleReducer {
                 next.programs[p].allowedDocuments.removeAll { $0 == document }
                 if !next.programs[p].removedDocuments.contains(document) { next.programs[p].removedDocuments.append(document) }
             }
-        case .connectSample:
+        case .connectSample, .connect:
             next.sync.connected = true
             next.sync.username = "panphora"
             next.sync.keySuffix = "7f3a"
@@ -105,7 +105,7 @@ public enum SampleReducer {
             // The sample keeps no held conflicts; the real host's list is the
             // waiting items it sends.
             return snapshot
-        case let .setUpTeamFolder(folderID):
+        case let .setUpTeamFolder(folderID, _, _, _):
             guard let i = next.folders.firstIndex(where: { $0.id == folderID }), !next.folders[i].onThisMac else { return snapshot }
             next.folders[i].onThisMac = true
             next.folders[i].served = true
@@ -165,7 +165,7 @@ public enum SampleReducer {
             next.documents.removeAll { $0.id == id }
         case .openDocument, .revealDocument, .openFile, .openDashboard,
              .revealFolder, .copyAddress, .connect, .quit, .revealProgram,
-             .exportDocument, .recoverDocument, .openVersions, .openKeptPage, .showRequest:
+             .exportDocument, .recoverDocument, .openVersions, .openKeptPage, .showRequest, .revealSyncLog:
             return snapshot
         }
         return next
@@ -271,6 +271,10 @@ public final class SampleHost: HostClient {
             listeners.values.forEach { $0(current) }
         }
         return sample.item
+    }
+
+    public func folderHistory(_ folderID: String, before: String?) async -> HistoryPage? {
+        before == nil ? HistoryPage(entries: SampleData.history, next: nil) : nil
     }
 
     public func subscribe(_ onChange: @escaping @MainActor (HostSnapshot) -> Void) -> HostSubscription {

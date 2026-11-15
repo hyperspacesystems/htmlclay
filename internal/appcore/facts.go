@@ -117,4 +117,7 @@ type SyncFacts struct {
 	ViewOnlyTeams  int        `json:"viewOnlyTeams"`
 	LastFinishedAt *time.Time `json:"lastFinishedAt"`
 	FullName       string     `json:"fullName"`
+	// KeyStore is where the sync key is kept: "system" (the Keychain, Credential
+	// Manager or Secret Service) or "file" (a 0600 file, which the app says).
+	KeyStore string `json:"keyStore"`
 }

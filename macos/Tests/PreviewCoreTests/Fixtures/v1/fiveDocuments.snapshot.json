@@ -47,6 +47,7 @@
       "service.restart": true,
       "sync.connect": false,
       "sync.disconnect": false,
+      "sync.revealLog": false,
       "sync.setPaused": false,
       "update.start": false,
       "waiting.markSeen": true
@@ -132,7 +133,8 @@
     "offlineChanges": 0,
     "viewOnlyTeams": 0,
     "lastFinishedAt": null,
-    "fullName": ""
+    "fullName": "",
+    "keyStore": ""
   },
   "update": {
     "current": "2.0.3",

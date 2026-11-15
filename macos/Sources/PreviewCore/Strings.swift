@@ -118,6 +118,8 @@ public enum Strings {
         public static let keyRefusedSub = "All folders stopped syncing. Your files are safe on this Mac."
         public static let reconnect = "Reconnect…"
         public static let wouldReplaceKey = "Build 1: this would ask for a new sync key."
+        // TODO-COPY: Sync pane, when the key is kept in a file because there is no system keychain, max 90 chars
+        public static let keyInFile = "Your sync key is kept in a file only you can read, because this computer has no keychain."
         public static let wouldOpenSite = "Build 1: this would open hyperclay.com in your browser."
         public static func account(_ username: String) -> String { "@\(username)" }
         public static func connected(keySuffix: String) -> String { "Connected · sync key ending \(keySuffix)" }
@@ -474,6 +476,10 @@ public enum Strings {
         public static let nothingSent = "Nothing is sent to hyperclay.com until you press Connect."
         public static let connect = "Connect"
         public static let wouldOpenKeys = "Build 1: this would open the sync key page on hyperclay.com."
+        /// Where a person makes a sync key: the account menu of hyperclay.com's dashboard.
+        public static let keyPageURL = "https://hyperclay.com/dashboard"
+        // TODO-COPY: Connect sheet, while the key is being checked, max 20 chars
+        public static let connecting = "Connecting…"
     }
     public enum AccountFolder {
         public static func title(_ username: String) -> String { "Where should @\(username) live on this Mac?" }
@@ -485,12 +491,22 @@ public enum Strings {
         public static let back = "Back"
         public static let setUpAndSync = "Set up and sync"
         public static let wouldChooseExisting = "Build 1: this would ask you to choose a folder you already have."
+        // TODO-COPY: account set-up sheet, what a first sync into a folder already there will do, max 90 chars
+        public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files will upload, \(counts.toDownload) will download, and \(counts.differ) differ. Nothing is deleted." }
+        // TODO-COPY: account set-up sheet, the button after the counts show, max 20 chars
+        public static let syncThese = "Sync these files"
+        // TODO-COPY: set-up sheets, while the folder is being set up, max 20 chars
+        public static let settingUp = "Setting up…"
     }
     public enum TeamSetup {
         public static func title(_ name: String) -> String { "Set up \(name)" }
         public static let opensAt = "Opens at "
         public static let trustCheck = "Trust the documents in this folder. They can change each other."
         public static func downloading(files: Int, total: Int, size: String, totalSize: String) -> String { "Downloading \(files) of \(total) files · \(size) of \(totalSize) MB" }
+        public static func downloading(_ download: FirstDownload) -> String {
+            downloading(files: download.done, total: download.total, size: megabytes(download.bytesDone), totalSize: megabytes(download.bytesTotal))
+        }
+        static func megabytes(_ bytes: Int64) -> String { String(format: "%.1f", Double(bytes) / 1_000_000) }
         public static let setUp = "Set up"
         public static let notEmpty = "This folder isn't empty. Choose an empty one."
         public static func inside(_ name: String) -> String { "It's inside \(name)." }
@@ -583,6 +599,31 @@ public enum Strings {
             }
         }
         public static let fallbackNote = "Shown here because notifications are off for HTML Clay Preview."
+        // TODO-COPY: live notifications, one title and body per kind; folder is the synced folder's name, max 70 chars
+        public static func title(_ notice: HostNotice, folder: String?) -> String {
+            switch notice.kind {
+            case .conflict: return folder.map { "\($0): \(notice.name) changed in both places" } ?? "\(notice.name) changed in both places"
+            case .keyStopped: return "Your sync key stopped working"
+            case .addedToTeam: return "You were added to \(notice.name)"
+            }
+        }
+        public static func body(_ notice: HostNotice) -> String {
+            switch notice.kind {
+            case .conflict: return "Choose which to keep. Its upload waits."
+            case .keyStopped: return "Syncing stopped. Your files are safe."
+            case .addedToTeam: return "Set it up on this Mac in Settings › Folders."
+            }
+        }
+        // TODO-COPY: live notification card button, max 16 chars
+        public static func open(_ notice: HostNotice) -> String {
+            switch notice.kind {
+            case .conflict: return "Review"
+            case .keyStopped: return "Replace key"
+            case .addedToTeam: return "Set up"
+            }
+        }
+        // TODO-COPY: live notification card, why it shows in the corner instead of Notification Center, max 80 chars
+        public static let fallbackNoteLive = "Shown here because notifications are off for HTML Clay."
     }
 }
 
@@ -623,6 +664,19 @@ extension Strings { public enum History {
     public static func title(_ folder: String) -> String { "Folder history · \(folder)" }
     public static let showSyncLog = "Show sync log"
     public static let today = "Today"
+    // TODO-COPY: folder history rows, one per kind, the file's path after it, max 60 chars
+    public static func entry(_ kind: HistoryEntry.Kind, _ path: String) -> String {
+        switch kind {
+        case .uploaded: return "Uploaded \(path)"
+        case .downloaded: return "Downloaded \(path)"
+        case .renamed: return "Renamed \(path)"
+        case .removed: return "Removed \(path)"
+        case .conflict: return "\(path) changed in both places"
+        case .settled: return "Settled a conflict in \(path)"
+        }
+    }
+    // TODO-COPY: folder history, when sync has done nothing in this folder yet, max 60 chars
+    public static let empty = "Nothing has synced in this folder yet."
 } }
 extension Strings.Preview {
     public static let alsoPretend = "Also pretend"

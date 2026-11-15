@@ -99,7 +99,7 @@ final class CoreTests: XCTestCase {
     }
 
     func testOnlyBlockingKindsEarnTheDot() {
-        let earning: Set<WaitingItem.Kind> = [.conflict, .programRequest, .syncKeyRefused, .folderMissing, .serviceFailed]
+        let earning: Set<WaitingItem.Kind> = [.conflict, .programRequest, .syncKeyRefused, .folderMissing, .serviceFailed, .removalHeld]
         for kind in WaitingItem.Kind.allCases { XCTAssertEqual(kind.earnsDot, earning.contains(kind), kind.rawValue) }
     }
 

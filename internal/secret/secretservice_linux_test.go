@@ -92,6 +92,14 @@ func (f *fakeSecrets) CreateItem(properties map[string]dbus.Variant, secret ssSe
 	return item.path, "/", nil
 }
 
+// setLock sets the collection's lock under the fake's lock: D-Bus calls run on
+// the connection's own goroutines.
+func (f *fakeSecrets) setLock(locked, unlockable bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.locked, f.unlockable = locked, unlockable
+}
+
 // Get is the collection's org.freedesktop.DBus.Properties.Get.
 func (f *fakeSecrets) Get(iface, property string) (dbus.Variant, *dbus.Error) {
 	f.mu.Lock()
@@ -201,7 +209,7 @@ func TestM4SecretServiceLinux(t *testing.T) {
 
 	t.Run("a collection that unlocks without asking is used", func(t *testing.T) {
 		fake := privateBus(t)
-		fake.locked, fake.unlockable = true, true
+		fake.setLock(true, true)
 		if s, err := Open("default", t.TempDir()); err != nil || kindOf(s) != KindSystem {
 			t.Fatalf("Open = %v, kind %q", err, kindOf(s))
 		}
@@ -209,7 +217,7 @@ func TestM4SecretServiceLinux(t *testing.T) {
 
 	t.Run("a collection that stays locked falls back to the file", func(t *testing.T) {
 		fake := privateBus(t)
-		fake.locked = true
+		fake.setLock(true, false)
 		s, err := Open("default", t.TempDir())
 		if err != nil || kindOf(s) != KindFile {
 			t.Fatalf("Open = %v, kind %q", err, kindOf(s))

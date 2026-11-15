@@ -36,8 +36,12 @@ public enum HostActionWire {
             return WireActionRequest(type: "folder.merge", args: ["id": .string(folderID)])
         case let .trustFolder(_, path, acknowledged):
             return WireActionRequest(type: "folder.trust", args: ["path": .string(path), "acknowledged": .strings(acknowledged)])
-        case let .setUpTeamFolder(folderID):
-            return WireActionRequest(type: "folder.setUpTeam", args: ["id": .string(folderID)])
+        case let .setUpTeamFolder(folderID, path, existing, confirmed):
+            var args: [String: WireValue] = ["id": .string(folderID)]
+            if !path.isEmpty { args["path"] = .string(path) }
+            if existing { args["existing"] = .bool(true) }
+            if confirmed { args["confirmed"] = .bool(true) }
+            return WireActionRequest(type: "folder.setUpTeam", args: args)
         case let .resolveConflict(id, path, keep):
             return WireActionRequest(type: HostActionType.conflictResolve, args: ["id": .string(id), "path": .string(path), "keep": .string(keep)])
         case let .resolveRemoval(id, choice):
@@ -76,6 +80,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "sync.connect", args: ["username": .string(username), "key": .string(key)])
         case .disconnect:
             return WireActionRequest(type: "sync.disconnect", args: [:])
+        case .revealSyncLog:
+            return WireActionRequest(type: HostActionType.syncRevealLog, args: [:])
         case let .setOpenAtLogin(on):
             return WireActionRequest(type: "prefs.set", args: ["key": .string("openAtLogin"), "value": .bool(on)])
         case let .setAIEditing(on):

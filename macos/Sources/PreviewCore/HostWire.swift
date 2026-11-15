@@ -175,9 +175,10 @@ public struct WireFolderSync: Codable, Equatable, Sendable {
     public var uploadedToday: Int
     public var downloadedToday: Int
     public var role: String?
+    public var download: FirstDownload?
 
     enum CodingKeys: String, CodingKey {
-        case state, files, lastFinishedAt, uploadedToday, downloadedToday, role
+        case state, files, lastFinishedAt, uploadedToday, downloadedToday, role, download
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -188,6 +189,7 @@ public struct WireFolderSync: Codable, Equatable, Sendable {
         try container.encode(uploadedToday, forKey: .uploadedToday)
         try container.encode(downloadedToday, forKey: .downloadedToday)
         try container.encodeIfPresent(role, forKey: .role)
+        try container.encode(download, forKey: .download)
     }
 }
 
@@ -300,9 +302,11 @@ public struct WireSyncState: Codable, Equatable, Sendable {
     public var viewOnlyTeams: Int
     public var lastFinishedAt: Date?
     public var fullName: String
+    /// "system" or "file"; nil from a host older than 08-sync.md 8.43.
+    public var keyStore: String?
 
     enum CodingKeys: String, CodingKey {
-        case connected, username, keySuffix, paused, syncingFiles, offlineChanges, viewOnlyTeams, lastFinishedAt, fullName
+        case connected, username, keySuffix, paused, syncingFiles, offlineChanges, viewOnlyTeams, lastFinishedAt, fullName, keyStore
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -316,6 +320,7 @@ public struct WireSyncState: Codable, Equatable, Sendable {
         try container.encode(viewOnlyTeams, forKey: .viewOnlyTeams)
         try container.encode(lastFinishedAt, forKey: .lastFinishedAt)
         try container.encode(fullName, forKey: .fullName)
+        try container.encodeIfPresent(keyStore, forKey: .keyStore)
     }
 }
 
@@ -366,6 +371,12 @@ public struct WireEvent: Decodable, Sendable {
     public var rev: Int?
     public var snapshot: WireSnapshot?
     public var reason: String?
+    // A notice frame's fields (08-sync.md contract C6).
+    public var id: String?
+    public var kind: String?
+    public var folderID: String?
+    public var name: String?
+    public var detail: String?
 }
 
 public struct WireActionList: Codable {

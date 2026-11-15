@@ -429,3 +429,35 @@ final class LoopbackHostClientTests: XCTestCase {
         XCTAssertFalse("\(client)".contains("s3cret"))
     }
 }
+
+// 08-sync.md 8.44 and 8.45: the history route and the notice frame, against the stubbed host.
+extension LoopbackHostClientTests {
+    func testNoticesANoticeFrameReachesOnNotice() async throws {
+        let notice = Data(#"{"type":"notice","id":"c-1","kind":"conflict","folderID":"0dd3adfe2b553e75","name":"board.html","detail":"both-edited"}"#.utf8) + Data([0x0A])
+        let unknown = Data(#"{"type":"notice","id":"x-1","kind":"someday","folderID":null,"name":"","detail":""}"#.utf8) + Data([0x0A])
+        StubHost.script("GET", "/shell/v1/events", [.stream([try eventLine(rev: 0), notice, unknown, byeLine()])])
+        let client = makeClient()
+        var notices: [HostNotice] = []
+        var endings: [String] = []
+        client.onNotice = { notices.append($0) }
+        client.onEnded = { endings.append($0) }
+        _ = client.subscribe { _ in }
+        await waitUntil("the stream never finished") { !endings.isEmpty }
+        XCTAssertEqual(notices, [HostNotice(id: "c-1", kind: .conflict, folderID: "0dd3adfe2b553e75", name: "board.html", detail: "both-edited")])
+    }
+
+    func testFolderHistoryAsksWithTheCursorAndANotFoundIsNil() async throws {
+        let body = Data(#"{"entries":[{"id":"a","at":"2026-11-15T13:58:01Z","kind":"downloaded","path":"blog/launch.html","detail":"download"}],"next":null}"#.utf8)
+        StubHost.script("GET", "/shell/v1/folders/0dd3adfe2b553e75/history", [.answer(200, body), .answer(404, Data())])
+        let client = makeClient()
+        let page = await client.folderHistory("0dd3adfe2b553e75", before: "b 1")
+        XCTAssertEqual(page?.entries.map(\.id), ["a"])
+        XCTAssertEqual(page?.entries.first?.kind, .downloaded)
+        XCTAssertNil(page?.next)
+        let seen = StubHost.requests(for: "GET /shell/v1/folders/0dd3adfe2b553e75/history")
+        XCTAssertEqual(seen.first?.url.query, "before=b%201")
+        XCTAssertEqual(seen.first?.headers["Authorization"], "Bearer s3cret")
+        let missing = await client.folderHistory("0dd3adfe2b553e75", before: nil)
+        XCTAssertNil(missing)
+    }
+}

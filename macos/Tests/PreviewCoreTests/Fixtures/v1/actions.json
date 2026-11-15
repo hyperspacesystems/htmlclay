@@ -150,6 +150,10 @@
       "class": "revoke"
     },
     {
+      "type": "sync.revealLog",
+      "class": "safe"
+    },
+    {
       "type": "sync.setPaused",
       "class": "safe"
     },

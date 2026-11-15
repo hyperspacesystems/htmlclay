@@ -88,3 +88,8 @@ func (a *app) folderHistory(folderID, before string) (synchistory.Page, bool) {
 	}
 	return page, true
 }
+
+// syncLogDir is where the service's sync engine writes its daily logs.
+func (a *app) syncLogDir() string {
+	return filepath.Join(a.rt.configDir, "service", "logs", "sync")
+}

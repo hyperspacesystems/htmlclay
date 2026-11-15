@@ -173,7 +173,30 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     public func showNotificationFallback(_ note: SampleNotification) {
-        let hosting = NSHostingView(rootView: KilnRoot { NotificationCard(note: note) }
+        showCard(NotificationCard(note: note))
+    }
+
+    /// Where a notice's button or click takes the person.
+    public func open(_ target: HostNoticeTarget) {
+        switch target {
+        case let .dashboard(route): model.send(.openDashboard(route: route))
+        case let .settings(pane): showSettings(pane)
+        }
+    }
+
+    /// A host notice as a card in the corner, for when notifications are off.
+    public func showNoticeFallback(_ notice: HostNotice) {
+        let folder = notice.folderID.flatMap { model.snapshot.folder($0)?.name }
+        showCard(NotificationCard(title: Strings.Notify.title(notice, folder: folder), body: Strings.Notify.body(notice),
+                                  footnote: Strings.Notify.fallbackNoteLive,
+                                  action: (label: Strings.Notify.open(notice), run: { [weak self] in
+                                      self?.notice?.orderOut(nil)
+                                      self?.open(notice.opens)
+                                  })))
+    }
+
+    private func showCard(_ card: NotificationCard) {
+        let hosting = NSHostingView(rootView: KilnRoot { card }
             .environment(model)
             .clipShape(RoundedRectangle(cornerRadius: 13)))
         let size = hosting.fittingSize

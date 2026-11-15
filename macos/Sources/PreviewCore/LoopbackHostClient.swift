@@ -14,6 +14,7 @@ private struct LoopbackRefusalBody: Decodable {
     var field: String?
     var subjectID: String?
     var documents: [String]?
+    var counts: SyncCounts?
 }
 
 private struct LoopbackWarningBody: Decodable {
@@ -105,6 +106,7 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
     public var onNewEpoch: (@MainActor (_ old: String, _ new: String) -> Void)?
     public var onEnded: (@MainActor (_ reason: String) -> Void)?
     public var onUnsupported: (@MainActor (_ version: Int) -> Void)?
+    public var onNotice: (@MainActor (HostNotice) -> Void)?
 
     public init(port: Int, secret: String,
                 configuration: URLSessionConfiguration = .ephemeral,
@@ -143,6 +145,17 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
             throw refusal(code: "unreachable", text: LoopbackText.unreachable, retryable: true)
         }
         return current
+    }
+
+    public func folderHistory(_ folderID: String, before: String?) async -> HistoryPage? {
+        var components = URLComponents()
+        components.path = "folders/\(folderID)/history"
+        if let before { components.queryItems = [URLQueryItem(name: "before", value: before)] }
+        guard let path = components.string else { return nil }
+        let answer = await send(request("GET", path))
+        guard answer.status == 200, let data = answer.data,
+              let wire = try? JSONDecoder().decode(WireHistoryPage.self, from: data) else { return nil }
+        return wire.page()
     }
 
     public func perform(_ action: HostAction) async -> HostOutcome {
@@ -295,7 +308,8 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
             retryable: error.retryable ?? false,
             field: error.field,
             subjectID: error.subjectID,
-            documents: error.documents ?? []
+            documents: error.documents ?? [],
+            counts: error.counts
         )
     }
 
@@ -328,6 +342,8 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
                 streamStopped = true
                 stopStream()
                 onUnsupported?(version)
+            case let .notice(notice):
+                onNotice?(notice)
             }
         }
     }
