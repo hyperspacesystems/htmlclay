@@ -1016,7 +1016,7 @@ function createRootDocumentHost({ ctx, live = require('./utils/root-live.js').cr
 
   const baseDir = ctx.root.path;
   const paths = getConsentRegistry(baseDir);
-  return createDocumentHost({
+  const host = createDocumentHost({
     ctx, baseDir, live, emit, logger,
     store: snapshotStoreFor(ctx.root.id),
     resolveTailwindWrite: async (name) => {
@@ -1031,6 +1031,44 @@ function createRootDocumentHost({ ctx, live = require('./utils/root-live.js').cr
     dataGuard, documentEtag, rebaseStaleSave, newestVersionFiles, needsAdoption, roomsPackage,
     MAX_EXTERNAL_HTML, VERSIONS_DIR, TAILWIND_DIR, loadCheckpoint, getObserver,
   });
+  return Object.assign(host, createSyncWrites({ baseDir, paths, resolveWritePath, atomicWriteFile }));
+}
+
+/**
+ * Sync's own files (`.hyperclay/sync-root.json`, the kept server copies under
+ * `.hyperclay/conflicts/`) and the folders a download makes, written in process
+ * exactly as the engine wrote them before they went through the host.
+ */
+function createSyncWrites({ baseDir, paths, resolveWritePath, atomicWriteFile }) {
+  const { ensureDirectory } = require('../sync-engine/file-operations.js');
+  const refusedWith = (error) => ({ outcome: 'refused', reason: (error && error.code) || 'EIO' });
+  return {
+    async syncFile({ op, rel, bytes }) {
+      const filePath = path.join(baseDir, rel);
+      try {
+        if (op === 'remove') {
+          await fs.unlink(filePath).catch((error) => {
+            if (error.code !== 'ENOENT') throw error;
+          });
+        } else {
+          await ensureDirectory(path.dirname(filePath));
+          await atomicWriteFile(filePath, Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes, 'utf8'), null);
+        }
+      } catch (error) {
+        return refusedWith(error);
+      }
+      return { outcome: 'committed', reason: null };
+    },
+    async ensureFolder(rel) {
+      let made;
+      try {
+        made = await ensureDirectory(rel === '' ? baseDir : await resolveWritePath(paths, rel));
+      } catch (error) {
+        return refusedWith(error);
+      }
+      return { outcome: 'committed', reason: null, created: made !== undefined };
+    },
+  };
 }
 
 module.exports = { createDocumentHost, createRootDocumentHost, canonicalForWrite, splitWrite, refuseOldFormat, MAX_EXTERNAL_HTML, LOOPBACK_RUNTIME };

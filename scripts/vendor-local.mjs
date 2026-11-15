@@ -24,6 +24,8 @@ const ENTRIES = [
   "trial/go-process.cjs",
   "trial/fs-guard.cjs",
   "src/main/workspace/shell-server.js",
+  "src/main/sync-manager.js",
+  "trial/sync-observer.cjs",
 ];
 const COMMIT = /^[0-9a-f]{40}$/;
 const REQUIRED = /(?:^|[^.\w$])(require|import)\s*\(\s*(['"])((?:[^'"\\]|\\.)*)\2\s*\)/g;

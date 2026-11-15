@@ -1,1 +1,0 @@
-var s=null,n=()=>s??=import("./c-NVU3DORS.js").catch(t=>{throw s=null,t}),e=t=>(...i)=>{n().then(o=>(t?o[t]:o.default)(...i))},l=e(null),r=e("toastPersistent"),a=()=>{n().catch(()=>{})},c=(...t)=>{(s||typeof window.clay?.toastPersistent=="function")&&e("dismissPersistent")(...t)};export{l as a,r as b,a as c,c as d};

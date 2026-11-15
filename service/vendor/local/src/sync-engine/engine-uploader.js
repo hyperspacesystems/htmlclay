@@ -1,0 +1,538 @@
+/**
+ * Per-file transfer operations (upload/download for sites, uploads, folders).
+ *
+ * These are the "worker" methods called by the queue processor, the initial
+ * sync flow, and the SSE/poll handlers. Methods here are installed onto
+ * SyncEngine.prototype.
+ */
+
+const path = require('upath');
+const { classifyError, formatErrorForLog } = require('./error-handler');
+const {
+  fileExists,
+  readFile,
+  getFileStats,
+  readFileBuffer,
+  calculateBufferChecksum
+} = require('./file-operations');
+const {
+  createNode,
+  getNodeContent,
+  putNodeContent
+} = require('./api-client');
+const { calculateChecksum } = require('./utils');
+const { validateFileName, validateFullPath, validateUploadPath } = require('./validation');
+const { ERROR_PRIORITY } = require('./constants');
+const nodeMap = require('./node-map');
+const { withLocalDocumentWrite, claimLocalDocumentTarget, documentHostFor } = require('./local-boundary');
+const { readPageRecord, sendPageState } = require('./page-state');
+
+module.exports = {
+  /**
+   * Download a site file from server by nodeId.
+   *
+   * @param {number} nodeId - Server node id
+   * @param {string} relativePath - Path WITH extension (caller passes explicitly; see note below)
+   */
+  // Path is passed in rather than looked up from serverFilesCache — uploadFile() invalidates that cache mid-loop, which used to break the next downloadFile in the same iteration.
+  async downloadFile(nodeId, relativePath) {
+    const gen = this.generation;
+    try {
+      const claim = this.localAuthority ? await claimLocalDocumentTarget(this, relativePath) : null;
+      const tracked = this.repo.get(nodeId);
+      const remoteAtThisPath = !tracked || tracked.path === relativePath;
+      const { content, modifiedAt } = await getNodeContent(
+        this.conn,
+        nodeId
+      );
+      if (gen !== this.generation) return;
+
+      this.resolveContainedPath(relativePath);
+
+      const isHtmlSite = /\.(html|htmlclay)$/i.test(relativePath);
+      const record = isHtmlSite ? await readPageRecord(this, nodeId, relativePath) : null;
+
+      let localPath = null;
+      const outcome = await withLocalDocumentWrite(this, relativePath, async (target, token) => {
+        localPath = target.canonicalPath;
+        const written = await documentHostFor(this).commit({
+          kind: 'sync-download',
+          name: relativePath,
+          filePath: localPath,
+          bytes: content,
+          modifiedAt,
+          blockeditorRecord: record,
+          context: { target, token },
+        });
+        if (written.outcome === 'indeterminate') throw written.error;
+        return written;
+      }, { generation: gen, claim, explicitCreate: remoteAtThisPath });
+
+      if (outcome.stale) return;
+
+      console.log(`[SYNC] Downloaded ${relativePath}`);
+
+      // Log download success
+      if (this.logger) {
+        this.logger.success('DOWNLOAD', 'File downloaded', {
+          file: this.logger.sanitizePath(localPath),
+          modifiedAt
+        });
+      }
+
+      // Emit success event
+      this.emit('file-synced', {
+        file: relativePath,
+        action: 'download'
+      });
+
+    } catch (error) {
+      if (error.statusCode === 404) {
+        await this.repo.delete(nodeId).catch(() => {});
+      }
+
+      console.error(`[SYNC] Failed to download ${relativePath}:`, error);
+
+      // Log download error
+      if (this.logger) {
+        this.logger.error('DOWNLOAD', 'Download failed', {
+          file: relativePath,
+          error
+        });
+      }
+
+      const errorInfo = classifyError(error, { filename: relativePath, action: 'download' });
+      this.stats.errors.push(formatErrorForLog(error, { filename: relativePath, action: 'download' }));
+
+      // Emit structured error
+      this.emit('sync-error', errorInfo);
+    }
+  },
+
+  /**
+   * Upload a file to server
+   * @param {string} filename - Relative path WITH .html (may include folders)
+   */
+  async uploadFile(filename) {
+    const gen = this.generation;
+    try {
+      // Validate filename before uploading
+      const validationResult = filename.includes('/')
+        ? validateFullPath(filename)
+        : validateFileName(filename, false);
+
+      if (!validationResult.valid) {
+        const validationError = new Error(validationResult.error);
+        validationError.isValidationError = true;
+
+        console.error(`[SYNC] Validation failed for ${filename}: ${validationResult.error}`);
+
+        // Log validation error
+        if (this.logger) {
+          this.logger.error('VALIDATION', 'Filename validation failed', {
+            file: filename,
+            reason: validationResult.error
+          });
+        }
+
+        // Emit validation error
+        this.emit('sync-error', {
+          file: filename,
+          error: validationResult.error,
+          type: 'validation',
+          priority: ERROR_PRIORITY.HIGH,
+          action: 'upload',
+          canRetry: false
+        });
+
+        // Don't throw - just skip this file
+        return;
+      }
+
+      const localPath = path.join(this.syncFolder, filename);
+      const content = await readFile(localPath);
+      const stat = await getFileStats(localPath);
+
+      // Calculate checksum for skip optimization
+      const localChecksum = await calculateChecksum(content);
+
+      // Check if server already has this exact content using cached data
+      try {
+        const serverFiles = await this.fetchAndCacheServerFiles(Number.MAX_SAFE_INTEGER);
+        const serverFile = serverFiles.find(f => f.filename === filename);
+
+        if (serverFile && serverFile.checksum === localChecksum) {
+          console.log(`[SYNC] SKIP upload ${filename} - server has same checksum`);
+          this.stats.filesUploadedSkipped++;
+
+          // Log upload skip
+          if (this.logger) {
+            this.logger.skip('UPLOAD', 'Upload skipped - checksums match', {
+              file: this.logger.sanitizePath(localPath)
+            });
+          }
+
+          return;
+        }
+      } catch (error) {
+        // If checksum check fails, continue with upload
+        console.log(`[SYNC] Could not verify server checksum, proceeding with upload: ${error.message}`);
+        if (this.logger) {
+          this.logger.warn('UPLOAD', 'Server checksum check failed - uploading anyway', {
+            file: filename,
+            error: error.message,
+            statusCode: error.statusCode
+          });
+        }
+      }
+
+      // Cached browser snapshot (+ userDriven bit) for platform live sync.
+      // The store is the engine's own: one per root, never the process-wide one.
+      // Awaited because a document host in another process answers it later.
+      let snapshotHtml = null;
+      let userDriven;
+      const snap = await this.snapshots.take(filename);
+      if (snap) {
+        snapshotHtml = snap.html;
+        userDriven = snap.userDriven;
+        console.log(`[SYNC] Including snapshot for platform live sync: ${filename}`);
+      }
+
+      // Check repo for an existing nodeId for this file path
+      let existingNodeId = null;
+      const existing = this.repo.getByPath(filename);
+      if (existing) {
+        existingNodeId = parseInt(existing.nodeId);
+      }
+
+      let result;
+      if (existingNodeId) {
+        this.outbox.markInFlight('save', existingNodeId);
+        await sendPageState(this, existingNodeId, filename);
+        result = await putNodeContent(
+          this.conn,
+          existingNodeId,
+          content,
+          {
+            modifiedAt: stat.mtime,
+            snapshotHtml,
+            senderId: this.deviceId,
+            userDriven
+          }
+        );
+        if (gen !== this.generation) return;
+        result.nodeId = existingNodeId;
+      } else {
+        const pathParts = filename.split('/').filter(Boolean);
+        const name = pathParts[pathParts.length - 1];
+        const folderPath = pathParts.slice(0, -1).join('/');
+        const parentId = this.resolveParentIdByPath(folderPath);
+
+        const createdNode = await createNode(this.conn, {
+          type: 'site',
+          name,
+          parentId,
+          content,
+          modifiedAt: stat.mtime
+        });
+        if (gen !== this.generation) return;
+        this.outbox.markInFlight('save', createdNode.id);
+        await sendPageState(this, createdNode.id, filename);
+        result = { nodeId: createdNode.id };
+      }
+
+      if (result.nodeId) {
+        const inode = await nodeMap.getInode(path.join(this.syncFolder, filename));
+        // Record syncedAt on every upload so delete-conflict checks use per-file timestamps instead of the stale global lastSyncedAt.
+        await this.repo.set(result.nodeId, { type: 'site', path: filename, checksum: localChecksum, inode, syncedAt: Date.now() });
+      }
+
+      console.log(`[SYNC] Uploaded ${filename}`);
+      this.stats.filesUploaded++;
+
+      // Log upload success
+      if (this.logger) {
+        this.logger.success('UPLOAD', 'File uploaded', {
+          file: this.logger.sanitizePath(localPath),
+          modifiedAt: stat.mtime
+        });
+      }
+
+      // Invalidate cache since server state changed
+      this.invalidateServerFilesCache();
+
+      // Emit success event
+      this.emit('file-synced', {
+        file: filename,
+        action: 'upload'
+      });
+
+    } catch (error) {
+      console.error(`[SYNC] Failed to upload ${filename}:`, error);
+
+      // Log upload error
+      if (this.logger) {
+        this.logger.error('UPLOAD', 'Upload failed', {
+          file: filename,
+          error
+        });
+      }
+
+      // Check for detailed error structure (name conflicts)
+      if (error.details) {
+        this.emit('sync-conflict', {
+          file: filename,
+          conflict: 'name_taken',
+          suggestions: error.details.suggestions,
+          message: error.details.message
+        });
+      }
+
+      const errorInfo = classifyError(error, { filename, action: 'upload' });
+      this.stats.errors.push(formatErrorForLog(error, { filename, action: 'upload' }));
+
+      // Emit structured error
+      this.emit('sync-error', errorInfo);
+
+      // Re-throw for retry logic
+      throw error;
+    }
+  },
+
+  /**
+   * Download an upload file from server
+   */
+  async downloadUploadFile(serverPath, nodeId) {
+    const gen = this.generation;
+    this.resolveContainedPath(serverPath);
+    try {
+      const claim = this.localAuthority ? await claimLocalDocumentTarget(this, serverPath) : null;
+      const tracked = this.repo.get(nodeId);
+      const remoteAtThisPath = !tracked || tracked.path === serverPath;
+      const { content, modifiedAt } = await getNodeContent(
+        this.conn,
+        nodeId
+      );
+      if (gen !== this.generation) return;
+
+      const applied = await withLocalDocumentWrite(this, serverPath, async (target, token) => {
+        const localPath = target.canonicalPath;
+        const written = await documentHostFor(this).commit({
+          kind: 'sync-download',
+          name: serverPath,
+          filePath: localPath,
+          bytes: content,
+          modifiedAt,
+          context: { target, token },
+        });
+        if (written.outcome === 'indeterminate') throw written.error;
+        return written;
+      }, { generation: gen, claim, explicitCreate: remoteAtThisPath });
+
+      if (applied.stale) return;
+
+      console.log(`[SYNC] Downloaded upload: ${serverPath}`);
+
+      if (this.logger) {
+        this.logger.success('DOWNLOAD', 'Upload downloaded', { file: serverPath });
+      }
+
+      this.emit('file-synced', { file: serverPath, action: 'download', type: 'upload' });
+
+    } catch (error) {
+      if (error.statusCode === 404) {
+        await this.repo.delete(nodeId).catch(() => {});
+      }
+
+      console.error(`[SYNC] Failed to download upload ${serverPath}:`, error);
+
+      if (this.logger) {
+        this.logger.error('DOWNLOAD', 'Upload download failed', { file: serverPath, error });
+      }
+
+      const errorInfo = classifyError(error, { filename: serverPath, action: 'download-upload' });
+      this.stats.errors.push(formatErrorForLog(error, { filename: serverPath, action: 'download-upload' }));
+      this.emit('sync-error', errorInfo);
+    }
+  },
+
+  /**
+   * Upload an upload file to server
+   */
+  async uploadUploadFile(relativePath) {
+    const gen = this.generation;
+    try {
+      // Validate path
+      const validationResult = validateUploadPath(relativePath);
+      if (!validationResult.valid) {
+        console.error(`[SYNC] Validation failed for upload ${relativePath}: ${validationResult.error}`);
+        this.emit('sync-error', {
+          file: relativePath,
+          error: validationResult.error,
+          type: 'validation',
+          priority: ERROR_PRIORITY.HIGH,
+          canRetry: false
+        });
+        return;
+      }
+
+      const localPath = path.join(this.syncFolder, relativePath);
+      const content = await readFileBuffer(localPath);
+      const stat = await getFileStats(localPath);
+
+      // Check size limit (10MB)
+      if (content.length > 10 * 1024 * 1024) {
+        this.emit('sync-error', {
+          file: relativePath,
+          error: 'File exceeds 10MB limit',
+          type: 'validation',
+          priority: ERROR_PRIORITY.HIGH,
+          canRetry: false
+        });
+        return;
+      }
+
+      // Check if server has same content
+      const localChecksum = calculateBufferChecksum(content);
+
+      try {
+        const serverUploads = await this.fetchAndCacheServerUploads(Number.MAX_SAFE_INTEGER);
+        const serverUpload = serverUploads.find(u => u.path === relativePath);
+
+        if (serverUpload && serverUpload.checksum === localChecksum) {
+          console.log(`[SYNC] SKIP upload ${relativePath} - server has same checksum`);
+          this.stats.uploadsSkipped++;
+          return;
+        }
+      } catch (error) {
+        console.log(`[SYNC] Could not verify server checksum, proceeding: ${error.message}`);
+        if (this.logger) {
+          this.logger.warn('UPLOAD', 'Server checksum check failed - uploading anyway', {
+            file: relativePath,
+            error: error.message,
+            statusCode: error.statusCode
+          });
+        }
+      }
+
+      // Check repo for an existing nodeId for this upload path
+      let existingNodeId = null;
+      const existing = this.repo.getByPath(relativePath);
+      if (existing) {
+        existingNodeId = parseInt(existing.nodeId);
+      }
+
+      let resultNodeId = existingNodeId;
+      if (existingNodeId) {
+        this.outbox.markInFlight('save', existingNodeId);
+        await putNodeContent(
+          this.conn,
+          existingNodeId,
+          content,
+          { modifiedAt: stat.mtime }
+        );
+        if (gen !== this.generation) return;
+      } else {
+        const pathParts = relativePath.split('/').filter(Boolean);
+        const name = pathParts[pathParts.length - 1];
+        const folderPath = pathParts.slice(0, -1).join('/');
+        const parentId = this.resolveParentIdByPath(folderPath);
+
+        const createdNode = await createNode(this.conn, {
+          type: 'upload',
+          name,
+          parentId,
+          content,
+          modifiedAt: stat.mtime
+        });
+        if (gen !== this.generation) return;
+        this.outbox.markInFlight('save', createdNode.id);
+        resultNodeId = createdNode.id;
+      }
+
+      if (resultNodeId) {
+        await this.repo.set(resultNodeId, { type: 'upload', path: relativePath, checksum: localChecksum, inode: await nodeMap.getInode(path.join(this.syncFolder, relativePath)), syncedAt: Date.now() });
+      }
+
+      console.log(`[SYNC] Uploaded: ${relativePath}`);
+      this.stats.uploadsUploaded++;
+
+      // Invalidate cache
+      this.invalidateServerUploadsCache();
+
+      this.emit('file-synced', { file: relativePath, action: 'upload', type: 'upload' });
+
+    } catch (error) {
+      console.error(`[SYNC] Failed to upload ${relativePath}:`, error);
+
+      if (this.logger) {
+        this.logger.error('UPLOAD', 'Upload failed', { file: relativePath, error });
+      }
+
+      const errorInfo = classifyError(error, { filename: relativePath, action: 'upload-upload' });
+      this.stats.errors.push(formatErrorForLog(error, { filename: relativePath, action: 'upload-upload' }));
+      this.emit('sync-error', errorInfo);
+      throw error;
+    }
+  },
+
+  async createFolderOnServer(relativePath) {
+    if (!fileExists(path.join(this.syncFolder, relativePath))) return null;
+
+    const gen = this.generation;
+    try {
+      const pathParts = relativePath.split('/').filter(Boolean);
+
+      for (let i = 1; i < pathParts.length; i++) {
+        const ancestorPath = pathParts.slice(0, i).join('/');
+        if (!this.repo.getByPath(ancestorPath)) {
+          await this.createFolderOnServer(ancestorPath);
+        }
+      }
+
+      const name = pathParts[pathParts.length - 1];
+      const parentFolderPath = pathParts.slice(0, -1).join('/');
+
+      const parentId = this.resolveParentIdByPath(parentFolderPath);
+
+      const existingFolder = this.repo.getByPath(relativePath);
+      if (existingFolder && existingFolder.entry.type === 'folder') {
+        console.log(`[SYNC] Folder already tracked in nodeMap: ${relativePath}`);
+        return;
+      }
+
+      console.log(`[SYNC] Creating folder on server: ${relativePath} (parentId=${parentId})`);
+      const createdNode = await createNode(this.conn, {
+        type: 'folder',
+        name,
+        parentId
+      });
+      this._mutationSeq = (this._mutationSeq || 0) + 1;
+      if (gen !== this.generation) return;
+
+      this.outbox.markInFlight('save', createdNode.id);
+
+      const fullPath = path.join(this.syncFolder, relativePath);
+      const inode = await nodeMap.getInode(fullPath);
+      await this.repo.set(createdNode.id, {
+        type: 'folder',
+        path: relativePath,
+        parentId: createdNode.parentId,
+        inode
+      });
+
+      this.invalidateServerNodesCache();
+      this.emit('file-synced', { file: relativePath, action: 'create', type: 'folder' });
+
+    } catch (error) {
+      console.error(`[SYNC] Failed to create folder ${relativePath}:`, error.message);
+      if (this.logger) {
+        this.logger.error('SYNC', 'Folder create failed', { file: relativePath, error });
+      }
+      const errorInfo = classifyError(error, { filename: relativePath, action: 'create-folder' });
+      this.stats.errors.push(formatErrorForLog(error, { filename: relativePath, action: 'create-folder' }));
+      this.emit('sync-error', errorInfo);
+      throw error;
+    }
+  }
+};

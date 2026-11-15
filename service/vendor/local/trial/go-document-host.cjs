@@ -495,8 +495,34 @@ function createGoDocumentHost({ ctx, checkpointClaim = serviceMode ? serviceMode
     };
   }
 
+  // C4's /v1/sync/file: sync's marker and kept copies, written by Go.
+  async function syncFile({ op, rel, bytes }) {
+    const opId = randomBytes(16).toString('hex');
+    const body = { opId, root: rootId(), op, rel };
+    if (op === 'put') body.bytes = encodeBytes(bytes);
+    const answer = await request('POST', '/v1/sync/file', { body, opId });
+    return { outcome: answer.outcome, reason: answer.reason ?? null };
+  }
+
+  // One `folder` restructure per level, an existing one counted as made. The root itself is
+  // never made here: a missing root is the session's folder-missing pause.
+  async function ensureFolder(rel) {
+    const segments = rel === '' ? [] : rel.split('/');
+    let created = false;
+    for (let depth = 1; depth <= segments.length; depth += 1) {
+      const opId = randomBytes(16).toString('hex');
+      const answer = await request('POST', '/v1/restructure', {
+        body: { opId, root: rootId(), kind: 'folder', steps: [{ to: segments.slice(0, depth).join('/') }] },
+        opId,
+      });
+      if (answer.outcome === 'committed') created = true;
+      else if (answer.reason !== 'EEXIST') return { outcome: answer.outcome, reason: answer.reason ?? null };
+    }
+    return { outcome: 'committed', reason: null, created };
+  }
+
   return {
-    commit, read, restructure, checkpoint, events, blockeditorState, takeSnapshot, isGoDocumentHost: true,
+    commit, read, restructure, checkpoint, events, blockeditorState, takeSnapshot, syncFile, ensureFolder, isGoDocumentHost: true,
     releasesBoundary: Boolean(serviceMode),
   };
 }

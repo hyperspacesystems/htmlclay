@@ -136,6 +136,27 @@ async function withLocalDirectoryChange(engine, rel, fn, { generation = engine.g
   }
 }
 
+// Sync's own files (the marker, the kept server copies) and the folders a download makes
+// are written by the root's document host, like every other write in a root.
+async function putSyncFile(engine, rel, bytes) {
+  const result = await documentHostFor(engine).syncFile({ op: 'put', rel, bytes });
+  if (result.outcome !== 'committed') {
+    throw Object.assign(new Error(`${rel} was not written: ${result.reason}`), { code: result.reason });
+  }
+}
+
+async function removeSyncFile(engine, rel) {
+  return documentHostFor(engine).syncFile({ op: 'remove', rel });
+}
+
+async function ensureLocalFolder(engine, rel) {
+  const result = await documentHostFor(engine).ensureFolder(rel);
+  if (result.outcome !== 'committed') {
+    throw Object.assign(new Error(`the folder ${rel || '.'} was not made: ${result.reason}`), { code: result.reason });
+  }
+  return result.created;
+}
+
 function relocateEntryFor(engine, rel) {
   const location = path.join(engine.syncFolder, rel);
   return { location, canonical: location };
@@ -208,4 +229,4 @@ async function withLocalStructureDelete(engine, rel, trashRel, { generation = en
   });
 }
 
-module.exports = { withLocalDocumentWrite, withLocalDirectoryChange, withLocalStructureDelete, claimLocalDocumentTarget, structureEntryFor, documentHostFor, restructureMove, restructureTrash, requireCommitted };
+module.exports = { withLocalDocumentWrite, withLocalDirectoryChange, withLocalStructureDelete, claimLocalDocumentTarget, structureEntryFor, documentHostFor, restructureMove, restructureTrash, requireCommitted, putSyncFile, removeSyncFile, ensureLocalFolder };
