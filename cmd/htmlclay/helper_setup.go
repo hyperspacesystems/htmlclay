@@ -281,7 +281,7 @@ func (a *app) helperRegistryFile(ctx context.Context, presenter helperSetupPrese
 					return "", false, err
 				}
 			case helperAnswerChooseFile:
-				path = reply.Path
+				path, risky = reply.Path, true
 				continue
 			default:
 				return "", false, nil

@@ -437,15 +437,20 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 // swapped for a symlink since declaration stops granting. Refusing here costs
 // nothing visible: the file falls back to serving read-only with the banner.
 func (a *app) routeTrusted(absPath string) (string, bool) {
+	target, ok := a.serveTrusted(absPath)
+	if ok {
+		a.noteOpen(absPath, recents.HowTrusted, false)
+	}
+	return target, ok
+}
+
+// serveTrusted is routeTrusted without the Recent row, for a program that reaches
+// a document the person did not open.
+func (a *app) serveTrusted(absPath string) (string, bool) {
 	if _, trusted := a.anchorFor(absPath); !trusted {
 		return "", false
 	}
-	target, ok := a.serveURL(absPath)
-	if !ok {
-		return "", false
-	}
-	a.noteOpen(absPath, recents.HowTrusted, false)
-	return target, true
+	return a.serveURL(absPath)
 }
 
 // startSites builds every live trusted folder's site before argv is processed, so a URL

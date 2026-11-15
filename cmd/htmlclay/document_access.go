@@ -380,7 +380,7 @@ func (d looseDocumentAccess) register() error {
 	if open {
 		return nil
 	}
-	if _, routed := d.app.routeTrusted(d.path); !routed {
+	if _, routed := d.app.serveTrusted(d.path); !routed {
 		return ErrNotReachable
 	}
 	return nil
