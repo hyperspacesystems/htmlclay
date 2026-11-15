@@ -84,6 +84,9 @@ type appRuntime struct {
 	// sync runs inside it (serviceRunner.want).
 	syncHeld       atomic.Bool
 	syncConnecting atomic.Int32
+	// syncConflicts is the engine's held conflicts as Go last read them
+	// (sync_conflicts.go). Guarded by syncMu.
+	syncConflicts syncConflicts
 	// syncLast is the service's last sync report (C4), nil until one arrives.
 	syncLast *served.SyncReport
 	// syncWantedMu keeps configure sends one at a time (sendSyncWanted).
@@ -624,11 +627,7 @@ func (a *app) startRuntime() {
 	a.rt.portCandidates = defaultPorts
 
 	a.rt.syncStore = a.openSyncStore()
-	a.rt.syncMu.Lock()
-	if _, err := a.syncRecordLocked(); err != nil {
-		a.rt.logger.Printf("sync.json could not be read: %v", err)
-	}
-	a.rt.syncMu.Unlock()
+	a.loadSyncAtStart()
 	a.service = newServiceRunner(a)
 
 	a.rt.logger.Printf("Runtime ready (home=%s)", a.rt.home)

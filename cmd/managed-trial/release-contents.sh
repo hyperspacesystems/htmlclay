@@ -87,6 +87,24 @@ else
 	sed 's/^/  /' "$tmp/release-deps.err"
 fi
 
+# 08-sync.md decision 8: only a synctest build may point sync at another server,
+# so a release binary carries no HTMLCLAY_SYNC_SERVER and a synctest one does
+# (which proves the search can find it).
+if go build -o "$tmp/htmlclay-release" ./cmd/htmlclay && go build -tags synctest -o "$tmp/htmlclay-synctest" ./cmd/htmlclay; then
+	if grep -q HTMLCLAY_SYNC_SERVER "$tmp/htmlclay-release"; then
+		echo "sync-server: the release build reads HTMLCLAY_SYNC_SERVER"
+		status=1
+	elif ! grep -q HTMLCLAY_SYNC_SERVER "$tmp/htmlclay-synctest"; then
+		echo "sync-server: the synctest build lacks HTMLCLAY_SYNC_SERVER, so the search proves nothing"
+		status=1
+	else
+		echo "sync-server: synctest only"
+	fi
+else
+	echo "sync-server: go build failed"
+	status=1
+fi
+
 if [ "$status" -ne 0 ]; then
 	echo "RELEASE-CONTENTS FAIL"
 	exit 1

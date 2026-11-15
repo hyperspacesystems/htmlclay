@@ -458,6 +458,9 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 	if record.KeyRefused != nil {
 		events = append(events, appcore.EventFact{ID: "syncKeyRefused:" + record.KeyRefused.Since, Kind: appcore.WaitingSyncKeyRefused})
 	}
+	for _, session := range record.SyncSessions {
+		events = append(events, a.rt.syncConflicts.facts[session.ID]...)
+	}
 	return facts, folders, events, synced
 }
 
@@ -623,6 +626,7 @@ type syncReportRecord struct {
 func (a *app) takeSyncReport(report served.SyncReport) {
 	stop := false
 	a.rt.syncMu.Lock()
+	rereadConflicts := conflictsChanged(a.rt.syncLast, report)
 	a.rt.syncLast = &report
 	record, err := a.syncRecordLocked()
 	if err != nil {
@@ -671,9 +675,15 @@ func (a *app) takeSyncReport(report served.SyncReport) {
 		}
 	}
 	a.rt.syncMu.Unlock()
+	if rereadConflicts {
+		a.readHeldConflicts()
+	}
 	if stop {
 		go a.sendSyncWanted()
 	}
+	// Folder states, counts and waiting items come from the report, so every
+	// open screen gets a new snapshot.
+	a.changed()
 }
 
 // setFolderSynced is folder.setSynced: off keeps the folder's session row with

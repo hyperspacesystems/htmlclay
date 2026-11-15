@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/served"
@@ -105,6 +106,27 @@ func TestM4SyncFacts(t *testing.T) {
 		}
 		if refusal := a.setFolderSynced(team.FolderID, true); refusal != nil {
 			t.Fatal(refusal)
+		}
+	})
+
+	t.Run("a report sends every open screen a new snapshot", func(t *testing.T) {
+		updates, stop := a.subscribe()
+		defer stop()
+		for drained := false; !drained; {
+			select {
+			case <-updates:
+			case <-time.After(2500 * time.Millisecond):
+				drained = true
+			}
+		}
+		report(10, false, row(personal.FolderID, func(r *served.SyncSessionReport) { r.Status = "syncing"; r.PendingCount = 4 }), row(team.FolderID, nil))
+		select {
+		case snapshot := <-updates:
+			if snapshot.Sync.SyncingFiles != 4 {
+				t.Fatalf("the pushed snapshot has syncingFiles %d", snapshot.Sync.SyncingFiles)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("no snapshot was sent after the report")
 		}
 	})
 
