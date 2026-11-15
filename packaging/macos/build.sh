@@ -158,6 +158,9 @@ echo "Signed $APP"
 
 VERIFY_ARGS=()
 [ "$UNIVERSAL" = true ] && VERIFY_ARGS+=(--universal)
+if [ "$ADHOC_HARDENED" = true ] || [ "$SIGNED" = true ]; then
+  VERIFY_ARGS+=(--hardened)
+fi
 bash "$SCRIPT_DIR/verify-bundle.sh" ${VERIFY_ARGS[@]+"${VERIFY_ARGS[@]}"} "$APP" "$VERSION" "$BUNDLE_ID"
 
 if [ "$NO_DMG" = true ]; then
