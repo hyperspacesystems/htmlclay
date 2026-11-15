@@ -6,6 +6,8 @@
 // first line is {"v":1,"secret":"<64 hex>"}, answered with READY {"url","epoch","pid"};
 // a later {"host":{"url","secret","epoch","roots"}} line is answered with ATTACHED; end
 // of stdin shuts the service down. A secret is never an argument or an env var.
+// After ATTACHED, a {"sync":...} line hands over or clears the sync key (sync.cjs);
+// a line that is not JSON is answered SYNC KEY REFUSED and never echoed.
 //
 // Usage: main.cjs --data-dir <absolute dir>
 // The data dir is the only place the service may keep files of its own; today it
@@ -43,6 +45,9 @@ async function run(dataDir) {
   const { createTrialService } = require('./vendor/local/trial/service.cjs');
   const { mountShell } = require('./shell.cjs');
   const { keepUnsavedEdits } = require('./recover.cjs');
+  const { installGate } = require('./sync-net.cjs');
+  const { createSync } = require('./sync.cjs');
+  const sync = createSync({ gate: installGate() });
 
   const lines = readline.createInterface({ input: process.stdin, crlfDelay: Infinity })[Symbol.asyncIterator]();
   const first = await lines.next();
@@ -66,10 +71,18 @@ async function run(dataDir) {
     const next = await lines.next();
     if (next.done) break;
     if (!next.value.trim()) continue;
-    const message = JSON.parse(next.value);
-    if (message.host) {
+    let message;
+    try {
+      message = JSON.parse(next.value);
+    } catch {
+      process.stdout.write('SYNC KEY REFUSED\n');
+      continue;
+    }
+    if (message && message.host) {
       await service.attachGo(message.host);
       process.stdout.write('ATTACHED\n');
+    } else if (message && 'sync' in message) {
+      process.stdout.write(`${await sync.handle(message.sync)}\n`);
     }
   }
   await shell.close();
