@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/testutil"
 	"github.com/panphora/htmlclay/internal/wire"
 )
 
@@ -504,8 +505,29 @@ func conformanceTopLevelCaseNames(t *testing.T) []string {
 	return names
 }
 
+// conformancePackageCase is one released wire case as @panphora/host-conformance
+// publishes it in wire.json: the behavior, without this host's own notes.
+type conformancePackageCase struct {
+	ID    string          `json:"id"`
+	Name  string          `json:"name"`
+	Setup json.RawMessage `json:"setup"`
+	Steps json.RawMessage `json:"steps"`
+}
+
+// conformanceLoadCases answers every case this host runs. A released case's
+// name, setup and steps come from the published package; its hosts, skip and
+// known difference stay in the local file, which is also the package's source.
+// The cases only this host has are read from their local files alone.
 func conformanceLoadCases(t *testing.T) []conformanceCase {
 	t.Helper()
+	var published struct {
+		Cases []conformancePackageCase `json:"cases"`
+	}
+	testutil.LoadVectors(t, "wire.json", &published)
+	byID := make(map[string]conformancePackageCase, len(published.Cases))
+	for _, p := range published.Cases {
+		byID[p.ID] = p
+	}
 	names := conformanceTopLevelCaseNames(t)
 	cases := make([]conformanceCase, 0, len(names))
 	for _, name := range names {
@@ -518,7 +540,29 @@ func conformanceLoadCases(t *testing.T) []conformanceCase {
 			t.Fatalf("%s: %v", name, err)
 		}
 		c.Slug = conformanceCaseSlug(name)
+		if c.Served == "released" {
+			match := conformanceCaseName.FindStringSubmatch(c.Slug)
+			if match == nil {
+				t.Fatalf("%s does not match the runner's case pattern <NN>-<slug>.json", name)
+			}
+			p, ok := byID[match[2]]
+			if !ok {
+				t.Fatalf("%s is released but the published wire.json has no case %q", name, match[2])
+			}
+			delete(byID, match[2])
+			c.Name, c.Steps = p.Name, nil
+			c.Setup = conformanceCase{}.Setup
+			if err := json.Unmarshal(p.Setup, &c.Setup); err != nil {
+				t.Fatalf("published %s setup: %v", p.ID, err)
+			}
+			if err := json.Unmarshal(p.Steps, &c.Steps); err != nil {
+				t.Fatalf("published %s steps: %v", p.ID, err)
+			}
+		}
 		cases = append(cases, c)
+	}
+	for id := range byID {
+		t.Errorf("the published wire.json has case %q, which no local released case names", id)
 	}
 	return cases
 }
