@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var notifier: HostNotifier!
     private var process: HostProcess?
     private var coordinator: TerminationCoordinator?
+    private var updates: UpdateCoordinator?
+    private var updateAllowed = false
     private var quitting = false
     private var home: URL?
     private var opener: FileOpener?
@@ -59,6 +61,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         opener.open(opens)
         windows = WindowManager(model: model)
         statusItem = StatusItemController(model: model, windows: windows)
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? ""
+        let bundlePath = Bundle.main.bundlePath
+        let allowed = UpdateGate.allows(feedURL: info["SUFeedURL"] as? String, publicKey: info["SUPublicEDKey"] as? String,
+                                        bundlePath: bundlePath, writable: FileManager.default.isWritableFile(atPath: bundlePath),
+                                        version: version)
+        updateAllowed = allowed
+        updates = UpdateCoordinator(driver: allowed ? SparkleDriver.make() : nil,
+                                    host: HostCLI(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: home.map(CandidateHome.environment) ?? [:])),
+                                    presenter: alerts, appPID: getpid())
+        statusItem.updates = updates
         NSApp.mainMenu = MainMenu.build(settingsTarget: self, settingsAction: #selector(openSettings(_:)),
                                         openTarget: self, openAction: #selector(openAFile(_:)))
         _ = relay.subscribe { [weak self] _ in self?.writeState() }
@@ -86,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task {
                 await self.relay.attach(client)
                 await self.confirmUpdate(environment: launch.environment)
+                await self.updates?.start(allowed: self.updateAllowed)
                 self.opener?.hostReady()
                 self.writeState()
                 await self.seedProfile()
@@ -165,7 +179,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !quitting else { return .terminateCancel }
         quitting = true
         Task {
-            let ok = await coordinator.quit()
+            let ok: Bool
+            if let updates {
+                ok = await updates.terminate { force in await coordinator.quit(force: force) }
+            } else {
+                ok = await coordinator.quit()
+            }
             if !ok { quitting = false }
             NSApp.reply(toApplicationShouldTerminate: ok)
         }

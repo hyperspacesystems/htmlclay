@@ -2,7 +2,7 @@ import AppKit
 import PreviewCore
 
 @MainActor
-public final class AppAlerts: QuitPresenter {
+public final class AppAlerts: UpdatePresenter {
     private let model: AppModel
 
     public init(model: AppModel) { self.model = model }
@@ -69,6 +69,22 @@ public final class AppAlerts: QuitPresenter {
         case .alertSecondButtonReturn: return .quitAnyway
         default: return .cancel
         }
+    }
+
+    public func askAboutRunningWork() async -> Bool {
+        let alert = make(Strings.Updates.runningWorkTitle, Strings.Updates.runningWorkBody,
+                         buttons: [Strings.Updates.restartAnyway, Strings.Quit.cancel])
+        alert.buttons[0].hasDestructiveAction = true
+        alert.buttons[1].keyEquivalent = "\u{1b}"
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    public func updateNotStarted() {
+        _ = make(Strings.Updates.notStartedTitle, Strings.Updates.notStartedBody, buttons: [Strings.Open.ok]).runModal()
+    }
+
+    public func restartFailed() {
+        _ = make(Strings.Updates.restartFailedTitle, Strings.Updates.restartFailedBody, buttons: [Strings.Open.ok]).runModal()
     }
 
     private func make(_ title: String, _ message: String, buttons: [String]) -> NSAlert {

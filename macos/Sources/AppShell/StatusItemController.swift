@@ -15,6 +15,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private var panel: PanelWindow?
     private var outsideClicks: Any?
+    public var updates: UpdateCoordinator?
 
     public init(model: AppModel, windows: WindowManager) {
         self.model = model
@@ -92,6 +93,10 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
                 add(model.snapshot.sync.paused ? Strings.Panel.resumeSyncing : Strings.Panel.pauseSyncing, #selector(toggleSync), to: menu)
             }
         }
+        if updates?.prepared != nil {
+            menu.addItem(.separator())
+            add(Strings.Updates.restart, #selector(restartToUpdate), to: menu)
+        }
         menu.addItem(.separator())
         add(Strings.Menu.settings, #selector(openSettings), to: menu, key: ",")
         let quit = NSMenuItem(title: Strings.Menu.quit, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -140,6 +145,11 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         } else {
             windows.showSettings(item.pane)
         }
+    }
+
+    @objc private func restartToUpdate() {
+        closePanel()
+        updates?.restartToUpdate()
     }
 
     @objc private func toggleSync() {

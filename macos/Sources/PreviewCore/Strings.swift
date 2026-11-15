@@ -258,6 +258,20 @@ public enum Strings {
         public static func wouldRestart(_ version: String) -> String { "Build 1: this would restart HTML Clay into \(version)." }
         public static let wouldCheck = "Build 1: this would check for a new version."
         public static let wouldShowWhatsNew = "Build 1: this would show what changed in the new version."
+        // TODO-COPY: dialog title when an AI edit or a document's program is still running at Restart to update, max 50 chars
+        public static let runningWorkTitle = "Something is still running"
+        // TODO-COPY: dialog body for the same, says restarting stops it, max 140 chars
+        public static let runningWorkBody = "An AI edit or a program started by a document is still running. Restarting now stops it."
+        // TODO-COPY: the destructive button in that dialog, max 20 chars
+        public static let restartAnyway = "Restart anyway"
+        // TODO-COPY: notice title when Restart to update was chosen but HTML Clay has not restarted after 40 seconds, max 50 chars
+        public static let notStartedTitle = "The update hasn't started yet"
+        // TODO-COPY: notice body for the same, what the person can do, max 140 chars
+        public static let notStartedBody = "HTML Clay will install it the next time it quits."
+        // TODO-COPY: notice title when HTML Clay could not get ready to restart for an update, max 50 chars
+        public static let restartFailedTitle = "HTML Clay couldn't restart to update"
+        // TODO-COPY: notice body for the same, says nothing was lost and it keeps running, max 140 chars
+        public static let restartFailedBody = "Your documents are saved and HTML Clay keeps running. It will try again the next time it quits."
     }
     public enum Advanced {
         public static let port = "Port"

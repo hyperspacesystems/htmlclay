@@ -38,14 +38,18 @@ public final class TerminationCoordinator {
     }
 
     /// True when the app may terminate: the host has exited (or was not running). False on Cancel.
-    /// A second call while one is running returns false at once.
-    public func quit() async -> Bool {
+    /// A second call while one is running returns false at once. force sends the first ask forced,
+    /// for an update the host has already prepared.
+    public func quit(force: Bool = false) async -> Bool {
         guard !inFlight else { return false }
         inFlight = true
         defer { inFlight = false }
         guard process.isRunning else { return true }
+        var forceNext = force
         while true {
-            switch await askHost(force: false) {
+            let reply = await askHost(force: forceNext)
+            forceNext = false
+            switch reply {
             case .done:
                 await waitForExit()
                 return true
