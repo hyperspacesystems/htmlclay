@@ -594,11 +594,11 @@ public enum Strings {
             case "folder-in-use": return "Stayed: another app is using this folder. Close that app, then move again."
             case "account-already-synced": return "Stayed: this account already syncs to another folder here. Disconnect that one first."
             case "local-running": return "Stayed: Hyperclay Local opened during the move. Quit it, then move again."
-            // TODO-COPY: the four reasons below, from the milestone 5 review
-            case "folder-trusted-here": return "Stayed: HTML Clay already has this folder. Remove it from Folders, then move again."
-            case "nested-trusted": return "Stayed: HTML Clay already has a folder inside or around this one. Remove that one, then move again."
-            case "overlaps-served": return "Stayed: HTML Clay already serves a folder inside or around this one. Stop serving it, then move again."
-            case "account-gone": return "Stayed: your sync key no longer reaches this team. It stays in Hyperclay Local."
+            // copy: the four reasons below, from the milestone 5 review (copy pass 5)
+            case "folder-trusted-here": return "HTML Clay already has this folder. Remove it from Folders in Settings and move again."
+            case "nested-trusted": return "A folder in Folders is inside or contains this one. Remove that folder and move again."
+            case "overlaps-served": return "HTML Clay serves a folder in or containing this one. Stop serving that one and move again."
+            case "account-gone": return "This folder synced with a team your sync key cannot reach. It stays in Hyperclay Local."
             default: return "Stayed with Hyperclay Local. Try moving again, or check the app log in Settings."
             }
         }
