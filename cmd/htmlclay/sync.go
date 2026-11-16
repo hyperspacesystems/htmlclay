@@ -553,6 +553,7 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 		if !row.Sync.Enabled {
 			ff.Sync.State = appcore.FolderSyncPaused
 		}
+		ff.Sync.SetUpFailed = a.rt.syncBindFailed[row.FolderID]
 		folders = append(folders, ff)
 		if team && row.Sync.Enabled {
 			events = append(events, appcore.EventFact{ID: "teamToSetUp:" + row.FolderID, Kind: appcore.WaitingTeamToSetUp, SubjectID: row.FolderID, Name: name})

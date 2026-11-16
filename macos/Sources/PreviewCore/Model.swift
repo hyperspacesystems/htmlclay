@@ -188,6 +188,8 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     /// The host's sync state for this folder: off, up-to-date, syncing,
     /// conflicts or paused (appcore FolderSync).
     public var syncState: String
+    /// Why the last first download here failed, for a folder not on this Mac.
+    public var setUpFailed: String? = nil
 
     public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, allowsFraming: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false, fullPath: String = "", url: String = "", state: String = "ok", can: FolderCan? = nil, why: FolderWhy = FolderWhy(), storageBytes: Int = 0, syncState: String = FolderSyncState.off) {
         self.id = id; self.name = name; self.path = path; self.origin = origin; self.parentID = parentID

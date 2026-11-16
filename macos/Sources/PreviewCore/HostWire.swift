@@ -176,9 +176,10 @@ public struct WireFolderSync: Codable, Equatable, Sendable {
     public var downloadedToday: Int
     public var role: String?
     public var download: FirstDownload?
+    public var setUpFailed: String?
 
     enum CodingKeys: String, CodingKey {
-        case state, files, lastFinishedAt, uploadedToday, downloadedToday, role, download
+        case state, files, lastFinishedAt, uploadedToday, downloadedToday, role, download, setUpFailed
     }
 
     public func encode(to encoder: Encoder) throws {

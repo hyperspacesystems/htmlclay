@@ -102,6 +102,7 @@ public enum HostSnapshotAdapter {
         )
         folder.download = wire.sync.download
         folder.syncState = wire.sync.state
+        folder.setUpFailed = wire.sync.setUpFailed
         return folder
     }
 

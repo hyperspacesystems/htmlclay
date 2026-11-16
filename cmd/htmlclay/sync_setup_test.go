@@ -240,6 +240,9 @@ func TestM4SetUpFolder(t *testing.T) {
 		for _, f := range a.snapshot().Folders {
 			if f.ID == lab.FolderID {
 				seen++
+				if f.Sync.SetUpFailed != "inventory-incomplete" {
+					t.Fatalf("the snapshot says the set-up failed for %q, want the engine's reason", f.Sync.SetUpFailed)
+				}
 			}
 		}
 		if seen != 1 {
@@ -253,6 +256,9 @@ func TestM4SetUpFolder(t *testing.T) {
 		waitForBinds(t, a)
 		if served, ok := a.rt.cfg.ServedFolderByID(lab.FolderID); !ok || !served.Serving {
 			t.Fatalf("the second set up did not serve the folder: %+v %v", served, ok)
+		}
+		if a.rt.syncBindFailed[lab.FolderID] != "" {
+			t.Fatal("a new set-up kept the last failure's reason")
 		}
 	})
 

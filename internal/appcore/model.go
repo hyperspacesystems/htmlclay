@@ -123,6 +123,9 @@ type FolderSync struct {
 	// Download is a first download's progress while it runs, from the engine's
 	// own counts (08-sync.md decision 20); null otherwise.
 	Download *SyncDownload `json:"download"`
+	// SetUpFailed is why the last first download on this computer failed, for a
+	// folder not set up here: the engine's reason ("disk-full", "offline", ...).
+	SetUpFailed string `json:"setUpFailed,omitempty"`
 }
 
 type SyncDownload struct {

@@ -34,7 +34,7 @@ struct FirstDownloadFollow: View {
                     return
                 case .failed:
                     model.sheet = nil
-                    model.say(Strings.TeamSetup.firstDownloadFailed)
+                    model.say(Strings.TeamSetup.firstDownloadFailed(model.snapshot.folder(folderID)?.setUpFailed))
                     return
                 }
                 try? await Task.sleep(nanoseconds: 250_000_000)

@@ -164,6 +164,7 @@ func (a *app) setUpSyncFolder(e appcore.Effect) *appcore.Refusal {
 			a.rt.syncBinding = make(map[string]bool)
 		}
 		a.rt.syncBinding[session.ID] = true
+		delete(a.rt.syncBindFailed, session.RootID)
 	}
 	a.rt.syncMu.Unlock()
 	if err != nil {
@@ -263,6 +264,10 @@ func (a *app) runSyncBind(request syncBindRequest) {
 			}
 		}
 		dropped = true
+		if a.rt.syncBindFailed == nil {
+			a.rt.syncBindFailed = make(map[string]string)
+		}
+		a.rt.syncBindFailed[request.Root.ID] = answer.Error
 	}
 	a.rt.syncMu.Unlock()
 	if dropped {

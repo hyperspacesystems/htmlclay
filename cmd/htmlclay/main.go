@@ -104,6 +104,9 @@ type appRuntime struct {
 	// syncBinding is the sessions whose first download is running; configure leaves
 	// them out until it ends. Guarded by syncMu.
 	syncBinding map[string]bool
+	// syncBindFailed is why a folder's last first download failed, by folder id,
+	// until the next set-up of it starts. Guarded by syncMu.
+	syncBindFailed map[string]string
 	// syncBinds counts the first downloads still running, for a clean shutdown and tests.
 	syncBinds sync.WaitGroup
 	// folderLockDir is where the per-folder serve locks live. It is shared by every

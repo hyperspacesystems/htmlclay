@@ -125,3 +125,12 @@ final class SetUpSheetsTests: XCTestCase {
         XCTAssertNil(HostSnapshotAdapter.snapshot(from: try HostWireCoding.decoder().decode(WireSnapshot.self, from: try Data(contentsOf: url))).folder(wire.folders[index].id)?.download)
     }
 }
+
+final class FirstDownloadFailureTests: XCTestCase {
+    func testTheNoteSaysWhy() {
+        XCTAssertEqual(Strings.TeamSetup.firstDownloadFailed("disk-full"), Strings.TeamSetup.firstDownloadDiskFull)
+        XCTAssertEqual(Strings.TeamSetup.firstDownloadFailed("offline"), Strings.TeamSetup.firstDownloadOffline)
+        XCTAssertEqual(Strings.TeamSetup.firstDownloadFailed("inventory-incomplete"), Strings.TeamSetup.firstDownloadFailed)
+        XCTAssertEqual(Strings.TeamSetup.firstDownloadFailed(nil), Strings.TeamSetup.firstDownloadFailed)
+    }
+}
