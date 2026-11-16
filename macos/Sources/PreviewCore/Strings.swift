@@ -519,7 +519,10 @@ public enum Strings {
         public static let setUpAndSync = "Set up and sync"
         public static let wouldChooseExisting = "Build 1: this would ask you to choose a folder you already have."
         // copy: account set-up sheet, what a first sync into a folder already there will do; differing files wait in Needs you (review 2), max 100 chars
-        public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files to upload, \(counts.toDownload) to download, \(counts.differ) different. You choose in Needs you. Nothing is deleted." }
+        public static func willSync(_ counts: SyncCounts) -> String {
+            if counts.toUpload == 1 { return "1 file to upload, \(counts.toDownload) to download, \(counts.differ) different. You choose in Needs you. Nothing is deleted." }
+            return "\(counts.toUpload) files to upload, \(counts.toDownload) to download, \(counts.differ) different. You choose in Needs you. Nothing is deleted."
+        }
         // copy: account set-up sheet, the button after the counts show, max 20 chars
         public static let syncThese = "Sync these files"
         // copy: set-up sheets, while the folder is being set up, max 20 chars

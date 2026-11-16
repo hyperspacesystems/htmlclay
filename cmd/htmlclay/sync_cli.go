@@ -271,6 +271,9 @@ func (a *app) syncSetupPreview(row config.SyncAccountRow, path string, existing 
 		if refusal != nil {
 			return "", refusal
 		}
+		if counts.ToUpload == 1 {
+			return fmt.Sprintf(appcore.TextSyncSetupExistingOne, counts.ToDownload, counts.Differ), nil
+		}
 		return fmt.Sprintf(appcore.TextSyncSetupExisting, counts.ToUpload, counts.ToDownload, counts.Differ), nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), syncCallTimeout)

@@ -41,13 +41,14 @@ const (
 	TextSyncResumedLine   = "Syncing is on"                                                          // copy: CLI success and status line, max 80 chars
 	TextSyncNotConnected  = "Not connected to hyperclay.com"                                         // copy: CLI status line, max 80 chars
 	// The htmlclay sync setup lines (08-sync.md step 8.25).
-	TextSyncSetupDownload   = "%d files (%s) will download into %s."
-	TextSyncSetupExisting   = "%d files to upload, %d to download, %d different. You choose in Needs you. Nothing is deleted." // copy: corrected claim (review 2), differing files wait in Needs you
-	TextSyncSetupAsk        = "Set up sync? [y/N] "
-	TextSyncSetupStarted    = "Sync is set up. HTML Clay is syncing this folder now."
-	TextSyncSetupNoAccount  = "No account or team is named %s. Run htmlclay sync status to see yours."
-	TextWarnPersonalFolder  = "This is one of your main folders. HTML Clay will be able to save every document in it."
-	TextWarnContainsTrusted = "HTML Clay already trusts these folders inside it, so they will become part of this folder: %s."
+	TextSyncSetupDownload    = "%d files (%s) will download into %s."
+	TextSyncSetupExistingOne = "1 file to upload, %d to download, %d different. You choose in Needs you. Nothing is deleted."
+	TextSyncSetupExisting    = "%d files to upload, %d to download, %d different. You choose in Needs you. Nothing is deleted." // copy: corrected claim (review 2), differing files wait in Needs you
+	TextSyncSetupAsk         = "Set up sync? [y/N] "
+	TextSyncSetupStarted     = "Sync is set up. HTML Clay is syncing this folder now."
+	TextSyncSetupNoAccount   = "No account or team is named %s. Run htmlclay sync status to see yours."
+	TextWarnPersonalFolder   = "This is one of your main folders. HTML Clay will be able to save every document in it."
+	TextWarnContainsTrusted  = "HTML Clay already trusts these folders inside it, so they will become part of this folder: %s."
 	// TextWarnInsideTrusted is the Trust sheet's warning for a folder inside one
 	// already trusted, the one trust warning a person has to acknowledge.
 	TextWarnInsideTrusted = "This folder is inside %s. Its documents get a new address, and what they stored in your browser stays at the old address."
@@ -143,7 +144,7 @@ var RefusalText = map[string]string{
 	RefuseSyncFolderInUse: "This folder is already in HTML Clay. Choose another folder or make a new one.",
 	RefuseSyncPaused:      "This folder isn't syncing. Turn syncing back on in HTML Clay, then try again.",
 	// copy: refusal when settling a conflict while the sync key needs replacing, max 120 chars
-	RefuseSyncKeyStopped:    "Syncing is stopped until you enter your sync key again. Your choice will wait until then.",
+	RefuseSyncKeyStopped:    "Your choice did not save. The item stays in Needs you. Enter your sync key again in Sync, then choose again.",
 	RefuseConflictGone:      "That file isn't in conflict anymore. Nothing was changed.",
 	RefuseConflictChanged:   "That file changed since you looked. Review it again, then choose.",
 	RefuseNotText:           "This page isn't UTF-8 text, so it can't upload. Save it as UTF-8 and try again.",
