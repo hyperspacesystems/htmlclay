@@ -186,7 +186,9 @@ const races = {
     await wait(1000);
     saving = false;
     await saves;
-    return { markers, mayConflict: [] };
+    // A kill in the few ms between the server's answer and the saved baseline can leave one
+    // both-edited conflict with both copies kept (08-sync.md F-8.55l); every save must still land.
+    return { markers, mayConflict: ['d0.html'] };
   },
 
   async 'restart-mid-bind'(world) {
