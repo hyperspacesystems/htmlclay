@@ -24,15 +24,30 @@ func confirmTestApp(t *testing.T) *app {
 	if a.rt.configDir != config.DirFrom(cfgBase) {
 		t.Fatalf("configDir %q is not the folder markUpdateHealth writes to (%q)", a.rt.configDir, config.DirFrom(cfgBase))
 	}
-	origVersion := version
-	t.Cleanup(func() { version = origVersion })
-	version = "2.0.0"
 	return a
+}
+
+// writeConfirmState is writeUpdateState with To set to this binary's version, so
+// MarkHealth accepts it. Tests never assign the global version: an app's publish
+// timer reads it from another goroutine, and the race detector flags the write.
+func writeConfirmState(t *testing.T, configDir, phase string) {
+	t.Helper()
+	dir := update.UpdatesDir(configDir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(update.State{Schema: update.StateSchema, Phase: phase, From: "1.0.0", To: version, Txid: "t1", Time: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "state.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestUpdateConfirmReportsServingForTheApp(t *testing.T) {
 	a := confirmTestApp(t)
-	writeUpdateState(t, a.rt.configDir, update.PhaseApplying)
+	writeConfirmState(t, a.rt.configDir, update.PhaseApplying)
 	health := filepath.Join(update.UpdatesDir(a.rt.configDir), "health.json")
 
 	for _, cmd := range []string{"update-confirm now", "update-confirmed"} {
@@ -55,7 +70,7 @@ func TestUpdateConfirmReportsServingForTheApp(t *testing.T) {
 	if err := json.Unmarshal(data, &h); err != nil {
 		t.Fatal(err)
 	}
-	if h.Phase != update.HealthServing || h.Txid != "t1" || h.Version != "2.0.0" || h.PID != os.Getpid() {
+	if h.Phase != update.HealthServing || h.Txid != "t1" || h.Version != version || h.PID != os.Getpid() {
 		t.Fatalf("health = %+v", h)
 	}
 }
@@ -70,7 +85,7 @@ func TestUpdateConfirmSettlesTheHeldSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeUpdateState(t, a.rt.configDir, update.PhaseApplying)
+	writeConfirmState(t, a.rt.configDir, update.PhaseApplying)
 	a.holdSavesWhileUnjudged()
 	a.rt.cfg.SetStartOnLogin(!a.rt.cfg.StartOnLoginEnabled())
 	if err := a.rt.cfg.Save(); err != nil {
@@ -80,7 +95,7 @@ func TestUpdateConfirmSettlesTheHeldSave(t *testing.T) {
 		t.Fatal("a held save wrote config.json")
 	}
 
-	writeUpdateState(t, a.rt.configDir, update.PhaseDone)
+	writeConfirmState(t, a.rt.configDir, update.PhaseDone)
 	if got := a.handleInstanceCommand("update-confirm"); got != "confirmed" {
 		t.Fatalf("update-confirm = %q", got)
 	}

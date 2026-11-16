@@ -85,10 +85,8 @@ func TestUpdateNowDispatchOnlyTakesItsOwnSubcommand(t *testing.T) {
 }
 
 func TestUpdateInfoPrintsWhatThisBinaryIs(t *testing.T) {
-	origVersion, origChannel := version, updateChannel
-	t.Cleanup(func() { version, updateChannel = origVersion, origChannel })
-	version, updateChannel = "7.8.9", "stable"
-
+	// Reads the globals rather than assigning them: a publish timer left by another
+	// test's app reads version, and the race detector flags the write.
 	var out, errb bytes.Buffer
 	if code := runUpdateInfo(nil, &out, &errb); code != updateNowExitOK {
 		t.Fatalf("exit %d, stderr %q", code, errb.String())
@@ -97,7 +95,7 @@ func TestUpdateInfoPrintsWhatThisBinaryIs(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
 		t.Fatalf("not one JSON line: %q: %v", out.String(), err)
 	}
-	want := updateInfo{Version: "7.8.9", Channel: "stable", Service: service.Bundled(), Tailwind: tailwind.Bundled()}
+	want := updateInfo{Version: version, Channel: updateChannel, Service: service.Bundled(), Tailwind: tailwind.Bundled()}
 	if got != want {
 		t.Fatalf("update-info = %+v, want %+v", got, want)
 	}
