@@ -430,6 +430,8 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 		KeySuffix: record.Account.KeySuffix,
 		KeyStore:  record.Account.KeyStore,
 		Paused:    record.Paused,
+		// A refused or unreadable key stops every session, so no folder is up to date.
+		KeyStopped: record.KeyRefused != nil || a.rt.syncKeyUnread.Load(),
 	}
 	// A session row puts its account's folder on this computer, synced or stopped:
 	// that folder is listed from the config, so the row is not listed again.
@@ -491,7 +493,7 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 			switch {
 			case !enabled[row.FolderID]:
 				state = appcore.FolderSyncOff
-			case record.Paused || reason != "":
+			case record.Paused || reason != "" || facts.KeyStopped:
 				state = appcore.FolderSyncPaused
 			case hasReport && report.Conflicts > 0:
 				state = appcore.FolderSyncConflicts

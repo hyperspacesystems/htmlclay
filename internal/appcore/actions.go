@@ -311,6 +311,9 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if !slices.Contains(ConflictChoices(held.Detail), args.Keep) {
 			return bad("keep")
 		}
+		if f.Sync.KeyStopped {
+			return nil, &Refusal{Code: RefuseSyncKeyStopped, SubjectID: held.SubjectID}
+		}
 		// A folder switched off, or a disconnected account, has no running
 		// session to take the choice, so the conflict waits until sync is back.
 		if f.Sync.Paused || !f.Sync.Connected || !folderSyncing(f, held.SubjectID) {
@@ -327,6 +330,9 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		}
 		if args.Choice != "restore" && args.Choice != "delete" {
 			return bad("choice")
+		}
+		if f.Sync.KeyStopped {
+			return nil, &Refusal{Code: RefuseSyncKeyStopped, SubjectID: args.ID}
 		}
 		if f.Sync.Paused {
 			return nil, &Refusal{Code: RefuseSyncPaused, SubjectID: args.ID}

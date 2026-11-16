@@ -149,6 +149,27 @@ func TestM4ConflictResolve(t *testing.T) {
 		}
 	})
 
+	t.Run("an unreadable key keeps the conflict, says why, and reads paused", func(t *testing.T) {
+		answerWith(`{"ok":true}`)
+		if _, r := a.do(context.Background(), coreAction(t, "p3", "sync.setPaused", map[string]bool{"paused": false}), ChannelTray); r != nil {
+			t.Fatalf("resume refused: %+v", r)
+		}
+		a.rt.syncKeyUnread.Store(true)
+		defer a.rt.syncKeyUnread.Store(false)
+		before := len(sent())
+		if r := resolve("r9", both, "board.html", "mine"); code(r) != appcore.RefuseSyncKeyStopped {
+			t.Fatalf("key unreadable = %+v, want %s", r, appcore.RefuseSyncKeyStopped)
+		}
+		if len(sent()) != before {
+			t.Fatal("a choice with an unreadable key reached the service")
+		}
+		for _, f := range a.snapshot().Folders {
+			if f.ID == row.FolderID && f.Sync.State != appcore.FolderSyncPaused {
+				t.Fatalf("folder reads %q with an unreadable key, want paused", f.Sync.State)
+			}
+		}
+	})
+
 	t.Run("a folder switched off, or a disconnect, keeps the conflict and sends nothing", func(t *testing.T) {
 		answerWith(`{"ok":true}`)
 		if _, r := a.do(context.Background(), coreAction(t, "p2", "sync.setPaused", map[string]bool{"paused": false}), ChannelTray); r != nil {

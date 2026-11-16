@@ -120,4 +120,7 @@ type SyncFacts struct {
 	// KeyStore is where the sync key is kept: "system" (the Keychain, Credential
 	// Manager or Secret Service) or "file" (a 0600 file, which the app says).
 	KeyStore string `json:"keyStore"`
+	// KeyStopped is a key the server refused or this computer cannot read:
+	// nothing syncs until the person enters a key again.
+	KeyStopped bool `json:"-"`
 }

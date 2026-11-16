@@ -95,11 +95,11 @@ const (
 	TextNoticeKeyStoppedBody     = "Syncing stopped. Your files are safe. Add a new sync key in HTML Clay."
 	TextNoticeAddedToTeam        = "You were added to %s"
 	TextNoticeAddedToTeamBody    = "Set up its folder in HTML Clay."
-	TextNoticeAddedToTeamBodyCLI = "TODO-COPY Run htmlclay sync setup to set up its folder." // copy: Linux system notification body, names the command, max 120 chars
-	TextTrayPauseSyncing         = "Pause syncing"                                           // copy: tray item, Windows and Linux, max 30 chars
-	TextTrayResumeSyncing        = "Resume syncing"                                          // copy: tray item, Windows and Linux, max 30 chars
-	TextTrayOneConflict          = "1 conflict…"                                             // copy: tray item opening Needs you, max 30 chars
-	TextTrayConflicts            = "%d conflicts…"                                           // copy: tray item opening Needs you, the count, max 30 chars
+	TextNoticeAddedToTeamBodyCLI = "Run htmlclay sync setup to set up its folder." // TODO-COPY: Linux system notification body, names the command, max 120 chars
+	TextTrayPauseSyncing         = "Pause syncing"                                 // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayResumeSyncing        = "Resume syncing"                                // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayOneConflict          = "1 conflict…"                                   // copy: tray item opening Needs you, max 30 chars
+	TextTrayConflicts            = "%d conflicts…"                                 // copy: tray item opening Needs you, the count, max 30 chars
 )
 
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
@@ -139,18 +139,20 @@ var RefusalText = map[string]string{
 	RefuseServiceNeeded:      "HTML Clay isn't ready to sync yet. Try again in a moment.",
 	RefuseSyncFolderNotEmpty: "This folder isn't empty. Choose an empty folder or make a new one.",
 	RefuseSyncPaused:         "This folder isn't syncing. Turn syncing back on in HTML Clay, then try again.",
-	RefuseConflictGone:       "That file isn't in conflict anymore. Nothing was changed.",
-	RefuseConflictChanged:    "That file changed since you looked. Review it again, then choose.",
-	RefuseNotText:            "This page isn't UTF-8 text, so it can't upload. Save it as UTF-8 and try again.",
-	RefuseSyncDownloading:    "This folder's first sync is still running. Try Find it again once it finishes.",
-	RefuseRemovalGone:        "Those attachments aren't waiting for you anymore. Nothing was changed.",
-	RefuseConfirmNeeded:      "This folder already has files. Check what will sync, then confirm.",
-	RefuseNothingReady:       "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
-	RefuseNeedsConfirmation:  "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars
-	RefuseFailed:             "HTML Clay couldn't do that just now. Try again.",                                             // copy: refusal, max 140 chars
-	RefuseCannotTrust:        "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.", // copy: refusal, max 140 chars
-	RefuseStillRunning:       "HTML Clay is still working on that. Wait a moment.",                                          // copy: refusal, max 140 chars
-	RefuseNotYet:             "HTML Clay can't do that yet. Update HTML Clay and try again.",                                // copy: refusal, max 140 chars
+	// TODO-COPY: refusal when settling a conflict while the sync key needs replacing, max 120 chars
+	RefuseSyncKeyStopped:    "Syncing is stopped until you enter your sync key again. Your choice will wait until then.",
+	RefuseConflictGone:      "That file isn't in conflict anymore. Nothing was changed.",
+	RefuseConflictChanged:   "That file changed since you looked. Review it again, then choose.",
+	RefuseNotText:           "This page isn't UTF-8 text, so it can't upload. Save it as UTF-8 and try again.",
+	RefuseSyncDownloading:   "This folder's first sync is still running. Try Find it again once it finishes.",
+	RefuseRemovalGone:       "Those attachments aren't waiting for you anymore. Nothing was changed.",
+	RefuseConfirmNeeded:     "This folder already has files. Check what will sync, then confirm.",
+	RefuseNothingReady:      "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
+	RefuseNeedsConfirmation: "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars
+	RefuseFailed:            "HTML Clay couldn't do that just now. Try again.",                                             // copy: refusal, max 140 chars
+	RefuseCannotTrust:       "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.", // copy: refusal, max 140 chars
+	RefuseStillRunning:      "HTML Clay is still working on that. Wait a moment.",                                          // copy: refusal, max 140 chars
+	RefuseNotYet:            "HTML Clay can't do that yet. Update HTML Clay and try again.",                                // copy: refusal, max 140 chars
 	// A folder rule's reason, when an action runs into it.
 	WhyIdentityChanged:    TextWhyServeIdentityChanged,
 	WhyNotOnComputer:      TextWhyNotOnComputer,

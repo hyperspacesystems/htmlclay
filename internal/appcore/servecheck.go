@@ -95,6 +95,9 @@ const (
 	// RefuseSyncPaused is a conflict choice while sync is paused: the choice
 	// uploads or downloads, which pause promises not to do.
 	RefuseSyncPaused = "sync-paused"
+	// RefuseSyncKeyStopped is a conflict or removal choice while the sync key is
+	// refused or unreadable: no session is running to take it.
+	RefuseSyncKeyStopped = "sync-key-stopped"
 	// RefuseConflictGone is a choice for a conflict that is no longer held.
 	RefuseConflictGone = "conflict-gone"
 	// RefuseConflictChanged is a choice for a conflict whose file or server
