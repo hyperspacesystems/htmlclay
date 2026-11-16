@@ -1,5 +1,5 @@
 // Probe: Guarded conflict choice (08-sync.md Decision 15) fails to detect edits
-// saved after a conflict was detected (`service/vendor/local/src/sync-engine/reconcile/execute.js:175, 658-667`):
+// saved after a conflict was detected (`service/local/src/sync-engine/reconcile/execute.js:175, 658-667`):
 //   1) `recordConflict` preserves `open.detectedAt`, so Go's conflict id never
 //      changes when new local saves arrive while the conflict sits in Needs You.
 //   2) `resolveConflict` ignores `found.localChecksum`: on `both-edited` Keep theirs

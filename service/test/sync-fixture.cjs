@@ -13,10 +13,10 @@ const { GO_EPOCH, call: rawCall } = require('./harness.cjs');
 // Go's calls carry both epochs (C3).
 const call = (s, method, pathname, options = {}) => rawCall(s, method, pathname, { ...options, headers: { 'x-trial-epoch': GO_EPOCH, 'x-trial-peer-epoch': s.ready.epoch } });
 
-const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(__dirname, '..', '..', '..', 'hyperclay-local');
+const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(__dirname, 'fake');
 const FAKE = path.join(LOCAL, 'trial', 'fake-sync-http.cjs');
-// The box names its checkout, so there a missing fake fails instead of skipping.
-const SKIP = fs.existsSync(FAKE) || process.env.HTMLCLAY_SYNC_LOCAL ? false : `no Hyperclay Local checkout with trial/fake-sync-http.cjs at ${LOCAL} (set HTMLCLAY_SYNC_LOCAL)`;
+// The fake server lives in this repo (service/test/fake), so nothing skips.
+const SKIP = false;
 
 const KEY = `hcsk_${'5e'.repeat(32)}`;
 // Local's checksum, which Go answers too: the first 16 hex of SHA-256.

@@ -1,6 +1,6 @@
 // Probe: Resolving a `name-taken` conflict ("Keep mine") on a filename starting
 // with digits (e.g. `11-notes.html`) parses `parseInt("11-notes.html", 10)` -> `11`
-// in `resolveConflict` (service/vendor/local/src/sync-engine/reconcile/execute.js:70-73,
+// in `resolveConflict` (service/local/src/sync-engine/reconcile/execute.js:70-73,
 // 633, 692, 714) and PUTs `11-notes.html`'s bytes unconditionally (`ifMatch: null`)
 // onto unrelated server node 11 (`welcome.html`), destroying `welcome.html` on both
 // the server and local disk.

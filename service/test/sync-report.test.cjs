@@ -100,7 +100,7 @@ test('a queue that drains with nothing to send reaches Go', async (t) => {
     async refreshAccounts() { return { accounts: [] }; }
     async stopAll() {}
   }
-  const managerPath = require.resolve('../vendor/local/src/main/sync-manager.js');
+  const managerPath = require.resolve('../local/src/main/sync-manager.js');
   const real = require.cache[managerPath];
   require.cache[managerPath] = { id: managerPath, filename: managerPath, loaded: true, exports: { SyncManager: StandInManager } };
   t.after(() => {

@@ -1,8 +1,8 @@
 'use strict';
 
-// HTML Clay's live-room service: Hyperclay Local's room code (vendor/local, pinned by
-// vendor/local.lock.json) as a child of the Go host. Go starts it, so the protocol is
-// the trial's (vendor/local/trial/protocol/v1.md, "Transport and bootstrap"): stdin's
+// HTML Clay's live-room service: Hyperclay Local's room code (service/local, htmlclay's own
+// source since SP18a) as a child of the Go host. Go starts it, so the protocol is
+// the trial's (local/trial/protocol/v1.md, "Transport and bootstrap"): stdin's
 // first line is {"v":1,"secret":"<64 hex>"}, answered with READY {"url","epoch","pid"};
 // a later {"host":{"url","secret","epoch","roots"}} line is answered with ATTACHED; end
 // of stdin shuts the service down. A secret is never an argument or an env var.
@@ -43,7 +43,7 @@ async function run(dataDir) {
   // Page compaction needs its worker file beside the service; it stays off, as in
   // the trial, until M4 tests it.
   process.env.HYPERCLAY_PAGE_COMPACTION = '0';
-  const { createTrialService } = require('./vendor/local/trial/service.cjs');
+  const { createTrialService } = require('./local/trial/service.cjs');
   const { mountShell } = require('./shell.cjs');
   const { keepUnsavedEdits } = require('./recover.cjs');
   const { installGate } = require('./sync-net.cjs');

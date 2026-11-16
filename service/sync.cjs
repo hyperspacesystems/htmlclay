@@ -6,11 +6,11 @@
 
 const path = require('path');
 const { randomBytes } = require('crypto');
-const { getAccounts, listNodes } = require('./vendor/local/src/sync-engine/api-client.js');
-const { inventoryTotals } = require('./vendor/local/src/sync-engine/reconcile/first-bind.js');
-const { snapshotDisk } = require('./vendor/local/src/sync-engine/reconcile/disk-snapshot.js');
-const { isIgnoredRel } = require('./vendor/local/src/sync-engine/ignored-paths.js');
-const { calculateChecksum } = require('./vendor/local/src/sync-engine/utils.js');
+const { getAccounts, listNodes } = require('./local/src/sync-engine/api-client.js');
+const { inventoryTotals } = require('./local/src/sync-engine/reconcile/first-bind.js');
+const { snapshotDisk } = require('./local/src/sync-engine/reconcile/disk-snapshot.js');
+const { isIgnoredRel } = require('./local/src/sync-engine/ignored-paths.js');
+const { calculateChecksum } = require('./local/src/sync-engine/utils.js');
 const fs = require('fs/promises');
 
 const KEY = /^hcsk_[0-9a-f]{64}$/;
@@ -301,8 +301,8 @@ function createSync({ gate, service = null, dataDir = null }) {
 
   function managerFor(deviceId) {
     if (manager) return manager;
-    const { SyncManager } = require('./vendor/local/src/main/sync-manager.js');
-    const { passiveObserver } = require('./vendor/local/trial/sync-observer.cjs');
+    const { SyncManager } = require('./local/src/main/sync-manager.js');
+    const { passiveObserver } = require('./local/trial/sync-observer.cjs');
     manager = new SyncManager({
       userData: dataDir,
       logsDir: path.join(dataDir, 'logs'),

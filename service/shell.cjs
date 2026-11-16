@@ -1,7 +1,7 @@
 'use strict';
 
 // The dashboard's workspace API: Hyperclay Local's own workspace routes
-// (vendor/local/src/main/workspace/shell-server.js) mounted on the service's
+// (local/src/main/workspace/shell-server.js) mounted on the service's
 // listener under /v1/shell/. Go admits each request at the dashboard
 // (internal/dashboard) and forwards it with the bearer, both epochs and
 // X-Trial-Public-Origin, the dashboard's origin. Every served folder is a root of
@@ -16,8 +16,8 @@ const path = require('path');
 const { randomBytes } = require('crypto');
 const { Readable } = require('stream');
 const chokidar = require('chokidar');
-const { createShellServer } = require('./vendor/local/src/main/workspace/shell-server.js');
-const { IGNORED } = require('./vendor/local/src/main/root-observer.js');
+const { createShellServer } = require('./local/src/main/workspace/shell-server.js');
+const { IGNORED } = require('./local/src/main/root-observer.js');
 
 const PREFIX = '/v1/shell';
 const READ = /^\/api\/(bootstrap|roots|events|roots\/[^/]+\/(tree|list|search|document|source|versions|version|download|consents))$/;

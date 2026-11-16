@@ -13,7 +13,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const VENDOR = path.join(__dirname, '..', 'vendor', 'local');
+const VENDOR = path.join(__dirname, '..', 'local');
 
 test('the vendored sync manager and engine load with no Electron', () => {
   const { SyncManager } = require(path.join(VENDOR, 'src', 'main', 'sync-manager.js'));

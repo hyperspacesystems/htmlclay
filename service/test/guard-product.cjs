@@ -52,7 +52,7 @@ function hook() {
   const raw = `${out}.raw`;
   process.env.FS_GUARD_ROOTS = '["/"]';
   process.env.FS_GUARD_OUT = raw;
-  require('../vendor/local/trial/fs-guard.cjs');
+  require('../local/trial/fs-guard.cjs');
   // fs-guard flushes its own report on exit first; this handler runs after it.
   process.on('exit', () => {
     let report;

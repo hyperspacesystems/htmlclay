@@ -26,7 +26,7 @@ func guardService(t *testing.T, dir string) string {
 		t.Fatal(err)
 	}
 	report := filepath.Join(t.TempDir(), "guard.json")
-	guard := filepath.Join(root, "service", "vendor", "local", "trial", "fs-guard.cjs")
+	guard := filepath.Join(root, "service", "local", "trial", "fs-guard.cjs")
 	t.Setenv("HTMLCLAY_SERVICE_CMD", "node -r "+guard+" "+filepath.Join(root, "service", "main.cjs"))
 	roots, _ := json.Marshal([]string{dir})
 	t.Setenv("FS_GUARD_ROOTS", string(roots))

@@ -20,7 +20,7 @@ const seen = new Map();
       if (!seen.has(spec)) seen.set(spec, full);
     }
   }
-})(path.join(app, 'vendor', 'local'));
+})(path.join(app, 'local'));
 (async () => {
   for (const [spec, from] of seen) {
     try {

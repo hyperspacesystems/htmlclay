@@ -21,15 +21,7 @@ ln -sf ~/.local/go/bin/go ~/.local/go/bin/gofmt ~/.local/bin/
 npm ci --no-audit --no-fund
 (cd service && npm ci --ignore-scripts --no-audit --no-fund)
 bash scripts/served-golden-local.sh ~/served-golden-local
-# The service'"'"'s sync tests run Local'"'"'s engine against its fake server (trial/fake-sync-http.cjs).
-sync_local=02d3487ca7b0057c318d2e1406117dc54893d171
-if [ "$(cat ~/sync-local/.commit 2>/dev/null)" != "$sync_local" ]; then
-  rm -rf ~/sync-local && mkdir -p ~/sync-local
-  git -C ~/sync-local init -q
-  git -C ~/sync-local fetch -q --depth 1 https://github.com/hyperspacesystems/hyperclay-local.git "$sync_local"
-  git -C ~/sync-local -c advice.detachedHead=false checkout -q FETCH_HEAD
-  echo "$sync_local" > ~/sync-local/.commit
-fi'
+true'
 # scripts/agent-contract.mjs drives the real clay-agent against the host built here. The Mac packs
 # the clay-agent source, CLAY_AGENT_SRC or the sibling ../clay-agent, as npm would publish it. The
 # pack ships beside the checkout, and setup unpacks it into ~/clay-agent and installs what it needs
@@ -60,7 +52,7 @@ fi
 # runs the packaged-folder check and the app against it. The service's own Node tests and the sync
 # product driver's test (08-sync.md 8.27) run before it. The goldens name versions in the recorder's time zone,
 # America/New_York, so the tests run in it. Linux builds ship with CGO_ENABLED=0.
-TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 MANAGED_TRIAL_LOCAL_SOURCE=$HOME/served-golden-local HTMLCLAY_SYNC_LOCAL=$HOME/sync-local TZ=America/New_York && go test ./... -count=1 && go test -tags managedtrial ./internal/served/ -count=1 && (cd service && node --test test/*.test.cjs) && node --test scripts/tests/sync-product-driver.test.mjs scripts/tests/sync-held.test.mjs && bash cmd/managed-trial/release-contents.sh && node service/build.mjs --goos linux --goarch amd64 && go test -tags service_bundle ./internal/service/ ./cmd/htmlclay/ -run '"'"'TestInstall|TestExtracted|TestServiceBundled|TestServiceStarts'"'"' -count=1 -v'
+TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 MANAGED_TRIAL_LOCAL_SOURCE=$HOME/served-golden-local HTMLCLAY_SYNC_LOCAL=$PWD/service/test/fake TZ=America/New_York && go test ./... -count=1 && go test -tags managedtrial ./internal/served/ -count=1 && (cd service && node --test test/*.test.cjs) && node --test scripts/tests/sync-product-driver.test.mjs scripts/tests/sync-held.test.mjs && bash cmd/managed-trial/release-contents.sh && node service/build.mjs --goos linux --goarch amd64 && go test -tags service_bundle ./internal/service/ ./cmd/htmlclay/ -run '"'"'TestInstall|TestExtracted|TestServiceBundled|TestServiceStarts'"'"' -count=1 -v'
 TESTBOX_TIMEOUT=${TESTBOX_TIMEOUT:-45m}
 # The sync soak's seed (08-sync.md 8.50): SOAK_SEED=<absolute archive> ships one
 # archive to the same path on the box, for `node scripts/soak-sync.mjs --seed "$SOAK_SEED"`.

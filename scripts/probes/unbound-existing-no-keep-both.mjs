@@ -3,7 +3,7 @@
 //   "%d files go up, %d come down, and %d differ and are kept both ways. Nothing is deleted."
 // Yet when files on both sides differ, `decide()` records `kind: "unbound"` (with `remoteCopy`
 // parked on disk), while BOTH `internal/appcore/actions.go:215` (`"unbound": {"mine", "theirs"}`)
-// and `service/vendor/local/src/sync-engine/reconcile/execute.js:613` (`KEEP_BOTH_KINDS`)
+// and `service/local/src/sync-engine/reconcile/execute.js:613` (`KEEP_BOTH_KINDS`)
 // omit `"unbound"` — refusing "Keep both" and forcing the user to overwrite one side!
 import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';

@@ -1,11 +1,11 @@
 // Probe: Remote folder deletion breaks both offline and live subfolder edits:
-//   A) Offline/paused (`service/vendor/local/src/sync-engine/reconcile/execute.js:696`):
+//   A) Offline/paused (`service/local/src/sync-engine/reconcile/execute.js:696`):
 //      When subfolder `projects` is deleted on hyperclay.com while user edited
 //      `projects/spec.html` locally, `performInitialFolderSync` forgets `projects`
 //      from `nodeMap` and `performInitialSync` holds a `remote-deleted` conflict on
 //      `projects/spec.html`. Clicking "Keep mine" calls `resolveParentIdByPath("projects")`
 //      without recreating `projects`, throwing `Target folder not tracked in nodeMap: projects`!
-//   B) Live SSE (`service/vendor/local/src/sync-engine/engine-session.js:192-194` ->
+//   B) Live SSE (`service/local/src/sync-engine/engine-session.js:192-194` ->
 //      `_applyFolderDelete` in `engine-sse.js:389`):
 //      When `projects/spec.html` has an open conflict (or un-uploaded local work) and
 //      a teammate deletes `projects` online, `refreshNodeInLane` trashes the entire

@@ -8,13 +8,13 @@
 // answers, so before the first byte of the document changes.
 //
 // Local's save admission keeps a recovered copy only for a page that needs
-// adoption (vendor/local/src/main/document-host.js `admitSave`), and the vendored
+// adoption (local/src/main/document-host.js `admitSave`), and the vendored
 // tree is pinned to a Local commit. So the rule is added around two of the
 // service's own seams: its admit handler, which sees Go's flag, and each root's
 // `admitSave`, which runs inside the consultation with the write's target and token.
 
 const { AsyncLocalStorage } = require('async_hooks');
-const { normCanonical } = require('./vendor/local/src/main/local-authority.js');
+const { normCanonical } = require('./local/src/main/local-authority.js');
 
 function keepUnsavedEdits(service) {
   const { authority } = service;

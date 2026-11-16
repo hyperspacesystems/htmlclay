@@ -12,7 +12,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createApp } = require('../vendor/local/src/main/server.js');
+const { createApp } = require('../local/src/main/server.js');
 
 const OWN = 'notes.htmlclay.localhost:1212';
 

@@ -1,5 +1,5 @@
 // Probe: Resolving a `remote-deleted` conflict with "Keep mine"
-// (service/vendor/local/src/sync-engine/reconcile/execute.js:692-708) creates a
+// (service/local/src/sync-engine/reconcile/execute.js:692-708) creates a
 // new nodeId on the server and inserts it into `engine.repo` (`node-map.json`),
 // but forgets to delete the dead `found.key` (old nodeId) from `engine.repo`.
 // Because `NodeRepository.getByPath` iterates `Map` in insertion order, the dead

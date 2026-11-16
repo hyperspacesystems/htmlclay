@@ -94,7 +94,7 @@ async function main() {
   const entry = pins.archives[`${goos}/${goarch}`];
   if (!entry) fail(`no Node archive pinned for ${goos}/${goarch}`);
 
-  execFileSync(process.execPath, [path.join(repo, 'scripts', 'vendor-local.mjs'), '--check'], { stdio: 'inherit', cwd: repo });
+  execFileSync(process.execPath, [path.join(serviceDir, 'check-closure.mjs')], { stdio: 'inherit', cwd: repo });
 
   const archive = await nodeArchive(pins, entry, given);
   if (sha256(archive) !== entry.sha256) fail(`${entry.name} does not match its pinned sha256`);
@@ -113,7 +113,7 @@ async function main() {
     for (const name of [...sources, 'package.json', 'package-lock.json']) {
       fs.copyFileSync(path.join(serviceDir, name), path.join(app, name));
     }
-    fs.cpSync(path.join(serviceDir, 'vendor'), path.join(app, 'vendor'), { recursive: true });
+    fs.cpSync(path.join(serviceDir, 'local'), path.join(app, 'local'), { recursive: true });
     fs.copyFileSync(path.join(repo, 'internal', 'dashboard', 'assets', 'local-app', 'manifest.json'),
       path.join(app, 'workspace-manifest.json'));
     execFileSync('npm', ['ci', '--omit=optional', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], {
