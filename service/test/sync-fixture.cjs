@@ -26,7 +26,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(what, predicate, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (predicate()) return;
+    if (await predicate()) return;
     await wait(50);
   }
   assert.fail(`timed out waiting for ${what}`);

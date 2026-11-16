@@ -8,6 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
+const { removeAfterExit } = require('./harness.cjs');
 
 const MAIN = path.join(__dirname, '..', 'main.cjs');
 
@@ -31,9 +32,8 @@ function stubGo(t) {
 
 function start(t, args) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-service-'));
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const child = spawn(process.execPath, [MAIN, ...(args ?? ['--data-dir', path.join(dataDir, 'data')])], { stdio: ['pipe', 'pipe', 'pipe'] });
-  t.after(() => child.exitCode === null && child.kill('SIGKILL'));
+  removeAfterExit(t, child, dataDir);
   let out = '';
   let err = '';
   child.stdout.on('data', (b) => { out += b; });

@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
-const { stubGo, GO_EPOCH } = require('./harness.cjs');
+const { stubGo, GO_EPOCH, removeAfterExit } = require('./harness.cjs');
 const { installGate } = require('../sync-net.cjs');
 
 const MAIN = path.join(__dirname, '..', 'main.cjs');
@@ -29,9 +29,8 @@ function recordingServer(t) {
 // The service after ATTACHED, with every stdout line kept in order.
 async function attached(t) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-sync-key-'));
-  t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const child = spawn(process.execPath, [MAIN, '--data-dir', path.join(tmp, 'data')], { stdio: ['pipe', 'pipe', 'pipe'] });
-  t.after(() => child.exitCode === null && child.kill('SIGKILL'));
+  removeAfterExit(t, child, tmp);
   let out = '';
   let err = '';
   child.stdout.on('data', (b) => { out += b; });

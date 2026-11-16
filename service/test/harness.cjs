@@ -27,11 +27,21 @@ function stubGo(t) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`)));
 }
 
+// A service's directory goes only once the service has exited: a service still
+// writing there fails the removal, and a hook that throws skips every later one.
+function removeAfterExit(t, child, dir) {
+  const exited = new Promise((resolve) => child.once('exit', resolve));
+  t.after(async () => {
+    child.kill('SIGKILL');
+    await exited;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+}
+
 async function startService(t, { attach = true, go = null, roots = [], env = {} } = {}) {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-roots-')));
-  t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const child = spawn(process.execPath, [MAIN, '--data-dir', path.join(tmp, 'data')], { stdio: ['pipe', 'pipe', 'inherit'], env: { ...process.env, ...env } });
-  t.after(() => child.exitCode === null && child.kill('SIGKILL'));
+  removeAfterExit(t, child, tmp);
   let out = '';
   child.stdout.on('data', (b) => { out += b; });
   const line = (prefix) => new Promise((resolve, reject) => {
@@ -83,4 +93,4 @@ function call(s, method, pathname, { body, headers = {}, stream = false } = {}) 
   });
 }
 
-module.exports = { GO_EPOCH, stubGo, startService, call };
+module.exports = { GO_EPOCH, stubGo, startService, removeAfterExit, call };
