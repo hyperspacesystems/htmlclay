@@ -272,7 +272,10 @@ async function upload(engine, nodeId, entry, context, gen) {
   const { buffer, checksum: localChecksum } = await readLocalBytes(engine, localPath);
   if (overLimit(engine, isSite, buffer.length)) return keepLocal(engine, rel, buffer.length, engine.uploadLimit);
   if (isSite && Buffer.isBuffer(buffer) && !isUtf8(buffer)) return keepNotText(engine, rel);
-  const { mtime, mtimeMs } = await fs.stat(localPath);
+  const { mtime, mtimeMs, ctimeMs } = await fs.stat(localPath);
+  // Read now, not after the request: the baseline must land as soon as the server answers, or a
+  // service killed in between leaves a stale baseline and the next save reads as both edited.
+  const seen = nodeMap.seenAt(seenBefore, ctimeMs);
   // Older than the bytes last seen here: a backup or an older copy put back. It waits for the
   // person as a conflict instead of replacing newer work online; Keep mine still sends it.
   if (nodeMap.olderThanSeen(mtimeMs, entry)) {
@@ -303,7 +306,7 @@ async function upload(engine, nodeId, entry, context, gen) {
       return { action: A.CONFLICT, kind: store.KINDS.REJECTED, record };
     }
     if (!error.statusCode) {
-      const settled = await settleUpload(engine, nodeId, entry, context, localChecksum, seenBefore);
+      const settled = await settleUpload(engine, nodeId, entry, context, localChecksum, seen);
       if (settled) return settled;
     }
     if (!isSite && error.statusCode === 413 && error.code === 'too-large') {
@@ -319,7 +322,7 @@ async function upload(engine, nodeId, entry, context, gen) {
     remoteEtag: etag,
     localChecksum: etag,
     structureVersion: response.structureVersion,
-  }, {}, seenBefore);
+  }, { localSeenAt: seen });
   await engine.clearUploadBlock(rel);
   engine.emit('file-synced', { file: rel, action: 'upload', type: typeOf(entry, context, rel) });
   return { action: A.UPLOAD, etag, checksum: etag };
@@ -329,7 +332,7 @@ async function upload(engine, nodeId, entry, context, gen) {
  * A request that left but never answered: refetch the node before treating it
  * as failed. Remote bytes that now match ours mean the write landed.
  */
-async function settleUpload(engine, nodeId, entry, context, localChecksum, seenBefore) {
+async function settleUpload(engine, nodeId, entry, context, localChecksum, seen) {
   let response;
   try {
     response = await getNodeContent(engine.conn, idOf(nodeId));
@@ -346,7 +349,7 @@ async function settleUpload(engine, nodeId, entry, context, localChecksum, seenB
     remoteEtag: etag,
     localChecksum: etag,
     structureVersion: response.structureVersion,
-  }, extra, seenBefore);
+  }, { ...extra, localSeenAt: seen });
   return { action: A.UPLOAD, etag, checksum: etag, recovered: true };
 }
 

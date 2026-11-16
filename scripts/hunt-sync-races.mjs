@@ -7,6 +7,7 @@
 //   download-vs-rename   a server edit announced and a local rename of the same file
 //   theirs-vs-save       Keep theirs on a held conflict and a tab's save of that document
 //   double-restart       the service killed twice in a row, saves running
+//   restart-mid-bind     the service killed during the first download, a page that landed being saved
 //   gap                  the host killed (a new event epoch, so a gap) while files are written
 //
 // After each, a full comparison: no marker lost, no half file, the folder and the
@@ -24,7 +25,7 @@ import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync
 import os from 'node:os';
 import path from 'node:path';
 import {
-  build, converge, hex, page, presentMarkers, save, startWorld, syncedFiles, wait, withMarker,
+  build, converge, hex, page, presentMarkers, save, sha, startWorld, syncedFiles, wait, withMarker,
 } from './sync-harness.mjs';
 
 function parseArgs(argv) {
@@ -188,6 +189,31 @@ const races = {
     return { markers, mayConflict: [] };
   },
 
+  async 'restart-mid-bind'(world) {
+    const markers = [];
+    let saving = true;
+    const logged = readText(world.log).length;
+    const seed = world.server.get(world.idOf('d0.html')).content;
+    await world.d.send('landed', { folder: world.folder, files: { 'd0.html': sha(Buffer.from(seed)) }, timeoutMs: 120000 });
+    const saves = (async () => {
+      let n = 0;
+      while (saving) {
+        const marker = `L:d0:n${n}:${hex()}`;
+        n += 1;
+        const { host, port } = await world.served();
+        if ((await save({ port, host, doc: 'd0.html', body: page('d0.html', marker) })).status === 200) markers.push(marker);
+        await wait(50);
+      }
+    })();
+    await until('a save of d0.html', async () => markers.length > 0, 30000);
+    await world.d.send('restartService', { timeoutMs: 60000 });
+    await wait(1500);
+    saving = false;
+    await saves;
+    const interrupted = readText(world.log).slice(logged).includes('stopped before an answer');
+    return { markers, mayConflict: [], rule: () => interrupted || 'the first download finished before the restart, so nothing was tested' };
+  },
+
   async gap(world, offset) {
     const markers = [];
     let writing = true;
@@ -221,7 +247,9 @@ const races = {
 };
 
 async function runCase(name, offset, { out, built, breakCase }) {
-  const world = await startWorld({ out, built, nodes: docNodes(4) });
+  const midBind = name === 'restart-mid-bind';
+  const world = await startWorld({ out, built, nodes: docNodes(midBind ? 80 : 4), waitForFirst: !midBind });
+  world.log = path.join(out, 'host.log');
   let most = 0;
   let sampling = true;
   const sampler = (async () => {

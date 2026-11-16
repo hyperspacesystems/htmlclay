@@ -261,18 +261,25 @@ async function firstBind(entry, options = {}) {
       return { ok: false, error: 'disk-full', resumable: false };
     }
 
-    // 4. From here on an interruption is resumable.
+    // 4. From here on an interruption is resumable. The marker keeps the directory the
+    // download started in, so a resumed bind can tell that folder from a copy of it.
     const rootRealpath = await realpathOr(root.path);
+    const startDir = interrupted ? (interrupted.rootDir ?? null) : rootDirIdentity(root.path);
     await writeBindMarker(metaDir, {
       accountId: session.accountId ?? null,
       rootRealpath,
+      rootDir: startDir,
       startedAt: new Date(now()).toISOString(),
     });
     markerWritten = true;
 
-    // 5. Folders, then sites, then uploads. A first download only ever changes this
-    // computer: a file missing here comes down, one that differs is a conflict.
-    engine.recheckPass = true;
+    // 5. Folders, then sites, then uploads. A first download never deletes online. In the
+    // directory it started in, a page edited since it landed is sent as an edit; anywhere
+    // else (a copy, another disk, a bind begun before the marker kept the directory) a file
+    // that differs is a conflict and nothing is sent.
+    engine.rootDir = startDir;
+    engine.recheckPass = startDir === null || rootDirIdentity(root.path) !== startDir;
+    engine.bootstrapPass = true;
     await engine.serial(() => engine.performInitialFolderSync(nodes));
     const files = nodes.filter((node) => node.type !== 'folder').sort((a, b) => rankOf(a) - rankOf(b));
     let done = 0;
@@ -306,6 +313,7 @@ async function firstBind(entry, options = {}) {
     }
 
     engine.recheckPass = false;
+    engine.bootstrapPass = false;
     if (aborted()) return { ok: false, error: 'cancelled', resumable: true };
 
     // 6. The baseline first, then identity, then the marker: only a session
@@ -335,6 +343,7 @@ async function firstBind(entry, options = {}) {
     return { ok: false, error: errorToken(error), reason: error.message, resumable: markerWritten };
   } finally {
     engine.recheckPass = false;
+    engine.bootstrapPass = false;
     if (opened) opened.close();
   }
 }

@@ -1,8 +1,8 @@
 {
   "local": {
-    "ref": "68c31a1",
-    "commit": "68c31a1d06cdca235892c30f11e9aa3c30c5a731",
-    "committedAt": "2026-11-15T16:36:50-05:00"
+    "ref": "a4ac974",
+    "commit": "a4ac974309a9b75493e0f006f3006e4764a18fc3",
+    "committedAt": "2026-11-15T18:55:12-05:00"
   },
   "entries": [
     "trial/service.cjs",
@@ -923,15 +923,15 @@
     "src/sync-engine/local-boundary.js": "68760c8b2bae504bd21f1c283b440f941ae5849c73ead2e9d4517a4935f3a570",
     "src/sync-engine/locked-folder.js": "fb201db3e7d8c68e7304c52a88d7e6015983c3d832f2a3add9f137a7a8a42d02",
     "src/sync-engine/logger.js": "2a27651b6c0123f4e99e811c03f6f63aca9922047f12b373bac9b5172763919e",
-    "src/sync-engine/node-map.js": "4eef6bee053c182a5659476f72397a2a5ac5b2a6c58b22d409f6342e313f05d6",
+    "src/sync-engine/node-map.js": "e981baaea9dcc3ef13a9c8c5d7bc4d43c26f95230526e3dc97342ff6d81d71c2",
     "src/sync-engine/page-state.js": "d2e43cd0b70a4c6a56420b33dd1bb514206ccf98ad7652826ca30022bb1ef440",
     "src/sync-engine/path-helpers.js": "379972e4f0633bd05760e0a4ca812284b24998e760cd42deb76a8017610f298f",
     "src/sync-engine/reconcile/classify-error.js": "c6638433dd5f9a0e636f8871dafe726964aa614e8ab6e75d1245ec33d7700487",
     "src/sync-engine/reconcile/conflicts.js": "223db23ff89b8a707e3ff593e6b0cbd353cb1b1963d78e2234f46ce61efdadec",
     "src/sync-engine/reconcile/decide.js": "be05f559ecb47f7a884f1a1342b6fdc2c329e22483c8e76d62b988669912099c",
     "src/sync-engine/reconcile/disk-snapshot.js": "645d2d793c5d64144294ec8624bbbab57e6d4c148be8c2215405d942e41a85d6",
-    "src/sync-engine/reconcile/execute.js": "1854c2ba173718a0c555ea0259cd93069150f19808ee161619cd26851ba6c8d6",
-    "src/sync-engine/reconcile/first-bind.js": "ce4970c2de2329b9f057945c04eb45ffa23c78f95530e7603cef842f4a8b6cc0",
+    "src/sync-engine/reconcile/execute.js": "7e6f73a1b11c1533339170e955b7d7d7ac941338e17205127fde98c60b3a13ed",
+    "src/sync-engine/reconcile/first-bind.js": "cd0b0c3946e38ba9edfc8921ea398ccce86357ce9a5c2eff62f6431f65c134ac",
     "src/sync-engine/reconcile/legacy-import.js": "c7575914f878c4cb74bb398f5a6d1be89d93226ae809311a62ed66df639adb2e",
     "src/sync-engine/reconcile/session-runner.js": "c89ab0ada1bb37001b6eac1902fedc2b7e978938b713e569588652d341ce9c36",
     "src/sync-engine/reconcile/tree-diff.js": "bef861737784859d01cbcde7bdd0caaa2c0904ad7a243ff62029bd08a8a134b3",

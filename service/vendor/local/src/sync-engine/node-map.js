@@ -159,10 +159,15 @@ const MTIME_SLACK_MS = 2000;
 async function seenSince(filePath, before) {
   try {
     const { ctimeMs } = await fs.stat(filePath);
-    return Number.isFinite(ctimeMs) ? Math.min(before, Math.floor(ctimeMs)) : before;
+    return seenAt(before, ctimeMs);
   } catch {
     return before;
   }
+}
+
+/** seenSince for a change time already read: the earlier of `before` and `ctimeMs`. */
+function seenAt(before, ctimeMs) {
+  return Number.isFinite(ctimeMs) ? Math.min(before, Math.floor(ctimeMs)) : before;
 }
 
 /**
@@ -244,6 +249,7 @@ module.exports = {
   getInodeSync,
   identityOf,
   seenSince,
+  seenAt,
   olderThanSeen,
   upgradeIdentities,
   walkDescendants,
