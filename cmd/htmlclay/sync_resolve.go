@@ -37,6 +37,7 @@ func (a *app) resolveConflict(e appcore.Effect) *appcore.Refusal {
 		a.changed()
 	}()
 	if answer.OK {
+		a.keepSettled(e.FolderID, e.Path, e.Keep)
 		return nil
 	}
 	switch answer.Error {

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/synchistory"
 )
 
 // TestM4ConflictResolve is 08-sync.md step 8.32: conflict.resolve checks the
@@ -87,6 +88,10 @@ func TestM4ConflictResolve(t *testing.T) {
 		got := sent()
 		if len(got) != 1 || got[0]["sessionId"] != session.ID || got[0]["path"] != "board.html" || got[0]["keep"] != "theirs" {
 			t.Fatalf("sent %+v", got)
+		}
+		page, ok := a.folderHistory(row.FolderID, "")
+		if !ok || len(page.Entries) == 0 || page.Entries[0].Kind != synchistory.Settled || page.Entries[0].Path != "board.html" || page.Entries[0].Detail != "theirs" {
+			t.Fatalf("history after a settled conflict = %+v, want a settled entry for board.html kept theirs", page.Entries)
 		}
 	})
 

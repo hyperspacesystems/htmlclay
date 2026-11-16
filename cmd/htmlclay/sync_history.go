@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/synchistory"
@@ -10,7 +12,8 @@ import (
 
 // historyKinds maps the engine's file-synced actions (service/sync.cjs
 // EVENT_ACTIONS) to a history entry's kind. create is left out: the engine
-// reports it only for folders, without saying which side made them.
+// reports it only for folders, without saying which side made them. The engine does
+// not send resolved today, so keepSettled writes a settled conflict's entry.
 var historyKinds = map[string]string{
 	"download":      synchistory.Downloaded,
 	"upload":        synchistory.Uploaded,
@@ -48,6 +51,22 @@ func (a *app) keepSyncHistory(events []served.SyncEvent) {
 		if _, err := a.historyStore().Append(folder, byFolder[folder]...); err != nil {
 			a.rt.logger.Printf("Could not keep sync history for folder %s: %v", folder, err)
 		}
+	}
+}
+
+// keepSettled adds a "Conflict settled" entry to a folder's history once the
+// service has taken the person's choice. keep is mine, theirs or both.
+func (a *app) keepSettled(folderID, path, keep string) {
+	at := time.Now().UTC()
+	entry := synchistory.Entry{
+		ID:     fmt.Sprintf("settled:%s:%d", path, at.UnixNano()),
+		At:     at.Format(time.RFC3339),
+		Kind:   synchistory.Settled,
+		Path:   path,
+		Detail: keep,
+	}
+	if _, err := a.historyStore().Append(folderID, entry); err != nil {
+		a.rt.logger.Printf("Could not keep sync history for folder %s: %v", folderID, err)
 	}
 }
 
