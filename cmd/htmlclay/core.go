@@ -216,6 +216,7 @@ func (a *app) facts() appcore.Facts {
 		YourName:          profile.Name,
 		UseName:           profile.Enabled,
 	}
+	f.Move = a.moveFacts()
 	return f
 }
 

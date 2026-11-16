@@ -109,6 +109,11 @@ type appRuntime struct {
 	syncBindFailed map[string]string
 	// syncBinds counts the first downloads still running, for a clean shutdown and tests.
 	syncBinds sync.WaitGroup
+	// moveRunning is true while a move from Hyperclay Local runs, and moveMoved is
+	// the ids of Local's folders this process moved. moveMu guards both.
+	moveMu      sync.Mutex
+	moveRunning bool
+	moveMoved   []string
 	// folderLockDir is where the per-folder serve locks live. It is shared by every
 	// profile on this account, so two HTML Clay processes never serve one folder.
 	folderLockDir string

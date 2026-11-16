@@ -494,6 +494,7 @@ func (a *app) startSites() {
 		a.rt.logger.Printf("Trusted folder %s at http://%s", tf.Path, s.host)
 	}
 	a.startLegacyRedirects()
+	a.holdLocalPorts()
 }
 
 // shutdown stops the server, every site and every legacy listener, and releases every

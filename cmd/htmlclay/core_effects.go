@@ -140,6 +140,10 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return nil
 	case "sync.connect":
 		return a.connectSync(ctx, e)
+	case "move.start":
+		return a.startMove(e)
+	case "move.quitLocal":
+		return a.quitLocal()
 	case "sync.disconnect":
 		return a.disconnectSync()
 	case "sync.setPaused":
