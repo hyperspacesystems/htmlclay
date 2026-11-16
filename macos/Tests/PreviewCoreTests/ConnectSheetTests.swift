@@ -69,6 +69,18 @@ final class ConnectSheetTests: XCTestCase {
         XCTAssertNil(ConnectSheetModel.nextSheet(after: snapshot, wasConnected: false), "a folder already on this Mac opens nothing")
     }
 
+    func testAWrongUsernameKeepsTheKeyAndAnyOtherRefusalClearsIt() async {
+        let (host, _, form) = sheet()
+        form.username = "mia"
+        form.key = key
+        host.answer = .refused(HostRefusal(code: "sync-wrong-account", text: "other account"))
+        _ = await form.connect()
+        XCTAssertEqual(form.key, key, "only the username was wrong")
+        host.answer = .refused(HostRefusal(code: "sync-key-refused", text: "refused"))
+        _ = await form.connect()
+        XCTAssertEqual(form.key, "", "a refused key is not kept")
+    }
+
     func testClosingClearsTheKey() {
         let (_, _, form) = sheet()
         form.key = key

@@ -37,9 +37,13 @@ public final class ConnectSheetModel {
             return true
         case let .refused(answer):
             refusal = answer.text.isEmpty ? answer.code : answer.text
+            // Only the username was wrong, so the key the person pasted stays.
+            if answer.code == Self.wrongAccount { key = sent }
             return false
         }
     }
+
+    static let wrongAccount = "sync-wrong-account"
 
     /// What opens after a connect: the sheet that places the person's own
     /// account folder, when that folder is not on this Mac yet. The username is
