@@ -73,14 +73,25 @@ func TestM4SetUpFolder(t *testing.T) {
 	setDiscovery(`{"ok":true,"actor":{"id":12,"username":"maya","fullName":"Maya Lin"},"accounts":[` +
 		`{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}},` +
 		`{"id":40,"kind":"team","username":"studio","displayName":"Studio","role":"editor","sync":{"enabled":true,"reason":null}},` +
-		`{"id":41,"kind":"team","username":"lab","displayName":"Lab","role":"editor","sync":{"enabled":true,"reason":null}}]}`)
+		`{"id":41,"kind":"team","username":"lab","displayName":"Lab","role":"editor","sync":{"enabled":true,"reason":null}},` +
+		`{"id":42,"kind":"team","username":"press","displayName":"Press","role":"viewer","sync":{"enabled":false,"reason":"viewer"}}]}`)
 	if refusal := connectThroughDo(t, a, "c1", "", connectKeyOne); refusal != nil {
 		t.Fatalf("connect refused: %+v", refusal)
 	}
 	rows := savedSync(t, a).Accounts
-	personal, team, lab := rows[0], rows[1], rows[2]
+	personal, team, lab, press := rows[0], rows[1], rows[2], rows[3]
 	if personal.Kind != "personal" || team.Kind != "team" || team.AccountID != 40 || lab.AccountID != 41 {
 		t.Fatalf("fixture rows = %+v", rows)
+	}
+
+	offered := 0
+	for _, e := range a.facts().Events {
+		if e.Kind == appcore.WaitingTeamToSetUp && e.SubjectID == team.FolderID {
+			offered++
+		}
+	}
+	if offered != 1 {
+		t.Fatalf("set-up items for a team that syncs = %d, want 1", offered)
 	}
 
 	t.Run("a team folder with files is refused and unchanged", func(t *testing.T) {
@@ -218,6 +229,45 @@ func TestM4SetUpFolder(t *testing.T) {
 		}
 		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 			t.Fatalf("the folder is gone: %v", err)
+		}
+		if _, ok := a.rt.cfg.ServedFolderByID(lab.FolderID); ok {
+			t.Fatal("the served entry stayed, so the folder reads as on this computer")
+		}
+		if a.trustedAt(dir) {
+			t.Fatal("the folder stayed trusted after its set-up failed")
+		}
+		seen := 0
+		for _, f := range a.snapshot().Folders {
+			if f.ID == lab.FolderID {
+				seen++
+			}
+		}
+		if seen != 1 {
+			t.Fatalf("the snapshot lists folder %s %d times, want once", lab.FolderID, seen)
+		}
+
+		writeTestFile(t, answer, `{"ok":true,"files":0}`)
+		if refusal := setUpThroughDo(t, a, "s6", lab.FolderID, dir); refusal != nil {
+			t.Fatalf("a second set up after the failure was refused: %+v", refusal)
+		}
+		waitForBinds(t, a)
+		if served, ok := a.rt.cfg.ServedFolderByID(lab.FolderID); !ok || !served.Serving {
+			t.Fatalf("the second set up did not serve the folder: %+v %v", served, ok)
+		}
+	})
+
+	t.Run("a team the server does not sync is not offered and is refused", func(t *testing.T) {
+		for _, e := range a.facts().Events {
+			if e.SubjectID == press.FolderID {
+				t.Fatalf("a view-only team was offered: %+v", e)
+			}
+		}
+		refusal := setUpThroughDo(t, a, "s7", press.FolderID, filepath.Join(a.rt.home, "Press"))
+		if refusal == nil || refusal.Code != appcore.RefuseNotAllowedNow {
+			t.Fatalf("refusal = %+v, want %s", refusal, appcore.RefuseNotAllowedNow)
+		}
+		if _, ok := a.rt.cfg.ServedFolderByID(press.FolderID); ok {
+			t.Fatal("a view-only team folder was served")
 		}
 	})
 }

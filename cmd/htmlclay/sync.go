@@ -479,14 +479,20 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 		if name == "" {
 			name = row.Username
 		}
-		folders = append(folders, appcore.FolderFact{
+		// A row the server does not sync (a viewer's team, a lapsed plan) cannot
+		// be set up here, so it reads paused and offers nothing.
+		ff := appcore.FolderFact{
 			ID:     row.FolderID,
 			Name:   name,
 			Origin: origin,
 			Team:   team,
 			Viewer: viewer,
-		})
-		if team {
+		}
+		if !row.Sync.Enabled {
+			ff.Sync.State = appcore.FolderSyncPaused
+		}
+		folders = append(folders, ff)
+		if team && row.Sync.Enabled {
 			events = append(events, appcore.EventFact{ID: "teamToSetUp:" + row.FolderID, Kind: appcore.WaitingTeamToSetUp, SubjectID: row.FolderID, Name: name})
 		}
 	}

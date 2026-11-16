@@ -134,8 +134,10 @@ func TestM4Connect(t *testing.T) {
 				toSetUp++
 			}
 		}
-		if toSetUp != 1 {
-			t.Fatalf("waiting items for the team to set up = %d, want 1: %+v", toSetUp, snapshot.Waiting)
+		// The server does not sync this team (its plan lapsed), so nothing offers
+		// a set-up that would fail. TestM4SetUpFolder checks a team that syncs.
+		if toSetUp != 0 {
+			t.Fatalf("waiting items for a team the server does not sync = %d, want 0: %+v", toSetUp, snapshot.Waiting)
 		}
 
 		before := saved.Accounts[1].FolderID

@@ -520,7 +520,7 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if refusal != nil {
 			return nil, refusal
 		}
-		if ff.OnThisComputer {
+		if ff.OnThisComputer || ff.Sync.State == FolderSyncPaused {
 			return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: ff.ID}
 		}
 		// A team's first sync always starts in an empty folder (08-sync.md, 8.20):

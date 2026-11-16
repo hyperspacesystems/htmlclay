@@ -113,7 +113,7 @@ func addedTeams(before, after []config.SyncAccountRow) []shellapi.Notice {
 	}
 	var notices []shellapi.Notice
 	for _, row := range after {
-		if row.Kind != "team" || had[row.AccountID] {
+		if row.Kind != "team" || had[row.AccountID] || !row.Sync.Enabled {
 			continue
 		}
 		name := row.DisplayName

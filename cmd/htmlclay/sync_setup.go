@@ -35,6 +35,9 @@ type syncBindRequest struct {
 	Session  config.SyncSession `json:"session"`
 	Root     syncWantedRoot     `json:"root"`
 	Mode     string             `json:"mode"`
+	// madeTrust is set when this set-up trusted the folder, so a first download
+	// that cannot resume gives the trust back.
+	madeTrust bool
 }
 
 // setUpSyncFolder is folder.setUpTeam (08-sync.md, 8.20): an account's folder that
@@ -113,6 +116,7 @@ func (a *app) setUpSyncFolder(e appcore.Effect) *appcore.Refusal {
 	}
 
 	identity := platform.DirIdentity(resolved)
+	madeTrust := !a.trustedAt(resolved)
 	if team {
 		if err := a.rt.cfg.MarkTeamFolder(config.TeamFolder{
 			FolderID: row.FolderID,
@@ -132,10 +136,12 @@ func (a *app) setUpSyncFolder(e appcore.Effect) *appcore.Refusal {
 	a.saveConfig("trust synced folder " + name)
 	entry, refusal, err := a.serveFolder(resolved, name)
 	if refusal != nil {
+		a.undoSetUp(row.FolderID, resolved, madeTrust)
 		return refusal
 	}
 	if err != nil || entry.ID != row.FolderID {
 		a.rt.logger.Printf("Could not serve synced folder %s as %s: id %s, %v", resolved, row.FolderID, entry.ID, err)
+		a.undoSetUp(row.FolderID, resolved, madeTrust)
 		return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: e.FolderID}
 	}
 
@@ -162,16 +168,39 @@ func (a *app) setUpSyncFolder(e appcore.Effect) *appcore.Refusal {
 	a.rt.syncMu.Unlock()
 	if err != nil {
 		a.rt.logger.Printf("Could not set up a synced folder: sync.json: %v", err)
+		a.undoSetUp(row.FolderID, resolved, madeTrust)
 		return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: e.FolderID}
 	}
 	mode := "empty"
 	if e.Existing {
 		mode = "existing"
 	}
-	request := syncBindRequest{DeviceID: deviceID, Session: session, Root: syncWantedRoot{ID: entry.ID, Path: entry.Path}, Mode: mode}
+	request := syncBindRequest{DeviceID: deviceID, Session: session, Root: syncWantedRoot{ID: entry.ID, Path: entry.Path}, Mode: mode, madeTrust: madeTrust}
 	a.rt.syncBinds.Add(1)
 	go a.runSyncBind(request)
 	return nil
+}
+
+// undoSetUp gives back what a set-up that did not finish took: it stops serving
+// the folder and drops its served entry, and untrusts it when the set-up trusted
+// it. The account row then reads as not on this computer again, so the person can
+// set it up once more. The folder and its files stay; a team mark stays too, since
+// nothing removes one (config.MarkTeamFolder).
+func (a *app) undoSetUp(folderID, path string, madeTrust bool) {
+	if _, ok := a.rt.cfg.ServedFolderByID(folderID); ok {
+		if err := a.stopServing(folderID); err != nil {
+			a.rt.logger.Printf("Could not stop serving folder %s after its set-up stopped: %v", folderID, err)
+			return
+		}
+		a.rt.cfg.RemoveServedFolder(folderID)
+		a.saveConfig("forget served folder " + folderID)
+	}
+	if madeTrust {
+		if err := a.untrustFolder(path); err != nil {
+			a.rt.logger.Printf("Could not untrust %s after its set-up stopped: %v", path, err)
+		}
+	}
+	a.changed()
 }
 
 // previewExisting asks the service what syncing account into the folder at path
@@ -238,9 +267,7 @@ func (a *app) runSyncBind(request syncBindRequest) {
 	a.rt.syncMu.Unlock()
 	if dropped {
 		a.rt.logger.Printf("The first download for folder %s failed: %s", request.Root.ID, answer.Error)
-		if err := a.stopServing(request.Root.ID); err != nil {
-			a.rt.logger.Printf("Could not stop serving folder %s after its first download failed: %v", request.Root.ID, err)
-		}
+		a.undoSetUp(request.Root.ID, request.Root.Path, request.madeTrust)
 	} else if answer.OK {
 		a.rt.logger.Printf("The first download for folder %s finished: %d files", request.Root.ID, answer.Files)
 	}
@@ -278,4 +305,14 @@ func newSyncSessionID() string {
 		panic(err)
 	}
 	return hex.EncodeToString(raw[:])
+}
+
+// trustedAt reports whether dir is itself a trusted folder.
+func (a *app) trustedAt(dir string) bool {
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if tf.Path == dir {
+			return true
+		}
+	}
+	return false
 }
