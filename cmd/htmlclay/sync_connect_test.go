@@ -25,6 +25,8 @@ const (
 		`{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}},` +
 		`{"id":40,"kind":"team","username":"studio","displayName":"Studio","role":"viewer","webUrl":"https://hyperclay.com/_/team/studio/dashboard","sync":{"enabled":false,"reason":"plan-lapsed"}}]}`
 	discoverRefused = `{"ok":false,"code":"key-refused","status":401}`
+	discoverBob     = `{"ok":true,"actor":{"id":13,"username":"bob","fullName":"Bob"},"accounts":[` +
+		`{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"editor","sync":{"enabled":true,"reason":null}}]}`
 )
 
 // connectTestApp is an app serving one folder through the stub service, with a
@@ -234,7 +236,7 @@ func TestM4Connect(t *testing.T) {
 	})
 
 	t.Run("disconnect forgets the key and keeps the session rows switched off", func(t *testing.T) {
-		a, _, record := connectTestApp(t, true)
+		a, setDiscovery, record := connectTestApp(t, true)
 		if refusal := connectThroughDo(t, a, "c1", "", connectKeyOne); refusal != nil {
 			t.Fatalf("connect refused: %+v", refusal)
 		}
@@ -263,6 +265,22 @@ func TestM4Connect(t *testing.T) {
 		if got := lastSyncLine(t, record); got != `{"sync":{"v":1,"key":null}}` {
 			t.Fatalf("last line %q, want the clear", got)
 		}
+
+		// Another person connecting on this computer turns nothing back on, even an
+		// account their key can sync (M4 review 2, finding 7).
+		setDiscovery(discoverBob)
+		if refusal := connectThroughDo(t, a, "c-bob", "", connectKeyTwo); refusal != nil {
+			t.Fatalf("connect as bob refused: %+v", refusal)
+		}
+		for _, s := range savedSync(t, a).SyncSessions {
+			if s.Enabled {
+				t.Fatalf("another person's connect turned on %+v", s)
+			}
+		}
+		if _, refusal := a.do(context.Background(), coreAction(t, "d-bob", "sync.disconnect", nil), ChannelTray); refusal != nil {
+			t.Fatalf("bob's disconnect refused: %+v", refusal)
+		}
+		setDiscovery(discoverMaya)
 
 		// Reconnecting turns back on only what was syncing, and only for accounts
 		// this key can sync (M4 review F5).

@@ -84,9 +84,10 @@ type SyncSession struct {
 	Paused        *SyncPause        `json:"paused"`
 	LegacyMetaDir *string           `json:"legacyMetaDir"`
 	Enabled       bool              `json:"enabled"`
-	// OffAtDisconnect marks a row that was syncing when the person disconnected,
-	// so connecting an account that can reach it again turns it back on.
-	OffAtDisconnect bool `json:"offAtDisconnect,omitempty"`
+	// OffAtDisconnect is the person (actor id) who disconnected while this row
+	// was syncing: when that same person connects again, the row turns back on.
+	// Another person's key never turns it on.
+	OffAtDisconnect int64 `json:"offAtDisconnect,omitempty"`
 }
 
 type SyncSessionCached struct {

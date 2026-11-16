@@ -325,8 +325,8 @@ func resumeAfterDisconnect(record *config.Sync) {
 	}
 	for i := range record.SyncSessions {
 		s := &record.SyncSessions[i]
-		if s.OffAtDisconnect && reachable[s.AccountID] {
-			s.Enabled, s.OffAtDisconnect = true, false
+		if s.OffAtDisconnect != 0 && s.OffAtDisconnect == record.Account.ActorID && reachable[s.AccountID] {
+			s.Enabled, s.OffAtDisconnect = true, 0
 		}
 	}
 }
@@ -396,12 +396,16 @@ func (a *app) disconnectSync() *appcore.Refusal {
 		a.rt.logger.Printf("Could not disconnect sync: sync.json: %v", err)
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
+	var actor int64
+	if record.Account != nil {
+		actor = record.Account.ActorID
+	}
 	record.Account = nil
 	record.KeyRefused = nil
 	a.rt.syncHeld.Store(false)
 	for i := range record.SyncSessions {
-		if record.SyncSessions[i].Enabled {
-			record.SyncSessions[i].OffAtDisconnect = true
+		if record.SyncSessions[i].Enabled && actor != 0 {
+			record.SyncSessions[i].OffAtDisconnect = actor
 		}
 		record.SyncSessions[i].Enabled = false
 	}
