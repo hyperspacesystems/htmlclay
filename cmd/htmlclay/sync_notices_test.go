@@ -168,3 +168,19 @@ func TestM4Notices(t *testing.T) {
 		}
 	})
 }
+
+// TestM4AddedToTeamNoticeNamesTheCommandOnLinux: Linux sets a team up from the
+// command line, so its notice says how (M4 review UX).
+func TestM4AddedToTeamNoticeNamesTheCommandOnLinux(t *testing.T) {
+	previous := serveOS
+	t.Cleanup(func() { serveOS = previous })
+	n := shellapi.Notice{Kind: noticeAddedToTeam, Name: "Studio"}
+	serveOS = "linux"
+	if _, body := noticeText(n); body != appcore.TextNoticeAddedToTeamBodyCLI {
+		t.Fatalf("linux body = %q", body)
+	}
+	serveOS = "darwin"
+	if _, body := noticeText(n); body != appcore.TextNoticeAddedToTeamBody {
+		t.Fatalf("mac body = %q", body)
+	}
+}

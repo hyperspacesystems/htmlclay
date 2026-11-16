@@ -99,6 +99,10 @@ func noticeText(n shellapi.Notice) (title, body string) {
 	case noticeKeyStopped:
 		return appcore.TextWaitingSyncKeyRefused, appcore.TextNoticeKeyStoppedBody
 	default:
+		// Linux sets a team up from the command line; its dashboard cannot.
+		if serveOS == "linux" {
+			return fmt.Sprintf(appcore.TextNoticeAddedToTeam, n.Name), appcore.TextNoticeAddedToTeamBodyCLI
+		}
 		return fmt.Sprintf(appcore.TextNoticeAddedToTeam, n.Name), appcore.TextNoticeAddedToTeamBody
 	}
 }

@@ -333,6 +333,8 @@ struct TeamSetupSheet: View {
                 .padding(.top, 12)
                 if let refusal = form.refusal {
                     KilnFieldNote(Text(refusal), error: true)
+                } else {
+                    KilnFieldNote(Text(Strings.TeamSetup.emptyFolder))
                 }
                 (Text(Strings.TeamSetup.opensAt) + Text(TeamSetupRules.address(for: folder)).monospaced())
                     .font(.system(size: 13))

@@ -524,6 +524,8 @@ public enum Strings {
         public static let settingUp = "Setting up…"
     }
     public enum TeamSetup {
+        // TODO-COPY: under the folder path on the team set-up sheet, before any refusal: a team's first sync needs an empty folder, max 60 chars
+        public static let emptyFolder = "Pick an empty folder or a new one."
         // TODO-COPY: a note after a set-up whose first download could not finish; the folder and its files stay, and Set up works again, max 100 chars
         public static let firstDownloadFailed = "The first download didn't finish, so nothing is syncing yet. Try Set up again."
         public static func title(_ name: String) -> String { "Set up \(name)" }

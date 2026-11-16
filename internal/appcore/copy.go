@@ -31,7 +31,7 @@ const (
 	TextStopped            = "Stopped serving %s."                                                                   // copy: CLI success line, max 80 chars
 	TextCannotServe        = "HTML Clay can't serve this folder"                                                     // copy: notification title for a refusal, max 48 chars
 	TextServeCLIWindows    = "The htmlclay serve command runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
-	// The htmlclay sync command line (08-sync.md step 8.12). TODO-COPY: every line below.
+	// The htmlclay sync command line (08-sync.md step 8.12).
 	TextSyncCLIWindows    = "htmlclay sync runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
 	TextSyncKeyPrompt     = "Sync key: "                                                               // copy: CLI prompt on a terminal, max 20 chars
 	TextSyncKeyNoArgument = "A sync key can't go in the command. Type it when asked, or pipe it in."   // copy: CLI, key given as an argument, max 120 chars
@@ -95,10 +95,11 @@ const (
 	TextNoticeKeyStoppedBody     = "Syncing stopped. Your files are safe. Add a new sync key in HTML Clay."
 	TextNoticeAddedToTeam        = "You were added to %s"
 	TextNoticeAddedToTeamBody    = "Set up its folder in HTML Clay."
-	TextTrayPauseSyncing         = "Pause syncing"  // copy: tray item, Windows and Linux, max 30 chars
-	TextTrayResumeSyncing        = "Resume syncing" // copy: tray item, Windows and Linux, max 30 chars
-	TextTrayOneConflict          = "1 conflict…"    // copy: tray item opening Needs you, max 30 chars
-	TextTrayConflicts            = "%d conflicts…"  // copy: tray item opening Needs you, the count, max 30 chars
+	TextNoticeAddedToTeamBodyCLI = "TODO-COPY Run htmlclay sync setup to set up its folder." // copy: Linux system notification body, names the command, max 120 chars
+	TextTrayPauseSyncing         = "Pause syncing"                                           // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayResumeSyncing        = "Resume syncing"                                          // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayOneConflict          = "1 conflict…"                                             // copy: tray item opening Needs you, max 30 chars
+	TextTrayConflicts            = "%d conflicts…"                                           // copy: tray item opening Needs you, the count, max 30 chars
 )
 
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
