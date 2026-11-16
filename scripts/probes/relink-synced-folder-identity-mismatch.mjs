@@ -33,7 +33,7 @@ async function until(what, check, timeoutMs = 30000) {
   }
 }
 
-const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(repo, '..', 'hyperclay-local');
+const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(repo, 'service', 'test', 'fake');
 const require = createRequire(import.meta.url);
 const { startFakeSyncHttp } = require(path.join(LOCAL, 'trial', 'fake-sync-http.cjs'));
 

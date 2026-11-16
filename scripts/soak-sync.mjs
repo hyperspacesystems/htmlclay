@@ -19,8 +19,8 @@
 // run's own directory (never touching the original) for the fake server's first
 // state; its .html files become the documents the tabs and the server edit.
 //
-// Needs Hyperclay Local's checkout for the fake (HTMLCLAY_SYNC_LOCAL, default
-// ../hyperclay-local). The folder sits inside home, as a served folder must.
+// Uses the fork's fake sync server (HTMLCLAY_SYNC_LOCAL, default
+// service/test/fake). The folder sits inside home, as a served folder must.
 import { execFileSync } from 'node:child_process';
 import {
   appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync,

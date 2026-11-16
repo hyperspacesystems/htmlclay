@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { build, converge, driver, hex, page, repo, sha, wait, walk } from '../sync-harness.mjs';
 
-const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(repo, '..', 'hyperclay-local');
+const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(repo, 'service', 'test', 'fake');
 const require = createRequire(import.meta.url);
 const { startFakeSyncHttp } = require(path.join(LOCAL, 'trial', 'fake-sync-http.cjs'));
 

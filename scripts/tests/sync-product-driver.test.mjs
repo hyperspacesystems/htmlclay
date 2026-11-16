@@ -4,7 +4,7 @@
 // proved by 8.29's round trip, once conflict.resolve exists (8.32).
 //
 // Needs Go and a Hyperclay Local checkout with trial/fake-sync-http.cjs
-// (HTMLCLAY_SYNC_LOCAL, default ../hyperclay-local); skips without the checkout.
+// (HTMLCLAY_SYNC_LOCAL, default service/test/fake); skips without the checkout.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, fork } from 'node:child_process';
@@ -16,9 +16,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(REPO, '..', 'hyperclay-local');
+const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(REPO, 'service', 'test', 'fake');
 const FAKE = path.join(LOCAL, 'trial', 'fake-sync-http.cjs');
-const SKIP = existsSync(FAKE) || process.env.HTMLCLAY_SYNC_LOCAL ? false : `no Hyperclay Local checkout at ${LOCAL}`;
+const SKIP = existsSync(FAKE) || process.env.HTMLCLAY_SYNC_LOCAL ? false : `no fake sync server at ${LOCAL}`;
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 const KEY = `hcsk_${randomBytes(32).toString('hex')}`;

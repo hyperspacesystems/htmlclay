@@ -4,7 +4,7 @@
 // received no upload of the file. Then Keep both leaves both under two names.
 //
 // The real htmlclay and live-room service, driven by scripts/sync-product-driver.mjs,
-// against L1's fake sync server (HTMLCLAY_SYNC_LOCAL, default ../hyperclay-local);
+// against L1's fake sync server (HTMLCLAY_SYNC_LOCAL, default service/test/fake);
 // skips without that checkout.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,9 +17,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(REPO, '..', 'hyperclay-local');
+const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(REPO, 'service', 'test', 'fake');
 const FAKE = path.join(LOCAL, 'trial', 'fake-sync-http.cjs');
-const SKIP = existsSync(FAKE) || process.env.HTMLCLAY_SYNC_LOCAL ? false : `no Hyperclay Local checkout at ${LOCAL}`;
+const SKIP = existsSync(FAKE) || process.env.HTMLCLAY_SYNC_LOCAL ? false : `no fake sync server at ${LOCAL}`;
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 const KEY = `hcsk_${randomBytes(32).toString('hex')}`;

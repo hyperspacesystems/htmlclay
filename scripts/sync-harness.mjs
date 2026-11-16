@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(repo, '..', 'hyperclay-local');
+const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(repo, 'service', 'test', 'fake');
 const FAKE = path.join(LOCAL, 'trial', 'fake-sync-http.cjs');
 
 export const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -155,7 +155,7 @@ export function save({ port, host, doc, body }) {
 // kill sweep watches it land itself). beforeSetUp(folder) runs just before the
 // folder is set up, for a folder that needs preparing (a small disk).
 export async function startWorld({ out, built, nodes, waitForFirst = true, log = 'host.log', beforeSetUp = null }) {
-  if (!existsSync(FAKE)) throw new Error(`no Hyperclay Local checkout at ${LOCAL} (set HTMLCLAY_SYNC_LOCAL)`);
+  if (!existsSync(FAKE)) throw new Error(`no fake sync server at ${LOCAL} (set HTMLCLAY_SYNC_LOCAL)`);
   const key = `hcsk_${randomBytes(32).toString('hex')}`;
   const require = createRequire(import.meta.url);
   const { startFakeSyncHttp } = require(FAKE);

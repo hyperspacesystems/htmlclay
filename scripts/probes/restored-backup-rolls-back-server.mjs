@@ -37,7 +37,7 @@ const out = path.resolve(flag('--out') || 'probe-out');
 const only = flag('--only');
 mkdirSync(out, { recursive: true });
 
-const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(repo, '..', 'hyperclay-local');
+const LOCAL = process.env.HTMLCLAY_SYNC_LOCAL || path.join(repo, 'service', 'test', 'fake');
 const require = createRequire(import.meta.url);
 const { startFakeSyncHttp } = require(path.join(LOCAL, 'trial', 'fake-sync-http.cjs'));
 

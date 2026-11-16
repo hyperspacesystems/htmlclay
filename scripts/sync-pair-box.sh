@@ -10,7 +10,7 @@ set -uo pipefail
 export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 TZ=America/New_York
 umask 022
 H=$(pwd)
-LOCAL=${HTMLCLAY_SYNC_LOCAL:-$HOME/sync-local}
+LOCAL=${HTMLCLAY_SYNC_LOCAL:-$H/service/test/fake}
 O=${TESTBOX_OUT:-$HOME/pair-out}/sync-pair
 rm -rf "$O" && mkdir -p "$O/guard" "$O/strace" "$O/canary/guard" "$O/canary/strace"
 W=$HOME/pair-work
