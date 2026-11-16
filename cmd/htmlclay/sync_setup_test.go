@@ -176,6 +176,18 @@ func TestM4SetUpFolder(t *testing.T) {
 		}
 	})
 
+	t.Run("a folder already in HTML Clay is refused before the counts", func(t *testing.T) {
+		dir := filepath.Join(a.rt.home, "Old")
+		writeTestFile(t, filepath.Join(dir, "notes.html"), "<p>old</p>")
+		if err := a.rt.cfg.TrustFolderWithID(dir, "", "fedcba9876543210"); err != nil {
+			t.Fatal(err)
+		}
+		_, refusal := a.do(context.Background(), coreAction(t, "s-old", "folder.setUpTeam", map[string]any{"id": personal.FolderID, "path": dir, "existing": true}), ChannelTray)
+		if refusal == nil || refusal.Code != appcore.RefuseSyncFolderInUse {
+			t.Fatalf("refusal = %+v, want %s", refusal, appcore.RefuseSyncFolderInUse)
+		}
+	})
+
 	t.Run("no upload before the person confirms", func(t *testing.T) {
 		writeTestFile(t, preview, `{"ok":true,"files":3,"bytes":30,"toUpload":2,"toDownload":1,"differ":1}`)
 		dir := filepath.Join(a.rt.home, "Maya")

@@ -105,6 +105,13 @@ func (a *app) setUpSyncFolder(e appcore.Effect) *appcore.Refusal {
 	if _, refusal := a.serveFacts(resolved, name); refusal != nil {
 		return refusal
 	}
+	// A folder already in HTML Clay keeps its own id for life, so it cannot take
+	// the account's: say so before the counts, not after them.
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if tf.Path == resolved && tf.ID != row.FolderID {
+			return &appcore.Refusal{Code: appcore.RefuseSyncFolderInUse, SubjectID: e.FolderID, OtherPath: resolved}
+		}
+	}
 	// Syncing into files already there waits until the person has seen what it
 	// will do (8.21): until then nothing is trusted, served or bound.
 	if e.Existing && !e.Confirmed {

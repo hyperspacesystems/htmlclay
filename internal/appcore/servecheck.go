@@ -82,6 +82,9 @@ const (
 	RefuseSyncServerUpdate = "sync-server-update"
 	// RefuseSyncFolderNotEmpty is a team's first sync into a folder that has files.
 	RefuseSyncFolderNotEmpty = "sync-folder-not-empty"
+	// RefuseSyncFolderInUse is a set-up into a folder HTML Clay already has
+	// under its own id.
+	RefuseSyncFolderInUse = "sync-folder-in-use"
 	// RefuseConfirmNeeded is syncing into a folder that has files, before the
 	// person has seen what it will do (its Counts).
 	RefuseConfirmNeeded = "confirm-needed"

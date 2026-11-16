@@ -138,7 +138,9 @@ var RefusalText = map[string]string{
 	RefuseSyncServerUpdate:   "Hyperclay needs an update before HTML Clay can sync with it. Try again later.",
 	RefuseServiceNeeded:      "HTML Clay isn't ready to sync yet. Try again in a moment.",
 	RefuseSyncFolderNotEmpty: "This folder isn't empty. Choose an empty folder or make a new one.",
-	RefuseSyncPaused:         "This folder isn't syncing. Turn syncing back on in HTML Clay, then try again.",
+	// TODO-COPY: set-up refusal for a folder already in HTML Clay (it keeps its own identity), max 120 chars
+	RefuseSyncFolderInUse: "This folder is already in HTML Clay, so it can't become your synced folder. Choose another folder or make a new one.",
+	RefuseSyncPaused:      "This folder isn't syncing. Turn syncing back on in HTML Clay, then try again.",
 	// TODO-COPY: refusal when settling a conflict while the sync key needs replacing, max 120 chars
 	RefuseSyncKeyStopped:    "Syncing is stopped until you enter your sync key again. Your choice will wait until then.",
 	RefuseConflictGone:      "That file isn't in conflict anymore. Nothing was changed.",
