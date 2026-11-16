@@ -105,9 +105,7 @@ func TestM3ProgramActions(t *testing.T) {
 		if !m3ProgramRun(t, f.app, f.document, "m3-program-before", f.marker) {
 			t.Fatal("the broad grant did not start the program before the removal")
 		}
-		if err := os.Remove(f.marker); err != nil {
-			t.Fatal(err)
-		}
+		removeMarker(t, f.marker)
 		if refusal := m3ProgramDo(t, f.app, ChannelShell, "program.removeAccess", map[string]any{
 			"programID": f.program.ID, "documentID": f.document,
 		}); refusal != nil {
@@ -441,4 +439,22 @@ func TestM3ProgramActions(t *testing.T) {
 			t.Fatalf("revealed %q, want %q", shown, f.program.Path)
 		}
 	})
+}
+
+// removeMarker deletes a helper's marker file. The helper may still be closing it
+// when the test sees it, and Windows refuses to delete a file another process
+// has open, so the removal is retried for a few seconds.
+func removeMarker(t *testing.T, marker string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		err := os.Remove(marker)
+		if err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("remove %s: %v", marker, err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }
