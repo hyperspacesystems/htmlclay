@@ -31,7 +31,7 @@ enum Entry {
         let running = others.map { AppIdentity.Running(pid: $0.processIdentifier, bundlePath: $0.bundleURL?.path) }
         if let pid = AppIdentity.otherInstance(pid: current, bundlePath: Bundle.main.bundleURL.path, among: running),
            let other = others.first(where: { $0.processIdentifier == pid }) {
-            _ = other.activate()
+            HandOff.give(paths, to: other)
             exit(0)
         }
         let delegate = AppDelegate()

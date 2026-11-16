@@ -179,11 +179,13 @@ public final class UpdateCoordinator {
     public func terminate(quitter: (Bool) async -> Bool) async -> Bool {
         switch await beforeQuit() {
         case .cancel:
+            quitAsked = false
             return false
         case let .proceed(force):
             let ok = await quitter(force)
             if !ok {
                 relaunch = false
+                quitAsked = false
                 await abortPrepared()
             }
             return ok
@@ -203,7 +205,7 @@ public final class UpdateCoordinator {
             }
             if answer.hasPrefix("prepared ") {
                 let id = String(answer.dropFirst("prepared ".count))
-                txid = id == "-" ? nil : id
+                txid = id
                 return .proceed(force: true)
             }
             if answer.hasPrefix("refused unsaved ") {
@@ -233,6 +235,7 @@ public final class UpdateCoordinator {
         return .cancel
     }
 
+    /// Also for "-": prepare closed the host's writes either way, and update-abort reopens them.
     private func abortPrepared() async {
         guard let id = txid else { return }
         txid = nil

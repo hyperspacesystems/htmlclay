@@ -25,7 +25,6 @@ final class LoginItemReconcilerTests: XCTestCase {
     private var defaults: UserDefaults!
     private var suite: String!
     private var service: FakeLoginItem!
-    private var bootouts: [URL] = []
 
     override func setUp() async throws {
         try await super.setUp()
@@ -37,7 +36,6 @@ final class LoginItemReconcilerTests: XCTestCase {
         defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         service = FakeLoginItem()
-        bootouts = []
     }
 
     override func tearDown() async throws {
@@ -47,8 +45,7 @@ final class LoginItemReconcilerTests: XCTestCase {
     }
 
     private func make() -> LoginItemReconciler {
-        LoginItemReconciler(service: service, legacyPlist: plist, defaults: defaults,
-                            bootout: { self.bootouts.append($0) }, delay: 0.05)
+        LoginItemReconciler(service: service, legacyPlist: plist, defaults: defaults, delay: 0.05)
     }
 
     private func wait() async {
@@ -64,7 +61,6 @@ final class LoginItemReconcilerTests: XCTestCase {
         await wait()
         XCTAssertEqual(service.calls, ["register"])
         XCTAssertFalse(plistExists)
-        XCTAssertEqual(bootouts, [plist])
         XCTAssertTrue(defaults.bool(forKey: LoginItemReconciler.movedKey))
     }
 
@@ -75,7 +71,6 @@ final class LoginItemReconcilerTests: XCTestCase {
         await wait()
         XCTAssertEqual(service.calls, ["register"])
         XCTAssertTrue(plistExists)
-        XCTAssertTrue(bootouts.isEmpty)
         XCTAssertFalse(defaults.bool(forKey: LoginItemReconciler.movedKey))
     }
 

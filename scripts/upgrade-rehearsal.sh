@@ -855,33 +855,52 @@ wait_back_and_stop_ledger() {
 # - rollback-early freezes the host before it takes the lock, kills the app, then
 #   lets the host go on. CR-2 must make it exit before it serves.
 kill_new_app() {
-  local app="" pid start=$SECONDS limit=$((DEADLINE + OBSERVE))
-  while [ -z "$app" ] && [ $((SECONDS - start)) -lt "$limit" ]; do
-    for pid in $(pids_comm "$OLD/Contents/MacOS/htmlclay"); do
-      [ "$pid" != "$APP_PID" ] && { app="$pid"; break; }
-    done
-    sleep 0.01
-  done
-  [ -n "$app" ] || return 0
-  python3 -I - "$app" "$CASE" "$CONFIG/htmlclay.log" "$limit" <<'PY'
+  local limit=$((DEADLINE + OBSERVE))
+  python3 -I - "$OLD/Contents/MacOS/htmlclay" "$APP_PID" "$CASE" "$CONFIG/htmlclay.log" "$limit" <<'PY'
 import ctypes, os, signal, sys, time
-app, case, log, limit = int(sys.argv[1]), sys.argv[2], sys.argv[3], float(sys.argv[4])
+exe, old_pid, case, log, limit = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], float(sys.argv[5])
 lib = ctypes.CDLL("/usr/lib/libproc.dylib")
 buf = (ctypes.c_int * 16)()
 def say(m): print("[rehearsal] " + m, file=sys.stderr, flush=True)
 deadline = time.monotonic() + limit
-host = 0
+# Python finds the app itself: starting Python after a pgrep loop took longer than
+# the host needs to serve and the app to confirm, so the kill sometimes came too late.
+want = {exe.encode(), os.path.realpath(exe).encode()}
+everyone = (ctypes.c_int * 8192)()
+path = ctypes.create_string_buffer(4096)
+skip = {old_pid, os.getpid()}
+app = host = 0
+# Two launches reach the new bundle after an install (Sparkle's relaunch and the 1.x
+# supervisor's), and the second copy quits at once without a host. A copy that exits
+# hostless is skipped, and the watch goes on for the one that starts its host.
 while not host and time.monotonic() < deadline:
-    if lib.proc_listchildpids(app, buf, ctypes.sizeof(buf)) > 0 and buf[0] > 0:
-        host = buf[0]
-        break
-    try:
-        os.kill(app, 0)
-    except ProcessLookupError:
-        break
-    time.sleep(0.0005)
+    app = 0
+    count = lib.proc_listallpids(everyone, ctypes.sizeof(everyone))
+    for i in range(max(count, 0)):
+        pid = everyone[i]
+        if pid > 0 and pid not in skip and lib.proc_pidpath(pid, path, ctypes.sizeof(path)) > 0 and path.value in want:
+            app = pid
+            break
+    if not app:
+        time.sleep(0.0005)
+        continue
+    while time.monotonic() < deadline:
+        if lib.proc_listchildpids(app, buf, ctypes.sizeof(buf)) > 0 and buf[0] > 0:
+            host = buf[0]
+            break
+        try:
+            os.kill(app, 0)
+        except ProcessLookupError:
+            say(f"the 9.0.1 app {app} exited without a host; watching for the next one")
+            skip.add(app)
+            break
+        if lib.proc_pidpath(app, path, ctypes.sizeof(path)) > 0 and path.value not in want:
+            say(f"process {app} became {path.value.decode(errors='replace')}, not the app; watching for the next one")
+            skip.add(app)
+            break
+        time.sleep(0.0005)
 if not host:
-    say(f"the 9.0.1 app {app} started no host")
+    say("no 9.0.1 app started a host")
     sys.exit(0)
 if case == "rollback-early":
     os.kill(host, signal.SIGSTOP)

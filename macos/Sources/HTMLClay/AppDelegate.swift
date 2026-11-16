@@ -77,8 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.updates = updates
         updates?.onChange = { [weak self] in self?.writeState() }
         if let made = LoginItems.make(identity: Self.identity, candidateHome: home) {
-            loginItems = LoginItemReconciler(service: made.service, legacyPlist: made.legacyPlist, defaults: .standard,
-                                             bootout: Self.identity == .product ? LoginItems.bootout : { _ in })
+            loginItems = LoginItemReconciler(service: made.service, legacyPlist: made.legacyPlist, defaults: .standard)
         }
         updateNowObserver = DistributedNotificationCenter.default().addObserver(forName: UpdateNowWire.request, object: nil, queue: .main) { [weak self] note in
             guard let object = note.object as? String else { return }
@@ -132,6 +131,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, let process, self.process === process else { return }
             switch state {
             case let .failed(failure):
+                if failure.code == "already-running", let other = HandOff.otherRunning() {
+                    HandOff.give(self.opener?.queued ?? [], to: other)
+                    exit(0)
+                }
                 if failure.code == "port-taken", let port = failure.port { self.alerts.portTaken(port: port) }
                 self.opener?.hostGone()
                 self.relay.hostGone()

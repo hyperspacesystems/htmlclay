@@ -24,5 +24,8 @@ xcrun swift test --package-path "$ROOT" --scratch-path "$BUILD" 2>&1 | /usr/bin/
 
 if [ "$(/usr/bin/grep -rn 'SMAppServiceLoginItem()' "$ROOT/Sources" | /usr/bin/grep -vc 'LoginItems.swift')" != "0" ]; then echo "CHECK FAILED: SMAppServiceLoginItem constructed outside LoginItems.make"; fail=1; fi
 
+# The 1.x LaunchAgent started this very app at login after a quit install; bootout would stop it.
+if /usr/bin/grep -rn '"bootout"' "$ROOT/Sources"; then echo "CHECK FAILED: the app must never run launchctl bootout on the 1.x LaunchAgent"; fail=1; fi
+
 if [ "$fail" -eq 0 ]; then echo "CHECK OK"; else echo "CHECK FAILED"; fi
 exit "$fail"

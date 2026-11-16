@@ -25,7 +25,6 @@ public final class LoginItemReconciler {
     private let service: LoginItemService
     private let legacyPlist: URL
     private let defaults: UserDefaults
-    private let bootout: (URL) -> Void
     private let delay: TimeInterval
 
     private var scheduled = false
@@ -34,11 +33,10 @@ public final class LoginItemReconciler {
     private var applied: Bool?
 
     public init(service: LoginItemService, legacyPlist: URL, defaults: UserDefaults,
-                bootout: @escaping (URL) -> Void, delay: TimeInterval = 60) {
+                delay: TimeInterval = 60) {
         self.service = service
         self.legacyPlist = legacyPlist
         self.defaults = defaults
-        self.bootout = bootout
         self.delay = delay
     }
 
@@ -79,9 +77,10 @@ public final class LoginItemReconciler {
         }
     }
 
+    /// Deletes the 1.x LaunchAgent's file and never runs launchctl bootout: right after a quit
+    /// install, the process that agent started at login is this app, and bootout would stop it.
+    /// The job has RunAtLoad and no KeepAlive, so with its file gone it never starts again.
     private func removeLegacy() {
-        guard FileManager.default.fileExists(atPath: legacyPlist.path) else { return }
-        bootout(legacyPlist)
         try? FileManager.default.removeItem(at: legacyPlist)
     }
 }

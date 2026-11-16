@@ -55,15 +55,4 @@ enum LoginItems {
                     candidateHome.appendingPathComponent("Library/LaunchAgents/com.htmlclay.plist"))
         }
     }
-
-    /// launchctl bootout gui/<uid> <plist>; its exit status is ignored (the job may not be loaded).
-    static func bootout(_ plist: URL) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        process.arguments = ["bootout", "gui/\(getuid())", plist.path]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try? process.run()
-        process.waitUntilExit()
-    }
 }

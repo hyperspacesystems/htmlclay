@@ -245,12 +245,11 @@ final class UpdateCoordinatorTests: XCTestCase {
         XCTAssertEqual(rig.log.lines.last, "abort t1")
     }
 
-    func testPrepareWithoutTxidDoesNotAbort() async {
+    func testPrepareWithoutTxidStillAbortsSoWritesReopen() async {
         let rig = await readyCoordinator(prepare: ["prepared -"])
         let ok = await rig.coordinator.terminate(quitter: quitter(rig.log, exits: false, result: false))
         rig.log.add("reply \(ok)")
-        XCTAssertEqual(rig.log.lines, ["prepare 9.0.2 quit", "quit force=true", "reply false"])
-        XCTAssertFalse(rig.log.lines.contains { $0.hasPrefix("abort ") })
+        XCTAssertEqual(rig.log.lines, ["prepare 9.0.2 quit", "quit force=true", "abort -", "reply false"])
     }
 
     func testNotAllowedNeverStartsDriver() async {
