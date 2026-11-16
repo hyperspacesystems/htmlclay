@@ -2,7 +2,8 @@ import SwiftUI
 import PreviewCore
 
 /// After a set-up sheet's folder is set up: the first download's progress bar
-/// while it runs, then the sheet closes (08-sync.md 8.42).
+/// while it runs, then the sheet closes (08-sync.md 8.42), saying so when the
+/// download could not finish.
 struct FirstDownloadFollow: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
@@ -24,11 +25,16 @@ struct FirstDownloadFollow: View {
         }
         .task {
             let start = Date()
-            var saw = false
             while !Task.isCancelled {
-                if download != nil { saw = true }
-                if SetUpSheetModel.closes(download: download, sawDownload: saw, waited: Date().timeIntervalSince(start)) {
+                switch SetUpSheetModel.follow(model.snapshot.folder(folderID), waited: Date().timeIntervalSince(start)) {
+                case .running:
+                    break
+                case .finished:
                     model.sheet = nil
+                    return
+                case .failed:
+                    model.sheet = nil
+                    model.say(Strings.TeamSetup.firstDownloadFailed)
                     return
                 }
                 try? await Task.sleep(nanoseconds: 250_000_000)

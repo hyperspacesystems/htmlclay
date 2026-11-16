@@ -65,11 +65,19 @@ public final class SetUpSheetModel {
         }
     }
 
-    /// Whether the sheet closes while following a set-up: once a download it saw
-    /// has ended, or when none has shown after a moment (a small folder can finish
-    /// before the first report).
-    public static func closes(download: FirstDownload?, sawDownload: Bool, waited: TimeInterval) -> Bool {
-        download == nil && (sawDownload || waited >= 1.5)
+    /// Where following a set-up stands.
+    public enum Follow: Equatable, Sendable {
+        case running, finished, failed
+    }
+
+    /// Where a set-up stands while the sheet follows it. The host reads the
+    /// folder as syncing until its first download answers; a download that
+    /// cannot go on gives the folder back, so it is no longer on this Mac. A
+    /// folder not on this Mac yet gets a moment, since the host's next snapshot
+    /// may still be on its way.
+    public static func follow(_ folder: Folder?, waited: TimeInterval) -> Follow {
+        guard let folder, folder.onThisMac else { return waited >= 2 ? .failed : .running }
+        return folder.syncState == FolderSyncState.syncing ? .running : .finished
     }
 
     /// The host takes an absolute path; the sheet shows "~/…".

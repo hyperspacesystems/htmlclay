@@ -96,12 +96,19 @@ final class SetUpSheetsTests: XCTestCase {
         XCTAssertTrue(form.following)
     }
 
-    func testTheSheetClosesWhenTheDownloadEndsOrNeverShows() {
+    func testTheSheetFollowsTheFirstDownloadUntilItAnswers() {
         let running = FirstDownload(done: 3, total: 31)
-        XCTAssertFalse(SetUpSheetModel.closes(download: running, sawDownload: true, waited: 60), "a running download keeps the sheet")
-        XCTAssertFalse(SetUpSheetModel.closes(download: nil, sawDownload: false, waited: 0.5), "a download may not have shown yet")
-        XCTAssertTrue(SetUpSheetModel.closes(download: nil, sawDownload: true, waited: 0.5), "a download that ended closes it")
-        XCTAssertTrue(SetUpSheetModel.closes(download: nil, sawDownload: false, waited: 2), "a small folder that finished at once closes it")
+        var folder = Folder(id: "f1", name: "Studio", path: "~/Studio", origin: .team(name: "Studio"), syncState: FolderSyncState.syncing)
+        XCTAssertEqual(SetUpSheetModel.follow(folder, waited: 60), .running, "a download with no report yet keeps the sheet")
+        folder.download = running
+        XCTAssertEqual(SetUpSheetModel.follow(folder, waited: 60), .running, "a running download keeps the sheet")
+        folder.download = nil
+        folder.syncState = FolderSyncState.upToDate
+        XCTAssertEqual(SetUpSheetModel.follow(folder, waited: 0.5), .finished, "a download that ended closes it")
+        folder.onThisMac = false
+        XCTAssertEqual(SetUpSheetModel.follow(folder, waited: 0.5), .running, "the host's next snapshot may still be coming")
+        XCTAssertEqual(SetUpSheetModel.follow(folder, waited: 3), .failed, "a folder given back says the download failed")
+        XCTAssertEqual(SetUpSheetModel.follow(nil, waited: 3), .failed)
         XCTAssertEqual(running.fraction, 3.0 / 31.0, accuracy: 0.0001)
         XCTAssertTrue(Strings.TeamSetup.downloading(FirstDownload(done: 3, total: 31, bytesDone: 1_500_000, bytesTotal: 12_000_000)).contains("3 of 31"))
     }

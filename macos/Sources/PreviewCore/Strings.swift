@@ -524,6 +524,8 @@ public enum Strings {
         public static let settingUp = "Setting up…"
     }
     public enum TeamSetup {
+        // TODO-COPY: a note after a set-up whose first download could not finish; the folder and its files stay, and Set up works again, max 100 chars
+        public static let firstDownloadFailed = "The first download didn't finish, so nothing is syncing yet. Try Set up again."
         public static func title(_ name: String) -> String { "Set up \(name)" }
         public static let opensAt = "Opens at "
         public static let trustCheck = "Trust the documents in this folder. They can change each other."
