@@ -110,6 +110,8 @@ public enum Strings {
         public static let connect = "Connect hyperclay.com…"
         public static let replaceKey = "Replace key…"
         public static let disconnect = "Disconnect…"
+        // TODO-COPY: beside a team folder the server will not sync on this Mac (a viewer, a lapsed plan), instead of Set up, max 16 chars
+        public static let viewOnly = "Can't sync here"
         // TODO-COPY: the Disconnect confirmation on the Sync pane: title max 50 chars, message max 160, button max 20
         public static let disconnectTitle = "Disconnect from hyperclay.com?"
         public static let disconnectMessage = "Your folders stop syncing and your sync key is removed from this Mac. Your files stay here. Connect again with the same key to turn the same folders back on."

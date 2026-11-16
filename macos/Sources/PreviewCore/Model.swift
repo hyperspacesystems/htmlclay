@@ -202,6 +202,9 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     }
 
     public var fromAccount: Bool { origin.canSync }
+    /// An account or team folder that is not on this Mac and that the server will
+    /// not sync here (a viewer's team, a lapsed plan): it offers no set-up.
+    public var cannotSetUp: Bool { !onThisMac && syncState == FolderSyncState.paused }
     public var trusted: Bool { onThisMac }
 }
 

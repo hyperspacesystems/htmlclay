@@ -195,7 +195,11 @@ struct SyncPane: View {
 
     @ViewBuilder private func folderTrailing(_ folder: Folder) -> some View {
         let count = SyncPane.conflicts(folder, snapshot: model.snapshot)
-        if !folder.onThisMac {
+        if folder.cannotSetUp {
+            Text(Strings.Sync.viewOnly)
+                .font(.system(size: 13))
+                .foregroundStyle(kiln.muted)
+        } else if !folder.onThisMac {
             Button(Strings.Sync.setUp) {
                 model.sheet = .teamSetup(folderID: folder.id)
             }

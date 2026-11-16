@@ -39,10 +39,16 @@ struct FolderRow: View {
             KilnRow(title: folder.name, subtitle: folder.status) {
                 Squircle(.slate, symbol: Symbols.folder)
             } trailing: {
-                Button(Strings.Folders.setUp) {
-                    model.sheet = .teamSetup(folderID: folder.id)
+                if folder.cannotSetUp {
+                    Text(Strings.Sync.viewOnly)
+                        .font(.system(size: 13))
+                        .foregroundStyle(kiln.muted)
+                } else {
+                    Button(Strings.Folders.setUp) {
+                        model.sheet = .teamSetup(folderID: folder.id)
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
                 }
-                .buttonStyle(KilnButtonStyle(.plain))
             }
         }
     }
