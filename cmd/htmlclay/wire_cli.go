@@ -354,11 +354,11 @@ func wireReadConfig(configPath string) wireConfig {
 // The dev build appends -dev to that folder and is deliberately not read: a dev
 // build is reached with --port instead.
 func wireLocalRootsPath() string {
-	base, err := os.UserConfigDir()
-	if err != nil {
+	dir := localUserData()
+	if dir == "" {
 		return ""
 	}
-	return filepath.Join(base, "Hyperclay Local", "served-roots.json")
+	return filepath.Join(dir, "served-roots.json")
 }
 
 type wireLocalRoot struct {
@@ -382,7 +382,7 @@ func wireLocalRoots(path string) []wireLocalRoot {
 		PID   int             `json:"pid"`
 		Roots []wireLocalRoot `json:"roots"`
 	}
-	if json.Unmarshal(data, &doc) != nil || doc.V != 1 || !wirePIDAlive(doc.PID) {
+	if json.Unmarshal(data, &doc) != nil || doc.V != 1 || !localProcessAlive(doc.PID) {
 		return nil
 	}
 	return doc.Roots

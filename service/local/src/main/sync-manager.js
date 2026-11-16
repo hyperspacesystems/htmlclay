@@ -69,11 +69,13 @@ function isoOrNull(value) {
 }
 
 class SyncManager extends EventEmitter {
-  constructor({ userData, deviceId, serverUrl, getApiKey, settingsStore, observerFor = null, takeSnapshot = () => null, localAuthority = null, logsDir = null, sealKey = null }) {
+  constructor({ userData, deviceId, serverUrl, getApiKey, settingsStore, observerFor = null, takeSnapshot = () => null, localAuthority = null, logsDir = null, sealKey = null, holdRoot = () => false }) {
     super();
     // v1 settings never stored a server, so the manager falls back to the same default the
     // engine does; without it discovery asks `null/_/sync/accounts` and every session 428s.
-    Object.assign(this, { userData, deviceId, serverUrl: getServerBaseUrl(serverUrl), getApiKey, settingsStore, takeSnapshot, localAuthority, logsDir, sealKey });
+    // holdRoot(rootId, path) names folders that never sync here: Hyperclay Local's
+    // last release passes the folders that moved to HTML Clay, by id and by path.
+    Object.assign(this, { userData, deviceId, serverUrl: getServerBaseUrl(serverUrl), getApiKey, settingsStore, takeSnapshot, localAuthority, logsDir, sealKey, holdRoot });
     this.ownObservers = new Map();
     this.observerFor = observerFor || ((rootId) => this._ownObserver(rootId));
     this.sessions = new Map();
@@ -349,6 +351,7 @@ class SyncManager extends EventEmitter {
         continue;
       }
       if (this.sessions.has(session.id)) continue;
+      if (this.holdRoot(root.id, root.path)) continue;
 
       // A personal session discovery never identified is found by kind: C3.8's
       // import is what proves its identity, and it has no account id until then.
@@ -919,6 +922,11 @@ class SyncManager extends EventEmitter {
    * writes; `mode: 'existing'` starts the session as a returning one, with no first bind.
    */
   async bind({ session, root, account, mode = 'new', actorId = this.discovery?.actor?.id }) {
+    if (this.holdRoot(root.id, root.path)) {
+      const error = new Error('This folder moved to HTML Clay, which syncs it now.');
+      error.code = 'folder-moved';
+      throw error;
+    }
     const settings = this.settingsStore.get();
     settings.roots = [...(settings.roots || []), root];
     settings.syncSessions = [...(settings.syncSessions || []), session];

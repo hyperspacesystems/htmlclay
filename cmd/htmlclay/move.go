@@ -3,7 +3,9 @@ package main
 import (
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -23,7 +25,35 @@ const (
 	moveSkipInUse          = "folder-in-use"
 	moveSkipUnfinishedBind = "local-first-download-unfinished"
 	moveSkipAlreadySynced  = "account-already-synced"
+	moveSkipTrustedHere    = "folder-trusted-here"
+	moveSkipAccountGone    = "account-gone"
 )
+
+// localProcessAlive reports whether pid is a running Hyperclay Local. The numbers
+// Local writes down outlive a crash or a power loss, and the system may give one
+// to another program after a restart, so a live number alone is not Local.
+// Windows has no ps: there the number alone answers, as before.
+var localProcessAlive = func(pid int) bool {
+	if !wirePIDAlive(pid) {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return true
+	}
+	out, err := exec.Command("ps", "-o", "comm=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return false
+	}
+	return isLocalCommand(string(out))
+}
+
+// isLocalCommand reports whether a process command names Hyperclay Local: its
+// Mac and Windows executable (HyperclayLocal), its helpers, or the Linux
+// package's (hyperclay-local-electron, cut to 15 characters by ps).
+func isLocalCommand(command string) bool {
+	command = strings.ToLower(strings.TrimSpace(command))
+	return strings.Contains(command, "hyperclaylocal") || strings.Contains(command, "hyperclay-local") || strings.Contains(command, "hyperclay local")
+}
 
 // moveQuitWait is how long quitLocal waits for Hyperclay Local to go.
 var moveQuitWait = 10 * time.Second
@@ -67,7 +97,7 @@ func (a *app) moveFacts() *appcore.Move {
 	if running {
 		move.State = appcore.MoveRunning
 	}
-	_, move.LocalRunning = localimport.RunningPID(userData, wirePIDAlive)
+	_, move.LocalRunning = localimport.RunningPID(userData, localProcessAlive)
 	for _, root := range settings.Roots {
 		entry := receipt.Root(root.ID)
 		if entry != nil && entry.State == localimport.StateDone {
@@ -119,7 +149,7 @@ func (a *app) moveConnected() bool {
 // never forces: a Local that will not quit stays, and the person quits it.
 func (a *app) quitLocal() *appcore.Refusal {
 	userData := localUserData()
-	pid, running := localimport.RunningPID(userData, wirePIDAlive)
+	pid, running := localimport.RunningPID(userData, localProcessAlive)
 	if !running {
 		a.changed()
 		return nil
@@ -144,7 +174,7 @@ func (a *app) quitLocal() *appcore.Refusal {
 		return &appcore.Refusal{Code: appcore.RefuseLocalRunning}
 	}
 	for deadline := time.Now().Add(moveQuitWait); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
-		if _, running := localimport.RunningPID(userData, wirePIDAlive); !running {
+		if _, running := localimport.RunningPID(userData, localProcessAlive); !running {
 			a.changed()
 			return nil
 		}
@@ -162,7 +192,7 @@ func (a *app) startMove(e appcore.Effect) *appcore.Refusal {
 	if err != nil {
 		return &appcore.Refusal{Code: appcore.RefuseNothingToMove}
 	}
-	if pid, running := localimport.RunningPID(userData, wirePIDAlive); running {
+	if pid, running := localimport.RunningPID(userData, localProcessAlive); running {
 		a.rt.logger.Printf("The move waits: Hyperclay Local is running (pid %d)", pid)
 		return &appcore.Refusal{Code: appcore.RefuseLocalRunning}
 	}
@@ -181,14 +211,27 @@ func (a *app) startMove(e appcore.Effect) *appcore.Refusal {
 	a.changed()
 
 	var moved []string
+	tried := 0
 	for _, root := range settings.Roots {
 		if len(e.IDs) > 0 && !slices.Contains(e.IDs, root.ID) {
 			continue
 		}
-		if entry := receipt.Root(root.ID); entry != nil && entry.State == localimport.StateDone {
-			continue
+		var prev *localimport.ReceiptRoot
+		if found := receipt.Root(root.ID); found != nil {
+			if found.State == localimport.StateDone {
+				continue
+			}
+			copied := *found
+			prev = &copied
 		}
+		tried++
 		entry := a.moveRoot(userData, settings, root, receipt)
+		if prev != nil && prev.State == localimport.StateStarted && entry.State == localimport.StateSkipped && prev.FolderID != "" {
+			// A move that began stays begun: an early stop on a later try keeps what it recorded.
+			kept := *prev
+			kept.Skip = entry.Skip
+			entry = kept
+		}
 		receipt.Put(entry)
 		if err := receipt.Save(a.moveReceiptFile()); err != nil {
 			a.rt.logger.Printf("Could not save the move receipt: %v", err)
@@ -205,6 +248,9 @@ func (a *app) startMove(e appcore.Effect) *appcore.Refusal {
 	a.rt.moveMu.Unlock()
 	a.sendSyncWanted()
 	a.changed()
+	if tried > 0 && len(moved) == 0 {
+		return &appcore.Refusal{Code: appcore.RefuseNothingMoved}
+	}
 	return nil
 }
 
@@ -216,6 +262,7 @@ func (a *app) moveRoot(userData string, settings *localimport.Settings, root loc
 		entry.State, entry.Skip = localimport.StateSkipped, code
 		return entry
 	}
+	session := settings.SessionFor(root.ID)
 	resolved, name, err := a.servedPath(root.Path, "")
 	if err != nil {
 		return skip(moveSkipMissing, err)
@@ -223,10 +270,17 @@ func (a *app) moveRoot(userData string, settings *localimport.Settings, root loc
 	if info, err := os.Stat(resolved); err != nil || !info.IsDir() {
 		return skip(moveSkipMissing, err)
 	}
-	// Whatever else would refuse serving this folder refuses the move too. Local's
-	// own marker is expected here: the move is what replaces it.
-	if _, refusal := a.serveFacts(resolved, name); refusal != nil && refusal.Code != appcore.RefuseBoundToLocalSync {
+	// Whatever would refuse serving this folder refuses the move, before anything is
+	// written. Local's own marker counts as this folder's: the move is what replaces it.
+	if refusal := a.moveServeRefusal(resolved, name, root.ID); refusal != nil {
 		return skip(refusal.Code, nil)
+	}
+	// A folder this app already trusts under another id would be refused at the
+	// trust step, after Local's marker was handed over. It stays, with a reason.
+	if id, trusted := a.trustedFolderID(resolved); trusted && session != nil {
+		if row, ok := a.moveRow(*session); !ok || row.FolderID != id {
+			return skip(moveSkipTrustedHere, nil)
+		}
 	}
 	lock, err := folderlock.Acquire(a.rt.folderLockDir, resolved)
 	if err != nil {
@@ -242,14 +296,16 @@ func (a *app) moveRoot(userData string, settings *localimport.Settings, root loc
 
 	identity := platform.DirIdentity(resolved)
 	markerID, marked := localimport.MarkerRootID(resolved)
-	session := settings.SessionFor(root.ID)
 	if session == nil {
 		return a.moveServedOnly(root, resolved, name, identity, markerID, marked, entry, skip, release)
 	}
 
-	row, connected, committed, taken := a.moveAccount(*session)
+	row, connected, listed, committed, taken := a.moveAccount(*session)
 	if !connected {
 		return skip(appcore.RefuseNotConnected, nil)
+	}
+	if !listed {
+		return skip(moveSkipAccountGone, nil)
 	}
 	if taken {
 		return skip(moveSkipAlreadySynced, nil)
@@ -277,8 +333,10 @@ func (a *app) moveRoot(userData string, settings *localimport.Settings, root loc
 				return skip(appcore.RefuseFailed, err)
 			}
 		}
-		if err := a.rt.cfg.TrustFolderWithID(resolved, identity, row.FolderID); err != nil {
-			return skip(appcore.RefuseFailed, err)
+		if id, trusted := a.trustedFolderID(resolved); !trusted || id != row.FolderID {
+			if err := a.rt.cfg.TrustFolderWithID(resolved, identity, row.FolderID); err != nil {
+				return skip(appcore.RefuseFailed, err)
+			}
 		}
 		a.saveConfig("trust moved folder " + name)
 		// The row is held back from the service, like a first download, until the
@@ -291,7 +349,7 @@ func (a *app) moveRoot(userData string, settings *localimport.Settings, root loc
 			return skip(appcore.RefuseFailed, err)
 		}
 		// The hand-over. Before this write the folder is Local's. After it Local refuses it.
-		if _, running := localimport.RunningPID(userData, wirePIDAlive); running {
+		if _, running := localimport.RunningPID(userData, localProcessAlive); running {
 			a.moveDropSession(session.ID)
 			return skip(appcore.RefuseLocalRunning, nil)
 		}
@@ -336,15 +394,21 @@ func (a *app) moveServedOnly(root localimport.Root, resolved, name, identity, ma
 	}
 	if root.WasTeam() {
 		// A folder that once held a team's pages keeps that mark here, before any page is served.
-		id, err := a.rt.cfg.NewFolderID()
-		if err != nil {
-			return skip(appcore.RefuseFailed, err)
+		id, trusted := a.trustedFolderID(resolved)
+		if !trusted {
+			fresh, err := a.rt.cfg.NewFolderID()
+			if err != nil {
+				return skip(appcore.RefuseFailed, err)
+			}
+			id = fresh
 		}
 		if err := a.rt.cfg.MarkTeamFolder(config.TeamFolder{FolderID: id, Path: resolved, Identity: identity, Kind: config.TeamFolderKindTeam, Key: "moved:" + root.ID}); err != nil {
 			return skip(appcore.RefuseFailed, err)
 		}
-		if err := a.rt.cfg.TrustFolderWithID(resolved, identity, id); err != nil {
-			return skip(appcore.RefuseFailed, err)
+		if !trusted {
+			if err := a.rt.cfg.TrustFolderWithID(resolved, identity, id); err != nil {
+				return skip(appcore.RefuseFailed, err)
+			}
 		}
 		a.saveConfig("trust moved folder " + name)
 	} else if err := a.trustFolder(resolved); err != nil {
@@ -365,26 +429,70 @@ func (a *app) moveServedOnly(root localimport.Root, resolved, name, identity, ma
 // moveAccount answers the account row a Local session belongs to, whether this
 // app is connected and lists that account, whether this session is already in
 // sync.json, and whether another session already syncs that account's folder.
-func (a *app) moveAccount(session localimport.Session) (row config.SyncAccountRow, connected, committed, taken bool) {
+func (a *app) moveAccount(session localimport.Session) (row config.SyncAccountRow, connected, listed, committed, taken bool) {
 	a.rt.syncMu.Lock()
 	defer a.rt.syncMu.Unlock()
 	record, err := a.syncRecordLocked()
 	if err != nil || record.Account == nil || record.KeyRefused != nil {
-		return row, false, false, false
+		return row, false, false, false, false
 	}
-	for _, candidate := range record.Accounts {
-		if candidate.AccountID == session.AccountID {
-			row, connected = candidate, true
-		}
-	}
+	connected = true
+	row, listed = moveRowIn(record, session)
 	for _, existing := range record.SyncSessions {
 		if existing.ID == session.ID {
 			committed = true
-		} else if connected && existing.RootID == row.FolderID {
+		} else if listed && existing.RootID == row.FolderID {
 			taken = true
 		}
 	}
-	return row, connected, committed, taken
+	return row, connected, listed, committed, taken
+}
+
+// moveRowIn answers the account row a Local session syncs. A personal session
+// from before Local's version 2 has no account id: it is the connected person's
+// own account, as Local's own lookup answers it.
+func moveRowIn(record *config.Sync, session localimport.Session) (config.SyncAccountRow, bool) {
+	for _, candidate := range record.Accounts {
+		if session.AccountID != 0 && candidate.AccountID == session.AccountID {
+			return candidate, true
+		}
+		if session.AccountID == 0 && session.Kind == "personal" && candidate.Kind == "personal" {
+			return candidate, true
+		}
+	}
+	return config.SyncAccountRow{}, false
+}
+
+// moveRow answers the account row a session would move into, if this app lists it.
+func (a *app) moveRow(session localimport.Session) (config.SyncAccountRow, bool) {
+	a.rt.syncMu.Lock()
+	defer a.rt.syncMu.Unlock()
+	record, err := a.syncRecordLocked()
+	if err != nil || record.Account == nil {
+		return config.SyncAccountRow{}, false
+	}
+	return moveRowIn(record, session)
+}
+
+// moveServeRefusal answers what would refuse serving the folder, with Local's
+// own marker (its root id) counted as this folder's.
+func (a *app) moveServeRefusal(resolved, name, localRootID string) *appcore.Refusal {
+	facts, _ := a.serveFacts(resolved, name)
+	facts.OwnSyncRoots = append(facts.OwnSyncRoots, localRootID)
+	// The move runs only while Local is closed, and Local served these folders, so
+	// the list it wrote (stale after a crash) says nothing about them now.
+	facts.LocalServed = nil
+	return appcore.CheckServe(facts)
+}
+
+// trustedFolderID answers the id this app trusts the folder under, if it does.
+func (a *app) trustedFolderID(resolved string) (string, bool) {
+	for _, f := range a.rt.cfg.TrustedFolderList() {
+		if f.Path == resolved {
+			return f.ID, true
+		}
+	}
+	return "", false
 }
 
 // moveAddSession records a moved session and holds it back from the service. A

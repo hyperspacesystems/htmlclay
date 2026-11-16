@@ -579,11 +579,11 @@ public enum Strings {
         public static func unsaved(_ document: String) -> String { "\(document) has unsaved changes in Hyperclay Local." }
         public static let showIt = "Show it"
         public static let comesAlong = "Comes along"
-        public static func comesAlongText(conflicts: Int) -> String { "Versions, folder history, and \(conflicts) open conflicts, still waiting for you. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address." }
+        public static func comesAlongText(conflicts: Int) -> String { "Versions and \(conflicts) open conflicts come along, still waiting for you. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address." }
         public static let notNow = "Not now"
         public static let moveFolders = "Move folders"
         // copy: move sheet, what comes along, when the number of conflicts is not known, max 200 chars
-        public static let comesAlongLive = "Versions, folder history and open conflicts come along. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address."
+        public static let comesAlongLive = "Versions and open conflicts come along. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address."
         // copy: move sheet, under a folder that stayed with Hyperclay Local after a move, max 90 chars each
         public static func stayed(_ code: String) -> String {
             switch code {
@@ -594,6 +594,11 @@ public enum Strings {
             case "folder-in-use": return "Stayed: another app is using this folder. Close that app, then move again."
             case "account-already-synced": return "Stayed: this account already syncs to another folder here. Disconnect that one first."
             case "local-running": return "Stayed: Hyperclay Local opened during the move. Quit it, then move again."
+            // TODO-COPY: the four reasons below, from the milestone 5 review
+            case "folder-trusted-here": return "Stayed: HTML Clay already has this folder. Remove it from Folders, then move again."
+            case "nested-trusted": return "Stayed: HTML Clay already has a folder inside or around this one. Remove that one, then move again."
+            case "overlaps-served": return "Stayed: HTML Clay already serves a folder inside or around this one. Stop serving it, then move again."
+            case "account-gone": return "Stayed: your sync key no longer reaches this team. It stays in Hyperclay Local."
             default: return "Stayed with Hyperclay Local. Try moving again, or check the app log in Settings."
             }
         }

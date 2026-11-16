@@ -251,6 +251,12 @@ func TestWireReadConfigLeavesACorruptConfigAlone(t *testing.T) {
 
 func writeServedRoots(t *testing.T, path string, pid int, roots []wireLocalRoot) {
 	t.Helper()
+	if pid == os.Getpid() {
+		// The test process stands in for Hyperclay Local.
+		alive := localProcessAlive
+		localProcessAlive = func(p int) bool { return p == os.Getpid() || alive(p) }
+		t.Cleanup(func() { localProcessAlive = alive })
+	}
 	data, err := json.Marshal(map[string]any{
 		"v":         1,
 		"pid":       pid,
@@ -369,8 +375,14 @@ func TestWireLocalRootsIgnoresADeadWriter(t *testing.T) {
 // Hyperclay Local calls app.setName('Hyperclay Local') before it reads userData,
 // so Electron writes served-roots.json under a folder with a space in it.
 func TestWireLocalRootsPathUsesElectronUserData(t *testing.T) {
+	t.Setenv("HTMLCLAY_LOCAL_USERDATA", "")
 	if got := filepath.Base(filepath.Dir(wireLocalRootsPath())); got != "Hyperclay Local" {
 		t.Fatalf("served-roots.json is looked for under %q, want the Electron userData folder %q", got, "Hyperclay Local")
+	}
+	other := t.TempDir()
+	t.Setenv("HTMLCLAY_LOCAL_USERDATA", other)
+	if got := wireLocalRootsPath(); got != filepath.Join(other, "served-roots.json") {
+		t.Fatalf("with HTMLCLAY_LOCAL_USERDATA set, served-roots.json is %q", got)
 	}
 }
 

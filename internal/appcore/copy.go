@@ -130,6 +130,7 @@ var RefusalText = map[string]string{
 	RefuseAnswerNotOffered:   "That answer isn't one this request offers. Choose one of the options shown.",                 // copy: refusal, max 140 chars
 	RefuseNotAllowedNow:      "That isn't possible for this folder right now. Check the folder in HTML Clay and try again.", // copy: refusal, max 140 chars
 	RefuseUnknownPreference:  "HTML Clay doesn't have that setting. Check the setting name or update HTML Clay.",            // copy: refusal, max 140 chars
+	RefuseNothingMoved:       "TODO-COPY None of your folders moved. Each folder says why it stayed.",                       // copy: refusal, max 140 chars
 	RefuseNothingToMove:      "There is nothing to move from Hyperclay Local. Pick a folder to serve instead.",              // copy: refusal, max 140 chars
 	RefuseNotConnected:       "Your Hyperclay account isn't connected. Connect it in HTML Clay first.",                      // copy: refusal, max 140 chars
 	RefuseLocalRunning:       "Hyperclay Local is still open. Quit it, then move your folders.",

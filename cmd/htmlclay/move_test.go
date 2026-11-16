@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/appcore"
@@ -43,6 +44,10 @@ func moveJSON(t *testing.T, file string) map[string]any {
 // TestM5MoveFromLocal moves three folders from a disposable Hyperclay Local data
 // folder: one synced to a team, one only served, one that once held a team's pages.
 func TestM5MoveFromLocal(t *testing.T) {
+	// This test process stands in for Hyperclay Local, so a live number is enough here.
+	alive := localProcessAlive
+	localProcessAlive = wirePIDAlive
+	t.Cleanup(func() { localProcessAlive = alive })
 	scratch := t.TempDir()
 	configureLog := filepath.Join(scratch, "configure")
 	t.Setenv("HTMLCLAY_STUB_CONFIGURE_LOG", configureLog)
@@ -302,5 +307,31 @@ func TestM5MoveAgainAfterAnInterruptedMove(t *testing.T) {
 		return r.Root(moveLocalTeamRoot)
 	}(); entry == nil || entry.State != localimport.StateDone {
 		t.Fatalf("receipt entry = %+v, want done", entry)
+	}
+}
+
+// A number Local wrote down before a crash, now held by another program, is not Local.
+func TestM5StaleLocalNumberIsNotLocal(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no ps; the number alone answers there")
+	}
+	if localProcessAlive(os.Getpid()) {
+		t.Fatal("the test binary counted as Hyperclay Local")
+	}
+	userData := t.TempDir()
+	writeTestFile(t, filepath.Join(userData, "served-roots.json"), fmt.Sprintf(`{"v":1,"pid":%d,"roots":[]}`, os.Getpid()))
+	if pid, running := localimport.RunningPID(userData, localProcessAlive); running {
+		t.Fatalf("a stale number (%d) blocked the move", pid)
+	}
+	for command, want := range map[string]bool{
+		"/Applications/HyperclayLocal.app/Contents/MacOS/HyperclayLocal": true,
+		"HyperclayLocal Helper (Renderer)":                               true,
+		"hyperclay-local":                                                true,
+		"/usr/bin/python3":                                               false,
+		"htmlclay":                                                       false,
+	} {
+		if got := isLocalCommand(command); got != want {
+			t.Errorf("isLocalCommand(%q) = %v, want %v", command, got, want)
+		}
 	}
 }
