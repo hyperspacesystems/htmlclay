@@ -148,4 +148,30 @@ func TestM4ConflictResolve(t *testing.T) {
 			t.Fatal("a paused choice reached the service")
 		}
 	})
+
+	t.Run("a folder switched off, or a disconnect, keeps the conflict and sends nothing", func(t *testing.T) {
+		answerWith(`{"ok":true}`)
+		if _, r := a.do(context.Background(), coreAction(t, "p2", "sync.setPaused", map[string]bool{"paused": false}), ChannelTray); r != nil {
+			t.Fatalf("resume refused: %+v", r)
+		}
+		if r := setSyncedThroughDo(t, a, "off1", row.FolderID, false); r != nil {
+			t.Fatalf("switch off refused: %+v", r)
+		}
+		before := len(sent())
+		if r := resolve("r8", both, "board.html", "mine"); code(r) != appcore.RefuseSyncPaused {
+			t.Fatalf("folder off = %+v, want %s", r, appcore.RefuseSyncPaused)
+		}
+		if len(sent()) != before {
+			t.Fatal("a choice for a folder switched off reached the service")
+		}
+		if len(a.dashboardConflicts()) == 0 {
+			t.Fatal("a folder switched off dropped its held conflicts from the dashboard")
+		}
+		if _, r := a.do(context.Background(), coreAction(t, "d1", "sync.disconnect", map[string]any{}), ChannelTray); r != nil {
+			t.Fatalf("disconnect refused: %+v", r)
+		}
+		if got := a.dashboardConflicts(); len(got) != 0 {
+			t.Fatalf("dashboard conflicts while disconnected = %+v, want none", got)
+		}
+	})
 }

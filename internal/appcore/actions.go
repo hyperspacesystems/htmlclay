@@ -311,7 +311,9 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if !slices.Contains(ConflictChoices(held.Detail), args.Keep) {
 			return bad("keep")
 		}
-		if f.Sync.Paused {
+		// A folder switched off, or a disconnected account, has no running
+		// session to take the choice, so the conflict waits until sync is back.
+		if f.Sync.Paused || !f.Sync.Connected || !folderSyncing(f, held.SubjectID) {
 			return nil, &Refusal{Code: RefuseSyncPaused, SubjectID: held.SubjectID}
 		}
 		return one(Effect{Type: a.Type, FolderID: held.SubjectID, Path: held.Name, Conflict: held.ID, Keep: args.Keep})
@@ -597,6 +599,16 @@ func valueIs(raw json.RawMessage, kind string) bool {
 	case "appearance":
 		var v string
 		return json.Unmarshal(raw, &v) == nil && (v == AppearanceSystem || v == AppearanceLight || v == AppearanceDark)
+	}
+	return false
+}
+
+// folderSyncing is whether the folder's sync is switched on.
+func folderSyncing(f Facts, folderID string) bool {
+	for _, ff := range f.Folders {
+		if ff.ID == folderID {
+			return ff.Sync.State != "" && ff.Sync.State != FolderSyncOff
+		}
 	}
 	return false
 }

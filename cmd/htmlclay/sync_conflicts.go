@@ -231,6 +231,9 @@ func (a *app) dashboardConflicts() []dashboardConflict {
 		folders[f.ID] = f
 	}
 	list := []dashboardConflict{}
+	if !a.snapshot().Sync.Connected {
+		return list
+	}
 	for _, e := range a.heldEntries() {
 		folder := folders[e.session.RootID]
 		item := dashboardConflict{
