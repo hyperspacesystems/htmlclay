@@ -76,6 +76,7 @@ final class ConnectSheetTests: XCTestCase {
         host.answer = .refused(HostRefusal(code: "sync-wrong-account", text: "other account"))
         _ = await form.connect()
         XCTAssertEqual(form.key, key, "only the username was wrong")
+        XCTAssertEqual(form.refusal, "other account", "the message says why")
         host.answer = .refused(HostRefusal(code: "sync-key-refused", text: "refused"))
         _ = await form.connect()
         XCTAssertEqual(form.key, "", "a refused key is not kept")

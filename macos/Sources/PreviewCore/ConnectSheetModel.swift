@@ -36,9 +36,10 @@ public final class ConnectSheetModel {
             refusal = nil
             return true
         case let .refused(answer):
-            refusal = answer.text.isEmpty ? answer.code : answer.text
-            // Only the username was wrong, so the key the person pasted stays.
+            // Only the username was wrong, so the key the person pasted stays. It
+            // goes back first: setting the key clears the refusal.
             if answer.code == Self.wrongAccount { key = sent }
+            refusal = answer.text.isEmpty ? answer.code : answer.text
             return false
         }
     }
