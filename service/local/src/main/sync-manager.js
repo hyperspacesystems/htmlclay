@@ -550,6 +550,8 @@ class SyncManager extends EventEmitter {
    */
   _statusFor(entry) {
     if (entry.conflicts && entry.conflicts.length > 0) return 'conflict';
+    // A first download holds the session before its runner starts: it is syncing, not idle.
+    if (entry.bindAbort) return 'syncing';
     const state = entry.runner ? entry.runner.state : 'stopped';
     if (state === 'live') {
       const queued = entry.engine.syncQueue ? entry.engine.syncQueue.length() : 0;
