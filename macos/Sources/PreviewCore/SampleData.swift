@@ -84,8 +84,8 @@ public enum SampleData {
         folders: [
             notes,
             prototypes,
-            Folder(id: "panphora", name: "panphora", path: "~/hyperclay/panphora", origin: .account(username: "panphora"), served: true, synced: true, address: "panphora.htmlclay.localhost:1212", documentCount: 214, status: "up to date", versionsSize: "48 MB", lastSync: "Up to date · 2 minutes ago", historySummary: "12 uploaded, 3 downloaded today"),
-            Folder(id: "design-team", name: "Design Team", path: "~/hyperclay/Design Team", origin: .team(name: "Design Team"), served: true, synced: true, address: "design-team.htmlclay.localhost:1212", documentCount: 18, status: "you are an editor", versionsSize: "21 MB", lastSync: "2 documents changed in both places", historySummary: "4 uploaded, 9 downloaded today"),
+            Folder(id: "panphora", name: "panphora", path: "~/hyperclay/panphora", origin: .account(username: "panphora"), served: true, synced: true, address: "panphora.htmlclay.localhost:1212", documentCount: 214, status: "up to date", versionsSize: "48 MB", lastSync: "Up to date · 2 minutes ago", historySummary: "12 uploaded, 3 downloaded today", syncState: "syncing"),
+            Folder(id: "design-team", name: "Design Team", path: "~/hyperclay/Design Team", origin: .team(name: "Design Team"), served: true, synced: true, address: "design-team.htmlclay.localhost:1212", documentCount: 18, status: "you are an editor", versionsSize: "21 MB", lastSync: "2 documents changed in both places", historySummary: "4 uploaded, 9 downloaded today", syncState: "conflicts"),
             Folder(id: "marketing", name: "Marketing", path: "", origin: .team(name: "Marketing"), status: "Not on this Mac", onThisMac: false),
         ],
         programs: [todoSearch, Program(id: "search-sh", name: "search.sh", path: "~/bin/search.sh", allowedDocuments: ["notes.htmlclay"])],

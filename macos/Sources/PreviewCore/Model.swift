@@ -150,6 +150,15 @@ public struct FirstDownload: Codable, Equatable, Sendable {
     public var fraction: Double { total > 0 ? Double(done) / Double(total) : 0 }
 }
 
+/// A synced folder's state as the host sends it (appcore FolderSync).
+public enum FolderSyncState {
+    public static let off = "off"
+    public static let upToDate = "up-to-date"
+    public static let syncing = "syncing"
+    public static let conflicts = "conflicts"
+    public static let paused = "paused"
+}
+
 public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var id: String
     public var name: String
@@ -176,8 +185,11 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
     public var storageBytes: Int
     /// A first download's progress while it runs (08-sync.md decision 20).
     public var download: FirstDownload? = nil
+    /// The host's sync state for this folder: off, up-to-date, syncing,
+    /// conflicts or paused (appcore FolderSync).
+    public var syncState: String
 
-    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, allowsFraming: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false, fullPath: String = "", url: String = "", state: String = "ok", can: FolderCan? = nil, why: FolderWhy = FolderWhy(), storageBytes: Int = 0) {
+    public init(id: String, name: String, path: String, origin: FolderOrigin = .local, parentID: String? = nil, served: Bool = false, allowsFraming: Bool = false, synced: Bool = false, address: String = "", documentCount: Int = 0, status: String = "", onThisMac: Bool = true, missingOnDisk: Bool = false, versionsSize: String = "", lastSync: String = "", historySummary: String = "", becameViewer: Bool = false, fullPath: String = "", url: String = "", state: String = "ok", can: FolderCan? = nil, why: FolderWhy = FolderWhy(), storageBytes: Int = 0, syncState: String = FolderSyncState.off) {
         self.id = id; self.name = name; self.path = path; self.origin = origin; self.parentID = parentID
         self.served = served; self.allowsFraming = allowsFraming
         self.synced = synced; self.address = address; self.documentCount = documentCount
@@ -186,6 +198,7 @@ public struct Folder: Codable, Equatable, Identifiable, Sendable {
         self.becameViewer = becameViewer
         self.fullPath = fullPath; self.url = url; self.state = state; self.can = can; self.why = why
         self.storageBytes = storageBytes
+        self.syncState = syncState
     }
 
     public var fromAccount: Bool { origin.canSync }

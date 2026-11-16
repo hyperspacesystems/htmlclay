@@ -101,6 +101,7 @@ public enum HostSnapshotAdapter {
             storageBytes: wire.storageBytes
         )
         folder.download = wire.sync.download
+        folder.syncState = wire.sync.state
         return folder
     }
 

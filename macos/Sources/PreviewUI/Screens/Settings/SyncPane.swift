@@ -16,20 +16,35 @@ struct SyncPane: View {
     }
 
     static func isSyncing(_ folder: Folder, snapshot: HostSnapshot) -> Bool {
-        if case .account = folder.origin { return folder.synced && !snapshot.sync.paused && snapshot.sync.syncingFiles > 0 }
-        return false
+        folder.onThisMac && !snapshot.sync.paused && folder.syncState == FolderSyncState.syncing
     }
 
     static func dot(for folder: Folder, snapshot: HostSnapshot) -> StatusDotKind {
-        if !folder.onThisMac || !folder.synced || snapshot.sync.paused { return .muted }
-        if conflicts(folder, snapshot: snapshot) > 0 { return .amber }
-        if isSyncing(folder, snapshot: snapshot) { return .blue }
-        return .green
+        if !folder.onThisMac || snapshot.sync.paused { return .muted }
+        switch folder.syncState {
+        case FolderSyncState.conflicts: return .amber
+        case FolderSyncState.syncing: return .blue
+        case FolderSyncState.upToDate: return conflicts(folder, snapshot: snapshot) > 0 ? .amber : .green
+        default: return .muted
+        }
+    }
+
+    static func stateWord(_ folder: Folder, snapshot: HostSnapshot) -> String {
+        if snapshot.sync.paused { return Strings.Sync.statePaused }
+        switch folder.syncState {
+        case FolderSyncState.syncing:
+            if let download = folder.download, download.total > 0 { return Strings.Sync.downloading(done: download.done, total: download.total) }
+            return Strings.Sync.syncingWord
+        case FolderSyncState.conflicts: return Strings.Sync.stateConflicts
+        case FolderSyncState.paused: return Strings.Sync.statePaused
+        case FolderSyncState.upToDate: return Strings.Sync.stateUpToDate
+        default: return Strings.Sync.stateOff
+        }
     }
 
     static func folderSubtitle(_ folder: Folder, snapshot: HostSnapshot) -> String {
         if !folder.onThisMac { return folder.status }
-        return Strings.Sync.folderLine(path: folder.path, state: isSyncing(folder, snapshot: snapshot) ? Strings.Sync.syncingWord : folder.status)
+        return Strings.Sync.folderLine(path: folder.path, state: stateWord(folder, snapshot: snapshot))
     }
 
     static func syncingLine(_ sync: SyncState) -> String {

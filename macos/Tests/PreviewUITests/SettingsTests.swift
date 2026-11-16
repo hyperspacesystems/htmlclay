@@ -117,6 +117,21 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(SyncPane.conflicts(designTeam, snapshot: snapshot), 2)
         XCTAssertEqual(SyncPane.syncingLine(snapshot.sync), "Syncing 5 files… · last finished 2 minutes ago")
 
+        XCTAssertEqual(SyncPane.folderSubtitle(designTeam, snapshot: snapshot), "~/hyperclay/Design Team · needs you")
+
+        var stopped = panphora
+        stopped.syncState = "paused"
+        XCTAssertEqual(SyncPane.dot(for: stopped, snapshot: snapshot), .muted)
+        XCTAssertEqual(SyncPane.folderSubtitle(stopped, snapshot: snapshot), "~/hyperclay/panphora · paused")
+        stopped.syncState = "up-to-date"
+        XCTAssertEqual(SyncPane.dot(for: stopped, snapshot: snapshot), .green)
+        XCTAssertEqual(SyncPane.folderSubtitle(stopped, snapshot: snapshot), "~/hyperclay/panphora · up to date")
+        var team = designTeam
+        team.syncState = "syncing"
+        team.download = FirstDownload(done: 3, total: 40)
+        XCTAssertEqual(SyncPane.dot(for: team, snapshot: snapshot), .blue)
+        XCTAssertEqual(SyncPane.folderSubtitle(team, snapshot: snapshot), "~/hyperclay/Design Team · downloading 3 of 40")
+
         var paused = snapshot
         paused.sync.paused = true
         XCTAssertEqual(SyncPane.dot(for: panphora, snapshot: paused), .muted)

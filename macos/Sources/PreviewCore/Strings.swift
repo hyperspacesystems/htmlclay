@@ -131,6 +131,13 @@ public enum Strings {
             lastFinished.isEmpty ? "Up to date" : "Up to date · last finished \(lastFinished)"
         }
         public static func folderLine(path: String, state: String) -> String { "\(path) · \(state)" }
+        // TODO-COPY: a synced folder's state after its path on the Sync pane, max 30 chars each
+        public static let stateUpToDate = "up to date"
+        public static let statePaused = "paused"
+        public static let stateOff = "not syncing"
+        public static let stateConflicts = "needs you"
+        // TODO-COPY: a first download's progress after the folder's path, max 30 chars
+        public static func downloading(done: Int, total: Int) -> String { "downloading \(done) of \(total)" }
         public static func review(_ n: Int) -> String { "Review \(n) in dashboard" }
     }
     public enum FolderPage {
