@@ -54,6 +54,8 @@ const (
 	recoveryOrdinary recoveryKind = iota
 	recoveryDead
 	recoveryRevoked
+	// recoveryMoved holds a port Hyperclay Local served a folder on before the folder moved here.
+	recoveryMoved
 )
 
 func (k recoveryKind) String() string {
@@ -62,6 +64,8 @@ func (k recoveryKind) String() string {
 		return "dead"
 	case recoveryRevoked:
 		return "revoked"
+	case recoveryMoved:
+		return "moved from Hyperclay Local"
 	}
 	return "ordinary"
 }
@@ -115,6 +119,17 @@ func (a *app) ownsOrigin(host string) bool {
 }
 
 func (a *app) parkPortMode(anchor string, port int, page []byte, kind recoveryKind) bool {
+	return a.parkPortTo(anchor, port, page, kind, func(r *http.Request) (string, bool) {
+		if kind == recoveryRevoked {
+			return "", false
+		}
+		return a.recoveryTargetFor(anchor, r, kind == recoveryDead)
+	})
+}
+
+// parkPortTo binds port and answers every request with page, or with a redirect
+// to the address target names. target decides which requests may be sent on.
+func (a *app) parkPortTo(anchor string, port int, page []byte, kind recoveryKind, target func(r *http.Request) (string, bool)) bool {
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		a.rt.logger.Printf("Legacy port %d for %s is taken; dropping it", port, anchor)
@@ -125,16 +140,14 @@ func (a *app) parkPortMode(anchor string, port int, page []byte, kind recoveryKi
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
-		if kind != recoveryRevoked {
-			if target, ok := a.recoveryTargetFor(anchor, r, kind == recoveryDead); ok {
-				// Origin only, never stripped: the hop this redirect causes is cross-site
-				// to the destination hostname, and the destination admits it only when the
-				// Referer names an origin we own (server.EligibleNavigation).
-				w.Header().Set("Referrer-Policy", "strict-origin")
-				w.Header().Set("Location", target)
-				w.WriteHeader(http.StatusFound)
-				return
-			}
+		if location, ok := target(r); ok {
+			// Origin only, never stripped: the hop this redirect causes is cross-site
+			// to the destination hostname, and the destination admits it only when the
+			// Referer names an origin we own (server.EligibleNavigation).
+			w.Header().Set("Referrer-Policy", "strict-origin")
+			w.Header().Set("Location", location)
+			w.WriteHeader(http.StatusFound)
+			return
 		}
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
