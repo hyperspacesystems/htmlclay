@@ -386,12 +386,13 @@ func TestHuntSyncFaultSweep(t *testing.T) {
 			})
 		}
 	}
-	want := len(huntSyncRoutes()) * len(faults)
+	perRoute := len(faults)
 	if runtime.GOOS == "windows" {
-		want = len(huntSyncRoutes()) * (len(faults) - 1)
+		perRoute--
 	}
-	if ran != want || ran < 36 {
-		t.Fatalf("the sweep ran %d cases, want %d (at least 36)", ran, want)
+	want := len(huntSyncRoutes()) * perRoute
+	if floor := 6 * perRoute; ran != want || ran < floor {
+		t.Fatalf("the sweep ran %d cases, want %d (at least %d: six routes)", ran, want, floor)
 	}
 }
 
