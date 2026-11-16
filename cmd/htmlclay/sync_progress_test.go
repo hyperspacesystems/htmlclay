@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -55,5 +56,45 @@ func TestM4FirstDownloadProgress(t *testing.T) {
 	}
 	if got := download(nil); got != nil {
 		t.Fatalf("no progress shows %+v", got)
+	}
+}
+
+// TestM4FirstDownloadReadsSyncing: a folder reads syncing from its set up until
+// its first download answers, before the service reports it and after the last
+// file is in (08-sync.md F-8.55h).
+func TestM4FirstDownloadReadsSyncing(t *testing.T) {
+	scratch := t.TempDir()
+	hold := filepath.Join(scratch, "hold")
+	t.Setenv("HTMLCLAY_STUB_BIND_LOG", filepath.Join(scratch, "bind"))
+	t.Setenv("HTMLCLAY_STUB_BIND_HOLD", hold)
+	a, setDiscovery, _ := connectTestApp(t, true)
+	setDiscovery(`{"ok":true,"actor":{"id":12,"username":"maya","fullName":"Maya Lin"},"accounts":[` +
+		`{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}},` +
+		`{"id":40,"kind":"team","username":"studio","displayName":"Studio","role":"editor","sync":{"enabled":true,"reason":null}}]}`)
+	if refusal := connectThroughDo(t, a, "c1", "", connectKeyOne); refusal != nil {
+		t.Fatalf("connect refused: %+v", refusal)
+	}
+	team := savedSync(t, a).Accounts[1]
+	writeTestFile(t, hold, "")
+	t.Cleanup(func() { os.Remove(hold) })
+	if refusal := setUpThroughDo(t, a, "s1", team.FolderID, filepath.Join(a.rt.home, "Studio")); refusal != nil {
+		t.Fatalf("set up refused: %+v", refusal)
+	}
+	if got := folderInSnapshot(t, a, team.FolderID).Sync.State; got != appcore.FolderSyncSyncing {
+		t.Fatalf("before the service reports the folder: %s, want %s", got, appcore.FolderSyncSyncing)
+	}
+	session := savedSync(t, a).SyncSessions[0]
+	a.takeSyncReport(served.SyncReport{Seq: 1, Sessions: []served.SyncSessionReport{{
+		SessionID: session.ID, RootID: team.FolderID, Status: "idle", Running: true, Paused: json.RawMessage("null"),
+	}}})
+	if got := folderInSnapshot(t, a, team.FolderID).Sync.State; got != appcore.FolderSyncSyncing {
+		t.Fatalf("after the last file, before the download answers: %s, want %s", got, appcore.FolderSyncSyncing)
+	}
+	if err := os.Remove(hold); err != nil {
+		t.Fatal(err)
+	}
+	waitForBinds(t, a)
+	if got := folderInSnapshot(t, a, team.FolderID).Sync.State; got != appcore.FolderSyncUpToDate {
+		t.Fatalf("after the download answered: %s, want %s", got, appcore.FolderSyncUpToDate)
 	}
 }

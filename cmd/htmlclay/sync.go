@@ -376,11 +376,15 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 	onComputer := make(map[string]bool, len(record.SyncSessions))
 	enabled := make(map[string]bool, len(record.SyncSessions))
 	pausedRow := make(map[string]string, len(record.SyncSessions))
+	downloading := make(map[string]bool, len(record.SyncSessions))
 	for _, session := range record.SyncSessions {
 		onComputer[session.RootID] = true
 		enabled[session.RootID] = enabled[session.RootID] || session.Enabled
 		if session.Paused != nil {
 			pausedRow[session.RootID] = session.Paused.Reason
+		}
+		if a.rt.syncBinding[session.ID] {
+			downloading[session.RootID] = true
 		}
 	}
 	reported := make(map[string]served.SyncSessionReport)
@@ -431,7 +435,7 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 				state = appcore.FolderSyncPaused
 			case hasReport && report.Conflicts > 0:
 				state = appcore.FolderSyncConflicts
-			case hasReport && (report.Status == "syncing" || report.PendingCount > 0):
+			case downloading[row.FolderID] || hasReport && (report.Status == "syncing" || report.PendingCount > 0):
 				state = appcore.FolderSyncSyncing
 			}
 			folderSync := appcore.FolderSync{State: state, Role: role}

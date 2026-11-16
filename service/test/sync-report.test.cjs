@@ -6,7 +6,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createReporter, EVENT_LIMIT } = require('../sync.cjs');
+const { EventEmitter } = require('node:events');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createReporter, createSync, EVENT_LIMIT } = require('../sync.cjs');
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const event = (n) => ({ id: `s1:${n}`, sessionId: 's1', rootId: 'r', at: 't', action: 'download', file: `f${n}`, type: 'site' });
@@ -80,4 +84,48 @@ test('the queue keeps the newest events and counts the dropped ones', async (t) 
   assert.equal(queued[0].id, 's1:6');
   assert.equal(queued.at(-1).id, `s1:${EVENT_LIMIT + 5}`);
   assert.equal(h.reporter.dropped(), 5);
+});
+
+test('a queue that drains with nothing to send reaches Go', async (t) => {
+  const row = { sessionId: 's1', rootId: 'r1', accountId: 7, status: 'syncing', running: true, paused: null, pendingCount: 1, conflicts: [], blocked: [], lastSyncAt: null, lastError: null };
+  const managers = [];
+  class StandInManager extends EventEmitter {
+    constructor() {
+      super();
+      this.sessions = new Map();
+      managers.push(this);
+    }
+    statuses() { return [{ ...row }]; }
+    async startEnabledSessions() {}
+    async refreshAccounts() { return { accounts: [] }; }
+    async stopAll() {}
+  }
+  const managerPath = require.resolve('../vendor/local/src/main/sync-manager.js');
+  const real = require.cache[managerPath];
+  require.cache[managerPath] = { id: managerPath, filename: managerPath, loaded: true, exports: { SyncManager: StandInManager } };
+  t.after(() => {
+    if (real) require.cache[managerPath] = real;
+    else delete require.cache[managerPath];
+  });
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-sync-report-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const reports = [];
+  const service = {
+    goCall: async (method, pathname, report) => {
+      reports.push(report);
+      return { ok: true, seq: report.seq };
+    },
+    roots: new Map(),
+    authority: null,
+  };
+  const sync = createSync({ gate: { hold() {}, clear() {} }, service, dataDir });
+  t.after(() => sync.handle({ v: 1, key: null }));
+  assert.equal(await sync.handle({ v: 1, key: `hcsk_${'5e'.repeat(32)}`, serverUrl: 'http://127.0.0.1:1' }), 'SYNC KEY HELD');
+  assert.equal((await sync.configure({ deviceId: 'device-1', paused: false, sessions: [], roots: [] })).ok, true);
+  await until('a report of the queued file', () => reports.some((report) => report.sessions[0]?.pendingCount === 1));
+  const sent = reports.length;
+  Object.assign(row, { status: 'idle', pendingCount: 0 });
+  managers[0].emit('sync-stats', { sessionId: 's1', rootId: 'r1' });
+  await until('a report of the drained queue', () => reports.length > sent);
+  assert.deepEqual(reports.at(-1).sessions.map((s) => [s.status, s.pendingCount]), [['idle', 0]]);
 });

@@ -24,7 +24,7 @@ const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
 const EVENT_LIMIT = 1000;
 const EVENT_ACTIONS = new Set(['download', 'upload', 'create', 'delete', 'relocate', 'trash', 'conflict', 'conflict-copy', 'resolved']);
 // Manager events after which Go should hear the newest state.
-const REPORTED = ['status-changed', 'file-synced', 'sync-complete', 'sync-error', 'sync-failed', 'accounts', 'credentials-rejected'];
+const REPORTED = ['status-changed', 'file-synced', 'sync-complete', 'sync-error', 'sync-failed', 'sync-stats', 'accounts', 'credentials-rejected'];
 const RETRY_MS = [1000, 2000, 5000, 10000, 30000];
 const SESSION_KINDS = new Set(['personal', 'team']);
 // Discovery runs again this often while sync is on, as Local's does, so a team
