@@ -65,6 +65,9 @@ func TestUpgradeSavesWaitForTheVerdict(t *testing.T) {
 // TestStartupHoldsSavesWhileUnjudged runs main's own startup steps in main's
 // order, so the hold sees the config folder before finishUpgrade saves.
 func TestStartupHoldsSavesWhileUnjudged(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("main's startup steps exit the process on Windows (os.Exit(0)); the hold is the Mac app's update path, proven on macOS and Linux (08-sync.md F-8.56a)")
+	}
 	// A short base keeps the single-instance socket path under the Unix limit.
 	short := os.TempDir()
 	if runtime.GOOS != "windows" {
