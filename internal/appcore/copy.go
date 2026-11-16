@@ -42,7 +42,7 @@ const (
 	TextSyncNotConnected  = "Not connected to hyperclay.com"                                           // copy: CLI status line, max 80 chars
 	// The htmlclay sync setup lines (08-sync.md step 8.25).
 	TextSyncSetupDownload   = "%d files (%s) will download into %s."
-	TextSyncSetupExisting   = "%d files will upload, %d will download, and %d differ. Nothing is deleted."
+	TextSyncSetupExisting   = "%d files upload, %d download, and %d differ, keeping both copies. Nothing is deleted."
 	TextSyncSetupAsk        = "Set up sync? [y/N] "
 	TextSyncSetupStarted    = "Sync is set up. HTML Clay is syncing this folder now."
 	TextSyncSetupNoAccount  = "No account or team is named %s. Run htmlclay sync status to see yours."
@@ -76,18 +76,18 @@ const (
 
 // Waiting items: the title, and where a %s appears the subject's name.
 const (
-	TextWaitingProgramRequest    = "%s wants to run %s"                                            // copy: waiting item title, document then program, max 70 chars
-	TextWaitingAIEditRequest     = "Allow AI editing for %s?"                                      // copy: waiting item title for AI editing, the document's name, max 70 chars
-	TextWaitingFolderRead        = "%s wants to read %s"                                           // copy: waiting item title, document then folder, max 70 chars
-	TextWaitingFolderReadAgain   = "%s wants you to trust %s"                                      // copy: waiting item title, document then folder, max 70 chars
-	TextWaitingProgramMissing    = "%s can't be found"                                             // copy: waiting item title, the program's name, max 70 chars
-	TextWaitingFolderMissing     = "%s can't be found"                                             // copy: waiting item title, the folder's name, max 70 chars
-	TextWaitingServiceFailed     = "HTML Clay's live features stopped"                             // copy: waiting item title when the service failed, max 70 chars
-	TextWaitingConflict          = "%s changed in both places"                                     // copy: waiting item title, the file's path in the folder, max 70 chars
-	TextWaitingSyncKeyRefused    = "Your sync key was refused"                                     // copy: waiting item title, max 70 chars
-	TextWaitingSyncKeyUnreadable = "TODO-COPY HTML Clay can't read your sync key. Enter it again." // copy: waiting item title when the saved key cannot be read, max 70 chars
-	TextWaitingFileTooBig        = "%s is too big to sync"                                         // copy: waiting item title, the file's name, max 70 chars
-	TextWaitingTeamToSetUp       = "%s is ready to set up"                                         // copy: waiting item title, the team folder's name, max 70 chars
+	TextWaitingProgramRequest    = "%s wants to run %s"                                          // copy: waiting item title, document then program, max 70 chars
+	TextWaitingAIEditRequest     = "Allow AI editing for %s?"                                    // copy: waiting item title for AI editing, the document's name, max 70 chars
+	TextWaitingFolderRead        = "%s wants to read %s"                                         // copy: waiting item title, document then folder, max 70 chars
+	TextWaitingFolderReadAgain   = "%s wants you to trust %s"                                    // copy: waiting item title, document then folder, max 70 chars
+	TextWaitingProgramMissing    = "%s can't be found"                                           // copy: waiting item title, the program's name, max 70 chars
+	TextWaitingFolderMissing     = "%s can't be found"                                           // copy: waiting item title, the folder's name, max 70 chars
+	TextWaitingServiceFailed     = "HTML Clay's live features stopped"                           // copy: waiting item title when the service failed, max 70 chars
+	TextWaitingConflict          = "%s changed in both places"                                   // copy: waiting item title, the file's path in the folder, max 70 chars
+	TextWaitingSyncKeyRefused    = "Your sync key was refused"                                   // copy: waiting item title, max 70 chars
+	TextWaitingSyncKeyUnreadable = "HTML Clay can't read your sync key. Enter it again to sync." // copy: waiting item title when the saved key cannot be read, max 70 chars
+	TextWaitingFileTooBig        = "%s is too big to sync"                                       // copy: waiting item title, the file's name, max 70 chars
+	TextWaitingTeamToSetUp       = "%s is ready to set up"                                       // copy: waiting item title, the team folder's name, max 70 chars
 	TextWaitingRemovalHeld       = "%s attachments were removed from %s at once"
 	TextWaitingFileNotText       = "%s pages in %s aren't saved as UTF-8"          // copy: waiting item title, a count then the folder's name, max 70 chars; detail: they stay on this computer until saved as UTF-8
 	TextWaitingNameClash         = "%s files in %s differ only in capital letters" // copy: waiting item title, a count then the folder's name, max 70 chars; detail: this computer keeps one; rename the other on hyperclay.com
@@ -138,7 +138,7 @@ var RefusalText = map[string]string{
 	RefuseSyncServerUpdate:   "Hyperclay needs an update before HTML Clay can sync with it. Try again later.",
 	RefuseServiceNeeded:      "HTML Clay isn't ready to sync yet. Try again in a moment.",
 	RefuseSyncFolderNotEmpty: "This folder isn't empty. Choose an empty folder or make a new one.",
-	RefuseSyncPaused:         "Syncing is paused. Resume syncing first, then try again.",
+	RefuseSyncPaused:         "This folder isn't syncing. Turn syncing back on in HTML Clay, then try again.",
 	RefuseConflictGone:       "That file isn't in conflict anymore. Nothing was changed.",
 	RefuseConflictChanged:    "That file changed since you looked. Review it again, then choose.",
 	RefuseNotText:            "This page isn't UTF-8 text, so it can't upload. Save it as UTF-8 and try again.",

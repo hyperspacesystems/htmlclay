@@ -135,12 +135,12 @@ public enum Strings {
             lastFinished.isEmpty ? "Up to date" : "Up to date · last finished \(lastFinished)"
         }
         public static func folderLine(path: String, state: String) -> String { "\(path) · \(state)" }
-        // TODO-COPY: a synced folder's state after its path on the Sync pane, max 30 chars each
+        // copy: a synced folder's state after its path on the Sync pane, max 30 chars each
         public static let stateUpToDate = "up to date"
         public static let statePaused = "paused"
         public static let stateOff = "not syncing"
         public static let stateConflicts = "needs you"
-        // TODO-COPY: a first download's progress after the folder's path, max 30 chars
+        // copy: a first download's progress after the folder's path, max 30 chars
         public static func downloading(done: Int, total: Int) -> String { "downloading \(done) of \(total)" }
         public static func review(_ n: Int) -> String { "Review \(n) in dashboard" }
     }
@@ -517,7 +517,7 @@ public enum Strings {
         public static let setUpAndSync = "Set up and sync"
         public static let wouldChooseExisting = "Build 1: this would ask you to choose a folder you already have."
         // copy: account set-up sheet, what a first sync into a folder already there will do, max 90 chars
-        public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files will upload, \(counts.toDownload) will download, and \(counts.differ) differ. Nothing is deleted." }
+        public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files upload, \(counts.toDownload) download, and \(counts.differ) differ, keeping both copies. Nothing is deleted." }
         // copy: account set-up sheet, the button after the counts show, max 20 chars
         public static let syncThese = "Sync these files"
         // copy: set-up sheets, while the folder is being set up, max 20 chars
