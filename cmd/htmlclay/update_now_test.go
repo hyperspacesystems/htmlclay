@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -191,6 +192,11 @@ func TestUpdateNowCommandParsing(t *testing.T) {
 // whose binary stands in for the Go host, with its config loaded from cfgBase.
 func shellUpdateTestAppIn(t *testing.T, cfgBase string) (*app, string) {
 	t.Helper()
+	// update-prepare, -abort and -status serve only the Mac app's bundle, and
+	// appBundleFor reads a slash-separated Contents/MacOS path.
+	if runtime.GOOS != "darwin" {
+		t.Skip("the shell update commands are macOS only")
+	}
 	a := newTestAppAs(t, t.TempDir(), cfgBase, true)
 	t.Cleanup(a.shutdown)
 	if err := os.MkdirAll(a.rt.configDir, 0o700); err != nil {
