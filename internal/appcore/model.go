@@ -299,3 +299,7 @@ type MoveFolder struct {
 	Port    int    `json:"port"`
 	Address string `json:"address"`
 }
+
+// SyncKeyUnreadable is the detail of a syncKeyRefused item raised because the
+// saved key cannot be read, not because the server refused it.
+const SyncKeyUnreadable = "unreadable"

@@ -256,3 +256,44 @@ func TestM4Connect(t *testing.T) {
 		}
 	})
 }
+
+// TestM4SyncKeyUnreadable is the M4 review's F2: a connected account whose saved
+// key cannot be read (a locked keyring, a cleared Keychain item) asks for the key
+// instead of reading as connected while nothing syncs.
+func TestM4SyncKeyUnreadable(t *testing.T) {
+	a, setDiscovery, _ := connectTestApp(t, true)
+	setDiscovery(discoverMaya)
+	if refusal := connectThroughDo(t, a, "c1", "", connectKeyOne); refusal != nil {
+		t.Fatalf("connect refused: %+v", refusal)
+	}
+	asking := func() int {
+		n := 0
+		for _, item := range a.snapshot().Waiting {
+			if item.Kind == appcore.WaitingSyncKeyRefused && item.Detail == appcore.SyncKeyUnreadable && item.Title == appcore.TextWaitingSyncKeyUnreadable {
+				n++
+			}
+		}
+		return n
+	}
+	if n := asking(); n != 0 {
+		t.Fatalf("a readable key asks for itself %d times", n)
+	}
+	if err := a.rt.syncStore.Delete(syncKeyName); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok := a.syncKey(); ok {
+		t.Fatal("a deleted key still read")
+	}
+	if n := asking(); n != 1 {
+		t.Fatalf("an unreadable key asks %d times, want once", n)
+	}
+	if err := a.rt.syncStore.Set(syncKeyName, connectKeyOne); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok := a.syncKey(); !ok {
+		t.Fatal("the key put back did not read")
+	}
+	if n := asking(); n != 0 {
+		t.Fatalf("a key read again still asks %d times", n)
+	}
+}

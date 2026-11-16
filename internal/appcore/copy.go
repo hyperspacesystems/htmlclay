@@ -76,28 +76,29 @@ const (
 
 // Waiting items: the title, and where a %s appears the subject's name.
 const (
-	TextWaitingProgramRequest  = "%s wants to run %s"                // copy: waiting item title, document then program, max 70 chars
-	TextWaitingAIEditRequest   = "Allow AI editing for %s?"          // copy: waiting item title for AI editing, the document's name, max 70 chars
-	TextWaitingFolderRead      = "%s wants to read %s"               // copy: waiting item title, document then folder, max 70 chars
-	TextWaitingFolderReadAgain = "%s wants you to trust %s"          // copy: waiting item title, document then folder, max 70 chars
-	TextWaitingProgramMissing  = "%s can't be found"                 // copy: waiting item title, the program's name, max 70 chars
-	TextWaitingFolderMissing   = "%s can't be found"                 // copy: waiting item title, the folder's name, max 70 chars
-	TextWaitingServiceFailed   = "HTML Clay's live features stopped" // copy: waiting item title when the service failed, max 70 chars
-	TextWaitingConflict        = "%s changed in both places"         // copy: waiting item title, the file's path in the folder, max 70 chars
-	TextWaitingSyncKeyRefused  = "Your sync key was refused"         // copy: waiting item title, max 70 chars
-	TextWaitingFileTooBig      = "%s is too big to sync"             // copy: waiting item title, the file's name, max 70 chars
-	TextWaitingTeamToSetUp     = "%s is ready to set up"             // copy: waiting item title, the team folder's name, max 70 chars
-	TextWaitingRemovalHeld     = "TODO-COPY %s attachments were removed from %s at once"
-	TextWaitingFileNotText     = "TODO-COPY %s pages in %s aren't saved as UTF-8"          // copy: waiting item title, a count then the folder's name, max 70 chars; detail: they stay on this computer until saved as UTF-8
-	TextWaitingNameClash       = "TODO-COPY %s files in %s differ only in capital letters" // copy: waiting item title, a count then the folder's name, max 70 chars; detail: this computer keeps one; rename the other on hyperclay.com
-	TextNoticeConflictBody     = "TODO-COPY Choose which copy to keep in HTML Clay."
-	TextNoticeKeyStoppedBody   = "TODO-COPY Sync is paused. Add a new sync key in HTML Clay."
-	TextNoticeAddedToTeam      = "TODO-COPY You were added to %s"
-	TextNoticeAddedToTeamBody  = "TODO-COPY Set up its folder in HTML Clay."
-	TextTrayPauseSyncing       = "TODO-COPY Pause Syncing"  // copy: tray item, Windows and Linux, max 30 chars
-	TextTrayResumeSyncing      = "TODO-COPY Resume Syncing" // copy: tray item, Windows and Linux, max 30 chars
-	TextTrayOneConflict        = "TODO-COPY 1 Conflict…"    // copy: tray item opening Needs you, max 30 chars
-	TextTrayConflicts          = "TODO-COPY %d Conflicts…"  // copy: tray item opening Needs you, the count, max 30 chars
+	TextWaitingProgramRequest    = "%s wants to run %s"                                            // copy: waiting item title, document then program, max 70 chars
+	TextWaitingAIEditRequest     = "Allow AI editing for %s?"                                      // copy: waiting item title for AI editing, the document's name, max 70 chars
+	TextWaitingFolderRead        = "%s wants to read %s"                                           // copy: waiting item title, document then folder, max 70 chars
+	TextWaitingFolderReadAgain   = "%s wants you to trust %s"                                      // copy: waiting item title, document then folder, max 70 chars
+	TextWaitingProgramMissing    = "%s can't be found"                                             // copy: waiting item title, the program's name, max 70 chars
+	TextWaitingFolderMissing     = "%s can't be found"                                             // copy: waiting item title, the folder's name, max 70 chars
+	TextWaitingServiceFailed     = "HTML Clay's live features stopped"                             // copy: waiting item title when the service failed, max 70 chars
+	TextWaitingConflict          = "%s changed in both places"                                     // copy: waiting item title, the file's path in the folder, max 70 chars
+	TextWaitingSyncKeyRefused    = "Your sync key was refused"                                     // copy: waiting item title, max 70 chars
+	TextWaitingSyncKeyUnreadable = "TODO-COPY HTML Clay can't read your sync key. Enter it again." // copy: waiting item title when the saved key cannot be read, max 70 chars
+	TextWaitingFileTooBig        = "%s is too big to sync"                                         // copy: waiting item title, the file's name, max 70 chars
+	TextWaitingTeamToSetUp       = "%s is ready to set up"                                         // copy: waiting item title, the team folder's name, max 70 chars
+	TextWaitingRemovalHeld       = "TODO-COPY %s attachments were removed from %s at once"
+	TextWaitingFileNotText       = "TODO-COPY %s pages in %s aren't saved as UTF-8"          // copy: waiting item title, a count then the folder's name, max 70 chars; detail: they stay on this computer until saved as UTF-8
+	TextWaitingNameClash         = "TODO-COPY %s files in %s differ only in capital letters" // copy: waiting item title, a count then the folder's name, max 70 chars; detail: this computer keeps one; rename the other on hyperclay.com
+	TextNoticeConflictBody       = "TODO-COPY Choose which copy to keep in HTML Clay."
+	TextNoticeKeyStoppedBody     = "TODO-COPY Sync is paused. Add a new sync key in HTML Clay."
+	TextNoticeAddedToTeam        = "TODO-COPY You were added to %s"
+	TextNoticeAddedToTeamBody    = "TODO-COPY Set up its folder in HTML Clay."
+	TextTrayPauseSyncing         = "TODO-COPY Pause Syncing"  // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayResumeSyncing        = "TODO-COPY Resume Syncing" // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayOneConflict          = "TODO-COPY 1 Conflict…"    // copy: tray item opening Needs you, max 30 chars
+	TextTrayConflicts            = "TODO-COPY %d Conflicts…"  // copy: tray item opening Needs you, the count, max 30 chars
 )
 
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.

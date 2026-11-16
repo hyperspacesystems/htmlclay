@@ -85,6 +85,9 @@ type appRuntime struct {
 	// sync runs inside it (serviceRunner.want).
 	syncHeld       atomic.Bool
 	syncConnecting atomic.Int32
+	// syncKeyUnread is set when the last read of the sync key found none, so a
+	// connected account whose key cannot be read asks for it again.
+	syncKeyUnread atomic.Bool
 	// syncConflicts is the engine's held conflicts as Go last read them
 	// (sync_conflicts.go). Guarded by syncMu.
 	syncConflicts syncConflicts

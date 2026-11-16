@@ -82,18 +82,34 @@ func (a *app) openSyncStore() secret.Store {
 // syncKey answers the server and the key the service should hold, when the
 // store has one. A failed read is logged without any part of the key.
 func (a *app) syncKey() (serverURL, key string, ok bool) {
-	if a.rt.syncStore == nil {
+	key, ok = a.readSyncKey()
+	a.rt.syncKeyUnread.Store(!ok)
+	if !ok {
 		return "", "", false
+	}
+	return syncServerURL(), key, true
+}
+
+// readSyncKey reads the key from the store. A key kept in the private file is
+// read from there even when the system's store opened this time: a Linux
+// keyring that was locked at connect and is open now must not lose it.
+func (a *app) readSyncKey() (string, bool) {
+	if a.rt.syncStore == nil {
+		return "", false
 	}
 	key, found, err := a.rt.syncStore.Get(syncKeyName)
 	if err != nil {
 		a.rt.logger.Printf("The sync key could not be read: %v", err)
-		return "", "", false
+		return "", false
 	}
-	if !found {
-		return "", "", false
+	if !found && a.rt.syncStore.Kind() == secret.KindSystem {
+		key, found, err = secret.NewFile(filepath.Join(a.rt.configDir, "secrets")).Get(syncKeyName)
+		if err != nil {
+			a.rt.logger.Printf("The sync key could not be read from its file: %v", err)
+			return "", false
+		}
 	}
-	return syncServerURL(), key, true
+	return key, found
 }
 
 // syncKeyShape is a sync key as hyperclay.com makes it.
@@ -272,6 +288,7 @@ func (a *app) connectSyncKey(ctx context.Context, e appcore.Effect) *appcore.Ref
 	}
 	record.KeyRefused = nil
 	a.rt.syncHeld.Store(true)
+	a.rt.syncKeyUnread.Store(false)
 	record.Accounts = a.mergeAccountRows(record.Accounts, found)
 	if err := record.Save(); err != nil {
 		a.rt.logger.Printf("Could not connect sync: sync.json: %v", err)
@@ -498,6 +515,11 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 	}
 	if record.KeyRefused != nil {
 		events = append(events, appcore.EventFact{ID: "syncKeyRefused:" + record.KeyRefused.Since, Kind: appcore.WaitingSyncKeyRefused})
+	} else if a.rt.syncKeyUnread.Load() {
+		// Connected, but the key this account saved cannot be read now (a locked
+		// keyring, a cleared Keychain item): nothing syncs, so the person is asked
+		// for the key the way a refused key asks.
+		events = append(events, appcore.EventFact{ID: "syncKeyUnread:" + record.Account.ConnectedAt, Kind: appcore.WaitingSyncKeyRefused, Detail: appcore.SyncKeyUnreadable})
 	}
 	for _, session := range record.SyncSessions {
 		events = append(events, a.rt.syncConflicts.facts[session.ID]...)

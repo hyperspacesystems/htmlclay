@@ -74,7 +74,11 @@ func waiting(f Facts) []WaitingItem {
 		case WaitingSyncKeyRefused:
 			if !keyRefused {
 				keyRefused = true
-				add(e.ID, e.Kind, TextWaitingSyncKeyRefused, e.Detail, e.SubjectID)
+				title := TextWaitingSyncKeyRefused
+				if e.Detail == SyncKeyUnreadable {
+					title = TextWaitingSyncKeyUnreadable
+				}
+				add(e.ID, e.Kind, title, e.Detail, e.SubjectID)
 			}
 		case WaitingFileTooBig:
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingFileTooBig, e.Name), e.Detail, e.SubjectID)
