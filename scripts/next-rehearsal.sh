@@ -17,7 +17,11 @@
 # item, its config, its process and the app LaunchServices opens .htmlclay with
 # are compared before and after.
 #
-# Usage: scripts/next-rehearsal.sh next|next-quit|next-rollback
+# Usage: scripts/next-rehearsal.sh next|next-quit|next-rollback [--served]
+#
+# --served (the `next` case only): the old app serves ~/site before the update,
+# and the run also checks that the new app serves the same address again and
+# runs its service.
 #
 # Exit codes: 0 every check passed, 1 one of them did not, 2 usage. The verdict
 # is the last line on stderr and the logs stay in the run folder.
@@ -29,6 +33,8 @@ case "com.htmlclay.HTMLClay" in
   "$ID"*) echo "[rehearsal] refusing bundle id '$ID': it is the installed HTML Clay's id or a prefix of it" >&2; exit 2 ;;
 esac
 CASE=""
+SERVED=""
+SERVED_ADDRESS=""
 OLD_VERSION="9.1.0"
 NEW_VERSION="9.1.1"
 SWIFT_CACHE="$HOME/scratch/20261115-100943-macos-packaging/swift-cache"
@@ -39,7 +45,7 @@ OBSERVE="${HTMLCLAY_REHEARSAL_OBSERVE:-60}"
 say() { echo "[rehearsal] $*" >&2; }
 
 usage() {
-  say "usage: next-rehearsal.sh next|next-quit|next-rollback"
+  say "usage: next-rehearsal.sh next|next-quit|next-rollback [--served]"
   exit 2
 }
 
@@ -50,12 +56,17 @@ while [ $# -gt 0 ]; do
       CASE="$1"
       shift
       ;;
+    --served)
+      SERVED=yes
+      shift
+      ;;
     *)
       usage
       ;;
   esac
 done
 [ -n "$CASE" ] || usage
+[ -z "$SERVED" ] || [ "$CASE" = "next" ] || usage
 
 # The host's single-instance socket lives at <config>/sock, and macOS refuses a
 # unix socket path past 102 bytes, so the run folder's name stays short: the
@@ -807,6 +818,59 @@ check_ledger() {
   fi
 }
 
+# address_answers: the served address answers a page within $1 seconds.
+address_answers() {
+  local i code
+  for ((i = 0; i < $1; i++)); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "${SERVED_ADDRESS%/}/probe.html" 2>/dev/null)"
+    echo "$(date +%T) ${SERVED_ADDRESS%/}/probe.html $code" >>"$LOGS/served-probe.log"
+    [ "$code" = "200" ] && return 0
+    sleep 1
+  done
+  return 1
+}
+
+# serve_docs: the old app serves ~/site through its own command line, as a
+# person would, and the address answers before the update starts.
+serve_docs() {
+  local answer
+  # Its own page, so the probe never opens a document the ledger's tabs hold.
+  # A folder of its own, which no ledger tab uses: the tabs stay on the 1.x
+  # addresses of docs, docs2 and loose.
+  mkdir -p "$FAKE_HOME/site"
+  printf '%s\n' '<!DOCTYPE html><html><body><p>probe</p></body></html>' >"$FAKE_HOME/site/probe.html"
+  answer="$(env HTMLCLAY_CANDIDATE_HOME="$FAKE_HOME" HTMLCLAY_CONFIG_BASE="$FAKE_HOME/Library/Application Support" \
+    "$OLD/Contents/MacOS/htmlclay-host" serve "$FAKE_HOME/site" --name site 2>>"$LOGS/serve.log")"
+  echo "$answer" >>"$LOGS/serve.log"
+  # "served <name> <address>" for a new folder, or a sentence naming the address
+  # when the folder is already served (the seeded config serves docs).
+  SERVED_ADDRESS="$(printf '%s' "$answer" | grep -oE 'https?://[^ ]+|[a-z0-9-]+\.htmlclay\.localhost:[0-9]+/?' | head -1)"
+  if [ -z "$SERVED_ADDRESS" ]; then
+    record_check served no "the old app did not serve site: ${answer:-no answer}"
+    return 1
+  fi
+  case "$SERVED_ADDRESS" in http://*) ;; *) SERVED_ADDRESS="http://$SERVED_ADDRESS" ;; esac
+  if ! address_answers 30; then
+    record_check served no "$SERVED_ADDRESS did not answer before the update"
+    return 1
+  fi
+  say "the old app serves docs at $SERVED_ADDRESS"
+}
+
+# check_served: after the update the same address answers again, and the new
+# host has started its service as a child process.
+check_served() {
+  local host_pids children
+  host_pids="$(pids_comm "$OLD/Contents/MacOS/htmlclay-host")"
+  children=""
+  [ -n "$host_pids" ] && children="$(pgrep -P "$host_pids" | tr '\n' ' ' | sed 's/ *$//')"
+  if address_answers 30 && [ -n "$children" ]; then
+    record_check served yes "$SERVED_ADDRESS answers; host $host_pids runs child $children"
+  else
+    record_check served no "$SERVED_ADDRESS answers: $(address_answers 1 && echo yes || echo no); host ${host_pids:-none}, children ${children:-none}"
+  fi
+}
+
 run_next_checks() {
   local file found="" phase version info app_pids host_pids
 
@@ -844,6 +908,7 @@ run_next_checks() {
   fi
 
   check_login_item
+  [ -z "$SERVED" ] || check_served
 
   CHECKS_RAN=yes
 }
@@ -1014,6 +1079,11 @@ say "the old app's port: ${PORT_BEFORE:-unknown}"
 if ! open_loose_document; then
   say "the old app never opened the loose file"
   record_check open-loose no "no c.htmlclay in $OPEN_LOG; open log: $(cat "$OPEN_LOG" 2>/dev/null || echo empty)"
+  CHECKS_RAN=yes
+  exit 1
+fi
+
+if [ -n "$SERVED" ] && ! serve_docs; then
   CHECKS_RAN=yes
   exit 1
 fi
