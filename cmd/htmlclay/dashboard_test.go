@@ -495,3 +495,31 @@ func TestM3DashboardRequests(t *testing.T) {
 		}
 	})
 }
+
+// TestDashboardSnapshotLeavesTheSharedSnapshot is the 8.57 browser pass's crash:
+// the dashboard's view of a snapshot wrote into the map and folder list every
+// other reader shares, so two open dashboards crashed the app with concurrent
+// map writes, and the Mac app could read the dashboard's refusals.
+func TestDashboardSnapshotLeavesTheSharedSnapshot(t *testing.T) {
+	shared := appcore.Snapshot{
+		Host:    appcore.HostState{Can: map[string]bool{}},
+		Folders: []appcore.Folder{{ID: "f1", Can: appcore.FolderCan{Serve: true}}},
+	}
+	for typ, class := range appcore.ActionClasses {
+		if class == appcore.ClassGrant {
+			shared.Host.Can[typ] = true
+		}
+	}
+	view := dashboardSnapshot(shared)
+	if !shared.Folders[0].Can.Serve || shared.Folders[0].Why.Serve != nil {
+		t.Fatalf("the shared folder changed: %+v", shared.Folders[0])
+	}
+	for typ, ok := range shared.Host.Can {
+		if !ok {
+			t.Fatalf("the shared snapshot lost %s", typ)
+		}
+	}
+	if view.Folders[0].Can.Serve {
+		t.Fatal("the dashboard's view can still serve")
+	}
+}

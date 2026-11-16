@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -688,10 +690,15 @@ func (d *dashboardApp) events(w http.ResponseWriter, r *http.Request) {
 // dashboardSnapshot is the snapshot the dashboard channel reads: every flag that
 // needs a grant reads false, with a why that says the Mac app has to do it. The
 // class check refuses those actions anyway; this is what the dashboard shows.
+//
+// The snapshot is shared with every other reader (the Mac app, other tabs), so
+// its map and folder list are copied before anything is changed.
 func dashboardSnapshot(s appcore.Snapshot) appcore.Snapshot {
+	s.Host.Can = maps.Clone(s.Host.Can)
 	if s.Host.Can == nil {
 		s.Host.Can = make(map[string]bool, len(appcore.ActionClasses))
 	}
+	s.Folders = slices.Clone(s.Folders)
 	for typ, class := range appcore.ActionClasses {
 		if class == appcore.ClassGrant {
 			s.Host.Can[typ] = false
