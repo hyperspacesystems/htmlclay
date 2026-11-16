@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -65,7 +66,11 @@ func TestUpgradeSavesWaitForTheVerdict(t *testing.T) {
 // order, so the hold sees the config folder before finishUpgrade saves.
 func TestStartupHoldsSavesWhileUnjudged(t *testing.T) {
 	// A short base keeps the single-instance socket path under the Unix limit.
-	base, err := os.MkdirTemp("/tmp", "hc")
+	short := os.TempDir()
+	if runtime.GOOS != "windows" {
+		short = "/tmp"
+	}
+	base, err := os.MkdirTemp(short, "hc")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -58,6 +58,8 @@ func TestM4KeyCanary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Closed before its folder is removed: Windows cannot delete a file that is still open.
+	t.Cleanup(logger.Close)
 	a.rt.logger = logger
 	a.rt.syncStore = secret.NewFile(filepath.Join(a.rt.configDir, "secrets"))
 
