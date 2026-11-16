@@ -63,6 +63,7 @@ var ActionClasses = map[string]Class{
 	"update.start":          ClassSafe,
 	"service.restart":       ClassSafe,
 	"host.quit":             ClassSafe,
+	"move.quitLocal":        ClassSafe,
 
 	"folder.stopServing":   ClassRevoke,
 	"folder.stopTrusting":  ClassRevoke,
@@ -543,6 +544,11 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return nil, &Refusal{Code: RefuseNothingToMove}
 		}
 		return one(Effect{Type: a.Type, IDs: args.FolderIDs})
+	case "move.quitLocal":
+		if f.Move == nil {
+			return nil, &Refusal{Code: RefuseNothingToMove}
+		}
+		return one(Effect{Type: a.Type})
 	}
 	return nil, &Refusal{Code: RefuseUnknownAction}
 }

@@ -216,20 +216,27 @@ public struct TrustCandidate: Equatable, Sendable {
     public let documents: Int
 }
 
-public struct LocalMoveFolder: Equatable, Identifiable, Sendable {
-    public let id: String
-    public let name: String
-    public let port: Int
-    public let address: String
-}
-
 public struct MoveFolderInfo: Codable, Equatable, Identifiable, Sendable {
     public var id: String
     public var name: String
     public var port: Int
     public var address: String
-    public init(id: String = "", name: String = "", port: Int = 0, address: String = "") {
+    /// True when Hyperclay Local syncs the folder.
+    public var synced: Bool
+    /// Why the last move left the folder with Hyperclay Local, or empty.
+    public var skip: String
+    public init(id: String = "", name: String = "", port: Int = 0, address: String = "", synced: Bool = false, skip: String = "") {
         self.id = id; self.name = name; self.port = port; self.address = address
+        self.synced = synced; self.skip = skip
+    }
+}
+
+/// What stands between the person and the move from Hyperclay Local.
+public struct MoveBlockers: Codable, Equatable, Sendable {
+    public var localRunning: Bool
+    public var needsKey: Bool
+    public init(localRunning: Bool = false, needsKey: Bool = false) {
+        self.localRunning = localRunning; self.needsKey = needsKey
     }
 }
 
@@ -395,21 +402,23 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public var host: HostInfo
     public var hostCounts: WaitCounts?
     public var moveFolders: [MoveFolderInfo]
+    public var moveBlockers: MoveBlockers
     /// Only the preview's SampleHost sets this: a host snapshot is never sample data.
     public var isSample: Bool
 
     private enum CodingKeys: String, CodingKey {
         case documents, folders, programs, requests, waiting, sync, update, preferences,
-             localMoveOffer, hostStopped, rev, epoch, host, hostCounts, moveFolders
+             localMoveOffer, hostStopped, rev, epoch, host, hostCounts, moveFolders, moveBlockers
     }
 
-    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], isSample: Bool = false) {
+    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], moveBlockers: MoveBlockers = MoveBlockers(), isSample: Bool = false) {
         self.documents = documents; self.folders = folders; self.programs = programs; self.requests = requests
         self.waiting = waiting; self.sync = sync; self.update = update; self.preferences = preferences
         self.localMoveOffer = localMoveOffer
         self.hostStopped = hostStopped
         self.rev = rev; self.epoch = epoch; self.host = host; self.hostCounts = hostCounts
         self.moveFolders = moveFolders
+        self.moveBlockers = moveBlockers
         self.isSample = isSample
     }
 
@@ -431,6 +440,7 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
         host = try container.decode(HostInfo.self, forKey: .host)
         hostCounts = try container.decodeIfPresent(WaitCounts.self, forKey: .hostCounts)
         moveFolders = try container.decode([MoveFolderInfo].self, forKey: .moveFolders)
+        moveBlockers = try container.decodeIfPresent(MoveBlockers.self, forKey: .moveBlockers) ?? MoveBlockers()
         isSample = false
     }
 
@@ -487,6 +497,7 @@ public enum HostAction: Equatable, Sendable {
     case restartHost
     case restartService
     case moveFromLocal(folderIDs: [String])
+    case quitLocal
     case markSeen(waitingIDs: [String])
     case openDocument(id: String)
     case revealDocument(id: String)

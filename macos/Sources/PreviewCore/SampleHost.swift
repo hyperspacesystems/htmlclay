@@ -124,6 +124,8 @@ public enum SampleReducer {
             next.hostStopped = false
         case .restartService:
             return snapshot
+        case .quitLocal:
+            next.moveBlockers.localRunning = false
         case let .moveFromLocal(folderIDs):
             guard next.localMoveOffer else { return snapshot }
             let source = SampleData.syncedWithTeams

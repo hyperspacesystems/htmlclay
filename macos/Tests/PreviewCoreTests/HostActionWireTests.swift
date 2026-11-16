@@ -47,6 +47,7 @@ final class HostActionWireTests: XCTestCase {
         .restartHost,
         .restartService,
         .moveFromLocal(folderIDs: ["f1", "f2"]),
+        .quitLocal,
         .markSeen(waitingIDs: ["w1"]),
         .openDocument(id: "d1"),
         .revealDocument(id: "d1"),

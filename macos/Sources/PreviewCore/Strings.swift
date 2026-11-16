@@ -579,6 +579,21 @@ public enum Strings {
         public static func comesAlongText(conflicts: Int) -> String { "Versions, folder history, and \(conflicts) open conflicts, still waiting for you. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address." }
         public static let notNow = "Not now"
         public static let moveFolders = "Move folders"
+        // TODO-COPY: move sheet, what comes along, when the number of conflicts is not known, max 200 chars
+        public static let comesAlongLive = "Versions, folder history and open conflicts come along. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address."
+        // TODO-COPY: move sheet, under a folder that stayed with Hyperclay Local after a move, max 90 chars each
+        public static func stayed(_ code: String) -> String {
+            switch code {
+            case "": return ""
+            case "not-connected": return "Stayed: this folder syncs to an account your sync key does not reach."
+            case "local-first-download-unfinished": return "Stayed: Hyperclay Local has not finished its first download. Open it and let it finish."
+            case "folder-missing": return "Stayed: the folder is not on this computer."
+            case "folder-in-use": return "Stayed: another app is using the folder. Close it and move again."
+            case "account-already-synced": return "Stayed: this account already syncs to another folder here."
+            case "local-running": return "Stayed: Hyperclay Local opened during the move. Quit it and move again."
+            default: return "Stayed with Hyperclay Local. Move again, or look at the log."
+            }
+        }
         public static let wouldQuitLocal = "Build 1: this would quit Hyperclay Local after it saves."
         public static func wouldShowUnsaved(_ document: String) -> String { "Build 1: this would show \(document) in Hyperclay Local." }
         public static let movedTitle = "Your folders moved"

@@ -170,6 +170,8 @@ func TestPlan(t *testing.T) {
 		{"set up a team folder with no path", synced, "folder.setUpTeam", `{"id":"marketing"}`, "", RefuseBadArguments},
 		{"start the move", local, "move.start", `{"folderIDs":["panphora"]}`, "move.start", ""},
 		{"start a move with nothing offered", synced, "move.start", `{}`, "", RefuseNothingToMove},
+		{"quit Local before the move", local, "move.quitLocal", `{}`, "move.quitLocal", ""},
+		{"quit Local with nothing offered", synced, "move.quitLocal", `{}`, "", RefuseNothingToMove},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

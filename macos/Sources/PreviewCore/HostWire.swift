@@ -358,6 +358,8 @@ public struct WirePreferences: Codable, Equatable, Sendable {
 public struct WireMove: Codable, Equatable, Sendable {
     public var state: String
     public var folders: [WireMoveFolder]
+    public var localRunning: Bool?
+    public var needsKey: Bool?
 }
 
 public struct WireMoveFolder: Codable, Equatable, Sendable {
@@ -365,6 +367,8 @@ public struct WireMoveFolder: Codable, Equatable, Sendable {
     public var name: String
     public var port: Int
     public var address: String
+    public var synced: Bool?
+    public var skip: String?
 }
 
 public struct WireEvent: Decodable, Sendable {

@@ -119,6 +119,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "service.restart", args: [:])
         case let .moveFromLocal(folderIDs):
             return WireActionRequest(type: "move.start", args: ["folderIDs": .strings(folderIDs)])
+        case .quitLocal:
+            return WireActionRequest(type: "move.quitLocal", args: [:])
         case let .markSeen(waitingIDs):
             return WireActionRequest(type: "waiting.markSeen", args: ["ids": .strings(waitingIDs)])
         case let .quit(force):

@@ -10,7 +10,7 @@ final class SettingsControlsTests: XCTestCase {
         "sync.setPaused", "update.start", "service.restart", "host.quit",
         "folder.stopServing", "folder.stopTrusting", "folder.merge", "program.removeAccess",
         "sync.disconnect", "folder.trust", "folder.serve", "file.open", "request.answer",
-        "program.add", "sync.connect", "folder.setUpTeam", "move.start",
+        "program.add", "sync.connect", "folder.setUpTeam", "move.start", "move.quitLocal",
         "program.setAllTrusted", "folder.setSynced", "document.recover", "conflict.resolve", "folder.resolveRemoval",
     ]
 

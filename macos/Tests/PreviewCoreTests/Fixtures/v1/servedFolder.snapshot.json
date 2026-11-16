@@ -33,6 +33,7 @@
       "folder.stopTrusting": true,
       "folder.trust": true,
       "host.quit": true,
+      "move.quitLocal": false,
       "move.start": false,
       "prefs.set": true,
       "program.add": true,

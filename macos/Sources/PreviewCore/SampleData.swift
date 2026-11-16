@@ -18,8 +18,8 @@ public enum SampleData {
     public static let history = [HistoryEntry(id: "h1", kind: .uploaded, title: "Uploaded apps/index.html", detail: "", time: "13:58"), HistoryEntry(id: "h2", kind: .downloaded, title: "Downloaded blog/launch.html", detail: "changed by maria", time: "13:44"), HistoryEntry(id: "h3", kind: .renamed, title: "Renamed notes.html to meeting-notes.html", detail: "", time: "11:20"), HistoryEntry(id: "h4", kind: .settled, title: "Settled a conflict in about.html", detail: "kept both", time: "10:05")]
 
     public static let localMoveFolders = [
-        LocalMoveFolder(id: "panphora", name: "panphora", port: 4321, address: "panphora.htmlclay.localhost:1212"),
-        LocalMoveFolder(id: "design-team", name: "Design Team", port: 4322, address: "design-team.htmlclay.localhost:1212"),
+        MoveFolderInfo(id: "panphora", name: "panphora", port: 4321, address: "panphora.htmlclay.localhost:1212", synced: true),
+        MoveFolderInfo(id: "design-team", name: "Design Team", port: 4322, address: "design-team.htmlclay.localhost:1212", synced: true),
     ]
     public static let localUnsavedDocument = "budget.html"
     public static let conflictsComingAlong = syncedWithTeams.waiting.filter { $0.kind == .conflict }.count
@@ -99,7 +99,7 @@ public enum SampleData {
         update: UpdateState(current: "2.0.3"),
         preferences: PreferenceState(yourName: "David", useName: true))
 
-    static let localUser = HostSnapshot(localMoveOffer: true)
+    static let localUser = HostSnapshot(localMoveOffer: true, moveFolders: localMoveFolders, moveBlockers: MoveBlockers(localRunning: true))
 
     public static func request(_ kind: ProgramRequest.Kind) -> (request: ProgramRequest, item: WaitingItem) {
         let request: ProgramRequest

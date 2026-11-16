@@ -287,6 +287,10 @@ type Preferences struct {
 type Move struct {
 	State   string       `json:"state"`
 	Folders []MoveFolder `json:"folders"`
+	// LocalRunning is true while Hyperclay Local is open: nothing moves until it quits.
+	LocalRunning bool `json:"localRunning"`
+	// NeedsKey is true when a folder offered syncs and this app has no working sync key.
+	NeedsKey bool `json:"needsKey"`
 }
 
 // Move states.
@@ -301,6 +305,10 @@ type MoveFolder struct {
 	Name    string `json:"name"`
 	Port    int    `json:"port"`
 	Address string `json:"address"`
+	// Synced is true when Hyperclay Local syncs the folder.
+	Synced bool `json:"synced"`
+	// Skip is why the last move left the folder with Hyperclay Local, or empty.
+	Skip string `json:"skip,omitempty"`
 }
 
 // SyncKeyUnreadable is the detail of a syncKeyRefused item raised because the

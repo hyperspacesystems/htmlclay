@@ -52,11 +52,12 @@ public enum SheetRules {
 }
 
 public enum MoveRules {
-    public static func ordered(_ checked: Set<String>) -> [String] {
-        SampleData.localMoveFolders.map(\.id).filter { checked.contains($0) }
+    public static func ordered(_ folders: [MoveFolderInfo], checked: Set<String>) -> [String] {
+        folders.map(\.id).filter { checked.contains($0) }
     }
-    public static func canMove(blockers: Int, checked: Set<String>, key: String) -> Bool {
-        blockers == 0 && !checked.isEmpty && !key.isEmpty
+    /// The key is asked for only when a folder syncs and the app has no working key.
+    public static func canMove(blockers: MoveBlockers, checked: Set<String>, key: String) -> Bool {
+        !blockers.localRunning && !checked.isEmpty && (!blockers.needsKey || !key.isEmpty)
     }
 }
 

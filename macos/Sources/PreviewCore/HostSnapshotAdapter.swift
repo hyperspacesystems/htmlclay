@@ -23,8 +23,9 @@ public enum HostSnapshotAdapter {
                 dot: wire.counts.dot
             ),
             moveFolders: (wire.move?.folders ?? []).map {
-                MoveFolderInfo(id: $0.id, name: $0.name, port: $0.port, address: $0.address)
-            }
+                MoveFolderInfo(id: $0.id, name: $0.name, port: $0.port, address: $0.address, synced: $0.synced ?? false, skip: $0.skip ?? "")
+            },
+            moveBlockers: MoveBlockers(localRunning: wire.move?.localRunning ?? false, needsKey: wire.move?.needsKey ?? false)
         )
     }
 

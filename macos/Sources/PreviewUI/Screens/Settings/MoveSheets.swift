@@ -4,73 +4,60 @@ import PreviewCore
 struct MoveSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
-    @State private var checked = Set(SampleData.localMoveFolders.map(\.id))
-    @State private var localRunning = true
-    @State private var unsaved = true
+    @State private var unchecked = Set<String>()
     @State private var key = String()
+    @State private var moving = false
 
     var body: some View {
-        let blockers = (localRunning ? 1 : 0) + (unsaved ? 1 : 0)
-        let ready = MoveRules.canMove(blockers: blockers, checked: checked, key: key)
+        let folders = model.snapshot.moveFolders
+        let blockers = model.snapshot.moveBlockers
+        let checked = Set(folders.map(\.id)).subtracting(unchecked)
+        let ready = !moving && MoveRules.canMove(blockers: blockers, checked: checked, key: key)
         KilnDialog(Strings.Move.title, titleSize: 17, width: 520) {
             KilnCard {
-                ForEach(Array(SampleData.localMoveFolders.enumerated()), id: \.element.id) { index, folder in
+                ForEach(Array(folders.enumerated()), id: \.element.id) { index, folder in
                     if index > 0 {
                         KilnRowDivider()
                     }
-                    folderRow(folder)
+                    folderRow(folder, on: checked.contains(folder.id))
                 }
             }
             .padding(.top, 12)
-            if blockers > 0 {
+            if blockers.localRunning {
                 KilnGroupTitle(Strings.Move.beforeYouMove)
                 KilnCard(kind: .warn) {
-                    if localRunning {
-                        KilnRow(title: Strings.Move.localRunning) {
-                            Button(Strings.Move.quitLocal) {
-                                model.say(Strings.Move.wouldQuitLocal)
-                                localRunning = false
-                            }
-                            .buttonStyle(KilnButtonStyle(.plain))
+                    KilnRow(title: Strings.Move.localRunning) {
+                        Button(Strings.Move.quitLocal) {
+                            model.send(.quitLocal)
                         }
-                    }
-                    if localRunning && unsaved {
-                        KilnRowDivider()
-                    }
-                    if unsaved {
-                        KilnRow(title: Strings.Move.unsaved(SampleData.localUnsavedDocument)) {
-                            Button(Strings.Move.showIt) {
-                                model.say(Strings.Move.wouldShowUnsaved(SampleData.localUnsavedDocument))
-                                unsaved = false
-                            }
-                            .buttonStyle(KilnButtonStyle(.plain))
-                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
                     }
                 }
             }
             KilnGroupTitle(Strings.Move.comesAlong)
-            Text(Strings.Move.comesAlongText(conflicts: SampleData.conflictsComingAlong))
+            Text(model.snapshot.isSample ? Strings.Move.comesAlongText(conflicts: SampleData.conflictsComingAlong) : Strings.Move.comesAlongLive)
                 .font(.system(size: 13))
                 .foregroundStyle(kiln.muted)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 3)
-            KilnField(Strings.Connect.syncKey) {
-                KilnInput(text: $key, placeholder: Strings.Connect.keyPlaceholder, mono: true)
-                Button(Strings.Connect.paste) {
-                    key = SampleData.syncKey
+            if blockers.needsKey {
+                KilnField(Strings.Connect.syncKey) {
+                    KilnInput(text: $key, placeholder: Strings.Connect.keyPlaceholder, mono: true)
+                    Button(Strings.Connect.paste) {
+                        key = NSPasteboard.general.string(forType: .string) ?? String()
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
                 }
-                .buttonStyle(KilnButtonStyle(.plain))
+                .padding(.top, 14)
             }
-            .padding(.top, 14)
         } buttons: {
             Button(Strings.Move.notNow) {
                 model.sheet = nil
             }
             .buttonStyle(KilnButtonStyle(.plain))
             Button(Strings.Move.moveFolders) {
-                model.send(.moveFromLocal(folderIDs: MoveRules.ordered(checked)))
-                model.sheet = .movedFromLocal
+                move(MoveRules.ordered(folders, checked: checked), connectFirst: blockers.needsKey)
             }
             .buttonStyle(KilnButtonStyle(.primary))
             .disabled(!ready)
@@ -78,12 +65,33 @@ struct MoveSheet: View {
         }
     }
 
-    private func folderRow(_ folder: LocalMoveFolder) -> some View {
+    /// Connects with the key first when one is needed, then moves. A refusal
+    /// keeps the sheet open and says why.
+    @MainActor
+    private func move(_ folderIDs: [String], connectFirst: Bool) {
+        let sent = key
+        key = String()
+        moving = true
+        Task {
+            defer { moving = false }
+            if connectFirst, case let .refused(answer) = await model.submit(.connect(username: String(), key: sent)) {
+                model.say(answer.text.isEmpty ? answer.code : answer.text)
+                return
+            }
+            if case let .refused(answer) = await model.submit(.moveFromLocal(folderIDs: folderIDs)) {
+                model.say(answer.text.isEmpty ? answer.code : answer.text)
+                return
+            }
+            model.sheet = .movedFromLocal
+        }
+    }
+
+    private func folderRow(_ folder: MoveFolderInfo, on: Bool) -> some View {
         Button {
             toggle(folder.id)
         } label: {
             HStack(spacing: 11) {
-                KilnCheck(on: checked.contains(folder.id))
+                KilnCheck(on: on)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(folder.name)
                         .font(.system(size: 14, weight: .medium))
@@ -91,6 +99,12 @@ struct MoveSheet: View {
                     Text(Strings.Move.mapping(port: folder.port, address: folder.address))
                         .font(.system(size: 12.5, design: .monospaced))
                         .foregroundStyle(kiln.muted)
+                    if !folder.skip.isEmpty {
+                        Text(Strings.Move.stayed(folder.skip))
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(kiln.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -102,10 +116,10 @@ struct MoveSheet: View {
     }
 
     private func toggle(_ id: String) {
-        if checked.contains(id) {
-            checked.remove(id)
+        if unchecked.contains(id) {
+            unchecked.remove(id)
         } else {
-            checked.insert(id)
+            unchecked.insert(id)
         }
     }
 }

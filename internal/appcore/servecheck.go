@@ -73,6 +73,7 @@ const (
 	RefuseNotAllowedNow     = "not-allowed-now"
 	RefuseUnknownPreference = "unknown-preference"
 	RefuseNothingToMove     = "nothing-to-move"
+	RefuseLocalRunning      = "local-running"
 	RefuseNotConnected      = "not-connected"
 	// The sync key refusals Connect answers (08-sync.md step 8.10).
 	RefuseSyncKeyShape     = "sync-key-shape"

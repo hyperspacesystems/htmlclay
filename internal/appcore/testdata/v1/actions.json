@@ -94,6 +94,10 @@
       "class": "safe"
     },
     {
+      "type": "move.quitLocal",
+      "class": "safe"
+    },
+    {
       "type": "move.start",
       "class": "grant"
     },

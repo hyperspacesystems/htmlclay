@@ -210,11 +210,13 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(SampleReducer.apply(.moveFromLocal(folderIDs: ["panphora", "design-team"]), to: moved), moved)
         XCTAssertTrue(SampleReducer.apply(.moveFromLocal(folderIDs: ["panphora"]), to: local).waiting.isEmpty)
 
-        XCTAssertEqual(MoveRules.ordered(["design-team", "panphora"]), ["panphora", "design-team"])
-        XCTAssertFalse(MoveRules.canMove(blockers: 1, checked: ["panphora"], key: "k"))
-        XCTAssertFalse(MoveRules.canMove(blockers: 0, checked: [], key: "k"))
-        XCTAssertFalse(MoveRules.canMove(blockers: 0, checked: ["panphora"], key: String()))
-        XCTAssertTrue(MoveRules.canMove(blockers: 0, checked: ["panphora"], key: "k"))
+        XCTAssertEqual(MoveRules.ordered(SampleData.localMoveFolders, checked: ["design-team", "panphora"]), ["panphora", "design-team"])
+        XCTAssertFalse(MoveRules.canMove(blockers: MoveBlockers(localRunning: true), checked: ["panphora"], key: "k"))
+        XCTAssertFalse(MoveRules.canMove(blockers: MoveBlockers(), checked: [], key: "k"))
+        XCTAssertFalse(MoveRules.canMove(blockers: MoveBlockers(needsKey: true), checked: ["panphora"], key: String()))
+        XCTAssertTrue(MoveRules.canMove(blockers: MoveBlockers(needsKey: true), checked: ["panphora"], key: "k"))
+        XCTAssertTrue(MoveRules.canMove(blockers: MoveBlockers(), checked: ["panphora"], key: String()))
+        XCTAssertFalse(SampleReducer.apply(.quitLocal, to: local).moveBlockers.localRunning)
 
         let syncing = SampleData.snapshot(for: .syncedWithTeams)
         XCTAssertEqual(syncing.filesStillUploading, 5)
