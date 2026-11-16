@@ -71,7 +71,7 @@ struct ConnectSheet: View {
             Button(form.connecting ? Strings.Connect.connecting : Strings.Connect.connect) {
                 Task {
                     guard await form.connect() else { return }
-                    model.sheet = wasConnected ? nil : .accountFolder(username: form.username)
+                    model.sheet = ConnectSheetModel.nextSheet(after: model.snapshot, wasConnected: wasConnected)
                 }
             }
             .buttonStyle(KilnButtonStyle(.primary))
@@ -163,8 +163,12 @@ struct AccountFolderSheet: View {
             }
         }
         .onAppear {
-            if !model.isSample && form == nil, let folderID {
-                form = SetUpSheetModel(folderID: folderID, path: AccountFolderSheet.path(username), model: model)
+            if !model.isSample && form == nil {
+                if let folderID {
+                    form = SetUpSheetModel(folderID: folderID, path: AccountFolderSheet.path(username), model: model)
+                } else {
+                    model.sheet = nil
+                }
             }
         }
     }

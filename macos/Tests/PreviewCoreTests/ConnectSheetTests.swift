@@ -58,6 +58,17 @@ final class ConnectSheetTests: XCTestCase {
         XCTAssertNil(form.refusal)
     }
 
+    func testAfterAConnectTheAccountFolderSheetUsesTheHostsUsername() {
+        var snapshot = HostSnapshot()
+        snapshot.sync.connected = true
+        snapshot.sync.username = "maya"
+        snapshot.folders = [Folder(id: "f1", name: "maya", path: "", origin: .account(username: "maya"), onThisMac: false)]
+        XCTAssertEqual(ConnectSheetModel.nextSheet(after: snapshot, wasConnected: false), .accountFolder(username: "maya"))
+        XCTAssertNil(ConnectSheetModel.nextSheet(after: snapshot, wasConnected: true), "replacing a key opens nothing")
+        snapshot.folders[0].onThisMac = true
+        XCTAssertNil(ConnectSheetModel.nextSheet(after: snapshot, wasConnected: false), "a folder already on this Mac opens nothing")
+    }
+
     func testClosingClearsTheKey() {
         let (_, _, form) = sheet()
         form.key = key

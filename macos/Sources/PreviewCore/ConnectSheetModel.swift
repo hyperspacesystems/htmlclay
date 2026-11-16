@@ -41,6 +41,16 @@ public final class ConnectSheetModel {
         }
     }
 
+    /// What opens after a connect: the sheet that places the person's own
+    /// account folder, when that folder is not on this Mac yet. The username is
+    /// the host's, since the one typed may differ in case or carry an @.
+    public static func nextSheet(after snapshot: HostSnapshot, wasConnected: Bool) -> PreviewSheet? {
+        guard !wasConnected else { return nil }
+        let username = snapshot.sync.username
+        let waiting = snapshot.folders.contains { $0.origin == .account(username: username) && !$0.onThisMac }
+        return waiting ? .accountFolder(username: username) : nil
+    }
+
     /// The sheet closed: nothing typed is kept.
     public func close() {
         key = ""
