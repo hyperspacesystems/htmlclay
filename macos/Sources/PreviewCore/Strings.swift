@@ -114,7 +114,7 @@ public enum Strings {
         public static let viewOnly = "Can't sync here"
         // TODO-COPY: the Disconnect confirmation on the Sync pane: title max 50 chars, message max 160, button max 20
         public static let disconnectTitle = "Disconnect from hyperclay.com?"
-        public static let disconnectMessage = "Your folders stop syncing and your sync key is removed from this Mac. Your files stay here. Connect again with the same key to turn the same folders back on."
+        public static let disconnectMessage = "Your folders stop syncing and your sync key is removed from this Mac. Your files stay here. Connect the same account again to turn the same folders back on."
         public static let disconnectConfirm = "Disconnect"
         public static let syncing = "Syncing"
         public static let folders = "Folders"
@@ -518,8 +518,8 @@ public enum Strings {
         public static let back = "Back"
         public static let setUpAndSync = "Set up and sync"
         public static let wouldChooseExisting = "Build 1: this would ask you to choose a folder you already have."
-        // copy: account set-up sheet, what a first sync into a folder already there will do, max 90 chars
-        public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files upload, \(counts.toDownload) download, and \(counts.differ) differ, keeping both copies. Nothing is deleted." }
+        // TODO-COPY: account set-up sheet, what a first sync into a folder already there will do; differing files wait in Needs you (review 2), max 100 chars
+        public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files upload, \(counts.toDownload) download, and \(counts.differ) differ. You choose which to keep in Needs you. Nothing is deleted." }
         // copy: account set-up sheet, the button after the counts show, max 20 chars
         public static let syncThese = "Sync these files"
         // copy: set-up sheets, while the folder is being set up, max 20 chars
@@ -528,6 +528,8 @@ public enum Strings {
     public enum TeamSetup {
         // TODO-COPY: under the folder path on the team set-up sheet, before any refusal: a team's first sync needs an empty folder, max 60 chars
         public static let emptyFolder = "Pick an empty folder or a new one."
+        // TODO-COPY: the team set-up sheet's button while the first download runs: it hides the sheet, the download goes on (review 2), max 12 chars
+        public static let close = "Close"
         // TODO-COPY: a note after a set-up whose first download could not finish; the folder and its files stay, and Set up works again, max 100 chars
         public static let firstDownloadFailed = "The first download didn't finish, so nothing is syncing yet. Try Set up again."
         // TODO-COPY: the same note when the Mac lacks room for the team's files, max 100 chars

@@ -42,7 +42,7 @@ const (
 	TextSyncNotConnected  = "Not connected to hyperclay.com"                                           // copy: CLI status line, max 80 chars
 	// The htmlclay sync setup lines (08-sync.md step 8.25).
 	TextSyncSetupDownload   = "%d files (%s) will download into %s."
-	TextSyncSetupExisting   = "%d files upload, %d download, and %d differ, keeping both copies. Nothing is deleted."
+	TextSyncSetupExisting   = "%d files upload, %d download, and %d differ. You choose which to keep in Needs you. Nothing is deleted." // TODO-COPY: corrected claim (review 2), differing files wait in Needs you
 	TextSyncSetupAsk        = "Set up sync? [y/N] "
 	TextSyncSetupStarted    = "Sync is set up. HTML Clay is syncing this folder now."
 	TextSyncSetupNoAccount  = "No account or team is named %s. Run htmlclay sync status to see yours."

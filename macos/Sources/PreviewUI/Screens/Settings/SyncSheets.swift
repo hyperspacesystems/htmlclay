@@ -344,7 +344,7 @@ struct TeamSetupSheet: View {
                     FirstDownloadFollow(folderID: folderID)
                 }
             } buttons: {
-                Button(Strings.Sheets.cancel) {
+                Button(form.following ? Strings.TeamSetup.close : Strings.Sheets.cancel) {
                     model.sheet = nil
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
