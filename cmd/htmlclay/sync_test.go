@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,9 @@ import (
 func stubServiceCommand(t *testing.T) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "stubservice")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 	build := exec.Command("go", "build", "-o", bin, "../../tools/stubservice")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("building the stub service: %v\n%s", err, out)
