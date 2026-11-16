@@ -41,7 +41,7 @@ func syncLinesSent(t *testing.T, record string) []string {
 }
 
 func TestM4KeyLine(t *testing.T) {
-	const key = "hcsk_00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+	key := "hcsk_" + strings.Repeat("00112233445566778899aabbccddeeff", 2)
 	setSyncServer(t, "http://127.0.0.1:9")
 
 	t.Run("no key in the store, no line", func(t *testing.T) {

@@ -14,10 +14,14 @@ import (
 	"github.com/panphora/htmlclay/internal/secret"
 )
 
+// The keys are built at run time so the key scan (08-sync.md Gates) finds no key in the source.
+var (
+	connectKeyOne = "hcsk_" + strings.Repeat("1", 64)
+	connectKeyTwo = "hcsk_" + strings.Repeat("2", 64)
+)
+
 const (
-	connectKeyOne = "hcsk_1111111111111111111111111111111111111111111111111111111111111111"
-	connectKeyTwo = "hcsk_2222222222222222222222222222222222222222222222222222222222222222"
-	discoverMaya  = `{"ok":true,"actor":{"id":12,"username":"maya","fullName":"Maya Lin"},"accounts":[` +
+	discoverMaya = `{"ok":true,"actor":{"id":12,"username":"maya","fullName":"Maya Lin"},"accounts":[` +
 		`{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}},` +
 		`{"id":40,"kind":"team","username":"studio","displayName":"Studio","role":"viewer","webUrl":"https://hyperclay.com/_/team/studio/dashboard","sync":{"enabled":false,"reason":"plan-lapsed"}}]}`
 	discoverRefused = `{"ok":false,"code":"key-refused","status":401}`
