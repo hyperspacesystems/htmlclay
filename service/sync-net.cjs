@@ -33,7 +33,8 @@ function installGate({ fetchImpl = globalThis.fetch } = {}) {
       refused += 1;
       return Promise.reject(new SyncHostRefused());
     }
-    return fetchImpl(input, init);
+    // A redirect would carry the key header to whatever host it names, past this check.
+    return fetchImpl(input, { ...init, redirect: 'error' });
   };
   return {
     // hold opens the gate to serverUrl's origin while a key is held.

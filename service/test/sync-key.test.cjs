@@ -109,6 +109,19 @@ test('the gate', async (t) => {
     assert.equal(gate.refusedCount(), 4);
   });
 
+  await t.test('a redirect to another host is refused, so the key never follows it', async () => {
+    const hop = http.createServer((req, res) => {
+      res.writeHead(302, { location: `${other.url}/stolen` });
+      res.end();
+    });
+    t.after(() => hop.closeAllConnections() || hop.close());
+    const hopURL = await new Promise((resolve) => hop.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${hop.address().port}`)));
+    gate.hold(hopURL);
+    await assert.rejects(fetch(`${hopURL}/sync/v1/discover`, { headers: { authorization: 'Bearer test' } }));
+    assert.deepEqual(other.seen, []);
+    gate.hold(server.url);
+  });
+
   await t.test('a cleared key closes the gate again', async () => {
     gate.clear();
     await assert.rejects(fetch(`${server.url}/again`), { code: 'sync-host-refused' });
