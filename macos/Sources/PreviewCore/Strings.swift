@@ -604,7 +604,7 @@ public enum Strings {
         public static func title(_ note: SampleNotification) -> String {
             switch note {
             case .conflict: return "Design Team: index.html changed in both places"
-            case .keyStopped: return "Your sync key stopped working"
+            case .keyStopped: return "Your sync key no longer works"
             case .addedToTeam: return "You were added to Marketing"
             case .wentBack: return "HTML Clay went back to 2.0"
             case .cantOpen: return "Can't open trip-plan.htmlclay"
@@ -612,30 +612,30 @@ public enum Strings {
         }
         public static func body(_ note: SampleNotification) -> String {
             switch note {
-            case .conflict: return "Choose which to keep. Its upload waits."
-            case .keyStopped: return "Syncing stopped. Your files are safe."
+            case .conflict: return "Sync held this file. Choose what to keep in Needs you."
+            case .keyStopped: return "Syncing stopped. Your files are safe. Replace your sync key."
             case .addedToTeam: return "Set it up on this Mac in Settings › Folders."
             case .wentBack: return "2.1 didn't start correctly."
             case .cantOpen: return "HTML Clay only opens files in your home folder."
             }
         }
         public static let fallbackNote = "Shown here because notifications are off for HTML Clay Preview."
-        // TODO-COPY: live notifications, one title and body per kind; folder is the synced folder's name, max 70 chars
+        // copy: live notifications, one title and body per kind; folder is the synced folder's name, max 70 chars
         public static func title(_ notice: HostNotice, folder: String?) -> String {
             switch notice.kind {
             case .conflict: return folder.map { "\($0): \(notice.name) changed in both places" } ?? "\(notice.name) changed in both places"
-            case .keyStopped: return "Your sync key stopped working"
+            case .keyStopped: return "Your sync key no longer works"
             case .addedToTeam: return "You were added to \(notice.name)"
             }
         }
         public static func body(_ notice: HostNotice) -> String {
             switch notice.kind {
-            case .conflict: return "Choose which to keep. Its upload waits."
-            case .keyStopped: return "Syncing stopped. Your files are safe."
+            case .conflict: return "Sync held this file. Choose what to keep in Needs you."
+            case .keyStopped: return "Syncing stopped. Your files are safe. Replace your sync key."
             case .addedToTeam: return "Set it up on this Mac in Settings › Folders."
             }
         }
-        // TODO-COPY: live notification card button, max 16 chars
+        // copy: live notification card button, max 16 chars
         public static func open(_ notice: HostNotice) -> String {
             switch notice.kind {
             case .conflict: return "Review"
@@ -685,18 +685,18 @@ extension Strings { public enum History {
     public static func title(_ folder: String) -> String { "Folder history · \(folder)" }
     public static let showSyncLog = "Show sync log"
     public static let today = "Today"
-    // TODO-COPY: folder history rows, one per kind, the file's path after it, max 60 chars
+    // copy: folder history rows, one per kind, the file's path after it, max 60 chars
     public static func entry(_ kind: HistoryEntry.Kind, _ path: String) -> String {
         switch kind {
         case .uploaded: return "Uploaded \(path)"
         case .downloaded: return "Downloaded \(path)"
         case .renamed: return "Renamed \(path)"
         case .removed: return "Removed \(path)"
-        case .conflict: return "\(path) changed in both places"
+        case .conflict: return "Conflict in \(path)"
         case .settled: return "Settled a conflict in \(path)"
         }
     }
-    // TODO-COPY: folder history, when sync has done nothing in this folder yet, max 60 chars
+    // copy: folder history, when sync has done nothing in this folder yet, max 60 chars
     public static let empty = "Nothing has synced in this folder yet."
 } }
 extension Strings.Preview {
