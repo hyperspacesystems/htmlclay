@@ -239,7 +239,11 @@ func TestM4Connect(t *testing.T) {
 			t.Fatalf("connect refused: %+v", refusal)
 		}
 		a.rt.syncMu.Lock()
-		a.rt.syncRecord.SyncSessions = []config.SyncSession{{ID: "s1", RootID: "0123456789abcdef", AccountID: 12, Kind: "personal", Enabled: true}}
+		a.rt.syncRecord.SyncSessions = []config.SyncSession{
+			{ID: "s1", RootID: "0123456789abcdef", AccountID: 12, Kind: "personal", Enabled: true},
+			{ID: "s2", RootID: "1123456789abcdef", AccountID: 99, Kind: "team", Enabled: true},
+			{ID: "s3", RootID: "2123456789abcdef", AccountID: 12, Kind: "personal", Enabled: false},
+		}
 		a.rt.syncMu.Unlock()
 		if _, refusal := a.do(context.Background(), coreAction(t, "d1", "sync.disconnect", nil), ChannelTray); refusal != nil {
 			t.Fatalf("disconnect refused: %+v", refusal)
@@ -248,11 +252,29 @@ func TestM4Connect(t *testing.T) {
 			t.Fatal("the key is still stored")
 		}
 		saved := savedSync(t, a)
-		if saved.Account != nil || len(saved.SyncSessions) != 1 || saved.SyncSessions[0].Enabled {
+		if saved.Account != nil || len(saved.SyncSessions) != 3 {
 			t.Fatalf("after disconnect: account %+v sessions %+v", saved.Account, saved.SyncSessions)
+		}
+		for _, s := range saved.SyncSessions {
+			if s.Enabled {
+				t.Fatalf("a session still syncs after disconnect: %+v", s)
+			}
 		}
 		if got := lastSyncLine(t, record); got != `{"sync":{"v":1,"key":null}}` {
 			t.Fatalf("last line %q, want the clear", got)
+		}
+
+		// Reconnecting turns back on only what was syncing, and only for accounts
+		// this key can sync (M4 review F5).
+		if refusal := connectThroughDo(t, a, "c2", "", connectKeyOne); refusal != nil {
+			t.Fatalf("reconnect refused: %+v", refusal)
+		}
+		on := map[string]bool{}
+		for _, s := range savedSync(t, a).SyncSessions {
+			on[s.ID] = s.Enabled
+		}
+		if !on["s1"] || on["s2"] || on["s3"] {
+			t.Fatalf("after reconnect: enabled %v, want only s1", on)
 		}
 	})
 }

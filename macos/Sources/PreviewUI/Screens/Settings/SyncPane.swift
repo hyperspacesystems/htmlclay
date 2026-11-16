@@ -6,6 +6,7 @@ struct SyncPane: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
     @Environment(\.openURL) private var openURL
+    @State private var confirmDisconnect = false
 
     static func orderedFolders(_ snapshot: HostSnapshot) -> [Folder] {
         snapshot.accountFolders.filter(\.onThisMac) + snapshot.accountFolders.filter { !$0.onThisMac }
@@ -126,9 +127,17 @@ struct SyncPane: View {
                     }
                     .buttonStyle(KilnButtonStyle(.plain))
                     Button(Strings.Sync.disconnect) {
-                        model.send(.disconnect)
+                        confirmDisconnect = true
                     }
                     .buttonStyle(KilnButtonStyle(.plain))
+                    .alert(Strings.Sync.disconnectTitle, isPresented: $confirmDisconnect) {
+                        Button(Strings.Sheets.cancel, role: .cancel) {}
+                        Button(Strings.Sync.disconnectConfirm, role: .destructive) {
+                            model.send(.disconnect)
+                        }
+                    } message: {
+                        Text(Strings.Sync.disconnectMessage)
+                    }
                 }
             }
             KilnRowDivider()

@@ -290,11 +290,30 @@ func (a *app) connectSyncKey(ctx context.Context, e appcore.Effect) *appcore.Ref
 	a.rt.syncHeld.Store(true)
 	a.rt.syncKeyUnread.Store(false)
 	record.Accounts = a.mergeAccountRows(record.Accounts, found)
+	resumeAfterDisconnect(record)
 	if err := record.Save(); err != nil {
 		a.rt.logger.Printf("Could not connect sync: sync.json: %v", err)
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
 	return nil
+}
+
+// resumeAfterDisconnect turns back on the folders that were syncing when the
+// person disconnected, for every account or team the connected key can sync.
+// A folder of an account this key cannot reach stays off and keeps its mark.
+func resumeAfterDisconnect(record *config.Sync) {
+	reachable := map[int64]bool{}
+	for _, row := range record.Accounts {
+		if row.Sync.Enabled {
+			reachable[row.AccountID] = true
+		}
+	}
+	for i := range record.SyncSessions {
+		s := &record.SyncSessions[i]
+		if s.OffAtDisconnect && reachable[s.AccountID] {
+			s.Enabled, s.OffAtDisconnect = true, false
+		}
+	}
 }
 
 // mergeAccountRows answers discovery's rows in its order, each keeping the folder
@@ -360,6 +379,9 @@ func (a *app) disconnectSync() *appcore.Refusal {
 	record.KeyRefused = nil
 	a.rt.syncHeld.Store(false)
 	for i := range record.SyncSessions {
+		if record.SyncSessions[i].Enabled {
+			record.SyncSessions[i].OffAtDisconnect = true
+		}
 		record.SyncSessions[i].Enabled = false
 	}
 	if err := record.Save(); err != nil {
