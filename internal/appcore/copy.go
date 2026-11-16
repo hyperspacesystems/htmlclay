@@ -32,20 +32,20 @@ const (
 	TextCannotServe        = "HTML Clay can't serve this folder"                                                     // copy: notification title for a refusal, max 48 chars
 	TextServeCLIWindows    = "The htmlclay serve command runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
 	// The htmlclay sync command line (08-sync.md step 8.12). TODO-COPY: every line below.
-	TextSyncCLIWindows    = "The htmlclay sync command runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
-	TextSyncKeyPrompt     = "Sync key: "                                                                           // copy: CLI prompt on a terminal, max 20 chars
-	TextSyncKeyNoArgument = "Type the sync key when asked, or pipe it in. It is never a command argument."         // copy: CLI, key given as an argument, max 120 chars
-	TextSyncConnectedAs   = "Connected as %s"                                                                      // copy: CLI success, %s username, max 80 chars
-	TextSyncDisconnected  = "Disconnected. Your synced folders stay on this computer."                             // copy: CLI success, max 120 chars
-	TextSyncPausedLine    = "Sync is paused"                                                                       // copy: CLI success and status line, max 80 chars
-	TextSyncResumedLine   = "Sync is on"                                                                           // copy: CLI success and status line, max 80 chars
-	TextSyncNotConnected  = "Not connected to a Hyperclay account"                                                 // copy: CLI status line, max 80 chars
+	TextSyncCLIWindows    = "htmlclay sync runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
+	TextSyncKeyPrompt     = "Sync key: "                                                               // copy: CLI prompt on a terminal, max 20 chars
+	TextSyncKeyNoArgument = "A sync key can't go in the command. Type it when asked, or pipe it in."   // copy: CLI, key given as an argument, max 120 chars
+	TextSyncConnectedAs   = "Connected as %s"                                                          // copy: CLI success, %s username, max 80 chars
+	TextSyncDisconnected  = "Disconnected. Your synced folders stay on this computer."                 // copy: CLI success, max 120 chars
+	TextSyncPausedLine    = "Syncing is paused"                                                        // copy: CLI success and status line, max 80 chars
+	TextSyncResumedLine   = "Syncing is on"                                                            // copy: CLI success and status line, max 80 chars
+	TextSyncNotConnected  = "Not connected to hyperclay.com"                                           // copy: CLI status line, max 80 chars
 	// The htmlclay sync setup lines (08-sync.md step 8.25).
-	TextSyncSetupDownload   = "TODO-COPY %d files (%s) will download into %s."
-	TextSyncSetupExisting   = "TODO-COPY %d files go up, %d come down, and %d differ and are kept both ways. Nothing is deleted."
-	TextSyncSetupAsk        = "TODO-COPY Set up sync? [y/N] "
-	TextSyncSetupStarted    = "TODO-COPY Sync is set up. The first download runs in HTML Clay."
-	TextSyncSetupNoAccount  = "TODO-COPY There is no account or team called %s. Run htmlclay sync status to see them."
+	TextSyncSetupDownload   = "%d files (%s) will download into %s."
+	TextSyncSetupExisting   = "%d files will upload, %d will download, and %d differ. Nothing is deleted."
+	TextSyncSetupAsk        = "Set up sync? [y/N] "
+	TextSyncSetupStarted    = "Sync is set up. HTML Clay is syncing this folder now."
+	TextSyncSetupNoAccount  = "No account or team is named %s. Run htmlclay sync status to see yours."
 	TextWarnPersonalFolder  = "This is one of your main folders. HTML Clay will be able to save every document in it."
 	TextWarnContainsTrusted = "HTML Clay already trusts these folders inside it, so they will become part of this folder: %s."
 	// TextWarnInsideTrusted is the Trust sheet's warning for a folder inside one
@@ -88,17 +88,17 @@ const (
 	TextWaitingSyncKeyUnreadable = "TODO-COPY HTML Clay can't read your sync key. Enter it again." // copy: waiting item title when the saved key cannot be read, max 70 chars
 	TextWaitingFileTooBig        = "%s is too big to sync"                                         // copy: waiting item title, the file's name, max 70 chars
 	TextWaitingTeamToSetUp       = "%s is ready to set up"                                         // copy: waiting item title, the team folder's name, max 70 chars
-	TextWaitingRemovalHeld       = "TODO-COPY %s attachments were removed from %s at once"
-	TextWaitingFileNotText       = "TODO-COPY %s pages in %s aren't saved as UTF-8"          // copy: waiting item title, a count then the folder's name, max 70 chars; detail: they stay on this computer until saved as UTF-8
-	TextWaitingNameClash         = "TODO-COPY %s files in %s differ only in capital letters" // copy: waiting item title, a count then the folder's name, max 70 chars; detail: this computer keeps one; rename the other on hyperclay.com
-	TextNoticeConflictBody       = "TODO-COPY Choose which copy to keep in HTML Clay."
-	TextNoticeKeyStoppedBody     = "TODO-COPY Sync is paused. Add a new sync key in HTML Clay."
-	TextNoticeAddedToTeam        = "TODO-COPY You were added to %s"
-	TextNoticeAddedToTeamBody    = "TODO-COPY Set up its folder in HTML Clay."
-	TextTrayPauseSyncing         = "TODO-COPY Pause Syncing"  // copy: tray item, Windows and Linux, max 30 chars
-	TextTrayResumeSyncing        = "TODO-COPY Resume Syncing" // copy: tray item, Windows and Linux, max 30 chars
-	TextTrayOneConflict          = "TODO-COPY 1 Conflict…"    // copy: tray item opening Needs you, max 30 chars
-	TextTrayConflicts            = "TODO-COPY %d Conflicts…"  // copy: tray item opening Needs you, the count, max 30 chars
+	TextWaitingRemovalHeld       = "%s attachments were removed from %s at once"
+	TextWaitingFileNotText       = "%s pages in %s aren't saved as UTF-8"          // copy: waiting item title, a count then the folder's name, max 70 chars; detail: they stay on this computer until saved as UTF-8
+	TextWaitingNameClash         = "%s files in %s differ only in capital letters" // copy: waiting item title, a count then the folder's name, max 70 chars; detail: this computer keeps one; rename the other on hyperclay.com
+	TextNoticeConflictBody       = "Sync held this file. Open Needs you in HTML Clay to choose."
+	TextNoticeKeyStoppedBody     = "Syncing stopped. Your files are safe. Add a new sync key in HTML Clay."
+	TextNoticeAddedToTeam        = "You were added to %s"
+	TextNoticeAddedToTeamBody    = "Set up its folder in HTML Clay."
+	TextTrayPauseSyncing         = "Pause syncing"  // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayResumeSyncing        = "Resume syncing" // copy: tray item, Windows and Linux, max 30 chars
+	TextTrayOneConflict          = "1 conflict…"    // copy: tray item opening Needs you, max 30 chars
+	TextTrayConflicts            = "%d conflicts…"  // copy: tray item opening Needs you, the count, max 30 chars
 )
 
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
@@ -130,20 +130,20 @@ var RefusalText = map[string]string{
 	RefuseUnknownPreference:  "HTML Clay doesn't have that setting. Check the setting name or update HTML Clay.",            // copy: refusal, max 140 chars
 	RefuseNothingToMove:      "There is nothing to move from Hyperclay Local. Pick a folder to serve instead.",              // copy: refusal, max 140 chars
 	RefuseNotConnected:       "Your Hyperclay account isn't connected. Connect it in HTML Clay first.",                      // copy: refusal, max 140 chars
-	RefuseSyncKeyShape:       "TODO-COPY That isn't a sync key. A sync key starts with hcsk_.",
-	RefuseSyncKeyRefused:     "TODO-COPY Hyperclay didn't accept that sync key. Make a new one on hyperclay.com.",
-	RefuseSyncWrongAccount:   "TODO-COPY That sync key belongs to a different account.",
-	RefuseSyncOffline:        "TODO-COPY HTML Clay couldn't reach Hyperclay. Check your connection and try again.",
-	RefuseSyncServerUpdate:   "TODO-COPY Hyperclay needs an update before HTML Clay can sync with it.",
-	RefuseServiceNeeded:      "TODO-COPY Sync starts once a folder is served. Serve a folder and try again.",
-	RefuseSyncFolderNotEmpty: "TODO-COPY A team folder starts empty. Pick an empty folder or a new one.",
-	RefuseSyncPaused:         "TODO-COPY Sync is paused. Turn sync back on, then choose which copy to keep.",
-	RefuseConflictGone:       "TODO-COPY That file isn't in conflict any more. Nothing was changed.",
-	RefuseConflictChanged:    "TODO-COPY That file changed since you looked. Look at both copies again, then choose.",
-	RefuseNotText:            "TODO-COPY This page isn't saved as UTF-8, so it can't be sent. Nothing was changed.",
-	RefuseSyncDownloading:    "TODO-COPY This folder's first sync is still running. Find it again when it finishes.",
-	RefuseRemovalGone:        "TODO-COPY Those attachments aren't waiting for you any more. Nothing was changed.",
-	RefuseConfirmNeeded:      "TODO-COPY This folder already has files. Check what will sync, then confirm.",
+	RefuseSyncKeyShape:       "That isn't a complete sync key. Paste the full key starting with hcsk_.",
+	RefuseSyncKeyRefused:     "Hyperclay didn't accept that sync key. Get a new one on hyperclay.com.",
+	RefuseSyncWrongAccount:   "That sync key is for another account. Check the username or paste another key.",
+	RefuseSyncOffline:        "HTML Clay couldn't reach hyperclay.com. Check your connection and try again.",
+	RefuseSyncServerUpdate:   "Hyperclay needs an update before HTML Clay can sync with it. Try again later.",
+	RefuseServiceNeeded:      "HTML Clay isn't ready to sync yet. Try again in a moment.",
+	RefuseSyncFolderNotEmpty: "This folder isn't empty. Choose an empty folder or make a new one.",
+	RefuseSyncPaused:         "Syncing is paused. Resume syncing first, then try again.",
+	RefuseConflictGone:       "That file isn't in conflict anymore. Nothing was changed.",
+	RefuseConflictChanged:    "That file changed since you looked. Review it again, then choose.",
+	RefuseNotText:            "This page isn't UTF-8 text, so it can't upload. Save it as UTF-8 and try again.",
+	RefuseSyncDownloading:    "This folder's first sync is still running. Try Find it again once it finishes.",
+	RefuseRemovalGone:        "Those attachments aren't waiting for you anymore. Nothing was changed.",
+	RefuseConfirmNeeded:      "This folder already has files. Check what will sync, then confirm.",
 	RefuseNothingReady:       "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
 	RefuseNeedsConfirmation:  "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars
 	RefuseFailed:             "HTML Clay couldn't do that just now. Try again.",                                             // copy: refusal, max 140 chars

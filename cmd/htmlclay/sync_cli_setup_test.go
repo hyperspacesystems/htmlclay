@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/panphora/htmlclay/internal/appcore"
 )
 
 func TestM4SyncCLISetup(t *testing.T) {
@@ -67,7 +70,7 @@ func TestM4SyncCLISetup(t *testing.T) {
 		dir := filepath.Join(a.rt.home, "Maya")
 		writeTestFile(t, filepath.Join(dir, "notes.html"), "<p>mine</p>")
 		code, out, _ := setup("yes\n", "maya", dir, "--existing")
-		if code != serveExitOK || !strings.Contains(out, "2 files go up, 1 come down, and 1 differ") {
+		if code != serveExitOK || !strings.Contains(out, fmt.Sprintf(appcore.TextSyncSetupExisting, 2, 1, 1)) {
 			t.Fatalf("existing = %d %q", code, out)
 		}
 		waitForBinds(t, a)

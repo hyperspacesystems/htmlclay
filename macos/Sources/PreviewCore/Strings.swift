@@ -118,8 +118,8 @@ public enum Strings {
         public static let keyRefusedSub = "All folders stopped syncing. Your files are safe on this Mac."
         public static let reconnect = "Reconnect…"
         public static let wouldReplaceKey = "Build 1: this would ask for a new sync key."
-        // TODO-COPY: Sync pane, when the key is kept in a file because there is no system keychain, max 90 chars
-        public static let keyInFile = "Your sync key is kept in a file only you can read, because this computer has no keychain."
+        // copy: Sync pane, when the key is kept in a file because there is no system keychain, max 90 chars
+        public static let keyInFile = "Your sync key stays in a file only you can read because this computer has no keychain."
         public static let wouldOpenSite = "Build 1: this would open hyperclay.com in your browser."
         public static func account(_ username: String) -> String { "@\(username)" }
         public static func connected(keySuffix: String) -> String { "Connected · sync key ending \(keySuffix)" }
@@ -265,20 +265,20 @@ public enum Strings {
         public static func wouldRestart(_ version: String) -> String { "Build 1: this would restart HTML Clay into \(version)." }
         public static let wouldCheck = "Build 1: this would check for a new version."
         public static let wouldShowWhatsNew = "Build 1: this would show what changed in the new version."
-        // TODO-COPY: dialog title when an AI edit or a document's program is still running at Restart to update, max 50 chars
+        // copy: dialog title when an AI edit or a document's program is still running at Restart to update, max 50 chars
         public static let runningWorkTitle = "Something is still running"
-        // TODO-COPY: dialog body for the same, says restarting stops it, max 140 chars
+        // copy: dialog body for the same, says restarting stops it, max 140 chars
         public static let runningWorkBody = "An AI edit or a program started by a document is still running. Restarting now stops it."
-        // TODO-COPY: the destructive button in that dialog, max 20 chars
+        // copy: the destructive button in that dialog, max 20 chars
         public static let restartAnyway = "Restart anyway"
-        // TODO-COPY: notice title when Restart to update was chosen but HTML Clay has not restarted after 40 seconds, max 50 chars
+        // copy: notice title when Restart to update was chosen but HTML Clay has not restarted after 40 seconds, max 50 chars
         public static let notStartedTitle = "The update hasn't started yet"
-        // TODO-COPY: notice body for the same, what the person can do, max 140 chars
-        public static let notStartedBody = "HTML Clay will install it the next time it quits."
-        // TODO-COPY: notice title when HTML Clay could not get ready to restart for an update, max 50 chars
+        // copy: notice body for the same, what the person can do, max 140 chars
+        public static let notStartedBody = "Quit and reopen HTML Clay to finish the update, or keep working and it will install the next time you quit."
+        // copy: notice title when HTML Clay could not get ready to restart for an update, max 50 chars
         public static let restartFailedTitle = "HTML Clay couldn't restart to update"
-        // TODO-COPY: notice body for the same, says nothing was lost and it keeps running, max 140 chars
-        public static let restartFailedBody = "Your documents are saved and HTML Clay keeps running. It will try again the next time it quits."
+        // copy: notice body for the same, says nothing was lost and it keeps running, max 140 chars
+        public static let restartFailedBody = "Nothing was lost and HTML Clay is still running. Try Restart to update again in a moment."
     }
     public enum Advanced {
         public static let port = "Port"
@@ -499,7 +499,7 @@ public enum Strings {
         public static let wouldOpenKeys = "Build 1: this would open the sync key page on hyperclay.com."
         /// Where a person makes a sync key: the account menu of hyperclay.com's dashboard.
         public static let keyPageURL = "https://hyperclay.com/dashboard"
-        // TODO-COPY: Connect sheet, while the key is being checked, max 20 chars
+        // copy: Connect sheet, while the key is being checked, max 20 chars
         public static let connecting = "Connecting…"
     }
     public enum AccountFolder {
@@ -512,11 +512,11 @@ public enum Strings {
         public static let back = "Back"
         public static let setUpAndSync = "Set up and sync"
         public static let wouldChooseExisting = "Build 1: this would ask you to choose a folder you already have."
-        // TODO-COPY: account set-up sheet, what a first sync into a folder already there will do, max 90 chars
+        // copy: account set-up sheet, what a first sync into a folder already there will do, max 90 chars
         public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files will upload, \(counts.toDownload) will download, and \(counts.differ) differ. Nothing is deleted." }
-        // TODO-COPY: account set-up sheet, the button after the counts show, max 20 chars
+        // copy: account set-up sheet, the button after the counts show, max 20 chars
         public static let syncThese = "Sync these files"
-        // TODO-COPY: set-up sheets, while the folder is being set up, max 20 chars
+        // copy: set-up sheets, while the folder is being set up, max 20 chars
         public static let settingUp = "Setting up…"
     }
     public enum TeamSetup {
@@ -643,7 +643,7 @@ public enum Strings {
             case .addedToTeam: return "Set up"
             }
         }
-        // TODO-COPY: live notification card, why it shows in the corner instead of Notification Center, max 80 chars
+        // copy: live notification card, why it shows in the corner instead of Notification Center, max 80 chars
         public static let fallbackNoteLive = "Shown here because notifications are off for HTML Clay."
     }
 }
