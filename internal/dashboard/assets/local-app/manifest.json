@@ -3,7 +3,7 @@
   "protocol": 1,
   "package": "0.13.1",
   "entry": {
-    "javascript": "main-YEIY5UFA.js",
+    "javascript": "main-BIQX6COG.js",
     "css": [
       "main-J5PASYGV.css"
     ]
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
+      "path": "main-BIQX6COG.js",
+      "bytes": 1741347,
+      "sha256": "56eedd42a3f67e1cc5db66d6a8d128107d61f3f49a4cc330085825b825682e7f"
+    },
+    {
       "path": "main-J5PASYGV.css",
       "bytes": 385686,
       "sha256": "68f06eb3d40843d06f3cab03da4e0ca498c7ca57122b8c7e7575db07346d444d"
-    },
-    {
-      "path": "main-YEIY5UFA.js",
-      "bytes": 1741349,
-      "sha256": "40bee214728b4b319c600fd048fe47091264dcbde1bb65ffd99796b145f361c2"
     }
   ]
 }

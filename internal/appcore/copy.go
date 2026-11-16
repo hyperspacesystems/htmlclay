@@ -16,12 +16,12 @@ const (
 	TextQuitCancel         = "Cancel"                                                                            // copy: quit dialog button that keeps the app open, max 16 chars
 	TextQuitNotQuitting    = "HTML Clay is still open because you have unsaved edits: %s. Try quitting again in a moment."
 	TextQuitNoAnswer       = "Your open documents could not be checked."                                             // copy: quit dialog list line when the service could not be asked, max 60 chars
-	TextServeAFolder       = "Serve a Folder…"                                                                       // copy: tray row that opens the folder picker, max 24 chars
-	TextServedFolders      = "Served Folders"                                                                        // copy: tray submenu title, max 24 chars
+	TextServeAFolder       = "Serve a folder…"                                                                       // copy: tray row that opens the folder picker, max 24 chars
+	TextServedFolders      = "Served folders"                                                                        // copy: tray submenu title, max 24 chars
 	TextNoServedFolders    = "No served folders yet"                                                                 // copy: tray, disabled row when the list is empty, max 32 chars
-	TextOpenServed         = "Open Workspace"                                                                        // copy: tray, per folder, max 24 chars
-	TextCopyAddress        = "Copy Address"                                                                          // copy: tray, per folder, max 24 chars
-	TextStopServing        = "Stop Serving"                                                                          // copy: tray, per folder, and the confirm button, max 24 chars
+	TextOpenServed         = "Open workspace"                                                                        // copy: tray, per folder, max 24 chars
+	TextCopyAddress        = "Copy address"                                                                          // copy: tray, per folder, max 24 chars
+	TextStopServing        = "Stop serving"                                                                          // copy: tray, per folder, and the confirm button, max 24 chars
 	TextFolderMissing      = "(missing)"                                                                             // copy: tray, after a served folder's name when its folder is gone, max 16 chars
 	TextPickServeFolder    = "Choose a folder to serve at its own address."                                          // copy: folder picker prompt, max 120 chars
 	TextStopServingTitle   = "Stop serving this folder?"                                                             // copy: confirm dialog title, max 40 chars
@@ -32,17 +32,17 @@ const (
 	TextCannotServe        = "HTML Clay can't serve this folder"                                                     // copy: notification title for a refusal, max 48 chars
 	TextServeCLIWindows    = "The htmlclay serve command runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
 	// The htmlclay sync command line (08-sync.md step 8.12).
-	TextSyncCLIWindows    = "htmlclay sync runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
-	TextSyncKeyPrompt     = "Sync key: "                                                               // copy: CLI prompt on a terminal, max 20 chars
-	TextSyncKeyNoArgument = "A sync key can't go in the command. Type it when asked, or pipe it in."   // copy: CLI, key given as an argument, max 120 chars
-	TextSyncConnectedAs   = "Connected as %s"                                                          // copy: CLI success, %s username, max 80 chars
-	TextSyncDisconnected  = "Disconnected. Your synced folders stay on this computer."                 // copy: CLI success, max 120 chars
-	TextSyncPausedLine    = "Syncing is paused"                                                        // copy: CLI success and status line, max 80 chars
-	TextSyncResumedLine   = "Syncing is on"                                                            // copy: CLI success and status line, max 80 chars
-	TextSyncNotConnected  = "Not connected to hyperclay.com"                                           // copy: CLI status line, max 80 chars
+	TextSyncCLIWindows    = "Sync isn't on Windows yet. It comes in a later version of HTML Clay."   // copy: CLI, on Windows, max 120 chars
+	TextSyncKeyPrompt     = "Sync key: "                                                             // copy: CLI prompt on a terminal, max 20 chars
+	TextSyncKeyNoArgument = "A sync key can't go in the command. Type it when asked, or pipe it in." // copy: CLI, key given as an argument, max 120 chars
+	TextSyncConnectedAs   = "Connected as %s"                                                        // copy: CLI success, %s username, max 80 chars
+	TextSyncDisconnected  = "Disconnected. Your synced folders stay on this computer."               // copy: CLI success, max 120 chars
+	TextSyncPausedLine    = "Syncing is paused"                                                      // copy: CLI success and status line, max 80 chars
+	TextSyncResumedLine   = "Syncing is on"                                                          // copy: CLI success and status line, max 80 chars
+	TextSyncNotConnected  = "Not connected to hyperclay.com"                                         // copy: CLI status line, max 80 chars
 	// The htmlclay sync setup lines (08-sync.md step 8.25).
 	TextSyncSetupDownload   = "%d files (%s) will download into %s."
-	TextSyncSetupExisting   = "%d files upload, %d download, and %d differ. You choose which to keep in Needs you. Nothing is deleted." // TODO-COPY: corrected claim (review 2), differing files wait in Needs you
+	TextSyncSetupExisting   = "%d files to upload, %d to download, %d different. You choose in Needs you. Nothing is deleted." // copy: corrected claim (review 2), differing files wait in Needs you
 	TextSyncSetupAsk        = "Set up sync? [y/N] "
 	TextSyncSetupStarted    = "Sync is set up. HTML Clay is syncing this folder now."
 	TextSyncSetupNoAccount  = "No account or team is named %s. Run htmlclay sync status to see yours."
@@ -95,7 +95,7 @@ const (
 	TextNoticeKeyStoppedBody     = "Syncing stopped. Your files are safe. Add a new sync key in HTML Clay."
 	TextNoticeAddedToTeam        = "You were added to %s"
 	TextNoticeAddedToTeamBody    = "Set up its folder in HTML Clay."
-	TextNoticeAddedToTeamBodyCLI = "Run htmlclay sync setup to set up its folder." // TODO-COPY: Linux system notification body, names the command, max 120 chars
+	TextNoticeAddedToTeamBodyCLI = "Run htmlclay sync setup to set up its folder." // copy: Linux system notification body, names the command, max 120 chars
 	TextTrayPauseSyncing         = "Pause syncing"                                 // copy: tray item, Windows and Linux, max 30 chars
 	TextTrayResumeSyncing        = "Resume syncing"                                // copy: tray item, Windows and Linux, max 30 chars
 	TextTrayOneConflict          = "1 conflict…"                                   // copy: tray item opening Needs you, max 30 chars
@@ -131,7 +131,7 @@ var RefusalText = map[string]string{
 	RefuseUnknownPreference:  "HTML Clay doesn't have that setting. Check the setting name or update HTML Clay.",            // copy: refusal, max 140 chars
 	RefuseNothingToMove:      "There is nothing to move from Hyperclay Local. Pick a folder to serve instead.",              // copy: refusal, max 140 chars
 	RefuseNotConnected:       "Your Hyperclay account isn't connected. Connect it in HTML Clay first.",                      // copy: refusal, max 140 chars
-	RefuseLocalRunning:       "TODO-COPY Hyperclay Local is still open. Quit it, then move your folders.",
+	RefuseLocalRunning:       "Hyperclay Local is still open. Quit it, then move your folders.",
 	RefuseSyncKeyShape:       "That isn't a complete sync key. Paste the full key starting with hcsk_.",
 	RefuseSyncKeyRefused:     "Hyperclay didn't accept that sync key. Get a new one on hyperclay.com.",
 	RefuseSyncWrongAccount:   "That sync key is for another account. Check the username or paste another key.",
@@ -139,10 +139,10 @@ var RefusalText = map[string]string{
 	RefuseSyncServerUpdate:   "Hyperclay needs an update before HTML Clay can sync with it. Try again later.",
 	RefuseServiceNeeded:      "HTML Clay isn't ready to sync yet. Try again in a moment.",
 	RefuseSyncFolderNotEmpty: "This folder isn't empty. Choose an empty folder or make a new one.",
-	// TODO-COPY: set-up refusal for a folder already in HTML Clay (it keeps its own identity), max 120 chars
-	RefuseSyncFolderInUse: "This folder is already in HTML Clay, so it can't become your synced folder. Choose another folder or make a new one.",
+	// copy: set-up refusal for a folder already in HTML Clay (it keeps its own identity), max 120 chars
+	RefuseSyncFolderInUse: "This folder is already in HTML Clay. Choose another folder or make a new one.",
 	RefuseSyncPaused:      "This folder isn't syncing. Turn syncing back on in HTML Clay, then try again.",
-	// TODO-COPY: refusal when settling a conflict while the sync key needs replacing, max 120 chars
+	// copy: refusal when settling a conflict while the sync key needs replacing, max 120 chars
 	RefuseSyncKeyStopped:    "Syncing is stopped until you enter your sync key again. Your choice will wait until then.",
 	RefuseConflictGone:      "That file isn't in conflict anymore. Nothing was changed.",
 	RefuseConflictChanged:   "That file changed since you looked. Review it again, then choose.",

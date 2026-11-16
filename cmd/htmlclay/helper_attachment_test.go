@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -48,6 +49,11 @@ func TestMain(m *testing.M) {
 		os.Exit(runAttachmentHelper())
 	}
 	http.DefaultTransport = loopbackTransport()
+	// A test never reads this computer's own Hyperclay Local data: the move code
+	// reads HTMLCLAY_LOCAL_USERDATA, so it names a folder that does not exist.
+	if os.Getenv("HTMLCLAY_LOCAL_USERDATA") == "" {
+		os.Setenv("HTMLCLAY_LOCAL_USERDATA", filepath.Join(os.TempDir(), "htmlclay-test-no-local-"+strconv.Itoa(os.Getpid())))
+	}
 	os.Exit(m.Run())
 }
 

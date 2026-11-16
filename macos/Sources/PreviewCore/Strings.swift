@@ -110,11 +110,11 @@ public enum Strings {
         public static let connect = "Connect hyperclay.com…"
         public static let replaceKey = "Replace key…"
         public static let disconnect = "Disconnect…"
-        // TODO-COPY: beside a team folder the server will not sync on this Mac (a viewer, a lapsed plan), instead of Set up, max 16 chars
+        // copy: beside a team folder the server will not sync on this Mac (a viewer, a lapsed plan), instead of Set up, max 16 chars
         public static let viewOnly = "Can't sync here"
-        // TODO-COPY: the Disconnect confirmation on the Sync pane: title max 50 chars, message max 160, button max 20
+        // copy: the Disconnect confirmation on the Sync pane: title max 50 chars, message max 160, button max 20
         public static let disconnectTitle = "Disconnect from hyperclay.com?"
-        public static let disconnectMessage = "Your folders stop syncing and your sync key is removed from this Mac. Your files stay here. Connect the same account again to turn the same folders back on."
+        public static let disconnectMessage = "Syncing stops and HTML Clay removes your sync key from this Mac. Your files stay here. Connect the same account again to sync the same folders."
         public static let disconnectConfirm = "Disconnect"
         public static let syncing = "Syncing"
         public static let folders = "Folders"
@@ -518,23 +518,23 @@ public enum Strings {
         public static let back = "Back"
         public static let setUpAndSync = "Set up and sync"
         public static let wouldChooseExisting = "Build 1: this would ask you to choose a folder you already have."
-        // TODO-COPY: account set-up sheet, what a first sync into a folder already there will do; differing files wait in Needs you (review 2), max 100 chars
-        public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files upload, \(counts.toDownload) download, and \(counts.differ) differ. You choose which to keep in Needs you. Nothing is deleted." }
+        // copy: account set-up sheet, what a first sync into a folder already there will do; differing files wait in Needs you (review 2), max 100 chars
+        public static func willSync(_ counts: SyncCounts) -> String { "\(counts.toUpload) files to upload, \(counts.toDownload) to download, \(counts.differ) different. You choose in Needs you. Nothing is deleted." }
         // copy: account set-up sheet, the button after the counts show, max 20 chars
         public static let syncThese = "Sync these files"
         // copy: set-up sheets, while the folder is being set up, max 20 chars
         public static let settingUp = "Setting up…"
     }
     public enum TeamSetup {
-        // TODO-COPY: under the folder path on the team set-up sheet, before any refusal: a team's first sync needs an empty folder, max 60 chars
-        public static let emptyFolder = "Pick an empty folder or a new one."
-        // TODO-COPY: the team set-up sheet's button while the first download runs: it hides the sheet, the download goes on (review 2), max 12 chars
+        // copy: under the folder path on the team set-up sheet, before any refusal: a team's first sync needs an empty folder, max 60 chars
+        public static let emptyFolder = "Choose an empty folder or make a new one."
+        // copy: the team set-up sheet's button while the first download runs: it hides the sheet, the download goes on (review 2), max 12 chars
         public static let close = "Close"
-        // TODO-COPY: a note after a set-up whose first download could not finish; the folder and its files stay, and Set up works again, max 100 chars
+        // copy: a note after a set-up whose first download could not finish; the folder and its files stay, and Set up works again, max 100 chars
         public static let firstDownloadFailed = "The first download didn't finish, so nothing is syncing yet. Try Set up again."
-        // TODO-COPY: the same note when the Mac lacks room for the team's files, max 100 chars
-        public static let firstDownloadDiskFull = "There isn't enough free space for this team's files. Free up space, then try Set up again."
-        // TODO-COPY: the same note when hyperclay.com could not be reached, max 100 chars
+        // copy: the same note when the Mac lacks room for the team's files, max 100 chars
+        public static let firstDownloadDiskFull = "There isn't enough free space on this Mac. Free up space, then try Set up again."
+        // copy: the same note when hyperclay.com could not be reached, max 100 chars
         public static let firstDownloadOffline = "HTML Clay couldn't reach hyperclay.com. Check your connection, then try Set up again."
         public static func firstDownloadFailed(_ reason: String?) -> String {
             switch reason {
@@ -579,19 +579,19 @@ public enum Strings {
         public static func comesAlongText(conflicts: Int) -> String { "Versions, folder history, and \(conflicts) open conflicts, still waiting for you. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address." }
         public static let notNow = "Not now"
         public static let moveFolders = "Move folders"
-        // TODO-COPY: move sheet, what comes along, when the number of conflicts is not known, max 200 chars
+        // copy: move sheet, what comes along, when the number of conflicts is not known, max 200 chars
         public static let comesAlongLive = "Versions, folder history and open conflicts come along. Old bookmarks redirect. Anything a page kept only in browser storage stays at the old address."
-        // TODO-COPY: move sheet, under a folder that stayed with Hyperclay Local after a move, max 90 chars each
+        // copy: move sheet, under a folder that stayed with Hyperclay Local after a move, max 90 chars each
         public static func stayed(_ code: String) -> String {
             switch code {
             case "": return ""
-            case "not-connected": return "Stayed: this folder syncs to an account your sync key does not reach."
-            case "local-first-download-unfinished": return "Stayed: Hyperclay Local has not finished its first download. Open it and let it finish."
-            case "folder-missing": return "Stayed: the folder is not on this computer."
-            case "folder-in-use": return "Stayed: another app is using the folder. Close it and move again."
-            case "account-already-synced": return "Stayed: this account already syncs to another folder here."
-            case "local-running": return "Stayed: Hyperclay Local opened during the move. Quit it and move again."
-            default: return "Stayed with Hyperclay Local. Move again, or look at the log."
+            case "not-connected": return "Stayed: your sync key doesn't reach this account. Connect it in Sync, then move again."
+            case "local-first-download-unfinished": return "Stayed: Hyperclay Local hasn't finished its first download. Open it and let it finish."
+            case "folder-missing": return "Stayed: this folder can't be found where it was. Put it back, then move again."
+            case "folder-in-use": return "Stayed: another app is using this folder. Close that app, then move again."
+            case "account-already-synced": return "Stayed: this account already syncs to another folder here. Disconnect that one first."
+            case "local-running": return "Stayed: Hyperclay Local opened during the move. Quit it, then move again."
+            default: return "Stayed with Hyperclay Local. Try moving again, or check the app log in Settings."
             }
         }
         public static let wouldQuitLocal = "Build 1: this would quit Hyperclay Local after it saves."

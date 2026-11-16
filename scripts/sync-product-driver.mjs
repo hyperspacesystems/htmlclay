@@ -32,6 +32,8 @@ function configDir() {
 function environment() {
   // A synctest build's release check goes to a closed local port instead of htmlclay.com.
   const env = { ...process.env, HTMLCLAY_CONFIG_BASE: world.configBase, HTMLCLAY_SECRET_STORE: 'file', HTMLCLAY_RELEASE_INFO_URL: 'http://127.0.0.1:1/' };
+  // Never this computer's own Hyperclay Local data: a test that moves names its own.
+  if (!env.HTMLCLAY_LOCAL_USERDATA) env.HTMLCLAY_LOCAL_USERDATA = path.join(world.configBase, 'no-hyperclay-local');
   if (world.syncServer) env.HTMLCLAY_SYNC_SERVER = world.syncServer;
   if (world.serviceCmd) env.HTMLCLAY_SERVICE_CMD = world.serviceCmd;
   else delete env.HTMLCLAY_SERVICE_CMD;
@@ -149,6 +151,16 @@ const handlers = {
       const sums = listFiles(folder);
       return Object.entries(files).every(([rel, want]) => (want === null ? !(rel in sums) : sums[rel] === want)) ? sums : null;
     }, timeoutMs);
+  },
+  // Any shell action by type, for steps with no handler of their own (move.start).
+  // A refusal comes back as { refused: code }, not a thrown error.
+  async act({ type, args = {} }) {
+    try {
+      return await act(type, args);
+    } catch (error) {
+      if (error.code && !String(error.code).startsWith('status-')) return { refused: error.code };
+      throw error;
+    }
   },
   async snapshot() {
     return snapshot();

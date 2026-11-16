@@ -61,6 +61,8 @@ var implementedActions = []string{
 	"sync.revealLog",
 	"conflict.resolve",
 	"folder.resolveRemoval",
+	"move.quitLocal",
+	"move.start",
 	"waiting.markSeen",
 }
 
