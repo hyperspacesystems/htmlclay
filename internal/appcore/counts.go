@@ -78,7 +78,8 @@ func waiting(f Facts) []WaitingItem {
 				if e.Detail == SyncKeyUnreadable {
 					title = TextWaitingSyncKeyUnreadable
 				}
-				add(e.ID, e.Kind, title, e.Detail, e.SubjectID)
+				// The detail only picks the title: a dashboard prints any detail it gets.
+				add(e.ID, e.Kind, title, "", e.SubjectID)
 			}
 		case WaitingFileTooBig:
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingFileTooBig, e.Name), e.Detail, e.SubjectID)

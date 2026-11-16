@@ -309,7 +309,7 @@ func TestM4SyncKeyUnreadable(t *testing.T) {
 	asking := func() int {
 		n := 0
 		for _, item := range a.snapshot().Waiting {
-			if item.Kind == appcore.WaitingSyncKeyRefused && item.Detail == appcore.SyncKeyUnreadable && item.Title == appcore.TextWaitingSyncKeyUnreadable {
+			if item.Kind == appcore.WaitingSyncKeyRefused && item.Detail == "" && item.Title == appcore.TextWaitingSyncKeyUnreadable {
 				n++
 			}
 		}
