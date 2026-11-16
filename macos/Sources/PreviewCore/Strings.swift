@@ -24,7 +24,7 @@ public enum Strings {
         public static func wantsProgram(document: String) -> String { "\(document) wants to run a program" }
         public static func fileMissing(versions: Int) -> String { "File moved or deleted · \(versions) versions kept" }
         public static func documentSubtitle(place: String, opened: String) -> String { "\(droppingHome(place)) · \(opened)" }
-        public static func syncing(_ count: Int, username: String) -> String { "Syncing \(count) files… · \(username)" }
+        public static func syncing(_ count: Int, username: String) -> String { "Syncing \(count) \(count == 1 ? "file" : "files")… · \(username)" }
         public static func upToDate(_ username: String) -> String { "Up to date · \(username)" }
         public static func syncLine(_ sync: SyncState) -> String {
             if sync.paused { return syncPaused }
@@ -124,7 +124,7 @@ public enum Strings {
         public static func account(_ username: String) -> String { "@\(username)" }
         public static func connected(keySuffix: String) -> String { "Connected · sync key ending \(keySuffix)" }
         public static func syncingFiles(_ n: Int, lastFinished: String) -> String {
-            let base = "Syncing \(n) files…"
+            let base = "Syncing \(n) \(n == 1 ? "file" : "files")…"
             return lastFinished.isEmpty ? base : base + " · last finished \(lastFinished)"
         }
         public static func upToDate(lastFinished: String) -> String {
