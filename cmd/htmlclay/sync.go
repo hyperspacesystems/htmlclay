@@ -90,26 +90,34 @@ func (a *app) syncKey() (serverURL, key string, ok bool) {
 	return syncServerURL(), key, true
 }
 
-// readSyncKey reads the key from the store. A key kept in the private file is
-// read from there even when the system's store opened this time: a Linux
-// keyring that was locked at connect and is open now must not lose it.
+// readSyncKey reads the key. On a system with a secret service, the key can
+// also be in the private file: connect puts it there when the keyring was locked,
+// and connect into the keyring removes that copy. So a copy in the file is always
+// the newest one, and it is read first.
 func (a *app) readSyncKey() (string, bool) {
 	if a.rt.syncStore == nil {
 		return "", false
+	}
+	if a.rt.syncStore.Kind() == secret.KindSystem {
+		key, found, err := a.syncKeyFile().Get(syncKeyName)
+		if err != nil {
+			a.rt.logger.Printf("The sync key could not be read from its file: %v", err)
+		} else if found {
+			return key, true
+		}
 	}
 	key, found, err := a.rt.syncStore.Get(syncKeyName)
 	if err != nil {
 		a.rt.logger.Printf("The sync key could not be read: %v", err)
 		return "", false
 	}
-	if !found && a.rt.syncStore.Kind() == secret.KindSystem {
-		key, found, err = secret.NewFile(filepath.Join(a.rt.configDir, "secrets")).Get(syncKeyName)
-		if err != nil {
-			a.rt.logger.Printf("The sync key could not be read from its file: %v", err)
-			return "", false
-		}
-	}
 	return key, found
+}
+
+// syncKeyFile is the private file a key goes in when the system's store cannot
+// be used.
+func (a *app) syncKeyFile() secret.Store {
+	return secret.NewFile(filepath.Join(a.rt.configDir, "secrets"))
 }
 
 // syncKeyShape is a sync key as hyperclay.com makes it.
@@ -278,6 +286,13 @@ func (a *app) connectSyncKey(ctx context.Context, e appcore.Effect) *appcore.Ref
 		restore()
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
+	// A key kept in the file from a connect while the keyring was locked would
+	// be read first, so it goes once the keyring holds the new one.
+	if a.rt.syncStore.Kind() == secret.KindSystem {
+		if err := a.syncKeyFile().Delete(syncKeyName); err != nil {
+			a.rt.logger.Printf("Could not remove an older sync key from its file: %v", err)
+		}
+	}
 	record.Account = &config.SyncAccount{
 		ActorID:     found.Actor.ID,
 		Username:    found.Actor.Username,
@@ -366,6 +381,12 @@ func (a *app) disconnectSync() *appcore.Refusal {
 		if err := a.rt.syncStore.Delete(syncKeyName); err != nil {
 			a.rt.logger.Printf("Could not disconnect sync: removing the key: %v", err)
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
+		}
+		if a.rt.syncStore.Kind() == secret.KindSystem {
+			if err := a.syncKeyFile().Delete(syncKeyName); err != nil {
+				a.rt.logger.Printf("Could not disconnect sync: removing the key's file: %v", err)
+				return &appcore.Refusal{Code: appcore.RefuseFailed}
+			}
 		}
 	}
 	a.rt.syncMu.Lock()

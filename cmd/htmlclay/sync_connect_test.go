@@ -319,3 +319,43 @@ func TestM4SyncKeyUnreadable(t *testing.T) {
 		t.Fatalf("a key read again still asks %d times", n)
 	}
 }
+
+// systemStore stands in for a keyring: a memory store that says it is the
+// system's.
+type systemStore struct{ secret.Store }
+
+func (systemStore) Kind() string { return secret.KindSystem }
+
+// TestM4SyncKeyFileCopy is review 2's finding 1: a key kept in the private file
+// (connected while the keyring was locked) is read first, a connect into the
+// keyring removes it, and Disconnect removes it too.
+func TestM4SyncKeyFileCopy(t *testing.T) {
+	a, setDiscovery, _ := connectTestApp(t, true)
+	setDiscovery(discoverMaya)
+	a.rt.syncStore = systemStore{secret.NewMemory()}
+	file := a.syncKeyFile()
+	if err := file.Set(syncKeyName, connectKeyOne); err != nil {
+		t.Fatal(err)
+	}
+	if key, ok := a.readSyncKey(); !ok || key != connectKeyOne {
+		t.Fatalf("the file's key did not read: %q %v", key, ok)
+	}
+	if refusal := connectThroughDo(t, a, "c1", "", connectKeyOne); refusal != nil {
+		t.Fatalf("connect refused: %+v", refusal)
+	}
+	if _, found, _ := file.Get(syncKeyName); found {
+		t.Fatal("a connect into the keyring left the file's copy")
+	}
+	if err := file.Set(syncKeyName, connectKeyOne); err != nil {
+		t.Fatal(err)
+	}
+	if _, refusal := a.do(context.Background(), coreAction(t, "d1", "sync.disconnect", nil), ChannelTray); refusal != nil {
+		t.Fatalf("disconnect refused: %+v", refusal)
+	}
+	if _, found, _ := file.Get(syncKeyName); found {
+		t.Fatal("Disconnect left the key in its file")
+	}
+	if _, ok := a.readSyncKey(); ok {
+		t.Fatal("a key still reads after Disconnect")
+	}
+}
