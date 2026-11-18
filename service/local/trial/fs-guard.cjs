@@ -6,7 +6,7 @@ const url = require('url');
 
 const rawWriteFileSync = fs.writeFileSync;
 const rawMkdirSync = fs.mkdirSync;
-const rawRealpathSync = fs.realpathSync;
+const rawRealpathSync = fs.realpathSync.native;
 const rawOpen = fs.promises.open;
 
 const ROOTS_ENV = 'FS_GUARD_ROOTS';

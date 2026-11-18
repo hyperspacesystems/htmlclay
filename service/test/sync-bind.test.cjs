@@ -138,3 +138,34 @@ test('an existing folder merges and loses nothing', { skip: SKIP }, async (t) =>
   s.send({ sync: { v: 1, key: null } });
   await s.line('SYNC KEY CLEARED');
 });
+
+// A served folder whose saved path differs from the disk in letter case (or, on
+// Windows, uses a short name like RUNNER~1) is still one folder: the service and
+// the sync engine must resolve it the same way, or the bind reports offline.
+test('a folder saved under another letter case still binds', { skip: SKIP }, async (t) => {
+  const { startFakeSyncHttp } = require(FAKE);
+  const fake = await startFakeSyncHttp({
+    nodes: [{ id: 1, type: 'site', name: 'index.html', parentId: 0, content: ONE }],
+    key: KEY,
+    actor: { id: 5, username: 'maya', person: { id: 5, name: 'Maya' } },
+    accounts: [{ id: 7, kind: 'team', username: 'studio', displayName: 'Studio', role: 'editor', syncBase: '/_/sync', lifecycle: 'active', sync: { enabled: true, reason: null } }],
+  });
+  t.after(() => fake.close());
+  const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-case-')));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(base, 'Studio'));
+  const saved = path.join(base, 'studio');
+  if (!fs.existsSync(saved)) {
+    t.skip('this disk tells letter case apart');
+    return;
+  }
+  const go = await recordingGo(t, { [EMPTY]: saved });
+  const s = await startService(t, { go: go.url, roots: [{ id: EMPTY, path: saved, url: 'http://studio.htmlclay.localhost:1/' }] });
+  s.send({ sync: { v: 1, key: KEY, serverUrl: fake.url } });
+  await s.line('SYNC KEY HELD');
+
+  const session = { id: 's-case', rootId: EMPTY, accountId: 7, kind: 'team', cached: { username: 'studio', displayName: 'Studio', role: 'editor' }, paused: null, legacyMetaDir: null, enabled: true };
+  const answer = await call(s, 'POST', '/sync/v1/bind', { body: { deviceId: 'device-1', session, root: { id: EMPTY, path: saved }, mode: 'empty' } });
+  assert.equal(answer.body.ok, true, JSON.stringify(answer.body));
+  assert.equal(fs.readFileSync(path.join(base, 'Studio', 'index.html'), 'utf8'), ONE);
+});

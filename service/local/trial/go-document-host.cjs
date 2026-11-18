@@ -2,7 +2,8 @@
 
 const http = require('http');
 const path = require('path');
-const { realpathSync } = require('fs');
+// Native, as service.cjs and the sync engine resolve: one form per folder on Windows.
+const realpathSync = require('fs').realpathSync.native;
 const { randomBytes } = require('crypto');
 const { getConnection } = require('./go-process.cjs');
 const { assertOutsideWriteBoundary } = require('../src/main/utils/write-queue');
