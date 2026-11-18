@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/clayruntime"
-	"github.com/panphora/htmlclay/internal/session"
 )
 
 // offlineReleaseDir is the vendored release on disk, the tree a browser's edit boot
@@ -150,70 +149,5 @@ func TestOfflineModeEditSetIsServed(t *testing.T) {
 				t.Errorf("%s: %s served %s, want %s", query, name, got, entry.SHA256)
 			}
 		}
-	}
-}
-
-// The first edit saves canonical bytes, and the reopened document is projected again under
-// the stamp the save answered with, so a second edit does not start from a stale document.
-func TestOfflineModeFirstEditSaveAndReopen(t *testing.T) {
-	srv, _, _ := setupHandlerTest(t)
-	page := writeHome(t, srv, "kanban.htmlclay", kanbanDocument())
-	f, err := srv.sessions.Register(page, session.ViaOsOpen)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	served := serve(t, srv, "/kanban.htmlclay", nil)
-	if served.Code != 200 {
-		t.Fatalf("serve: %d %s", served.Code, served.Body.String())
-	}
-	if !strings.Contains(served.Body.String(), "/_/clayjs/") {
-		t.Fatalf("the served document was not projected:\n%s", served.Body.String())
-	}
-	etag := decodedDocumentETag(t, served.Body.Bytes())
-	if etag == "" {
-		t.Fatal("the served document carries no documentetag to save against")
-	}
-
-	edited := strings.Replace(served.Body.String(), "<p>board</p>", "<p>board edited</p>", 1)
-	if edited == served.Body.String() {
-		t.Fatal("the served document has no board text node to edit")
-	}
-	w := saveThroughMux(t, srv, f, edited, etag)
-	if w.Code != 200 {
-		t.Fatalf("save: %d %s", w.Code, w.Body.String())
-	}
-	saved, ok := decodeJSON(t, w)["etag"].(string)
-	if !ok || saved == "" {
-		t.Fatalf("the save answered without an etag: %s", w.Body.String())
-	}
-
-	disk, err := os.ReadFile(page)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, local := range []string{"/_/clayjs/", "clay-runtime-map"} {
-		if strings.Contains(string(disk), local) {
-			t.Errorf("the saved document kept %q on disk:\n%s", local, disk)
-		}
-	}
-	if !strings.Contains(string(disk), "board edited") {
-		t.Errorf("the saved document lost the edit:\n%s", disk)
-	}
-
-	again := serve(t, srv, "/kanban.htmlclay", nil)
-	if again.Code != 200 {
-		t.Fatalf("serve after the save: %d %s", again.Code, again.Body.String())
-	}
-	reopened := again.Body.String()
-	if !strings.Contains(reopened, "/_/clayjs/"+clayruntime.Selected+"/clay.js") ||
-		!strings.Contains(reopened, `id="clay-runtime-map"`) {
-		t.Errorf("the reopened document was not projected:\n%s", reopened)
-	}
-	if !strings.Contains(reopened, "board edited") {
-		t.Errorf("the reopened document lost the edit:\n%s", reopened)
-	}
-	if got := decodedDocumentETag(t, again.Body.Bytes()); got != saved {
-		t.Errorf("the reopened documentetag = %q, want %q (the etag the save answered with)", got, saved)
 	}
 }

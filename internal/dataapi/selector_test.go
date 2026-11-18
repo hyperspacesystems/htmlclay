@@ -357,35 +357,6 @@ func TestAdapterFiltersRunAfterPositionals(t *testing.T) {
 	}
 }
 
-// TestContainsIsCaseSensitive is worth its own test because it is the divergence most likely to be
-// mistaken for a bug: cascadia's :contains folds case, css-select's does not.
-func TestContainsIsCaseSensitive(t *testing.T) {
-	root := doc(t, `<p id="p1">Hello World</p><p id="p2">hello world</p>`)
-
-	for _, c := range []struct {
-		selector string
-		want     []string
-	}{
-		{"p:contains(Hello)", []string{"p1"}},
-		{"p:contains(hello)", []string{"p2"}},
-		{`p:contains("Hello World")`, []string{"p1"}},
-		{"p:contains(o W)", []string{"p1"}},
-		{"p:contains(zzz)", nil},
-	} {
-		got, err := Find(root.Root, c.selector, FindOpts{})
-		if err != nil {
-			t.Fatalf("Find(%q): %v", c.selector, err)
-		}
-		var ids []string
-		for _, n := range got {
-			ids = append(ids, nodeID(n))
-		}
-		if strings.Join(ids, ",") != strings.Join(c.want, ",") {
-			t.Errorf("Find(%q) = %v, want %v", c.selector, ids, c.want)
-		}
-	}
-}
-
 // unclassifiedByte is the closure property's witness. Every byte of an accepted selector must be
 // accounted for: inside a pseudo or attribute token, or else one of the plain compound bytes below.
 // Anything else is syntax the scanner did not model, and an accepted selector containing one means

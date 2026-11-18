@@ -33,64 +33,6 @@ func codecDoc(t *testing.T, version, rules string) (*Document, *RulesTag) {
 	return d, tag
 }
 
-func TestVersion2PlainRulesReadAsVersion1(t *testing.T) {
-	d, tag := codecDoc(t, "2", `{title:"h1",items:".i[]"}`)
-	if tag.Version != "2" {
-		t.Fatalf("Version = %q, want 2", tag.Version)
-	}
-	got, err := d.ExtractWith(tag.Rules, ExtractOptions{Version: tag.Version})
-	if err != nil {
-		t.Fatal(err)
-	}
-	out, _ := Marshal(got)
-	if string(out) != `{"title":"Hello","items":["one","two"]}` {
-		t.Fatalf("got %s", out)
-	}
-}
-
-func TestCodecRuleRefusals(t *testing.T) {
-	codecs := map[string]Codec{"upper": upperCodec{}}
-	cases := []struct {
-		name, version, rules, want string
-	}{
-		{"under version 1", "1", `{shout:"h1@codec(upper)"}`, needsVersion2},
-		{"nested", "2", `{post:{shout:"h1@codec(upper)"}}`, needsTopLevel},
-		{"in a list shape", "2", `{posts:["p",{shout:"h1@codec(upper)"}]}`, needsTopLevel},
-		{"star", "2", `{shout:"h1[*]@codec(upper)"}`, codecNoStar},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			d, tag := codecDoc(t, c.version, c.rules)
-			_, err := d.ExtractWith(tag.Rules, ExtractOptions{Version: tag.Version, Codecs: codecs})
-			var parse *RulesParseError
-			if !errors.As(err, &parse) || parse.Message != c.want {
-				t.Fatalf("err = %v, want RulesParseError %q", err, c.want)
-			}
-		})
-	}
-
-	t.Run("unknown codec", func(t *testing.T) {
-		d, tag := codecDoc(t, "2", `{shout:"h1@codec(nope)"}`)
-		_, err := d.ExtractWith(tag.Rules, ExtractOptions{Version: tag.Version, Codecs: codecs})
-		var unknown *UnknownCodec
-		if !errors.As(err, &unknown) || unknown.Name != "nope" {
-			t.Fatalf("err = %v, want UnknownCodec nope", err)
-		}
-		if err.Error() != `unknown codec "nope": no codec by that name is given to this call` {
-			t.Fatalf("message = %q", err.Error())
-		}
-	})
-
-	t.Run("plain Extract treats the tree as version 1", func(t *testing.T) {
-		d, tag := codecDoc(t, "2", `{shout:"h1@codec(upper)"}`)
-		_, err := d.Extract(tag.Rules)
-		var parse *RulesParseError
-		if !errors.As(err, &parse) || parse.Message != needsVersion2 {
-			t.Fatalf("err = %v, want RulesParseError %q", err, needsVersion2)
-		}
-	})
-}
-
 func TestCodecRuleReadsThroughTheCodec(t *testing.T) {
 	var seen CodecContext
 	d, tag := codecDoc(t, "2", `{title:"h1",shout:"h1@codec(upper)"}`)

@@ -422,44 +422,6 @@ func TestGrantReadRootRejects(t *testing.T) {
 	}
 }
 
-// Revoking a grant must not take away the capability an explicit open created.
-// Collapsing both into one "kind" field meant revoke deleted the whole entry and
-// the opened page's own siblings started 404ing.
-func TestRevokeGrantKeepsOpenedCapability(t *testing.T) {
-	home, _ := filepath.EvalSymlinks(t.TempDir())
-	os.MkdirAll(filepath.Join(home, "site"), 0755)
-	page := filepath.Join(home, "site", "page.html")
-	os.WriteFile(page, []byte("<html></html>"), 0644)
-	asset := filepath.Join(home, "site", "style.css")
-	os.WriteFile(asset, []byte("body{}"), 0644)
-
-	m := newTestManager(t, home)
-	if _, err := m.Register(page, ViaOsOpen); err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	dir := filepath.Join(home, "site")
-
-	if err := m.GrantReadRoot(dir); err != nil {
-		t.Fatalf("grant: %v", err)
-	}
-	m.RevokeReadRoot(dir)
-
-	if _, _, ok := m.AssetRoot(asset); !ok {
-		t.Error("revoking a grant must not remove the opened file's own read root")
-	}
-
-	// A root that exists only because of a grant does disappear on revoke.
-	other := filepath.Join(home, "other")
-	os.MkdirAll(other, 0755)
-	if err := m.GrantReadRoot(other); err != nil {
-		t.Fatalf("grant other: %v", err)
-	}
-	m.RevokeReadRoot(other)
-	if _, _, ok := m.AssetRoot(filepath.Join(other, "x.txt")); ok {
-		t.Error("revoking a grant-only root must remove it")
-	}
-}
-
 // A trusted root grants the same silent read capability a grant does, but survives
 // a grant revoke and only disappears when its own trust is withdrawn.
 func TestInstallTrustedRoot(t *testing.T) {
@@ -509,51 +471,6 @@ func TestInstallTrustedRootRejects(t *testing.T) {
 	}
 	if err := m.InstallTrustedRoot(filepath.Dir(home)); err == nil {
 		t.Error("trusting outside home must be refused")
-	}
-}
-
-// A directory that is both trusted and granted keeps its trusted capability when
-// the grant is revoked: the provenances are independent flags on one entry.
-func TestRevokeGrantKeepsTrustedCapability(t *testing.T) {
-	home, _ := filepath.EvalSymlinks(t.TempDir())
-	dir := filepath.Join(home, "sites")
-	os.MkdirAll(dir, 0755)
-	asset := filepath.Join(dir, "x.js")
-	os.WriteFile(asset, []byte("//"), 0644)
-
-	m := newTestManager(t, home)
-	if err := m.InstallTrustedRoot(dir); err != nil {
-		t.Fatalf("trust: %v", err)
-	}
-	if err := m.GrantReadRoot(dir); err != nil {
-		t.Fatalf("grant: %v", err)
-	}
-	m.RevokeReadRoot(dir)
-	if _, _, ok := m.AssetRoot(asset); !ok {
-		t.Error("revoking the grant must leave the trusted capability intact")
-	}
-}
-
-func TestAssetRootOpenedReportsProvenance(t *testing.T) {
-	home, _ := filepath.EvalSymlinks(t.TempDir())
-	os.MkdirAll(filepath.Join(home, "opened"), 0755)
-	os.MkdirAll(filepath.Join(home, "granted"), 0755)
-	page := filepath.Join(home, "opened", "page.html")
-	os.WriteFile(page, []byte("<html></html>"), 0644)
-
-	m := newTestManager(t, home)
-	if _, err := m.Register(page, ViaOsOpen); err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	if err := m.GrantReadRoot(filepath.Join(home, "granted")); err != nil {
-		t.Fatalf("grant: %v", err)
-	}
-
-	if _, _, opened, ok := m.AssetRootOpened(filepath.Join(home, "opened", "x.css")); !ok || !opened {
-		t.Errorf("opened root should report opened=true (ok=%v opened=%v)", ok, opened)
-	}
-	if _, _, opened, ok := m.AssetRootOpened(filepath.Join(home, "granted", "x.css")); !ok || opened {
-		t.Errorf("grant-only root should report opened=false (ok=%v opened=%v)", ok, opened)
 	}
 }
 

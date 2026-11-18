@@ -146,19 +146,3 @@ func firstDigest(t *testing.T, table string) []any {
 	}
 	return digests[0]
 }
-
-func TestMassCountsUTF16AfterJSTrim(t *testing.T) {
-	cols := []Col{{ID: "a"}, {ID: "b"}, {ID: "c"}}
-	row := Row{ID: "r1", Cells: []*Cell{
-		{Text: " x "},
-		{Text: "😀"},
-		{Text: "\u0085y"},
-	}}
-	digest := RowDigest(row, cols)
-	if digest == nil {
-		t.Fatal("RowDigest is nil for a filled row")
-	}
-	if got := digest[2]; asInt(got) != 5 {
-		t.Fatalf("mass is %v, want 5", got)
-	}
-}

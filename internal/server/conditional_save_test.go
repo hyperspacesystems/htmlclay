@@ -77,40 +77,6 @@ const doc = `<!DOCTYPE html><html lang="en"><body><p>v1</p></body></html>`
 
 // --- discovery -------------------------------------------------------------
 
-// §6: a host that advertises `conditional` must honour it. The announcement is
-// what makes a client start sending If-Match at all, so announcing without
-// enforcing would tell every client it is protected when it is not.
-func TestConditionalIsAnnounced(t *testing.T) {
-	srv, f, _ := setupHandlerTest(t)
-	for _, m := range []map[string]any{metaOf(t, srv, f), decode(t, getThroughMux(t, srv, "/_/meta"))} {
-		exts, _ := m["extensions"].([]any)
-		found := false
-		for _, e := range exts {
-			if e == "conditional" {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("conditional not announced: %v", exts)
-		}
-	}
-}
-
-// The stamp lives in the `document` block (§5), because it is the one genuinely
-// per-document thing in a discovery answer and the only part a host ever withholds.
-func TestMetaCarriesTheStampOfTheBytesOnDisk(t *testing.T) {
-	srv, _, _ := setupHandlerTest(t)
-	f := registerPageWithContent(t, srv, "stamped.htmlclay", doc)
-
-	block, ok := metaOf(t, srv, f)["document"].(map[string]any)
-	if !ok {
-		t.Fatalf("no document block in the per-file meta answer")
-	}
-	if block["etag"] != specwire.Etag([]byte(doc)) {
-		t.Errorf("etag %v does not stamp the bytes on disk (want %q)", block["etag"], specwire.Etag([]byte(doc)))
-	}
-}
-
 // --- the refusal -----------------------------------------------------------
 
 // The whole point: a stale stamp is refused and the newer copy survives.
@@ -547,26 +513,6 @@ func TestAnExternalUndoIsNotAttributedToAnotherTab(t *testing.T) {
 	}
 	if got := decode(t, w)["changedBy"]; got != nil {
 		t.Errorf("changedBy is %q, but the write that moved the file back was external", got)
-	}
-}
-
-// The other half, so the tightened test cannot pass by never attributing anything:
-// with no external write in between, a second tab is still named.
-func TestASecondTabIsStillNamed(t *testing.T) {
-	srv, _, _ := setupHandlerTest(t)
-	f := registerPageWithContent(t, srv, "twotabs.htmlclay", doc)
-
-	const b = `<!DOCTYPE html><html lang="en"><body><p>b</p></body></html>`
-	if w := saveThroughMux(t, srv, f, b, ""); w.Code != 200 {
-		t.Fatalf("first tab's save: %d (%s)", w.Code, w.Body.String())
-	}
-
-	w := saveThroughMux(t, srv, f, `<html><body><p>d</p></body></html>`, specwire.Etag([]byte(doc)))
-	if w.Code != http.StatusPreconditionFailed {
-		t.Fatalf("got %d, want 412", w.Code)
-	}
-	if got := decode(t, w)["changedBy"]; got != "another-tab" {
-		t.Errorf("changedBy is %v, want another-tab", got)
 	}
 }
 

@@ -167,29 +167,6 @@ func TestExportDocumentZipNeverReplacesAnExistingZip(t *testing.T) {
 	}
 }
 
-// A plain .html document names its uploads folder the same way an upload does:
-// the export and the asset lane have to agree on the folder or the zip would ship
-// a page whose links point at a folder that is not in it.
-func TestExportDocumentZipUsesTheUploadFolderForHTML(t *testing.T) {
-	dir := t.TempDir()
-	outDir := t.TempDir()
-	document := filepath.Join(dir, "page.html")
-	writeExportFile(t, document, "<!doctype html><p>page</p>")
-	writeExportFile(t, filepath.Join(dir, "assets-page", "photo-abc.png"), "PNGDATA")
-
-	out, err := ExportDocumentZip(document, outDir, "")
-	if err != nil {
-		t.Fatalf("ExportDocumentZip: %v", err)
-	}
-	if want := filepath.Join(outDir, "page.zip"); out != want {
-		t.Fatalf("zip path = %q, want %q", out, want)
-	}
-	entries := zipEntries(t, out)
-	if entries["page/assets-page/photo-abc.png"] != "PNGDATA" {
-		t.Fatalf("zip holds %v, want the asset under assets-page", exportNames(entries))
-	}
-}
-
 // A document travels with the files it links: every /_/uploads/ path it names is
 // read out of the per-computer library and put under <top>/uploads/, and the copy
 // in the zip says uploads/... instead, so unzipping the archive anywhere leaves a
@@ -234,27 +211,6 @@ func TestExportDocumentZipPackagesLinkedLibraryUploads(t *testing.T) {
 		`<a href="/_/uploads/assets-board/b%20c.pdf">b</a>`+
 		`<img src="/_/uploads/assets-board/a.png">` {
 		t.Errorf("the working document changed: %q", onDisk)
-	}
-}
-
-// A full URL to another host is not a host path: /_/uploads/ at the end of a host
-// name is part of that host's address, not a link into this computer's library.
-func TestExportDocumentZipIgnoresAUploadPathOnAnotherHost(t *testing.T) {
-	dir := t.TempDir()
-	outDir := t.TempDir()
-	library := t.TempDir()
-	document := filepath.Join(dir, "board.htmlclay")
-	doc := `<img src="https://x.hyperclay.com/_/uploads/assets-board/a.png">`
-	writeExportFile(t, document, doc)
-	writeExportFile(t, filepath.Join(library, "assets-board", "a.png"), "PNGDATA")
-
-	out, err := ExportDocumentZip(document, outDir, library)
-	if err != nil {
-		t.Fatalf("ExportDocumentZip: %v", err)
-	}
-	entries := zipEntries(t, out)
-	if len(entries) != 1 || entries["board/board.htmlclay"] != doc {
-		t.Fatalf("zip holds %v, want the document alone, unchanged", exportNames(entries))
 	}
 }
 

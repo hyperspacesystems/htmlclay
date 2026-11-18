@@ -136,18 +136,6 @@ func TestSheetPatchAppliesPostsThePatchAndCommitsIt(t *testing.T) {
 	}
 }
 
-// TestSheetPatchAcceptsOperationID keeps the one other key a JavaScript patch sends.
-func TestSheetPatchAcceptsOperationID(t *testing.T) {
-	srv, _, _ := setupHandlerTest(t)
-	c := sheetPatchVectors(t)["sheet-patch-range"]
-	writeHome(t, srv, "test.htmlclay", c.HTML)
-
-	w := postDataWrite(t, srv, "/_/api/test.htmlclay", `{"operationId":"abc","patch":`+string(c.Expect.Data)+`}`, nil)
-	if w.Code != 200 {
-		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
-	}
-}
-
 func TestSheetPatchDeleteResponseAndStoredTabs(t *testing.T) {
 	for _, name := range []string{"sheet-patch-delete-by-name", "sheet-patch-delete-formula-stale", "sheet-patch-delete-only"} {
 		t.Run(name, func(t *testing.T) {

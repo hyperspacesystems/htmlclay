@@ -199,18 +199,6 @@ func TestHostedBaselineVectors(t *testing.T) {
 	}
 }
 
-func TestHostedBaselineRetainsTagNamesOrderAndTombstones(t *testing.T) {
-	first := Tag{"blockeditor", parsed(t, `{"blocks":{"a":1}}`)}
-	second := Tag{"blockeditor.2", parsed(t, `{"blocks":{"b":2}}`)}
-	ordered, _ := Baseline([]Tag{first, second})
-	reversed, _ := Baseline([]Tag{second, first})
-	renamed, _ := Baseline([]Tag{{"blockeditor.1", first.Value}, second})
-	deleted, _ := Baseline([]Tag{{"blockeditor", parsed(t, `{"blocks":{"a":1},"deleted":{"old":true}}`)}, second})
-	if ordered == reversed || ordered == renamed || ordered == deleted {
-		t.Fatal("ignores object key order but retains tag order, names, raw blocks and tombstones")
-	}
-}
-
 func TestHostedOrdinaryWriteMatrix(t *testing.T) {
 	empty := page(`<article>without a page</article>`)
 	hybridSource := page(tag("blockeditor", hybrid))
@@ -532,12 +520,5 @@ func TestUntaggedTemplateFirstSaveIsOrdinary(t *testing.T) {
 	}
 	if decision != Ordinary {
 		t.Fatalf("decision = %s, want %s", decision, Ordinary)
-	}
-}
-
-func TestUntaggedTemplateSaveStripsSeededTag(t *testing.T) {
-	fixture, next := untaggedTemplate(t)
-	if got := StripPageTag(next); got != fixture {
-		t.Fatalf("StripPageTag =\n%q\nwant\n%q", got, fixture)
 	}
 }

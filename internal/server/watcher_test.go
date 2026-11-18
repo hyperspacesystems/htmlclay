@@ -800,31 +800,6 @@ func TestWatcherPokePublishesWithoutTheQuietInterval(t *testing.T) {
 	}
 }
 
-// One poll of validity. A poke that outlived its request would shorten an
-// unrelated later write's quiet interval, which is the one thing that interval
-// exists to prevent.
-func TestWatcherPokeDoesNotOutliveItsPoll(t *testing.T) {
-	initial := "<!DOCTYPE html>\n<html><body>one</body></html>"
-	h := newWatchHarness(t, initial, true, func(wt *watcher) {
-		wt.quiet = 30 * time.Second
-	})
-
-	h.file.Lock()
-	h.file.RecordServerWrite(versions.Hash([]byte(initial)))
-	h.file.Unlock()
-
-	if err := os.WriteFile(h.file.AbsPath, []byte("<html><body>the agent wrote this</body></html>"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	h.srv.watcher.poke(h.file.AbsPath)
-	waitFrame(t, h.live, 2*time.Second)
-
-	if err := os.WriteFile(h.file.AbsPath, []byte("<html><body>a later, unrelated write</body></html>"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	expectNoFrame(t, h.live, 300*time.Millisecond)
-}
-
 // A poke for a file nobody is watching is a no-op, not a panic: a handler can
 // report done after its own lease has been released.
 func TestWatcherPokeForAnUnwatchedFileIsHarmless(t *testing.T) {

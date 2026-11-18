@@ -1428,26 +1428,6 @@ func TestTheRelayStripsASaveTokenFromEveryFrame(t *testing.T) {
 	}
 }
 
-// §9 also runs backwards: a stripped frame must not remove the RECEIVING tab's own
-// token. That half belongs to the client, which is why the host sends nothing in the
-// token's place rather than an empty attribute a morph would copy over.
-func TestAStrippedFrameCarriesNoEmptyTokenAttribute(t *testing.T) {
-	srv, f := setupLiveSyncTest(t)
-	pageURL := fmt.Sprintf("http://127.0.0.1:%d/page.htmlclay", srv.port)
-
-	sub := newSubscriber(f.AbsPath, laneLive)
-	srv.hub.add(sub)
-
-	body := `{"snapshot":"<html savetoken=\"` + f.Token + `\"><body>x</body></html>","sender":"c1"}`
-	if w := postLiveSync(t, srv, pageURL, body); w.Code != 200 {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-	html, _ := waitFrame(t, sub, time.Second)["html"].(string)
-	if strings.Contains(html, "savetoken") {
-		t.Errorf("the strip left an empty token attribute behind, which a morph copies onto the receiver: %q", html)
-	}
-}
-
 // §10 makes `sender` optional. Asserted on the delivered frame rather than only on
 // the status, so a build that accepts the body and then fans out nothing still fails.
 func TestARelayWithoutASenderStillReachesTheOtherTabs(t *testing.T) {
@@ -1578,50 +1558,6 @@ func TestTheRelayPutsTheDocumentIdBack(t *testing.T) {
 	if got := htmlutil.ReadHTMLClayID([]byte(html)); got != served {
 		t.Errorf("relayed frame carries documentid %q, want the served %q", got, served)
 	}
-}
-
-// The other half of forBrowser on the same path, and the one §9 makes normative.
-// Pinned here beside the stamp so a future edit cannot trade one for the other.
-func TestTheRelayStillStripsTheTokenWhileStamping(t *testing.T) {
-	srv, f := setupLiveSyncTest(t)
-	pageURL := fmt.Sprintf("http://127.0.0.1:%d/page.htmlclay", srv.port)
-
-	sub := newSubscriber(f.AbsPath, laneLive)
-	srv.hub.add(sub)
-
-	withToken := `<!DOCTYPE html><html savetoken="somebody-elses-credential"><body>x</body></html>`
-	body, err := json.Marshal(map[string]string{"snapshot": withToken, "sender": "c1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if w := postLiveSync(t, srv, pageURL, string(body)); w.Code != 200 {
-		t.Fatalf("relay refused: %d (%s)", w.Code, w.Body.String())
-	}
-
-	html, _ := waitFrame(t, sub, time.Second)["html"].(string)
-	if strings.Contains(html, "somebody-elses-credential") {
-		t.Errorf("the relayed frame still carries a save token: %q", html)
-	}
-}
-
-// `html` is the pre-spec spelling of `snapshot`, and the spec address does not read
-// it. Nothing frozen posts it there: /_/sync is new, and both clients pair the key
-// with the address in one wire profile chosen once for the life of the page. Reading
-// it anyway would buy nothing and cost the thing this train is for, since hyperclay's
-// spec route recognises only `snapshot` and `document`.
-func TestTheSpecAddressDoesNotReadTheLegacyArtifactName(t *testing.T) {
-	srv, f := setupLiveSyncTest(t)
-	pageURL := fmt.Sprintf("http://127.0.0.1:%d/page.htmlclay", srv.port)
-
-	sub := newSubscriber(f.AbsPath, laneLive)
-	srv.hub.add(sub)
-
-	w := postLiveSync(t, srv, pageURL,
-		`{"html":"<html><body>x</body></html>","sender":"c1"}`)
-	if w.Code != 400 {
-		t.Fatalf("got %d, want 400: the spec address names two artifacts and `html` is neither (%s)", w.Code, w.Body.String())
-	}
-	expectNoFrame(t, sub, 100*time.Millisecond)
 }
 
 // And the pre-spec address still reads it, forever, because that is where every

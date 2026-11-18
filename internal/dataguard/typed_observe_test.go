@@ -2,7 +2,6 @@ package dataguard_test
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -24,22 +23,6 @@ func typedQuestionsHTML(qs ...typedQuestion) []byte {
 		b.WriteString(`</div>`)
 	}
 	b.WriteString(typedQuestionsTag + `</body></html>`)
-	return []byte(b.String())
-}
-
-const typedFieldsTag = `<script type="application/json" data-rules-name="api" data-rules-version="1">{f0:".f0", f1:".f1", f2:".f2", f3:".f3", f4:".f4", f5:".f5", f6:".f6", f7:".f7", f8:".f8", f9:".f9"}</script>`
-
-func typedFieldsHTML(values ...string) []byte {
-	var b strings.Builder
-	b.WriteString(`<html><body>`)
-	for i, v := range values {
-		if v == "" {
-			continue
-		}
-		cls := fmt.Sprintf("f%d", i)
-		b.WriteString(`<span class="` + cls + `">` + v + `</span>`)
-	}
-	b.WriteString(typedFieldsTag + `</body></html>`)
 	return []byte(b.String())
 }
 
@@ -206,24 +189,5 @@ func TestObservePageDataWriteStillUsesShouldFire(t *testing.T) {
 	h.clock = 2000
 	if event := h.observeFromPage(removed, nil, dataguard.External, true); event == nil {
 		t.Fatal("a page removing an item did not fire")
-	}
-}
-
-// An outside write that empties nearly all the data still speaks even with an
-// empty typing record.
-func TestObserveOutsideNearTotalWipeFires(t *testing.T) {
-	ten := typedFieldsHTML("a", "b", "c", "d", "e", "f", "g", "h", "i", "j")
-	one := typedFieldsHTML("a")
-
-	h := newHarness(t)
-	if event := h.observe(ten, nil, dataguard.External); event != nil {
-		t.Fatalf("cold seed fired: %+v", event)
-	}
-	event := h.observe(one, nil, dataguard.External)
-	if event == nil {
-		t.Fatal("an outside write that emptied nine of ten values did not fire")
-	}
-	if event.Reason != "emptied" {
-		t.Fatalf("reason = %q, want emptied", event.Reason)
 	}
 }

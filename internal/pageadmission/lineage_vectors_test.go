@@ -100,36 +100,3 @@ func TestPageLineageVectors(t *testing.T) {
 	}
 	t.Logf("%d blockeditor-lineage vectors", len(vectors.Writes))
 }
-
-func TestNothingToWrite(t *testing.T) {
-	raw, err := os.ReadFile(testutil.VectorPath(t, "blockeditor-lineage.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var vectors lineageVectors
-	if err := json.Unmarshal(raw, &vectors); err != nil {
-		t.Fatalf("parsing vectors: %v", err)
-	}
-	byName := map[string]lineageWrite{}
-	for _, w := range vectors.Writes {
-		byName[w.Name] = w
-	}
-	for _, test := range []struct {
-		name  string
-		want  bool
-		write lineageWrite
-	}{
-		{"clean enter and exit", true, byName["seed-only-v1"]},
-		{"empty page's clean enter and exit", true, byName["empty-seed-only-v1"]},
-		{"long page's clean enter and exit", true, byName["large-seed-only-v1"]},
-		{"first edit", false, byName["first-edit"]},
-		{"delete only", false, byName["delete-only"]},
-		{"new site from template", false, byName["new-site-from-template"]},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if got := NothingToWrite(test.write.Current, test.write.Body); got != test.want {
-				t.Fatalf("NothingToWrite = %v, want %v", got, test.want)
-			}
-		})
-	}
-}

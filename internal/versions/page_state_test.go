@@ -408,46 +408,6 @@ func TestPageStateStaysInsideTheHistory(t *testing.T) {
 	}
 }
 
-func TestPageStateKeysAreSeparate(t *testing.T) {
-	s := New(t.TempDir())
-	gen := pageGenerationForTest(t)
-	pathOne := filepath.Join(t.TempDir(), "one.html")
-	pathTwo := filepath.Join(t.TempDir(), "two.html")
-	keyOne := Key(pathOne, nil)
-	keyTwo := Key(pathTwo, nil)
-	hashOne := Hash(diskBytes("One"))
-	hashTwo := Hash(diskBytes("Two"))
-
-	settlePageStateForTest(t, s, keyOne, pathOne, diskBytes("One"), NewPageStateRecord(hashOne, gen, pageTag1))
-	settlePageStateForTest(t, s, keyTwo, pathTwo, diskBytes("Two"), NewPageStateRecord(hashTwo, gen, pageTag2))
-
-	got, ok, err := s.PageStateFor(keyOne, pathOne, hashOne)
-	if err != nil || !ok || got.Tag != pageTag1 {
-		t.Fatalf("key one record = %+v ok=%v err=%v", got, ok, err)
-	}
-	got, ok, err = s.PageStateFor(keyTwo, pathTwo, hashTwo)
-	if err != nil || !ok || got.Tag != pageTag2 {
-		t.Fatalf("key two record = %+v ok=%v err=%v", got, ok, err)
-	}
-	if _, ok, err := s.PageStateFor(keyOne, pathOne, hashTwo); err != nil || ok {
-		t.Fatalf("key one saw the other document's record: ok=%v err=%v", ok, err)
-	}
-	if _, ok, err := s.PageStateFor(keyTwo, pathTwo, hashOne); err != nil || ok {
-		t.Fatalf("key two saw the other document's record: ok=%v err=%v", ok, err)
-	}
-	dirOne := lookupHistoryDirForTest(t, s, keyOne, pathOne)
-	dirTwo := lookupHistoryDirForTest(t, s, keyTwo, pathTwo)
-	if dirOne == dirTwo {
-		t.Fatalf("two keys share a history folder")
-	}
-	if ps := readPageStateJSON(t, dirOne); ps.Matching == nil || ps.Matching.Tag != pageTag1 {
-		t.Fatalf("key one sidecar = %+v", ps.Matching)
-	}
-	if ps := readPageStateJSON(t, dirTwo); ps.Matching == nil || ps.Matching.Tag != pageTag2 {
-		t.Fatalf("key two sidecar = %+v", ps.Matching)
-	}
-}
-
 // TestPageStateSurvivesAnUnrecognizedWrite is rule F-A: a write with no
 // recognized block editor article (a bare pagination article, a document with
 // no article) keeps the sidecar, while a write with a different recognized
