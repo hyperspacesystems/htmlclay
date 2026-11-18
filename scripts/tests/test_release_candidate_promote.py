@@ -23,6 +23,8 @@ class PromotionTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / 'cmd/htmlclay').mkdir(parents=True)
         (self.root / 'cmd/htmlclay/main.go').write_text('var version = "1.2.3"\n')
+        (self.root / 'website').mkdir()
+        (self.root / 'website/changelog.html').write_text('<article class="release" id="v1.2.3">')
         self.record = dict(schema=2, app='htmlclay', version='1.2.3', source_sha='a' * 40, release_sha='e' * 40,
                            manifest_identity='b' * 64, candidate_sha256='c' * 64,
                            payload_date='2026-11-01T10:00:00.000Z', bucket='hyperclay-candidates')
@@ -214,6 +216,14 @@ class PromotionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'requalify'):
             promotion.validate(record)
 
+    def test_a_changelog_page_without_the_version_refuses_without_dispatch(self):
+        (self.root / 'website/changelog.html').write_text('<article class="release" id="v1.2.2">')
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, 'no v1.2.3 section'):
+                promotion.promote(self.record, Path(directory), True)
+        self.assertFalse(self.dispatched)
+        self.assertFalse(self.public)
+
     def test_release_or_version_mismatch_refuses_without_dispatch(self):
         for mismatch in ('release', 'version', 'tag'):
             with self.subTest(mismatch=mismatch), tempfile.TemporaryDirectory() as directory:
@@ -290,7 +300,7 @@ class PromotionTests(unittest.TestCase):
         git('config', 'user.name', 'Fixture')
         git('config', 'user.email', 'fixture@example.invalid')
         git('config', 'commit.gpgsign', 'false')
-        (self.root / 'website').mkdir()
+        (self.root / 'website').mkdir(exist_ok=True)
         (self.root / 'website/index.html').write_text(
             '<span data-version>v1.2.2</span>'
             '<span data-sha256="htmlclay-linux-amd64.tar.gz">old</span>')

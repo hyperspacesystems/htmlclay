@@ -235,6 +235,12 @@ def promote(record, directory, no_install=False):
     current = re.search(r'var version = "([^"]+)"', (ROOT / 'cmd/htmlclay/main.go').read_text())[1]
     if current != version:
         raise ValueError('source version differs from promotion version; requalify')
+    # What's new in the app opens htmlclay.com/changelog#v<version>; a promotion
+    # publishes the downloads, so the page must already say what they are.
+    page = ROOT / 'website/changelog.html'
+    if not page.exists() or f'id="v{version}"' not in page.read_text():
+        raise ValueError(f'website/changelog.html has no v{version} section: add it to CHANGELOG.md, '
+                         'run node scripts/build-changelog.mjs, commit both, then promote again')
     head = run('git', 'rev-parse', 'HEAD')
     if head != release:
         try:
@@ -242,7 +248,8 @@ def promote(record, directory, no_install=False):
         except subprocess.CalledProcessError as error:
             raise ValueError('checkout differs from promotion release commit; requalify') from error
         changed = run('git', 'log', '-m', '--format=', '--name-only', release + '..' + head).splitlines()
-        if any(path and path != 'website/index.html' for path in changed):
+        site = ('website/index.html', 'website/changelog.html', 'CHANGELOG.md')
+        if any(path and path not in site for path in changed):
             raise ValueError('checkout differs from promotion release commit; requalify')
     run('git', 'fetch', '--tags', '--quiet', 'origin')
     tag = 'v' + version

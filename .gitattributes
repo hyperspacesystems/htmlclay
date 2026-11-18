@@ -11,6 +11,11 @@ internal/clayruntime/assets/** -text
 # Admission fixtures are compared byte for byte after round trips
 internal/pageadmission/testdata/** -text
 
+# The changelog page is generated from its template and compared byte for byte
+# (`build-changelog.mjs --check`), on Windows CI too
+website/changelog.html -text
+website/changelog.template.html -text
+
 # Embedded bundles verified against their locks and manifests byte for byte
 internal/dashboard/assets/** -text
 internal/served/assets/** -text
@@ -21,3 +26,6 @@ macos/Tests/PreviewCoreTests/Fixtures/** -text
 
 # The shell event transcript, compared byte for byte with its Swift copy
 cmd/htmlclay/testdata/shell/** -text
+
+# The single-file templates are embedded and checked against their manifest's sha256
+service/local/src/main/document-templates/** -text

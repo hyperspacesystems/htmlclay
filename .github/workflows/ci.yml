@@ -30,6 +30,9 @@ jobs:
       - name: Install the locked packages
         run: npm ci
 
+      - name: The changelog page matches CHANGELOG.md
+        run: node scripts/build-changelog.mjs --check && node --test scripts/tests/build-changelog.test.mjs
+
       - name: Test
         run: go test ./... -count=1
 

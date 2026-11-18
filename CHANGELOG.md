@@ -6,20 +6,80 @@ Releases before 1.9.0 are recorded in the ecosystem changelog at
 ## [Unreleased]
 
 ### Added
-- Setting up a document's program is one dialog that shows the file that would run first. HTML Clay finds the file itself: a program you already set up under that name or with a matching file name, or a matching file in a folder you keep programs in. It never suggests one from the document's folder, Downloads, a temporary folder, the internet, or one that changed in the last ten minutes, and never a shell or script interpreter. Choosing such a file yourself asks you to confirm first.
-- A bar at the top of a document whose programs are not set up starts setup, and so does the page's own button. The bar names only the programs the document declares.
 - A new optional `data-program-file` attribute on a helper declaration names the program's file when it differs from the name the document uses.
-- The Programs page, opened from **Programs → Manage Programs…**, lists every program and which documents may run it, and removes access. A program whose file has moved can be pointed at its new place, from the page or the tray, and keeps every document that was allowed to use it.
 - **Recovered changes…** in the HTML Clay menu opens a page listing every edit HTML Clay saved aside when a page could not save normally, with each one's date and size. Each one can be shown in Finder (or the file manager) or deleted, one at a time or all recovered changes of a document at once.
+
+### Changed
+- On Windows and Linux, turning off automatic updates (`updates: off`) now stops only automatic checks. Check now still checks for and downloads an update.
+
+## [1.16.4] - 2026-11-14
+
+### Added
+- The **Kept Copies** page lists the copies HTML Clay kept when an outside change removed data from a document, with actions to show a copy in Finder or delete one copy or all copies for a document. **Delete All** removes only the copies listed on the confirmation page.
+
+### Changed
+- The bundled ClayJS runtime is now 1.26.0.
+
+## [1.16.3] - 2026-11-14
+
+### Added
+- Host metadata announces `data-guard-v2`: the data loss guard now tracks typed values and canonical sheet grids across saves and opens, and offers **Put it back** when data is lost.
+- The data API reads canonical sheet grids, and sheet patches can delete a tab with `{ sheet, delete: true }`.
+
+### Changed
+- A program writing through the data API with a matching `If-Match` header can remove data without raising a loss notice unless 90 percent or more of the values are removed.
+- A program write through the data API that would remove data without `If-Match` is refused with `428` (`read-required`) and the current `etag`.
+- Silent data removal from an outside edit keeps a pinned copy of the replaced version, and a program write answers `503` when that copy cannot be kept.
+- The bundled ClayJS runtime is now 1.25.0.
+
+### Fixed
+- Rows cloned by the data API from a hidden `cms-template` seed element are now visible.
+
+## [1.16.2] - 2026-11-12
+
+Nothing changed in the app in this release.
+
+## [1.16.1] - 2026-11-11
+
+### Added
+- HTML Clay checks saves, data API writes and outside edits for data loss, announces `data-guard-v1` in `/_/meta`, and shows a notice bar inside `<body>` that survives restarts. The notice offers **Restore** when restoring is possible, and **Restore** and **Revert** keep a copy of what they replace, recheck that the folder is trusted, warn about new items added after the loss that restoring would remove, and send the result to every open tab.
+- The data API supports `[*]` rules to match all elements for a selector.
+
+### Changed
+- Saves strip the `sitevisibility` attribute from `<html>`.
+- The bundled ClayJS runtime is now 1.24.0.
+
+### Fixed
+- Hidden tabs receive live sync updates immediately rather than waiting to be shown, avoiding stale version conflicts on their next save, and silent hidden tabs stay connected for five minutes.
+- Relinking a program whose folder was moved or deleted opens the file picker at the nearest existing parent folder instead of failing on macOS.
+
+## [1.16.0] - 2026-11-08
+
+### Changed
+- The bundled ClayJS runtime is now 1.23.0.
+
+## [1.15.1] - 2026-11-03
+
+### Fixed
+- Offline copy exports strip `no-copy` sections.
+- Configured local programs are restored after HTML Clay restarts for an update.
+
+## [1.15.0] - 2026-11-01
+
+### Added
+- Setting up a document's program uses one native dialog that shows the file that would run, suggests a match from programs already set up or from folders where you keep programs (matching `.exe`, `.bat` or `.cmd` extensions regardless of case on Windows), and records the file's identity before opening so a file replaced during approval is refused. It never suggests a file from the document's folder, Downloads, a temporary folder, the internet, a file changed in the last ten minutes, or a shell or script interpreter, and choosing one of those by hand asks for confirmation first.
+- Documents with unset programs show a setup bar that starts program setup, which can also be started from a click on the page or from the tray.
+- A **Programs** page at `127.0.0.1/programs`, opened from **Manage Programs** in the tray, lets you remove a document's access, relink a program whose file moved, or widen a grant through native dialogs.
+
+### Changed
+- Opening a document no longer prompts about its programs. Requests for a program that is not set up wait up to two minutes for setup and then fail with `helper_setup_expired`.
+- The program setup dialog has no default button, so pressing Return does not approve a program.
+- Program grants for any document apply only inside trusted folders, and removing access is remembered and overrides a grant for any document.
+- **Manage Programs**, **Open Documents** and relink items for missing program files replace **Add a Program** and the individual program management dialog in the tray.
 
 ### Fixed
 - On Windows, the program file picker opens in front of the browser instead of behind it.
-
-### Changed
-- Opening a document no longer asks about its programs. A request for a program that is not set up waits up to two minutes for setup, then fails with `helper_setup_expired`.
-- The setup dialog has no default button, so Return never allows a program.
-- A program allowed for any document now applies only to documents in your trusted folders. Removing a document's access is remembered.
-- **Add a Program…** and **Configure an Open File…** are gone from the tray. The Programs menu shows the open documents, any program whose file is missing, and the missing count in its title.
+- On macOS, clicking **Cancel** in a dialog counts as a refusal rather than an error.
 
 ## [1.14.1] - 2026-10-30
 

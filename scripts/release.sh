@@ -308,13 +308,21 @@ section "Step 3: Commit & Push"
 # whole script down at the one moment it exists to recover from.
 if [ "$RESUME" = true ]; then
   info "Version already committed by the run being resumed"
+  if ! node scripts/build-changelog.mjs --check; then
+    error "website/changelog.html does not match CHANGELOG.md. Run node scripts/build-changelog.mjs, commit it, then resume again"
+    exit 1
+  fi
 else
   if changelog-section --repo . --release "${NEW_VERSION}" --name htmlclay < /dev/null; then
     success "CHANGELOG.md has the v${NEW_VERSION} section"
   else
     warn "changelog-section could not draft the v${NEW_VERSION} section; releasing without one"
   fi
-  git add cmd/htmlclay/main.go website/index.html
+  if ! node scripts/build-changelog.mjs; then
+    error "The changelog page cannot read CHANGELOG.md (the line is above). Fix it and run node scripts/build-changelog.mjs, or undo this run's edits with: git checkout -- cmd/htmlclay/main.go website/index.html CHANGELOG.md"
+    exit 1
+  fi
+  git add cmd/htmlclay/main.go website/index.html website/changelog.html
   if [ -f CHANGELOG.md ]; then git add CHANGELOG.md; fi
   git commit -m "chore: release v${NEW_VERSION}"
   success "Committed version bump"
