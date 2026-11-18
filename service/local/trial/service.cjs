@@ -11,7 +11,10 @@
 
 const http = require('http');
 const path = require('path');
-const { realpathSync } = require('fs');
+// The native resolver, as the sync engine's fs.promises.realpath is: on Windows
+// it expands short names (RUNNER~1) and takes each folder's own letter case, so
+// a root registered here and the same root bound for sync are one path.
+const realpathSync = require('fs').realpathSync.native;
 const { randomBytes, timingSafeEqual } = require('crypto');
 const { AsyncLocalStorage } = require('async_hooks');
 

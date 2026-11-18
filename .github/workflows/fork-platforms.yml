@@ -48,7 +48,7 @@ jobs:
       # engine's among them, run here against the fake sync server, as the test
       # box runs them on Linux. This is the one run that has them on NTFS.
       - name: Service tests
-        run: node --test "test/*.test.cjs"
+        run: node --test --test-timeout=300000 "test/*.test.cjs"
         working-directory: service
         env:
           HTMLCLAY_SYNC_LOCAL: ${{ github.workspace }}/service/test/fake
