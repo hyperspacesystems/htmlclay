@@ -11,7 +11,7 @@ import (
 
 // helperFilter and documentFilter are the two pickers' file type lists.
 const (
-	helperFilter   = "Helper programs (*.exe;*.bat;*.cmd)|*.exe;*.bat;*.cmd|All files (*.*)|*.*"
+	helperFilter   = "Programs (*.exe;*.bat;*.cmd)|*.exe;*.bat;*.cmd|All files (*.*)|*.*"
 	documentFilter = "HTML Clay documents (*.htmlclay;*.html;*.htm)|*.htmlclay;*.html;*.htm"
 )
 

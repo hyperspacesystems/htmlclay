@@ -383,7 +383,7 @@ func (a *app) relinkHelperProgram(program config.HelperProgram, dialogs helperAp
 	affirm := helperSetupChooseFile
 	if path != "" {
 		message += fmt.Sprintf("\n\nHTML Clay found a file with the same name:\n\n    %s\n\nEvery document allowed to use “%s” will run this file instead.", a.tildePath(path), program.Name)
-		affirm = "Allow File"
+		affirm = "Use this file"
 	} else {
 		message += fmt.Sprintf("\n\nChoose the file to use instead. Every document allowed to use “%s” will run it.", program.Name)
 	}

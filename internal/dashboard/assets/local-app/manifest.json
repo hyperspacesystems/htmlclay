@@ -3,7 +3,7 @@
   "protocol": 1,
   "package": "0.13.1",
   "entry": {
-    "javascript": "main-CPAWROPA.js",
+    "javascript": "main-RXSS7LIL.js",
     "css": [
       "main-6K2TLVWD.css"
     ]
@@ -60,9 +60,9 @@
       "sha256": "d92f5fb47de7a26f441406fed9769f4b04e64ef63fc2e0beb90dfd86c0b0baf4"
     },
     {
-      "path": "main-CPAWROPA.js",
-      "bytes": 1812016,
-      "sha256": "c063aae19d55216b78aaa76e99ee7594ab36f94d817819c8b3e7824856f1186e"
+      "path": "main-RXSS7LIL.js",
+      "bytes": 1812066,
+      "sha256": "d9ab2de5f9023c79b98190867745c1442b480bf5bb0f9ad34431780a52147b5e"
     }
   ]
 }

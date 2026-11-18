@@ -130,7 +130,7 @@ func (a *app) clickApplyUpdate(r update.Ready, installPath string) {
 // this version is still running.
 func (a *app) reportRestartFailure(target string, err error) {
 	a.rt.logger.Printf("Update to v%s not applied, still running v%s: %v", target, version, err)
-	msg := fmt.Sprintf("HTML Clay could not restart into v%s just now, so it is still running v%s. Try Restart to Update again in a moment.", target, version)
+	msg := fmt.Sprintf("HTML Clay could not restart into %s just now, so it is still running %s. Try Restart to update again in a moment.", target, version)
 	if notifyErr := a.informUser("HTML Clay", msg); notifyErr != nil {
 		a.rt.logger.Printf("Could not show the update notice: %v", notifyErr)
 	}
@@ -210,8 +210,8 @@ func (a *app) restartForUpdate(target string, install func(handoffPath string) e
 	}()
 
 	if a.runningWork() > 0 {
-		msg := fmt.Sprintf("Restart HTML Clay now to update to v%s?\n\nAn AI edit or a program started by a document is still running, and restarting stops it.", target)
-		ok, err := a.confirmTrayChange("HTML Clay", msg, "Restart")
+		msg := fmt.Sprintf("Restart HTML Clay now to update to HTML Clay %s?\n\nAn AI edit or a program started by a document is still running, and restarting stops it.", target)
+		ok, err := a.confirmTrayChange("HTML Clay", msg, appcore.TextUpdateSyncBusyRestart)
 		if err != nil || !ok {
 			return errUpdateCancelled
 		}

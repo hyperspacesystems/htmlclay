@@ -727,7 +727,7 @@ func TestTheDocumentProgramsPromptHasItsOwnSeamAndButtons(t *testing.T) {
 	if strings.Contains(helperSetupChooseFile, "Folder") || strings.Contains(strings.ToLower(helperSetupChooseFile), "trust") {
 		t.Fatalf("the first dialog's affirmative grants a folder: %q", helperSetupChooseFile)
 	}
-	if !strings.Contains(helperSetupTrusted, "Trusted Folders") || !strings.Contains(helperSetupChooseOther, "Choose Another File") {
+	if !strings.Contains(helperSetupTrusted, "trusted folders") || !strings.Contains(helperSetupChooseOther, "Choose another file") {
 		t.Fatalf("the More Options dialog does not offer the wider grant and another file: %q %q", helperSetupTrusted, helperSetupChooseOther)
 	}
 }

@@ -92,8 +92,8 @@ func ReadDialogText(ask confirm.Ask) (string, string) {
 	}
 	return "HTML Clay", fmt.Sprintf(
 		"%s is trying to read files in:\n\n%s\n\n"+
-			"Allow Once gives it read-only access to that folder until you quit.\n\n"+
-			"Trust This Folder is permanent: every HTML Clay file in it opens editable with no prompts, "+
+			"Allow once gives it read-only access to that folder until you quit.\n\n"+
+			"Trust this folder is permanent: every HTML Clay file in it opens editable with no prompts, "+
 			"including files added later, and any file in it can change any other.",
 		who, ask.Path)
 }
@@ -120,8 +120,8 @@ var defaultConfirm brokerConfirm = func(_ context.Context, ask confirm.Ask) (con
 		return ReadReply(platform.ConfirmAllowOnce, false), nil
 	}
 	choice, err := platform.Confirm(title, message, platform.ConfirmLabels{
-		Allow:  "Allow Once",
-		Always: "Trust This Folder",
+		Allow:  "Allow once",
+		Always: "Trust this folder",
 	})
 	return ReadReply(choice, true), err
 }

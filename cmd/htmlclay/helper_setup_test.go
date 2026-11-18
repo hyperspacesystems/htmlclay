@@ -85,7 +85,7 @@ func TestHelperSetupOffersFoundFile(t *testing.T) {
 	if got, want := recorder.titles[0], "Allow a program for search.htmlclay?"; got != want {
 		t.Fatalf("title = %q, want %q", got, want)
 	}
-	if got, want := recorder.buttons[0], [3]string{"Deny", "More Options\u2026", "Allow " + filepath.Base(found)}; got != want {
+	if got, want := recorder.buttons[0], [3]string{"Deny", "More options\u2026", "Allow " + filepath.Base(found)}; got != want {
 		t.Fatalf("buttons = %q, want %q", got, want)
 	}
 	for _, want := range []string{filepath.Join("~", "apps", "bin", filepath.Base(found)), "\u201csearch\u201d"} {

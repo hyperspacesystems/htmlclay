@@ -162,7 +162,7 @@ public enum Strings {
         public static let framing = "Let other sites embed pages"
         public static let framingSub = "Other websites can show these pages inside their own pages."
         public static let framingNote = "Turn this on only for pages you mean to share with another site. You can turn it back off only in the Mac app."
-        public static let copy = "Copy"
+        public static let copy = "Copy address"
         public static let versions = "Versions and uploads"
         public static let show = "Show"
         public static let sync = "Sync with hyperclay.com"
@@ -247,7 +247,7 @@ public enum Strings {
     public enum ProgramPage {
         public static let runsAsYou = "This program runs as you. It can read and change any file you can."
         public static let whoMayRun = "Who may run it"
-        public static let aiEditNote = "An AI agent on this computer rewrites selected text when you press ⌘J. Turn AI editing on or off in HTML Clay's settings."
+        public static let aiEditNote = "An AI tool on this Mac rewrites selected text when you press ⌘J. Turn AI editing on or off in Settings › General."
         public static let allTrustedTitle = "All documents in my trusted folders"
         public static let allTrustedSub = "Not for team folders. Those documents always ask one at a time."
         public static let removeAccess = "Remove access"

@@ -225,8 +225,8 @@ func (readDialog) Close(string) {}
 func (a *app) readPrompt(title, message string, allowTrust bool) (platform.ConfirmChoice, error) {
 	if allowTrust {
 		return a.dialogs().confirm(title, message, platform.ConfirmLabels{
-			Allow:  "Allow Once",
-			Always: "Trust This Folder",
+			Allow:  "Allow once",
+			Always: "Trust this folder",
 		})
 	}
 	ok, err := a.dialogs().confirmWithButtons(title, message, "Allow")
@@ -245,7 +245,7 @@ type trustDialog struct {
 }
 
 func (d trustDialog) Ask(_ context.Context, ask confirm.Ask) (confirm.Reply, error) {
-	trusted, err := d.app.confirmTrustRequest(d.title, d.message, "Trust Folder")
+	trusted, err := d.app.confirmTrustRequest(d.title, d.message, "Trust folder")
 	if err != nil || !trusted {
 		return confirm.Reply{ID: ask.ID, Choice: confirm.ChoiceDeny}, err
 	}

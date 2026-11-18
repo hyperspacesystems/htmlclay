@@ -48,7 +48,7 @@ func (a *app) relinkHelperProgramFromTray(id string) []tray.Row {
 	}
 	a.helperMu.Unlock()
 	if err != nil {
-		a.reportHelperProgramError("Could not relink the program", err)
+		a.reportHelperProgramError("Could not update the program", err)
 	} else if outcome == "relinked" {
 		a.rt.logger.Printf("Helper program relinked: id=%s name=%s", program.ID, program.Name)
 		a.refreshHelperDispatchers()

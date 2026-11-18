@@ -84,7 +84,7 @@ const (
 
 // Waiting items: the title, and where a %s appears the subject's name.
 const (
-	TextWaitingProgramRequest    = "%s wants to run %s"                                          // copy: waiting item title, document then program, max 70 chars
+	TextWaitingProgramRequest    = "%s wants “%s”"                                               // copy: waiting item title, document then program, max 70 chars
 	TextWaitingAIEditRequest     = "Allow AI editing for %s?"                                    // copy: waiting item title for AI editing, the document's name, max 70 chars
 	TextWaitingFolderRead        = "%s wants to read %s"                                         // copy: waiting item title, document then folder, max 70 chars
 	TextWaitingFolderReadAgain   = "%s wants you to trust %s"                                    // copy: waiting item title, document then folder, max 70 chars
@@ -192,7 +192,7 @@ var RefusalText = map[string]string{
 	RefuseNoDialogs:         "HTML Clay cannot show dialogs on this computer yet. Install zenity or kdialog, then try again.", // copy: COPY:refusal.noDialogs, Linux only, max 140 chars
 	RefuseFailed:            "HTML Clay couldn't do that just now. Try again.",                                                // copy: refusal, max 140 chars
 	RefuseCannotTrust:       "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.",    // copy: refusal, max 140 chars
-	RefuseStillRunning:      "HTML Clay is still working on that. Wait a moment.",                                             // copy: refusal, max 140 chars
+	RefuseStillRunning:      "Something is still running in HTML Clay. Wait a moment, then try again.",                        // copy: refusal, max 140 chars
 	RefuseNotYet:            "HTML Clay can't do that yet. Update HTML Clay and try again.",                                   // copy: refusal, max 140 chars
 	// A folder rule's reason, when an action runs into it.
 	WhyIdentityChanged:    TextWhyServeIdentityChanged,

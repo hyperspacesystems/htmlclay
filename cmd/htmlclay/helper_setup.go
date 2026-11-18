@@ -17,12 +17,12 @@ import (
 
 const (
 	helperSetupDeny        = "Deny"
-	helperSetupMoreOptions = "More Options…"
-	helperSetupChooseFile  = "Choose File…"
+	helperSetupMoreOptions = "More options…"
+	helperSetupChooseFile  = "Choose file…"
 	helperSetupCancel      = "Cancel"
-	helperSetupChooseOther = "Choose Another File…"
-	helperSetupTrusted     = "Allow in Trusted Folders"
-	helperSetupAllowAnyway = "Allow Anyway"
+	helperSetupChooseOther = "Choose another file…"
+	helperSetupTrusted     = "Allow in trusted folders"
+	helperSetupAllowAnyway = "Allow anyway"
 )
 
 const (
@@ -392,11 +392,11 @@ func nearestFolder(dir string) string {
 }
 
 // helperAllowLabel is the affirmative button for a found file: its name, or a
-// plain "Allow File" when the name would make the button unreadable.
+// plain "Allow file" when the name would make the button unreadable.
 func helperAllowLabel(path string) string {
 	base := filepath.Base(path)
 	if len(base) > 24 {
-		return "Allow File"
+		return "Allow file"
 	}
 	return "Allow " + base
 }
@@ -426,7 +426,7 @@ func (a *app) helperTrustedFoldersMessage(name string, suggestion helperSuggesti
 	}
 	return fmt.Sprintf("Allow %s for every document in your trusted folders that asks for “%s”?\n\n"+
 		"Those documents will run it with their own input, without asking you. Documents outside your trusted folders still ask, one at a time.\n\n"+
-		"Choose Another File allows a different file for this document only.", target, name)
+		"Choose another file allows a different file for this document only.", target, name)
 }
 
 func (a *app) helperChooseAnotherMessage(name string, suggestion helperSuggestion) string {

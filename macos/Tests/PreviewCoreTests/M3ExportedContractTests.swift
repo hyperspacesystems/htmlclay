@@ -77,7 +77,7 @@ final class M3ExportedContractTests: XCTestCase {
             let item = try XCTUnwrap(snapshot.waiting.first)
             XCTAssertEqual(item.kind, .programRequest)
             XCTAssertEqual(item.subjectID, request.id)
-            XCTAssertEqual(item.title, "essay.htmlclay wants to run search")
+            XCTAssertEqual(item.title, "essay.htmlclay wants “search”")
             XCTAssertEqual(RequestControls.documentName(request), "essay.htmlclay")
             XCTAssertEqual(RequestControls.optionTitle(RequestAnswer.allowDocument, in: request),
                            Strings.Request.only("essay.htmlclay"))

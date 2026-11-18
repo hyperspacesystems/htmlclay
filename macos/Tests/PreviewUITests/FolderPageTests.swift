@@ -33,7 +33,7 @@ final class FolderPageTests: XCTestCase {
         XCTAssertFalse(prototypes.address.isEmpty)
 
         XCTAssertEqual(Strings.Menu.showInFinder, "Show in Finder")
-        XCTAssertEqual(Strings.FolderPage.copy, "Copy")
+        XCTAssertEqual(Strings.FolderPage.copy, "Copy address")
         XCTAssertTrue(model.can(HostActionType.reveal))
         XCTAssertEqual(FolderControls.trusted(folder: prototypes), FolderToggle(value: true, enabled: true))
         XCTAssertEqual(FolderControls.served(folder: prototypes, pending: nil),

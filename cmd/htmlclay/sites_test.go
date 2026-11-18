@@ -2212,7 +2212,7 @@ func TestConfirmLabelsMatchTheirAction(t *testing.T) {
 	if _, ok := a.trustFromPage(file, true); !ok {
 		t.Fatalf("a page asking to trust its own ordinary folder should be allowed: %q", message)
 	}
-	if label != "Trust Folder" {
+	if label != "Trust folder" {
 		t.Errorf("the dialog that trusts a folder must say so, got %q with message %q", label, message)
 	}
 

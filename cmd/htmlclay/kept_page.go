@@ -91,7 +91,7 @@ func keptRevealLabel() string {
 	if runtime.GOOS == "darwin" {
 		return "Show in Finder"
 	}
-	return "Show in Folder"
+	return "Show in folder"
 }
 
 // openKeptPage opens the Recovered changes page in the browser through a
