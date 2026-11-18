@@ -58,7 +58,7 @@ func TestToolsMarksWhatIsInstalled(t *testing.T) {
 }
 
 func TestSplitCommand(t *testing.T) {
-	got, err := SplitCommand(`my-agent --flag "two words" 'it''s' a\ b`)
+	got, err := splitCommand(`my-agent --flag "two words" 'it''s' a\ b`, true)
 	if err != nil {
 		t.Fatalf("SplitCommand: %v", err)
 	}

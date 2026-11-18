@@ -108,9 +108,16 @@ func TestInstanceSecretFileIsReadableByItsOwnerOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The one entry's trustee is a SID string or, for a well-known account such as
+	// the built-in Administrator, its SDDL alias (LA), so it is compared as a SID.
 	sddl, sid := sd.String(), user.User.Sid.String()
-	if !strings.HasPrefix(sddl, "D:P") || strings.Count(sddl, "(") != 1 || !strings.Contains(sddl, ";;;"+sid+")") {
+	open, end := strings.LastIndex(sddl, ";;;"), strings.LastIndex(sddl, ")")
+	if !strings.HasPrefix(sddl, "D:P") || strings.Count(sddl, "(") != 1 || open < 0 || end < open {
 		t.Fatalf("the secret file's access list is %s; want one entry, for %s, with inheritance off", sddl, sid)
+	}
+	trustee, err := windows.StringToSid(sddl[open+3 : end])
+	if err != nil || !trustee.Equals(user.User.Sid) {
+		t.Fatalf("the secret file's access list is %s; its one entry is not for %s (%v)", sddl, sid, err)
 	}
 }
 

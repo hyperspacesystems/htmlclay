@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -45,6 +46,9 @@ func TestHelperSharesLocksWithNode(t *testing.T) {
 
 	// Build native helper for this machine.
 	helperBin := filepath.Join(tmp, "folderlock-helper")
+	if runtime.GOOS == "windows" {
+		helperBin += ".exe"
+	}
 	buildCmd := exec.Command("go", "build", "-o", helperBin, "../../cmd/folderlock-helper")
 	buildCmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := buildCmd.CombinedOutput(); err != nil {
