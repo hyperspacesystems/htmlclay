@@ -142,9 +142,6 @@ const (
 	// RefuseRestartStopsWork is a restart that would stop running work; the
 	// person may send the action again confirmed.
 	RefuseRestartStopsWork = "restart-stops-work"
-	// RefuseExamplesFolderInUse is Open example finding files HTML Clay did not
-	// put in ~/htmlclay/examples, which it will not trust on its own.
-	RefuseExamplesFolderInUse = "examples-folder-in-use"
 	// RefuseFinishInSettings is Make default on Windows opening Windows
 	// Settings: another app still holds .htmlclay, and only the person can
 	// choose HTML Clay there.

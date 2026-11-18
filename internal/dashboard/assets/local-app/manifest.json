@@ -3,9 +3,9 @@
   "protocol": 1,
   "package": "0.13.1",
   "entry": {
-    "javascript": "main-KDDAYWKF.js",
+    "javascript": "main-IL7GL2PT.js",
     "css": [
-      "main-CNFJ26Q5.css"
+      "main-FSOV7ZIC.css"
     ]
   },
   "assets": [
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
-      "path": "main-CNFJ26Q5.css",
-      "bytes": 401232,
-      "sha256": "23c5e4d8f7a302fd81777f7f1b65f7d293574f8c5a90f4d7c30941617add3cfd"
+      "path": "main-FSOV7ZIC.css",
+      "bytes": 401331,
+      "sha256": "21d2dba15810aebc4d481d2b8025f59801261092002143f77dc838e16cff43ca"
     },
     {
-      "path": "main-KDDAYWKF.js",
-      "bytes": 1828823,
-      "sha256": "c1f2fa5a6bf602ec502f3ad9874f7a9a22c4c8027aec7aa9311617e1d4119a09"
+      "path": "main-IL7GL2PT.js",
+      "bytes": 1829787,
+      "sha256": "33c47c8fb72e16b1642c76fd69c188a831ee69a5a58d2c6aea7d85850e8d4b22"
     }
   ]
 }

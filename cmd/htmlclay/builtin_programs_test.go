@@ -180,42 +180,6 @@ func TestBuiltinRowsComeFirst(t *testing.T) {
 	}
 }
 
-func TestOpenExampleChecksTheExamplesFolderBeforeTrustingIt(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-	s := newBuiltinStandAt(t, real(t, home))
-	s.app.rt.launchBrowser = func(string) error { return nil }
-	s.app.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
-	dir := filepath.Join(home, "htmlclay", "examples")
-	for _, name := range []string{".DS_Store", ".directory", "sample-photo.webp", "File Search.htmlclay", welcomeExampleName} {
-		writeTestFile(t, filepath.Join(dir, name), "x")
-	}
-	writeTestFile(t, filepath.Join(dir, "taxes.pdf"), "private")
-	open := func() *appcore.Refusal {
-		return s.app.runEffect(context.Background(), appcore.Effect{Type: "program.openExample", ProgramID: builtin.FileSearch})
-	}
-	if refusal := open(); refusal == nil || refusal.Code != appcore.RefuseExamplesFolderInUse {
-		t.Fatalf("Open example with a person's file in the folder = %+v, want %s", refusal, appcore.RefuseExamplesFolderInUse)
-	}
-	if s.app.trustedLive(real(t, dir)) {
-		t.Fatal("Open example trusted a folder holding a person's own file")
-	}
-	if err := os.Remove(filepath.Join(dir, "taxes.pdf")); err != nil {
-		t.Fatal(err)
-	}
-	if refusal := open(); refusal != nil {
-		t.Fatalf("Open example with only HTML Clay's and the system's files = %+v, want none", refusal)
-	}
-	if !s.app.trustedLive(real(t, dir)) {
-		t.Fatal("Open example did not trust the examples folder")
-	}
-	writeTestFile(t, filepath.Join(dir, "taxes.pdf"), "private")
-	if refusal := s.app.runEffect(context.Background(), appcore.Effect{Type: "program.openExample", ProgramID: builtin.FileConvert}); refusal != nil {
-		t.Fatalf("Open example in a folder the person already trusts = %+v, want none", refusal)
-	}
-}
-
 func TestOpenBuiltinExampleAllowsIt(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
