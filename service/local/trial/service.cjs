@@ -1182,7 +1182,10 @@ function createTrialService({
     const live = createRootLive(root);
     const ctx = { root, live, localAuthority: authority, localCheckpoint: checkpoint };
     ctx.observer = new RootObserver(root, { live, localAuthority: authority });
-    await withStructureChange(() => authority.registerRoot({ id: root.id, path: canonical, canonicalPath: canonical }));
+    // path is the folder as Go names it, the base of every location Go sends;
+    // canonicalPath is where it resolves on disk. They differ when the saved path
+    // has another letter case or a Windows short name, and a move checks both.
+    await withStructureChange(() => authority.registerRoot({ id: root.id, path: path.resolve(entry.path), canonicalPath: canonical }));
     // Local's checkpoint scheduler writes a dirty room through this root's
     // host; here that is the Go adapter (POST /v1/checkpoint), as it is for
     // the app Local mounts on the forwarded routes (server.js registerHost).

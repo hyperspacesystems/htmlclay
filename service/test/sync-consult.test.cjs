@@ -34,8 +34,11 @@ test('the engine with a Go that consults back', { skip: SKIP }, async (t) => {
   t.after(() => fake.close());
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-consult-')));
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
-  const folder = path.join(base, 'Studio');
-  fs.mkdirSync(folder);
+  fs.mkdirSync(path.join(base, 'Studio'));
+  // Where the disk ignores letter case (Mac, Windows), Go's saved path is in
+  // the other case, as a typed path or a Windows short name can be: moves and
+  // trashes must still be inside the folder.
+  const folder = fs.existsSync(path.join(base, 'studio')) ? path.join(base, 'studio') : path.join(base, 'Studio');
   const go = await recordingGo(t, { [ROOT]: folder }, { consult: true, deadlineMs: 2000 });
   const s = await startService(t, { go: go.url, roots: [{ id: ROOT, path: folder, url: 'http://studio.htmlclay.localhost:1/' }] });
   go.attach(s);
