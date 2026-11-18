@@ -18,6 +18,17 @@ const FAKE = path.join(LOCAL, 'trial', 'fake-sync-http.cjs');
 // The fake server lives in this repo (service/test/fake), so nothing skips.
 const SKIP = false;
 
+// real is a path the way Go hands it over: resolved on disk (on Windows, long
+// names and the disk's own letter case), with a not-yet-existing tail kept.
+function real(target) {
+  try {
+    return fs.realpathSync.native(target);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    return path.join(real(path.dirname(target)), path.basename(target));
+  }
+}
+
 const KEY = `hcsk_${'5e'.repeat(32)}`;
 // Local's checksum, which Go answers too: the first 16 hex of SHA-256.
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex').slice(0, 16);
@@ -87,7 +98,7 @@ function recordingGo(t, folders, { consult = false, deadlineMs = 2000 } = {}) {
       if (consult && service && body.bytes?.encoding !== 'base64' && isDocument(body.name)) {
         const stat = fs.statSync(target, { bigint: true });
         const settled = await ask('/v1/settle', {
-          ...head(body, body.name, slash(fs.realpathSync(target)), 'exact'),
+          ...head(body, body.name, slash(real(target)), 'exact'),
           reservation: null, outcome: 'committed', logical: body.bytes, file: body.bytes, etag: null,
           sender: 'sync-engine', userDriven: null, explicitCreate: current === null, captureId: null, saveId: null,
           identity: { dev: String(stat.dev), ino: String(stat.ino), size: Number(stat.size), mtimeNs: String(stat.mtimeNs) },
@@ -115,8 +126,8 @@ function recordingGo(t, folders, { consult = false, deadlineMs = 2000 } = {}) {
         const isDir = fs.existsSync(from) && fs.statSync(from).isDirectory();
         return {
           kind: body.kind,
-          from: { name: step.from, location: slash(from), canonicalPath: slash(from), isDir, isSymlink: false },
-          to: { name: step.to, location: slash(file(step.to, body.root)), canonicalPath: slash(file(step.to, body.root)) },
+          from: { name: step.from, location: slash(from), canonicalPath: slash(real(from)), isDir, isSymlink: false },
+          to: { name: step.to, location: slash(file(step.to, body.root)), canonicalPath: slash(real(file(step.to, body.root))) },
         };
       });
       let prepared = null;
