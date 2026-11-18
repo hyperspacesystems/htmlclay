@@ -436,11 +436,23 @@ func (h *conformanceHost) resubscribe(stream string) {
 			query.Set("token", h.token)
 		}
 	}
-	request := h.newRequest(http.MethodGet, "/_/wire/subscribe?"+query.Encode(), "", as)
-	request.Header.Set("Last-Event-ID", previous.lastEventID())
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		h.t.Fatalf("GET /_/wire/subscribe (resume): %v", err)
+	// The host notices a dropped handler stream a moment after the client
+	// closes it, and until then a new handler is refused as a second one (409).
+	// The wire command retries that with backoff; so does this, for up to 2 s.
+	var response *http.Response
+	for deadline := time.Now().Add(2 * time.Second); ; {
+		request := h.newRequest(http.MethodGet, "/_/wire/subscribe?"+query.Encode(), "", as)
+		request.Header.Set("Last-Event-ID", previous.lastEventID())
+		var err error
+		response, err = http.DefaultClient.Do(request)
+		if err != nil {
+			h.t.Fatalf("GET /_/wire/subscribe (resume): %v", err)
+		}
+		if response.StatusCode != http.StatusConflict || as != "handler" || time.Now().After(deadline) {
+			break
+		}
+		response.Body.Close()
+		time.Sleep(50 * time.Millisecond)
 	}
 	if response.StatusCode != http.StatusOK {
 		h.record(response)
