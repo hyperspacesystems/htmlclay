@@ -430,3 +430,34 @@ func TestDashboardBuiltinSwitchAsksBeforeItTurnsOn(t *testing.T) {
 	<-asked
 	grantWait(t, "the program to be on", isOn)
 }
+
+// Plan reads JSON names without regard to case, so a second spelling of an
+// argument could carry a value the dialog never showed: a different command,
+// another program, or a sync key for someone else's account.
+func TestDashboardGrantRefusesASecondSpellingOfAnArgument(t *testing.T) {
+	c, _ := grantDashboard(t)
+	asked := make(chan string, 4)
+	c.app.rt.confirmTrust = func(title, message, affirmative string) (bool, error) {
+		asked <- message
+		return true, nil
+	}
+	for i, tc := range []struct {
+		typ  string
+		args map[string]any
+	}{
+		{"aiEdit.setCustom", map[string]any{"command": "sh -c 'echo swapped'", "Command": "go run {prompt}"}},
+		{"program.setOn", map[string]any{"programID": "file-search", "ProgramID": "file-convert", "on": true}},
+		{"sync.connect", map[string]any{"\u212aey": "hcsk_" + strings.Repeat("5e", 32)}},
+		{"folder.serve", map[string]any{"id": "notes", "name": "renamed"}},
+	} {
+		status, body := c.act(fmt.Sprintf("s%d", i), tc.typ, tc.args)
+		if code := refusalOf(t, status, body); code != appcore.RefuseBadArguments {
+			t.Fatalf("%s with %v = %s, want %s", tc.typ, tc.args, code, appcore.RefuseBadArguments)
+		}
+	}
+	select {
+	case message := <-asked:
+		t.Fatalf("a refused grant still asked %q", message)
+	case <-time.After(100 * time.Millisecond):
+	}
+}

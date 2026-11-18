@@ -128,6 +128,12 @@ public enum SettingsControls {
         }
     }
 
+    /// Whether the live service row offers Restart: only once the service has
+    /// stopped by itself, and only when the host can restart it.
+    public static func offersServiceRestart(_ service: String, hostCan: Bool, isSample: Bool) -> Bool {
+        !isSample && hostCan && service == "failed"
+    }
+
     /// The dashboard address without its scheme and trailing slash.
     public static func dashboardAddress(_ url: String) -> String {
         var address = url

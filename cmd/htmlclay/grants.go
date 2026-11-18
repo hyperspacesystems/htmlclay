@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/panphora/htmlclay/internal/aiedit"
@@ -37,40 +38,40 @@ type grantArgs struct {
 	Command    string `json:"command"`
 }
 
-// dialogOnly is every argument that names what is granted, or that says the
-// person has already seen a warning. Each is chosen or answered in the host's
-// own dialog. A page that sends one is refused.
-var dialogOnly = []string{"path", "key", "destination", "acknowledged", "confirmed"}
-
-// nativeGrantTypes is every grant a dashboard page may ask for where the host
-// confirms with its own dialogs. The other grant actions stay refused there:
-// a document's request is answered by the dialog the document already raises,
-// and a program is added when a document asks for one.
-var nativeGrantTypes = map[string]bool{
-	"aiEdit.setCustom":      true,
-	"file.open":             true,
-	"folder.merge":          true,
-	"folder.relink":         true,
-	"folder.serve":          true,
-	"folder.setFraming":     true,
-	"folder.setSynced":      true,
-	"folder.setUpTeam":      true,
-	"folder.trust":          true,
-	"move.start":            true,
-	"program.add":           true,
-	"program.askAgain":      true,
-	"program.openExample":   true,
-	"program.relink":        true,
-	"program.setAllTrusted": true,
-	"program.setOn":         true,
-	"sync.connect":          true,
+// grantFields is every grant a dashboard page may ask for where the host
+// confirms with its own dialogs, with the exact argument names each one takes.
+// A page that sends any other name is refused, in any spelling: Plan matches
+// JSON names without regard to case, so a second spelling of a name could
+// carry a value the dialog never showed. What is granted (a path, the sync key,
+// a warning already seen) is never among them: the person chooses or answers
+// it in the host's own dialog. The other grant actions stay refused here: a
+// document's request is answered by the dialog the document already raises.
+var grantFields = map[string][]string{
+	"aiEdit.setCustom":      {"command"},
+	"file.open":             {},
+	"folder.merge":          {"id"},
+	"folder.relink":         {"id"},
+	"folder.serve":          {"id"},
+	"folder.setFraming":     {"id", "allow"},
+	"folder.setSynced":      {"id", "on"},
+	"folder.setUpTeam":      {"id", "existing"},
+	"folder.trust":          {},
+	"move.start":            {"folderIDs"},
+	"program.add":           {"name"},
+	"program.askAgain":      {"programID", "documentID"},
+	"program.openExample":   {"programID"},
+	"program.relink":        {"programID"},
+	"program.setAllTrusted": {"programID", "on"},
+	"program.setOn":         {"programID", "on"},
+	"sync.connect":          {},
 }
 
 // dashboardGrant answers a grant action that came from a dashboard page. It
 // never runs the action itself: it either refuses, or starts the dialog and
 // answers pending.
 func (a *app) dashboardGrant(action appcore.Action) *appcore.Refusal {
-	if !a.nativeGrants || !nativeGrantTypes[action.Type] {
+	fields, offered := grantFields[action.Type]
+	if !a.nativeGrants || !offered {
 		return &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation}
 	}
 	var args grantArgs
@@ -83,9 +84,9 @@ func (a *app) dashboardGrant(action appcore.Action) *appcore.Refusal {
 	if raw == nil {
 		raw = map[string]any{}
 	}
-	for _, field := range dialogOnly {
-		if _, sent := raw[field]; sent {
-			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: field}
+	for name := range raw {
+		if !slices.Contains(fields, name) {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: name}
 		}
 	}
 	if action.Type == "program.add" {
@@ -440,8 +441,13 @@ func (a *app) promptSecret(title, message string) (string, bool, error) {
 func nativeDashboardSnapshot(s appcore.Snapshot) appcore.Snapshot {
 	can := make(map[string]bool, len(s.Host.Can))
 	for typ, ok := range s.Host.Can {
-		can[typ] = ok && (appcore.ActionClasses[typ] != appcore.ClassGrant || nativeGrantTypes[typ])
+		can[typ] = ok && (appcore.ActionClasses[typ] != appcore.ClassGrant || grantOffered(typ))
 	}
 	s.Host.Can = can
 	return s
+}
+
+func grantOffered(typ string) bool {
+	_, ok := grantFields[typ]
+	return ok
 }

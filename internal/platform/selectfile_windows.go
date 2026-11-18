@@ -9,7 +9,22 @@ import (
 	"strings"
 )
 
+// helperFilter and documentFilter are the two pickers' file type lists.
+const (
+	helperFilter   = "Helper programs (*.exe;*.bat;*.cmd)|*.exe;*.bat;*.cmd|All files (*.*)|*.*"
+	documentFilter = "HTML Clay documents (*.htmlclay;*.html;*.htm)|*.htmlclay;*.html;*.htm"
+)
+
 func selectFile(prompt, dir string) (string, bool, error) {
+	return pickFile(prompt, dir, helperFilter)
+}
+
+// chooseFile is the document picker: the same dialog with the document types.
+func chooseFile(title string) (string, bool, error) {
+	return pickFile(title, "", documentFilter)
+}
+
+func pickFile(prompt, dir, filter string) (string, bool, error) {
 	script := selectFileScript()
 
 	ctx, cancel := context.WithTimeout(context.Background(), selectFileTimeout)
@@ -17,7 +32,7 @@ func selectFile(prompt, dir string) (string, bool, error) {
 
 	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-STA", "-Command", script)
 	noConsoleWindow(cmd)
-	cmd.Env = append(cmd.Environ(), "HTMLCLAY_DIALOG_PROMPT="+prompt, "HTMLCLAY_DIALOG_DIR="+dir)
+	cmd.Env = append(cmd.Environ(), "HTMLCLAY_DIALOG_PROMPT="+prompt, "HTMLCLAY_DIALOG_DIR="+dir, "HTMLCLAY_DIALOG_FILTER="+filter)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", false, fmt.Errorf("file picker failed: %w", err)
@@ -53,7 +68,8 @@ func selectFileScript() string {
 		"$d.Title = $env:HTMLCLAY_DIALOG_PROMPT; " +
 		"if ($env:HTMLCLAY_DIALOG_DIR) { $d.InitialDirectory = $env:HTMLCLAY_DIALOG_DIR }; " +
 		"$d.CheckFileExists = $true; $d.Multiselect = $false; " +
-		"$d.Filter = 'Helper programs (*.exe;*.bat;*.cmd)|*.exe;*.bat;*.cmd|All files (*.*)|*.*'; " +
+		"$d.Filter = $env:HTMLCLAY_DIALOG_FILTER; " +
+		"[Console]::OutputEncoding = [Text.Encoding]::UTF8; " +
 		"$r = $d.ShowDialog($f); $f.Close(); " +
 		"if ($r -eq 'OK') { Write-Output $d.FileName }"
 }

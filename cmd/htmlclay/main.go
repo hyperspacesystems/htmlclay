@@ -457,7 +457,9 @@ func main() {
 		os.Exit(code)
 	}
 
-	if *afterPID > 0 && !update.WaitGone(*afterPID, 15*time.Second) {
+	// The previous copy can take about 25 s to shut down (sync's flush, the
+	// service, the listeners), and this copy cannot start until it has.
+	if *afterPID > 0 && !update.WaitGone(*afterPID, 40*time.Second) {
 		fmt.Fprintf(os.Stderr, "[htmlclay] The previous HTML Clay (pid %d) did not exit\n", *afterPID)
 	}
 

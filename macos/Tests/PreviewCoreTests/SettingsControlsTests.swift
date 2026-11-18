@@ -120,6 +120,11 @@ final class SettingsControlsTests: XCTestCase {
         let off = SettingsControls.serviceStatus("off")
         XCTAssertEqual(off.dot, .muted)
         XCTAssertEqual(off.text, Strings.Advanced.off)
+
+        XCTAssertTrue(SettingsControls.offersServiceRestart("failed", hostCan: true, isSample: false))
+        XCTAssertFalse(SettingsControls.offersServiceRestart("running", hostCan: true, isSample: false))
+        XCTAssertFalse(SettingsControls.offersServiceRestart("failed", hostCan: false, isSample: false))
+        XCTAssertFalse(SettingsControls.offersServiceRestart("failed", hostCan: true, isSample: true))
     }
 
     func testTheDashboardAddressDropsTheSchemeAndTrailingSlash() {

@@ -124,3 +124,23 @@ func TestTrayRecentDocumentOpensIt(t *testing.T) {
 		t.Fatalf("clicking the recent row opened %q, want one URL naming page.htmlclay", launched)
 	}
 }
+
+func TestTrayNeedsYouOpensWhereEachRowIsFixed(t *testing.T) {
+	request := "r1"
+	for _, tc := range []struct {
+		item   appcore.WaitingItem
+		action string
+		route  string
+	}{
+		{appcore.WaitingItem{Kind: appcore.WaitingFolderMissing, Pane: appcore.PaneFolders}, "dashboard.open", "/settings/folders"},
+		{appcore.WaitingItem{Kind: appcore.WaitingServiceFailed, Pane: appcore.PaneAdvanced}, "dashboard.open", "/settings/advanced"},
+		{appcore.WaitingItem{Kind: appcore.WaitingSyncKeyRefused, Pane: appcore.PaneSync}, "dashboard.open", "/settings/sync"},
+		{appcore.WaitingItem{Kind: appcore.WaitingConflict, Pane: appcore.PaneFolders}, "dashboard.open", "/needs-you"},
+		{appcore.WaitingItem{Kind: appcore.WaitingProgramRequest, Pane: appcore.PanePrograms, SubjectID: &request}, "request.show", ""},
+	} {
+		action, args := waitingTrayAction(tc.item)
+		if action != tc.action || (tc.route != "" && args["route"] != tc.route) {
+			t.Errorf("%s row: %s %v, want %s %s", tc.item.Kind, action, args, tc.action, tc.route)
+		}
+	}
+}

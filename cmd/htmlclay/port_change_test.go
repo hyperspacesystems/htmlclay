@@ -212,3 +212,19 @@ func TestSetPortWaitsForARunningAIEdit(t *testing.T) {
 		t.Fatal("the port change restarted the app and stopped the AI edit")
 	}
 }
+
+func TestSetPortWaitsForSyncToGoQuiet(t *testing.T) {
+	a := newTestAppWithConfigDir(t, t.TempDir(), t.TempDir())
+	restarted := false
+	a.rt.restartHost = func() { restarted = true }
+	a.rt.syncQuiet = func(time.Duration) bool { return false }
+	oldPort := a.rt.cfg.Port()
+
+	refusal := a.runEffect(context.Background(), appcore.Effect{Type: "host.setPort", Port: freeLoopbackPort(t)})
+	if refusal == nil || refusal.Code != appcore.RefuseStillRunning {
+		t.Fatalf("host.setPort while sync is busy = %+v, want %s", refusal, appcore.RefuseStillRunning)
+	}
+	if restarted || a.rt.cfg.Port() != oldPort {
+		t.Fatalf("the port change went ahead while sync was busy (restarted %v, port %d)", restarted, a.rt.cfg.Port())
+	}
+}

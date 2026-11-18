@@ -63,11 +63,7 @@ func (a *app) doTrayMenu(id string) {
 			if w.ID != id {
 				continue
 			}
-			if w.Kind == appcore.WaitingProgramRequest && w.SubjectID != nil && *w.SubjectID != "" {
-				refusal = a.trayDo("request.show", map[string]any{"id": *w.SubjectID})
-			} else {
-				refusal = a.trayDo("dashboard.open", map[string]any{"route": "/needs-you"})
-			}
+			refusal = a.trayDo(waitingTrayAction(w))
 			break
 		}
 	}
@@ -81,4 +77,18 @@ func (a *app) reportTrayRefusal(refusal *appcore.Refusal) {
 	}
 	a.rt.logger.Printf("Tray action refused: %s", appcore.RefusalMessage(refusal))
 	_ = a.notifyUser(appcore.RefusalMessage(refusal), "")
+}
+
+// waitingTrayAction is what a Needs you row in the tray does: a program request
+// shows its own dialog, a conflict or a held removal opens Needs you where it is
+// answered, and anything else opens the Settings section that can fix it, as
+// the Mac app opens its pane.
+func waitingTrayAction(w appcore.WaitingItem) (string, map[string]any) {
+	switch {
+	case w.Kind == appcore.WaitingProgramRequest && w.SubjectID != nil && *w.SubjectID != "":
+		return "request.show", map[string]any{"id": *w.SubjectID}
+	case w.Kind == appcore.WaitingConflict || w.Kind == appcore.WaitingRemovalHeld || w.Pane == "":
+		return "dashboard.open", map[string]any{"route": "/needs-you"}
+	}
+	return "dashboard.open", map[string]any{"route": "/settings/" + w.Pane}
 }

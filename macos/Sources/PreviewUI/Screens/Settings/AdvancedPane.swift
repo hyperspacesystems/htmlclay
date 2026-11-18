@@ -32,6 +32,12 @@ struct AdvancedPane: View {
                         Text(model.isSample ? Strings.Advanced.running : service.text)
                             .font(.system(size: 13))
                             .foregroundStyle(kiln.ink2)
+                        if SettingsControls.offersServiceRestart(model.snapshot.host.service,
+                                                                 hostCan: model.can(HostActionType.serviceRestart),
+                                                                 isSample: model.isSample) {
+                            Button(Strings.Panel.restart) { model.send(.restartService) }
+                                .buttonStyle(KilnButtonStyle(.plain))
+                        }
                     }
                 }
             }

@@ -19,6 +19,10 @@ import (
 // again at once (HostProcess.restartStatus in Swift).
 const hostRestartStatus = 75
 
+// portSyncLimit is how long a port change waits for sync to go quiet before it
+// is refused for now.
+const portSyncLimit = 5 * time.Second
+
 type formerPort struct {
 	port int
 	srv  *http.Server
@@ -48,6 +52,11 @@ func (a *app) setPort(port int) *appcore.Refusal {
 	}
 	// The restart stops a running AI edit or a document's program.
 	if a.runningWork() > 0 {
+		return &appcore.Refusal{Code: appcore.RefuseStillRunning}
+	}
+	// So does a delete or an upload the sync engine still holds, and the server
+	// then sends the old file back.
+	if !a.syncQuietForUpdate(portSyncLimit) {
 		return &appcore.Refusal{Code: appcore.RefuseStillRunning}
 	}
 	if !a.updating.CompareAndSwap(false, true) {
