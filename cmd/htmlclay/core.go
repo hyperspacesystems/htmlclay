@@ -753,7 +753,7 @@ func (a *app) do(ctx context.Context, action appcore.Action, ch Channel) (appcor
 		a.remember(action.ID, coreAnswer{Snapshot: snapshot, Refusal: refusal})
 		return snapshot, refusal
 	}
-	if ch != ChannelShell && action.Type == "document.recover" {
+	if ch != ChannelShell && (action.Type == "document.recover" || action.Type == "update.prepared") {
 		refusal := &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation}
 		snapshot := a.snapshot()
 		a.remember(action.ID, coreAnswer{Snapshot: snapshot, Refusal: refusal})

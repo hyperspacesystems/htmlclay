@@ -75,6 +75,7 @@ var implementedActions = []string{
 	"template.create",
 	"update.check",
 	"update.start",
+	"update.prepared",
 	"conflict.resolve",
 	"folder.resolveRemoval",
 	"move.quitLocal",
@@ -93,9 +94,9 @@ func (a *app) implemented() []string {
 		if typ == "document.recover" && !a.shell {
 			continue
 		}
-		// The Mac app updates itself through Sparkle, so it neither checks nor
-		// applies an update through the host.
-		if (typ == "update.check" || typ == "update.start") && a.shell {
+		// The Mac app checks for updates through Sparkle; only it reports what
+		// Sparkle downloaded, and the host passes Update on to it.
+		if (typ == "update.check" && a.shell) || (typ == "update.prepared" && !a.shell) {
 			continue
 		}
 		// The Mac app reads and sets its own file types.
@@ -208,6 +209,9 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.checkForUpdates()
 	case "update.start":
 		return a.startUpdate()
+	case "update.prepared":
+		a.setSparklePrepared(e.Version)
+		return nil
 	case "conflict.resolve":
 		return a.resolveConflict(e)
 	case "folder.resolveRemoval":

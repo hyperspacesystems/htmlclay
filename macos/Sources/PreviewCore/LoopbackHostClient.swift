@@ -108,6 +108,7 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
     public var onEnded: (@MainActor (_ reason: String) -> Void)?
     public var onUnsupported: (@MainActor (_ version: Int) -> Void)?
     public var onNotice: (@MainActor (HostNotice) -> Void)?
+    public var onRestartToUpdate: (@MainActor () -> Void)?
 
     public init(port: Int, secret: String,
                 configuration: URLSessionConfiguration = .ephemeral,
@@ -346,6 +347,8 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
                 onUnsupported?(version)
             case let .notice(notice):
                 onNotice?(notice)
+            case .restartToUpdate:
+                onRestartToUpdate?()
             }
         }
     }

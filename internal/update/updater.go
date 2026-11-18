@@ -189,6 +189,9 @@ func (u *Updater) CheckOnce() (*Ready, error) {
 		return nil, err
 	}
 	u.logf("Update %s is downloaded and staged at %s", rel.Version, staged)
+	if err := RecordWaiting(u.Dir, rel.Version, staged); err != nil {
+		u.logf("Could not record update %s for the next start: %v", rel.Version, err)
+	}
 	return &Ready{Version: rel.Version, StagedPath: staged}, nil
 }
 

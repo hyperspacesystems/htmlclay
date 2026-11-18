@@ -45,6 +45,8 @@ public enum HostStreamChange: Equatable, Sendable {
     case unsupported(version: Int)
     /// Something to tell the person once, as a notification (08-sync.md decision 19).
     case notice(HostNotice)
+    /// Update was pressed on a browser page: restart into the downloaded update.
+    case restartToUpdate
 }
 
 /// A conflict, a key the server stopped accepting, or a team the person was
@@ -108,6 +110,8 @@ public struct HostStreamState: Equatable, Sendable {
             // A kind this app does not know yet is left for a newer app to show.
             guard let id = event.id, let kind = event.kind.flatMap(HostNotice.Kind.init(rawValue:)) else { return [] }
             return [.notice(HostNotice(id: id, kind: kind, folderID: event.folderID, name: event.name ?? "", detail: event.detail ?? ""))]
+        case "restartToUpdate":
+            return [.restartToUpdate]
         case "bye":
             ended = true
             return [.ended(reason: event.reason ?? "")]

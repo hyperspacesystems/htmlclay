@@ -308,3 +308,30 @@ func TestTimedChecksStopWhenUpdatesAreOff(t *testing.T) {
 		t.Fatal("Check now did not check with updates off")
 	}
 }
+
+// A staged update is waiting for the next start only while the staged file is
+// the one the check recorded and its version is still newer.
+func TestAWaitingUpdateNeedsItsStagedFileAndANewerVersion(t *testing.T) {
+	priv, keys := testKeys(t)
+	fs := newFeedServer(t)
+	feed, _ := SignPayload(payloadJSON(t, fs.release("1.14.0")), "test-a", priv)
+	fs.setFeed(feed)
+	u := newTestUpdater(t, fs, keys)
+	if _, err := u.CheckOnce(); err != nil {
+		t.Fatalf("CheckOnce: %v", err)
+	}
+
+	if r := Waiting(u.Dir, "1.14.0", u.InstallPath); r != nil {
+		t.Fatalf("a version no newer than the running one waits: %+v", r)
+	}
+	if _, err := u.CheckOnce(); err != nil {
+		t.Fatalf("CheckOnce: %v", err)
+	}
+	if r := Waiting(u.Dir, u.Current, u.InstallPath); r == nil || r.Version != "1.14.0" || r.StagedPath != stagedPathFor(u.InstallPath) {
+		t.Fatalf("Waiting = %+v, want 1.14.0 at the staged path", r)
+	}
+	os.WriteFile(stagedPathFor(u.InstallPath), []byte("something else"), 0o755)
+	if r := Waiting(u.Dir, u.Current, u.InstallPath); r != nil {
+		t.Fatalf("a changed staged file still waits: %+v", r)
+	}
+}

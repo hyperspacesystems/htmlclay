@@ -32,8 +32,10 @@ type Backend interface {
 }
 
 // Notice is contract C6's frame on the shell stream: a new conflict, a key the
-// server stopped accepting, or a team the person was added to. Type is always
-// "notice"; a client that does not know the frame ignores it.
+// server stopped accepting, or a team the person was added to, with Type
+// "notice". Type FrameRestartToUpdate, with no other field, asks the Mac app to
+// restart into the update its updater holds. A client ignores a type it does
+// not know.
 type Notice struct {
 	Type     string  `json:"type"`
 	ID       string  `json:"id"`
@@ -42,6 +44,9 @@ type Notice struct {
 	Name     string  `json:"name"`
 	Detail   string  `json:"detail"`
 }
+
+// FrameRestartToUpdate is the shell stream frame for Update on a browser page.
+const FrameRestartToUpdate = "restartToUpdate"
 
 // NoticeSource is the backend's notices, for a stream to pass on (08-sync.md
 // 8.40). A backend counts a notice delivered when a stream is subscribed.

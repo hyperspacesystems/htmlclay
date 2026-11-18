@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var updateAllowed = false
     private var loginItems: LoginItemReconciler?
     private var hostReadyOnce = false
+    /// The downloaded version last told to the host; nil until a host hears it.
+    private var reportedPrepared: String?
     private var quitting = false
     private var home: URL?
     private var opener: FileOpener?
@@ -80,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updates?.onChange = { [weak self] in
             self?.writeState()
             self?.model.updaterChanged()
+            self?.reportPrepared()
         }
         if let made = LoginItems.make(identity: Self.identity, candidateHome: home) {
             loginItems = LoginItemReconciler(service: made.service, legacyPlist: made.legacyPlist, defaults: .standard)
@@ -104,11 +107,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         relay.onRestartRequested = { [weak self] in self?.startHost() }
         notifier = HostNotifier(windows: windows, model: model)
         relay.onNotice = { [notifier] notice in notifier?.show(notice) }
+        relay.onRestartToUpdate = { [weak self] in self?.updates?.restartToUpdate() }
 
         let welcomeDone = UserDefaults.standard.bool(forKey: WindowManager.welcomeDoneKey)
         if profile == nil, !welcomeDone, !CommandLine.arguments.contains("--no-welcome") { windows.showWelcome() }
 
         startHost()
+    }
+
+    /// Tells the host what Sparkle has downloaded, so its browser pages offer
+    /// Update; sent again to every new host.
+    private func reportPrepared() {
+        let prepared = updates?.prepared ?? ""
+        guard prepared != reportedPrepared else { return }
+        reportedPrepared = prepared
+        Task { _ = await relay.perform(.updatePrepared(prepared)) }
     }
 
     private func startHost() {
@@ -127,6 +140,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.loginItems?.update(wanted: self.relay.last.preferences.openAtLogin)
                 await self.confirmUpdate(environment: launch.environment)
                 await self.updates?.start(allowed: self.updateAllowed)
+                self.reportedPrepared = nil
+                self.reportPrepared()
                 self.opener?.hostReady()
                 self.writeState()
                 await self.seedProfile()

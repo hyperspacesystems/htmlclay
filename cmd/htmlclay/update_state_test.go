@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -172,13 +173,16 @@ func TestTheStatusRowSaysDownloadingUntilTheCheckEnds(t *testing.T) {
 	}
 }
 
-// The Mac app runs Sparkle, so a host it started offers neither update action.
-func TestShellHostDoesNotOfferUpdates(t *testing.T) {
-	a := newTestAppAs(t, t.TempDir(), t.TempDir(), true)
-	for _, typ := range a.implemented() {
-		if typ == "update.check" || typ == "update.start" {
-			t.Fatalf("a shell host offers %s", typ)
-		}
+// The Mac app checks for updates with Sparkle, so a host it started never checks
+// itself, and only a host the Mac app started hears what Sparkle downloaded.
+func TestOnlyTheMacAppChecksAndReportsItsUpdates(t *testing.T) {
+	shell := newTestAppAs(t, t.TempDir(), t.TempDir(), true)
+	if slices.Contains(shell.implemented(), "update.check") {
+		t.Fatal("a host the Mac app started offers update.check")
+	}
+	own := newTestAppAs(t, t.TempDir(), t.TempDir(), false)
+	if slices.Contains(own.implemented(), "update.prepared") {
+		t.Fatal("a host without the Mac app offers update.prepared")
 	}
 }
 
@@ -253,5 +257,41 @@ func TestUpdateNowOnLinuxStartsTheDownloadedUpdate(t *testing.T) {
 	case <-applied:
 	case <-time.After(5 * time.Second):
 		t.Fatal("update-now never ran the restart")
+	}
+}
+
+// On the Mac the browser pages offer Update for what Sparkle downloaded: the
+// app reports the version, a page's Update asks the app to restart into it,
+// and only the app may report a version.
+func TestTheMacPagesOfferWhatSparkleDownloaded(t *testing.T) {
+	a, _ := updateTestApp(t)
+	a.shell = true
+	a.setUpdateReady("9.9.9", "https://htmlclay.com/download", nil)
+	if s := a.snapshot(); s.Update.Ready != nil {
+		t.Fatalf("the host's own release check shows as ready on the Mac: %q", *s.Update.Ready)
+	}
+	frames, stop := a.rt.notices.subscribe()
+	defer stop()
+
+	if _, refusal := a.do(context.Background(), coreAction(t, "page", "update.prepared", map[string]string{"version": "2.1.0"}), ChannelDashboard); refusal == nil {
+		t.Fatal("a browser page reported a downloaded version")
+	}
+	if _, refusal := a.do(context.Background(), coreAction(t, "app", "update.prepared", map[string]string{"version": "2.1.0"}), ChannelShell); refusal != nil {
+		t.Fatalf("update.prepared from the Mac app: %+v", refusal)
+	}
+	s := a.snapshot()
+	if s.Update.Ready == nil || *s.Update.Ready != "2.1.0" || s.Update.DownloadURL != "" || !s.Host.Can["update.start"] {
+		t.Fatalf("update = %+v, can update.start %v; want 2.1.0 ready to start", s.Update, s.Host.Can["update.start"])
+	}
+	if _, refusal := a.do(context.Background(), appcore.Action{ID: "update", Type: "update.start"}, ChannelDashboard); refusal != nil {
+		t.Fatalf("Update on a page: %+v", refusal)
+	}
+	select {
+	case frame := <-frames:
+		if frame.Type != "restartToUpdate" {
+			t.Fatalf("the Mac app got %+v, want restartToUpdate", frame)
+		}
+	default:
+		t.Fatal("Update on a page never reached the Mac app")
 	}
 }

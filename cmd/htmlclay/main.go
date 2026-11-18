@@ -512,6 +512,11 @@ func main() {
 
 	a.initLogger()
 	defer a.rt.logger.Close()
+	if a.installWaitingUpdate(flag.Args()) {
+		a.rt.logger.Close()
+		a.rt.si.Unlock()
+		os.Exit(0)
+	}
 	a.holdSavesWhileUnjudged()
 
 	a.startRuntime()
@@ -578,6 +583,10 @@ func main() {
 	if len(args) > 0 {
 		a.rt.logger.Printf("Opening file: %s", args[0])
 		a.openFile(args[0])
+	}
+	for _, path := range a.takeOpenAfterUpdate() {
+		a.rt.logger.Printf("Opening file from before the update: %s", path)
+		a.openFile(path)
 	}
 
 	a.rt.si.OnFileReceived(func(path string) {

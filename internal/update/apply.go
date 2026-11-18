@@ -283,6 +283,7 @@ func Apply(dir string, p ApplyParams) (*State, error) {
 		return nil, fmt.Errorf("start supervisor: %w", err)
 	}
 	cmd.Process.Release()
+	os.Remove(filepath.Join(dir, waitingFile))
 	return st, nil
 }
 

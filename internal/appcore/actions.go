@@ -2,11 +2,15 @@ package appcore
 
 import (
 	"encoding/json"
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/panphora/htmlclay/internal/config"
 )
+
+// strictVersion is X.Y.Z, the only version form an updater reports.
+var strictVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 
 // Class is how an action changes what documents and programs may do. It decides
 // who may send it: the Mac app and the tray may send every class; the dashboard,
@@ -61,6 +65,7 @@ var ActionClasses = map[string]Class{
 	"conflict.resolve":          ClassSafe,
 	"folder.resolveRemoval":     ClassSafe,
 	"update.start":              ClassSafe,
+	"update.prepared":           ClassSafe,
 	"service.restart":           ClassSafe,
 	"host.quit":                 ClassSafe,
 	"move.quitLocal":            ClassSafe,
@@ -194,6 +199,7 @@ type Effect struct {
 	Effort       string   `json:"effort,omitempty"`
 	Command      string   `json:"command,omitempty"`
 	TemplateID   string   `json:"templateID,omitempty"`
+	Version      string   `json:"version,omitempty"`
 }
 
 // actionArgs is every argument any action takes; each action reads its own.
@@ -231,6 +237,7 @@ type actionArgs struct {
 	Effort       string   `json:"effort"`
 	Command      string   `json:"command"`
 	TemplateID   string   `json:"templateID"`
+	Version      string   `json:"version"`
 }
 
 // conflictChoices is which copies Local's resolveConflict can keep for each
@@ -438,6 +445,12 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return nil, &Refusal{Code: RefuseNothingReady}
 		}
 		return one(Effect{Type: a.Type})
+	case "update.prepared":
+		// The Mac app's updater reports the version it has downloaded, or "".
+		if args.Version != "" && !strictVersion.MatchString(args.Version) {
+			return bad("version")
+		}
+		return one(Effect{Type: a.Type, Version: args.Version})
 	case "service.restart":
 		return one(Effect{Type: a.Type})
 	case "host.quit":

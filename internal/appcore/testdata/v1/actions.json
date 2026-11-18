@@ -214,6 +214,10 @@
       "class": "safe"
     },
     {
+      "type": "update.prepared",
+      "class": "safe"
+    },
+    {
       "type": "update.start",
       "class": "safe"
     },

@@ -10,7 +10,7 @@ final class HostActionWireTests: XCTestCase {
         "id", "ids", "path", "name", "route", "key", "value", "on", "allow", "paused", "force",
         "programID", "documentID", "revision", "answer", "username", "folderIDs", "acknowledged",
         "destination", "keep", "choice", "port", "tool", "model", "command", "confirmed", "effort",
-        "templateID",
+        "templateID", "version",
     ]
 
     private static let everyAction: [HostAction] = [
@@ -44,6 +44,7 @@ final class HostActionWireTests: XCTestCase {
         .removeProgram(programID: "p1"),
         .revealProgram(programID: "p1"),
         .startUpdate,
+        .updatePrepared("2.1.0"),
         .finishUpdate,
         .restartHost,
         .restartService,

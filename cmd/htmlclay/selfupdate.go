@@ -67,21 +67,7 @@ func selfUpdateGate(channel, ver, goos string, trustedKeys int, installPath stri
 // reports whether it did. When it returns false the caller keeps the plain
 // release-info check that only links to the website.
 func (a *app) startSelfUpdater() bool {
-	// The restart is offered from the tray, so a run without one has no way to
-	// apply what it would download.
-	if a.noTray {
-		a.updateOff = "HTML Clay is running without its tray"
-		return false
-	}
-	if updateNowOS == "darwin" {
-		// On macOS the HTML Clay app runs Sparkle; a host started on its own keeps the download-page link.
-		a.updateOff = "on macOS the HTML Clay app updates itself"
-		return false
-	}
-	installPath, err := update.InstallPath()
-	if err == nil {
-		err = selfUpdateGate(updateChannel, version, updateNowOS, len(update.TrustedKeys), installPath, update.CheckWritable)
-	}
+	installPath, err := a.selfUpdateInstallPath()
 	if err != nil {
 		a.rt.logger.Printf("Self-update is off: %v", err)
 		a.updateOff = err.Error()
@@ -116,6 +102,90 @@ func (a *app) startSelfUpdater() bool {
 		a.setUpdateReady(r.Version, "", func() { a.clickApplyUpdate(r, installPath) })
 	})
 	return true
+}
+
+// selfUpdateInstallPath returns the binary this run may replace with an update,
+// or why it may not.
+func (a *app) selfUpdateInstallPath() (string, error) {
+	// The restart is offered from the tray, so a run without one has no way to
+	// apply what it would download.
+	if a.noTray {
+		return "", errors.New("HTML Clay is running without its tray")
+	}
+	if updateNowOS == "darwin" {
+		// On macOS the HTML Clay app runs Sparkle; a host started on its own keeps the download-page link.
+		return "", errors.New("on macOS the HTML Clay app updates itself")
+	}
+	installPath, err := update.InstallPath()
+	if err == nil {
+		err = selfUpdateGate(updateChannel, version, updateNowOS, len(update.TrustedKeys), installPath, update.CheckWritable)
+	}
+	return installPath, err
+}
+
+// openAfterUpdateFile carries the files a launch was asked to open across an
+// update installed at that launch: the supervisor starts the new version with
+// no arguments, and the new version opens them.
+const (
+	openAfterUpdateFile = "open-after-update.json"
+	openAfterUpdateFor  = 2 * time.Minute
+)
+
+type openAfterUpdate struct {
+	At    time.Time `json:"at"`
+	Files []string  `json:"files"`
+}
+
+// installWaitingUpdate installs the update an earlier run downloaded before
+// this run starts anything, and reports whether it did. The caller then exits,
+// and the supervisor starts the new version and judges it as it does after
+// Restart to update. A run another update is still judging installs nothing.
+func (a *app) installWaitingUpdate(files []string) bool {
+	installPath, err := a.selfUpdateInstallPath()
+	return err == nil && a.installWaiting(installPath, files)
+}
+
+func (a *app) installWaiting(installPath string, files []string) bool {
+	dir := update.UpdatesDir(a.rt.configDir)
+	if update.Unjudged(dir) {
+		return false
+	}
+	r := update.Waiting(dir, version, installPath)
+	if r == nil {
+		return false
+	}
+	carry := filepath.Join(a.rt.configDir, openAfterUpdateFile)
+	if len(files) > 0 {
+		data, _ := json.Marshal(openAfterUpdate{At: time.Now().UTC(), Files: files})
+		if err := os.WriteFile(carry, data, 0o600); err != nil {
+			a.rt.logger.Printf("Not installing update %s at start: could not keep the files to open: %v", r.Version, err)
+			return false
+		}
+	}
+	if _, err := update.Apply(dir, update.ApplyParams{From: version, To: r.Version, InstallPath: installPath,
+		StagedPath: r.StagedPath, OldPID: os.Getpid()}); err != nil {
+		os.Remove(carry)
+		a.rt.logger.Printf("Could not install update %s at start: %v", r.Version, err)
+		return false
+	}
+	a.rt.logger.Printf("Installing update %s, downloaded before the last quit", r.Version)
+	return true
+}
+
+// takeOpenAfterUpdate returns the files the launch that installed this version
+// was asked to open, once, and only while they are recent.
+func (a *app) takeOpenAfterUpdate() []string {
+	path := filepath.Join(a.rt.configDir, openAfterUpdateFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	os.Remove(path)
+	var carried openAfterUpdate
+	if json.Unmarshal(data, &carried) != nil || time.Since(carried.At) > openAfterUpdateFor {
+		return nil
+	}
+	return carried.Files
 }
 
 // clickApplyUpdate is the tray's Restart to Update row. A failure leaves this

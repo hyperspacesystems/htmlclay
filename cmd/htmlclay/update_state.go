@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/shellapi"
 	"github.com/panphora/htmlclay/internal/update"
 )
 
@@ -25,6 +26,9 @@ type updateState struct {
 	// announce is set by the tray's Check for updates: the tray has no page,
 	// so the check's result is told in a notification.
 	announce bool
+	// sparkle is the version the Mac app's updater has downloaded and will
+	// install at its next quit, as the app last reported it; "" for none.
+	sparkle string
 }
 
 func (a *app) setUpdateChecking(on bool) {
@@ -137,12 +141,29 @@ func (a *app) updateFacts(u *appcore.UpdateState) {
 		at := a.updates.checkedAt
 		u.CheckedAt = &at
 	}
+	// On the Mac only Sparkle's download is ready: the host's own release
+	// check there links to the website, and the app shows nothing of it.
+	if a.shell {
+		if a.updates.sparkle != "" {
+			v := a.updates.sparkle
+			u.Ready = &v
+		}
+		return
+	}
 	if a.updates.ready != "" {
 		v := a.updates.ready
 		u.Ready = &v
 		u.DownloadURL = a.updates.url
 		u.Finishing = a.updating.Load()
 	}
+}
+
+// setSparklePrepared is update.prepared: the Mac app reports what its updater
+// has downloaded, so the browser pages can offer Update.
+func (a *app) setSparklePrepared(version string) {
+	a.updates.mu.Lock()
+	a.updates.sparkle = version
+	a.updates.mu.Unlock()
 }
 
 // setAutoUpdate is prefs.set autoUpdate. On Windows and Linux off stops the
@@ -193,9 +214,17 @@ func (a *app) checkForUpdates() *appcore.Refusal {
 // download page when this build cannot install it itself.
 func (a *app) startUpdate() *appcore.Refusal {
 	a.updates.mu.Lock()
-	apply, url := a.updates.apply, a.updates.url
+	apply, url, sparkle := a.updates.apply, a.updates.url, a.updates.sparkle
 	a.updates.mu.Unlock()
 	switch {
+	case a.shell:
+		// The Mac app restarts into the update its updater holds.
+		if sparkle == "" {
+			return &appcore.Refusal{Code: appcore.RefuseNothingReady}
+		}
+		if !a.rt.notices.deliver(shellapi.Notice{Type: shellapi.FrameRestartToUpdate}) {
+			return &appcore.Refusal{Code: appcore.RefuseFailed}
+		}
 	case apply != nil:
 		go apply()
 	case url != "":

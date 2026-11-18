@@ -212,10 +212,9 @@ func TestM3ExportedContract(t *testing.T) {
 		for _, snapshot := range snapshots {
 			for _, action := range implementedActions {
 				// A host the Mac app started leaves these to the app: Sparkle
-				// checks for and applies updates, and the app sets its own file
-				// types.
+				// checks for updates, and the app sets its own file types.
 				switch action {
-				case "update.check", "update.start", "fileTypes.makeDefault", "fileTypes.stopOpening", "fileTypes.setHTMLOpenWith":
+				case "update.check", "fileTypes.makeDefault", "fileTypes.stopOpening", "fileTypes.setHTMLOpenWith":
 					continue
 				}
 				if !snapshot.Host.Can[action] {

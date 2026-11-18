@@ -23,6 +23,8 @@ public final class RelayHostClient: HostClient {
     public var onRestartRequested: (@MainActor () -> Void)?
     /// Called for each notice the current host sends (08-sync.md 8.45).
     public var onNotice: (@MainActor (HostNotice) -> Void)?
+    /// Called when a browser page's Update asks the app to restart into its update.
+    public var onRestartToUpdate: (@MainActor () -> Void)?
     /// The latest snapshot listeners saw.
     public private(set) var last = HostSnapshot()
 
@@ -37,6 +39,7 @@ public final class RelayHostClient: HostClient {
     /// A ready host: forward to it, subscribe, load its snapshot. A second attach (a restarted host) calls onRestart first.
     public func attach(_ client: LoopbackHostClient) async {
         client.onNotice = { [weak self] notice in self?.onNotice?(notice) }
+        client.onRestartToUpdate = { [weak self] in self?.onRestartToUpdate?() }
         await attach(client) { hook in
             client.onNewEpoch = { _, _ in hook.call() }
         }

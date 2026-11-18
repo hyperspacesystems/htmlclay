@@ -115,6 +115,8 @@ public enum SampleReducer {
         case .startUpdate:
             guard next.update.ready != nil else { return snapshot }
             next.update.finishing = true
+        case .updatePrepared:
+            return snapshot
         case .finishUpdate:
             guard let ready = next.update.ready, next.update.finishing else { return snapshot }
             next.update.current = ready

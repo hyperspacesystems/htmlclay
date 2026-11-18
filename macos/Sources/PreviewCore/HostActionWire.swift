@@ -140,6 +140,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "program.reveal", args: ["programID": .string(programID)])
         case .startUpdate:
             return WireActionRequest(type: "update.start", args: [:])
+        case let .updatePrepared(version):
+            return WireActionRequest(type: "update.prepared", args: ["version": .string(version)])
         // The app restarts the Go process itself, so this sends nothing.
         case .restartHost:
             return nil

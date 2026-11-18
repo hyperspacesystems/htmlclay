@@ -549,6 +549,9 @@ public enum HostAction: Equatable, Sendable {
     case removeProgram(programID: String)
     case revealProgram(programID: String)
     case startUpdate
+    /// The version the updater has downloaded ("" for none), so the host's
+    /// browser pages can offer Update.
+    case updatePrepared(String)
     case finishUpdate
     case restartHost
     case restartService

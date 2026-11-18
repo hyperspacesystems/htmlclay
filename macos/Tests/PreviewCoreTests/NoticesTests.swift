@@ -28,6 +28,13 @@ final class NoticesTests: XCTestCase {
         XCTAssertEqual(state.rev, -1, "a notice is not a snapshot")
     }
 
+    /// Update on a browser page reaches the app as the host's restartToUpdate frame, exactly as Go encodes it.
+    func testUpdateOnAPageAsksTheAppToRestartIntoItsUpdate() throws {
+        var state = HostStreamState()
+        XCTAssertEqual(try state.receive(line: line(#"{"type":"restartToUpdate","id":"","kind":"","folderID":null,"name":"","detail":""}"#)),
+                       [.restartToUpdate])
+    }
+
     func testAConflictCardOpensNeedsYouInTheBrowser() {
         XCTAssertEqual(HostNotice(id: "c", kind: .conflict).opens, .dashboard(route: "/needs-you"))
         XCTAssertEqual(HostNotice(id: "k", kind: .keyStopped).opens, .settings(.sync))
