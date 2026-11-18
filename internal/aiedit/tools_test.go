@@ -124,3 +124,25 @@ func TestRunUsesTheChosenModel(t *testing.T) {
 		t.Fatalf("model = %q, want %q", got, want)
 	}
 }
+
+func TestJoinCommandRoundTrips(t *testing.T) {
+	cases := [][]string{
+		{"/Users/me/Application Support/bin/agent", "--system", "be brief", "{prompt}"},
+		{"agent", "it's", `say "hi"`, `a\b`, ""},
+	}
+	for _, escapes := range []bool{true, false} {
+		for _, argv := range cases {
+			if !escapes && argv[0] == "agent" {
+				continue
+			}
+			got, err := splitCommand(joinCommand(argv, escapes), escapes)
+			if err != nil || !slices.Equal(got, argv) {
+				t.Fatalf("escapes=%v: %q round-trips to %q (%v)", escapes, argv, got, err)
+			}
+		}
+	}
+	win := []string{`C:\Program Files\Agent\agent.exe`, "{prompt}"}
+	if got, err := splitCommand(joinCommand(win, false), false); err != nil || !slices.Equal(got, win) {
+		t.Fatalf("a Windows path round-trips to %q (%v)", got, err)
+	}
+}

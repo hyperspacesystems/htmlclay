@@ -148,3 +148,30 @@ func TestPortRestartReopensSettingsWithTheTray(t *testing.T) {
 		t.Fatalf("without the tray: %q", got)
 	}
 }
+
+func TestSetPortMovesBackToAFormerPort(t *testing.T) {
+	a := newTestAppWithConfigDir(t, t.TempDir(), t.TempDir())
+	restarted := make(chan struct{}, 1)
+	a.rt.restartHost = func() { restarted <- struct{}{} }
+	held, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Close()
+	port := held.Addr().(*net.TCPAddr).Port
+	a.mu.Lock()
+	a.former = append(a.former, formerPort{port: port})
+	a.mu.Unlock()
+
+	if refusal := a.runEffect(context.Background(), appcore.Effect{Type: "host.setPort", Port: port}); refusal != nil {
+		t.Fatalf("moving back to former port %d = %+v, want a restart", port, refusal)
+	}
+	select {
+	case <-restarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("moving back never restarted the app")
+	}
+	if got := a.rt.cfg.Port(); got != port {
+		t.Fatalf("port = %d, want %d", got, port)
+	}
+}

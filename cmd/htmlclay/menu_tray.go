@@ -55,7 +55,7 @@ func (a *app) doTrayMenu(id string) {
 	default:
 		for _, d := range s.Documents {
 			if d.ID == id {
-				refusal = a.trayDo("document.open", map[string]any{"documentID": id})
+				refusal = a.trayDo("document.open", map[string]any{"id": id})
 				break
 			}
 		}

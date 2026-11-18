@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"strings"
 	"sync"
 	"time"
 
@@ -37,7 +36,7 @@ func (a *app) aiEditTools() []appcore.AIEditTool {
 				Model:        models[t.ID],
 				DefaultModel: t.DefaultModel,
 				Models:       t.Models,
-				Command:      strings.Join(t.Command, " "),
+				Command:      aiedit.JoinCommand(t.Command),
 			})
 		}
 		a.aiTools.tools, a.aiTools.at = tools, time.Now()

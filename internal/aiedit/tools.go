@@ -115,6 +115,33 @@ func splitCommand(line string, escapes bool) ([]string, error) {
 	return args, nil
 }
 
+// JoinCommand writes argv back as one line that SplitCommand reads as the same
+// arguments, so a saved command can be shown and saved again unchanged.
+func JoinCommand(argv []string) string {
+	return joinCommand(argv, runtime.GOOS != "windows")
+}
+
+func joinCommand(argv []string, escapes bool) string {
+	out := make([]string, len(argv))
+	for i, a := range argv {
+		special := " \t\n\"'"
+		if escapes {
+			special += "\\"
+		}
+		switch {
+		case a != "" && !strings.ContainsAny(a, special):
+			out[i] = a
+		case !strings.Contains(a, "'"):
+			out[i] = "'" + a + "'"
+		case escapes:
+			out[i] = `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(a) + `"`
+		default:
+			out[i] = `"` + a + `"`
+		}
+	}
+	return strings.Join(out, " ")
+}
+
 // Find reports whether program can be run: a path to a file, or a name on the
 // login PATH (asked again once, as Run does, before giving up).
 func Find(program string) error {

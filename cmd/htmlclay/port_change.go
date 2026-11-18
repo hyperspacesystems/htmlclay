@@ -30,13 +30,17 @@ func (a *app) setPort(port int) *appcore.Refusal {
 	if slices.Contains(oldDefaultPorts, port) {
 		return &appcore.Refusal{Code: appcore.RefusePortInvalid, Field: "port"}
 	}
-	b, err := bindLoopback(port)
-	if err != nil {
-		return &appcore.Refusal{Code: appcore.RefusePortTaken, Field: "port", OtherName: strconv.Itoa(port)}
-	}
-	for _, ln := range []net.Listener{b.v4, b.v6} {
-		if ln != nil {
-			ln.Close()
+	// A former port is held by this app to forward old visits, and the restart
+	// frees it, so moving back to it is always possible.
+	if !a.isFormerPort(port) {
+		b, err := bindLoopback(port)
+		if err != nil {
+			return &appcore.Refusal{Code: appcore.RefusePortTaken, Field: "port", OtherName: strconv.Itoa(port)}
+		}
+		for _, ln := range []net.Listener{b.v4, b.v6} {
+			if ln != nil {
+				ln.Close()
+			}
 		}
 	}
 	if names, answered := a.unsavedDocuments(); !answered || len(names) > 0 {

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/appcore"
@@ -97,4 +100,27 @@ func TestTrayNeedsYouProgramRequestShowsTheRequest(t *testing.T) {
 		}
 	}
 	t.Fatalf("request %s is gone after the click", request.ID)
+}
+
+func TestTrayRecentDocumentOpensIt(t *testing.T) {
+	home := evalTempHome(t)
+	file := filepath.Join(home, "notes", "page.htmlclay")
+	writeTestFile(t, file, servedTestDocument)
+	a := newServedTestApp(t, home, t.TempDir())
+	var launched []string
+	a.rt.launchBrowser = func(target string) error {
+		launched = append(launched, target)
+		return nil
+	}
+	if _, refusal := a.do(context.Background(), coreAction(t, "open-first", "file.open", map[string]string{"path": file}), ChannelTray); refusal != nil {
+		t.Fatalf("file.open refused: %+v", refusal)
+	}
+	id := recentRow(t, a, file).ID
+
+	launched = nil
+	a.doTrayMenu(id)
+
+	if len(launched) != 1 || !strings.Contains(launched[0], "page.htmlclay") {
+		t.Fatalf("clicking the recent row opened %q, want one URL naming page.htmlclay", launched)
+	}
 }

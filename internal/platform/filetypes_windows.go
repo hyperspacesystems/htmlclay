@@ -38,10 +38,22 @@ func makeDefault(exePath, example string) error {
 	return cmd.Start()
 }
 
+// stopOpening removes HTML Clay as the opener of .htmlclay files: the choice a
+// person made in Windows' "open with" chooser (UserChoice, which wins over the
+// class default) when it names HTML Clay, and the class default it registered.
 func stopOpening() error {
 	var firstErr error
+	if k, err := registry.OpenKey(registry.CURRENT_USER, userChoicePath, registry.QUERY_VALUE); err == nil {
+		id, _, _ := k.GetStringValue("ProgId")
+		k.Close()
+		if strings.EqualFold(id, progID) {
+			firstErr = registry.DeleteKey(registry.CURRENT_USER, userChoicePath)
+		}
+	}
 	if classDefaultIs(`.htmlclay`, progID) {
-		firstErr = deleteClassTree(`.htmlclay`)
+		if err := deleteClassTree(`.htmlclay`); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 	notifyAssociationsChanged()
 	return firstErr
