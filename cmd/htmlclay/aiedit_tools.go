@@ -69,12 +69,9 @@ func (a *app) setAIEditModel(e appcore.Effect) *appcore.Refusal {
 }
 
 func (a *app) setAIEditCustom(e appcore.Effect) *appcore.Refusal {
-	argv, err := aiedit.SplitCommand(e.Command)
-	if err != nil {
-		return &appcore.Refusal{Code: appcore.RefuseCommandInvalid, Field: "command"}
-	}
-	if err := aiedit.Find(argv[0]); err != nil {
-		return &appcore.Refusal{Code: appcore.RefuseCommandNotFound, Field: "command", OtherName: argv[0]}
+	argv, refusal := customCommand(e.Command)
+	if refusal != nil {
+		return refusal
 	}
 	a.rt.cfg.SetAIEditEngine(aiedit.CustomEngine, argv)
 	a.rt.cfg.SetAIEditDefault(aiedit.CustomEngine)

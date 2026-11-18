@@ -768,7 +768,7 @@ func (a *app) shadowedBy(dir string) (string, bool) {
 // once for a personal folder, because picking ~/Documents by accident from a
 // file dialog is easy and the consequence is the whole tree.
 func (a *app) pickAndTrustFolder() []tray.Row {
-	dir, ok, err := a.dialogs().selectFolder("Choose a folder to trust. Every HTML Clay file inside it (including files added later) opens editable with no prompts, and any file in it can change any other.")
+	dir, ok, err := a.selectFolder("Choose a folder to trust. Every HTML Clay file inside it (including files added later) opens editable with no prompts, and any file in it can change any other.")
 	if err != nil {
 		a.rt.logger.Printf("Folder picker failed: %v", err)
 		return a.trustedFolderRows()
@@ -779,7 +779,7 @@ func (a *app) pickAndTrustFolder() []tray.Row {
 	canonical, cErr := a.rt.policy.Canonical(dir)
 	if cErr == nil && a.rt.policy.IsPersonal(canonical) {
 		msg := fmt.Sprintf("%s is one of your main personal folders.\n\nTrusting it makes every HTML Clay file anywhere inside it editable with no prompts, and lets any of them change any other. Most people want a single project folder instead.", canonical)
-		proceed, cfErr := a.confirmTrayChange("HTML Clay", msg, "Trust Folder")
+		proceed, cfErr := a.confirmTrayChange("HTML Clay", msg, "Trust folder")
 		if cfErr != nil || !proceed {
 			return a.trustedFolderRows()
 		}

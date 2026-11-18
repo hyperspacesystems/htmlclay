@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -136,5 +137,14 @@ func TestSetPortSavesAndRestarts(t *testing.T) {
 	}
 	if got := fresh.FormerPortList(); len(got) != 1 || got[0] != oldPort {
 		t.Fatalf("former ports = %v, want [%d]", got, oldPort)
+	}
+}
+
+func TestPortRestartReopensSettingsWithTheTray(t *testing.T) {
+	if got := portRestartArgs(42, false); !slices.Equal(got, []string{"--after-pid=42", "--open-dashboard=/settings/advanced"}) {
+		t.Fatalf("with the tray: %q", got)
+	}
+	if got := portRestartArgs(42, true); !slices.Equal(got, []string{"--after-pid=42", "--no-tray"}) {
+		t.Fatalf("without the tray: %q", got)
 	}
 }

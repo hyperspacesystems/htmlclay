@@ -477,9 +477,13 @@ function createSync({ gate, service = null, dataDir = null }) {
     },
 
     // idle waits until every running session has nothing queued, or the timeout passes.
+    // With forUpdate it asks what an update restart needs to know, which is stricter:
+    // no first download, no session starting or reconciling, and nothing held that a
+    // stop would drop.
     async idle(body) {
       const timeoutMs = Number.isFinite(body && body.timeoutMs) ? Math.min(body.timeoutMs, 600000) : 60000;
       if (!manager) return { idle: true };
+      if (body && body.forUpdate === true) return { idle: await manager.whenQuiescentForUpdate({ timeoutMs }) };
       const waits = [...manager.sessions.values()].map((entry) => (entry.runner ? entry.runner.whenIdle() : Promise.resolve()));
       let timer;
       const timedOut = new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeoutMs); });

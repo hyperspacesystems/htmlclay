@@ -37,15 +37,25 @@ if ($fetchExit -ne 0) {
     exit $fetchExit
 }
 
+node service/build.mjs --goos windows --goarch $tailwindArch
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "the service bundle did not build"
+    exit $LASTEXITCODE
+}
+
 $env:CGO_ENABLED = "0"
-go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=$($env:VERSION)" -o htmlclay.exe ./cmd/htmlclay
+go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="-s -w -X main.version=$($env:VERSION)" -o htmlclay.exe ./cmd/htmlclay
 if ($LASTEXITCODE -ne 0) {
     Write-Error "go build failed"
     exit $LASTEXITCODE
 }
 
-if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle')) {
-    Write-Error "htmlclay.exe was built without the Tailwind bundle"
+if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle,service_bundle')) {
+    Write-Error "htmlclay.exe was built without the Tailwind and service bundles"
+    exit 1
+}
+if (-not (./htmlclay.exe update-info | Select-String -SimpleMatch -- '"service":true')) {
+    Write-Error "htmlclay.exe does not carry the service"
     exit 1
 }
 

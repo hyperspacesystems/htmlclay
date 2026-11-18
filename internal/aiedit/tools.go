@@ -2,6 +2,7 @@ package aiedit
 
 import (
 	"errors"
+	"runtime"
 	"slices"
 	"strings"
 	"unicode"
@@ -66,8 +67,13 @@ var ErrCommand = errors.New("the command is empty or has an unclosed quote")
 
 // SplitCommand splits a command line into its arguments the way a shell would
 // for plain words, 'single' and "double" quotes, and backslash escapes outside
-// single quotes. It runs nothing and expands nothing.
+// single quotes. On Windows a backslash separates folders in a path, so there
+// it is an ordinary character. It runs nothing and expands nothing.
 func SplitCommand(line string) ([]string, error) {
+	return splitCommand(line, runtime.GOOS != "windows")
+}
+
+func splitCommand(line string, escapes bool) ([]string, error) {
 	var args []string
 	var cur strings.Builder
 	inWord, quote, escaped := false, rune(0), false
@@ -76,7 +82,7 @@ func SplitCommand(line string) ([]string, error) {
 		case escaped:
 			cur.WriteRune(r)
 			escaped = false
-		case r == '\\' && quote != '\'':
+		case escapes && r == '\\' && quote != '\'':
 			escaped, inWord = true, true
 		case quote != 0:
 			if r == quote {

@@ -41,8 +41,9 @@ const TextHowToOpen = "To open the workspace, choose Open Workspace in the HTML 
 
 // pagePath is every address the bundle renders: Local's own list, plus the
 // pages the dashboard's own Go routes read for a recent document, a waiting
-// request, or a trusted folder's files.
-var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new)|recent|needs-you|recent/[^/]+/versions|trusted/[^/]+/files|synced/[^/]+/history)?$`)
+// request, or a trusted folder's files, plus the settings pages (the app's
+// settings on Windows and Linux, where no native settings window exists).
+var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new)|recent|needs-you|recent/[^/]+/versions|trusted/[^/]+/files|synced/[^/]+/history|settings(/(general|files|folders|programs|updates|advanced|sync))?|settings/(folders|programs)/[^/]+)?$`)
 
 // appAPIPrefix is the API the app answers in Go rather than through the service.
 // It is let in by the session the entry page set together with the entry page's

@@ -99,9 +99,9 @@ func TestPrepareHelperProgramWindowsAcceptsOnlyLaunchableExtensions(t *testing.T
 			t.Errorf("prepareHelperProgramOn(windows, %s) = %v, want %v (err %v)", tc.name, ok, tc.want, err)
 		}
 		if !tc.want && err == nil {
-			t.Errorf("%s was refused with no explanation; the refusal must say to use a .cmd wrapper", tc.name)
+			t.Errorf("%s was refused with no explanation; the refusal must say to use a .cmd file", tc.name)
 		}
-		if !tc.want && err != nil && !strings.Contains(err.Error(), ".cmd wrapper") {
+		if !tc.want && err != nil && !strings.Contains(err.Error(), ".cmd file") {
 			t.Errorf("%s refusal does not say what to do: %v", tc.name, err)
 		}
 	}

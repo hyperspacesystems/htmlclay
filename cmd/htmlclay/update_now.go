@@ -43,9 +43,14 @@ const (
 	// holding another version that installs at the next quit).
 	updateNowExitFailed = 5
 	// "starting": the app holds the lock but is not taking commands yet, so
-	// the request can be sent again shortly.
+	// the request can be sent again shortly. "checking": on Windows and Linux
+	// the app does not have that version downloaded yet and is looking for it
+	// now, so the same holds.
 	updateNowExitStarting = 6
 )
+
+// updateNowChecking is the answer while the self-updater looks for the version.
+const updateNowChecking = "checking"
 
 // updateNowOS is the platform update-now runs on. Tests change it.
 var updateNowOS = runtime.GOOS
@@ -148,7 +153,7 @@ func runUpdateNow(si platform.SingleInstance, args []string, stdout, stderr io.W
 	switch {
 	case answer == "accepted", answer == "already "+*target:
 		return updateNowExitOK
-	case answer == platform.CommandStarting:
+	case answer == platform.CommandStarting, answer == updateNowChecking:
 		return updateNowExitStarting
 	case strings.HasPrefix(answer, "failed "):
 		return updateNowExitFailed
@@ -270,14 +275,14 @@ func (a *app) handleInstanceCommand(cmd string) string {
 	return "refused unknown command"
 }
 
-// updateNow says why this host cannot update to target. On macOS the app owns
-// Sparkle and answers update-now itself; on Windows and Linux the tray does.
+// updateNow answers update-now. On macOS the app owns Sparkle and answers it
+// itself, so this host only says why it cannot. On Windows and Linux it starts
+// the same restart as Restart to update when the self-updater has target
+// downloaded. While nothing is downloaded it makes the updater check now and
+// answers "checking", so the caller asks again shortly.
 func (a *app) updateNow(target string) string {
 	if !update.IsStrictVersion(target) {
 		return fmt.Sprintf("refused %q is not X.Y.Z", target)
-	}
-	if updateNowOS != "darwin" {
-		return "refused update-now runs on macOS only; this build updates from the tray"
 	}
 	if target == version {
 		return "already " + version
@@ -288,5 +293,30 @@ func (a *app) updateNow(target string) string {
 	if a.updateOff != "" {
 		return "refused self-update is off: " + a.updateOff
 	}
-	return "refused update-now is answered by the HTML Clay app, not by htmlclay-host"
+	if updateNowOS == "darwin" {
+		return "refused update-now is answered by the HTML Clay app, not by htmlclay-host"
+	}
+	a.updates.mu.Lock()
+	ready, apply, ch, checking := a.updates.ready, a.updates.apply, a.updates.checkNow, a.updates.checking
+	a.updates.mu.Unlock()
+	if ready == "" {
+		if ch == nil {
+			return "refused this build does not update itself"
+		}
+		if !checking {
+			select {
+			case ch <- struct{}{}:
+			default:
+			}
+		}
+		return updateNowChecking
+	}
+	if ready != target {
+		return fmt.Sprintf("refused the update HTML Clay has downloaded is v%s, not v%s", ready, target)
+	}
+	if apply == nil {
+		return "refused this build does not update itself"
+	}
+	go apply()
+	return "accepted"
 }

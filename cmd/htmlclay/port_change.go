@@ -69,11 +69,7 @@ func (a *app) restartForPort() {
 	if !a.shell {
 		exe, err := os.Executable()
 		if err == nil {
-			args := []string{"--after-pid=" + strconv.Itoa(os.Getpid())}
-			if a.noTray {
-				args = append(args, "--no-tray")
-			}
-			_, err = update.StartDetached(exe, args...)
+			_, err = update.StartDetached(exe, portRestartArgs(os.Getpid(), a.noTray)...)
 		}
 		if err != nil {
 			a.updating.Store(false)
@@ -89,6 +85,18 @@ func (a *app) restartForPort() {
 		os.Exit(hostRestartStatus)
 	}
 	os.Exit(0)
+}
+
+// portRestartArgs are the arguments of the copy that takes over after a port
+// change on Windows and Linux. A run with its tray reopens Settings on the new
+// port, because the page that asked cannot follow: its session ended with this
+// process, and a new one starts only from a page the person opened.
+func portRestartArgs(pid int, noTray bool) []string {
+	args := []string{"--after-pid=" + strconv.Itoa(pid)}
+	if noTray {
+		return append(args, "--no-tray")
+	}
+	return append(args, "--open-dashboard=/settings/advanced")
 }
 
 // startFormerPorts holds every former port that is free, so bookmarks and open

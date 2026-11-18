@@ -9,6 +9,14 @@ import (
 // Text people read. Every value is working text until the copywriter replaces it;
 // each copy: note says where it shows and how long it may be.
 
+// The question an update restart asks on Windows and Linux when sync has not
+// finished after the wait.
+const (
+	TextUpdateSyncBusyTitle   = "Sync is still sending your changes"
+	TextUpdateSyncBusyBody    = "HTML Clay waited for sync to finish before updating to HTML Clay %s, and it is still working.\n\nRestarting now could bring back a file you just deleted or lose a change that is still uploading."
+	TextUpdateSyncBusyRestart = "Restart anyway"
+)
+
 const (
 	TextQuitUnsavedTitle   = "Some edits aren't saved yet"                                                       // copy: quit dialog title, max 40 chars
 	TextQuitUnsavedBody    = "HTML Clay couldn't save these documents:\n\n%s\n\nQuitting now loses those edits." // copy: quit dialog body, %s is the documents one per line, max 200 chars without the list
@@ -16,24 +24,22 @@ const (
 	TextQuitAnyway         = "Quit anyway"                                                                       // copy: quit dialog button that quits and loses the edits, max 16 chars
 	TextQuitCancel         = "Cancel"                                                                            // copy: quit dialog button that keeps the app open, max 16 chars
 	TextQuitNotQuitting    = "HTML Clay is still open because you have unsaved edits: %s. Try quitting again in a moment."
-	TextQuitNoAnswer       = "Your open documents could not be checked."                                             // copy: quit dialog list line when the service could not be asked, max 60 chars
-	TextServeAFolder       = "Serve a folder…"                                                                       // copy: tray row that opens the folder picker, max 24 chars
-	TextServedFolders      = "Served folders"                                                                        // copy: tray submenu title, max 24 chars
-	TextNoServedFolders    = "No served folders yet"                                                                 // copy: tray, disabled row when the list is empty, max 32 chars
-	TextOpenServed         = "Open workspace"                                                                        // copy: tray, per folder, max 24 chars
-	TextCopyAddress        = "Copy address"                                                                          // copy: tray, per folder, max 24 chars
-	TextStopServing        = "Stop serving"                                                                          // copy: tray, per folder, and the confirm button, max 24 chars
-	TextFolderMissing      = "(missing)"                                                                             // copy: tray, after a served folder's name when its folder is gone, max 16 chars
-	TextPickServeFolder    = "Choose a folder to serve at its own address."                                          // copy: folder picker prompt, max 120 chars
-	TextStopServingTitle   = "Stop serving this folder?"                                                             // copy: confirm dialog title, max 40 chars
-	TextStopServingMessage = "%s will stop working. The files in the folder stay where they are."                    // copy: confirm dialog body, %s is the address, max 160 chars
-	TextNowServed          = "%s is served at %s"                                                                    // copy: notification and CLI success line, %s name then address, max 120 chars
-	TextNotServed          = "No served folder is named %s."                                                         // copy: CLI, stop-serving with an unknown name, max 80 chars
-	TextStopped            = "Stopped serving %s."                                                                   // copy: CLI success line, max 80 chars
-	TextCannotServe        = "HTML Clay can't serve this folder"                                                     // copy: notification title for a refusal, max 48 chars
-	TextServeCLIWindows    = "The htmlclay serve command runs on Mac and Linux. On Windows, use the HTML Clay menu." // copy: CLI, on Windows, max 120 chars
+	TextQuitNoAnswer       = "Your open documents could not be checked."                          // copy: quit dialog list line when the service could not be asked, max 60 chars
+	TextServeAFolder       = "Serve a folder…"                                                    // copy: tray row that opens the folder picker, max 24 chars
+	TextServedFolders      = "Served folders"                                                     // copy: tray submenu title, max 24 chars
+	TextNoServedFolders    = "No served folders yet"                                              // copy: tray, disabled row when the list is empty, max 32 chars
+	TextOpenServed         = "Open workspace"                                                     // copy: tray, per folder, max 24 chars
+	TextCopyAddress        = "Copy address"                                                       // copy: tray, per folder, max 24 chars
+	TextStopServing        = "Stop serving"                                                       // copy: tray, per folder, and the confirm button, max 24 chars
+	TextFolderMissing      = "(missing)"                                                          // copy: tray, after a served folder's name when its folder is gone, max 16 chars
+	TextPickServeFolder    = "Choose a folder to serve at its own address."                       // copy: folder picker prompt, max 120 chars
+	TextStopServingTitle   = "Stop serving this folder?"                                          // copy: confirm dialog title, max 40 chars
+	TextStopServingMessage = "%s will stop working. The files in the folder stay where they are." // copy: confirm dialog body, %s is the address, max 160 chars
+	TextNowServed          = "%s is served at %s"                                                 // copy: notification and CLI success line, %s name then address, max 120 chars
+	TextNotServed          = "No served folder is named %s."                                      // copy: CLI, stop-serving with an unknown name, max 80 chars
+	TextStopped            = "Stopped serving %s."                                                // copy: CLI success line, max 80 chars
+	TextCannotServe        = "HTML Clay can't serve this folder"                                  // copy: notification title for a refusal, max 48 chars
 	// The htmlclay sync command line (08-sync.md step 8.12).
-	TextSyncCLIWindows    = "Sync isn't on Windows yet. It comes in a later version of HTML Clay."   // copy: CLI, on Windows, max 120 chars
 	TextSyncKeyPrompt     = "Sync key: "                                                             // copy: CLI prompt on a terminal, max 20 chars
 	TextSyncKeyNoArgument = "A sync key can't go in the command. Type it when asked, or pipe it in." // copy: CLI, key given as an argument, max 120 chars
 	TextSyncConnectedAs   = "Connected as %s"                                                        // copy: CLI success, %s username, max 80 chars
@@ -180,12 +186,15 @@ var RefusalText = map[string]string{
 	RefuseSyncDownloading:   "This folder's first sync is still running. Try Find it again once it finishes.",
 	RefuseRemovalGone:       "Those attachments aren't waiting for you anymore. Nothing was changed.",
 	RefuseConfirmNeeded:     "This folder already has files. Check what will sync, then confirm.",
-	RefuseNothingReady:      "No update is ready yet. Try again later.",                                                    // copy: refusal, max 140 chars
-	RefuseNeedsConfirmation: "This action needs your approval. Approve it in HTML Clay first.",                             // copy: refusal, max 140 chars
-	RefuseFailed:            "HTML Clay couldn't do that just now. Try again.",                                             // copy: refusal, max 140 chars
-	RefuseCannotTrust:       "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.", // copy: refusal, max 140 chars
-	RefuseStillRunning:      "HTML Clay is still working on that. Wait a moment.",                                          // copy: refusal, max 140 chars
-	RefuseNotYet:            "HTML Clay can't do that yet. Update HTML Clay and try again.",                                // copy: refusal, max 140 chars
+	RefuseNothingReady:      "No update is ready yet. Try again later.",                                                       // copy: refusal, max 140 chars
+	RefuseNeedsConfirmation: "This action needs your approval. Approve it in HTML Clay first.",                                // copy: refusal, max 140 chars
+	RefusePending:           "Answer the HTML Clay dialog to finish.",                                                         // copy: COPY:refusal.pending, shown on a dashboard button while the system dialog is open, max 140 chars
+	RefuseDialogOpen:        "Another HTML Clay dialog is already open. Answer it first.",                                     // copy: COPY:refusal.dialogOpen, max 140 chars
+	RefuseNoDialogs:         "HTML Clay cannot show dialogs on this computer yet. Install zenity or kdialog, then try again.", // copy: COPY:refusal.noDialogs, Linux only, max 140 chars
+	RefuseFailed:            "HTML Clay couldn't do that just now. Try again.",                                                // copy: refusal, max 140 chars
+	RefuseCannotTrust:       "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.",    // copy: refusal, max 140 chars
+	RefuseStillRunning:      "HTML Clay is still working on that. Wait a moment.",                                             // copy: refusal, max 140 chars
+	RefuseNotYet:            "HTML Clay can't do that yet. Update HTML Clay and try again.",                                   // copy: refusal, max 140 chars
 	// A folder rule's reason, when an action runs into it.
 	WhyIdentityChanged:    TextWhyServeIdentityChanged,
 	WhyNotOnComputer:      TextWhyNotOnComputer,
@@ -242,3 +251,42 @@ func RefusalMessage(r *Refusal) string {
 	}
 	return ForSystem(fmt.Sprintf(text, other), runtime.GOOS)
 }
+
+// The dialogs that confirm what a dashboard page asked for (Windows and Linux).
+// Every %s is a fact the host holds, a folder's path or a program's name, or
+// the custom command the person typed, shown back to them before it is saved.
+const (
+	TextGrantTitle            = "HTML Clay"
+	TextGrantServe            = "Serve this folder at its own local web address?\n\n%s\n\nRegular .html files inside it will save too."
+	TextGrantServeYes         = "Serve"
+	TextGrantSync             = "Sync this folder with hyperclay.com?\n\n%s\n\nIts files will stay in step with your hyperclay.com account."
+	TextGrantSyncYes          = "Sync"
+	TextGrantMerge            = "Merge this folder into the trusted folder around it?\n\n%s\n\nIts documents move to the outer folder's address, and anything they saved in your browser stays at the old address. Your files on disk do not move."
+	TextGrantMergeYes         = "Merge"
+	TextGrantFraming          = "Let other websites show this folder's pages inside their own pages?\n\n%s\n\nTurn this on only for pages you mean to share with another site."
+	TextGrantFramingYes       = "Allow"
+	TextGrantAllTrusted       = "Let all documents in your trusted folders use %s? Team folders still ask one document at a time."
+	TextGrantAllTrustedYes    = "Allow"
+	TextGrantAskAgain         = "Let this document ask to use %s again?\n\n%s"
+	TextGrantAskAgainYes      = "Allow again"
+	TextGrantMove             = "Move your folders from Hyperclay Local into HTML Clay?"
+	TextGrantMoveYes          = "Move folders"
+	TextGrantRelinkWarn       = "Use this folder in place of the one that moved?\n\n%s\n\n%s"
+	TextGrantRelinkYes        = "Use this folder"
+	TextGrantSyncExisting     = "Sync into this folder? It already has files.\n\n%s\n\n%d to upload, %d to download, %d different. You choose in Needs you. Nothing is deleted."
+	TextGrantRelinkPick       = "Choose where this folder moved."
+	TextGrantTeamPick         = "Choose where this team folder goes on your Mac."
+	TextGrantOpenPick         = "Choose a file to open in HTML Clay"
+	TextGrantConnectTitle     = "Connect hyperclay.com"
+	TextGrantConnectMessage   = "Paste your sync key from your account settings on hyperclay.com."
+	TextGrantProgramPick      = "Choose the program file that documents may run."
+	TextGrantAddProgram       = "Add this program as \u201c%s\u201d?\n\n%s\n\nNo document can run it until you allow one. When allowed, it runs as you and can read or change your files."
+	TextGrantAddProgramRisk   = "Be careful with this file: it came from the internet, sits in a download or temporary folder, changed just now, or is not marked to run yet."
+	TextGrantAddProgramYes    = "Add program"
+	TextGrantBuiltinOn        = "Turn on %s? Documents still ask before they can use it."
+	TextGrantBuiltinOnYes     = "Turn on"
+	TextGrantExample          = "Open the %s example? HTML Clay saves it in an examples folder inside htmlclay in your home folder, trusts that folder, and lets the example run."
+	TextGrantExampleYes       = "Open example"
+	TextGrantCustomCommand    = "Run this command when you rewrite selected text?\n\n%s\n\nHTML Clay sends your selected text and request to it."
+	TextGrantCustomCommandYes = "Save command"
+)

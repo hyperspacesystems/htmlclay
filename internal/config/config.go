@@ -1175,6 +1175,19 @@ func (c *Config) SelfUpdateOff() bool {
 	return c.Updates == "off"
 }
 
+// SetSelfUpdateOff records, under the lock, whether updates are off. Turning
+// them back on clears the setting, so the file reads as it did before anyone
+// chose.
+func (c *Config) SetSelfUpdateOff(off bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if off {
+		c.Updates = "off"
+	} else {
+		c.Updates = ""
+	}
+}
+
 // AIEditEnabled reports whether AI editing is on, under the lock. A missing setting
 // reads as on; only an explicit false turns it off.
 func (c *Config) AIEditEnabled() bool {

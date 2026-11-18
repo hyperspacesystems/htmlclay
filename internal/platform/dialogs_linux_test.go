@@ -117,6 +117,32 @@ func TestPromptNameLinuxUsesBothBackends(t *testing.T) {
 	}
 }
 
+func TestPromptSecretLinuxHidesWhatIsTypedOnBothBackends(t *testing.T) {
+	for _, tc := range []struct {
+		tool string
+		arg  string
+	}{
+		{"zenity", "--hide-text"},
+		{"kdialog", "--password"},
+	} {
+		t.Run(tc.tool, func(t *testing.T) {
+			argsPath := installLinuxDialogTool(t, tc.tool)
+			linuxDialogResult(t, "hcsk_abc\n", 0)
+			value, ok, err := PromptSecret("Connect", "Sync key")
+			if err != nil || !ok || value != "hcsk_abc" {
+				t.Fatalf("PromptSecret() = (%q, %v, %v)", value, ok, err)
+			}
+			args := linuxDialogArgs(t, argsPath)
+			if !containsArg(args, tc.arg) || !containsArg(args, "Sync key") {
+				t.Fatalf("%s args = %q", tc.tool, args)
+			}
+			if containsArg(args, "hcsk_abc") {
+				t.Fatalf("%s was handed the secret as an argument: %q", tc.tool, args)
+			}
+		})
+	}
+}
+
 func TestManageProgramLinuxUsesRadiolistsOnBothBackends(t *testing.T) {
 	for _, tc := range []struct {
 		tool   string

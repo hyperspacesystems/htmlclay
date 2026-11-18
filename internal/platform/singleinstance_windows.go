@@ -4,6 +4,9 @@ package platform
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,29 +21,49 @@ import (
 
 const mutexName = `Local\htmlclay-single-instance`
 
+// mutexNameFor is the named mutex for a config folder. The default folder
+// keeps the name every released version uses, so 1.x and 2.0 exclude each
+// other and an update restart hands over cleanly. Any other folder (a test, a
+// seeded profile under HTMLCLAY_CONFIG_BASE) gets a name of its own, so it
+// neither blocks nor is blocked by the person's real HTML Clay.
+func mutexNameFor(configDir string) string {
+	dir := filepath.Clean(configDir)
+	if base, err := os.UserConfigDir(); err == nil && strings.EqualFold(dir, filepath.Join(base, "htmlclay")) {
+		return mutexName
+	}
+	sum := sha256.Sum256([]byte(strings.ToLower(dir)))
+	return mutexName + "-" + hex.EncodeToString(sum[:8])
+}
+
 var procAllowSetForegroundWindow = windows.NewLazySystemDLL("user32.dll").NewProc("AllowSetForegroundWindow")
 
 type tcpSingleInstance struct {
 	configDir   string
 	addrFile    string
+	secretFile  string
 	listener    net.Listener
 	mutexHandle windows.Handle
 	mu          sync.Mutex
 	callback    func(string)
 	pending     []string
+	// secret is what a command frame must carry. It is empty when the secret
+	// file could not be written, and then no command is taken.
+	secret  string
+	handler func(string) string
 }
 
 func NewSingleInstance(configDir string) SingleInstance {
 	return &tcpSingleInstance{
-		configDir: configDir,
-		addrFile:  filepath.Join(configDir, "addr"),
+		configDir:  configDir,
+		addrFile:   filepath.Join(configDir, "addr"),
+		secretFile: filepath.Join(configDir, instanceSecretFile),
 	}
 }
 
 func (s *tcpSingleInstance) TryLock() (bool, error) {
 	// A named mutex gives true mutual exclusion: even two simultaneous launches
 	// cannot both become primary, unlike the addr-file check-then-listen below.
-	name, err := windows.UTF16PtrFromString(mutexName)
+	name, err := windows.UTF16PtrFromString(mutexNameFor(s.configDir))
 	if err != nil {
 		return false, fmt.Errorf("cannot encode mutex name: %w", err)
 	}
@@ -62,6 +85,11 @@ func (s *tcpSingleInstance) TryLock() (bool, error) {
 		listener.Close()
 		return false, fmt.Errorf("cannot write addr file: %w", err)
 	}
+	// A failure here leaves the app running and opening files; it only takes no
+	// commands, and says why to whoever sends one.
+	if secret, err := newInstanceSecret(); err == nil && writeOwnerOnly(s.secretFile, []byte(secret)) == nil {
+		s.secret = secret
+	}
 
 	go s.acceptLoop()
 	return true, nil
@@ -82,10 +110,18 @@ func (s *tcpSingleInstance) handleConnection(c net.Conn) {
 	writeBanner(c)
 	c.SetReadDeadline(time.Now().Add(5 * time.Second))
 	r := bufio.NewReader(io.LimitReader(c, 64<<10))
-	// Every local user can reach this loopback listener, so it takes no
-	// commands at all. Answering keeps a frame from being opened as a path.
+	// Every local user can reach this loopback listener, so a command must
+	// carry the instance secret, which only this user can read. Answering every
+	// frame keeps one from being opened as a path.
 	if isCommandFrame(r) {
-		answerCommand(c, r, "commands are not taken on Windows", nil)
+		s.mu.Lock()
+		handler := s.handler
+		s.mu.Unlock()
+		if s.secret == "" {
+			answerCommand(c, r, "this HTML Clay could not write its instance secret, so it takes no commands", nil)
+			return
+		}
+		answerCommand(c, r, "", sealedHandler(s.secret, handler))
 		return
 	}
 	data, err := io.ReadAll(r)
@@ -132,6 +168,14 @@ func (s *tcpSingleInstance) SendCommand(cmd string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot read addr file: %w", err)
 	}
+	// A running HTML Clay from before 2.0 writes no secret and takes no commands.
+	secret, err := os.ReadFile(s.secretFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", ErrNoAnswer
+	}
+	if err != nil {
+		return "", fmt.Errorf("cannot read the instance secret: %w", err)
+	}
 	addr := strings.TrimSpace(string(data))
 	conn, err := net.DialTimeout("tcp", addr, time.Second)
 	if err != nil {
@@ -141,11 +185,14 @@ func (s *tcpSingleInstance) SendCommand(cmd string) (string, error) {
 	if !verifyBanner(conn) {
 		return "", fmt.Errorf("peer on %s is not an htmlclay instance", addr)
 	}
-	return exchangeCommand(conn, cmd)
+	return exchangeCommand(conn, sealCommand(strings.TrimSpace(string(secret)), cmd))
 }
 
-// OnCommand does nothing on Windows, where every command is refused.
-func (s *tcpSingleInstance) OnCommand(func(string) string) {}
+func (s *tcpSingleInstance) OnCommand(handler func(string) string) {
+	s.mu.Lock()
+	s.handler = handler
+	s.mu.Unlock()
+}
 
 func (s *tcpSingleInstance) OnFileReceived(callback func(string)) {
 	s.mu.Lock()
@@ -164,6 +211,9 @@ func (s *tcpSingleInstance) Unlock() error {
 		s.listener.Close()
 	}
 	os.Remove(s.addrFile)
+	if s.secret != "" {
+		os.Remove(s.secretFile)
+	}
 	if s.mutexHandle != 0 {
 		windows.CloseHandle(s.mutexHandle)
 		s.mutexHandle = 0

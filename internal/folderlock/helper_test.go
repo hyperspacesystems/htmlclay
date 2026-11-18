@@ -2,6 +2,7 @@ package folderlock_test
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -103,7 +104,11 @@ console.log('DRIVER_READY');
 		t.Fatalf("unexpected driver startup: %q", reader.Text())
 	}
 
-	_, _ = stdin.Write([]byte(`{"op":"acquire","id":"root-1","folder":` + `"` + realFolder + `"}` + "\n"))
+	folderJSON, err := json.Marshal(realFolder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = stdin.Write([]byte(`{"op":"acquire","id":"root-1","folder":` + string(folderJSON) + `}` + "\n"))
 	if !reader.Scan() {
 		t.Fatal("no response from node driver")
 	}
@@ -115,7 +120,7 @@ console.log('DRIVER_READY');
 	if err := goLock.Release(); err != nil {
 		t.Fatal(err)
 	}
-	_, _ = stdin.Write([]byte(`{"op":"acquire","id":"root-1","folder":` + `"` + realFolder + `"}` + "\n"))
+	_, _ = stdin.Write([]byte(`{"op":"acquire","id":"root-1","folder":` + string(folderJSON) + `}` + "\n"))
 	if !reader.Scan() || !strings.Contains(reader.Text(), `"ok":true`) {
 		t.Fatalf("expected Node acquire to succeed after Go release, got %s", reader.Text())
 	}

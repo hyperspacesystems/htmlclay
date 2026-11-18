@@ -174,3 +174,12 @@ func TestSelectFileScriptDarwinStartsInTheGivenFolder(t *testing.T) {
 		t.Fatalf("script = %q, want no default location when the folder is empty", withoutFolder)
 	}
 }
+
+func TestPromptSecretDarwinHidesWhatIsTyped(t *testing.T) {
+	script := promptSecretScript("Connect", "Sync key")
+	for _, want := range []string{"with hidden answer", `"Sync key"`, `with title "Connect"`} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("the script %q does not hold %q", script, want)
+		}
+	}
+}

@@ -19,6 +19,17 @@ func TestM3PagePath(t *testing.T) {
 			"/needs-you",
 			"/recent/d0123456789abcd/versions",
 			"/trusted/d0123456789abcd/files",
+			"/settings",
+			"/settings/general",
+			"/settings/files",
+			"/settings/folders",
+			"/settings/folders/d0123456789abcd",
+			"/settings/programs",
+			"/settings/programs/p0123456789abcd",
+			"/settings/programs/file-search",
+			"/settings/updates",
+			"/settings/advanced",
+			"/settings/sync",
 		} {
 			entry, err := s.EntryURL(to)
 			if err != nil {
@@ -44,6 +55,11 @@ func TestM3PagePath(t *testing.T) {
 			"/trusted/d0123456789abcd",
 			"/trusted/d0123456789abcd/files/extra",
 			"/needs-you/x",
+			"/settings/other",
+			"/settings/name",
+			"/settings/sync/x",
+			"/settings/folders/a/b",
+			"/settingsx",
 		} {
 			if _, err := s.EntryURL(to); err == nil {
 				t.Fatalf("EntryURL(%q) succeeded", to)

@@ -32,8 +32,11 @@ func Bundled() bool { return len(bundled) > 0 }
 
 // Install extracts the bundled service under root, once per checksum, and
 // answers the command that runs it: the bundled Node binary and the service's
-// entry script. Other extracted versions under root are removed.
-func Install(root string) ([]string, error) {
+// entry script. Other extracted versions under root are removed, unless
+// keepOthers is set. The host sets it while an update is being judged: the
+// version it replaced may be put back, and it must find its own copy still
+// there instead of extracting it again.
+func Install(root string, keepOthers bool) ([]string, error) {
 	if !Bundled() {
 		return nil, errors.New("service: this build carries no service program")
 	}
@@ -41,7 +44,22 @@ func Install(root string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return install(root, bundled, sum, size)
+	return install(root, bundled, sum, size, keepOthers)
+}
+
+// PruneOthers removes every extracted version under root but this build's own.
+// The host calls it when an update's verdict is in and this version stays.
+func PruneOthers(root string) {
+	if !Bundled() {
+		return
+	}
+	sum, _, err := parseSum(bundledSum)
+	if err != nil {
+		return
+	}
+	installMu.Lock()
+	defer installMu.Unlock()
+	prune(root, filepath.Join(root, sum[:16]), false)
 }
 
 func parseSum(s string) (string, int64, error) {
@@ -67,13 +85,13 @@ func commandIn(dir string) []string {
 	return []string{filepath.Join(dir, nodeName()), filepath.Join(dir, "app", "main.cjs")}
 }
 
-func install(root string, blob []byte, sum string, size int64) ([]string, error) {
+func install(root string, blob []byte, sum string, size int64, keepOthers bool) ([]string, error) {
 	installMu.Lock()
 	defer installMu.Unlock()
 
 	dir := filepath.Join(root, sum[:16])
 	if complete(dir, sum) {
-		prune(root, dir)
+		prune(root, dir, keepOthers)
 		return commandIn(dir), nil
 	}
 	got := sha256.Sum256(blob)
@@ -105,7 +123,7 @@ func install(root string, blob []byte, sum string, size int64) ([]string, error)
 			return nil, err
 		}
 	}
-	prune(root, dir)
+	prune(root, dir, keepOthers)
 	return commandIn(dir), nil
 }
 
@@ -189,8 +207,9 @@ func renameRetry(from, to string) error {
 
 // prune removes other extracted versions and extractions an interrupted run
 // left behind more than ten minutes ago (a fresh one may belong to another
-// HTML Clay extracting now).
-func prune(root, keep string) {
+// HTML Clay extracting now). With keepOthers the other versions stay and only
+// the interrupted extractions go.
+func prune(root, keep string, keepOthers bool) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return
@@ -205,6 +224,8 @@ func prune(root, keep string) {
 			if info, err := e.Info(); err != nil || info.ModTime().After(old) {
 				continue
 			}
+		} else if keepOthers {
+			continue
 		}
 		os.RemoveAll(p)
 	}

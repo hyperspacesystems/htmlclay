@@ -22,6 +22,7 @@ import (
 	"github.com/panphora/htmlclay/internal/secret"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/server"
+	"github.com/panphora/htmlclay/internal/service"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/shellapi"
 	"github.com/panphora/htmlclay/internal/synchistory"
@@ -129,6 +130,8 @@ type appRuntime struct {
 	confirmPort func(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error)
 	// confirmQuit overrides the unsaved-edits quit dialog. Production leaves it nil.
 	confirmQuit func(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error)
+	// syncQuiet overrides the wait for sync before an update restart. Production leaves it nil.
+	syncQuiet func(limit time.Duration) bool
 	// portOwner and quitProcess override the port-owner lookup and the quit request.
 	portOwner   func(port int) (pid int, name string, ok bool)
 	quitProcess func(pid int, force bool) error
@@ -169,6 +172,10 @@ type appRuntime struct {
 	// selectFolder overrides the native folder picker behind the Served Folders
 	// submenu, so no test can open a real picker.
 	selectFolder func(prompt string) (string, bool, error)
+	// selectFile and promptSecret override the file picker and the hidden text
+	// prompt a dashboard grant shows. Production leaves them nil.
+	selectFile   func(prompt string) (string, bool, error)
+	promptSecret func(title, message string) (string, bool, error)
 	// copyText overrides the clipboard, so no test writes to the clipboard the
 	// person is using.
 	copyText func(text string) error
@@ -234,6 +241,11 @@ type app struct {
 	// shutdownOnce: the tray, host.quit and the shell's end of input can all shut down.
 	shutdownOnce sync.Once
 	noTray       bool
+	// nativeGrants is true where the host confirms a dashboard page's grants
+	// with its own dialogs: wherever it runs its own tray (grants.go).
+	nativeGrants bool
+	// grantOpen is true while one of those dialogs is open.
+	grantOpen atomic.Bool
 	// shell: started by the Mac app (--shell-stdin)
 	shell bool
 	// shellServer is the private listener the Mac app talks to, and shellDone closes
@@ -423,6 +435,7 @@ func main() {
 	unregister := flag.Bool("unregister", false, "Remove the file associations and the Start on Login entry, then exit")
 	finishUpdate := flag.Bool("finish-update", false, "Internal: finish an update this binary's previous version started")
 	afterPID := flag.Int("after-pid", 0, "Internal: wait for this process to exit first (a port change restart)")
+	openDashboard := flag.String("open-dashboard", "", "Internal: open this dashboard page once running (after a port change)")
 	flag.Parse()
 
 	// Before initConfig, and so before the single-instance lock, on purpose. A
@@ -469,6 +482,7 @@ func main() {
 	fmt.Fprintln(os.Stderr, "[htmlclay] Starting up...")
 
 	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin, shell: *shellStdin}
+	a.nativeGrants = !a.noTray
 	if logPath, ok := openLogPath(*shellStdin, os.Getenv("HTMLCLAY_OPEN_LOG")); ok {
 		a.rt.launchBrowser = openLogLine(logPath, "")
 		a.rt.reveal = openLogLine(logPath, "reveal ")
@@ -534,6 +548,9 @@ func main() {
 		a.rt.logger.Printf("Update handoff ignored: %v", err)
 	}
 	a.releaseRequests()
+	if *openDashboard != "" {
+		go a.trayDo("dashboard.open", map[string]any{"route": *openDashboard})
+	}
 	a.stopRecovered = make(chan struct{})
 	go a.watchRecovered(a.stopRecovered)
 	if !a.shell {
@@ -921,6 +938,8 @@ func (a *app) settleUpgradeSave() {
 	}
 	if write {
 		a.removeUpdateHandoff(filepath.Join(a.rt.configDir, updateHandoffFile))
+		// This version stays, so the previous version's service copy can go.
+		service.PruneOthers(serviceRuntimeRoot(a.rt.configDir))
 	}
 }
 

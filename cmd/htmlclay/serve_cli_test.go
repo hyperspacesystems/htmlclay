@@ -36,8 +36,7 @@ func newServeCLITestApp(t *testing.T) (*app, string) {
 		t.Fatal(err)
 	}
 	a := newServedTestApp(t, home, t.TempDir())
-	// The command refuses on Windows (its own test below); the rest of these
-	// run its logic on every system.
+	// These tests run the command's logic as Linux on every system.
 	previous := serveOS
 	serveOS = "linux"
 	t.Cleanup(func() { serveOS = previous })
@@ -201,5 +200,31 @@ func TestServeCommandLeavesUpdateNowAlone(t *testing.T) {
 	}
 	if got := a.handleInstanceCommand("serve notes not-base64!"); got != "refused bad path" {
 		t.Errorf("handleInstanceCommand with a bad path = %q, want refused bad path", got)
+	}
+}
+
+// Since 2.0 the Windows command channel takes commands (the instance secret),
+// so serve and stop-serving run there as they do on Mac and Linux.
+func TestServeAndStopServingRunOnWindows(t *testing.T) {
+	a, home := newServeCLITestApp(t)
+	serveOS = "windows"
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+
+	si := &appSI{app: a}
+	var out, errOut bytes.Buffer
+	if code := runServe(si, []string{"serve", dir}, &out, &errOut); code != serveExitOK {
+		t.Fatalf("serve on Windows = %d, stdout %q, stderr %q", code, out.String(), errOut.String())
+	}
+	want := fmt.Sprintf(appcore.TextNowServed, "notes", servedAddress("notes"))
+	if got := strings.TrimSpace(out.String()); got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	out.Reset()
+	if code := runServe(si, []string{"stop-serving", "notes"}, &out, &errOut); code != serveExitOK {
+		t.Fatalf("stop-serving on Windows = %d, stdout %q, stderr %q", code, out.String(), errOut.String())
+	}
+	if len(si.sent) != 2 {
+		t.Fatalf("sent %q, want a serve frame and a stop-serving frame", si.sent)
 	}
 }

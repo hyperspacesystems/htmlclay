@@ -85,6 +85,13 @@ func (d platformDialogs) selectFolder(prompt string) (string, bool, error) {
 	return platform.SelectFolder(prompt)
 }
 
+func (d platformDialogs) promptSecret(title, message string) (string, bool, error) {
+	if d.attempt("prompt-secret") {
+		return "", false, nil
+	}
+	return platform.PromptSecret(title, message)
+}
+
 // readConfirmer is how a page's read question reaches the person: the registry
 // when the Mac app runs this host, so the question shows in the request window,
 // and the native dialog otherwise.

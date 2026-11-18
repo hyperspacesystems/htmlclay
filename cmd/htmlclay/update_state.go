@@ -58,7 +58,32 @@ func (a *app) updateFacts(u *appcore.UpdateState) {
 		v := a.updates.ready
 		u.Ready = &v
 		u.DownloadURL = a.updates.url
+		u.Finishing = a.updating.Load()
 	}
+}
+
+// setAutoUpdate is prefs.set autoUpdate. On Windows and Linux off stops the
+// timed checks and Check now still works; on turns them on and checks at once.
+// The Mac app keeps this setting with Sparkle.
+func (a *app) setAutoUpdate(on bool) *appcore.Refusal {
+	if a.shell || updateNowOS == "darwin" {
+		return &appcore.Refusal{Code: appcore.RefuseNotYet}
+	}
+	a.rt.cfg.SetSelfUpdateOff(!on)
+	a.saveConfig("preference autoUpdate")
+	if !on {
+		return nil
+	}
+	a.updates.mu.Lock()
+	ch, busy := a.updates.checkNow, a.updates.ready != "" || a.updates.checking
+	a.updates.mu.Unlock()
+	if ch != nil && !busy {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
+	return nil
 }
 
 // checkForUpdates is update.check: it starts a check at once and notifies when

@@ -56,6 +56,9 @@ type Updater struct {
 	CheckNow <-chan struct{}
 	// Checking, when set, is told when a check starts (true) and ends (false).
 	Checking func(bool)
+	// Automatic, when set and false, stops the timed checks: Run then checks only
+	// when CheckNow asks. A nil Automatic checks on the timer as before.
+	Automatic func() bool
 }
 
 // seen is updates/seen.json, the highest version any verified feed has
@@ -91,6 +94,10 @@ func (u *Updater) Run(stop <-chan struct{}, ready func(Ready)) {
 		case <-stop:
 			return
 		case <-time.After(wait):
+			if u.Automatic != nil && !u.Automatic() {
+				wait = interval
+				continue
+			}
 		case <-u.CheckNow:
 		}
 		if u.Checking != nil {

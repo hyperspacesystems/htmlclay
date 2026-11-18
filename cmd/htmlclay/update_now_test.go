@@ -51,6 +51,7 @@ func TestUpdateNowClientExitCodes(t *testing.T) {
 		{"refused", "refused self-update is off: x", nil, updateNowExitRefused, "refused self-update is off: x\n"},
 		{"failed", "failed the restart was cancelled", nil, updateNowExitFailed, "failed the restart was cancelled\n"},
 		{"starting", platform.CommandStarting, nil, updateNowExitStarting, "starting\n"},
+		{"checking", updateNowChecking, nil, updateNowExitStarting, "checking\n"},
 		{"old app", "", platform.ErrNoAnswer, updateNowExitTooOld, "refused the running HTML Clay predates update-now\n"},
 		{"not running", "", errors.New("dial unix: connection refused"), updateNowExitNotRunning, ""},
 	}
@@ -154,8 +155,8 @@ func TestUpdateNowRefusesWithAReason(t *testing.T) {
 	a.updateOff = ""
 
 	updateNowOS = "windows"
-	if got := a.updateNow("9.9.9"); !strings.HasPrefix(got, "refused update-now runs on macOS only") {
-		t.Errorf("on Windows: %q", got)
+	if got := a.updateNow("9.9.9"); got != "refused this build does not update itself" {
+		t.Errorf("on a Windows build with no updater: %q", got)
 	}
 	updateNowOS = "darwin"
 }

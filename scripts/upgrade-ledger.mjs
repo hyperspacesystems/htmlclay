@@ -5,8 +5,11 @@
 // these documents open in a browser would have seen.
 //
 // Usage: node scripts/upgrade-ledger.mjs --port <n> --config <dir> --out <dir>
-//   --mode first|rollback|quit --stop-file <path> [--times <dir>] [--break-version]
-//   <file> <file> <file>
+//   --mode first|next|rollback|quit --stop-file <path> [--times <dir>] [--home <dir>]
+//   [--break-version] <file> <file> <file>
+//
+// --home is the app's home folder. It is needed where the config folder does
+// not sit at <home>/Library/Application Support/htmlclay (Linux, Windows).
 //
 // Exit codes: 0 every save survived and every tab behaved as its mode expects,
 // 1 one of the checks failed, 2 usage. The last stdout line is the verdict and
@@ -15,7 +18,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 
-const USAGE = 'usage: upgrade-ledger.mjs --port <n> --config <dir> --out <dir> --mode first|rollback|quit --stop-file <path> [--times <dir>] [--break-version] <file> <file> <file>';
+const USAGE = 'usage: upgrade-ledger.mjs --port <n> --config <dir> --out <dir> --mode first|next|rollback|quit --stop-file <path> [--times <dir>] [--home <dir>] [--break-version] <file> <file> <file>';
 
 function usage(message) {
   process.stderr.write(`[ledger] ${message}\n${USAGE}\n`);
@@ -86,7 +89,7 @@ function withMarker(original, marker) {
   return original.slice(0, at) + marker + original.slice(at);
 }
 
-const opts = { port: 0, config: '', out: '', mode: '', stopFile: '', times: '', breakVersion: false, files: [] };
+const opts = { port: 0, config: '', out: '', mode: '', stopFile: '', times: '', home: '', breakVersion: false, files: [] };
 
 for (let i = 0; i < process.argv.length - 2; i += 1) {
   const arg = process.argv[i + 2];
@@ -108,6 +111,9 @@ for (let i = 0; i < process.argv.length - 2; i += 1) {
   } else if (arg === '--times') {
     opts.times = process.argv[i + 3];
     i += 1;
+  } else if (arg === '--home') {
+    opts.home = process.argv[i + 3];
+    i += 1;
   } else if (arg === '--break-version') {
     opts.breakVersion = true;
   } else if (arg.startsWith('--')) {
@@ -118,7 +124,7 @@ for (let i = 0; i < process.argv.length - 2; i += 1) {
 }
 
 if (!opts.port || !opts.config || !opts.out || !opts.stopFile) usage('--port, --config, --out and --stop-file are all required');
-if (!['first', 'rollback', 'quit'].includes(opts.mode)) usage(`--mode must be first, rollback or quit, not '${opts.mode}'`);
+if (!['first', 'next', 'rollback', 'quit'].includes(opts.mode)) usage(`--mode must be first, next, rollback or quit, not '${opts.mode}'`);
 if (opts.files.length === 0) usage('at least one document is required');
 
 // One HTTP round trip to the app, the same shape scripts/sync-harness.mjs's
@@ -170,12 +176,13 @@ const tabs = opts.files.map((file, index) => {
 
 // documentPaths lists where the app answers a document: by its name alone, and
 // by the path it hands a browser, which is the document's path under the app's
-// home (the config lives at <home>/Library/Application Support/htmlclay).
+// home: --home, or on macOS the folder the config sits in
+// (<home>/Library/Application Support/htmlclay).
 function documentPaths(file) {
   const candidates = [`/${path.basename(file)}`];
   const suffix = `${path.sep}Library${path.sep}Application Support${path.sep}htmlclay`;
-  if (opts.config.endsWith(suffix)) {
-    const home = opts.config.slice(0, opts.config.length - suffix.length);
+  const home = opts.home || (opts.config.endsWith(suffix) ? opts.config.slice(0, opts.config.length - suffix.length) : '');
+  if (home) {
     const rel = path.relative(home, file);
     if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
       const served = `/${rel.split(path.sep).join('/')}`;
@@ -374,8 +381,10 @@ function newFromMs() {
   return Number.isFinite(ms) ? ms : null;
 }
 
-const oldUntil = opts.mode === 'first' ? oldUntilMs() : null;
-const newFrom = opts.mode === 'first' ? newFromMs() : null;
+// first and next both end with the new version kept, so every tab has saves on both sides.
+const kept = opts.mode === 'first' || opts.mode === 'next';
+const oldUntil = kept ? oldUntilMs() : null;
+const newFrom = kept ? newFromMs() : null;
 
 const verdicts = tabs.map((tab) => {
   const own = records.filter((record) => record.tab === tab.index).sort((a, b) => a.n - b.n);
@@ -410,7 +419,7 @@ const verdicts = tabs.map((tab) => {
       const after = acks.find((record) => record.n > moved.n);
       reasons.push(`a save was acked after site-moved (n=${after.n})`);
     }
-  } else if (opts.mode === 'first') {
+  } else if (kept) {
     if (oldUntil === null || newFrom === null) {
       reasons.push('no update times (version-changed.ms or health.json)');
     } else {

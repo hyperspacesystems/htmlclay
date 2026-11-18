@@ -122,6 +122,14 @@ const (
 	// RefuseNeedsConfirmation is a grant asked for on the dashboard origin, which
 	// only the host's confirmer may approve.
 	RefuseNeedsConfirmation = "needs-confirmation"
+	// RefusePending is a grant asked for on the dashboard that a system dialog
+	// is now asking the person about. Nothing has changed yet. When the person
+	// says yes the change arrives on the snapshot stream.
+	RefusePending = "pending"
+	// RefuseDialogOpen is a grant asked for while another grant's dialog is open.
+	RefuseDialogOpen = "dialog-open"
+	// RefuseNoDialogs is a grant on a system with no program to show its dialog.
+	RefuseNoDialogs = "no-dialogs"
 	// RefuseFailed is an effect the app tried to run and could not; the cause goes
 	// to the log, never to the sentence.
 	RefuseFailed = "failed"

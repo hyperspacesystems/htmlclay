@@ -87,12 +87,17 @@ func TestM4SyncCLI(t *testing.T) {
 		}
 	})
 
-	t.Run("on Windows the command says to use the menu", func(t *testing.T) {
+	t.Run("on Windows the commands run as they do everywhere", func(t *testing.T) {
 		serveOS = "windows"
 		t.Cleanup(func() { serveOS = "linux" })
+		a, _, _ := connectTestApp(t, true)
+		si := &appSI{app: a}
 		var out, errOut bytes.Buffer
-		if code := runSync(&appSI{}, t.TempDir(), []string{"pause"}, nil, &out, &errOut); code != serveExitUsage || !strings.Contains(errOut.String(), "Windows") {
-			t.Fatalf("windows = %d %q", code, errOut.String())
+		if code := runSync(si, a.rt.configDir, []string{"connect"}, strings.NewReader(connectKeyOne+"\n"), &out, &errOut); code != serveExitOK {
+			t.Fatalf("connect on Windows = %d, stdout %q, stderr %q", code, out.String(), errOut.String())
+		}
+		if strings.Contains(errOut.String(), "Windows") {
+			t.Fatalf("connect on Windows still says %q", errOut.String())
 		}
 	})
 }

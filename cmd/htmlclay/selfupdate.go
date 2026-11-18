@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/update"
 )
@@ -35,6 +38,10 @@ var (
 	updateQuietLimit = 5 * time.Second
 )
 
+// updateSyncLimit is how long an update restart waits for sync to finish what
+// it holds before it asks the person whether to restart anyway.
+var updateSyncLimit = 30 * time.Second
+
 var (
 	errUpdateCancelled = errors.New("the restart was cancelled")
 	errUpdateBusy      = errors.New("requests were still in flight")
@@ -42,7 +49,7 @@ var (
 
 // selfUpdateGate returns nil only when this build may download and apply its
 // own updates. Every other answer leaves the tray on the download-page link.
-func selfUpdateGate(channel, ver, goos string, trustedKeys int, off bool, installPath string, writable func(string) error) error {
+func selfUpdateGate(channel, ver, goos string, trustedKeys int, installPath string, writable func(string) error) error {
 	switch {
 	case channel == "":
 		return errors.New("this build has no update channel")
@@ -52,8 +59,6 @@ func selfUpdateGate(channel, ver, goos string, trustedKeys int, off bool, instal
 		return fmt.Errorf("the self-updater runs on Windows and Linux, not %s", goos)
 	case trustedKeys == 0:
 		return errors.New("no feed signing key is built in")
-	case off:
-		return errors.New(`config sets "updates": "off"`)
 	}
 	return writable(installPath)
 }
@@ -68,14 +73,14 @@ func (a *app) startSelfUpdater() bool {
 		a.updateOff = "HTML Clay is running without its tray"
 		return false
 	}
-	if runtime.GOOS == "darwin" {
+	if updateNowOS == "darwin" {
 		// On macOS the HTML Clay app runs Sparkle; a host started on its own keeps the download-page link.
 		a.updateOff = "on macOS the HTML Clay app updates itself"
 		return false
 	}
 	installPath, err := update.InstallPath()
 	if err == nil {
-		err = selfUpdateGate(updateChannel, version, runtime.GOOS, len(update.TrustedKeys), a.rt.cfg.SelfUpdateOff(), installPath, update.CheckWritable)
+		err = selfUpdateGate(updateChannel, version, updateNowOS, len(update.TrustedKeys), installPath, update.CheckWritable)
 	}
 	if err != nil {
 		a.rt.logger.Printf("Self-update is off: %v", err)
@@ -96,6 +101,7 @@ func (a *app) startSelfUpdater() bool {
 		Dir:         update.UpdatesDir(a.rt.configDir),
 		InstallPath: installPath,
 		Logf:        a.rt.logger.Printf,
+		Automatic:   func() bool { return !a.rt.cfg.SelfUpdateOff() },
 	}
 	a.rt.logger.Printf("Self-update is on, checking %s", feed)
 	a.updates.mu.Lock()
@@ -137,18 +143,22 @@ func (a *app) checkForUpdateLink() {
 	a.updates.checkNow = make(chan struct{}, 1)
 	ch := a.updates.checkNow
 	a.updates.mu.Unlock()
+	check := !a.rt.cfg.SelfUpdateOff()
 	for {
-		a.setUpdateChecking(true)
-		info := update.Check(version, releaseInfoURL)
-		if info != nil {
-			a.setUpdateReady(info.Version, info.URL, nil)
-		}
-		a.setUpdateChecking(false)
-		if info != nil {
-			a.rt.logger.Printf("Update available: v%s at %s", info.Version, info.URL)
-			return
+		if check {
+			a.setUpdateChecking(true)
+			info := update.Check(version, releaseInfoURL)
+			if info != nil {
+				a.setUpdateReady(info.Version, info.URL, nil)
+			}
+			a.setUpdateChecking(false)
+			if info != nil {
+				a.rt.logger.Printf("Update available: v%s at %s", info.Version, info.URL)
+				return
+			}
 		}
 		<-ch
+		check = true
 	}
 }
 
@@ -178,8 +188,9 @@ func (a *app) applyUpdate(r update.Ready, installPath string) error {
 }
 
 // restartForUpdate is what every update restart shares. In order: ask when an
-// AI edit or a program is running, wait for in-flight writes to land and stop
-// admitting new ones, hand the open sessions to target in the handoff file, then
+// AI edit or a program is running, wait for sync to finish what it holds, wait
+// for in-flight writes to land and stop admitting new ones, hand the open
+// sessions to target in the handoff file, then
 // call install with its path. Until install returns nil every failure removes
 // the handoff, reopens writes and leaves this process running as it was; after
 // that the app stays marked as updating with writes closed, so a second click
@@ -188,11 +199,13 @@ func (a *app) restartForUpdate(target string, install func(handoffPath string) e
 	if !a.updating.CompareAndSwap(false, true) {
 		return errors.New("an update restart is already under way")
 	}
+	a.changed()
 	exiting := false
 	defer func() {
 		if !exiting {
 			a.reopenWrites()
 			a.updating.Store(false)
+			a.changed()
 		}
 	}()
 
@@ -205,6 +218,14 @@ func (a *app) restartForUpdate(target string, install func(handoffPath string) e
 	}
 	if !a.confirmQuit() {
 		return errUpdateCancelled
+	}
+	// A delete or an upload the sync engine still holds is lost by a restart, and
+	// the server then sends the old file back. Wait for it, and ask before going on without it.
+	if !a.syncQuietForUpdate(updateSyncLimit) {
+		ok, err := a.confirmTrayChange(appcore.TextUpdateSyncBusyTitle, fmt.Sprintf(appcore.TextUpdateSyncBusyBody, target), appcore.TextUpdateSyncBusyRestart)
+		if err != nil || !ok {
+			return errUpdateCancelled
+		}
 	}
 	if !waitQuiet(&a.rt.writesInFlight, updateQuietFor, updateQuietLimit) {
 		return errUpdateBusy
@@ -224,6 +245,35 @@ func (a *app) restartForUpdate(target string, install func(handoffPath string) e
 	}
 	exiting = true
 	return nil
+}
+
+// syncQuietForUpdate waits up to limit until the sync engine holds nothing a
+// restart would drop: no first download, no session starting, nothing queued.
+// With no service running there is no sync to wait for. A service that cannot
+// be asked does not hold the update back, because the update may be its repair.
+func (a *app) syncQuietForUpdate(limit time.Duration) bool {
+	if a.rt.syncQuiet != nil {
+		return a.rt.syncQuiet(limit)
+	}
+	if a.served == nil {
+		return true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), limit+5*time.Second)
+	defer cancel()
+	body := struct {
+		TimeoutMs int64 `json:"timeoutMs"`
+		ForUpdate bool  `json:"forUpdate"`
+	}{limit.Milliseconds(), true}
+	var answer struct {
+		Idle bool `json:"idle"`
+	}
+	if err := a.served.CallService(ctx, "/sync/v1/idle", body, &answer); err != nil {
+		if !errors.Is(err, served.ErrServiceUnavailable) {
+			a.rt.logger.Printf("Could not ask sync to finish before the update: %v", err)
+		}
+		return true
+	}
+	return answer.Idle
 }
 
 // runningWork counts the AI edits and helper program requests running across

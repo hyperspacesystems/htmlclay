@@ -85,7 +85,7 @@ func prepareHelperProgramOn(goos, path string, confirm func(title, message, affi
 		if windowsHelperProgramExtension(path) {
 			return true, nil
 		}
-		return false, errors.New("Windows helper programs must be .exe, .bat, or .cmd files; use a .cmd wrapper for scripts")
+		return false, errors.New("Programs on Windows must be .exe, .bat or .cmd files. Use a .cmd file to run a script.")
 	}
 	if info.Mode()&0111 != 0 {
 		return true, nil
@@ -96,7 +96,7 @@ func prepareHelperProgramOn(goos, path string, confirm func(title, message, affi
 		return false, fmt.Errorf("cannot read the first line of %s: %w", path, err)
 	}
 	message := fmt.Sprintf("This file is not executable:\n\n%s\n\nFirst line:\n%q\n\nMake it executable so HTML Clay can run it?", path, firstLine)
-	ok, err := confirm("Make Program Executable", message, "Make Executable")
+	ok, err := confirm("Make program executable?", message, "Make executable")
 	if err != nil || !ok {
 		return false, err
 	}

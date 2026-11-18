@@ -105,7 +105,7 @@ func (d *dashboardApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
 			return
 		}
-		writeDashboardJSON(w, http.StatusOK, dashboardSnapshot(d.a.snapshot()))
+		writeDashboardJSON(w, http.StatusOK, d.view(d.a.snapshot()))
 	case "/api/app/events":
 		if r.Method != http.MethodGet {
 			writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
@@ -620,6 +620,12 @@ func (d *dashboardApp) act(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	snapshot, refusal := d.a.do(r.Context(), action, ChannelDashboard)
+	if refusal != nil && refusal.Code == appcore.RefusePending {
+		// A system dialog is asking the person. Nothing changed yet, and this is
+		// not a failure: the change, if any, arrives on the event stream.
+		writeDashboardJSON(w, http.StatusAccepted, map[string]any{"pending": true, "text": appcore.RefusalMessage(refusal), "snapshot": d.view(snapshot)})
+		return
+	}
 	if refusal != nil {
 		body := map[string]any{"code": refusal.Code, "text": appcore.RefusalMessage(refusal)}
 		if refusal.Field != "" {
@@ -631,7 +637,7 @@ func (d *dashboardApp) act(w http.ResponseWriter, r *http.Request) {
 		writeDashboardJSON(w, http.StatusConflict, map[string]any{"refusal": body})
 		return
 	}
-	writeDashboardJSON(w, http.StatusOK, map[string]any{"snapshot": dashboardSnapshot(snapshot)})
+	writeDashboardJSON(w, http.StatusOK, map[string]any{"snapshot": d.view(snapshot)})
 }
 
 // events streams one snapshot event per change, the current one first, and a
@@ -651,7 +657,7 @@ func (d *dashboardApp) events(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	send := func(snapshot appcore.Snapshot) bool {
-		raw, err := json.Marshal(dashboardSnapshot(snapshot))
+		raw, err := json.Marshal(d.view(snapshot))
 		if err != nil {
 			return false
 		}
@@ -710,6 +716,14 @@ func dashboardSnapshot(s appcore.Snapshot) appcore.Snapshot {
 		s.Folders[i].Why.Serve = &appcore.Reason{Code: whyNeedsApp, Text: text}
 	}
 	return s
+}
+
+// view is the snapshot a dashboard page reads from this host.
+func (d *dashboardApp) view(s appcore.Snapshot) appcore.Snapshot {
+	if d.a.nativeGrants {
+		return nativeDashboardSnapshot(s)
+	}
+	return dashboardSnapshot(s)
 }
 
 func writeDashboardJSON(w http.ResponseWriter, status int, v any) {

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/update"
 )
 
@@ -23,21 +24,19 @@ func TestSelfUpdateGate(t *testing.T) {
 		version  string
 		goos     string
 		keys     int
-		off      bool
 		writable func(string) error
 		want     string
 	}{
-		{"release build on windows", "stable", "1.14.0", "windows", 1, false, writable, ""},
-		{"release build on linux", "stable", "1.14.0", "linux", 2, false, writable, ""},
-		{"local build", "", "1.14.0", "linux", 1, false, writable, "no update channel"},
-		{"dev version", "stable", "1.14.0-dev", "linux", 1, false, writable, "not a release version"},
-		{"macOS uses Sparkle", "stable", "1.14.0", "darwin", 1, false, writable, "not darwin"},
-		{"no signing key", "stable", "1.14.0", "windows", 0, false, writable, "no feed signing key"},
-		{"turned off in config", "stable", "1.14.0", "linux", 1, true, writable, `"updates": "off"`},
-		{"install folder read-only", "stable", "1.14.0", "windows", 1, false, readOnly, "not writable"},
+		{"release build on windows", "stable", "1.14.0", "windows", 1, writable, ""},
+		{"release build on linux", "stable", "1.14.0", "linux", 2, writable, ""},
+		{"local build", "", "1.14.0", "linux", 1, writable, "no update channel"},
+		{"dev version", "stable", "1.14.0-dev", "linux", 1, writable, "not a release version"},
+		{"macOS uses Sparkle", "stable", "1.14.0", "darwin", 1, writable, "not darwin"},
+		{"no signing key", "stable", "1.14.0", "windows", 0, writable, "no feed signing key"},
+		{"install folder read-only", "stable", "1.14.0", "windows", 1, readOnly, "not writable"},
 	}
 	for _, tc := range cases {
-		err := selfUpdateGate(tc.channel, tc.version, tc.goos, tc.keys, tc.off, "/opt/htmlclay/htmlclay", tc.writable)
+		err := selfUpdateGate(tc.channel, tc.version, tc.goos, tc.keys, "/opt/htmlclay/htmlclay", tc.writable)
 		if tc.want == "" {
 			if err != nil {
 				t.Errorf("%s: gate refused: %v", tc.name, err)
@@ -152,5 +151,42 @@ func TestApplyUpdateFailureBeforeTheSwapRemovesTheHandoff(t *testing.T) {
 	}
 	if a.updating.Load() {
 		t.Fatal("a failed restart left the app marked as updating")
+	}
+}
+
+func TestUpdateRestartWaitsForSyncAndAsksWhenItIsNotQuiet(t *testing.T) {
+	a, install := updateTestApp(t)
+	var waited time.Duration
+	quiet, restartAnyway, asked := false, false, 0
+	a.rt.syncQuiet = func(limit time.Duration) bool { waited = limit; return quiet }
+	a.rt.confirmTrust = func(title, message, affirmative string) (bool, error) {
+		asked++
+		if title != appcore.TextUpdateSyncBusyTitle || !strings.Contains(message, "9.9.9") || affirmative != appcore.TextUpdateSyncBusyRestart {
+			t.Errorf("the question was %q, %q, %q", title, message, affirmative)
+		}
+		return restartAnyway, nil
+	}
+	ready := update.Ready{Version: "9.9.9", StagedPath: filepath.Join(t.TempDir(), "missing")}
+
+	if err := a.applyUpdate(ready, install); !errors.Is(err, errUpdateCancelled) {
+		t.Fatalf("sync not quiet and the person said no: applyUpdate = %v, want errUpdateCancelled", err)
+	}
+	if asked != 1 || waited != updateSyncLimit {
+		t.Fatalf("asked %d times after waiting %s; want once after %s", asked, waited, updateSyncLimit)
+	}
+	if a.updating.Load() {
+		t.Fatal("a cancelled restart left the app marked as updating")
+	}
+
+	// The staged file is missing, so a restart that goes on fails at the swap:
+	// any error but errUpdateCancelled means the wait let it through.
+	restartAnyway = true
+	if err := a.applyUpdate(ready, install); err == nil || errors.Is(err, errUpdateCancelled) || asked != 2 {
+		t.Fatalf("sync not quiet and the person said restart anyway: applyUpdate = %v, asked %d", err, asked)
+	}
+
+	quiet = true
+	if err := a.applyUpdate(ready, install); err == nil || errors.Is(err, errUpdateCancelled) || asked != 2 {
+		t.Fatalf("sync quiet: applyUpdate = %v, asked %d times; want the swap's error and no new question", err, asked)
 	}
 }

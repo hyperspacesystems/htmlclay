@@ -37,7 +37,9 @@ def job_graph():
             if arch == "amd64":
                 steps.append({"kind": "test", "name": "Test the Tailwind bundle",
                               "command": "go test -tags tailwind_bundle ./internal/tailwind/ -count=1"})
-            steps.append({"kind": "build", "name": "Build", "tags": ["tailwind_bundle"]})
+            steps.append({"kind": "prepare", "name": "Build the service bundle",
+                          "command": f"node service/build.mjs --goos {platform} --goarch {arch}"})
+            steps.append({"kind": "build", "name": "Build", "tags": ["tailwind_bundle", "service_bundle"]})
             if platform == "windows":
                 steps.extend([
                     {"kind": "sign", "name": "Sign with Azure Trusted Signing"},

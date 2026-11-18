@@ -819,6 +819,12 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
 		}
 		return nil
+	case "autoUpdate":
+		var on bool
+		if json.Unmarshal(e.Value, &on) != nil {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+		}
+		return a.setAutoUpdate(on)
 	case "useName", "yourName":
 		profile := a.rt.cfg.ProfileState()
 		switch e.Key {

@@ -193,7 +193,7 @@ class PlatformWorkflowTests(unittest.TestCase):
             steps = {s.get('name'): s for s in self.jobs['build-windows-' + arch]['steps']}
             self.assertIn('Invoke-TrustedSigning', steps['Sign with Azure Trusted Signing']['run'])
             self.assertIn('TimeStamperCertificate', steps['Verify signature']['run'])
-            self.assertIn('-tags tailwind_bundle', steps['Build']['run'])
+            self.assertIn('-tags "tailwind_bundle service_bundle"', steps['Build']['run'])
             self.assertIn(arch, steps['Build']['run'])
         mac = {s.get('name'): s for s in self.jobs['build-macos']['steps']}
         self.assertEqual(mac['Build, sign & notarize (universal)']['run'], 'bash packaging/macos/build.sh --universal')

@@ -746,7 +746,9 @@ func (a *app) do(ctx context.Context, action appcore.Action, ch Channel) (appcor
 	}
 
 	if ch == ChannelDashboard && appcore.ClassOf(action) == appcore.ClassGrant {
-		refusal := &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation}
+		// A page never runs a grant. On Windows and Linux the host asks the
+		// person in a dialog of its own and answers pending (grants.go).
+		refusal := a.dashboardGrant(action)
 		snapshot := a.snapshot()
 		a.remember(action.ID, coreAnswer{Snapshot: snapshot, Refusal: refusal})
 		return snapshot, refusal

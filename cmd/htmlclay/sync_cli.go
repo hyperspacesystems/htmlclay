@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -43,10 +42,6 @@ func runSync(si platform.SingleInstance, configDir string, args []string, stdin 
 	}
 	if args[0] == "status" && len(args) == 1 {
 		return syncStatus(configDir, stdout, stderr)
-	}
-	if serveOS == "windows" {
-		fmt.Fprintln(stderr, appcore.TextSyncCLIWindows)
-		return serveExitUsage
 	}
 	switch {
 	case args[0] == "connect" && len(args) <= 1+1:
@@ -133,16 +128,6 @@ func readSyncKey(stdin io.Reader, stderr io.Writer) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(line), nil
-}
-
-func setEcho(tty *os.File, on bool) error {
-	mode := "-echo"
-	if on {
-		mode = "echo"
-	}
-	cmd := exec.Command("stty", mode)
-	cmd.Stdin = tty
-	return cmd.Run()
 }
 
 // syncStatus prints the connected account and each account and team row.

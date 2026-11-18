@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -243,5 +244,37 @@ func TestRunChecksNow(t *testing.T) {
 			t.Fatalf("Checking calls %v within 2 s, want true then false", got)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestTimedChecksStopWhenUpdatesAreOff(t *testing.T) {
+	priv, keys := testKeys(t)
+	fs := newFeedServer(t)
+	feed, _ := SignPayload(payloadJSON(t, fs.release("1.14.0")), "test-a", priv)
+	fs.setFeed(feed)
+	u := newTestUpdater(t, fs, keys)
+	u.FirstCheck = time.Millisecond
+	var automatic atomic.Bool
+	u.Automatic = automatic.Load
+	now := make(chan struct{}, 1)
+	u.CheckNow = now
+
+	ready := make(chan Ready, 1)
+	stop := make(chan struct{})
+	defer close(stop)
+	go u.Run(stop, func(r Ready) { ready <- r })
+	select {
+	case r := <-ready:
+		t.Fatalf("Run checked on its timer with updates off: %+v", r)
+	case <-time.After(300 * time.Millisecond):
+	}
+	now <- struct{}{}
+	select {
+	case r := <-ready:
+		if r.Version != "1.14.0" {
+			t.Fatalf("Ready %+v", r)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Check now did not check with updates off")
 	}
 }

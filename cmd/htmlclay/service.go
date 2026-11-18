@@ -17,6 +17,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/service"
+	"github.com/panphora/htmlclay/internal/update"
 )
 
 const (
@@ -114,12 +115,23 @@ func newServiceRunner(a *app) *serviceRunner {
 		controlSecret: newControlSecret(),
 	}
 	if service.Bundled() {
-		root := filepath.Join(a.rt.configDir, "service-runtime")
-		r.install = func() ([]string, error) { return service.Install(root) }
+		root := serviceRuntimeRoot(a.rt.configDir)
+		// While an update is being judged, the version it replaced keeps its
+		// extracted copy: a rollback starts that version again, and extracting
+		// 70 MB a second time is what made its service late.
+		r.install = func() ([]string, error) {
+			return service.Install(root, update.Unjudged(update.UpdatesDir(a.rt.configDir)))
+		}
 	} else {
 		r.command = service.CommandFromEnv()
 	}
 	return r
+}
+
+// serviceRuntimeRoot is where the bundled service is extracted, one folder per
+// version.
+func serviceRuntimeRoot(configDir string) string {
+	return filepath.Join(configDir, "service-runtime")
 }
 
 // newControlSecret answers 64 lowercase hex characters for the control listener.

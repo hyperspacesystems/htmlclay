@@ -20,6 +20,10 @@ const serviceDir = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.dirname(serviceDir);
 
 const goPlatform = { darwin: 'darwin', linux: 'linux', win32: 'windows' }[process.platform];
+const onWindows = process.platform === 'win32';
+// On a Windows host "tar" may be Git's GNU tar, which reads C:\ as a remote
+// host. Windows' own bsdtar never does, and it also reads a zip.
+const tarProgram = onWindows ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
 const goArch = { arm64: 'arm64', x64: 'amd64' }[process.arch];
 
 function fail(message) {
@@ -62,10 +66,11 @@ function extractNode(archivePath, entry, goos, stage) {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-node-'));
   try {
     if (goos === 'windows') {
-      execFileSync('unzip', ['-q', archivePath, `${top}/node.exe`, '-d', scratch]);
+      if (onWindows) execFileSync(tarProgram, ['-xf', archivePath, '-C', scratch, `${top}/node.exe`]);
+      else execFileSync('unzip', ['-q', archivePath, `${top}/node.exe`, '-d', scratch]);
       fs.copyFileSync(path.join(scratch, top, 'node.exe'), path.join(stage, 'node.exe'));
     } else {
-      execFileSync('tar', ['-xzf', archivePath, '-C', scratch, `${top}/bin/node`]);
+      execFileSync(tarProgram, ['-xzf', archivePath, '-C', scratch, `${top}/bin/node`]);
       fs.copyFileSync(path.join(scratch, top, 'bin', 'node'), path.join(stage, 'node'));
       fs.chmodSync(path.join(stage, 'node'), 0o755);
     }
@@ -116,14 +121,15 @@ async function main() {
     fs.cpSync(path.join(serviceDir, 'local'), path.join(app, 'local'), { recursive: true });
     fs.copyFileSync(path.join(repo, 'internal', 'dashboard', 'assets', 'local-app', 'manifest.json'),
       path.join(app, 'workspace-manifest.json'));
-    execFileSync('npm', ['ci', '--omit=optional', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], {
-      cwd: app, stdio: 'inherit', env: { ...process.env, npm_config_min_release_age: '0' },
+    // On Windows npm is npm.cmd, which Node only starts through a shell.
+    execFileSync(onWindows ? 'npm.cmd' : 'npm', ['ci', '--omit=optional', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], {
+      cwd: app, stdio: 'inherit', shell: onWindows, env: { ...process.env, npm_config_min_release_age: '0' },
     });
     dropBinLinks(path.join(app, 'node_modules'));
     fs.writeFileSync(path.join(app, 'BUILD.json'), `${JSON.stringify({ node: pins.version, goos, goarch }, null, 2)}\n`);
 
     const out = path.join(stage, 'service.tar.gz');
-    execFileSync('tar', ['-czf', out, '-C', root, '.'], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
+    execFileSync(tarProgram, ['-czf', out, '-C', root, '.'], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
     const blob = fs.readFileSync(out);
     const blobs = path.join(repo, 'internal', 'service', 'blobs');
     fs.mkdirSync(blobs, { recursive: true });

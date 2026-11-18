@@ -79,6 +79,12 @@ function syncRecord() {
 // The live-room service is the one process started with this desktop's data dir.
 function servicePid() {
   const marker = `--data-dir ${path.join(configDir(), 'service')}`;
+  if (process.platform === 'win32') {
+    const listing = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+      'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.CommandLine)" }'], { encoding: 'utf8' });
+    const line = listing.split(/\r?\n/).find((entry) => entry.includes(marker) && !entry.includes('Get-CimInstance'));
+    return line ? Number(line.trim().split(/\s+/)[0]) : null;
+  }
   const lines = execFileSync('ps', ['-A', '-o', 'pid=,command='], { encoding: 'utf8' }).split('\n');
   const line = lines.find((entry) => entry.includes(marker) && !entry.includes('ps -A'));
   return line ? Number(line.trim().split(/\s+/)[0]) : null;

@@ -40,7 +40,8 @@ const (
 	stopServingUsage = "usage: htmlclay stop-serving <name>"
 )
 
-// serveOS is the platform serve runs on. Tests change it.
+// serveOS is the platform the command line and the notices are worded for.
+// Tests change it.
 var serveOS = runtime.GOOS
 
 // serveDispatch runs `htmlclay serve ...` or `htmlclay stop-serving ...` and
@@ -75,10 +76,6 @@ func runServe(si platform.SingleInstance, args []string, stdout, stderr io.Write
 }
 
 func serveCmd(si platform.SingleInstance, args []string, stdout, stderr io.Writer) int {
-	if serveOS == "windows" {
-		fmt.Fprintln(stderr, appcore.TextServeCLIWindows)
-		return serveExitUsage
-	}
 	folder, name, ok := parseServeArgs(args)
 	if !ok {
 		fmt.Fprintln(stderr, serveUsage)
@@ -131,10 +128,6 @@ func parseServeArgs(args []string) (folder, name string, ok bool) {
 }
 
 func stopServingCmd(si platform.SingleInstance, args []string, stdout, stderr io.Writer) int {
-	if serveOS == "windows" {
-		fmt.Fprintln(stderr, appcore.TextServeCLIWindows)
-		return serveExitUsage
-	}
 	if len(args) != 1 || args[0] == "" {
 		fmt.Fprintln(stderr, stopServingUsage)
 		return serveExitUsage

@@ -43,3 +43,30 @@ jobs:
         run: go test -tags managedtrial ./internal/served/ -count=1
         env:
           CGO_ENABLED: "0"
+
+      # Sync runs on Windows since 2.0. The service's own tests, the sync
+      # engine's among them, run here against the fake sync server, as the test
+      # box runs them on Linux. This is the one run that has them on NTFS.
+      - name: Service tests
+        run: node --test "test/*.test.cjs"
+        working-directory: service
+        env:
+          HTMLCLAY_SYNC_LOCAL: ${{ github.workspace }}/service/test/fake
+
+      # The product driver against the fake sync server, as the test box runs it
+      # on Linux: the one end-to-end sync run on Windows.
+      - name: Sync product driver
+        run: node --test scripts/tests/sync-product-driver.test.mjs
+        env:
+          CGO_ENABLED: "0"
+          HTMLCLAY_SYNC_LOCAL: ${{ github.workspace }}/service/test/fake
+
+      # A release carries the service (tag service_bundle). This is the one run
+      # that builds the bundle on Windows itself and starts the app against it.
+      - name: Build the service bundle
+        run: node service/build.mjs
+
+      - name: Service bundle tests
+        run: go test -tags service_bundle ./internal/service/ ./cmd/htmlclay/ -run "TestInstall|TestExtracted|TestServiceBundled|TestServiceStarts" -count=1 -v
+        env:
+          CGO_ENABLED: "0"

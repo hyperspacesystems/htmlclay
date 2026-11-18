@@ -51,11 +51,22 @@ function driver() {
 test('the product driver', { skip: SKIP, timeout: 240000 }, async (t) => {
   const base = realpathSync(mkdtempSync(path.join(os.homedir(), '.htmlclay-driver-test-')));
   t.after(() => rmSync(base, { recursive: true, force: true }));
-  const bin = path.join(base, 'htmlclay');
+  const windows = process.platform === 'win32';
+  const bin = path.join(base, windows ? 'htmlclay.exe' : 'htmlclay');
   execFileSync('go', ['build', '-tags', 'synctest', '-o', bin, './cmd/htmlclay'], { cwd: REPO, stdio: 'inherit' });
-  const serviceCmd = path.join(base, 'service.sh');
-  writeFileSync(serviceCmd, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(path.join(REPO, 'service', 'main.cjs'))} "$@"\n`);
-  chmodSync(serviceCmd, 0o755);
+  // HTMLCLAY_SERVICE_CMD is split on spaces (service.CommandFromEnv). On Windows
+  // there is no shell wrapper, so node and main.cjs go in it directly.
+  const mainScript = path.join(REPO, 'service', 'main.cjs');
+  if (windows && /\s/.test(process.execPath + mainScript)) {
+    t.skip(`the node or checkout path has a space: ${process.execPath} ${mainScript}`);
+    return;
+  }
+  let serviceCmd = `${process.execPath} ${mainScript}`;
+  if (!windows) {
+    serviceCmd = path.join(base, 'service.sh');
+    writeFileSync(serviceCmd, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(mainScript)} "$@"\n`);
+    chmodSync(serviceCmd, 0o755);
+  }
 
   const require = createRequire(import.meta.url);
   const { startFakeSyncHttp } = require(FAKE);

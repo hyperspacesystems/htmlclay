@@ -10,6 +10,16 @@ import (
 )
 
 func promptName(title, message, initial string) (string, bool, error) {
+	return promptText(title, message, initial, false)
+}
+
+func promptSecret(title, message string) (string, bool, error) {
+	return promptText(title, message, "", true)
+}
+
+// promptText is the one text prompt. With secret set the box shows dots
+// instead of what is typed.
+func promptText(title, message, initial string, secret bool) (string, bool, error) {
 	const script = "$ErrorActionPreference = 'Stop'; " +
 		"Add-Type -AssemblyName System.Windows.Forms; " +
 		"Add-Type -AssemblyName System.Drawing; " +
@@ -22,6 +32,7 @@ func promptName(title, message, initial string) (string, bool, error) {
 		"$h = $l.GetPreferredSize((New-Object System.Drawing.Size(428, 0))).Height; " +
 		"$l.SetBounds(16, 16, 428, $h); $f.Controls.Add($l); $y = 16 + $h + 12; " +
 		"$box = New-Object System.Windows.Forms.TextBox; $box.Text = $env:HTMLCLAY_DIALOG_INITIAL; " +
+		"if ($env:HTMLCLAY_DIALOG_SECRET -eq '1') { $box.UseSystemPasswordChar = $true }; " +
 		"$box.SetBounds(16, $y, 428, 24); $f.Controls.Add($box); " +
 		"$cancel = New-Object System.Windows.Forms.Button; $cancel.Text = 'Cancel'; " +
 		"$cancel.SetBounds(244, ($y + 40), 96, 32); $cancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel; " +
@@ -43,6 +54,9 @@ func promptName(title, message, initial string) (string, bool, error) {
 		"HTMLCLAY_DIALOG_MESSAGE="+message,
 		"HTMLCLAY_DIALOG_INITIAL="+initial,
 	)
+	if secret {
+		cmd.Env = append(cmd.Env, "HTMLCLAY_DIALOG_SECRET=1")
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return "", false, fmt.Errorf("name prompt failed: %w", err)

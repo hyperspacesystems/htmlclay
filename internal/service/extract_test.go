@@ -65,7 +65,7 @@ func validEntries() map[string]*string {
 func TestInstallExtractsOnceAndReuses(t *testing.T) {
 	root := t.TempDir()
 	blob, sum, size := testBlob(t, validEntries())
-	cmd, err := install(root, blob, sum, size)
+	cmd, err := install(root, blob, sum, size, false)
 	if err != nil {
 		t.Fatalf("install: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestInstallExtractsOnceAndReuses(t *testing.T) {
 	marker := filepath.Join(dir, completeMarker)
 	past := time.Now().Add(-time.Hour)
 	os.Chtimes(marker, past, past)
-	if _, err := install(root, blob, sum, size); err != nil {
+	if _, err := install(root, blob, sum, size, false); err != nil {
 		t.Fatalf("second install: %v", err)
 	}
 	if info, _ := os.Stat(marker); info == nil || !info.ModTime().Equal(past) {
@@ -98,7 +98,7 @@ func TestInstallRedoesAnIncompleteCopy(t *testing.T) {
 	dir := filepath.Join(root, sum[:16])
 	os.MkdirAll(dir, 0o755)
 	os.WriteFile(filepath.Join(dir, nodeName()), []byte("half"), 0o755)
-	if _, err := install(root, blob, sum, size); err != nil {
+	if _, err := install(root, blob, sum, size, false); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 	if b, _ := os.ReadFile(filepath.Join(dir, nodeName())); string(b) != "binary" {
@@ -113,7 +113,7 @@ func TestInstallPrunesOtherVersions(t *testing.T) {
 	fresh := filepath.Join(root, ".extract-aaaaaaaaaaaa")
 	os.MkdirAll(fresh, 0o755)
 	blob, sum, size := testBlob(t, validEntries())
-	if _, err := install(root, blob, sum, size); err != nil {
+	if _, err := install(root, blob, sum, size, false); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 	if _, err := os.Stat(old); !os.IsNotExist(err) {
@@ -121,6 +121,42 @@ func TestInstallPrunesOtherVersions(t *testing.T) {
 	}
 	if _, err := os.Stat(fresh); err != nil {
 		t.Fatal("a fresh extraction of another process was removed")
+	}
+}
+
+// While an update is being judged the host asks for the other versions to stay:
+// a rollback starts the previous binary, which must find its own copy. Once the
+// verdict is in, PruneOthers' prune removes them.
+func TestInstallKeepsOtherVersionsWhenAsked(t *testing.T) {
+	root := t.TempDir()
+	previous := filepath.Join(root, "0123456789abcdef")
+	os.MkdirAll(filepath.Join(previous, "app"), 0o755)
+	stale := filepath.Join(root, ".extract-bbbbbbbbbbbb")
+	os.MkdirAll(stale, 0o755)
+	past := time.Now().Add(-time.Hour)
+	os.Chtimes(stale, past, past)
+	blob, sum, size := testBlob(t, validEntries())
+
+	// Twice: the first call extracts, the second takes the reuse path, and
+	// both must leave the previous version alone.
+	for i := 0; i < 2; i++ {
+		if _, err := install(root, blob, sum, size, true); err != nil {
+			t.Fatalf("install %d: %v", i, err)
+		}
+		if _, err := os.Stat(previous); err != nil {
+			t.Fatalf("install %d removed the previous version while asked to keep it", i)
+		}
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatal("an interrupted extraction from an hour ago was kept")
+	}
+
+	prune(root, filepath.Join(root, sum[:16]), false)
+	if _, err := os.Stat(previous); !os.IsNotExist(err) {
+		t.Fatal("the previous version was kept after the verdict")
+	}
+	if !complete(filepath.Join(root, sum[:16]), sum) {
+		t.Fatal("the prune removed this build's own copy")
 	}
 }
 
@@ -136,7 +172,7 @@ func TestInstallRefuses(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
 			blob, sum, size := testBlob(t, entries)
-			if _, err := install(root, blob, sum, size); err == nil {
+			if _, err := install(root, blob, sum, size, false); err == nil {
 				t.Fatal("install succeeded, want a refusal")
 			}
 			if _, err := os.Stat(filepath.Join(root, sum[:16])); !os.IsNotExist(err) {
@@ -151,7 +187,7 @@ func TestInstallRefuses(t *testing.T) {
 		blob, sum, size := testBlob(t, validEntries())
 		tampered := append([]byte{}, blob...)
 		tampered[len(tampered)-1] ^= 1
-		if _, err := install(t.TempDir(), tampered, sum, size); err == nil || !strings.Contains(err.Error(), "checksum") {
+		if _, err := install(t.TempDir(), tampered, sum, size, false); err == nil || !strings.Contains(err.Error(), "checksum") {
 			t.Fatalf("install of a tampered blob = %v, want a checksum refusal", err)
 		}
 	})

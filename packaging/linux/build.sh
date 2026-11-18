@@ -5,8 +5,10 @@ VERSION="${VERSION:-$(grep 'var version' cmd/htmlclay/main.go | sed 's/.*"\(.*\)
 
 target_goarch="$(go env GOARCH)"
 GOOS= GOARCH= go run ./cmd/fetchtailwind -goos linux -goarch "$target_goarch"
-CGO_ENABLED=0 go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o htmlclay ./cmd/htmlclay
-go version -m htmlclay | grep -q -- '-tags=tailwind_bundle' || { echo "error: htmlclay was built without the Tailwind bundle" >&2; exit 1; }
+node service/build.mjs --goos linux --goarch "$target_goarch"
+CGO_ENABLED=0 go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o htmlclay ./cmd/htmlclay
+go version -m htmlclay | grep -q -- '-tags=tailwind_bundle,service_bundle' || { echo "error: htmlclay was built without the Tailwind and service bundles" >&2; exit 1; }
+./htmlclay update-info | grep -q '"service":true' || { echo "error: htmlclay does not carry the service" >&2; exit 1; }
 
 echo "Built htmlclay v${VERSION}"
 echo ""

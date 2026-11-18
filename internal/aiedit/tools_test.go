@@ -73,6 +73,16 @@ func TestSplitCommand(t *testing.T) {
 	}
 }
 
+func TestSplitCommandKeepsWindowsPaths(t *testing.T) {
+	got, err := splitCommand(`"C:\Program Files\Agent\agent.exe" --dir C:\Users\maya\notes`, false)
+	if err != nil {
+		t.Fatalf("splitCommand: %v", err)
+	}
+	if want := []string{`C:\Program Files\Agent\agent.exe`, "--dir", `C:\Users\maya\notes`}; !slices.Equal(got, want) {
+		t.Fatalf("splitCommand = %v, want %v", got, want)
+	}
+}
+
 func TestCodexArgsCarryTheModel(t *testing.T) {
 	argv := codexArgs("/d", "/o", "gpt-x")
 	if !hasArg(argv, "-m") {
