@@ -146,3 +146,19 @@ func TestJoinCommandRoundTrips(t *testing.T) {
 		t.Fatalf("a Windows path round-trips to %q (%v)", got, err)
 	}
 }
+
+func TestFirstFoundPicksCodexWhenClaudeIsMissing(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake program is a shell script")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "codex"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := FirstFound([]string{"PATH=" + dir}); got != "codex" {
+		t.Fatalf("FirstFound with only codex installed = %q, want codex", got)
+	}
+	if got := FirstFound([]string{"PATH=" + t.TempDir()}); got != "claude" {
+		t.Fatalf("FirstFound with nothing installed = %q, want claude", got)
+	}
+}

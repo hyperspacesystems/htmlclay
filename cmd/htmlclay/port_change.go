@@ -46,6 +46,10 @@ func (a *app) setPort(port int) *appcore.Refusal {
 	if names, answered := a.unsavedDocuments(); !answered || len(names) > 0 {
 		return &appcore.Refusal{Code: appcore.RefusePortUnsaved, Documents: names}
 	}
+	// The restart stops a running AI edit or a document's program.
+	if a.runningWork() > 0 {
+		return &appcore.Refusal{Code: appcore.RefuseStillRunning}
+	}
 	if !a.updating.CompareAndSwap(false, true) {
 		return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow}
 	}

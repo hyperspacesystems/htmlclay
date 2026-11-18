@@ -4,6 +4,7 @@ import PreviewCore
 struct UpdatesPane: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
+    @Environment(\.openURL) private var openURL
 
     static func short(_ version: String) -> String {
         UpdateState.short(version)
@@ -34,12 +35,15 @@ struct UpdatesPane: View {
                 KilnRowDivider()
                 KilnRow(title: Strings.Updates.automatic) {
                     Toggle(isOn: Binding(
-                        get: { model.snapshot.update.automatic },
-                        set: { model.send(.setAutoUpdate($0)) }
+                        get: { model.isSample ? model.snapshot.update.automatic : (updater?.automatic ?? true) },
+                        set: { on in
+                            if model.isSample { model.send(.setAutoUpdate(on)) } else { updater?.setAutomatic(on) }
+                        }
                     )) {
                         EmptyView()
                     }
                     .toggleStyle(KilnSwitchStyle())
+                    .disabled(!model.isSample && updater?.started != true)
                 }
             }
             HStack(spacing: 4) {
@@ -52,7 +56,7 @@ struct UpdatesPane: View {
                         .foregroundStyle(kiln.muted)
                 }
                 KilnLink(Strings.Updates.whatsNew) {
-                    model.say(Strings.Updates.wouldShowWhatsNew)
+                    if let url = URL(string: Strings.Updates.whatsNewURL) { openURL(url) }
                 }
             }
             .padding(.top, 10)
@@ -86,7 +90,7 @@ struct UpdatesPane: View {
                     updater?.checkNow()
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
-                .disabled(updater == nil)
+                .disabled(updater?.started != true)
             }
         }
     }

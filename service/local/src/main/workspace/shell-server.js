@@ -357,6 +357,20 @@ function createShellServer({ authority, rootPool, observerFor, settings, appVers
     return NOT_AN_API_ROUTE;
   }
 
+  // A starter template's preview image; false when the address is not one.
+  async function serveThumbnail(req, res, url) {
+    const thumbnail = req.method === 'GET' && url.pathname.match(/^\/templates\/([a-z0-9-]+)\.svg$/);
+    const card = thumbnail && TEMPLATE_ROWS.find(item => item.id === thumbnail[1] && item.thumbnail);
+    if (!card) return false;
+    const bytes = await fs.readFile(path.join(__dirname, '../document-templates', card.thumbnail));
+    res.writeHead(200, {
+      'Content-Type': 'image/svg+xml', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-cache',
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+    });
+    res.end(bytes);
+    return true;
+  }
+
   async function handle(req, res) {
     const url = new URL(req.url, origin);
     if (req.headers.host !== new URL(origin).host) return sendJson(res, 403, { error: 'Forbidden', reason: 'forbidden' });
@@ -391,16 +405,7 @@ function createShellServer({ authority, rootPool, observerFor, settings, appVers
       });
       return res.end(html);
     }
-    const thumbnail = req.method === 'GET' && url.pathname.match(/^\/templates\/([a-z0-9-]+)\.svg$/);
-    const card = thumbnail && TEMPLATE_ROWS.find(item => item.id === thumbnail[1] && item.thumbnail);
-    if (card) {
-      const bytes = await fs.readFile(path.join(__dirname, '../document-templates', card.thumbnail));
-      res.writeHead(200, {
-        'Content-Type': 'image/svg+xml', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-cache',
-        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
-      });
-      return res.end(bytes);
-    }
+    if (await serveThumbnail(req, res, url)) return;
     const asset = manifest.assets.find(item => `/${item.path}` === url.pathname);
     if (!asset) return sendJson(res, 404, { error: 'Not found', reason: 'missing' });
     const bytes = await fs.readFile(path.join(assetDir, asset.path));
@@ -413,10 +418,15 @@ function createShellServer({ authority, rootPool, observerFor, settings, appVers
     token, bootstrapSecret,
     autoNamer,
     get origin() { return origin; },
-    // One /api/ request that a host in front of this server already admitted. Needs
+    // One /api/ request, or a template preview, that a host in front of this server already admitted. Needs
     // the fixed origin option, since there is no listener of its own to set one.
     api(req, res) {
       const url = new URL(req.url, origin);
+      if (url.pathname.startsWith('/templates/')) {
+        return serveThumbnail(req, res, url).then(served => {
+          if (!served) sendJson(res, 404, { error: 'Not found', reason: 'missing' });
+        }, error => fail(res, error));
+      }
       return serveApi(req, res, url).then(answered => {
         if (answered === NOT_AN_API_ROUTE) sendJson(res, 404, { error: 'Not found', reason: 'missing' });
       }, error => fail(res, error));

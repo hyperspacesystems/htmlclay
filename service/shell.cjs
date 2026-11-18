@@ -21,6 +21,8 @@ const { IGNORED } = require('./local/src/main/root-observer.js');
 
 const PREFIX = '/v1/shell';
 const READ = /^\/api\/(bootstrap|roots|events|roots\/[^/]+\/(tree|list|search|document|source|versions|version|download|consents))$/;
+// A starter template's preview image, which an <img> on the dashboard loads.
+const TEMPLATE = /^\/templates\/[a-z0-9-]+\.svg$/;
 // The routes that change a document, each answered by Go's own route for it.
 const WRITES = { PUT: /^\/api\/roots\/[^/]+\/source$/, POST: /^\/api\/roots\/[^/]+\/restore$/ };
 const COMMANDS_PATH = /^\/api\/roots\/[^/]+\/commands$/;
@@ -236,7 +238,7 @@ function mountShell(service, { appVersion }) {
       if (!COMMANDS.has(commandOf(body))) return refuse(res, 501, 'unsupported', 'Not available yet');
       return shell.api(copy, res);
     }
-    if (!(req.method === 'GET' && READ.test(pathname)) && !WRITES[req.method]?.test(pathname)) {
+    if (!(req.method === 'GET' && (READ.test(pathname) || TEMPLATE.test(pathname))) && !WRITES[req.method]?.test(pathname)) {
       return refuse(res, 501, 'unsupported', 'Not available yet');
     }
     return shell.api(req, res);

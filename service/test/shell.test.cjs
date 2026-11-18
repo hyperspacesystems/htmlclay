@@ -103,3 +103,14 @@ test('a root Go stops serving leaves the workspace', async (t) => {
   assert.deepEqual((await shell(s, '/api/roots')).body, []);
   assert.equal((await shell(s, '/api/roots/notes/tree')).status, 404);
 });
+
+test('a template preview comes through Go for the dashboard\'s cards', async (t) => {
+  const { s } = await servedNotes(t);
+  const preview = await call(s, 'GET', '/v1/shell/templates/kanban.svg', { stream: true, headers: {
+    'x-trial-public-origin': DASHBOARD, 'x-trial-epoch': GO_EPOCH, 'x-trial-peer-epoch': s.ready.epoch,
+  } });
+  preview.resume();
+  assert.equal(preview.statusCode, 200, 'the kanban preview');
+  assert.equal(preview.headers['content-type'], 'image/svg+xml');
+  assert.equal((await shell(s, '/templates/no-such-template.svg')).status, 404);
+});

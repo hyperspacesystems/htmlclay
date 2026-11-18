@@ -62,6 +62,18 @@ func Tools(engines map[string][]string, env []string) []Tool {
 	return tools
 }
 
+// FirstFound is the tool AI editing uses when none is chosen: the first of
+// Claude and Codex installed, else Claude, whose refusal then says to install it.
+// A nil env reads the login PATH.
+func FirstFound(env []string) string {
+	for _, t := range Tools(nil, env) {
+		if t.Found {
+			return t.ID
+		}
+	}
+	return "claude"
+}
+
 // ErrCommand refuses a custom command line that is empty or has an unclosed quote.
 var ErrCommand = errors.New("the command is empty or has an unclosed quote")
 

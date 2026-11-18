@@ -284,3 +284,22 @@ func TestOwnsIsWhatTheServerAnswers(t *testing.T) {
 		}
 	}
 }
+
+func TestTemplatePreviewsGoToTheServiceWithoutTheToken(t *testing.T) {
+	var got []string
+	s, _ := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+	}))
+	if !s.Owns("/templates/kanban.svg") {
+		t.Fatal("the dashboard does not own a template preview, so the address goes on to a document site")
+	}
+	if w := do(s, "GET", "/templates/kanban.svg", nil); w.Code != http.StatusOK || len(got) != 1 || got[0] != "/templates/kanban.svg" {
+		t.Fatalf("GET /templates/kanban.svg = %d, service saw %v; want the service to answer it", w.Code, got)
+	}
+	for _, p := range []string{"/templates/../api/roots", "/templates/kanban.html", "/templates/a/b.svg"} {
+		if s.Owns(p) {
+			t.Errorf("Owns(%q) = true for an address that is no template preview", p)
+		}
+	}
+}

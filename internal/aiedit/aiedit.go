@@ -246,7 +246,7 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 	engines := resolveEngines(o.Engines)
 	defaultName := strings.ToLower(o.Default)
 	if defaultName == "" {
-		defaultName = "claude"
+		defaultName = FirstFound(nil)
 	}
 	fallback, ok := engines[defaultName]
 	if !ok {

@@ -41,4 +41,9 @@ final class SparkleDriver: UpdateDriver {
 
     func installNow() { bridge?.installNow() }
     func checkNow() { bridge?.checkNow() }
+
+    var automatic: Bool {
+        get { bridge?.automatic ?? true }
+        set { bridge?.automatic = newValue }
+    }
 }

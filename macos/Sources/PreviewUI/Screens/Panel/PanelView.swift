@@ -17,8 +17,9 @@ public struct PanelView: View {
     public init(actions: PanelActions = PanelActions()) { self.actions = actions }
 
     public var body: some View {
+        let _ = model.updaterRev
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Self.topSections(model.snapshot), id: \.self) {
+            ForEach(Self.topSections(model.snapshot, prepared: model.updater?.prepared), id: \.self) {
                 section(for: $0)
             }
             if model.snapshot.documents.isEmpty {
@@ -39,11 +40,15 @@ public struct PanelView: View {
         .task { focus = nil }
     }
 
-    static func topSections(_ s: HostSnapshot) -> [PanelSection] {
+    /// `prepared` is the version Sparkle has ready on the Mac, where the host's own
+    /// update state stays empty.
+    static func topSections(_ s: HostSnapshot, prepared: String? = nil) -> [PanelSection] {
         var sections: [PanelSection] = [s.hostStopped ? .hostStopped : .openDashboard]
         let refused = s.waiting.contains { $0.kind == .syncKeyRefused }
         if refused { sections.append(.keyRefused) }
-        if s.update.ready != nil, PanelControls.showsUpdate(can: s.hostCan(HostActionType.updateStart)) {
+        if prepared != nil {
+            sections.append(.update)
+        } else if s.update.ready != nil, PanelControls.showsUpdate(can: s.hostCan(HostActionType.updateStart)) {
             sections.append(s.update.finishing ? .finishing : .update)
         }
         if s.waiting.contains(where: { $0.earnsDot && $0.kind != .syncKeyRefused }) { sections.append(.waiting) }
@@ -81,13 +86,14 @@ public struct PanelView: View {
                 }
             }
         case .update:
-            let ready = model.snapshot.update.ready ?? model.snapshot.update.current
+            let sparkle = model.updater?.prepared
+            let ready = sparkle ?? model.snapshot.update.ready ?? model.snapshot.update.current
             KilnCard {
                 KilnRow(title: Strings.Panel.updateReady(UpdatesPane.short(ready))) {
                     Squircle(.jade, symbol: Symbols.update)
                 } trailing: {
                     Button(Strings.Panel.restart) {
-                        model.send(.startUpdate)
+                        if sparkle != nil { model.updater?.restartToUpdate() } else { model.send(.startUpdate) }
                     }
                     .buttonStyle(KilnButtonStyle(.primary))
                 }

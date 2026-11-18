@@ -349,7 +349,7 @@ public enum Strings {
         public static let versionDot = "."
         public static func wouldRestart(_ version: String) -> String { "Build 1: this would restart HTML Clay into \(version)." }
         public static let wouldCheck = "Build 1: this would check for a new version."
-        public static let wouldShowWhatsNew = "Build 1: this would show what changed in the new version."
+        public static let whatsNewURL = "https://github.com/panphora/htmlclay/blob/main/CHANGELOG.md"
         // copy: dialog title when an AI edit or a document's program is still running at Restart to update, max 50 chars
         public static let runningWorkTitle = "Something is still running"
         // copy: dialog body for the same, says restarting stops it, max 140 chars

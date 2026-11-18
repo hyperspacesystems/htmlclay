@@ -403,7 +403,10 @@ const verdicts = tabs.map((tab) => {
 
   const doc = docTexts.get(tab.index) || '';
   if (acks.length === 0) reasons.push('no acked save');
-  else if (!doc.includes(acks[acks.length - 1].marker)) {
+  else if (!doc.includes(acks[acks.length - 1].marker) &&
+    // A save sent after the last ack that timed out may still have been written:
+    // its outcome is unknown, so the document may hold it instead.
+    !own.some((record) => record.n > acks[acks.length - 1].n && record.outcome === 'error' && doc.includes(record.marker))) {
     reasons.push(`the document does not hold the last ack ${acks[acks.length - 1].marker} at ${acks[acks.length - 1].t}`);
   }
 

@@ -42,6 +42,10 @@ final class FakeDriver: UpdateDriver {
 
     func checkNow() { log.add("check") }
 
+    var automatic = true {
+        didSet { log.add("automatic \(automatic)") }
+    }
+
     func send(_ event: UpdateEvent) { events?(event) }
 
     func skipReason(_ version: String) -> String? { skip?(version) }
@@ -250,6 +254,14 @@ final class UpdateCoordinatorTests: XCTestCase {
         let ok = await rig.coordinator.terminate(quitter: quitter(rig.log, exits: false, result: false))
         rig.log.add("reply \(ok)")
         XCTAssertEqual(rig.log.lines, ["prepare 9.0.2 quit", "quit force=true", "abort -", "reply false"])
+    }
+
+    func testUpdateAutomaticallyReachesSparkle() async {
+        let rig = Rig()
+        await rig.coordinator.start(allowed: true)
+        rig.coordinator.setAutomatic(false)
+        XCTAssertFalse(rig.coordinator.automatic)
+        XCTAssertTrue(rig.log.lines.contains("automatic false"))
     }
 
     func testACheckThatFindsNothingEnds() async {

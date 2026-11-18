@@ -18,6 +18,8 @@ public protocol UpdateDriver: AnyObject {
     func start(events: @escaping @MainActor (UpdateEvent) -> Void, skipReason: @escaping @MainActor (String) -> String?)
     func installNow()
     func checkNow()
+    /// Whether Sparkle checks for and installs updates by itself.
+    var automatic: Bool { get set }
 }
 
 @MainActor
@@ -156,6 +158,14 @@ public final class UpdateCoordinator {
     }
 
     public func checkNow() { driver?.checkNow() }
+
+    /// Settings › Updates › Update automatically. Sparkle owns it on the Mac.
+    public var automatic: Bool { driver?.automatic ?? true }
+
+    public func setAutomatic(_ on: Bool) {
+        driver?.automatic = on
+        onChange?()
+    }
 
     /// The answer to `htmlclay update-now --version target` (C4), ported branch by branch from
     /// `(a *app) updateNow` in cmd/htmlclay/update_now.go.

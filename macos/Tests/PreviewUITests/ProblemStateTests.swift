@@ -9,6 +9,8 @@ final class ProblemStateTests: XCTestCase {
     func testOverlaysToggle() {
         let host = SampleHost(persona: .syncedWithTeams)
         XCTAssertEqual(PanelView.topSections(host.current), [.openDashboard, .waiting, .syncLine])
+        XCTAssertEqual(PanelView.topSections(host.current, prepared: "9.0.2"), [.openDashboard, .update, .waiting, .syncLine],
+                       "on the Mac Sparkle's prepared update shows the restart row")
         host.toggle(.keyRefused)
         XCTAssertTrue(host.isOn(.keyRefused))
         XCTAssertEqual(host.current.count(in: .sync), 1)

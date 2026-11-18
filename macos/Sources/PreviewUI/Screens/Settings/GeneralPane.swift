@@ -82,7 +82,7 @@ struct GeneralPane: View {
                             KilnRadio(on: row.selected)
                         }
                         .buttonStyle(.plain)
-                        .disabled(row.selected)
+                        .disabled(row.selected || !row.selectable)
                     }) {
                         if row.custom {
                             Button(Strings.General.aiCustomButton) {

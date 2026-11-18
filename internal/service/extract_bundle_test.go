@@ -19,7 +19,7 @@ func TestExtractedServiceRuns(t *testing.T) {
 	if !Bundled() {
 		t.Fatal("built with service_bundle but carries no program")
 	}
-	cmd, err := Install(t.TempDir())
+	cmd, err := Install(t.TempDir(), false)
 	if err != nil {
 		t.Fatalf("install: %v", err)
 	}

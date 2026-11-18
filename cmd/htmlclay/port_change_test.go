@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"testing"
@@ -173,5 +175,40 @@ func TestSetPortMovesBackToAFormerPort(t *testing.T) {
 	}
 	if got := a.rt.cfg.Port(); got != port {
 		t.Fatalf("port = %d, want %d", got, port)
+	}
+}
+
+func TestSetPortWaitsForARunningAIEdit(t *testing.T) {
+	home := evalTempHome(t)
+	file := filepath.Join(home, "notes", "page.htmlclay")
+	writeTestFile(t, file, servedTestDocument)
+	a := newServedTestApp(t, home, t.TempDir())
+	restarted := false
+	a.rt.restartHost = func() { restarted = true }
+	if _, refusal := a.do(context.Background(), coreAction(t, "open-first", "file.open", map[string]string{"path": file}), ChannelTray); refusal != nil {
+		t.Fatalf("file.open refused: %+v", refusal)
+	}
+	core, ok := a.wireCoreFor(file)
+	if !ok {
+		t.Fatal("no wire core for the document")
+	}
+	core.AIEdit.Mu.Lock()
+	if core.AIEdit.Running == nil {
+		core.AIEdit.Running = map[string]wire.AIEditRun{}
+	}
+	core.AIEdit.Running[file] = wire.AIEditRun{}
+	core.AIEdit.Mu.Unlock()
+	t.Cleanup(func() {
+		core.AIEdit.Mu.Lock()
+		delete(core.AIEdit.Running, file)
+		core.AIEdit.Mu.Unlock()
+	})
+
+	refusal := a.runEffect(context.Background(), appcore.Effect{Type: "host.setPort", Port: freeLoopbackPort(t)})
+	if refusal == nil || refusal.Code != appcore.RefuseStillRunning {
+		t.Fatalf("host.setPort during an AI edit = %+v, want %s", refusal, appcore.RefuseStillRunning)
+	}
+	if restarted {
+		t.Fatal("the port change restarted the app and stopped the AI edit")
 	}
 }

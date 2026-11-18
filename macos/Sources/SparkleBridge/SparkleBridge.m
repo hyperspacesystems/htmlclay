@@ -12,6 +12,8 @@ static const NSInteger hcSUNoUpdateError = 1001;
 - (void)checkForUpdatesInBackground;
 @property (nonatomic, readonly) BOOL canCheckForUpdates;
 @property (nonatomic, readonly) BOOL sessionInProgress;
+@property (nonatomic) BOOL automaticallyChecksForUpdates;
+@property (nonatomic) BOOL automaticallyDownloadsUpdates;
 @end
 
 @protocol HCSPUStandardUserDriver <NSObject>
@@ -178,6 +180,20 @@ static void hcSend(HCSparkleBridge *bridge, HCSparkleEvent event, NSString *text
         }
         self->_installNow();
     });
+}
+
+- (BOOL)automatic {
+    id<HCSPUUpdater> u = _updater;
+    return u == nil ? YES : [u automaticallyChecksForUpdates];
+}
+
+- (void)setAutomatic:(BOOL)on {
+    id<HCSPUUpdater> u = _updater;
+    if (u == nil) {
+        return;
+    }
+    [u setAutomaticallyChecksForUpdates:on];
+    [u setAutomaticallyDownloadsUpdates:on];
 }
 
 - (void)checkNow {

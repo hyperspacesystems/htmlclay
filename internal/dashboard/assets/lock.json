@@ -2,9 +2,9 @@
   "package": {
     "name": "@panphora/hyperclay-workspace",
     "version": "0.13.1",
-    "ref": "06f46f4",
-    "commit": "06f46f4cbe332fb30dd9081ac9168dfe64cc84fa",
-    "committedAt": "2026-11-18T00:15:11-05:00"
+    "ref": "7e3bc64",
+    "commit": "7e3bc64cb3d1157603b59a500f5d40f2940710be",
+    "committedAt": "2026-11-18T01:32:14-05:00"
   },
   "files": {
     "assets/ibm-plex-mono-latin-400-normal-A2WATXFY.woff2": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7",

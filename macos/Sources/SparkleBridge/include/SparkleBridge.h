@@ -21,6 +21,9 @@ typedef NS_ENUM(NSInteger, HCSparkleEvent) {
 - (void)start;
 - (void)installNow;
 - (void)checkNow;
+/// Whether Sparkle checks for and installs updates by itself, which Sparkle
+/// keeps in the app's defaults. Main thread only; YES until Sparkle starts.
+@property (nonatomic) BOOL automatic;
 @end
 
 NS_ASSUME_NONNULL_END

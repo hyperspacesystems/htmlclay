@@ -17,11 +17,13 @@ public struct AIToolRow: Equatable, Sendable {
     public var placeholder: String
     /// True for the custom command row, which has no model field.
     public var custom: Bool
+    /// False for the custom command row before a command is set: there is nothing to pick yet.
+    public var selectable: Bool
 
     public init(id: String, title: String, subtitle: String, selected: Bool = false,
-                model: String = "", placeholder: String = "", custom: Bool = false) {
+                model: String = "", placeholder: String = "", custom: Bool = false, selectable: Bool = true) {
         self.id = id; self.title = title; self.subtitle = subtitle; self.selected = selected
-        self.model = model; self.placeholder = placeholder; self.custom = custom
+        self.model = model; self.placeholder = placeholder; self.custom = custom; self.selectable = selectable
     }
 }
 
@@ -46,6 +48,10 @@ public enum SettingsControls {
                                   subtitle: tool.command.isEmpty ? Strings.General.aiCustomSub : tool.command,
                                   selected: prefs.aiEditTool == tool.id,
                                   custom: true))
+        }
+        if !prefs.aiEditTools.contains(where: { $0.custom }) {
+            rows.append(AIToolRow(id: "custom", title: Strings.General.aiCustomTitle,
+                                  subtitle: Strings.General.aiCustomSub, custom: true, selectable: false))
         }
         return rows
     }

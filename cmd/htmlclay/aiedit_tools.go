@@ -50,12 +50,13 @@ func (a *app) forgetAITools() {
 	a.aiTools.mu.Unlock()
 }
 
-// aiEditTool is the engine AI editing uses when a request names none.
+// aiEditTool is the engine AI editing uses when a request names none. With no
+// choice saved, that is the one aiedit.Run picks.
 func (a *app) aiEditTool() string {
 	if name, _ := a.rt.cfg.AIEditEngines(); name != "" {
 		return name
 	}
-	return "claude"
+	return aiedit.FirstFound(nil)
 }
 
 func (a *app) setAIEditModel(e appcore.Effect) *appcore.Refusal {

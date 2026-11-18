@@ -166,7 +166,10 @@ final class SettingsControlsTests: XCTestCase {
         codexOnly.aiEditTool = "codex"
         codexOnly.aiEditTools = [AIEditTool(id: "codex", found: true)]
         let codex = SettingsControls.aiToolRows(codexOnly)
-        XCTAssertEqual(codex.map(\.id), ["codex"])
+        XCTAssertEqual(codex.map(\.id), ["codex", "custom"])
+        XCTAssertTrue(codex[1].custom)
+        XCTAssertFalse(codex[1].selectable, "the custom row cannot be picked before a command is set")
+        XCTAssertEqual(codex[1].subtitle, Strings.General.aiCustomSub)
         XCTAssertEqual(codex[0].title, Strings.General.aiToolCodex)
         XCTAssertTrue(codex[0].selected)
         XCTAssertEqual(codex[0].placeholder, Strings.General.aiCodexDefault)

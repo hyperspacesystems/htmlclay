@@ -55,6 +55,11 @@ const appAPIPrefix = "/api/app/"
 // and the answer is only a redirect to the document's own address.
 var appOpenPath = regexp.MustCompile(`^/api/app/folders/[^/]+/open$`)
 
+// templatePath is a starter template's preview image, which the live-room
+// service answers. An <img> cannot add the token, and the images are the app's
+// own, so they need neither the token nor a session.
+var templatePath = regexp.MustCompile(`^/templates/[a-z0-9-]+\.svg$`)
+
 // Options configures one dashboard.
 type Options struct {
 	// Host is the exact Host header the dashboard answers, such as
@@ -269,7 +274,7 @@ func personStarted(r *http.Request) bool {
 // document site's address once, and only a path that is none of these may be
 // sent on to that site.
 func (s *Server) Owns(p string) bool {
-	return strings.HasPrefix(p, "/api/") || p == "/enter" || pagePath.MatchString(p) || s.assetPaths[p]
+	return strings.HasPrefix(p, "/api/") || p == "/enter" || pagePath.MatchString(p) || s.assetPaths[p] || templatePath.MatchString(p)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -308,6 +313,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.page(w, r)
 	case s.assetPaths[p]:
 		s.asset(w, r, strings.TrimPrefix(p, "/"))
+	case templatePath.MatchString(p) && s.api != nil:
+		s.api.ServeHTTP(w, r)
 	default:
 		refuse(w, http.StatusNotFound, "missing")
 	}

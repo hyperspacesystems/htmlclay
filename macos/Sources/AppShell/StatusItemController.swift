@@ -83,7 +83,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         if let children = row.children {
             let submenu = NSMenu()
             for child in children {
-                let childItem = NSMenuItem(title: oneMenuTitle(for: child), action: #selector(openMenuChild(_:)), keyEquivalent: "")
+                let childItem = NSMenuItem(title: oneMenuTitle(for: child), action: child.enabled ? #selector(openMenuChild(_:)) : nil, keyEquivalent: "")
                 childItem.target = self
                 childItem.representedObject = child.id
                 childItem.isEnabled = child.enabled
