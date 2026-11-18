@@ -14,9 +14,16 @@ struct AdvancedPane: View {
             let service = SettingsControls.serviceStatus(model.snapshot.host.service)
             KilnCard {
                 KilnRow(title: Strings.Advanced.port, subtitle: Strings.Advanced.portSub) {
-                    Text(SettingsControls.port(isSample: model.isSample, port: model.snapshot.host.port))
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundStyle(kiln.ink2)
+                    HStack(spacing: 10) {
+                        Text(SettingsControls.port(isSample: model.isSample, port: model.snapshot.host.port))
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundStyle(kiln.ink2)
+                        Button(Strings.Advanced.changePort) {
+                            model.sheet = .changePort
+                        }
+                        .buttonStyle(KilnButtonStyle(.plain))
+                        .disabled(!model.isSample && !model.can(HostActionType.setPort))
+                    }
                 }
                 KilnRowDivider()
                 KilnRow(title: Strings.Advanced.liveService, subtitle: Strings.Advanced.liveServiceSub) {
@@ -40,36 +47,20 @@ struct AdvancedPane: View {
                     }
                 }
             }
-            if !model.isSample && SettingsControls.showsSyncLog(isSample: false, can: model.can(HostActionType.syncRevealLog)) {
-                KilnGroupTitle(Strings.Advanced.troubleshooting)
-                KilnCard {
-                    KilnRow(title: Strings.Advanced.logs) {
+            KilnGroupTitle(Strings.Advanced.troubleshooting)
+            KilnCard {
+                KilnRow(title: Strings.Advanced.appLog, subtitle: Strings.Advanced.appLogSub) {
+                    Button(Strings.Advanced.showAppLog) {
+                        model.send(.revealLog)
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                    .disabled(!model.isSample && !model.can(HostActionType.appRevealLog))
+                }
+                if SettingsControls.showsSyncLog(model.snapshot.sync) {
+                    KilnRowDivider()
+                    KilnRow(title: Strings.Advanced.syncLog, subtitle: Strings.Advanced.syncLogSub) {
                         Button(Strings.Advanced.showSyncLog) {
                             model.send(.revealSyncLog)
-                        }
-                        .buttonStyle(KilnButtonStyle(.plain))
-                    }
-                }
-            }
-            if SettingsControls.showsTroubleshooting(isSample: model.isSample) {
-                KilnGroupTitle(Strings.Advanced.troubleshooting)
-                KilnCard {
-                    KilnRow(title: Strings.Advanced.logs) {
-                        HStack(spacing: 8) {
-                            Button(Strings.Advanced.showAppLog) {
-                                model.say(Strings.Advanced.wouldShowAppLog)
-                            }
-                            .buttonStyle(KilnButtonStyle(.plain))
-                            Button(Strings.Advanced.showSyncLog) {
-                                model.say(Strings.Advanced.wouldShowSyncLog)
-                            }
-                            .buttonStyle(KilnButtonStyle(.plain))
-                        }
-                    }
-                    KilnRowDivider()
-                    KilnRow(title: Strings.Advanced.stopOpening) {
-                        Button(Strings.Advanced.remove) {
-                            model.say(Strings.Advanced.wouldRemoveFileType)
                         }
                         .buttonStyle(KilnButtonStyle(.plain))
                     }
@@ -84,7 +75,7 @@ struct AdvancedPane: View {
             Text(size)
                 .font(.system(size: 13))
                 .foregroundStyle(kiln.muted)
-            if SettingsControls.showsTroubleshooting(isSample: model.isSample) {
+            if SettingsControls.showsStorageTotals(isSample: model.isSample) {
                 Button(Strings.Advanced.showInFinder) {
                     model.say(note)
                 }

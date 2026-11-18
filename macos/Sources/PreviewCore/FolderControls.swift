@@ -16,7 +16,9 @@ public struct FolderToggle: Equatable, Sendable {
 
 /// The host action types a page or panel asks about, so no view writes them as text.
 public enum HostActionType {
-    public static let appOpenKeptPage = "app.openKeptPage"
+    public static let appOpenRecoveredChanges = "app.openRecoveredChanges"
+    public static let appRevealLog = "app.revealLog"
+    public static let setPort = "host.setPort"
     public static let relinkFolder = "folder.relink"
     public static let setSynced = "folder.setSynced"
     public static let setFraming = "folder.setFraming"

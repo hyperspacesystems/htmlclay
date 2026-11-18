@@ -130,6 +130,24 @@ const (
 	RefuseStillRunning = "still-running"
 	// RefuseNotYet is an action whose effect the app has no code for yet.
 	RefuseNotYet = "not-yet"
+
+	// RefusePortInvalid is a port outside 1024 to 65535.
+	RefusePortInvalid = "port-invalid"
+	// RefusePortSame is moving to the port the app already uses.
+	RefusePortSame = "port-same"
+	// RefusePortTaken is a port another program holds.
+	RefusePortTaken = "port-taken"
+	// RefusePortUnsaved is a port change held back by unsaved edits (Documents).
+	RefusePortUnsaved = "port-unsaved"
+	// RefuseNoSuchTool is an AI tool the picker does not list.
+	RefuseNoSuchTool = "no-such-tool"
+	// RefuseCommandInvalid is a custom command with an unclosed quote or nothing in it.
+	RefuseCommandInvalid = "command-invalid"
+	// RefuseCommandNotFound is a custom command whose program is not on this computer.
+	RefuseCommandNotFound = "command-not-found"
+	// RefuseNotOnThisSystem is an action this system does in another place: the
+	// Mac app runs file types and Sparkle itself.
+	RefuseNotOnThisSystem = "not-on-this-system"
 )
 
 // OtherFolder is a folder that matters to the check: how the asked-for folder stands

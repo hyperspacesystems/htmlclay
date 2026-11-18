@@ -164,7 +164,7 @@ func TestFableEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if got := argAfter(t, argvOf(t, argvFile), "--model"); got != "claude-fable-5-1" {
+	if got := argAfter(t, argvOf(t, argvFile), "--model"); got != "claude-fable-5-2" {
 		t.Fatalf("--model = %q", got)
 	}
 	stdin := readText(t, stdinFile)

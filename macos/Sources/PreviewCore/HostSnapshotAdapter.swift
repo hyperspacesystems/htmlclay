@@ -25,7 +25,8 @@ public enum HostSnapshotAdapter {
             moveFolders: (wire.move?.folders ?? []).map {
                 MoveFolderInfo(id: $0.id, name: $0.name, port: $0.port, address: $0.address, synced: $0.synced ?? false, skip: $0.skip ?? "")
             },
-            moveBlockers: MoveBlockers(localRunning: wire.move?.localRunning ?? false, needsKey: wire.move?.needsKey ?? false)
+            moveBlockers: MoveBlockers(localRunning: wire.move?.localRunning ?? false, needsKey: wire.move?.needsKey ?? false),
+            recoveredChanges: wire.recoveredChanges ?? 0
         )
     }
 
@@ -120,7 +121,9 @@ public enum HostSnapshotAdapter {
             fileMissing: wire.fileMissing,
             allowedDocuments: wire.allowedDocuments,
             allTrustedFolders: wire.allTrustedFolders,
-            removedDocuments: wire.removedDocuments
+            removedDocuments: wire.removedDocuments,
+            isBuiltin: wire.builtin ?? false,
+            isOn: wire.on ?? false
         )
     }
 
@@ -166,7 +169,8 @@ public enum HostSnapshotAdapter {
             lastFinished: formatTime(wire.lastFinishedAt, now: now, calendar: calendar),
             fullName: wire.fullName,
             offlineChanges: wire.offlineChanges,
-            keyInFile: wire.keyStore == "file"
+            keyInFile: wire.keyStore == "file",
+            everOn: wire.everOn ?? false
         )
     }
 
@@ -176,7 +180,8 @@ public enum HostSnapshotAdapter {
             ready: wire.ready,
             checked: formatTime(wire.checkedAt, now: now, calendar: calendar),
             automatic: wire.automatic,
-            finishing: wire.finishing
+            finishing: wire.finishing,
+            checking: wire.checking ?? false
         )
     }
 
@@ -187,7 +192,13 @@ public enum HostSnapshotAdapter {
             appearance: Appearance(rawValue: wire.appearance) ?? .system,
             yourName: wire.yourName,
             useName: wire.useName,
-            openAtLoginChosen: wire.openAtLoginChosen
+            openAtLoginChosen: wire.openAtLoginChosen,
+            aiEditTool: wire.aiEditTool ?? "",
+            aiEditTools: (wire.aiEditTools ?? []).map {
+                AIEditTool(id: $0.id, custom: $0.custom ?? false, found: $0.found ?? false,
+                           model: $0.model ?? "", defaultModel: $0.defaultModel ?? "",
+                           models: $0.models ?? [], command: $0.command ?? "")
+            }
         )
     }
 

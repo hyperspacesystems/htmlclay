@@ -1,0 +1,99 @@
+package main
+
+import (
+	"encoding/json"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/panphora/htmlclay/internal/aiedit"
+	"github.com/panphora/htmlclay/internal/appcore"
+)
+
+// aiToolsFresh is how long the tool list is reused: finding Claude and Codex
+// reads PATH, and the snapshot is built often.
+const aiToolsFresh = 30 * time.Second
+
+type aiToolsCache struct {
+	mu    sync.Mutex
+	at    time.Time
+	tools []appcore.AIEditTool
+}
+
+// aiEditTools is the tool picker's list: Claude and Codex as found on the
+// login PATH, then the custom commands, each with the model chosen for it.
+func (a *app) aiEditTools() []appcore.AIEditTool {
+	a.aiTools.mu.Lock()
+	defer a.aiTools.mu.Unlock()
+	if a.aiTools.tools == nil || time.Since(a.aiTools.at) > aiToolsFresh {
+		_, engines := a.rt.cfg.AIEditEngines()
+		models := a.rt.cfg.AIEditModels()
+		tools := []appcore.AIEditTool{}
+		for _, t := range aiedit.Tools(engines, nil) {
+			tools = append(tools, appcore.AIEditTool{
+				ID:           t.ID,
+				Custom:       t.Custom,
+				Found:        t.Found,
+				Model:        models[t.ID],
+				DefaultModel: t.DefaultModel,
+				Models:       t.Models,
+				Command:      strings.Join(t.Command, " "),
+			})
+		}
+		a.aiTools.tools, a.aiTools.at = tools, time.Now()
+	}
+	return append([]appcore.AIEditTool(nil), a.aiTools.tools...)
+}
+
+func (a *app) forgetAITools() {
+	a.aiTools.mu.Lock()
+	a.aiTools.tools = nil
+	a.aiTools.mu.Unlock()
+}
+
+// aiEditTool is the engine AI editing uses when a request names none.
+func (a *app) aiEditTool() string {
+	if name, _ := a.rt.cfg.AIEditEngines(); name != "" {
+		return name
+	}
+	return "claude"
+}
+
+func (a *app) setAIEditModel(e appcore.Effect) *appcore.Refusal {
+	if err := a.rt.cfg.SetAIEditModel(e.Tool, e.Model); err != nil {
+		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "model"}
+	}
+	a.saveConfig("AI editing model")
+	a.forgetAITools()
+	return nil
+}
+
+func (a *app) setAIEditCustom(e appcore.Effect) *appcore.Refusal {
+	argv, err := aiedit.SplitCommand(e.Command)
+	if err != nil {
+		return &appcore.Refusal{Code: appcore.RefuseCommandInvalid, Field: "command"}
+	}
+	if err := aiedit.Find(argv[0]); err != nil {
+		return &appcore.Refusal{Code: appcore.RefuseCommandNotFound, Field: "command", OtherName: argv[0]}
+	}
+	a.rt.cfg.SetAIEditEngine(aiedit.CustomEngine, argv)
+	a.rt.cfg.SetAIEditDefault(aiedit.CustomEngine)
+	a.saveConfig("AI editing custom command")
+	a.forgetAITools()
+	return nil
+}
+
+func (a *app) setAIEditToolPreference(value json.RawMessage) *appcore.Refusal {
+	var id string
+	if json.Unmarshal(value, &id) != nil {
+		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+	}
+	for _, t := range a.aiEditTools() {
+		if t.ID == id && t.Found {
+			a.rt.cfg.SetAIEditDefault(id)
+			a.saveConfig("AI editing tool")
+			return nil
+		}
+	}
+	return &appcore.Refusal{Code: appcore.RefuseNoSuchTool, Field: "value"}
+}

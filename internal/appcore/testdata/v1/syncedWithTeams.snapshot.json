@@ -10,7 +10,10 @@
     "service": "running",
     "stopped": false,
     "can": {
-      "app.openKeptPage": true,
+      "aiEdit.setCustom": false,
+      "aiEdit.setModel": false,
+      "app.openRecoveredChanges": false,
+      "app.revealLog": false,
       "conflict.resolve": false,
       "dashboard.open": true,
       "document.export": true,
@@ -20,6 +23,9 @@
       "document.reveal": true,
       "document.versions": true,
       "file.open": true,
+      "fileTypes.makeDefault": false,
+      "fileTypes.setHTMLOpenWith": false,
+      "fileTypes.stopOpening": false,
       "folder.copyAddress": true,
       "folder.merge": true,
       "folder.relink": true,
@@ -33,16 +39,19 @@
       "folder.stopTrusting": true,
       "folder.trust": true,
       "host.quit": true,
+      "host.setPort": false,
       "move.quitLocal": false,
       "move.start": false,
       "prefs.set": true,
       "program.add": true,
       "program.askAgain": true,
+      "program.openExample": false,
       "program.relink": true,
       "program.remove": true,
       "program.removeAccess": true,
       "program.reveal": true,
       "program.setAllTrusted": true,
+      "program.setOn": false,
       "request.answer": true,
       "request.show": true,
       "service.restart": true,
@@ -50,6 +59,7 @@
       "sync.disconnect": false,
       "sync.revealLog": false,
       "sync.setPaused": false,
+      "update.check": false,
       "update.start": false,
       "waiting.markSeen": true
     }
@@ -326,7 +336,9 @@
       "fileMissing": false,
       "allowedDocuments": [],
       "allTrustedFolders": false,
-      "removedDocuments": []
+      "removedDocuments": [],
+      "builtin": false,
+      "on": false
     },
     {
       "id": "search-sh",
@@ -337,7 +349,9 @@
         "notes.htmlclay"
       ],
       "allTrustedFolders": false,
-      "removedDocuments": []
+      "removedDocuments": [],
+      "builtin": false,
+      "on": false
     }
   ],
   "requests": [
@@ -411,14 +425,17 @@
     "viewOnlyTeams": 1,
     "lastFinishedAt": "2026-11-12T14:58:00Z",
     "fullName": "David Miranda",
-    "keyStore": ""
+    "keyStore": "",
+    "everOn": true
   },
   "update": {
     "current": "2.0.3",
     "ready": null,
     "checkedAt": "2026-11-12T14:12:00Z",
     "automatic": true,
-    "finishing": false
+    "finishing": false,
+    "checking": false,
+    "downloadURL": ""
   },
   "preferences": {
     "openAtLogin": true,
@@ -426,7 +443,47 @@
     "aiEditing": true,
     "appearance": "system",
     "yourName": "David",
-    "useName": true
+    "useName": true,
+    "aiEditTool": "claude",
+    "aiEditTools": [
+      {
+        "id": "claude",
+        "custom": false,
+        "found": true,
+        "model": "claude-opus-5-5",
+        "defaultModel": "claude-opus-5-5",
+        "models": [
+          "claude-opus-5-5",
+          "claude-fable-5-2"
+        ],
+        "command": ""
+      },
+      {
+        "id": "codex",
+        "custom": false,
+        "found": false,
+        "model": "",
+        "defaultModel": "",
+        "models": [],
+        "command": ""
+      },
+      {
+        "id": "custom",
+        "custom": true,
+        "found": true,
+        "model": "",
+        "defaultModel": "",
+        "models": [],
+        "command": "my-agent {prompt}"
+      }
+    ]
   },
-  "move": null
+  "move": null,
+  "recoveredChanges": 0,
+  "fileTypes": {
+    "managed": false,
+    "default": "",
+    "htmlOpenWith": false,
+    "stopped": false
+  }
 }

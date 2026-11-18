@@ -5,10 +5,15 @@ enum PanelSection: Hashable {
     case openDashboard, hostStopped, keyRefused, update, finishing, waiting, syncLine, offline
 }
 
+enum PanelFocus: Hashable {
+    case openDashboard, openFile, template
+}
+
 public struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
     private let actions: PanelActions
+    @FocusState private var focus: PanelFocus?
     public init(actions: PanelActions = PanelActions()) { self.actions = actions }
 
     public var body: some View {
@@ -24,11 +29,6 @@ public struct PanelView: View {
                 KilnGroupTitle(Strings.Panel.recentDocuments)
                 documentsCard
             }
-            if model.snapshot.hostStopped, PanelControls.showsAppLog(isSample: model.isSample) {
-                KilnLink(Strings.Panel.showLogs) {
-                    model.say(Strings.Advanced.wouldShowAppLog)
-                }
-            }
             footer
             if let note = model.note {
                 PreviewNote(note)
@@ -36,6 +36,7 @@ public struct PanelView: View {
         }
         .padding(12)
         .frame(width: 382)
+        .task { focus = nil }
     }
 
     static func topSections(_ s: HostSnapshot) -> [PanelSection] {
@@ -55,6 +56,9 @@ public struct PanelView: View {
         case .openDashboard:
             Button(Strings.Panel.openDashboard, action: actions.openDashboard)
                 .buttonStyle(KilnButtonStyle(.openDashboard))
+                .focused($focus, equals: .openDashboard)
+                .focusEffectDisabled()
+                .focusRing(focused: focus == .openDashboard, cornerRadius: 9)
         case .hostStopped:
             KilnCard(kind: .err) {
                 KilnRow(title: Strings.Panel.hostStopped, subtitle: Strings.Panel.hostStoppedSub) {
@@ -297,38 +301,32 @@ public struct PanelView: View {
                 }
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            if model.snapshot.documents.isEmpty {
-                KilnLink(Strings.Panel.startFromTemplate, action: actions.openDashboard)
-            }
-            Spacer()
-            if model.snapshot.sync.connected,
-               PanelControls.showsSyncPause(can: model.can(HostActionType.syncSetPaused)) {
+            .focused($focus, equals: .openFile)
+            .focusEffectDisabled()
+            .focusRing(focused: focus == .openFile, cornerRadius: 7)
+            if PanelControls.showsNewFromTemplate(documents: model.snapshot.documents.count) {
+                Button(Strings.Panel.startFromTemplate, action: actions.openDashboard)
+                    .buttonStyle(KilnButtonStyle(.plain))
+                    .focused($focus, equals: .template)
+                    .focusEffectDisabled()
+                    .focusRing(focused: focus == .template, cornerRadius: 7)
+            } else if PanelControls.showsFooterSyncPause(documents: model.snapshot.documents.count,
+                                                        connected: model.snapshot.sync.connected,
+                                                        can: model.can(HostActionType.syncSetPaused)) {
                 Button(model.snapshot.sync.paused ? Strings.Panel.resumeSyncing : Strings.Panel.pauseSyncing) {
                     model.send(.setSyncPaused(!model.snapshot.sync.paused))
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
             }
-            Menu {
-                if PanelControls.showsKeptCopies(isSample: model.isSample, can: model.can(HostActionType.appOpenKeptPage)) {
-                    Button(Strings.Menu.keptCopies) {
-                        if model.isSample {
-                            model.say(Strings.Preview.wouldOpenKeptCopies)
-                        } else {
-                            model.send(.openKeptPage)
-                        }
-                    }
-                    Divider()
-                }
-                Button(Strings.Menu.settings) { actions.openSettings(.general) }
-                Button(Strings.Menu.checkForUpdates) { actions.openSettings(.updates) }
-                Divider()
-                Button(Strings.Menu.quit, action: actions.quit)
-            } label: {
+            Spacer()
+            Button(action: actions.openMenu) {
                 Image(systemName: Symbols.gear)
+                    .font(.system(size: 13))
+                    .foregroundStyle(kiln.muted)
+                    .frame(width: 24, height: 24)
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
+            .buttonStyle(.plain)
+            .accessibilityLabel(Strings.Menu.gear)
         }
     }
 }

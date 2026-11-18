@@ -171,6 +171,8 @@ func (a *app) aiEditProgramFact() (appcore.Program, bool) {
 	return appcore.Program{
 		ID:               aiEditProgramID,
 		Name:             aiEditProgramID,
+		Builtin:          true,
+		On:               a.rt.cfg.AIEditEnabled(),
 		AllowedDocuments: documents,
 		RemovedDocuments: []string{},
 	}, true

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/logging"
 )
 
@@ -38,6 +39,16 @@ type Policy interface {
 	// person decides later.
 	AskAIEdit(document string)
 	AIEditEngines() (string, map[string][]string)
+	// AIEditModels is the model each AI engine runs with, by engine name.
+	AIEditModels() map[string]string
+	// BuiltinFor answers whether document may run a built-in program now, and
+	// the folder the program works in.
+	BuiltinFor(document, program string) builtin.Access
+	// AskBuiltin raises the question for document and program. It answers at
+	// once; the person decides later.
+	AskBuiltin(document, program string)
+	// RevealFile shows a file in the file manager (file-search's reveal).
+	RevealFile(path string) error
 }
 
 type Core struct {
@@ -55,6 +66,7 @@ type Core struct {
 	helperSetting  map[string]bool
 	helperAskQuiet map[string]time.Time
 	AIEdit         aiEditRegistry
+	Builtin        builtinRegistry
 }
 
 func NewCore(docs Documents, policy Policy, logger *logging.Logger, writeError func(http.ResponseWriter, int, string)) *Core {

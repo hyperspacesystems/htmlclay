@@ -54,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         relay = RelayHostClient()
         model = AppModel(host: relay, initial: relay.last)
         model.folderChooser = OpenPanelFolderChooser()
+        model.fileTypes = MacFileTypes()
         alerts = AppAlerts(model: model)
         let opener = FileOpener(model: model)
         opener.onRefused = { [weak self] name, refusal in self?.alerts.cantOpen(name: name, text: refusal.text) }
@@ -75,7 +76,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                     host: HostCLI(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: home.map(CandidateHome.environment) ?? [:])),
                                     presenter: alerts, appPID: getpid(), version: version)
         statusItem.updates = updates
-        updates?.onChange = { [weak self] in self?.writeState() }
+        model.updater = updates
+        updates?.onChange = { [weak self] in
+            self?.writeState()
+            self?.model.updaterChanged()
+        }
         if let made = LoginItems.make(identity: Self.identity, candidateHome: home) {
             loginItems = LoginItemReconciler(service: made.service, legacyPlist: made.legacyPlist, defaults: .standard)
         }

@@ -6,6 +6,8 @@ public struct KilnPalette: Sendable {
     public let sideBorder: Color
     public let sideActive: Color
     public let sideActiveRing: Color
+    public let sideSelected: Color
+    public let sideSelectedInk: Color
     public let card: Color
     public let card2: Color
     public let cardSunk: Color
@@ -54,6 +56,8 @@ public extension KilnPalette {
         sideBorder: Color(css: 0x1C1A16, alpha: 0.09),
         sideActive: Color(css: 0xD9D0BF),
         sideActiveRing: Color(css: 0xB0680C, alpha: 0.34),
+        sideSelected: Color(css: 0x0064E1),
+        sideSelectedInk: Color(css: 0xF6F7F9),
         card: Color(css: 0xFCFBF7),
         card2: Color(css: 0xF5F2EA),
         cardSunk: Color(css: 0xEAE6DC),
@@ -100,6 +104,8 @@ public extension KilnPalette {
         sideBorder: Color(css: 0xF6F7F9, alpha: 0.06),
         sideActive: Color(css: 0x2B303F),
         sideActiveRing: Color(css: 0xF5A629, alpha: 0.34),
+        sideSelected: Color(css: 0x0A68D6),
+        sideSelectedInk: Color(css: 0xF6F7F9),
         card: Color(css: 0x282B34),
         card2: Color(css: 0x22252E),
         cardSunk: Color(css: 0x191B22),

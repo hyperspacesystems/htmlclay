@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/testutil"
 )
 
@@ -210,6 +211,13 @@ func TestM3ExportedContract(t *testing.T) {
 	t.Run("the Mac app's host offers every action it runs", func(t *testing.T) {
 		for _, snapshot := range snapshots {
 			for _, action := range implementedActions {
+				// A host the Mac app started leaves these to the app: Sparkle
+				// checks for and applies updates, and the app sets its own file
+				// types.
+				switch action {
+				case "update.check", "update.start", "fileTypes.makeDefault", "fileTypes.stopOpening", "fileTypes.setHTMLOpenWith":
+					continue
+				}
 				if !snapshot.Host.Can[action] {
 					t.Fatalf("revision %d says the host cannot run %s", snapshot.Rev, action)
 				}
@@ -270,10 +278,10 @@ func TestM3ExportedContract(t *testing.T) {
 
 	t.Run("a program carries its facts", func(t *testing.T) {
 		for _, snapshot := range snapshots {
-			if len(snapshot.Programs) != 1 {
-				t.Fatalf("revision %d lists %d program(s), want the registered one", snapshot.Rev, len(snapshot.Programs))
+			if len(snapshot.Programs) != 1+len(builtin.IDs) {
+				t.Fatalf("revision %d lists %d program(s), want the registered one and the built-in programs", snapshot.Rev, len(snapshot.Programs))
 			}
-			got := snapshot.Programs[0]
+			got := snapshot.Programs[len(builtin.IDs)]
 			if !contractProgramID.MatchString(got.ID) || got.Name != transcriptProgram || got.Path != program || got.FileMissing {
 				t.Fatalf("revision %d lists the program as %+v", snapshot.Rev, got)
 			}

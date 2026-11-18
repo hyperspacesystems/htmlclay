@@ -8,6 +8,8 @@ import (
 	"os"
 	"sort"
 	"time"
+
+	"github.com/panphora/htmlclay/internal/builtin"
 )
 
 const (
@@ -19,6 +21,7 @@ var (
 	ErrHelperNameInvalid   = errors.New("invalid helper name")
 	ErrHelperRegistryFull  = errors.New("helper program registry is full")
 	ErrHelperDecisionsFull = errors.New("helper decision registry is full")
+	ErrHelperNameReserved  = errors.New("That name belongs to a program built into HTML Clay. Choose another name.")
 )
 
 // HelperProgram is one registered program. ID is a stable opaque local id and is
@@ -135,6 +138,9 @@ func newHelperProgramID(programs []HelperProgram) (string, error) {
 func (c *Config) AddHelperProgram(name, path string) (HelperProgram, error) {
 	if !ValidHelperName(name) {
 		return HelperProgram{}, ErrHelperNameInvalid
+	}
+	if builtin.Is(name) {
+		return HelperProgram{}, ErrHelperNameReserved
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()

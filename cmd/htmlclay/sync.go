@@ -424,11 +424,13 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 	a.rt.syncMu.Lock()
 	defer a.rt.syncMu.Unlock()
 	record, err := a.syncRecordLocked()
+	everOn := err == nil && (record.Account != nil || len(record.Accounts) > 0 || len(record.SyncSessions) > 0)
 	if err != nil || record.Account == nil {
-		return appcore.SyncFacts{}, nil, nil, nil
+		return appcore.SyncFacts{EverOn: everOn}, nil, nil, nil
 	}
 	facts := appcore.SyncFacts{
 		Connected: true,
+		EverOn:    everOn,
 		Username:  record.Account.Username,
 		FullName:  record.Account.FullName,
 		KeySuffix: record.Account.KeySuffix,

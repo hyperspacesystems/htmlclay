@@ -14,7 +14,7 @@ struct ProgramsPane: View {
         guard let request = snapshot.requests.first(where: { $0.id == item.subjectID }), !request.program.isEmpty else { return item.title }
         let document = RequestControls.documentName(request)
         if request.program == ProgramControls.aiEditID { return Strings.Programs.aiEditWaiting(document: document) }
-        return Strings.Programs.wants(document: document, program: request.program)
+        return Strings.Programs.wants(document: document, program: ProgramControls.programTitle(request.program))
     }
 
     var body: some View {
@@ -24,6 +24,7 @@ struct ProgramsPane: View {
                 KilnNoteRow(Strings.Programs.intro)
             }
             waitingGroup
+            builtinGroup
             programsGroup
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -69,8 +70,23 @@ struct ProgramsPane: View {
         }
     }
 
+    @ViewBuilder private var builtinGroup: some View {
+        let programs = ProgramControls.builtinPrograms(model.snapshot)
+        if !programs.isEmpty {
+            KilnGroupTitle(Strings.Programs.builtin)
+            KilnCard {
+                ForEach(Array(programs.enumerated()), id: \.element.id) { index, program in
+                    if index > 0 {
+                        KilnRowDivider()
+                    }
+                    BuiltinProgramRow(program: program)
+                }
+            }
+        }
+    }
+
     @ViewBuilder private var programsGroup: some View {
-        let programs = model.snapshot.programs
+        let programs = ProgramControls.userPrograms(model.snapshot)
         if !programs.isEmpty {
             KilnGroupTitle(Strings.Programs.programs)
             KilnCard {
@@ -82,6 +98,69 @@ struct ProgramsPane: View {
                 }
             }
         }
+    }
+}
+
+/// One built-in program: its switch, its example, and a way into its page.
+struct BuiltinProgramRow: View {
+    let program: Program
+    @Environment(AppModel.self) private var model
+    @Environment(\.kiln) private var kiln
+
+    static func color(_ id: String) -> SquircleColor {
+        switch id {
+        case ProgramControls.fileSearchID: return .sky
+        case ProgramControls.fileConvertID: return .teal
+        default: return .jade
+        }
+    }
+
+    static func symbol(_ id: String) -> String {
+        switch id {
+        case ProgramControls.fileSearchID: return Symbols.search
+        case ProgramControls.fileConvertID: return Symbols.convert
+        default: return Symbols.watch
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 11) {
+            Squircle(Self.color(program.id), symbol: Self.symbol(program.id))
+            Button {
+                model.route = .program(program.id)
+            } label: {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(ProgramControls.programTitle(program.id))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(kiln.ink)
+                    Text(ProgramControls.builtinSubtitle(program))
+                        .font(.system(size: 13))
+                        .foregroundStyle(kiln.muted)
+                        .padding(.top, 2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if program.isOn {
+                Button(Strings.Programs.openExample) {
+                    model.send(.openProgramExample(programID: program.id))
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
+            }
+            Toggle(isOn: Binding(
+                get: { program.isOn },
+                set: { model.send(.setProgramOn(programID: program.id, on: $0)) }
+            )) {
+                EmptyView()
+            }
+            .toggleStyle(KilnSwitchStyle())
+            Image(systemName: Symbols.chevronRight)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(kiln.faint)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }
 

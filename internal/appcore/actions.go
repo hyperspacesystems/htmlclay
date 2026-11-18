@@ -43,27 +43,34 @@ type Action struct {
 // ActionClasses is every action type. An action type missing here is refused, and
 // TestPlanEveryTypeHasAClass fails when Plan knows a type this table does not.
 var ActionClasses = map[string]Class{
-	"app.openKeptPage":      ClassSafe,
-	"document.open":         ClassSafe,
-	"document.reveal":       ClassSafe,
-	"document.forget":       ClassSafe,
-	"document.export":       ClassSafe,
-	"document.versions":     ClassSafe,
-	"dashboard.open":        ClassSafe,
-	"folder.reveal":         ClassSafe,
-	"program.reveal":        ClassSafe,
-	"folder.copyAddress":    ClassSafe,
-	"waiting.markSeen":      ClassSafe,
-	"request.show":          ClassSafe,
-	"prefs.set":             ClassSafe,
-	"sync.setPaused":        ClassSafe,
-	"sync.revealLog":        ClassSafe,
-	"conflict.resolve":      ClassSafe,
-	"folder.resolveRemoval": ClassSafe,
-	"update.start":          ClassSafe,
-	"service.restart":       ClassSafe,
-	"host.quit":             ClassSafe,
-	"move.quitLocal":        ClassSafe,
+	"app.openRecoveredChanges":  ClassSafe,
+	"document.open":             ClassSafe,
+	"document.reveal":           ClassSafe,
+	"document.forget":           ClassSafe,
+	"document.export":           ClassSafe,
+	"document.versions":         ClassSafe,
+	"dashboard.open":            ClassSafe,
+	"folder.reveal":             ClassSafe,
+	"program.reveal":            ClassSafe,
+	"folder.copyAddress":        ClassSafe,
+	"waiting.markSeen":          ClassSafe,
+	"request.show":              ClassSafe,
+	"prefs.set":                 ClassSafe,
+	"sync.setPaused":            ClassSafe,
+	"sync.revealLog":            ClassSafe,
+	"conflict.resolve":          ClassSafe,
+	"folder.resolveRemoval":     ClassSafe,
+	"update.start":              ClassSafe,
+	"service.restart":           ClassSafe,
+	"host.quit":                 ClassSafe,
+	"move.quitLocal":            ClassSafe,
+	"app.revealLog":             ClassSafe,
+	"update.check":              ClassSafe,
+	"host.setPort":              ClassSafe,
+	"aiEdit.setModel":           ClassSafe,
+	"fileTypes.makeDefault":     ClassSafe,
+	"fileTypes.setHTMLOpenWith": ClassSafe,
+	"fileTypes.stopOpening":     ClassSafe,
 
 	"folder.stopServing":   ClassRevoke,
 	"folder.stopTrusting":  ClassRevoke,
@@ -71,32 +78,35 @@ var ActionClasses = map[string]Class{
 	"program.remove":       ClassRevoke,
 	"sync.disconnect":      ClassRevoke,
 
-	"folder.trust":     ClassGrant,
-	"folder.serve":     ClassGrant,
-	"folder.merge":     ClassGrant,
-	"folder.relink":    ClassGrant,
-	"file.open":        ClassGrant,
-	"document.recover": ClassGrant,
-	"request.answer":   ClassGrant,
-	"program.add":      ClassGrant,
-	"program.relink":   ClassGrant,
-	"program.askAgain": ClassGrant,
-	"sync.connect":     ClassGrant,
-	"folder.setUpTeam": ClassGrant,
-	"move.start":       ClassGrant,
+	"folder.trust":        ClassGrant,
+	"folder.serve":        ClassGrant,
+	"folder.merge":        ClassGrant,
+	"folder.relink":       ClassGrant,
+	"file.open":           ClassGrant,
+	"document.recover":    ClassGrant,
+	"request.answer":      ClassGrant,
+	"program.add":         ClassGrant,
+	"program.relink":      ClassGrant,
+	"program.askAgain":    ClassGrant,
+	"sync.connect":        ClassGrant,
+	"folder.setUpTeam":    ClassGrant,
+	"move.start":          ClassGrant,
+	"aiEdit.setCustom":    ClassGrant,
+	"program.openExample": ClassGrant,
 
-	// These three are a revoke when their switch is false and a grant when it is
+	// These four are a revoke when their switch is false and a grant when it is
 	// true; ClassOf reads the argument.
 	"program.setAllTrusted": ClassGrant,
 	"folder.setSynced":      ClassGrant,
 	"folder.setFraming":     ClassGrant,
+	"program.setOn":         ClassGrant,
 }
 
 // ClassOf is the class of one action, reading the switch for the types whose class
 // depends on it: "on" for two, "allow" for folder.setFraming. An unknown type is 0.
 func ClassOf(a Action) Class {
 	class := ActionClasses[a.Type]
-	if a.Type == "program.setAllTrusted" || a.Type == "folder.setSynced" {
+	if a.Type == "program.setAllTrusted" || a.Type == "folder.setSynced" || a.Type == "program.setOn" {
 		var args struct {
 			On bool `json:"on"`
 		}
@@ -123,6 +133,7 @@ var preferenceKeys = map[string]string{
 	"yourName":    "string",
 	"useName":     "bool",
 	"autoUpdate":  "bool",
+	"aiEditTool":  "string",
 }
 
 // requestAnswers is what each request kind offers, the preview's request window
@@ -134,6 +145,7 @@ var requestAnswers = map[string][]string{
 	RequestRiskyFile:       {"deny", "choose-file", "allow-anyway"},
 	RequestFolderRead:      {"deny", "allow-once", "trust-folder"},
 	RequestFolderReadAgain: {"deny", "trust-folder"},
+	RequestBuiltinProgram:  {"deny", "allow-document"},
 }
 
 // AnswersFor is the answers a request of kind offers, in button order.
@@ -173,6 +185,10 @@ type Effect struct {
 	// Acknowledged is what the sheet showed about the file or the folder: a code
 	// the effect finds and this list does not hold refuses needs-confirmation.
 	Acknowledged []string `json:"acknowledged,omitempty"`
+	Port         int      `json:"port,omitempty"`
+	Tool         string   `json:"tool,omitempty"`
+	Model        string   `json:"model,omitempty"`
+	Command      string   `json:"command,omitempty"`
 }
 
 // actionArgs is every argument any action takes; each action reads its own.
@@ -204,6 +220,10 @@ type actionArgs struct {
 	// Acknowledged is the warnings a sheet showed, for the two actions that
 	// register a program file, for a folder relink, and for trusting a folder.
 	Acknowledged []string `json:"acknowledged"`
+	Port         int      `json:"port"`
+	Tool         string   `json:"tool"`
+	Model        string   `json:"model"`
+	Command      string   `json:"command"`
 }
 
 // conflictChoices is which copies Local's resolveConflict can keep for each
@@ -271,8 +291,50 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		return one(Effect{Type: a.Type, Route: args.Route})
 	case "sync.revealLog":
 		return one(Effect{Type: a.Type})
-	case "app.openKeptPage":
+	case "app.openRecoveredChanges", "app.revealLog", "update.check", "fileTypes.makeDefault", "fileTypes.stopOpening":
 		return one(Effect{Type: a.Type})
+	case "fileTypes.setHTMLOpenWith":
+		if args.On == nil {
+			return bad("on")
+		}
+		return one(Effect{Type: a.Type, On: *args.On})
+	case "host.setPort":
+		if args.Port < 1024 || args.Port > 65535 {
+			return nil, &Refusal{Code: RefusePortInvalid, Field: "port"}
+		}
+		if args.Port == f.Host.Port {
+			return nil, &Refusal{Code: RefusePortSame, Field: "port"}
+		}
+		return one(Effect{Type: a.Type, Port: args.Port})
+	case "program.setOn", "program.openExample":
+		p, ok := programByID(f, args.ProgramID)
+		if !ok || !p.Builtin || p.ID == AIEditProgram {
+			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
+		if a.Type == "program.openExample" {
+			if !p.On {
+				return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: p.ID}
+			}
+			return one(Effect{Type: a.Type, ProgramID: p.ID})
+		}
+		if args.On == nil {
+			return bad("on")
+		}
+		return one(Effect{Type: a.Type, ProgramID: p.ID, On: *args.On})
+	case "aiEdit.setModel":
+		tool, ok := aiTool(f, args.Tool)
+		if !ok {
+			return nil, &Refusal{Code: RefuseNoSuchTool, Field: "tool"}
+		}
+		if tool.Custom {
+			return nil, &Refusal{Code: RefuseNotAllowedNow, Field: "tool"}
+		}
+		return one(Effect{Type: a.Type, Tool: tool.ID, Model: args.Model})
+	case "aiEdit.setCustom":
+		if strings.TrimSpace(args.Command) == "" {
+			return bad("command")
+		}
+		return one(Effect{Type: a.Type, Command: args.Command})
 	case "folder.reveal", "folder.copyAddress":
 		ff, refusal := folderArg(f, args.ID)
 		if refusal != nil {
@@ -419,13 +481,21 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		// by, so a document that is not open can be removed too.
 		return one(Effect{Type: a.Type, ProgramID: args.ProgramID, DocumentID: args.DocumentID})
 	case "program.remove":
-		if _, ok := programByID(f, args.ProgramID); !ok {
+		program, ok := programByID(f, args.ProgramID)
+		if !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
+		if program.Builtin {
+			return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: args.ProgramID}
 		}
 		return one(Effect{Type: a.Type, ProgramID: args.ProgramID})
 	case "program.reveal":
-		if _, ok := programByID(f, args.ProgramID); !ok {
+		program, ok := programByID(f, args.ProgramID)
+		if !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
+		if program.Builtin {
+			return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: args.ProgramID}
 		}
 		return one(Effect{Type: a.Type, ProgramID: args.ProgramID})
 	case "program.askAgain":
@@ -508,8 +578,12 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		}
 		return one(Effect{Type: a.Type, Path: args.Path, Name: args.Name, Acknowledged: args.Acknowledged})
 	case "program.relink":
-		if _, ok := programByID(f, args.ProgramID); !ok {
+		program, ok := programByID(f, args.ProgramID)
+		if !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
+		if program.Builtin {
+			return nil, &Refusal{Code: RefuseNotAllowedNow, SubjectID: args.ProgramID}
 		}
 		if args.Path == "" {
 			return bad("path")
@@ -580,6 +654,15 @@ func hasDocument(f Facts, id string) bool {
 		}
 	}
 	return false
+}
+
+func aiTool(f Facts, id string) (AIEditTool, bool) {
+	for _, t := range f.Preferences.AIEditTools {
+		if t.ID == id {
+			return t, true
+		}
+	}
+	return AIEditTool{}, false
 }
 
 func programByID(f Facts, id string) (Program, bool) {

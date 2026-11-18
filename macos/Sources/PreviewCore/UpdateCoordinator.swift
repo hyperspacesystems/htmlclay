@@ -7,6 +7,9 @@ public enum UpdateEvent: Equatable, Sendable {
     case aborted(String)
     case installFailed(String)
     case checkSkipped(String)
+    case checking
+    case upToDate
+    case checkEnded
 }
 
 /// Sparkle, seen from the app. The real one is SparkleDriver over HCSparkleBridge.
@@ -69,6 +72,10 @@ public final class UpdateCoordinator {
 
     public private(set) var prepared: String?
     public private(set) var started = false
+    /// Sparkle is checking for a new version now.
+    public private(set) var checking = false
+    /// When Sparkle last answered a check: up to date, or a version ready.
+    public private(set) var checkedAt: Date?
     /// For the candidate's state file: "" until decided, "on", or "off <reason>".
     public private(set) var gate = ""
     /// For the candidate's state file: "" until Sparkle answers, "started", or "failed <reason>".
@@ -246,6 +253,8 @@ public final class UpdateCoordinator {
         switch event {
         case let .ready(version):
             prepared = version
+            checking = false
+            checkedAt = now()
             onChange?()
             if requested == version {
                 requested = nil
@@ -263,6 +272,16 @@ public final class UpdateCoordinator {
             Task { @MainActor [weak self] in await self?.abortPrepared() }
         case .checkSkipped:
             break
+        case .checking:
+            checking = true
+            onChange?()
+        case .upToDate:
+            checking = false
+            checkedAt = now()
+            onChange?()
+        case .checkEnded:
+            checking = false
+            onChange?()
         }
     }
 

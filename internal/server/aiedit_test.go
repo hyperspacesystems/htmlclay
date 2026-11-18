@@ -7,6 +7,7 @@ import (
 	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -92,14 +93,14 @@ func TestAIEditDiscovery(t *testing.T) {
 	srv.SetHooks(aiEditSwitch(&on))
 
 	meta := aiEditDiscoveryMeta(t, srv, f.AbsPath)
-	if len(meta) != 1 || meta[0] != (wire.HelperMeta{Name: "ai-edit", State: "ready"}) {
-		t.Fatalf("enabled discovery = %+v", meta)
+	if want := append([]wire.HelperMeta{{Name: "ai-edit", State: "ready"}}, builtinUnavailable...); !reflect.DeepEqual(meta, want) {
+		t.Fatalf("enabled discovery = %+v, want %+v", meta, want)
 	}
 
 	on.Store(false)
 	meta = aiEditDiscoveryMeta(t, srv, f.AbsPath)
-	if len(meta) != 1 || meta[0] != (wire.HelperMeta{Name: "ai-edit", State: "unavailable"}) {
-		t.Fatalf("disabled discovery = %+v", meta)
+	if want := append([]wire.HelperMeta{{Name: "ai-edit", State: "unavailable"}}, builtinUnavailable...); !reflect.DeepEqual(meta, want) {
+		t.Fatalf("disabled discovery = %+v, want %+v", meta, want)
 	}
 
 	on.Store(true)
@@ -111,8 +112,8 @@ func TestAIEditDiscovery(t *testing.T) {
 	srv.HelperMu.Unlock()
 
 	meta = aiEditDiscoveryMeta(t, srv, f.AbsPath)
-	want := []wire.HelperMeta{{Name: "search", State: "unavailable"}, {Name: "ai-edit", State: "ready"}}
-	if len(meta) != len(want) || meta[0] != want[0] || meta[1] != want[1] {
+	want := append([]wire.HelperMeta{{Name: "search", State: "unavailable"}, {Name: "ai-edit", State: "ready"}}, builtinUnavailable...)
+	if !reflect.DeepEqual(meta, want) {
 		t.Fatalf("declared-plus-built-in discovery = %+v, want %+v", meta, want)
 	}
 }

@@ -38,7 +38,7 @@ func TestIconEmbedded(t *testing.T) {
 // from the menu. Asserting "every row has a label" would have passed the whole
 // time; the click is the part that was missing, so drive one.
 func TestEveryRowIsClickableBeyondTheInitialPool(t *testing.T) {
-	lm, _ := newListMenu("Trusted Folders", "", "No folders yet", "", "")
+	lm, _ := newListMenu(nil, "Trusted folders", "", "No folders yet", "", "")
 
 	const count = slotCount + 20
 	rows := make([]Row, count)
@@ -78,7 +78,7 @@ func TestEveryRowIsClickableBeyondTheInitialPool(t *testing.T) {
 // queued against a row while a render runs, and a slot whose meaning shifted would
 // untrust a different folder than the one the user clicked.
 func TestGrowingThePoolLeavesPlacedEntriesWhereTheyAre(t *testing.T) {
-	lm, _ := newListMenu("Trusted Folders", "", "No folders yet", "", "")
+	lm, _ := newListMenu(nil, "Trusted folders", "", "No folders yet", "", "")
 
 	first := make([]Row, slotCount)
 	for i := range first {
@@ -119,7 +119,7 @@ func TestProgramsMenuPassesTheRegistrationIDToItsRowHook(t *testing.T) {
 			return nil
 		},
 	}}
-	tr.buildHelpersMenu()
+	tr.buildHelpersMenu(nil)
 	tr.watchHelpersMenu(nil)
 
 	tr.helpersMenu.mu.Lock()
@@ -177,7 +177,7 @@ func TestHelpersMenuConfigureAnOpenFilePassesTheRowKey(t *testing.T) {
 			return nil
 		},
 	}}
-	tr.buildHelpersMenu()
+	tr.buildHelpersMenu(nil)
 	tr.watchHelpersMenu(nil)
 	if tr.helperDocumentsMenu == nil {
 		t.Fatal("the Programs submenu did not offer configuring an open file")
@@ -484,25 +484,47 @@ func TestProfileSaveFailureAlerts(t *testing.T) {
 	}
 }
 
-func TestUpdateRowOffersARestartOnlyWhenStaged(t *testing.T) {
-	title, _ := updateRowText(UpdateInfo{Version: "1.14.0", URL: "https://htmlclay.com/download"})
-	if title != "Update available: v1.14.0" {
-		t.Fatalf("link row title %q", title)
+// A settings submenu's pre-made rows follow the host: as many rows as it hands
+// over show with their own titles and checks, and the rest hide.
+func TestPlanSlotsShowsRowsAndHidesTheRest(t *testing.T) {
+	checked := true
+	rows := []SettingItem{
+		{Action: "a", Title: "File search", Enabled: true, Checked: &checked},
+		{Action: "b", Title: "Open example", Enabled: true},
+		{Action: "c", Title: "File converter", Enabled: false},
 	}
-	title, _ = updateRowText(UpdateInfo{Version: "1.14.0", Apply: func() {}})
-	if title != "Restart to Update (v1.14.0)" {
-		t.Fatalf("staged row title %q", title)
+	slots := planSlots(rows, 6)
+	if len(slots) != 6 {
+		t.Fatalf("%d slots for 6 pre-made rows", len(slots))
+	}
+	for i, want := range rows {
+		got := slots[i]
+		if !got.visible || got.title != want.Title || got.enabled != want.Enabled || got.checked != want.Checked {
+			t.Errorf("slot %d = %+v, want %q shown with enabled=%v", i, got, want.Title, want.Enabled)
+		}
+	}
+	for i := len(rows); i < 6; i++ {
+		if slots[i].visible {
+			t.Errorf("slot %d shows a row the host did not hand over", i)
+		}
 	}
 }
 
-func TestClickingAStagedUpdateCallsApply(t *testing.T) {
-	applied := make(chan struct{})
-	tr := &Tray{updateURL: "https://htmlclay.com/download", updateApply: func() { close(applied) }}
-	tr.clickUpdate()
-	select {
-	case <-applied:
-	case <-time.After(5 * time.Second):
-		t.Fatal("the apply hook was never called")
+// More rows than places shows the places there are and drops the rest, rather
+// than running past the pre-made items.
+func TestPlanSlotsCapsAtTheSlotCount(t *testing.T) {
+	rows := make([]SettingItem, 10)
+	for i := range rows {
+		rows[i] = SettingItem{Action: fmt.Sprintf("%d", i), Title: fmt.Sprintf("row %d", i), Enabled: true}
+	}
+	slots := planSlots(rows, 8)
+	if len(slots) != 8 {
+		t.Fatalf("%d slots for 8 places", len(slots))
+	}
+	for i, s := range slots {
+		if !s.visible || s.title != fmt.Sprintf("row %d", i) {
+			t.Errorf("slot %d = %+v, want row %d", i, s, i)
+		}
 	}
 }
 
@@ -515,7 +537,7 @@ type actionClick struct {
 // reach the hook as the action that was clicked and the entry it hangs from --
 // not as the row's index, and not as the wrong action's neighbor.
 func TestActionRowsRouteEachChildToItsAction(t *testing.T) {
-	lm, _ := newActionListMenu("Served Folders", "", "No folders yet", "", "", []string{"Open", "Copy", "Stop"})
+	lm, _ := newActionListMenu(nil, "Served Folders", "", "No folders yet", "", "", []string{"Open", "Copy", "Stop"})
 
 	const count = slotCount + 5
 	rows := make([]Row, count)
@@ -557,7 +579,7 @@ func TestActionRowsRouteEachChildToItsAction(t *testing.T) {
 // goes away, for the same reason a plain row must: a queued click on a child has
 // to land on the folder that was in that row.
 func TestActionRowsKeepPlacesAcrossRenders(t *testing.T) {
-	lm, _ := newActionListMenu("Served Folders", "", "No folders yet", "", "", []string{"Open", "Copy", "Stop"})
+	lm, _ := newActionListMenu(nil, "Served Folders", "", "No folders yet", "", "", []string{"Open", "Copy", "Stop"})
 	rows := []Row{
 		{Path: "/home/me/first", Label: "first", Serving: true},
 		{Path: "/home/me/second", Label: "second", Serving: true},

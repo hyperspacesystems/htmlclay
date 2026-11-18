@@ -12,7 +12,7 @@ const { SearchIndex } = require('./search-index');
 const { handleWorkspaceRoute } = require('./routes');
 const TEMPLATE_ROWS = require('../document-templates/manifest.json');
 const TEMPLATE_CARDS = TEMPLATE_ROWS.filter(item => item.listed)
-  .map(({ id, name, description, thumbnail, bytes }) => ({ id, name, description, sizeBytes: bytes, thumbnail: thumbnail ? `/templates/${id}.svg` : null }));
+  .map(({ id, name, description, thumbnail, bytes, startsPrivate }) => ({ id, name, description, sizeBytes: bytes, startsPrivate: Boolean(startsPrivate), thumbnail: thumbnail ? `/templates/${id}.svg` : null }));
 
 const MIME = { '.js': 'text/javascript', '.css': 'text/css', '.woff': 'font/woff', '.woff2': 'font/woff2' };
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });

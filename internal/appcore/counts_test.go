@@ -115,3 +115,12 @@ func TestCountsAIEditTitles(t *testing.T) {
 		t.Errorf("program request title = %q, want %q", s.Waiting[1].Title, want)
 	}
 }
+
+func TestCountsBuiltinProgramTitle(t *testing.T) {
+	s := Build(Facts{Requests: []RequestFact{
+		{ID: "a", Kind: RequestBuiltinProgram, Document: "todo.htmlclay", Program: "file-search", Folder: "Notes"},
+	}})
+	if title := s.Waiting[0].Title; !strings.Contains(title, "File search") || strings.Contains(title, "file-search") {
+		t.Errorf("built-in program request title = %q, want the name a person reads", title)
+	}
+}

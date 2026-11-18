@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/helper"
 	"github.com/panphora/htmlclay/internal/served/assets"
 	"github.com/panphora/htmlclay/internal/wire"
@@ -26,6 +27,10 @@ func (askingPolicy) AIEditOffered() bool                          { return false
 func (askingPolicy) AIEditFor(string) (bool, bool)                { return false, false }
 func (askingPolicy) AskAIEdit(string)                             {}
 func (askingPolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
+func (askingPolicy) AIEditModels() map[string]string              { return nil }
+func (askingPolicy) BuiltinFor(string, string) builtin.Access     { return builtin.Access{} }
+func (askingPolicy) AskBuiltin(string, string)                    {}
+func (askingPolicy) RevealFile(string) error                      { return nil }
 
 const (
 	programsRootID    = "programs-root"
@@ -201,12 +206,18 @@ func TestM3ServedProgramsHost(t *testing.T) {
 			t.Fatalf("wireBudgetMs = %v, want %d", document["wireBudgetMs"], helper.StructuredDeadline)
 		}
 		helpers, ok := document["helpers"].([]any)
-		if !ok || len(helpers) != 1 {
-			t.Fatalf("helpers = %v, want the one declared program", document["helpers"])
+		if !ok || len(helpers) != 1+len(builtin.IDs) {
+			t.Fatalf("helpers = %v, want the one declared program and the built-in programs", document["helpers"])
 		}
 		entry, _ := helpers[0].(map[string]any)
 		if entry["name"] != programsHelperNom || entry["state"] != "denied" {
 			t.Fatalf("helpers[0] = %v, want ocr denied", helpers[0])
+		}
+		for i, id := range builtin.IDs {
+			row, _ := helpers[i+1].(map[string]any)
+			if row["name"] != id || row["state"] != "unavailable" {
+				t.Fatalf("helpers[%d] = %v, want %s unavailable", i+1, helpers[i+1], id)
+			}
 		}
 
 		plain := newProgramsStand(t, nil, nil)

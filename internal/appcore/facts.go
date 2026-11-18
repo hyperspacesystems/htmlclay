@@ -23,6 +23,9 @@ type Facts struct {
 	Update      UpdateState    `json:"update"`
 	Preferences Preferences    `json:"preferences"`
 	Move        *Move          `json:"move"`
+
+	RecoveredChanges int       `json:"recoveredChanges"`
+	FileTypes        FileTypes `json:"fileTypes"`
 }
 
 type HostFacts struct {
@@ -123,4 +126,5 @@ type SyncFacts struct {
 	// KeyStopped is a key the server refused or this computer cannot read:
 	// nothing syncs until the person enters a key again.
 	KeyStopped bool `json:"-"`
+	EverOn     bool `json:"everOn"`
 }

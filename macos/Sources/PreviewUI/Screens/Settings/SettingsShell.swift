@@ -86,8 +86,8 @@ public struct SettingsView: View {
                         }
                     default: ProgramsPane(actions: actions)
                     }
+                case .htmlclayFiles: FilesPane(model: model)
                 case .sync: SyncPane(actions: actions)
-                case .yourName: YourNamePane(model: model)
                 case .updates: UpdatesPane()
                 case .advanced: AdvancedPane()
                 }

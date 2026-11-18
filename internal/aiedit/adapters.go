@@ -53,7 +53,7 @@ var codexDisabledFeatures = []string{
 	"multi_agent", "plugins", "image_generation", "view_image",
 }
 
-func codexArgs(dir, outFile string) []string {
+func codexArgs(dir, outFile, model string) []string {
 	argv := []string{
 		"exec",
 		"--ephemeral", "--ignore-user-config", "--ignore-rules",
@@ -62,6 +62,9 @@ func codexArgs(dir, outFile string) []string {
 	}
 	for _, feature := range codexDisabledFeatures {
 		argv = append(argv, "--disable", feature)
+	}
+	if model != "" {
+		argv = append(argv, "-m", model)
 	}
 	return append(argv, "-C", dir, "-o", outFile, "-")
 }
@@ -184,7 +187,7 @@ func runCodex(ctx context.Context, e engine, bin, prompt string, env []string) (
 	defer os.RemoveAll(scratch)
 	outFile := filepath.Join(scratch, "last-message.txt")
 
-	argv := append([]string{bin}, codexArgs(scratch, outFile)...)
+	argv := append([]string{bin}, codexArgs(scratch, outFile, e.model)...)
 	cmd := childCommand(ctx, argv, scratch, env)
 	stderr := &tailBuffer{limit: stderrTail}
 	cmd.Stderr = stderr

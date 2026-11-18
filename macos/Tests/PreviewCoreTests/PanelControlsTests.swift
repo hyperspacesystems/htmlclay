@@ -59,18 +59,24 @@ final class PanelControlsTests: XCTestCase {
         XCTAssertFalse(try JSONDecoder().decode(HostSnapshot.self, from: data).isSample)
     }
 
-    func testKeptCopiesFollowsTheHostsCanList() {
-        let sample = sampleModel()
-        XCTAssertTrue(PanelControls.showsKeptCopies(isSample: sample.isSample, can: sample.can(HostActionType.appOpenKeptPage)))
+    func testRecoveredChangesShowsOnlyWhenThereAreSome() {
+        var input = MenuInput(syncConnected: false, canPause: false, waitingTotal: 0,
+                              waitingIDs: [], documentIDs: [], recoveredChanges: 0)
+        XCTAssertFalse(MenuModel.rows(input, phase: MenuUpdatePhase()).contains { $0.id == "recoveredChanges" })
 
-        var snapshot = SampleData.snapshot(for: .fiveDocuments)
-        snapshot.host.can = [HostActionType.appOpenKeptPage: true]
-        var model = AppModel(host: SampleHost(persona: .fiveDocuments), initial: snapshot)
-        XCTAssertTrue(PanelControls.showsKeptCopies(isSample: model.isSample, can: model.can(HostActionType.appOpenKeptPage)))
+        input.recoveredChanges = 2
+        XCTAssertTrue(MenuModel.rows(input, phase: MenuUpdatePhase()).contains { $0.id == "recoveredChanges" })
+    }
 
-        snapshot.host.can = [HostActionType.appOpenKeptPage: false]
-        model = AppModel(host: SampleHost(persona: .fiveDocuments), initial: snapshot)
-        XCTAssertFalse(PanelControls.showsKeptCopies(isSample: model.isSample, can: model.can(HostActionType.appOpenKeptPage)))
+    /// copy.md section 11: an empty panel offers Open a file… and New from
+    /// template; with documents it offers Open a file… and Pause syncing.
+    func testTheFooterButtonsFollowTheDocumentsAndSync() {
+        XCTAssertTrue(PanelControls.showsNewFromTemplate(documents: 0))
+        XCTAssertFalse(PanelControls.showsNewFromTemplate(documents: 2))
+        XCTAssertFalse(PanelControls.showsFooterSyncPause(documents: 0, connected: true, can: true))
+        XCTAssertTrue(PanelControls.showsFooterSyncPause(documents: 2, connected: true, can: true))
+        XCTAssertFalse(PanelControls.showsFooterSyncPause(documents: 2, connected: false, can: true))
+        XCTAssertFalse(PanelControls.showsFooterSyncPause(documents: 2, connected: true, can: false))
     }
 
     func testTheRealHostHidesADocumentActionItsCanListRefuses() {

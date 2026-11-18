@@ -38,6 +38,10 @@ type Config struct {
 	// part of the browser origin, so a change here resets every page's browser storage,
 	// which is why the app asks before moving it. Read through Port().
 	ListenPort int `json:"port,omitempty"`
+	// FormerPorts are ports the app served on before the person moved it, newest
+	// last. Startup holds each one that is free and sends page visits on to the
+	// same address on the current port. At most formerPortCap are kept.
+	FormerPorts []int `json:"formerPorts,omitempty"`
 	// SiteSlugs maps an origin key to the label it is served under, <label>.localhost:<port>.
 	// The key is the site's anchor (a trusted folder, or the folder a loose file was opened
 	// from), or the file's own path for a file loose in the home directory, which can
@@ -104,6 +108,17 @@ type Config struct {
 	// AIEditDocuments are the documents the person allowed AI editing for where
 	// the switch alone is not enough: a team folder, or an unreadable team record.
 	AIEditDocuments []AIEditDocument `json:"aiEditDocuments,omitempty"`
+	// BuiltinPrograms are the built-in programs' switches and the documents the
+	// person allowed for each, keyed by program id (internal/builtin). A missing
+	// entry is off.
+	BuiltinPrograms map[string]*BuiltinProgram `json:"builtinPrograms,omitempty"`
+	// StopOpeningFiles is true after the person chose "Stop opening .htmlclay
+	// files", so the startup file type refresh leaves the system's choice alone.
+	// Make HTML Clay the default clears it.
+	StopOpeningFiles bool `json:"stopOpeningFiles,omitempty"`
+	// HTMLOpenWithOff is true when the person took HTML Clay out of Open With for
+	// .html files (Windows and Linux; the Mac's claim is fixed in Info.plist).
+	HTMLOpenWithOff bool `json:"htmlOpenWithOff,omitempty"`
 	// Profile is the person HTML Clay names in files it serves, when Enabled. Nil
 	// means never set up, which reads as off. The id survives renames and toggles.
 	Profile *Profile `json:"profile,omitempty"`
@@ -178,6 +193,9 @@ type AIEditSettings struct {
 	Enabled *bool               `json:"enabled,omitempty"`
 	Default string              `json:"default,omitempty"`
 	Engines map[string][]string `json:"engines,omitempty"`
+	// Models is the model each engine runs with, by engine name. A missing or
+	// empty entry is the engine's own default.
+	Models map[string]string `json:"models,omitempty"`
 }
 
 // sitePortCap bounds the remembered-port map. Every entry becomes a bound

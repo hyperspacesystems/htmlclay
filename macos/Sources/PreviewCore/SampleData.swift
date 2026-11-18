@@ -123,6 +123,9 @@ public enum SampleData {
         case .folderReadAgain:
             request = ProgramRequest(id: "req-sample-folderReadAgain", kind: kind, document: "trip-plan.htmlclay", program: "", folder: "Trips", path: "~/Documents/Trips", detail: "3 documents")
             title = "trip-plan.htmlclay wants you to trust Trips"
+        case .builtinProgram:
+            request = ProgramRequest(id: "req-sample-builtinProgram", kind: kind, document: "todo.htmlclay", program: "file-search", folder: "Notes")
+            title = "todo.htmlclay wants to run File search"
         }
         let item = WaitingItem(id: "w-" + request.id, kind: .programRequest, title: title, detail: request.folder, subjectID: request.id)
         return (request, item)

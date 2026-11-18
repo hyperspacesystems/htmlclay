@@ -95,13 +95,8 @@ func ensureExampleFile(path string) error {
 }
 
 func (a *app) openExample() {
-	home, err := os.UserHomeDir()
+	path, err := a.welcomeExamplePath()
 	if err != nil {
-		a.rt.logger.Printf("Error resolving home dir: %v", err)
-		return
-	}
-	path := filepath.Join(home, "htmlclay", "examples", "welcome.htmlclay")
-	if err := ensureExampleFile(path); err != nil {
 		a.rt.logger.Printf("Error creating example file: %v", err)
 		return
 	}

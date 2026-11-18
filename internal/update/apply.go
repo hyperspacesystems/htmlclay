@@ -629,6 +629,14 @@ func stopNewVersion(cmd *exec.Cmd, exited <-chan struct{}, watched, childPID int
 	}
 }
 
+// StartDetached starts path with args in its own session, outliving this process.
+func StartDetached(path string, args ...string) (*exec.Cmd, error) {
+	return startDetached(path, args...)
+}
+
+// WaitGone waits up to timeout for pid to exit and reports whether it did.
+func WaitGone(pid int, timeout time.Duration) bool { return waitGone(pid, timeout) }
+
 // waitGone polls until pid has exited or timeout passes, and reports whether it exited.
 func waitGone(pid int, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)

@@ -197,6 +197,9 @@ type appRuntime struct {
 	// quitForUpdate overrides how an applied update ends the process. Production
 	// leaves it nil and quits the tray, which runs the ordinary shutdown.
 	quitForUpdate func()
+	// restartHost overrides how a port change ends this process. Production
+	// leaves it nil and restarts for real; tests record the call.
+	restartHost func()
 	// held, while set, holds every request until startup has built the sites
 	// and restored the update handoff, so a request can never register a file
 	// under a fresh token before its old one comes back. main sets it before
@@ -268,6 +271,11 @@ type app struct {
 	// nothing. Guarded by helperStateMu.
 	aiEditAsking map[string]bool
 	aiEditQuiet  map[string]time.Time
+	// builtinAsking holds the document and program pairs whose question is open,
+	// and builtinQuiet when each may next be asked after one that allowed
+	// nothing. Guarded by helperStateMu.
+	builtinAsking map[string]bool
+	builtinQuiet  map[string]time.Time
 	// dialogAdvice is non-empty when this machine cannot raise a permission
 	// dialog at all. It is read once at startup and shown in two places, so it
 	// is held rather than asked for again: platform.MissingDialogAdvice runs
@@ -292,6 +300,25 @@ type app struct {
 	// lane is the agent lane's one handler, so its replay store outlives one
 	// request. See agent.go.
 	lane agentLaneHandler
+	// aiTools is the AI editing tool picker's list, reused for aiToolsFresh so
+	// building the snapshot does not read PATH every time.
+	aiTools aiToolsCache
+	// recovered is the count of recovered changes the menus last saw, and
+	// stopRecovered ends the loop that keeps it fresh.
+	recovered     recoveredCount
+	stopRecovered chan struct{}
+	// updates is what the updater on Windows and Linux has just reported; the
+	// Mac app reads Sparkle instead.
+	updates updateState
+	// former holds the ports the app served on before the person moved it, so a
+	// bookmark at an old address still finds the app. Guarded by mu.
+	former []formerPort
+	// fileTypes is what the system last said about file types, on Windows and
+	// Linux, where the host owns them.
+	fileTypes fileTypeCache
+	// stopFileTypes ends the loop that asks the system again every minute, a
+	// person having changed the default in the system's own settings.
+	stopFileTypes chan struct{}
 }
 
 func migrateConfigDir() {
@@ -395,6 +422,7 @@ func main() {
 	shellStdin := flag.Bool("shell-stdin", false, "Started by the HTML Clay Mac app: read a secret from stdin and serve the app's private listener")
 	unregister := flag.Bool("unregister", false, "Remove the file associations and the Start on Login entry, then exit")
 	finishUpdate := flag.Bool("finish-update", false, "Internal: finish an update this binary's previous version started")
+	afterPID := flag.Int("after-pid", 0, "Internal: wait for this process to exit first (a port change restart)")
 	flag.Parse()
 
 	// Before initConfig, and so before the single-instance lock, on purpose. A
@@ -414,6 +442,10 @@ func main() {
 	// The Go host inside the Swift app's bundle never becomes the app itself.
 	if code, handled := handOffToMacApp(*shellStdin, *noTray, flag.Args()); handled {
 		os.Exit(code)
+	}
+
+	if *afterPID > 0 && !update.WaitGone(*afterPID, 15*time.Second) {
+		fmt.Fprintf(os.Stderr, "[htmlclay] The previous HTML Clay (pid %d) did not exit\n", *afterPID)
 	}
 
 	// The Mac app writes the secret on stdin and expects the private listener to
@@ -462,6 +494,13 @@ func main() {
 		a.refreshFileTypes()
 		a.warnMissingDialogs()
 	}
+	if a.managesFileTypes() {
+		go a.refreshFileTypeState()
+		if a.stopFileTypes == nil {
+			a.stopFileTypes = make(chan struct{})
+		}
+		go a.watchFileTypes(a.stopFileTypes)
+	}
 
 	// Bind the one port before argv is processed, asking the user what to do if it is held,
 	// then build every live trusted folder's site, so a URL bookmarked before the last quit
@@ -483,6 +522,7 @@ func main() {
 	}
 	a.startSites()
 	a.startServed()
+	a.startFormerPorts()
 	if *shellStdin {
 		a.startShell(shellSecret, shellIn)
 	}
@@ -494,6 +534,8 @@ func main() {
 		a.rt.logger.Printf("Update handoff ignored: %v", err)
 	}
 	a.releaseRequests()
+	a.stopRecovered = make(chan struct{})
+	go a.watchRecovered(a.stopRecovered)
 	if !a.shell {
 		markUpdateHealth(update.HealthServing)
 		go a.settleUpgradeSave()
@@ -517,13 +559,12 @@ func main() {
 		a.openFile(path)
 	})
 
-	updateCh := make(chan tray.UpdateInfo, 1)
-	if !a.startSelfUpdater(updateCh) {
-		go a.checkForUpdateLink(updateCh)
+	if !a.startSelfUpdater() {
+		go a.checkForUpdateLink()
 	}
 	a.rt.si.OnCommand(a.handleInstanceCommand)
 
-	a.run(updateCh)
+	a.run()
 }
 
 func (a *app) initConfig() {
@@ -584,12 +625,13 @@ func (a *app) initConfig() {
 	}
 }
 
+// appLogPath is the file initLogger writes and app.revealLog shows.
+func (a *app) appLogPath() string {
+	return filepath.Join(a.rt.configDir, "htmlclay.log")
+}
+
 func (a *app) initLogger() {
-	configDir, err := config.Dir()
-	if err != nil {
-		fatal("Error resolving config dir: %v", err)
-	}
-	logPath := filepath.Join(configDir, "htmlclay.log")
+	logPath := a.appLogPath()
 	logger, err := logging.NewDualWrite(logPath)
 	if err != nil {
 		fatal("Error creating logger: %v", err)
@@ -758,7 +800,7 @@ func (a *app) finishUpgrade() {
 	}()
 }
 
-func (a *app) run(updateCh <-chan tray.UpdateInfo) {
+func (a *app) run() {
 	if a.noTray {
 		a.rt.logger.Printf("Running without tray, waiting for signal...")
 		sigCh := make(chan os.Signal, 1)
@@ -768,9 +810,15 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 		return
 	}
 	a.rt.logger.Printf("Starting system tray...")
-	tray.Run(a.rt.cfg, version, a.openExample, a.openBackups, a.openKeptPage, func() {
+	tray.Run(a.rt.cfg, version, &tray.MenuHooks{
+		Rows: a.trayMenuRows,
+		Do:   a.doTrayMenu,
+	}, &tray.SettingsHooks{
+		Items: a.traySettingItems,
+		Do:    a.doTraySetting,
+	}, a.openExample, a.openBackups, func() {
 		a.shutdown()
-	}, updateCh, &tray.TrustedFolderHooks{
+	}, &tray.TrustedFolderHooks{
 		List:   a.trustedFolderRows,
 		Add:    a.pickAndTrustFolder,
 		Remove: a.removeTrustedFolder,
@@ -788,13 +836,9 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 		Row:       a.relinkHelperProgramFromTray,
 		Documents: a.helperDocumentRows,
 		Document:  a.trayHelperDocument,
-		AIEditOff: a.cancelAIEdits,
 	}, &tray.ExportHooks{
 		Documents: a.exportDocumentRows,
 		Export:    a.exportDocument,
-	}, &tray.SyncHooks{
-		Items: func() []tray.SyncItem { return syncTrayItems(a.snapshot()) },
-		Do:    a.doSyncTray,
 	}, a.dialogAdvice)
 	a.rt.logger.Printf("Tray exited")
 }
@@ -916,7 +960,11 @@ func (a *app) refreshFileTypes() {
 	if err != nil || execPath == "" {
 		return
 	}
-	if err := platform.RegisterFileTypes(execPath); err != nil {
+	opts := platform.FileTypeOptions{
+		HTMLClay:     !a.rt.cfg.StoppedOpeningFiles(),
+		HTMLOpenWith: a.rt.cfg.HTMLOpenWith(),
+	}
+	if err := platform.RegisterFileTypes(execPath, opts); err != nil {
 		a.rt.logger.Printf("Could not register the .htmlclay file association: %v", err)
 	}
 }

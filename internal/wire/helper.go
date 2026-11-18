@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/aiedit"
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/helper"
 	"github.com/panphora/htmlclay/internal/htmlutil"
@@ -754,6 +755,7 @@ func (s *Core) HelperDiscovery(file string) (string, []HelperMeta) {
 	if entry, ok := s.pageToolMeta(file); ok {
 		meta = append(meta, entry)
 	}
+	meta = append(meta, s.builtinMeta(file)...)
 	return mode, meta
 }
 
@@ -787,6 +789,9 @@ func (s *Core) declaredHelperDiscovery(file string) (string, []HelperMeta) {
 			continue // the built-in answers this name; a document cannot shadow it
 		}
 		if name == aiedit.PageToolHelperName && s.pageToolOffered() {
+			continue
+		}
+		if builtin.Is(name) {
 			continue
 		}
 		// unavailable is the honest answer for everything that is not a running

@@ -551,8 +551,11 @@ func TestTrustedNavigationRestoresHelpersWithoutDialogs(t *testing.T) {
 						t.Fatal(err)
 					}
 					helpers := meta.Document.Helpers
-					if len(helpers) != 3 || helpers[0].Name != "search" || helpers[0].State != permission.state || helpers[1].Name != "ai-edit" || helpers[1].State != "ready" ||
-						helpers[2].Name != "blockeditor-tool" || helpers[2].State != "ready" {
+					if len(helpers) != 6 || helpers[0].Name != "search" || helpers[0].State != permission.state || helpers[1].Name != "ai-edit" || helpers[1].State != "ready" ||
+						helpers[2].Name != "blockeditor-tool" || helpers[2].State != "ready" ||
+						helpers[3].Name != "file-search" || helpers[3].State != "unavailable" ||
+						helpers[4].Name != "file-convert" || helpers[4].State != "unavailable" ||
+						helpers[5].Name != "folder-watch" || helpers[5].State != "unavailable" {
 						t.Fatalf("visit %d: discovery helpers = %+v, want search:%s", visit, helpers, permission.state)
 					}
 					t.Logf("visit %d: discovery search=%s", visit, helpers[0].State)

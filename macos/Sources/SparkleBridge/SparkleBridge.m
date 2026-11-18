@@ -86,8 +86,29 @@ static void hcSend(HCSparkleBridge *bridge, HCSparkleEvent event, NSString *text
     return NO;
 }
 
+// Sparkle asks before any check, whether a person asked or its own timer did.
+- (BOOL)updater:(id)u mayPerformUpdateCheck:(NSInteger)check error:(NSError **)error {
+    HCSparkleBridge *bridge = owner;
+    if (bridge != nil) {
+        hcSend(bridge, HCSparkleChecking, @"");
+    }
+    return YES;
+}
+
+- (void)updater:(id)u didFinishUpdateCycleForUpdateCheck:(NSInteger)check error:(NSError *)error {
+    HCSparkleBridge *bridge = owner;
+    if (bridge == nil) {
+        return;
+    }
+    hcSend(bridge, HCSparkleCheckEnded, @"");
+}
+
 - (void)updater:(id)u didAbortWithError:(NSError *)error {
     if ([error.domain isEqualToString:@"SUSparkleErrorDomain"] && error.code == hcSUNoUpdateError) {
+        HCSparkleBridge *bridge = owner;
+        if (bridge != nil) {
+            hcSend(bridge, HCSparkleUpToDate, @"");
+        }
         return;
     }
     HCSparkleBridge *bridge = owner;
@@ -178,6 +199,7 @@ static void hcSend(HCSparkleBridge *bridge, HCSparkleEvent event, NSString *text
             hcSend(self, HCSparkleCheckSkipped, @"Sparkle cannot check right now");
             return;
         }
+        hcSend(self, HCSparkleChecking, @"");
         [u checkForUpdatesInBackground];
     });
 }

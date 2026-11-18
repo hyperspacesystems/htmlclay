@@ -27,11 +27,13 @@ var (
 
 // Settings is the part of Local's settings.json the move reads.
 type Settings struct {
-	SettingsVersion int       `json:"settingsVersion"`
-	DeviceID        string    `json:"deviceId"`
-	Actor           *Actor    `json:"actor"`
-	Roots           []Root    `json:"roots"`
-	Sessions        []Session `json:"syncSessions"`
+	SettingsVersion int        `json:"settingsVersion"`
+	DeviceID        string     `json:"deviceId"`
+	Actor           *Actor     `json:"actor"`
+	Roots           []Root     `json:"roots"`
+	Sessions        []Session  `json:"syncSessions"`
+	Programs        []Program  `json:"helperPrograms"`
+	Decisions       []Decision `json:"helperDecisions"`
 }
 
 type Actor struct {
@@ -50,6 +52,43 @@ type Root struct {
 // WasTeam reports whether the folder holds, or once held, a team's pages.
 func (r Root) WasTeam() bool {
 	return r.Kind == "team" || (len(r.FormerAccount) > 0 && string(r.FormerAccount) != "null")
+}
+
+// Program is a program the person registered in Local. AddedAt is in milliseconds.
+type Program struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	AnyDocument bool   `json:"anyDocument"`
+	AddedAt     int64  `json:"addedAt"`
+}
+
+// Decision is one document's answer in Local about one program name. DecidedAt
+// is in milliseconds.
+type Decision struct {
+	Document  string `json:"document"`
+	Name      string `json:"name"`
+	Program   string `json:"program"`
+	Allowed   bool   `json:"allowed"`
+	DecidedAt int64  `json:"decidedAt"`
+}
+
+// AllowsIn answers Local's allows for documents inside one of folders. A refusal
+// stays behind: HTML Clay never stores one, so that document asks again.
+func (s *Settings) AllowsIn(folders []string) []Decision {
+	var out []Decision
+	for _, d := range s.Decisions {
+		if !d.Allowed || d.Program == "" {
+			continue
+		}
+		for _, folder := range folders {
+			if strings.HasPrefix(d.Document, folder+string(filepath.Separator)) {
+				out = append(out, d)
+				break
+			}
+		}
+	}
+	return out
 }
 
 type Session struct {

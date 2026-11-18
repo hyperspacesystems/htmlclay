@@ -15,6 +15,8 @@ struct SettingsSheetView: View {
             case let .accountFolder(username): AccountFolderSheet(username: username)
             case let .teamSetup(folderID): TeamSetupSheet(folderID: folderID)
             case .addProgram: AddProgramSheet(kind: .add, model: model)
+            case .customCommand: CustomCommandSheet(model: model)
+            case .changePort: ChangePortSheet(model: model)
             case let .relinkProgram(programID, path): AddProgramSheet(kind: .relink(programID: programID), path: path, model: model)
             case let .relinkFolder(folderID, path): FolderRelinkSheet(folderID: folderID, path: path, model: model)
             case let .merge(childID): MergeSheet(childID: childID, model: model)

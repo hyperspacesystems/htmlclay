@@ -88,8 +88,8 @@ final class M3ExportedContractTests: XCTestCase {
     func testAProgramCarriesItsFacts() throws {
         let sent = try wire()
         for (index, snapshot) in try shown().enumerated() {
-            XCTAssertEqual(sent[index].programs.count, 1)
-            let program = try XCTUnwrap(snapshot.programs.first)
+            XCTAssertEqual(sent[index].programs.filter { !($0.builtin ?? false) }.count, 1)
+            let program = try XCTUnwrap(snapshot.programs.first { !$0.isBuiltin })
             XCTAssertEqual(program.id.count, 32)
             XCTAssertEqual(program.name, "search")
             XCTAssertEqual(program.path, "/Users/sam/apps/bin/search")
@@ -101,7 +101,7 @@ final class M3ExportedContractTests: XCTestCase {
             XCTAssertEqual(program.allowedDocuments.map(ProgramControls.documentLabel), ["todo.htmlclay"])
             XCTAssertEqual(snapshot.program(program.id), program)
         }
-        XCTAssertEqual(Set(sent.compactMap { $0.programs.first?.id }).count, 1)
+        XCTAssertEqual(Set(sent.compactMap { $0.programs.first { !($0.builtin ?? false) }?.id }).count, 1)
     }
 
     func testARecentDocumentIsListed() throws {
@@ -207,7 +207,7 @@ final class M3ExportedContractTests: XCTestCase {
             .exportDocument(id: "d"),
             .recoverDocument(id: "d", destination: "/tmp/d"),
             .openVersions(id: "d"),
-            .openKeptPage,
+            .openRecoveredChanges,
             .openDashboard(route: String()),
             .relinkFolder(folderID: "f", path: "/tmp/f"),
             .setFraming(folderID: "f", on: true),
@@ -224,7 +224,7 @@ final class M3ExportedContractTests: XCTestCase {
             XCTAssertTrue(SettingsControls.showsPane(.programs, in: snapshot))
             XCTAssertTrue(PanelControls.showsAnswer(can: snapshot.hostCan(HostActionType.requestAnswer)))
             XCTAssertTrue(PanelControls.showsExport(isSample: false, can: snapshot.hostCan(HostActionType.documentExport)))
-            XCTAssertTrue(PanelControls.showsKeptCopies(isSample: false, can: snapshot.hostCan(HostActionType.appOpenKeptPage)))
+            XCTAssertTrue(snapshot.hostCan(HostActionType.appOpenRecoveredChanges))
             XCTAssertTrue(FolderControls.canRelink(snapshot))
             XCTAssertFalse(snapshot.isSample)
         }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/browser"
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recents"
@@ -23,7 +24,10 @@ import (
 // implementedActions is every action type runEffect has a case for. The snapshot
 // reports it as host.can; TestImplementedActionsMatchRunEffect keeps the two equal.
 var implementedActions = []string{
-	"app.openKeptPage",
+	"aiEdit.setCustom",
+	"aiEdit.setModel",
+	"app.openRecoveredChanges",
+	"app.revealLog",
 	"dashboard.open",
 	"document.export",
 	"document.forget",
@@ -31,6 +35,9 @@ var implementedActions = []string{
 	"document.recover",
 	"document.reveal",
 	"document.versions",
+	"fileTypes.makeDefault",
+	"fileTypes.setHTMLOpenWith",
+	"fileTypes.stopOpening",
 	"file.open",
 	"folder.copyAddress",
 	"folder.merge",
@@ -44,14 +51,17 @@ var implementedActions = []string{
 	"folder.stopTrusting",
 	"folder.trust",
 	"host.quit",
+	"host.setPort",
 	"prefs.set",
 	"program.add",
 	"program.askAgain",
+	"program.openExample",
 	"program.relink",
 	"program.remove",
 	"program.removeAccess",
 	"program.reveal",
 	"program.setAllTrusted",
+	"program.setOn",
 	"request.answer",
 	"request.show",
 	"service.restart",
@@ -59,6 +69,8 @@ var implementedActions = []string{
 	"sync.disconnect",
 	"sync.setPaused",
 	"sync.revealLog",
+	"update.check",
+	"update.start",
 	"conflict.resolve",
 	"folder.resolveRemoval",
 	"move.quitLocal",
@@ -75,6 +87,15 @@ func (a *app) implemented() []string {
 			continue
 		}
 		if typ == "document.recover" && !a.shell {
+			continue
+		}
+		// The Mac app updates itself through Sparkle, so it neither checks nor
+		// applies an update through the host.
+		if (typ == "update.check" || typ == "update.start") && a.shell {
+			continue
+		}
+		// The Mac app reads and sets its own file types.
+		if (typ == "fileTypes.makeDefault" || typ == "fileTypes.stopOpening" || typ == "fileTypes.setHTMLOpenWith") && !a.managesFileTypes() {
 			continue
 		}
 		out = append(out, typ)
@@ -150,6 +171,16 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.disconnectSync()
 	case "sync.setPaused":
 		return a.setSyncPaused(e.On)
+	case "app.revealLog":
+		path := a.appLogPath()
+		if _, err := os.Stat(path); err != nil {
+			path = a.rt.configDir
+		}
+		if err := a.revealPath(path); err != nil {
+			a.rt.logger.Printf("Could not show the app log: %v", err)
+			return &appcore.Refusal{Code: appcore.RefuseFailed}
+		}
+		return nil
 	case "sync.revealLog":
 		// The service's sync engine writes its logs here (service/sync.cjs logsDir,
 		// the engine's logger adds sync/); made first so Finder has a folder to show.
@@ -163,6 +194,14 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
 		}
 		return nil
+	case "fileTypes.makeDefault", "fileTypes.stopOpening", "fileTypes.setHTMLOpenWith":
+		return a.runFileTypeEffect(e)
+	case "host.setPort":
+		return a.setPort(e.Port)
+	case "update.check":
+		return a.checkForUpdates()
+	case "update.start":
+		return a.startUpdate()
 	case "conflict.resolve":
 		return a.resolveConflict(e)
 	case "folder.resolveRemoval":
@@ -207,9 +246,13 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		}
 		a.core.mu.Unlock()
 		return nil
-	case "app.openKeptPage":
+	case "app.openRecoveredChanges":
 		a.openKeptPage()
 		return nil
+	case "aiEdit.setModel":
+		return a.setAIEditModel(e)
+	case "aiEdit.setCustom":
+		return a.setAIEditCustom(e)
 	case "dashboard.open":
 		if a.dashboard == nil {
 			return &appcore.Refusal{Code: appcore.RefuseNotYet}
@@ -300,6 +343,10 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.askProgramAgain(e)
 	case "program.removeAccess":
 		return a.removeProgramAccess(e)
+	case "program.setOn":
+		return a.setBuiltinOn(e.ProgramID, e.On)
+	case "program.openExample":
+		return a.openBuiltinExample(e.ProgramID)
 	case "program.remove":
 		return a.removeProgram(e)
 	case "program.reveal":
@@ -513,6 +560,9 @@ func (a *app) registerProgramLocked(e appcore.Effect) *appcore.Refusal {
 // trusted local folders only, which ResolveHelper decides, so it never widens a
 // team folder.
 func (a *app) setProgramAllTrusted(e appcore.Effect) *appcore.Refusal {
+	if builtin.Is(e.ProgramID) {
+		return a.setBuiltinAllTrusted(e)
+	}
 	a.helperStateMu.Lock()
 	refusal := a.setProgramAllTrustedLocked(e)
 	a.helperStateMu.Unlock()
@@ -541,6 +591,9 @@ func (a *app) setProgramAllTrustedLocked(e appcore.Effect) *appcore.Refusal {
 // document, so a person can allow a program they removed access to. The action
 // grants nothing by itself; the answer does.
 func (a *app) askProgramAgain(e appcore.Effect) *appcore.Refusal {
+	if builtin.Is(e.ProgramID) {
+		return a.askBuiltinAgain(e)
+	}
 	program, ok := a.rt.cfg.LookupHelperProgram(e.ProgramID)
 	if !ok {
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchProgram, SubjectID: e.ProgramID}
@@ -569,6 +622,9 @@ func (a *app) askProgramAgain(e appcore.Effect) *appcore.Refusal {
 func (a *app) removeProgramAccess(e appcore.Effect) *appcore.Refusal {
 	if e.ProgramID == aiEditProgramID {
 		return a.removeAIEditAccess(e)
+	}
+	if builtin.Is(e.ProgramID) {
+		return a.removeBuiltinAccess(e)
 	}
 	a.helperStateMu.Lock()
 	refusal := a.removeProgramAccessLocked(e)
@@ -788,6 +844,8 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
 		}
 		return nil
+	case "aiEditTool":
+		return a.setAIEditToolPreference(e.Value)
 	}
 	return &appcore.Refusal{Code: appcore.RefuseNotYet}
 }

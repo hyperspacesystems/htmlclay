@@ -40,6 +40,10 @@ struct FoldersPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            KilnLink(Strings.Folders.serveLink) {
+                model.sheet = .serveFolder(folderID: nil)
+            }
+            .padding(.bottom, 10)
             if model.snapshot.folders.isEmpty && !model.snapshot.localMoveOffer {
                 emptyCard
             }
@@ -60,12 +64,7 @@ struct FoldersPane: View {
             Spacer(minLength: 0)
             Menu {
                 Button(Strings.Folders.trustMenu) {
-                    Task {
-                        if let path = await model.folderChooser?.chooseToTrust(after: nil, in: model.snapshot) {
-                            let sample = SampleData.trustCandidates.first { $0.path == path }
-                            model.sheet = .trustFolder(name: sample?.name ?? (path as NSString).lastPathComponent, path: path)
-                        }
-                    }
+                    chooseToTrust()
                 }
                 Button(Strings.Folders.serveMenu) {
                     model.sheet = .serveFolder(folderID: nil)
@@ -86,17 +85,24 @@ struct FoldersPane: View {
     }
 
     private var emptyCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            KilnCard {
-                KilnRow(title: Strings.Folders.emptyTitle, subtitle: Strings.Folders.emptySub) {
-                    EmptyView()
+        KilnCard {
+            KilnRow(title: Strings.Folders.emptyTitle, subtitle: Strings.Folders.emptySub) {
+                Button(Strings.Folders.trustMenu) {
+                    chooseToTrust()
                 }
-            }
-            KilnLink(Strings.Folders.serveLink) {
-                model.sheet = .serveFolder(folderID: nil)
+                .buttonStyle(KilnButtonStyle(.plain))
             }
         }
         .padding(.bottom, 4)
+    }
+
+    private func chooseToTrust() {
+        Task {
+            if let path = await model.folderChooser?.chooseToTrust(after: nil, in: model.snapshot) {
+                let sample = SampleData.trustCandidates.first { $0.path == path }
+                model.sheet = .trustFolder(name: sample?.name ?? (path as NSString).lastPathComponent, path: path)
+            }
+        }
     }
 
     private var moveCard: some View {

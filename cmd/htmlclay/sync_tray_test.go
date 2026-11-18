@@ -11,7 +11,6 @@ import (
 	"github.com/panphora/htmlclay/internal/dashboard"
 
 	"github.com/panphora/htmlclay/internal/appcore"
-	"github.com/panphora/htmlclay/internal/tray"
 )
 
 // TestM4TrayItems covers the Windows and Linux tray's sync rows (08-sync.md 8.47).
@@ -22,17 +21,17 @@ func TestM4TrayItems(t *testing.T) {
 		name    string
 		sync    appcore.SyncState
 		waiting []appcore.WaitingItem
-		want    []tray.SyncItem
+		want    []syncTrayItem
 	}{
 		{"not connected shows nothing", appcore.SyncState{}, []appcore.WaitingItem{conflict}, nil},
 		{"connected offers pause", appcore.SyncState{Connected: true}, nil,
-			[]tray.SyncItem{{Action: syncTrayPause, Title: appcore.TextTrayPauseSyncing}}},
+			[]syncTrayItem{{Action: syncTrayPause, Title: appcore.TextTrayPauseSyncing}}},
 		{"paused offers resume", appcore.SyncState{Connected: true, Paused: true}, []appcore.WaitingItem{other},
-			[]tray.SyncItem{{Action: syncTrayResume, Title: appcore.TextTrayResumeSyncing}}},
+			[]syncTrayItem{{Action: syncTrayResume, Title: appcore.TextTrayResumeSyncing}}},
 		{"one conflict", appcore.SyncState{Connected: true}, []appcore.WaitingItem{conflict, other},
-			[]tray.SyncItem{{Action: syncTrayPause, Title: appcore.TextTrayPauseSyncing}, {Action: syncTrayConflicts, Title: appcore.TextTrayOneConflict}}},
+			[]syncTrayItem{{Action: syncTrayPause, Title: appcore.TextTrayPauseSyncing}, {Action: syncTrayConflicts, Title: appcore.TextTrayOneConflict}}},
 		{"three conflicts", appcore.SyncState{Connected: true}, []appcore.WaitingItem{conflict, conflict, other, conflict},
-			[]tray.SyncItem{{Action: syncTrayPause, Title: appcore.TextTrayPauseSyncing}, {Action: syncTrayConflicts, Title: fmt.Sprintf(appcore.TextTrayConflicts, 3)}}},
+			[]syncTrayItem{{Action: syncTrayPause, Title: appcore.TextTrayPauseSyncing}, {Action: syncTrayConflicts, Title: fmt.Sprintf(appcore.TextTrayConflicts, 3)}}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			got := syncTrayItems(appcore.Snapshot{Sync: c.sync, Waiting: c.waiting})

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/confirm"
 )
 
@@ -85,6 +86,14 @@ type Hooks struct {
 	// AIEditEngines returns the default engine name ("" for claude) and the
 	// user-defined engines. Nil means the built-ins only.
 	AIEditEngines func() (string, map[string][]string)
+
+	// AIEditModels returns the model each AI engine runs with. Nil means defaults.
+	AIEditModels func() map[string]string
+	// BuiltinFor answers whether document may run a built-in program now. Nil
+	// means every built-in program is off.
+	BuiltinFor func(document, program string) builtin.Access
+	// AskBuiltin raises the built-in program question for document. Nil asks nothing.
+	AskBuiltin func(document, program string)
 
 	// Profile reports the person documents may see (spec §9 People). Nil means this
 	// server offers no People at all: no extension and no block. ok false means the

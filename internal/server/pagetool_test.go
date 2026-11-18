@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -77,19 +78,19 @@ func TestPageToolListing(t *testing.T) {
 	// A runtime without the prompt files leaves the helper absent rather than
 	// listed unavailable.
 	withoutPageToolPrompts(t)
-	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 1 || meta[0].Name != "ai-edit" {
+	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 1+len(builtinUnavailable) || meta[0].Name != "ai-edit" {
 		t.Fatalf("discovery without prompt files = %+v", meta)
 	}
 
 	withPageToolPrompts(t)
-	want := []wire.HelperMeta{{Name: "ai-edit", State: "ready"}, {Name: "blockeditor-tool", State: "ready"}}
-	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 2 || meta[0] != want[0] || meta[1] != want[1] {
+	want := append([]wire.HelperMeta{{Name: "ai-edit", State: "ready"}, {Name: "blockeditor-tool", State: "ready"}}, builtinUnavailable...)
+	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); !reflect.DeepEqual(meta, want) {
 		t.Fatalf("enabled discovery = %+v, want %+v", meta, want)
 	}
 
 	on.Store(false)
-	want = []wire.HelperMeta{{Name: "ai-edit", State: "unavailable"}, {Name: "blockeditor-tool", State: "unavailable"}}
-	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); len(meta) != 2 || meta[0] != want[0] || meta[1] != want[1] {
+	want = append([]wire.HelperMeta{{Name: "ai-edit", State: "unavailable"}, {Name: "blockeditor-tool", State: "unavailable"}}, builtinUnavailable...)
+	if meta := aiEditDiscoveryMeta(t, srv, f.AbsPath); !reflect.DeepEqual(meta, want) {
 		t.Fatalf("disabled discovery = %+v, want %+v", meta, want)
 	}
 	on.Store(true)
@@ -102,7 +103,7 @@ func TestPageToolListing(t *testing.T) {
 	srv.HelperOffline[f.AbsPath] = []string{"search", "blockeditor-tool"}
 	srv.HelperMu.Unlock()
 	meta := aiEditDiscoveryMeta(t, srv, f.AbsPath)
-	if len(meta) != 3 || meta[0].Name != "search" || meta[1].Name != "ai-edit" || meta[2].Name != "blockeditor-tool" {
+	if len(meta) != 3+len(builtinUnavailable) || meta[0].Name != "search" || meta[1].Name != "ai-edit" || meta[2].Name != "blockeditor-tool" {
 		t.Fatalf("declared-plus-built-in discovery = %+v", meta)
 	}
 }

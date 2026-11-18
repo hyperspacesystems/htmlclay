@@ -60,17 +60,17 @@ func openKeptForTest(t *testing.T, a *app) *keptClient {
 	a.rt.openKeptURL = func(u string) error { opened = u; return nil }
 	a.openKeptPage()
 	c := &keptClient{t: t, a: a, origin: "http://127.0.0.1:" + strconv.Itoa(a.rt.port)}
-	if !strings.HasPrefix(opened, c.origin+"/kept/open?t=") {
+	if !strings.HasPrefix(opened, c.origin+"/recovered/open?t=") {
 		t.Fatalf("opened %q, want a one-time link on %s", opened, c.origin)
 	}
 	rec := c.do("GET", strings.TrimPrefix(opened, c.origin), nil, func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "none") })
-	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/kept" {
-		t.Fatalf("redeem = %d %q, want 303 to /kept", rec.Code, rec.Header().Get("Location"))
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/recovered" {
+		t.Fatalf("redeem = %d %q, want 303 to /recovered", rec.Code, rec.Header().Get("Location"))
 	}
 	for _, ck := range rec.Result().Cookies() {
 		if ck.Name == keptCookie {
-			if !ck.HttpOnly || ck.SameSite != http.SameSiteStrictMode || ck.Path != "/kept" {
-				t.Fatalf("cookie %+v, want HttpOnly, SameSite=Strict and path /kept", ck)
+			if !ck.HttpOnly || ck.SameSite != http.SameSiteStrictMode || ck.Path != "/recovered" {
+				t.Fatalf("cookie %+v, want HttpOnly, SameSite=Strict and path /recovered", ck)
 			}
 			c.cookie = ck
 		}
@@ -83,9 +83,9 @@ func openKeptForTest(t *testing.T, a *app) *keptClient {
 
 func (c *keptClient) csrf() string {
 	c.t.Helper()
-	rec := c.do("GET", "/kept", nil, nil)
+	rec := c.do("GET", "/recovered", nil, nil)
 	if rec.Code != http.StatusOK {
-		c.t.Fatalf("GET /kept = %d", rec.Code)
+		c.t.Fatalf("GET /recovered = %d", rec.Code)
 	}
 	body := rec.Body.String()
 	_, rest, ok := strings.Cut(body, `name="csrf" value="`)
@@ -98,7 +98,7 @@ func (c *keptClient) csrf() string {
 
 func (c *keptClient) action(values url.Values) *httptest.ResponseRecorder {
 	c.t.Helper()
-	return c.do("POST", "/kept/action", values, nil)
+	return c.do("POST", "/recovered/action", values, nil)
 }
 
 // pinKeptCopy backs up one version of path and keeps it, returning the history
@@ -141,31 +141,31 @@ func pinKeptCopy(t *testing.T, a *app, path, body string) (string, string) {
 func TestKeptPageNeedsTheTrayLink(t *testing.T) {
 	a := newKeptApp(t)
 	c := &keptClient{t: t, a: a, origin: "http://127.0.0.1:24192"}
-	if rec := c.do("GET", "/kept", nil, nil); rec.Code != http.StatusForbidden || strings.Contains(rec.Body.String(), "csrf") {
-		t.Fatalf("GET /kept without a session = %d, want a 403 sign-in page", rec.Code)
+	if rec := c.do("GET", "/recovered", nil, nil); rec.Code != http.StatusForbidden || strings.Contains(rec.Body.String(), "csrf") {
+		t.Fatalf("GET /recovered without a session = %d, want a 403 sign-in page", rec.Code)
 	}
-	if !strings.Contains(c.do("GET", "/kept", nil, nil).Body.String(), "This link has expired") {
+	if !strings.Contains(c.do("GET", "/recovered", nil, nil).Body.String(), "This link has expired") {
 		t.Fatal("the sign-in page does not explain the expired link")
 	}
-	if rec := c.do("GET", "/kept/open?t=forged", nil, nil); rec.Code != http.StatusForbidden || len(rec.Result().Cookies()) != 0 {
+	if rec := c.do("GET", "/recovered/open?t=forged", nil, nil); rec.Code != http.StatusForbidden || len(rec.Result().Cookies()) != 0 {
 		t.Fatalf("a forged ticket = %d with cookies %v", rec.Code, rec.Result().Cookies())
 	}
 }
 
 // TestKeptCopiesMenuAction opens the page through the action the Mac app's menu
-// sends: host.can offers app.openKeptPage, and it opens the one-time link.
+// sends: host.can offers app.openRecoveredChanges, and it opens the one-time link.
 func TestKeptCopiesMenuActionOpensThePage(t *testing.T) {
 	a := newKeptApp(t)
-	if !a.snapshot().Host.Can["app.openKeptPage"] {
-		t.Fatalf("host.can does not offer app.openKeptPage: %v", a.snapshot().Host.Can)
+	if !a.snapshot().Host.Can["app.openRecoveredChanges"] {
+		t.Fatalf("host.can does not offer app.openRecoveredChanges: %v", a.snapshot().Host.Can)
 	}
 	var opened string
 	a.rt.openKeptURL = func(u string) error { opened = u; return nil }
-	if _, refusal := a.do(context.Background(), coreAction(t, "kept-menu-1", "app.openKeptPage", nil), ChannelShell); refusal != nil {
-		t.Fatalf("app.openKeptPage refused: %+v", refusal)
+	if _, refusal := a.do(context.Background(), coreAction(t, "kept-menu-1", "app.openRecoveredChanges", nil), ChannelShell); refusal != nil {
+		t.Fatalf("app.openRecoveredChanges refused: %+v", refusal)
 	}
-	if !strings.HasPrefix(opened, "http://127.0.0.1:24192/kept/open?t=") {
-		t.Fatalf("app.openKeptPage opened %q, want a one-time link on 127.0.0.1:24192", opened)
+	if !strings.HasPrefix(opened, "http://127.0.0.1:24192/recovered/open?t=") {
+		t.Fatalf("app.openRecoveredChanges opened %q, want a one-time link on 127.0.0.1:24192", opened)
 	}
 }
 
@@ -174,13 +174,13 @@ func TestKeptTicketOpensThePageOnceAndOnlyOnce(t *testing.T) {
 	var opened string
 	a.rt.openKeptURL = func(u string) error { opened = u; return nil }
 	a.openKeptPage()
-	if !strings.HasPrefix(opened, "http://127.0.0.1:24192/kept/open?t=") {
+	if !strings.HasPrefix(opened, "http://127.0.0.1:24192/recovered/open?t=") {
 		t.Fatalf("openKeptPage opened %q", opened)
 	}
 	c := &keptClient{t: t, a: a, origin: "http://127.0.0.1:24192"}
 	target := strings.TrimPrefix(opened, c.origin)
 	rec := c.do("GET", target, nil, func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "none") })
-	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/kept" {
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/recovered" {
 		t.Fatalf("first redeem = %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 	cookie := rec.Result().Cookies()
@@ -191,17 +191,17 @@ func TestKeptTicketOpensThePageOnceAndOnlyOnce(t *testing.T) {
 	if rec := c.do("GET", target, nil, func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "none") }); rec.Code != http.StatusForbidden {
 		t.Fatalf("second redeem = %d, want 403", rec.Code)
 	}
-	if rec := c.do("GET", "/kept", nil, nil); rec.Code != http.StatusOK {
-		t.Fatalf("GET /kept with the cookie = %d", rec.Code)
+	if rec := c.do("GET", "/recovered", nil, nil); rec.Code != http.StatusOK {
+		t.Fatalf("GET /recovered with the cookie = %d", rec.Code)
 	}
 }
 
 func TestKeptPageIsOnlyOn127001(t *testing.T) {
 	a := newKeptApp(t)
 	for _, host := range []string{"localhost:24192", "search.localhost:24192"} {
-		rec := serveHostForTest(t, a, host, func(r *http.Request) { r.URL.Path = "/kept" })
-		if strings.Contains(rec.Body.String(), "<title>Kept Copies") {
-			t.Fatalf("%s served the Kept Copies page", host)
+		rec := serveHostForTest(t, a, host, func(r *http.Request) { r.URL.Path = "/recovered" })
+		if strings.Contains(rec.Body.String(), "<title>Recovered changes") {
+			t.Fatalf("%s served the Recovered changes page", host)
 		}
 	}
 }
@@ -209,7 +209,7 @@ func TestKeptPageIsOnlyOn127001(t *testing.T) {
 func TestKeptPageHeadersAndNoScript(t *testing.T) {
 	a := newKeptApp(t)
 	c := openKeptForTest(t, a)
-	rec := c.do("GET", "/kept", nil, nil)
+	rec := c.do("GET", "/recovered", nil, nil)
 	csp := rec.Header().Get("Content-Security-Policy")
 	for _, want := range []string{"default-src 'none'", "frame-ancestors 'none'", "form-action 'self'"} {
 		if !strings.Contains(csp, want) {
@@ -221,9 +221,9 @@ func TestKeptPageHeadersAndNoScript(t *testing.T) {
 	}
 	body := rec.Body.String()
 	if strings.Contains(body, "<script") {
-		t.Fatal("the Kept Copies page carries a script")
+		t.Fatal("the Recovered changes page carries a script")
 	}
-	if !strings.Contains(body, "No kept copies.") {
+	if !strings.Contains(body, "No recovered changes left.") {
 		t.Fatal("an empty store did not show the empty state")
 	}
 }
@@ -231,12 +231,12 @@ func TestKeptPageHeadersAndNoScript(t *testing.T) {
 func TestKeptAndProgramsCookiesDoNotCross(t *testing.T) {
 	a := newKeptApp(t)
 	programs := signIn(t, a)
-	if rec := programs.do("GET", "/kept", nil, nil); rec.Code != http.StatusForbidden {
-		t.Fatalf("a Programs cookie opened /kept: %d", rec.Code)
+	if rec := programs.do("GET", "/recovered", nil, nil); rec.Code != http.StatusForbidden {
+		t.Fatalf("a Programs cookie opened /recovered: %d", rec.Code)
 	}
 	kept := openKeptForTest(t, a)
 	if rec := kept.do("GET", "/programs", nil, nil); rec.Code != http.StatusForbidden {
-		t.Fatalf("a Kept cookie opened /programs: %d", rec.Code)
+		t.Fatalf("a Recovered changes cookie opened /programs: %d", rec.Code)
 	}
 }
 
@@ -252,10 +252,10 @@ func TestKeptActionNeedsCSRFAndOrigin(t *testing.T) {
 		t.Fatalf("no csrf = %d, want 403", rec.Code)
 	}
 	form.Set("csrf", c.csrf())
-	if rec := c.do("POST", "/kept/action", form, func(r *http.Request) { r.Header.Set("Origin", "http://search.localhost:24192") }); rec.Code != http.StatusForbidden {
+	if rec := c.do("POST", "/recovered/action", form, func(r *http.Request) { r.Header.Set("Origin", "http://search.localhost:24192") }); rec.Code != http.StatusForbidden {
 		t.Fatalf("a document origin = %d, want 403", rec.Code)
 	}
-	if rec := c.do("POST", "/kept/action", form, func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "same-site") }); rec.Code != http.StatusForbidden {
+	if rec := c.do("POST", "/recovered/action", form, func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "same-site") }); rec.Code != http.StatusForbidden {
 		t.Fatalf("same-site = %d, want 403", rec.Code)
 	}
 	if _, err := a.rt.versions.KeptPath(folder, name); err != nil {
@@ -263,7 +263,7 @@ func TestKeptActionNeedsCSRFAndOrigin(t *testing.T) {
 	}
 
 	rec := c.action(form)
-	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/kept?done=deleted" {
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/recovered?done=deleted" {
 		t.Fatalf("delete = %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 	if _, err := a.rt.versions.KeptPath(folder, name); err == nil {
@@ -285,43 +285,43 @@ func TestKeptPageListsConfirmsAndDeletes(t *testing.T) {
 	folderB, nameB := pinKeptCopy(t, a, pathB, "<html>beta</html>")
 
 	c := openKeptForTest(t, a)
-	page := c.do("GET", "/kept", nil, nil).Body.String()
-	for _, want := range []string{"alpha.html", "beta.html", "3 copies", "Delete All 2 Copies"} {
+	page := c.do("GET", "/recovered", nil, nil).Body.String()
+	for _, want := range []string{"alpha.html", "beta.html", "3 recovered changes", "Delete all 2 recovered changes"} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("the list lacks %q", want)
 		}
 	}
-	if !strings.Contains(page, `href="/kept/confirm?folder=`+folderA+`&all=1"`) {
+	if !strings.Contains(page, `href="/recovered/confirm?folder=`+folderA+`&all=1"`) {
 		t.Fatalf("the list lacks the delete-all link for %s", folderA)
 	}
 
-	link := `/kept/confirm?` + url.Values{"folder": {folderA}, "name": {nameA1}}.Encode()
+	link := `/recovered/confirm?` + url.Values{"folder": {folderA}, "name": {nameA1}}.Encode()
 	if !strings.Contains(page, `href="`+link+`"`) && !strings.Contains(page, `href="`+strings.ReplaceAll(link, "&", "&amp;")+`"`) {
 		t.Fatalf("the list lacks the delete link %s", link)
 	}
 	confirm := c.do("GET", link, nil, nil)
 	if confirm.Code != http.StatusOK {
-		t.Fatalf("GET /kept/confirm = %d", confirm.Code)
+		t.Fatalf("GET /recovered/confirm = %d", confirm.Code)
 	}
-	for _, want := range []string{"After you delete this copy", `value="delete"`, `value="` + folderA + `"`, `value="` + strings.ReplaceAll(nameA1, "+", "&#43;") + `"`} {
+	for _, want := range []string{"Once you delete this recovered change", `value="delete"`, `value="` + folderA + `"`, `value="` + strings.ReplaceAll(nameA1, "+", "&#43;") + `"`} {
 		if !strings.Contains(confirm.Body.String(), want) {
 			t.Fatalf("the confirm page lacks %q", want)
 		}
 	}
-	if n := len(c.do("GET", "/kept", nil, nil).Body.String()); n == 0 {
+	if n := len(c.do("GET", "/recovered", nil, nil).Body.String()); n == 0 {
 		t.Fatal("the list rendered nothing after the confirm page")
 	}
 	if _, err := a.rt.versions.KeptPath(folderA, nameA1); err != nil {
 		t.Fatalf("the confirm page deleted a copy: %v", err)
 	}
 
-	if rec := c.do("GET", "/kept/confirm?folder="+folderA+"&name=not-a-version.html", nil, nil); rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/kept?done=gone" {
+	if rec := c.do("GET", "/recovered/confirm?folder="+folderA+"&name=not-a-version.html", nil, nil); rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/recovered?done=gone" {
 		t.Fatalf("confirm of an unkept name = %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 
 	csrf := c.csrf()
 	rec := c.action(url.Values{"csrf": {csrf}, "action": {"delete"}, "folder": {folderA}, "name": {nameA1}})
-	if rec.Header().Get("Location") != "/kept?done=deleted" {
+	if rec.Header().Get("Location") != "/recovered?done=deleted" {
 		t.Fatalf("delete = %q", rec.Header().Get("Location"))
 	}
 	kept, err := a.rt.versions.ListKept()
@@ -343,11 +343,11 @@ func TestKeptPageListsConfirmsAndDeletes(t *testing.T) {
 		t.Fatalf("deleting one document's copy touched another: %v", err)
 	}
 
-	all := c.do("GET", "/kept/confirm?folder="+folderA+"&all=1", nil, nil)
-	if all.Code != http.StatusOK || !strings.Contains(all.Body.String(), "After you delete these copies") {
+	all := c.do("GET", "/recovered/confirm?folder="+folderA+"&all=1", nil, nil)
+	if all.Code != http.StatusOK || !strings.Contains(all.Body.String(), "Once you delete these recovered changes") {
 		t.Fatalf("about-to-delete-all page = %d", all.Code)
 	}
-	if rec := c.action(url.Values{"csrf": {csrf}, "action": {"delete-all"}, "folder": {folderA}, "name": namesA}); rec.Header().Get("Location") != "/kept?done=deleted-all" {
+	if rec := c.action(url.Values{"csrf": {csrf}, "action": {"delete-all"}, "folder": {folderA}, "name": namesA}); rec.Header().Get("Location") != "/recovered?done=deleted-all" {
 		t.Fatalf("delete-all = %q", rec.Header().Get("Location"))
 	}
 	kept, err = a.rt.versions.ListKept()
@@ -366,9 +366,9 @@ func TestKeptDeleteAllKeepsACopyKeptAfterTheConfirmPage(t *testing.T) {
 	_, name2 := pinKeptCopy(t, a, path, "<html>delta two is longer</html>")
 
 	c := openKeptForTest(t, a)
-	all := c.do("GET", "/kept/confirm?folder="+folder+"&all=1", nil, nil)
+	all := c.do("GET", "/recovered/confirm?folder="+folder+"&all=1", nil, nil)
 	if all.Code != http.StatusOK {
-		t.Fatalf("GET /kept/confirm?all=1 = %d", all.Code)
+		t.Fatalf("GET /recovered/confirm?all=1 = %d", all.Code)
 	}
 	for _, name := range []string{name1, name2} {
 		want := `<input type="hidden" name="name" value="` + strings.ReplaceAll(name, "+", "&#43;") + `">`
@@ -381,7 +381,7 @@ func TestKeptDeleteAllKeepsACopyKeptAfterTheConfirmPage(t *testing.T) {
 
 	csrf := c.csrf()
 	rec := c.action(url.Values{"csrf": {csrf}, "action": {"delete-all"}, "folder": {folder}, "name": {name1, name2}})
-	if rec.Header().Get("Location") != "/kept?done=deleted-all" {
+	if rec.Header().Get("Location") != "/recovered?done=deleted-all" {
 		t.Fatalf("delete-all = %q", rec.Header().Get("Location"))
 	}
 	if _, err := a.rt.versions.KeptPath(folder, name3); err != nil {
@@ -400,16 +400,19 @@ func TestKeptPageUsesSingularWordingForOneCopy(t *testing.T) {
 	folder, _ := pinKeptCopy(t, a, path, "<html>epsilon</html>")
 
 	c := openKeptForTest(t, a)
-	page := c.do("GET", "/kept", nil, nil).Body.String()
-	if !strings.Contains(page, "1 copy") || strings.Contains(page, "1 copies") {
-		t.Fatalf("the list does not use singular wording for one copy")
+	page := c.do("GET", "/recovered", nil, nil).Body.String()
+	if !strings.Contains(page, "1 recovered change") || strings.Contains(page, "1 recovered changes") {
+		t.Fatalf("the list does not use singular wording for one recovered change")
 	}
-	confirm := c.do("GET", "/kept/confirm?folder="+folder+"&all=1", nil, nil).Body.String()
-	if !strings.Contains(confirm, "1 copy") || strings.Contains(confirm, "1 copies") {
-		t.Fatalf("the confirm page does not use singular wording for one copy")
+	confirm := c.do("GET", "/recovered/confirm?folder="+folder+"&all=1", nil, nil).Body.String()
+	if !strings.Contains(confirm, "1 recovered change · ") || strings.Contains(confirm, "1 recovered changes") {
+		t.Fatalf("the confirm page does not use singular wording for one recovered change")
 	}
-	if !strings.Contains(confirm, "Delete This Copy") {
-		t.Fatalf("the confirm page does not offer Delete This Copy for one copy")
+	if !strings.Contains(confirm, "Delete this recovered change") {
+		t.Fatalf("the confirm page does not offer Delete this recovered change for one recovered change")
+	}
+	if !strings.Contains(confirm, "<h1>Delete this recovered change?</h1>") || strings.Contains(confirm, "Delete all 1 recovered changes?") {
+		t.Fatalf("the confirm page's heading is not the singular one")
 	}
 }
 
@@ -434,7 +437,7 @@ func TestKeptRevealCallsThePlatformOpener(t *testing.T) {
 	a.rt.revealKept = func(p string) error { revealed = append(revealed, p); return nil }
 	c := openKeptForTest(t, a)
 	csrf := c.csrf()
-	if rec := c.action(url.Values{"csrf": {csrf}, "action": {"reveal"}, "folder": {folder}, "name": {name}}); rec.Header().Get("Location") != "/kept?done=revealed" {
+	if rec := c.action(url.Values{"csrf": {csrf}, "action": {"reveal"}, "folder": {folder}, "name": {name}}); rec.Header().Get("Location") != "/recovered?done=revealed" {
 		t.Fatalf("reveal = %q", rec.Header().Get("Location"))
 	}
 	if len(revealed) != 1 || revealed[0] != want {
@@ -462,11 +465,47 @@ func TestKeptPageEscapesADocumentName(t *testing.T) {
 		t.Fatalf("pin: %v", err)
 	}
 	c := openKeptForTest(t, a)
-	page := c.do("GET", "/kept", nil, nil).Body.String()
+	page := c.do("GET", "/recovered", nil, nil).Body.String()
 	if !strings.Contains(page, html.EscapeString(name)) {
 		t.Fatal("the document name is not escaped")
 	}
 	if strings.Contains(page, strings.TrimSuffix(name, ".html")) {
 		t.Fatal("the page carried a raw document name")
+	}
+}
+
+func TestOldKeptPathRedirects(t *testing.T) {
+	a := newKeptApp(t)
+	c := &keptClient{t: t, a: a, origin: "http://127.0.0.1:24192"}
+	rec := c.do("GET", "/kept/open?t=x", nil, nil)
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/recovered/open?t=x" {
+		t.Fatalf("GET /kept/open?t=x = %d %q, want 302 to /recovered/open?t=x", rec.Code, rec.Header().Get("Location"))
+	}
+	if rec := c.do("POST", "/kept/action", url.Values{}, nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("POST /kept/action = %d, want 404", rec.Code)
+	}
+}
+
+func TestRecoveredCountFollowsDeletes(t *testing.T) {
+	a := newKeptApp(t)
+	path := filepath.Join(t.TempDir(), "zeta.html")
+	folder, name := pinKeptCopy(t, a, path, "<html>zeta one</html>")
+	_, other := pinKeptCopy(t, a, path, "<html>zeta two is longer</html>")
+
+	a.refreshRecovered()
+	if got := a.facts().RecoveredChanges; got != 2 {
+		t.Fatalf("RecoveredChanges = %d, want 2", got)
+	}
+
+	c := openKeptForTest(t, a)
+	csrf := c.csrf()
+	if rec := c.action(url.Values{"csrf": {csrf}, "action": {"delete"}, "folder": {folder}, "name": {name}}); rec.Header().Get("Location") != "/recovered?done=deleted" {
+		t.Fatalf("delete = %q", rec.Header().Get("Location"))
+	}
+	if _, err := a.rt.versions.KeptPath(folder, other); err != nil {
+		t.Fatalf("the other recovered change went too: %v", err)
+	}
+	if got := a.facts().RecoveredChanges; got != 1 {
+		t.Fatalf("RecoveredChanges after the delete = %d, want 1", got)
 	}
 }

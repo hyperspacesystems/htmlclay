@@ -380,6 +380,20 @@ func (s *Server) Start() error {
 	return err
 }
 
+// CancelBuiltins stops built-in program requests: program's on one document,
+// program's on every document when document is "", or every one when both are "".
+func (s *Server) CancelBuiltins(program, document string) {
+	core := s.Core
+	if core == nil {
+		return
+	}
+	if document == "" {
+		core.CancelBuiltins(program)
+		return
+	}
+	core.CancelBuiltinFor(program, document)
+}
+
 // Shutdown releases parked permission requests and closes every SSE stream
 // before handing off to http.Server.Shutdown. Both otherwise hold graceful
 // shutdown open until its timeout and are then force-closed. A server that shares
@@ -387,6 +401,7 @@ func (s *Server) Start() error {
 // runtime down once, before the per-site HTTP servers).
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.CancelAIEdits()
+	s.CancelBuiltins("", "")
 	s.guardQueue.Settle()
 	s.broker.shutdown()
 	s.Hub.Shutdown()
@@ -401,6 +416,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) Close() error {
 	s.CancelAIEdits()
+	s.CancelBuiltins("", "")
 	s.guardQueue.Settle()
 	s.broker.shutdown()
 	s.Hub.Shutdown()

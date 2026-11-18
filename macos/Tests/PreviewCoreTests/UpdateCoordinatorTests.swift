@@ -252,6 +252,33 @@ final class UpdateCoordinatorTests: XCTestCase {
         XCTAssertEqual(rig.log.lines, ["prepare 9.0.2 quit", "quit force=true", "abort -", "reply false"])
     }
 
+    func testACheckThatFindsNothingEnds() async {
+        let rig = Rig()
+        await rig.coordinator.start(allowed: true)
+        XCTAssertFalse(rig.coordinator.checking)
+        rig.driver.send(.checking)
+        XCTAssertTrue(rig.coordinator.checking)
+        XCTAssertNil(rig.coordinator.checkedAt)
+        rig.driver.send(.upToDate)
+        XCTAssertFalse(rig.coordinator.checking)
+        XCTAssertNotNil(rig.coordinator.checkedAt)
+    }
+
+    func testACheckThatFindsAnUpdateEnds() async {
+        let rig = await readyCoordinator()
+        rig.driver.send(.checking)
+        XCTAssertTrue(rig.coordinator.checking)
+        rig.driver.send(.ready("2.0.1"))
+        XCTAssertFalse(rig.coordinator.checking)
+        XCTAssertEqual(rig.coordinator.prepared, "2.0.1")
+        XCTAssertNotNil(rig.coordinator.checkedAt)
+
+        rig.driver.send(.checking)
+        XCTAssertTrue(rig.coordinator.checking)
+        rig.driver.send(.checkEnded)
+        XCTAssertFalse(rig.coordinator.checking)
+    }
+
     func testNotAllowedNeverStartsDriver() async {
         let rig = Rig()
         await rig.coordinator.start(allowed: false)

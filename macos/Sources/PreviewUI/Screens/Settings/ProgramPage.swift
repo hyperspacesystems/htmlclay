@@ -11,7 +11,17 @@ struct ProgramPage: View {
         Strings.ProgramPage.pathLine(path: program.path, ready: !program.fileMissing, name: program.name)
     }
 
-    static func showsFileControls(_ program: Program) -> Bool { !ProgramControls.isAIEditing(program) }
+    /// The file rows, the runs-as-you card and Show in Finder belong to a
+    /// program a person added; a built-in one has none of them.
+    static func showsFileControls(_ program: Program) -> Bool {
+        !ProgramControls.isAIEditing(program) && !ProgramControls.isBuiltinProgram(program)
+    }
+
+    static func title(_ program: Program) -> String {
+        ProgramControls.isBuiltinProgram(program)
+            ? ProgramControls.programTitle(program.id)
+            : ProgramControls.fileName(program)
+    }
 
     static func place(of document: String, snapshot: HostSnapshot) -> String? {
         let name = ProgramControls.documentLabel(document)
@@ -32,16 +42,20 @@ struct ProgramPage: View {
             if Self.showsFileControls(program) {
                 KilnPath(Self.pathLine(program))
             }
-            KilnCard {
-                KilnRow(title: Self.showsFileControls(program) ? Strings.ProgramPage.runsAsYou : Strings.ProgramPage.aiEditNote, leading: {
-                    if Self.showsFileControls(program) {
-                        Image(systemName: Symbols.warning)
-                            .font(.system(size: 13))
-                            .foregroundStyle(KilnFixed.statusAmber)
-                    }
-                }, trailing: {
-                    EmptyView()
-                })
+            if ProgramControls.isBuiltinProgram(program) {
+                builtinCard(program)
+            } else {
+                KilnCard {
+                    KilnRow(title: Self.showsFileControls(program) ? Strings.ProgramPage.runsAsYou : Strings.ProgramPage.aiEditNote, leading: {
+                        if Self.showsFileControls(program) {
+                            Image(systemName: Symbols.warning)
+                                .font(.system(size: 13))
+                                .foregroundStyle(KilnFixed.statusAmber)
+                        }
+                    }, trailing: {
+                        EmptyView()
+                    })
+                }
             }
             KilnGroupTitle(Strings.ProgramPage.whoMayRun)
             whoMayRunCard(program)
@@ -56,7 +70,7 @@ struct ProgramPage: View {
             KilnBackButton {
                 model.route = .pane(.programs)
             }
-            Text(ProgramControls.fileName(program))
+            Text(Self.title(program))
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
             Spacer(minLength: 0)
@@ -74,9 +88,41 @@ struct ProgramPage: View {
         .padding(.bottom, 12)
     }
 
+    @ViewBuilder private func builtinCard(_ program: Program) -> some View {
+        KilnCard {
+            KilnRow(title: Strings.Programs.enableBuiltin(ProgramControls.programTitle(program.id)),
+                    subtitle: ProgramControls.builtinEnableSub(program.id),
+                    leading: {
+                        Squircle(BuiltinProgramRow.color(program.id), symbol: BuiltinProgramRow.symbol(program.id))
+                    }) {
+                Toggle(isOn: Binding(
+                    get: { program.isOn },
+                    set: { model.send(.setProgramOn(programID: program.id, on: $0)) }
+                )) {
+                    EmptyView()
+                }
+                .toggleStyle(KilnSwitchStyle())
+            }
+            KilnRowDivider()
+            KilnRow(title: Strings.Programs.example(ProgramControls.exampleName(program.id)),
+                    subtitle: ProgramControls.exampleSub(program.id),
+                    leading: {
+                        Image(systemName: Symbols.doc)
+                            .font(.system(size: 14))
+                            .foregroundStyle(kiln.muted)
+                    }) {
+                Button(Strings.Programs.openExample) {
+                    model.send(.openProgramExample(programID: program.id))
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
+                .disabled(!program.isOn)
+            }
+        }
+    }
+
     private func whoMayRunCard(_ program: Program) -> some View {
         KilnCard {
-            if Self.showsFileControls(program) {
+            if Self.showsFileControls(program) || ProgramControls.isBuiltinProgram(program) {
                 KilnRow(title: Strings.ProgramPage.allTrustedTitle, subtitle: Strings.ProgramPage.allTrustedSub, trailing: {
                     Toggle(isOn: Binding(
                         get: { ProgramControls.allTrusted(program, pending: model.pending(AppModel.allTrustedSlot(program.id))) },
@@ -87,6 +133,10 @@ struct ProgramPage: View {
                     .toggleStyle(KilnSwitchStyle())
                     .disabled(!model.can(HostActionType.programSetAllTrusted))
                 })
+            }
+            if program.allowedDocuments.isEmpty, ProgramControls.isBuiltinProgram(program) {
+                KilnRowDivider()
+                KilnNoteRow(Strings.Programs.noPermissionYet)
             }
             ForEach(program.allowedDocuments, id: \.self) { document in
                 KilnRowDivider()

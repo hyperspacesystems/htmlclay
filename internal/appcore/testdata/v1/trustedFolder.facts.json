@@ -97,7 +97,8 @@
       }
     },
     {
-      "id": "journal", "ownAddress": true,
+      "id": "journal",
+      "ownAddress": true,
       "name": "Journal",
       "path": "/Users/sam/Documents/Notes/Journal",
       "origin": {
@@ -154,6 +155,41 @@
     }
   ],
   "programs": [
+    {
+      "id": "file-search",
+      "name": "file-search",
+      "path": "",
+      "fileMissing": false,
+      "allowedDocuments": [
+        "/Users/sam/Documents/Notes/todo.htmlclay"
+      ],
+      "allTrustedFolders": false,
+      "removedDocuments": [],
+      "builtin": true,
+      "on": true
+    },
+    {
+      "id": "file-convert",
+      "name": "file-convert",
+      "path": "",
+      "fileMissing": false,
+      "allowedDocuments": [],
+      "allTrustedFolders": true,
+      "removedDocuments": [],
+      "builtin": true,
+      "on": true
+    },
+    {
+      "id": "folder-watch",
+      "name": "folder-watch",
+      "path": "",
+      "fileMissing": false,
+      "allowedDocuments": [],
+      "allTrustedFolders": false,
+      "removedDocuments": [],
+      "builtin": true,
+      "on": false
+    },
     {
       "id": "todo-search",
       "name": "todo-search",

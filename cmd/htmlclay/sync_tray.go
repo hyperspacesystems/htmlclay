@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/panphora/htmlclay/internal/appcore"
-	"github.com/panphora/htmlclay/internal/tray"
 )
 
 const (
@@ -13,16 +12,25 @@ const (
 	syncTrayConflicts = "conflicts"
 )
 
+// syncTrayItem is one sync row the app can offer: Action is passed back to
+// doSyncTray.
+type syncTrayItem struct {
+	Action string
+	Title  string
+}
+
 // syncTrayItems is what the Windows and Linux tray shows for sync (08-sync.md
 // 8.47): nothing until connected, then Pause or Resume, and the held conflicts
-// when there are any, which open Needs you.
-func syncTrayItems(s appcore.Snapshot) []tray.SyncItem {
+// when there are any, which open Needs you. The one menu's rows carry these now
+// (appcore.MenuRows); this is what they offer a caller that reads the sync list
+// directly.
+func syncTrayItems(s appcore.Snapshot) []syncTrayItem {
 	if !s.Sync.Connected {
 		return nil
 	}
-	items := []tray.SyncItem{{Action: syncTrayPause, Title: appcore.TextTrayPauseSyncing}}
+	items := []syncTrayItem{{Action: syncTrayPause, Title: appcore.TextTrayPauseSyncing}}
 	if s.Sync.Paused {
-		items[0] = tray.SyncItem{Action: syncTrayResume, Title: appcore.TextTrayResumeSyncing}
+		items[0] = syncTrayItem{Action: syncTrayResume, Title: appcore.TextTrayResumeSyncing}
 	}
 	conflicts := 0
 	for _, item := range s.Waiting {
@@ -32,9 +40,9 @@ func syncTrayItems(s appcore.Snapshot) []tray.SyncItem {
 	}
 	switch {
 	case conflicts == 1:
-		items = append(items, tray.SyncItem{Action: syncTrayConflicts, Title: appcore.TextTrayOneConflict})
+		items = append(items, syncTrayItem{Action: syncTrayConflicts, Title: appcore.TextTrayOneConflict})
 	case conflicts > 1:
-		items = append(items, tray.SyncItem{Action: syncTrayConflicts, Title: fmt.Sprintf(appcore.TextTrayConflicts, conflicts)})
+		items = append(items, syncTrayItem{Action: syncTrayConflicts, Title: fmt.Sprintf(appcore.TextTrayConflicts, conflicts)})
 	}
 	return items
 }
@@ -52,8 +60,5 @@ func (a *app) doSyncTray(action string) {
 	default:
 		return
 	}
-	if refusal != nil {
-		a.rt.logger.Printf("Tray %s: %s", action, appcore.RefusalMessage(refusal))
-		_ = a.notifyUser(appcore.RefusalMessage(refusal), "")
-	}
+	a.reportTrayRefusal(refusal)
 }

@@ -24,6 +24,10 @@ type Snapshot struct {
 	Update      UpdateState   `json:"update"`
 	Preferences Preferences   `json:"preferences"`
 	Move        *Move         `json:"move"`
+	// RecoveredChanges is how many copies HTML Clay saved aside when a page could
+	// not save normally (the Recovered changes page). 0 hides every menu row for it.
+	RecoveredChanges int       `json:"recoveredChanges"`
+	FileTypes        FileTypes `json:"fileTypes"`
 }
 
 // Service states.
@@ -171,6 +175,10 @@ type Program struct {
 	AllowedDocuments  []string `json:"allowedDocuments"`
 	AllTrustedFolders bool     `json:"allTrustedFolders"`
 	RemovedDocuments  []string `json:"removedDocuments"`
+	// Builtin is a program HTML Clay runs itself: it has no file and no path.
+	// On is its switch; ai-edit's On is the AI Editing switch.
+	Builtin bool `json:"builtin"`
+	On      bool `json:"on"`
 }
 
 // Request kinds, the preview's six.
@@ -181,6 +189,7 @@ const (
 	RequestRiskyFile       = "riskyFile"
 	RequestFolderRead      = "folderRead"
 	RequestFolderReadAgain = "folderReadAgain"
+	RequestBuiltinProgram  = "builtinProgram"
 )
 
 const AIEditProgram = "ai-edit" // the program name the built-in AI editing asks under
@@ -256,6 +265,10 @@ type SyncState struct {
 	LastFinishedAt *time.Time `json:"lastFinishedAt"`
 	FullName       string     `json:"fullName"`
 	KeyStore       string     `json:"keyStore"`
+	// EverOn is true when sync has been on at some point on this computer:
+	// sync.json has an account, an account row or a session row. Show sync log
+	// appears with it.
+	EverOn bool `json:"everOn"`
 }
 
 type UpdateState struct {
@@ -264,6 +277,11 @@ type UpdateState struct {
 	CheckedAt *time.Time `json:"checkedAt"`
 	Automatic bool       `json:"automatic"`
 	Finishing bool       `json:"finishing"`
+	// Checking is true while a check runs (Windows and Linux; the Mac app reads Sparkle).
+	Checking bool `json:"checking"`
+	// DownloadURL is set when a newer version exists that this build cannot
+	// install itself: the update row opens it.
+	DownloadURL string `json:"downloadURL"`
 }
 
 // Appearances.
@@ -280,6 +298,10 @@ type Preferences struct {
 	Appearance        string `json:"appearance"`
 	YourName          string `json:"yourName"`
 	UseName           bool   `json:"useName"`
+	// AIEditTool is the engine AI editing uses when a request names none: "claude",
+	// "codex", or a custom command's name.
+	AIEditTool  string       `json:"aiEditTool"`
+	AIEditTools []AIEditTool `json:"aiEditTools"`
 }
 
 // Move is the offer, and later the progress, of moving from Hyperclay Local.
@@ -314,3 +336,34 @@ type MoveFolder struct {
 // SyncKeyUnreadable is the detail of a syncKeyRefused item raised because the
 // saved key cannot be read, not because the server refused it.
 const SyncKeyUnreadable = "unreadable"
+
+// AIEditTool is one choice in the AI editing tool picker.
+type AIEditTool struct {
+	ID           string   `json:"id"`
+	Custom       bool     `json:"custom"`
+	Found        bool     `json:"found"`
+	Model        string   `json:"model"`
+	DefaultModel string   `json:"defaultModel"`
+	Models       []string `json:"models"`
+	Command      string   `json:"command"`
+}
+
+// FileTypes is what HTML Clay knows about the system's file types. Managed is
+// false where the host does not own them (the Mac app reads and sets its own).
+type FileTypes struct {
+	Managed bool `json:"managed"`
+	// Default is "htmlclay" when HTML Clay opens .htmlclay files, "other" when
+	// another app does, and "unknown" when the system cannot say.
+	Default string `json:"default"`
+	// HTMLOpenWith is HTML Clay being offered in Open With for .html files.
+	HTMLOpenWith bool `json:"htmlOpenWith"`
+	// Stopped is true after Stop opening .htmlclay files.
+	Stopped bool `json:"stopped"`
+}
+
+// FileTypes.Default values.
+const (
+	DefaultAppHTMLClay = "htmlclay"
+	DefaultAppOther    = "other"
+	DefaultAppUnknown  = "unknown"
+)

@@ -3,9 +3,9 @@
   "protocol": 1,
   "package": "0.13.1",
   "entry": {
-    "javascript": "main-BIQX6COG.js",
+    "javascript": "main-SRAHEMC2.js",
     "css": [
-      "main-J5PASYGV.css"
+      "main-3MIVNA6F.css"
     ]
   },
   "assets": [
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
-      "path": "main-BIQX6COG.js",
-      "bytes": 1741347,
-      "sha256": "56eedd42a3f67e1cc5db66d6a8d128107d61f3f49a4cc330085825b825682e7f"
+      "path": "main-3MIVNA6F.css",
+      "bytes": 388828,
+      "sha256": "0940123b40c16b9ec4a5756c1d9ec8c92c8acc6c36cb41a0c343f55b9e904f0c"
     },
     {
-      "path": "main-J5PASYGV.css",
-      "bytes": 385686,
-      "sha256": "68f06eb3d40843d06f3cab03da4e0ca498c7ca57122b8c7e7575db07346d444d"
+      "path": "main-SRAHEMC2.js",
+      "bytes": 1750000,
+      "sha256": "f17ca85706b6a1f099f1cbe33fdd728808fbb255ea2102a1732ed209aef4d4a7"
     }
   ]
 }

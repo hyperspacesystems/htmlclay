@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/versions"
 )
@@ -235,4 +236,31 @@ func (l looseWire) AIEditEngines() (string, map[string][]string) {
 		return "", nil
 	}
 	return l.s.hooks.AIEditEngines()
+}
+
+func (l looseWire) AIEditModels() map[string]string {
+	if l.s.hooks.AIEditModels == nil {
+		return nil
+	}
+	return l.s.hooks.AIEditModels()
+}
+
+func (l looseWire) BuiltinFor(document, program string) builtin.Access {
+	if l.s.hooks.BuiltinFor == nil {
+		return builtin.Access{State: builtin.Off}
+	}
+	return l.s.hooks.BuiltinFor(document, program)
+}
+
+func (l looseWire) AskBuiltin(document, program string) {
+	if l.s.hooks.AskBuiltin != nil {
+		l.s.hooks.AskBuiltin(document, program)
+	}
+}
+
+func (l looseWire) RevealFile(path string) error {
+	if l.s.hooks.Reveal == nil {
+		return errors.New("Showing files in your file manager is not available here.")
+	}
+	return l.s.hooks.Reveal(path)
 }

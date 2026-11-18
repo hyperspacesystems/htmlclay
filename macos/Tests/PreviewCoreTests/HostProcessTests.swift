@@ -230,6 +230,32 @@ final class HostProcessTests: XCTestCase {
         XCTAssertEqual(readies, readiesAtStop, "the host came up again after it was declared stopped")
     }
 
+    /// A host that saves a new port exits with 75: the app starts it again at
+    /// once, and that exit is not a failure however often it happens.
+    func testARestartRequestStartsTheHostAgainAtOnce() async throws {
+        let home = try makeHome()
+        let script = try makeScript(home, Self.readyLine + "\nexit 75\n")
+        let process = HostProcess(launch: launch(binary: script, home: home, readyTimeout: 5),
+                                  restartDelays: [30], fastFailureLimit: 1)
+        tearDownLater(process, home: home.home)
+
+        var readies = 0
+        process.onState = { state in
+            if case .running = state { readies += 1 }
+        }
+
+        let first = await process.start()
+        guard case .running = first else {
+            XCTFail("the fake host never came up: \(first); stderr: \(process.stderrTail)")
+            return
+        }
+        await waitUntil("the host was not restarted at once", timeout: 10) { readies >= 4 }
+        XCTAssertGreaterThanOrEqual(readies, 4)
+        if case .stopped = process.state {
+            XCTFail("an exit that asks for a restart counted as a failure: \(process.state)")
+        }
+    }
+
     func testBadReadyIsRefused() async throws {
         let home = try makeHome()
         let ready = #"printf 'READY {"v":1,"shell":"http://10.0.0.1:5000","port":1,"epoch":"fake","pid":%s,"version":"fake"}\n' "$$""#

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/served/assets"
 	"github.com/panphora/htmlclay/internal/wire"
@@ -30,6 +31,10 @@ func (framesOnly) AIEditOffered() bool                          { return false }
 func (framesOnly) AIEditFor(string) (bool, bool)                { return false, false }
 func (framesOnly) AskAIEdit(string)                             {}
 func (framesOnly) AIEditEngines() (string, map[string][]string) { return "", nil }
+func (framesOnly) AIEditModels() map[string]string              { return nil }
+func (framesOnly) BuiltinFor(string, string) builtin.Access     { return builtin.Access{} }
+func (framesOnly) AskBuiltin(string, string)                    {}
+func (framesOnly) RevealFile(string) error                      { return nil }
 
 const (
 	wireRootID           = "wire-root"

@@ -61,7 +61,7 @@ func selfUpdateGate(channel, ver, goos string, trustedKeys int, off bool, instal
 // startSelfUpdater starts the background check when the gate allows it and
 // reports whether it did. When it returns false the caller keeps the plain
 // release-info check that only links to the website.
-func (a *app) startSelfUpdater(updateCh chan<- tray.UpdateInfo) bool {
+func (a *app) startSelfUpdater() bool {
 	// The restart is offered from the tray, so a run without one has no way to
 	// apply what it would download.
 	if a.noTray {
@@ -98,8 +98,14 @@ func (a *app) startSelfUpdater(updateCh chan<- tray.UpdateInfo) bool {
 		Logf:        a.rt.logger.Printf,
 	}
 	a.rt.logger.Printf("Self-update is on, checking %s", feed)
+	a.updates.mu.Lock()
+	a.updates.checkNow = make(chan struct{}, 1)
+	checkNow := a.updates.checkNow
+	a.updates.mu.Unlock()
+	u.CheckNow = checkNow
+	u.Checking = a.setUpdateChecking
 	go u.Run(nil, func(r update.Ready) {
-		updateCh <- tray.UpdateInfo{Version: r.Version, Apply: func() { a.clickApplyUpdate(r, installPath) }}
+		a.setUpdateReady(r.Version, "", func() { a.clickApplyUpdate(r, installPath) })
 	})
 	return true
 }
@@ -126,10 +132,23 @@ func (a *app) reportRestartFailure(target string, err error) {
 
 // checkForUpdateLink is the check every build falls back to when it cannot
 // update itself: it only offers the download page.
-func (a *app) checkForUpdateLink(updateCh chan<- tray.UpdateInfo) {
-	if info := update.Check(version, releaseInfoURL); info != nil {
-		a.rt.logger.Printf("Update available: v%s at %s", info.Version, info.URL)
-		updateCh <- tray.UpdateInfo{Version: info.Version, URL: info.URL}
+func (a *app) checkForUpdateLink() {
+	a.updates.mu.Lock()
+	a.updates.checkNow = make(chan struct{}, 1)
+	ch := a.updates.checkNow
+	a.updates.mu.Unlock()
+	for {
+		a.setUpdateChecking(true)
+		info := update.Check(version, releaseInfoURL)
+		if info != nil {
+			a.setUpdateReady(info.Version, info.URL, nil)
+		}
+		a.setUpdateChecking(false)
+		if info != nil {
+			a.rt.logger.Printf("Update available: v%s at %s", info.Version, info.URL)
+			return
+		}
+		<-ch
 	}
 }
 

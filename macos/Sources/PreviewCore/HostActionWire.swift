@@ -62,8 +62,30 @@ public enum HostActionWire {
             return WireActionRequest(type: "document.recover", args: ["id": .string(id), "destination": .string(destination)])
         case let .openVersions(id):
             return WireActionRequest(type: "document.versions", args: ["id": .string(id)])
-        case .openKeptPage:
-            return WireActionRequest(type: "app.openKeptPage", args: [:])
+        case .openRecoveredChanges:
+            return WireActionRequest(type: "app.openRecoveredChanges", args: [:])
+        case .revealLog:
+            return WireActionRequest(type: "app.revealLog", args: [:])
+        case let .setPort(port):
+            return WireActionRequest(type: "host.setPort", args: ["port": .int(port)])
+        case let .setProgramOn(programID, on):
+            return WireActionRequest(type: "program.setOn", args: ["programID": .string(programID), "on": .bool(on)])
+        case let .openProgramExample(programID):
+            return WireActionRequest(type: "program.openExample", args: ["programID": .string(programID)])
+        case let .setAIEditTool(tool):
+            return WireActionRequest(type: "prefs.set", args: ["key": .string("aiEditTool"), "value": .string(tool)])
+        case let .setAIEditModel(tool, model):
+            return WireActionRequest(type: "aiEdit.setModel", args: ["tool": .string(tool), "model": .string(model)])
+        case let .setAIEditCustom(command):
+            return WireActionRequest(type: "aiEdit.setCustom", args: ["command": .string(command)])
+        case .checkForUpdates:
+            return WireActionRequest(type: "update.check", args: [:])
+        case .makeDefaultFileType:
+            return WireActionRequest(type: "fileTypes.makeDefault", args: [:])
+        case let .setHTMLOpenWith(on):
+            return WireActionRequest(type: "fileTypes.setHTMLOpenWith", args: ["on": .bool(on)])
+        case .stopOpeningFiles:
+            return WireActionRequest(type: "fileTypes.stopOpening", args: [:])
         case let .openFile(path):
             return WireActionRequest(type: "file.open", args: ["path": .string(path)])
         case let .openDashboard(route):

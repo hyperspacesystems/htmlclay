@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/localimport"
@@ -242,6 +243,9 @@ func (a *app) startMove(e appcore.Effect) *appcore.Refusal {
 			a.rt.logger.Printf("Moved %s from Hyperclay Local as folder %s", root.Path, entry.FolderID)
 		}
 	}
+	if len(moved) > 0 {
+		a.moveGrants(settings, moved)
+	}
 	a.rt.moveMu.Lock()
 	a.rt.moveRunning = false
 	a.rt.moveMoved = append(a.rt.moveMoved, moved...)
@@ -252,6 +256,46 @@ func (a *app) startMove(e appcore.Effect) *appcore.Refusal {
 		return &appcore.Refusal{Code: appcore.RefuseNothingMoved}
 	}
 	return nil
+}
+
+// moveGrants carries the programs the person registered in Local, and the
+// documents they allowed inside the folders that moved. IDs are kept, so each
+// allow still names its program. A program already here, a name a built-in
+// program owns, and a document already decided here are left as they are.
+func (a *app) moveGrants(settings *localimport.Settings, moved []string) {
+	var folders []string
+	for _, root := range settings.Roots {
+		if !slices.Contains(moved, root.ID) {
+			continue
+		}
+		folder := filepath.Clean(root.Path)
+		if resolved, err := filepath.EvalSymlinks(folder); err == nil {
+			folder = resolved
+		}
+		folders = append(folders, folder)
+	}
+	programs := 0
+	for _, p := range settings.Programs {
+		if builtin.Is(p.Name) {
+			continue
+		}
+		if a.rt.cfg.RestoreHelperProgram(config.HelperProgram{ID: p.ID, Name: p.Name, Path: p.Path, AnyDocument: p.AnyDocument, AddedAt: p.AddedAt * int64(time.Millisecond)}) {
+			programs++
+		}
+	}
+	var rows []config.HelperDecision
+	for _, d := range settings.AllowsIn(folders) {
+		if builtin.Is(d.Name) {
+			continue
+		}
+		rows = append(rows, config.HelperDecision{Document: d.Document, Name: d.Name, Program: d.Program, Allowed: true, DecidedAt: d.DecidedAt * int64(time.Millisecond), Scope: a.scopeOf(d.Document)})
+	}
+	allows := a.rt.cfg.RestoreHelperDecisions(rows)
+	if programs == 0 && allows == 0 {
+		return
+	}
+	a.saveConfig("carry programs from Hyperclay Local")
+	a.rt.logger.Printf("Carried %d programs and %d document permissions from Hyperclay Local", programs, allows)
 }
 
 // moveRoot moves one of Local's folders and answers its receipt entry.

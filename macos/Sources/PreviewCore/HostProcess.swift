@@ -139,6 +139,10 @@ public final class HostProcess: QuitHostProcess {
     private let fastFailureWindow: TimeInterval
     private let fastFailureLimit: Int
 
+    /// A host that exits with this status asks to be started again at once: it
+    /// saved a new port and cannot keep serving the old one.
+    public static let restartStatus: Int32 = 75
+
     public private(set) var state: HostState = .starting
     /// Called on every state change, on the main actor.
     public var onState: (@MainActor (HostState) -> Void)?
@@ -263,6 +267,11 @@ public final class HostProcess: QuitHostProcess {
                 onReady?(ready, client)
                 _ = await waitForExit(child, timeout: nil)
                 if stopRequested { return }
+                if child.process.terminationStatus == HostProcess.restartStatus {
+                    attempt = 0
+                    setState(.starting)
+                    continue
+                }
                 let now = Date()
                 if now.timeIntervalSince(began) >= fastFailureWindow { unexpectedExits.removeAll() }
                 unexpectedExits.removeAll { now.timeIntervalSince($0) > fastFailureWindow }

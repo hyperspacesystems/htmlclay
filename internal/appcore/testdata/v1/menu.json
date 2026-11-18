@@ -1,0 +1,757 @@
+{
+  "v": 1,
+  "cases": [
+    {
+      "name": "newPerson",
+      "snapshot": "newPerson",
+      "update": {
+        "checking": false,
+        "ready": ""
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "version",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "noRecent",
+              "enabled": false
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "fiveDocuments",
+      "snapshot": "fiveDocuments",
+      "update": {
+        "checking": false,
+        "ready": ""
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "version",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "budget",
+              "enabled": true
+            },
+            {
+              "id": "recipe-box",
+              "enabled": true
+            },
+            {
+              "id": "trip-plan",
+              "enabled": true
+            },
+            {
+              "id": "reading-list",
+              "enabled": true
+            },
+            {
+              "id": "invoice",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "trustedFolder",
+      "snapshot": "trustedFolder",
+      "update": {
+        "checking": false,
+        "ready": ""
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "version",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "needsYou",
+          "enabled": true,
+          "children": [
+            {
+              "id": "w-req-todo",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "todo",
+              "enabled": true
+            },
+            {
+              "id": "budget",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "servedFolder",
+      "snapshot": "servedFolder",
+      "update": {
+        "checking": false,
+        "ready": ""
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "version",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "needsYou",
+          "enabled": true,
+          "children": [
+            {
+              "id": "w-clay-search",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "index",
+              "enabled": true
+            },
+            {
+              "id": "todo",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "syncedWithTeams",
+      "snapshot": "syncedWithTeams",
+      "update": {
+        "checking": false,
+        "ready": ""
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "version",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "syncLine",
+          "enabled": false
+        },
+        {
+          "id": "needsYou",
+          "enabled": true,
+          "children": [
+            {
+              "id": "w-e-conflict-index",
+              "enabled": true
+            },
+            {
+              "id": "w-e-conflict-pricing",
+              "enabled": true
+            },
+            {
+              "id": "w-req-todo",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "index",
+              "enabled": true
+            },
+            {
+              "id": "pricing",
+              "enabled": true
+            },
+            {
+              "id": "todo",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "localUser",
+      "snapshot": "localUser",
+      "update": {
+        "checking": false,
+        "ready": ""
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "version",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "noRecent",
+              "enabled": false
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "fiveDocuments checking",
+      "snapshot": "fiveDocuments",
+      "update": {
+        "checking": true,
+        "ready": ""
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "checking",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "budget",
+              "enabled": true
+            },
+            {
+              "id": "recipe-box",
+              "enabled": true
+            },
+            {
+              "id": "trip-plan",
+              "enabled": true
+            },
+            {
+              "id": "reading-list",
+              "enabled": true
+            },
+            {
+              "id": "invoice",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "fiveDocuments ready",
+      "snapshot": "fiveDocuments",
+      "update": {
+        "checking": false,
+        "ready": "2.0.1"
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "ready",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "budget",
+              "enabled": true
+            },
+            {
+              "id": "recipe-box",
+              "enabled": true
+            },
+            {
+              "id": "trip-plan",
+              "enabled": true
+            },
+            {
+              "id": "reading-list",
+              "enabled": true
+            },
+            {
+              "id": "invoice",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "fiveDocuments recovered changes",
+      "snapshot": "fiveDocuments",
+      "update": {
+        "checking": false,
+        "ready": ""
+      },
+      "recoveredChanges": 2,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "version",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "budget",
+              "enabled": true
+            },
+            {
+              "id": "recipe-box",
+              "enabled": true
+            },
+            {
+              "id": "trip-plan",
+              "enabled": true
+            },
+            {
+              "id": "reading-list",
+              "enabled": true
+            },
+            {
+              "id": "invoice",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "recoveredChanges",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "syncedWithTeams ready",
+      "snapshot": "syncedWithTeams",
+      "update": {
+        "checking": false,
+        "ready": "2.0.1"
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "ready",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "syncLine",
+          "enabled": false
+        },
+        {
+          "id": "needsYou",
+          "enabled": true,
+          "children": [
+            {
+              "id": "w-e-conflict-index",
+              "enabled": true
+            },
+            {
+              "id": "w-e-conflict-pricing",
+              "enabled": true
+            },
+            {
+              "id": "w-req-todo",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "index",
+              "enabled": true
+            },
+            {
+              "id": "pricing",
+              "enabled": true
+            },
+            {
+              "id": "todo",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": true
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
+    }
+  ]
+}

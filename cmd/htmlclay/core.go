@@ -207,6 +207,7 @@ func (a *app) facts() appcore.Facts {
 		Current:   version,
 		Automatic: !a.rt.cfg.SelfUpdateOff(),
 	}
+	a.updateFacts(&f.Update)
 	profile := a.rt.cfg.ProfileState()
 	f.Preferences = appcore.Preferences{
 		OpenAtLogin:       a.rt.cfg.StartOnLoginEnabled(),
@@ -215,8 +216,12 @@ func (a *app) facts() appcore.Facts {
 		Appearance:        a.rt.cfg.Appearance(),
 		YourName:          profile.Name,
 		UseName:           profile.Enabled,
+		AIEditTool:        a.aiEditTool(),
+		AIEditTools:       a.aiEditTools(),
 	}
+	f.FileTypes = a.fileTypeFacts()
 	f.Move = a.moveFacts()
+	f.RecoveredChanges = int(a.recovered.n.Load())
 	return f
 }
 
@@ -681,7 +686,7 @@ func (a *app) reopenRefusal(id string) *appcore.Refusal {
 func (a *app) programFacts() []appcore.Program {
 	list := a.rt.cfg.HelperProgramList()
 	decisions := a.rt.cfg.HelperDecisionList()
-	programs := make([]appcore.Program, 0, len(list))
+	programs := append(a.builtinProgramFacts(), make([]appcore.Program, 0, len(list))...)
 	for _, program := range list {
 		allowed, removed := []string{}, []string{}
 		for _, decision := range decisions {

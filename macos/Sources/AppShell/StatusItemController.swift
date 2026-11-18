@@ -45,7 +45,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         model.markWaitingSeen()
         if secondary {
             closePanel()
-            item.menu = buildMenu()
+            item.menu = buildOneMenu(rows: oneMenuRows())
             item.button?.performClick(nil)
             item.menu = nil
         } else if panel?.isVisible == true {
@@ -55,59 +55,98 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         }
     }
 
-    private func buildMenu() -> NSMenu {
+    /// The one menu: the status item and the panel's gear both show these rows.
+    private func oneMenuRows() -> [MenuRow] {
+        MenuModel.rows(MenuInput(model.snapshot), phase: updatePhase)
+    }
+
+    private var updatePhase: MenuUpdatePhase {
+        MenuUpdatePhase(checking: updates?.checking ?? false, ready: updates?.prepared ?? "")
+    }
+
+    func buildOneMenu(rows: [MenuRow]) -> NSMenu {
         let menu = NSMenu()
-        add(Strings.Panel.openDashboard, #selector(openDashboard), to: menu)
-        add(Strings.Panel.openAFile, #selector(openAFile), to: menu)
-        if !model.snapshot.documents.isEmpty {
-            let recent = NSMenu()
-            for document in model.snapshot.documents.prefix(8) {
-                let entry = NSMenuItem(title: document.name, action: #selector(openRecent(_:)), keyEquivalent: "")
-                entry.target = self
-                entry.representedObject = document.id
-                recent.addItem(entry)
-            }
-            let parent = NSMenuItem(title: Strings.Panel.recentDocuments, action: nil, keyEquivalent: "")
-            parent.submenu = recent
-            menu.addItem(parent)
-        }
-        if model.snapshot.totalCount > 0 {
-            menu.addItem(.separator())
-            let needs = NSMenu()
-            for item in model.snapshot.waiting {
-                let entry = NSMenuItem(title: item.title, action: #selector(openWaitingItem(_:)), keyEquivalent: "")
-                entry.target = self
-                entry.representedObject = item.id
-                needs.addItem(entry)
-            }
-            let parent = NSMenuItem(title: Strings.Menu.needsYou(model.snapshot.totalCount), action: nil, keyEquivalent: "")
-            parent.submenu = needs
-            menu.addItem(parent)
-        }
-        if model.snapshot.sync.connected {
-            menu.addItem(.separator())
-            let status = NSMenuItem(title: Strings.Panel.syncLine(model.snapshot.sync), action: nil, keyEquivalent: "")
-            status.isEnabled = false
-            menu.addItem(status)
-            if PanelControls.showsSyncPause(can: model.can(HostActionType.syncSetPaused)) {
-                add(model.snapshot.sync.paused ? Strings.Panel.resumeSyncing : Strings.Panel.pauseSyncing, #selector(toggleSync), to: menu)
+        for row in rows {
+            if row.id == MenuModel.separator {
+                menu.addItem(.separator())
+            } else {
+                menu.addItem(entry(for: row))
             }
         }
-        if updates?.prepared != nil {
-            menu.addItem(.separator())
-            add(Strings.Updates.restart, #selector(restartToUpdate), to: menu)
-        }
-        menu.addItem(.separator())
-        add(Strings.Menu.settings, #selector(openSettings), to: menu, key: ",")
-        let quit = NSMenuItem(title: Strings.Menu.quit, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        menu.addItem(quit)
         return menu
     }
 
-    private func add(_ title: String, _ action: Selector, to menu: NSMenu, key: String = "") {
-        let entry = NSMenuItem(title: title, action: action, keyEquivalent: key)
-        entry.target = self
-        menu.addItem(entry)
+    private func entry(for row: MenuRow) -> NSMenuItem {
+        let title = oneMenuTitle(for: row)
+        let menuItem = NSMenuItem(title: title, action: nil, keyEquivalent: oneMenuKey(for: row.id))
+        menuItem.target = self
+        if let children = row.children {
+            let submenu = NSMenu()
+            for child in children {
+                let childItem = NSMenuItem(title: oneMenuTitle(for: child), action: #selector(openMenuChild(_:)), keyEquivalent: "")
+                childItem.target = self
+                childItem.representedObject = child.id
+                childItem.isEnabled = child.enabled
+                submenu.addItem(childItem)
+            }
+            menuItem.submenu = submenu
+            menuItem.isEnabled = row.enabled
+            return menuItem
+        }
+        guard row.enabled, let action = oneMenuAction(for: row.id) else {
+            menuItem.isEnabled = false
+            return menuItem
+        }
+        menuItem.action = action
+        return menuItem
+    }
+
+    private func oneMenuAction(for id: String) -> Selector? {
+        switch id {
+        case "status": return #selector(restartToUpdate)
+        case "pauseSync": return #selector(toggleSync)
+        case "openDashboard": return #selector(openDashboard)
+        case "openFile": return #selector(openAFile)
+        case "recoveredChanges": return #selector(openRecoveredChanges)
+        case "settings": return #selector(openSettings)
+        case "checkForUpdates": return #selector(checkForUpdates)
+        case "quit": return #selector(NSApplication.terminate(_:))
+        default: return nil
+        }
+    }
+
+    private func oneMenuKey(for id: String) -> String {
+        switch id {
+        case "settings": return ","
+        case "quit": return "q"
+        default: return ""
+        }
+    }
+
+    private func oneMenuTitle(for row: MenuRow) -> String {
+        switch row.id {
+        case "status":
+            switch row.kind {
+            case "ready": return Strings.Menu.restartToUpdate(UpdateState.short(updatePhase.ready))
+            case "checking": return Strings.Updates.checking
+            default: return Strings.Menu.version(UpdateState.short(model.snapshot.update.current))
+            }
+        case "syncLine": return Strings.Panel.syncLine(model.snapshot.sync)
+        case "pauseSync": return model.snapshot.sync.paused ? Strings.Panel.resumeSyncing : Strings.Panel.pauseSyncing
+        case "needsYou": return Strings.Menu.needsYou(model.snapshot.totalCount)
+        case "openDashboard": return Strings.Panel.openDashboard
+        case "openFile": return Strings.Panel.openAFile
+        case "recent": return Strings.Panel.recentDocuments
+        case "noRecent": return Strings.Menu.noRecent
+        case "recoveredChanges": return Strings.Menu.recoveredChanges
+        case "settings": return Strings.Menu.settings
+        case "checkForUpdates": return Strings.Menu.checkForUpdates
+        case "quit": return Strings.Menu.quit
+        default:
+            if let item = model.snapshot.waiting.first(where: { $0.id == row.id }) { return item.title }
+            if let document = model.snapshot.documents.first(where: { $0.id == row.id }) { return document.name }
+            return ""
+        }
     }
 
     @objc private func openDashboard() {
@@ -125,10 +164,18 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         }
     }
 
-    @objc private func openRecent(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? String,
-              let document = model.snapshot.documents.first(where: { $0.id == id }) else { return }
+    @objc private func openMenuChild(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
         closePanel()
+        if let item = model.snapshot.waiting.first(where: { $0.id == id }) {
+            if item.kind == .programRequest {
+                windows.showRequest(item)
+            } else {
+                windows.showSettings(item.pane)
+            }
+            return
+        }
+        guard let document = model.snapshot.documents.first(where: { $0.id == id }) else { return }
         if model.isSample {
             model.say(Strings.Preview.wouldOpen(document.name))
         } else {
@@ -136,15 +183,20 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         }
     }
 
-    @objc private func openWaitingItem(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? String,
-              let item = model.snapshot.waiting.first(where: { $0.id == id }) else { return }
+    @objc private func openRecoveredChanges() {
         closePanel()
-        if item.kind == .programRequest {
-            windows.showRequest(item)
-        } else {
-            windows.showSettings(item.pane)
-        }
+        model.send(.openRecoveredChanges)
+    }
+
+    @objc private func checkForUpdates() {
+        closePanel()
+        updates?.checkNow()
+    }
+
+    /// The panel's gear shows the same rows as the status item.
+    private func showOneMenu() {
+        closePanel()
+        buildOneMenu(rows: oneMenuRows()).popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
     @objc private func restartToUpdate() {
@@ -159,6 +211,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
     private func openPanel() {
         guard let button = item.button, let anchor = button.window else { return }
         let actions = PanelActions(
+            openMenu: { [weak self] in self?.showOneMenu() },
             openDashboard: { [weak self] in self?.openDashboard() },
             openSettings: { [weak self] pane in self?.closePanel(); self?.windows.showSettings(pane) },
             answer: { [weak self] item in self?.closePanel(); self?.windows.showRequest(item) },

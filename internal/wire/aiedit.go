@@ -148,6 +148,7 @@ func (s *Core) RunAIEdit(ctx context.Context, cancel context.CancelFunc, file st
 		BaseDir:  filepath.Dir(file),
 		Default:  def,
 		Engines:  engines,
+		Models:   s.policy.AIEditModels(),
 		Internal: s.docs.Internal,
 		Mock:     os.Getenv("MOCK_MODEL") == "1",
 		Status: func(text string) {

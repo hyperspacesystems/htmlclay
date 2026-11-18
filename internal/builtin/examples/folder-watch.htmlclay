@@ -1,0 +1,28 @@
+<main>
+  <h1>Folder activity</h1>
+  <p class="sub">Add, edit or delete a file in this folder to see it show up below within a couple of seconds.</p>
+  <p id="status" role="status">Starting folder watch…</p>
+  <ol id="log"></ol>
+</main>
+<script src="https://clayjs.com/v1/clay.js?plugins=wire"></script>
+<script>
+  const status = document.getElementById('status');
+  const log = document.getElementById('log');
+  let current = null;
+  clay.wire.on((rec, frame) => {
+    if (!current || rec.id !== current.id || !frame || frame.type !== 'wire/status') return;
+    for (const c of frame.payload?.changes || []) {
+      const li = document.createElement('li');
+      li.textContent = new Date().toLocaleTimeString() + '  ' + c.change + '  ' + c.path;
+      log.prepend(li);
+    }
+  });
+  async function watch() {
+    status.textContent = 'Watching this folder for changes…';
+    current = clay.wire.send({}, { helper: 'folder-watch' });
+    const outcome = await current.done;
+    if (outcome.state === 'done') return watch();
+    status.textContent = outcome.error || 'That did not work. Try again.';
+  }
+  watch();
+</script>

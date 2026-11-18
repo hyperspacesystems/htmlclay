@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/aiedit"
+	"github.com/panphora/htmlclay/internal/builtin"
 )
 
 // builtinHelpers is the helpers this server answers itself: the name a page asks
@@ -928,6 +929,24 @@ func (s *Core) handleWireSend(w http.ResponseWriter, r *http.Request) {
 	env.From = "process"
 	if isBrowser {
 		env.From = "page"
+	}
+	if builtin.Is(env.Helper) && aiedit.IsDocument(doc.Path) && (env.Type == "wire/request" || env.Type == "wire/describe") {
+		tokenOK := s.docs.MayUsePrograms(doc, isBrowser, r.Header.Get(TokenHeader))
+		s.HelperBindings.mu.RUnlock()
+		if !tokenOK {
+			s.writeError(w, http.StatusForbidden, "invalid token")
+			return
+		}
+		s.startBuiltin(doc, env)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true, "delivered": 1, "observers": 0})
+		return
+	}
+	if env.Type == "wire/cancel" && s.docs.MayUsePrograms(doc, isBrowser, r.Header.Get(TokenHeader)) && s.cancelBuiltin(doc.Path, env.ID) {
+		s.HelperBindings.mu.RUnlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true, "delivered": 1, "observers": 0})
+		return
 	}
 	// The built-in helpers ai-edit and blockeditor-tool are answered here, before any
 	// handler sees the request: they need no declaration and never take the

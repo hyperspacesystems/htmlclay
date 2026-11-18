@@ -2,7 +2,19 @@
   "v": 1,
   "actions": [
     {
-      "type": "app.openKeptPage",
+      "type": "aiEdit.setCustom",
+      "class": "grant"
+    },
+    {
+      "type": "aiEdit.setModel",
+      "class": "safe"
+    },
+    {
+      "type": "app.openRecoveredChanges",
+      "class": "safe"
+    },
+    {
+      "type": "app.revealLog",
       "class": "safe"
     },
     {
@@ -40,6 +52,18 @@
     {
       "type": "file.open",
       "class": "grant"
+    },
+    {
+      "type": "fileTypes.makeDefault",
+      "class": "safe"
+    },
+    {
+      "type": "fileTypes.setHTMLOpenWith",
+      "class": "safe"
+    },
+    {
+      "type": "fileTypes.stopOpening",
+      "class": "safe"
     },
     {
       "type": "folder.copyAddress",
@@ -94,6 +118,10 @@
       "class": "safe"
     },
     {
+      "type": "host.setPort",
+      "class": "safe"
+    },
+    {
       "type": "move.quitLocal",
       "class": "safe"
     },
@@ -114,6 +142,10 @@
       "class": "grant"
     },
     {
+      "type": "program.openExample",
+      "class": "grant"
+    },
+    {
       "type": "program.relink",
       "class": "grant"
     },
@@ -131,6 +163,10 @@
     },
     {
       "type": "program.setAllTrusted",
+      "class": "grant"
+    },
+    {
+      "type": "program.setOn",
       "class": "grant"
     },
     {
@@ -159,6 +195,10 @@
     },
     {
       "type": "sync.setPaused",
+      "class": "safe"
+    },
+    {
+      "type": "update.check",
       "class": "safe"
     },
     {

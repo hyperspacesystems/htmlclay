@@ -14,6 +14,14 @@ public final class AppModel {
     public var folderChooser: FolderChooser?
     /// The real app opens files through this; the preview sends straight from sample data.
     public var fileOpener: FileOpener?
+    /// The Mac app's file type: the .htmlclay files pane reads and changes it here.
+    public var fileTypes: FileTypeSettings?
+    /// The Mac app's own updater: the Updates pane and the one menu read Sparkle here.
+    public var updater: UpdateCoordinator?
+    /// The updater's last change, so a view that reads it redraws.
+    public private(set) var updaterRev = 0
+
+    public func updaterChanged() { updaterRev += 1 }
     private var noteToken = 0
     private var inFlight: [String: HostAction] = [:]
     private var queued: [String: HostAction] = [:]

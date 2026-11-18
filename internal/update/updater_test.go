@@ -204,3 +204,44 @@ func TestUpdaterRunRetriesThenReportsReady(t *testing.T) {
 		t.Fatal("Run never reported the staged update")
 	}
 }
+
+func TestRunChecksNow(t *testing.T) {
+	priv, keys := testKeys(t)
+	fs := newFeedServer(t)
+	feed, _ := SignPayload(payloadJSON(t, fs.release("1.13.3")), "test-a", priv)
+	fs.setFeed(feed)
+	u := newTestUpdater(t, fs, keys)
+	u.FirstCheck = time.Hour
+
+	checkNow := make(chan struct{}, 1)
+	u.CheckNow = checkNow
+	var mu sync.Mutex
+	var calls []bool
+	u.Checking = func(on bool) {
+		mu.Lock()
+		calls = append(calls, on)
+		mu.Unlock()
+	}
+
+	stop := make(chan struct{})
+	defer close(stop)
+	go u.Run(stop, func(Ready) { t.Error("a check with nothing newer reported an update") })
+
+	checkNow <- struct{}{}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		mu.Lock()
+		got := append([]bool(nil), calls...)
+		mu.Unlock()
+		if len(got) >= 2 {
+			if !got[0] || got[1] {
+				t.Fatalf("Checking calls %v, want true then false", got)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Checking calls %v within 2 s, want true then false", got)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/logging"
 )
@@ -188,6 +189,10 @@ type fakePolicy struct {
 	aiOn      bool
 	aiAsk     bool
 	asked     []string
+
+	builtin      builtin.Access
+	askedBuiltin []string
+	revealed     []string
 }
 
 func (p *fakePolicy) CanAskProgram() bool               { return false }
@@ -205,6 +210,22 @@ func (p *fakePolicy) AskAIEdit(document string) {
 	p.asked = append(p.asked, document)
 }
 func (p *fakePolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
+func (p *fakePolicy) AIEditModels() map[string]string              { return nil }
+
+func (p *fakePolicy) BuiltinFor(string, string) builtin.Access { return p.builtin }
+
+func (p *fakePolicy) AskBuiltin(document, program string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.askedBuiltin = append(p.askedBuiltin, program+":"+document)
+}
+
+func (p *fakePolicy) RevealFile(path string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.revealed = append(p.revealed, path)
+	return nil
+}
 
 func newFakeCore(t *testing.T) (*Core, *fakeDocs, *fakePolicy, string) {
 	t.Helper()

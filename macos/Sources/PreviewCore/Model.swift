@@ -25,7 +25,7 @@ public enum Persona: String, CaseIterable, Codable, Sendable {
 }
 
 public enum SettingsPane: String, CaseIterable, Codable, Sendable {
-    case general, folders, programs, sync, yourName, updates, advanced
+    case general, htmlclayFiles, folders, programs, updates, advanced, sync
 }
 
 public enum SettingsRoute: Equatable, Codable, Sendable {
@@ -55,6 +55,8 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
     case accountFolder(username: String)
     case teamSetup(folderID: String)
     case addProgram
+    case customCommand
+    case changePort
     case relinkProgram(programID: String, path: String)
     case relinkFolder(folderID: String, path: String)
     case merge(childID: String)
@@ -69,6 +71,8 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
         case let .accountFolder(username): return "account." + username
         case let .teamSetup(folderID): return "team." + folderID
         case .addProgram: return "add-program"
+        case .customCommand: return "custom-command"
+        case .changePort: return "change-port"
         case let .relinkProgram(programID, _): return "relink." + programID
         case let .relinkFolder(folderID, _): return "relink-folder." + folderID
         case let .merge(childID): return "merge." + childID
@@ -248,15 +252,20 @@ public struct Program: Codable, Equatable, Identifiable, Sendable {
     public var allowedDocuments: [String]
     public var allTrustedFolders: Bool
     public var removedDocuments: [String]
-    public init(id: String, name: String, path: String, fileMissing: Bool = false, allowedDocuments: [String] = [], allTrustedFolders: Bool = false, removedDocuments: [String] = []) {
+    /// One of the programs HTML Clay ships rather than one somebody added.
+    public var isBuiltin: Bool
+    /// Whether a built-in program is switched on. Built-in programs start off.
+    public var isOn: Bool
+    public init(id: String, name: String, path: String, fileMissing: Bool = false, allowedDocuments: [String] = [], allTrustedFolders: Bool = false, removedDocuments: [String] = [], isBuiltin: Bool = false, isOn: Bool = false) {
         self.id = id; self.name = name; self.path = path; self.fileMissing = fileMissing; self.allowedDocuments = allowedDocuments
         self.allTrustedFolders = allTrustedFolders; self.removedDocuments = removedDocuments
+        self.isBuiltin = isBuiltin; self.isOn = isOn
     }
 }
 
 public struct ProgramRequest: Codable, Equatable, Identifiable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
-        case found, noFile, teamDocument, riskyFile, folderRead, folderReadAgain
+        case found, noFile, teamDocument, riskyFile, folderRead, folderReadAgain, builtinProgram
     }
     public var id: String
     public var kind: Kind
@@ -329,9 +338,13 @@ public struct SyncState: Codable, Equatable, Sendable {
     /// The key is in a file rather than the system's secret store (Linux without
     /// a Secret Service); the Sync pane says so.
     public var keyInFile: Bool
-    public init(connected: Bool = false, username: String = "", keySuffix: String = "", syncingFiles: Int = 0, paused: Bool = false, viewOnlyTeams: Int = 0, lastFinished: String = "", fullName: String = "", offlineChanges: Int = 0, keyInFile: Bool = false) {
+    /// True once this Mac has had sync on, so the sync log stays offered after
+    /// a disconnect.
+    public var everOn: Bool
+    public init(connected: Bool = false, username: String = "", keySuffix: String = "", syncingFiles: Int = 0, paused: Bool = false, viewOnlyTeams: Int = 0, lastFinished: String = "", fullName: String = "", offlineChanges: Int = 0, keyInFile: Bool = false, everOn: Bool = false) {
         self.lastFinished = lastFinished; self.fullName = fullName
         self.offlineChanges = offlineChanges; self.keyInFile = keyInFile
+        self.everOn = everOn
         self.connected = connected; self.username = username; self.keySuffix = keySuffix
         self.syncingFiles = syncingFiles; self.paused = paused; self.viewOnlyTeams = viewOnlyTeams
     }
@@ -343,10 +356,35 @@ public struct UpdateState: Codable, Equatable, Sendable {
     public var checked: String
     public var automatic: Bool
     public var finishing: Bool
-    public init(current: String = "2.0.3", ready: String? = nil, checked: String = "Today at 9:12", automatic: Bool = true, finishing: Bool = false) {
+    /// A check is running now. The Mac reads its own updater instead.
+    public var checking: Bool
+    public init(current: String = "2.0.3", ready: String? = nil, checked: String = "Today at 9:12", automatic: Bool = true, finishing: Bool = false, checking: Bool = false) {
         self.automatic = automatic
         self.finishing = finishing
         self.current = current; self.ready = ready; self.checked = checked
+        self.checking = checking
+    }
+
+    /// A version without a trailing .0 third part: 2.0.0 shows 2.0, 2.0.1 stays 2.0.1.
+    public static func short(_ version: String) -> String {
+        let parts = version.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts[2] == "0" else { return version }
+        return parts[0] + "." + parts[1]
+    }
+}
+
+/// One AI tool AI editing can use on this Mac, as the host finds it.
+public struct AIEditTool: Codable, Equatable, Identifiable, Sendable {
+    public var id: String
+    public var custom: Bool
+    public var found: Bool
+    public var model: String
+    public var defaultModel: String
+    public var models: [String]
+    public var command: String
+    public init(id: String, custom: Bool = false, found: Bool = false, model: String = "", defaultModel: String = "", models: [String] = [], command: String = "") {
+        self.id = id; self.custom = custom; self.found = found
+        self.model = model; self.defaultModel = defaultModel; self.models = models; self.command = command
     }
 }
 
@@ -357,10 +395,15 @@ public struct PreferenceState: Codable, Equatable, Sendable {
     public var yourName: String
     public var useName: Bool
     public var openAtLoginChosen: Bool
-    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false, openAtLoginChosen: Bool = true) {
+    /// The AI tool AI editing uses: a built-in tool's id, or "custom".
+    public var aiEditTool: String
+    /// The AI tools this Mac has, as the host found them.
+    public var aiEditTools: [AIEditTool]
+    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false, openAtLoginChosen: Bool = true, aiEditTool: String = "", aiEditTools: [AIEditTool] = []) {
         self.useName = useName
         self.openAtLogin = openAtLogin; self.aiEditing = aiEditing; self.appearance = appearance; self.yourName = yourName
         self.openAtLoginChosen = openAtLoginChosen
+        self.aiEditTool = aiEditTool; self.aiEditTools = aiEditTools
     }
 }
 
@@ -405,13 +448,16 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public var moveBlockers: MoveBlockers
     /// Only the preview's SampleHost sets this: a host snapshot is never sample data.
     public var isSample: Bool
+    /// How many edits HTML Clay saved aside; the menu and the panel hide the row at 0.
+    public var recoveredChanges: Int
 
     private enum CodingKeys: String, CodingKey {
         case documents, folders, programs, requests, waiting, sync, update, preferences,
-             localMoveOffer, hostStopped, rev, epoch, host, hostCounts, moveFolders, moveBlockers
+             localMoveOffer, hostStopped, rev, epoch, host, hostCounts, moveFolders, moveBlockers,
+             recoveredChanges
     }
 
-    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], moveBlockers: MoveBlockers = MoveBlockers(), isSample: Bool = false) {
+    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], moveBlockers: MoveBlockers = MoveBlockers(), isSample: Bool = false, recoveredChanges: Int = 0) {
         self.documents = documents; self.folders = folders; self.programs = programs; self.requests = requests
         self.waiting = waiting; self.sync = sync; self.update = update; self.preferences = preferences
         self.localMoveOffer = localMoveOffer
@@ -420,6 +466,7 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
         self.moveFolders = moveFolders
         self.moveBlockers = moveBlockers
         self.isSample = isSample
+        self.recoveredChanges = recoveredChanges
     }
 
     /// A decoded snapshot is never sample data: isSample stays out of the JSON.
@@ -441,6 +488,7 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
         hostCounts = try container.decodeIfPresent(WaitCounts.self, forKey: .hostCounts)
         moveFolders = try container.decode([MoveFolderInfo].self, forKey: .moveFolders)
         moveBlockers = try container.decodeIfPresent(MoveBlockers.self, forKey: .moveBlockers) ?? MoveBlockers()
+        recoveredChanges = try container.decodeIfPresent(Int.self, forKey: .recoveredChanges) ?? 0
         isSample = false
     }
 
@@ -505,7 +553,7 @@ public enum HostAction: Equatable, Sendable {
     case exportDocument(id: String)
     case recoverDocument(id: String, destination: String)
     case openVersions(id: String)
-    case openKeptPage
+    case openRecoveredChanges
     case openFile(path: String)
     case openDashboard(route: String)
     case revealFolder(id: String)
@@ -514,6 +562,19 @@ public enum HostAction: Equatable, Sendable {
     case showRequest(requestID: String)
     case connect(username: String, key: String)
     case revealSyncLog
+    case revealLog
+    case setPort(Int)
+    case setProgramOn(programID: String, on: Bool)
+    case openProgramExample(programID: String)
+    case setAIEditTool(String)
+    case setAIEditModel(tool: String, model: String)
+    case setAIEditCustom(command: String)
+    /// The host actions Windows and Linux send for themselves: the Mac sets
+    /// file types and checks for updates in Swift, and never sends these.
+    case checkForUpdates
+    case makeDefaultFileType
+    case setHTMLOpenWith(Bool)
+    case stopOpeningFiles
     case quit(force: Bool)
 }
 

@@ -8,7 +8,10 @@ typedef NS_ENUM(NSInteger, HCSparkleEvent) {
     HCSparkleReady,
     HCSparkleAborted,
     HCSparkleInstallFailed,
-    HCSparkleCheckSkipped
+    HCSparkleCheckSkipped,
+    HCSparkleChecking,
+    HCSparkleUpToDate,
+    HCSparkleCheckEnded
 };
 
 @interface HCSparkleBridge : NSObject

@@ -86,7 +86,7 @@ public enum RequestControls {
         case RequestAnswer.allowDocument:
             switch request.kind {
             case .found: return Strings.Request.allowFile(fileName(request))
-            case .teamDocument: return Strings.Request.allowForThisDocument
+            case .teamDocument, .builtinProgram: return Strings.Request.allowForThisDocument
             default: return Strings.Request.allow
             }
         case RequestAnswer.allowAllTrusted: return Strings.ProgramPage.allTrustedTitle
@@ -113,6 +113,8 @@ public enum RequestControls {
                 : [RequestAnswer.deny, RequestAnswer.allowOnce, RequestAnswer.trustFolder]
         case .folderReadAgain:
             return [RequestAnswer.deny, RequestAnswer.trustFolder]
+        case .builtinProgram:
+            return [RequestAnswer.deny, RequestAnswer.allowDocument]
         }
     }
 }

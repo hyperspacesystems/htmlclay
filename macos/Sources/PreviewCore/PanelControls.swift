@@ -29,12 +29,6 @@ public enum PanelControls {
         isSample || can
     }
 
-    /// Kept Copies… in the panel menu: sample data offers it, and so does a real
-    /// host whose can list runs app.openKeptPage.
-    public static func showsKeptCopies(isSample: Bool, can: Bool = false) -> Bool {
-        isSample || can
-    }
-
     /// Whether a refused recovery means the person should pick another name: only
     /// the host's destination-exists answer does, and no file is ever removed first.
     public static func asksAnotherDestination(for code: String) -> Bool {
@@ -46,6 +40,15 @@ public enum PanelControls {
 
     /// Pause or resume syncing.
     public static func showsSyncPause(can: Bool) -> Bool { can }
+
+    /// New from template sits in the footer only while there is no document to list.
+    public static func showsNewFromTemplate(documents: Int) -> Bool { documents == 0 }
+
+    /// Pause syncing sits beside Open a file… only once a document is open and
+    /// sync is connected.
+    public static func showsFooterSyncPause(documents: Int, connected: Bool, can: Bool) -> Bool {
+        documents > 0 && connected && showsSyncPause(can: can)
+    }
 
     /// Answer a program request on the panel.
     public static func showsAnswer(can: Bool) -> Bool { can }

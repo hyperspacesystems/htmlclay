@@ -9,7 +9,7 @@ final class HostActionWireTests: XCTestCase {
     private static let goArgumentNames: Set<String> = [
         "id", "ids", "path", "name", "route", "key", "value", "on", "allow", "paused", "force",
         "programID", "documentID", "revision", "answer", "username", "folderIDs", "acknowledged",
-        "destination", "keep", "choice",
+        "destination", "keep", "choice", "port", "tool", "model", "command",
     ]
 
     private static let everyAction: [HostAction] = [
@@ -55,7 +55,18 @@ final class HostActionWireTests: XCTestCase {
         .exportDocument(id: "d1"),
         .recoverDocument(id: "d1", destination: "/tmp/recovered.html"),
         .openVersions(id: "d1"),
-        .openKeptPage,
+        .openRecoveredChanges,
+        .revealLog,
+        .setPort(1313),
+        .setProgramOn(programID: "file-search", on: true),
+        .openProgramExample(programID: "file-search"),
+        .setAIEditTool("claude"),
+        .setAIEditModel(tool: "claude", model: "claude-opus-5-5"),
+        .setAIEditCustom(command: "ollama run qwen2.5-coder:14b"),
+        .checkForUpdates,
+        .makeDefaultFileType,
+        .setHTMLOpenWith(true),
+        .stopOpeningFiles,
         .openFile(path: "/tmp/file.html"),
         .openDashboard(route: "/folders"),
         .revealFolder(id: "f1"),

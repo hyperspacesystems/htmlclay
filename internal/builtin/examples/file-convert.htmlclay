@@ -1,0 +1,28 @@
+<main>
+  <h1>Image converter</h1>
+  <p class="sub">Convert an image in this folder to a new format or smaller width. Never replaces your original file.</p>
+  <form id="form">
+    <label>Image file <input id="path" value="sample-photo.png"></label>
+    <label>New format <select id="to"><option value="jpeg">JPEG</option><option value="png">PNG</option><option value="gif">GIF</option><option value="bmp">BMP</option><option value="tiff">TIFF</option></select></label>
+    <label>Max width (px) <input id="width" type="number" min="0" max="10000" value="320"></label>
+    <button>Convert</button>
+  </form>
+  <p id="status" role="status"></p>
+</main>
+<script src="https://clayjs.com/v1/clay.js?plugins=wire"></script>
+<script>
+  const status = document.getElementById('status');
+  document.getElementById('form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    status.textContent = 'Converting image…';
+    const payload = {
+      path: document.getElementById('path').value.trim(),
+      to: document.getElementById('to').value,
+      maxWidth: Number(document.getElementById('width').value) || 0,
+    };
+    const outcome = await clay.wire.send(payload, { helper: 'file-convert' }).done;
+    if (outcome.state !== 'done') { status.textContent = outcome.error || 'That did not work. Try again.'; return; }
+    const r = outcome.result;
+    status.textContent = 'Saved ' + r.path + ' (' + r.width + ' × ' + r.height + ', ' + Math.round(r.bytes / 1024) + ' KB)';
+  });
+</script>

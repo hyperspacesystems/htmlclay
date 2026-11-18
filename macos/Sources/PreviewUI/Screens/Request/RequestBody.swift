@@ -59,6 +59,22 @@ struct RequestBody: View {
         case .riskyFile: riskyFileContent
         case .folderRead: folderReadContent
         case .folderReadAgain: folderReadAgainContent
+        case .builtinProgram: builtinProgramContent
+        }
+    }
+
+    /// A built-in program asks for one document and one folder, so there is no
+    /// file row to show and no file to choose.
+    private var builtinProgramContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            titleLine(Strings.Request.builtinTitle(document: RequestControls.documentName(request),
+                                                   program: ProgramControls.programTitle(request.program)))
+            leadLine(Strings.Request.builtinLead(program: ProgramControls.programTitle(request.program),
+                                                 folder: request.folder))
+            buttonsRow {
+                if let deny = choice(RequestAnswer.deny) { button(deny) }
+                if let allow = choice(RequestAnswer.allowDocument) { button(allow) }
+            }
         }
     }
 

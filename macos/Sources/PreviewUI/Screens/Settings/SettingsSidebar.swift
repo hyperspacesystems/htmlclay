@@ -42,7 +42,7 @@ public struct SettingsSidebar: View {
                 Squircle(Self.color(for: pane), symbol: Self.symbol(for: pane))
                 Text(Strings.Settings.title(pane))
                     .font(.system(size: 13.5, weight: .medium))
-                    .foregroundStyle(selected ? kiln.ink : kiln.ink2)
+                    .foregroundStyle(selected ? kiln.sideSelectedInk : kiln.ink2)
                 Spacer(minLength: 0)
                 if let count = Self.badgeCount(for: pane, snapshot: model.snapshot) {
                     KilnBadge(count)
@@ -50,12 +50,7 @@ public struct SettingsSidebar: View {
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 9)
-            .background(selected ? kiln.sideActive : Color.clear, in: RoundedRectangle(cornerRadius: 7))
-            .overlay {
-                if selected {
-                    RoundedRectangle(cornerRadius: 7).strokeBorder(kiln.sideActiveRing, lineWidth: 1)
-                }
-            }
+            .background(selected ? kiln.sideSelected : Color.clear, in: RoundedRectangle(cornerRadius: 7))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -65,10 +60,10 @@ public struct SettingsSidebar: View {
     private static func color(for pane: SettingsPane) -> SquircleColor {
         switch pane {
         case .general: return .slate
+        case .htmlclayFiles: return .teal
         case .folders: return .sky
         case .programs: return .amber
         case .sync: return .cobalt
-        case .yourName: return .rose
         case .updates: return .jade
         case .advanced: return .slate
         }
@@ -77,10 +72,10 @@ public struct SettingsSidebar: View {
     private static func symbol(for pane: SettingsPane) -> String {
         switch pane {
         case .general: return Symbols.gear
+        case .htmlclayFiles: return Symbols.doc
         case .folders: return Symbols.folder
         case .programs: return Symbols.program
         case .sync: return Symbols.sync
-        case .yourName: return Symbols.person
         case .updates: return Symbols.update
         case .advanced: return Symbols.advanced
         }

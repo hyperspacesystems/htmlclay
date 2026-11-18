@@ -8,7 +8,7 @@ public enum Strings {
         public static let openDashboard = "Open dashboard"
         public static let recentDocuments = "Recent documents"
         public static let noDocumentsTitle = "No documents yet"
-        public static let noDocumentsSub = "Double-click any .htmlclay file in Finder. It shows up here."
+        public static let noDocumentsSub = "Double-click any .htmlclay file in Finder."
         public static let openAFile = "Open a file…"
         public static let startFromTemplate = "Start from a template"
         public static let review = "Review"
@@ -24,8 +24,8 @@ public enum Strings {
         public static func wantsProgram(document: String) -> String { "\(document) wants to run a program" }
         public static func fileMissing(versions: Int) -> String { "File moved or deleted · \(versions) versions kept" }
         public static func documentSubtitle(place: String, opened: String) -> String { "\(droppingHome(place)) · \(opened)" }
-        public static func syncing(_ count: Int, username: String) -> String { "Syncing \(count) \(count == 1 ? "file" : "files")… · \(username)" }
-        public static func upToDate(_ username: String) -> String { "Up to date · \(username)" }
+        public static func syncing(_ count: Int, username: String) -> String { "Syncing \(count) \(count == 1 ? "file" : "files")… · @\(username)" }
+        public static func upToDate(_ username: String) -> String { "Up to date · @\(username)" }
         public static func syncLine(_ sync: SyncState) -> String {
             if sync.paused { return syncPaused }
             if sync.syncingFiles > 0 { return syncing(sync.syncingFiles, username: sync.username) }
@@ -49,8 +49,12 @@ public enum Strings {
         public static let exportZip = "Export as zip…"
         public static let recoverMissing = "Recover missing file…"
         public static let removeFromRecent = "Remove from Recent"
-        public static let keptCopies = "Kept Copies…"
+        public static let recoveredChanges = "Recovered changes…"
+        public static let noRecent = "No recent documents"
+        public static let gear = "HTML Clay menu"
         public static func needsYou(_ count: Int) -> String { "Needs you (\(count))" }
+        public static func version(_ version: String) -> String { "HTML Clay \(version)" }
+        public static func restartToUpdate(_ version: String) -> String { "Restart to update to \(version)" }
     }
     public enum Welcome {
         public static let title = "HTML Clay is ready"
@@ -73,8 +77,8 @@ public enum Strings {
             case .general: return "General"
             case .folders: return "Folders"
             case .programs: return "Programs"
+            case .htmlclayFiles: return Files.title
             case .sync: return "Sync"
-            case .yourName: return "Your name"
             case .updates: return "Updates"
             case .advanced: return "Advanced"
             }
@@ -89,7 +93,7 @@ public enum Strings {
         public static let openHyperclayNote = "Build 1: this would open your folders on hyperclay.com."
         public static let emptyTitle = "Trust a folder when its documents belong together"
         public static let emptySub = "Documents in a trusted folder open without asking and can link to each other."
-        public static let serveLink = "Building a site or an app? Serve a folder with Hyperclay Local…"
+        public static let serveLink = "Building a site or an app? Serve a folder…"
         public static let moveTitle = "Move from Hyperclay Local"
         public static let moveSub = "Your Hyperclay Local folders were found. Bring them into HTML Clay."
         public static let move = "Move…"
@@ -199,7 +203,32 @@ public enum Strings {
         public static let addProgram = "Add program…"
         public static let intro = "A document can ask HTML Clay to run a program on this Mac. You answer each request in HTML Clay."
         public static let waitingForYou = "Waiting for you"
-        public static let programs = "Programs"
+        public static let builtin = "Built-in programs"
+        public static let programs = "Your programs"
+        public static let openExample = "Open example"
+        public static let noPermissionYet = "No document has permission yet. Open the example above to try it."
+        public static func enableBuiltin(_ title: String) -> String { "Enable \(title)" }
+        public static let fileSearch = "File search"
+        public static let fileConverter = "File converter"
+        public static let folderWatcher = "Folder watcher"
+        public static let builtinDot = " · "
+        public static let noneYetOn = "No document may run it yet"
+        public static let searchDoes = "Searches file names and text inside files"
+        public static let searchOffSub = "Searches file names and text inside files in a folder you allow."
+        public static let searchEnableSub = "Lets allowed documents search file names and text inside files in a folder you choose. Documents ask for it as “file-search”."
+        public static let searchExample = "File Search.htmlclay"
+        public static let searchExampleSub = "Search a folder by word or file type and reveal matches in Finder."
+        public static let convertDoes = "Converts and resizes images"
+        public static let convertOffSub = "Converts PNG, JPG, GIF, BMP, TIFF and WebP images to PNG, JPG, GIF, BMP or TIFF, and resizes them."
+        public static let convertEnableSub = "Lets allowed documents save PNG, JPG, GIF, BMP, TIFF or WebP images as PNG, JPG, GIF, BMP or TIFF and resize them. Documents ask for it as “file-convert”."
+        public static let convertExample = "Image Converter.htmlclay"
+        public static let convertExampleSub = "Convert images between formats and sizes right inside a page."
+        public static let watchDoes = "Tells a document when files in a folder change"
+        public static let watchOffSub = "Tells a document when files in an allowed folder are added, changed or removed."
+        public static let watchEnableSub = "Lets allowed documents watch an allowed folder and hear when files are added, changed or removed. Documents ask for it as “folder-watch”."
+        public static let watchExample = "Folder Activity.htmlclay"
+        public static let watchExampleSub = "Watch a folder live as files arrive, change or get deleted."
+        public static func example(_ name: String) -> String { "Example: \(name)" }
         public static let answer = "Answer…"
         public static let findIt = "Find it…"
         public static let allTrusted = "All documents in trusted folders"
@@ -236,6 +265,22 @@ public enum Strings {
         public static let openAtLogin = "Open HTML Clay at login"
         public static let aiTitle = "AI editing"
         public static let aiSub = "Rewrites text you select, using an AI tool on this Mac. The selection goes to that tool's provider."
+        public static let aiFoundHere = "Found on this Mac"
+        public static let aiModel = "Model"
+        public static let aiToolClaude = "Claude"
+        public static let aiToolCodex = "Codex"
+        public static let aiCodexDefault = "Codex default"
+        public static let aiNoTools = "Claude and Codex were not found on this Mac. Install either tool, or set up a custom command below."
+        public static let aiCustomTitle = "Custom command"
+        public static let aiCustomSub = "Use any other command line tool on this Mac"
+        public static let aiCustomButton = "Custom command…"
+        public static let aiCustomSheetTitle = "Custom AI command"
+        public static let aiCustomLead = "Enter the command HTML Clay should run when you rewrite selected text. HTML Clay sends your selection and request to this command and puts its reply into the page."
+        public static let aiCommand = "Command"
+        public static let aiCommandPlaceholder = "ollama run qwen2.5-coder:14b"
+        public static let aiCommandNote = "Write {prompt} where the request text belongs. If you leave {prompt} out, HTML Clay sends the request straight into the command."
+        public static let aiSaveCommand = "Save command"
+        public static let aiSaveFailed = "That command could not be saved."
         public static let appearanceTitle = "Appearance"
         public static let appearanceSub = "Controls HTML Clay's Mac windows and the browser dashboard."
         public static let appearanceSystem = "System"
@@ -249,15 +294,49 @@ public enum Strings {
         public static let documentsLine = "Documents open in your default browser."
     }
     public enum YourName {
+        public static let heading = "Your name"
         public static let useName = "Use my name in documents"
-        public static let offSub = "Documents can show who made a change."
+        public static let offSub = "Documents may show your name in a welcome message and beside changes or comments you make."
         public static let name = "Name"
+        public static let placeholder = "Your name"
         public static let accountSub = "Your hyperclay.com name"
         public static let change = "Change on hyperclay.com ↗"
-        public static let note = "Documents can save your name. Anyone you send them to can read it."
+        public static let note = "Documents may show your name in a welcome message and beside changes or comments you make. Files can save your name, so anyone you send them to can read it."
         public static let wouldChange = "Build 1: this would open your hyperclay.com profile."
     }
+    public enum Files {
+        public static let title = ".htmlclay files"
+        public static let headline = "Single files that save their own changes"
+        public static let lead = "Double-click any .htmlclay file in Finder. It opens in your default browser, and every edit saves right back into that same file on your Mac."
+        public static let opensTitle = "HTML Clay opens .htmlclay files"
+        public static let opensSub = "Double-clicking a .htmlclay file in Finder opens it in your browser through HTML Clay."
+        public static let defaultPill = "Default"
+        public static let otherTitle = "Another app opens .htmlclay files"
+        public static let otherUnknownSub = "HTML Clay is not currently the default app for .htmlclay files."
+        public static let makeDefault = "Make HTML Clay the default"
+        public static let openWithTitle = "Show HTML Clay in Open With for .html files"
+        public static let openWithSub = "Right-click any regular .html file in Finder and choose Open With to edit and save it in HTML Clay. Your default app for .html files stays the same."
+        public static let openWithMac = "macOS always includes HTML Clay in Open With for .html files while HTML Clay is installed on your Mac."
+        public static let stopTitle = "Stop opening .htmlclay files"
+        public static let stopSubOn = "Turns off double-click opening in Finder so macOS hands .htmlclay files to another app."
+        public static let stopSubOff = "HTML Clay is not currently set to open .htmlclay files."
+        public static let turnOff = "Turn off…"
+        public static let stopConfirmTitle = "Stop opening .htmlclay files with HTML Clay?"
+        public static let stopConfirmBody = "Double-clicking a .htmlclay file in Finder will no longer open it in HTML Clay. Your files do not change, and you can make HTML Clay the default again here anytime."
+        public static let stopConfirm = "Stop opening"
+        public static let cancel = "Cancel"
+        public static func otherSub(_ app: String) -> String {
+            "\(app) currently opens .htmlclay files when you double-click them in Finder."
+        }
+    }
     public enum Updates {
+        public static let youAreOnLatest = "You're on the latest version"
+        public static func latest(_ version: String) -> String { "HTML Clay \(version)" }
+        public static func latest(_ version: String, checked: String) -> String { "HTML Clay \(version) · Checked \(checked)" }
+        public static let justNow = "just now"
+        public static let checking = "Checking for updates…"
+        public static func checkingYouHave(_ version: String) -> String { "You have HTML Clay \(version)" }
+        public static func readySub(_ current: String) -> String { "You have \(current) · Downloaded and ready to install" }
         public static func ready(_ version: String) -> String { "HTML Clay \(version) is ready" }
         public static func youHave(_ version: String, checked: String) -> String { "You have \(version) · checked \(checked)" }
         public static let restart = "Restart to update"
@@ -288,8 +367,22 @@ public enum Strings {
     }
     public enum Advanced {
         public static let port = "Port"
-        public static let portSub = "Every address on this Mac uses it. Changing it resets page storage, so HTML Clay only asks when 1212 is taken."
+        public static let portSub = "The number at the end of every local web address on this Mac, such as htmlclay.localhost:1212."
         public static let portNumber = "1212"
+        public static let changePort = "Change port…"
+        public static let changePortTitle = "Change HTML Clay's port?"
+        public static let changePortField = "New port"
+        public static let changePortAction = "Change port"
+        public static let portRange = "Enter a port number between 1024 and 65535."
+        public static let appLog = "App log"
+        public static let appLogSub = "Errors from trusting folders, running programs, and opening or saving files."
+        public static let syncLog = "Sync log"
+        public static let syncLogSub = "Uploads, downloads, and connection details for hyperclay.com."
+        public static func portCurrent(_ port: Int) -> String { "Currently \(port)" }
+        public static func portMoveBody(_ port: Int) -> String {
+            "Every HTML Clay address on this Mac will use the new port, so you will need to update your bookmarks. Anything a page saved in your browser stays with the old address and starts fresh at the new one. Visits to port \(port) will keep forwarding to the new port."
+        }
+        public static func openDocuments(_ documents: [String]) -> String { documents.joined(separator: ", ") }
         public static let liveService = "Live service"
         public static let liveServiceSub = "Runs served and synced folders"
         public static let running = "Running"
@@ -335,6 +428,12 @@ public enum Strings {
         public static func fromTeam(_ folder: String) -> String { "From \(folder). Its editors can change this document later." }
         public static let teamAsksEachTime = "Team documents always ask one at a time."
         public static let allowForThisDocument = "Allow for this document"
+        public static func builtinTitle(document: String, program: String) -> String {
+            "Let \(document) use \(program)?"
+        }
+        public static func builtinLead(program: String, folder: String) -> String {
+            "\(program) will work only for this document and only inside \(folder). After allowing, go back to the page and try again."
+        }
         public static let useThisFile = "Use this file?"
         public static let riskyNote = "Programs that just arrived are the most common way to be tricked."
         public static let chooseAnother = "Choose another"
@@ -433,13 +532,13 @@ public enum Strings {
             case .riskyFile: return "A risky file"
             case .folderRead: return "Reading outside the folder"
             case .folderReadAgain: return "A page asks to trust its own folder"
+            case .builtinProgram: return "A page asks to use a built-in program"
             }
         }
         public static func wouldOpen(_ name: String) -> String { "Build 1: this would open \(name) in your browser." }
         public static func wouldShowInFinder(_ name: String) -> String { "Build 1: this would show \(name) in Finder." }
         public static func wouldExport(_ name: String) -> String { "Build 1: this would export \(name) as a zip file." }
         public static func wouldRecover(_ name: String) -> String { "Build 1: this would ask where to save a recovered copy of \(name)." }
-        public static let wouldOpenKeptCopies = "Build 1: this would open Kept Copies in your browser."
         public static func persona(_ persona: Persona) -> String {
             switch persona {
             case .newPerson: return "A new person"
@@ -711,7 +810,6 @@ extension Strings.Panel {
     public static let hostStopped = "HTML Clay stopped working."
     public static let hostStoppedSub = "Your files are safe. Open documents can't save until it restarts."
     public static let notReady = "HTML Clay is still starting. Try again in a moment."
-    public static let showLogs = "Show logs"
 }
 extension Strings.FolderPage {
     public static let pausedAll = "Syncing is paused for all folders"

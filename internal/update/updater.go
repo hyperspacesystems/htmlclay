@@ -52,6 +52,10 @@ type Updater struct {
 	FirstCheck time.Duration
 	Interval   time.Duration
 	Logf       func(format string, args ...any)
+	// CheckNow, when set, starts a check at once instead of waiting.
+	CheckNow <-chan struct{}
+	// Checking, when set, is told when a check starts (true) and ends (false).
+	Checking func(bool)
 }
 
 // seen is updates/seen.json, the highest version any verified feed has
@@ -87,8 +91,15 @@ func (u *Updater) Run(stop <-chan struct{}, ready func(Ready)) {
 		case <-stop:
 			return
 		case <-time.After(wait):
+		case <-u.CheckNow:
+		}
+		if u.Checking != nil {
+			u.Checking(true)
 		}
 		r, err := u.CheckOnce()
+		if u.Checking != nil {
+			u.Checking(false)
+		}
 		if err != nil {
 			u.logf("Update check failed, retrying in %s: %v", interval, err)
 		} else if r != nil {

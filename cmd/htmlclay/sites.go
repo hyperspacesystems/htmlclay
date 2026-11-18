@@ -240,6 +240,9 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		AIEditFor:      a.aiEditFor,
 		AskAIEdit:      a.askAIEdit,
 		AIEditEngines:  a.rt.cfg.AIEditEngines,
+		AIEditModels:   a.rt.cfg.AIEditModels,
+		BuiltinFor:     a.builtinFor,
+		AskBuiltin:     a.askBuiltin,
 		Profile:        a.rt.cfg.SharedPerson,
 		AskHelper:      a.askHelperForUse,
 		HelperGranted:  a.helperGranted,
@@ -505,6 +508,14 @@ func (a *app) shutdown() {
 
 func (a *app) shutdownNow() {
 	a.rt.logger.Printf("Shutting down...")
+	if a.stopRecovered != nil {
+		close(a.stopRecovered)
+		a.stopRecovered = nil
+	}
+	if a.stopFileTypes != nil {
+		close(a.stopFileTypes)
+		a.stopFileTypes = nil
+	}
 
 	a.mu.Lock()
 	a.stopping = true

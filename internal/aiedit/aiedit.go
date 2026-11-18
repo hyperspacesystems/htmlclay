@@ -46,6 +46,7 @@ type Options struct {
 	Engines  map[string][]string    // user-configured engines: name -> argv; "{prompt}" in an arg substitutes the prompt
 	Env      []string               // environment for the child; nil means helper.LoginEnv()
 	Internal func(path string) bool // reports a path in the server's own state; nil means none
+	Models   map[string]string      // engine name -> model; "" or missing is the engine's default
 	Mock     bool                   // deterministic fake reply, for tests and MOCK_MODEL=1
 	Status   func(text string)      // lifecycle status for the page; nil means none
 }
@@ -79,7 +80,7 @@ var builtinOrder = []string{"claude", "fable", "codex", "agy"}
 func builtinEngines() map[string]engine {
 	return map[string]engine{
 		"claude": {name: "claude", adapter: "claude", model: "claude-opus-5-5"},
-		"fable":  {name: "fable", adapter: "claude", model: "claude-fable-5-1"},
+		"fable":  {name: "fable", adapter: "claude", model: "claude-fable-5-2"},
 		"codex":  {name: "codex", adapter: "codex"},
 		"agy":    {name: "agy", adapter: "unsupported"},
 	}
@@ -255,6 +256,9 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 	if routeErr != nil {
 		return Result{}, routeErr
 	}
+	if model := o.Models[chosen.name]; model != "" {
+		chosen.model = model
+	}
 	if chosen.adapter == "unsupported" {
 		return Result{}, &Error{
 			Code:    "engine_unsupported",
@@ -330,6 +334,9 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 		}
 		status(fmt.Sprintf("%s isn't installed, editing with %s", programLabel(chosen), statusLabel(other)))
 		chosen, program, bin = other, otherProgram, otherBin
+		if model := o.Models[chosen.name]; model != "" {
+			chosen.model = model
+		}
 	} else {
 		status("Editing with " + statusLabel(chosen))
 	}

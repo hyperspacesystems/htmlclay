@@ -113,15 +113,15 @@ func TestAttachHelpersDispatchesAndReusesCompletedID(t *testing.T) {
 	if mode != "jsonl" {
 		t.Fatalf("mode = %q, want jsonl", mode)
 	}
-	if len(helpers) != 2 || helpers[0] != (wire.HelperMeta{Name: "search", State: "ready"}) || helpers[1] != (wire.HelperMeta{Name: "ocr", State: "denied"}) {
-		t.Fatalf("helper discovery = %+v", helpers)
+	if want := append([]wire.HelperMeta{{Name: "search", State: "ready"}, {Name: "ocr", State: "denied"}}, builtinUnavailable...); !reflect.DeepEqual(helpers, want) {
+		t.Fatalf("helper discovery = %+v, want %+v", helpers, want)
 	}
 	meta := metaOf(t, srv, file)
 	document, ok := meta["document"].(map[string]any)
 	if !ok || document["wireMode"] != "jsonl" || document["wireBudgetMs"] != float64(300000) {
 		t.Fatalf("wire discovery = %+v", document)
 	}
-	if listed, ok := document["helpers"].([]any); !ok || len(listed) != 2 {
+	if listed, ok := document["helpers"].([]any); !ok || len(listed) != 2+len(builtinUnavailable) {
 		t.Fatalf("serialized helper discovery = %+v", document["helpers"])
 	}
 
@@ -224,8 +224,8 @@ func TestExternalRawHandlerStaysAttachedAndRejectsNamedCalls(t *testing.T) {
 		t.Fatalf("repeated AttachHelpers error = %v, want remembered external handler conflict", err)
 	}
 	mode, helpers := srv.HelperDiscovery(file.AbsPath)
-	if mode != "raw" || len(helpers) != 1 || helpers[0] != (wire.HelperMeta{Name: "search", State: "unavailable"}) {
-		t.Fatalf("discovery = mode %q, helpers %+v", mode, helpers)
+	if want := append([]wire.HelperMeta{{Name: "search", State: "unavailable"}}, builtinUnavailable...); mode != "raw" || !reflect.DeepEqual(helpers, want) {
+		t.Fatalf("discovery = mode %q, helpers %+v, want %+v", mode, helpers, want)
 	}
 	observer := helperObserver(t, srv, file.AbsPath)
 	body := fmt.Sprintf(`{"type":"wire/request","id":"named","file":%q,"helper":"search"}`, file.AbsPath)
@@ -410,6 +410,14 @@ func TestAHandlerDoesNotReceiveItsOwnOutput(t *testing.T) {
 	}
 }
 
+// builtinUnavailable is the built-in programs discovery lists, after the
+// document's own helpers, for a document that may run none of them.
+var builtinUnavailable = []wire.HelperMeta{
+	{Name: "file-search", State: "unavailable"},
+	{Name: "file-convert", State: "unavailable"},
+	{Name: "folder-watch", State: "unavailable"},
+}
+
 func TestHelpersComeBackAfterTheExternalHandlerLeaves(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
 	t.Cleanup(func() { srv.Hub.Shutdown() })
@@ -430,8 +438,8 @@ func TestHelpersComeBackAfterTheExternalHandlerLeaves(t *testing.T) {
 		t.Fatalf("AttachHelpers after the external handler left: %v", err)
 	}
 	mode, helpers := srv.HelperDiscovery(file.AbsPath)
-	if mode != "jsonl" || len(helpers) != 1 || helpers[0] != (wire.HelperMeta{Name: "search", State: "ready"}) {
-		t.Fatalf("discovery = mode %q, helpers %+v", mode, helpers)
+	if want := append([]wire.HelperMeta{{Name: "search", State: "ready"}}, builtinUnavailable...); mode != "jsonl" || !reflect.DeepEqual(helpers, want) {
+		t.Fatalf("discovery = mode %q, helpers %+v, want %+v", mode, helpers, want)
 	}
 }
 
@@ -449,12 +457,12 @@ func TestDiscoveryTellsARefusalApartFromAnUndecidedHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, helpers := srv.HelperDiscovery(file.AbsPath)
-	want := []wire.HelperMeta{
+	want := append([]wire.HelperMeta{
 		{Name: "search", State: "ready"},
 		{Name: "ocr", State: "denied"},
 		{Name: "translate", State: "unavailable"},
 		{Name: "index", State: "unavailable"},
-	}
+	}, builtinUnavailable...)
 	if !reflect.DeepEqual(helpers, want) {
 		t.Fatalf("discovery = %+v, want %+v", helpers, want)
 	}

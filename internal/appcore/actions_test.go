@@ -91,6 +91,11 @@ func TestPlan(t *testing.T) {
 	ready := fixtureFacts(t, "newPerson")
 	version := "2.0.4"
 	ready.Update.Ready = &version
+	builtins := fixtureFacts(t, "syncedWithTeams")
+	builtins.Programs = append(builtins.Programs,
+		Program{ID: "file-search", Name: "file-search", Builtin: true},
+		Program{ID: AIEditProgram, Name: AIEditProgram, Builtin: true},
+	)
 
 	cases := []struct {
 		name   string
@@ -143,6 +148,9 @@ func TestPlan(t *testing.T) {
 		{"remove access for every document", synced, "program.removeAccess", `{"programID":"todo-search"}`, "program.removeAccess", ""},
 		{"turn off all trusted folders for a program", synced, "program.setAllTrusted", `{"programID":"todo-search","on":false}`, "program.setAllTrusted", ""},
 		{"set all trusted for an unknown program", synced, "program.setAllTrusted", `{"programID":"nope","on":true}`, "", RefuseNoSuchProgram},
+		{"remove a built-in program", builtins, "program.remove", `{"programID":"file-search"}`, "", RefuseNotAllowedNow},
+		{"switch a built-in program on", builtins, "program.setOn", `{"programID":"file-search","on":true}`, "program.setOn", ""},
+		{"switch ai-edit on", builtins, "program.setOn", `{"programID":"ai-edit","on":true}`, "", RefuseNoSuchProgram},
 		{"disconnect", synced, "sync.disconnect", `{}`, "sync.disconnect", ""},
 		{"disconnect with no account", trusted, "sync.disconnect", `{}`, "", RefuseNotConnected},
 

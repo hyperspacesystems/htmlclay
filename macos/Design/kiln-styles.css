@@ -57,6 +57,8 @@ a {
   --n-side-border: rgba(28, 26, 22, 0.09);
   --n-side-active: #D9D0BF;
   --n-side-active-ring: rgba(176, 104, 12, 0.34);
+  --n-side-selected: #0064E1;
+  --n-side-selected-ink: #F6F7F9;
   --n-card: #FCFBF7;
   --n-card-2: #F5F2EA;
   --n-card-sunk: #EAE6DC;
@@ -152,6 +154,8 @@ a {
   --n-side-border: rgba(246, 247, 249, 0.06);
   --n-side-active: #2B303F;
   --n-side-active-ring: rgba(245, 166, 41, 0.34);
+  --n-side-selected: #0A68D6;
+  --n-side-selected-ink: #F6F7F9;
   --n-card: #282B34;
   --n-card-2: #22252E;
   --n-card-sunk: #191B22;

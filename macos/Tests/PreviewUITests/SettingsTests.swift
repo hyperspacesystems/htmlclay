@@ -168,15 +168,16 @@ final class SettingsTests: XCTestCase {
 
     func testUtilityPanes() async throws {
         _ = NSApplication.shared
-        XCTAssertEqual(YourNamePane.mode(SampleData.snapshot(for: .newPerson)), .off)
-        XCTAssertEqual(YourNamePane.mode(SampleData.snapshot(for: .syncedWithTeams)), .account)
+        XCTAssertEqual(FilesPane.mode(SampleData.snapshot(for: .newPerson)), .off)
+        XCTAssertEqual(FilesPane.mode(SampleData.snapshot(for: .syncedWithTeams)), .account)
 
         let localHost = SampleHost(persona: .newPerson)
         _ = try await localHost.perform(.setUseName(true))
-        XCTAssertEqual(YourNamePane.mode(localHost.current), .local)
+        XCTAssertEqual(FilesPane.mode(localHost.current), .local)
 
         XCTAssertEqual(UpdatesPane.short("2.1.0"), "2.1")
-        XCTAssertEqual(UpdatesPane.short("2.0.3"), "2.0")
+        XCTAssertEqual(UpdatesPane.short("2.0.3"), "2.0.3")
+        XCTAssertEqual(UpdatesPane.short("2.0.0"), "2.0")
 
         let updateHost = SampleHost(persona: .newPerson)
         _ = try await updateHost.perform(.setAutoUpdate(false))
@@ -185,7 +186,7 @@ final class SettingsTests: XCTestCase {
         for persona in [Persona.newPerson, .syncedWithTeams] {
             let host = SampleHost(persona: persona)
             let model = AppModel(host: host, initial: host.current)
-            for pane in [SettingsPane.yourName, .updates, .advanced] {
+            for pane in [SettingsPane.htmlclayFiles, .updates, .advanced] {
                 let hosting = NSHostingView(rootView: KilnRoot { SettingsView(pane: pane) }.environment(model))
                 hosting.layoutSubtreeIfNeeded()
                 XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 840, persona.rawValue + " " + pane.rawValue)

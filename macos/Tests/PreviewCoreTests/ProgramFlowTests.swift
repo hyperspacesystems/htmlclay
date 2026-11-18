@@ -172,6 +172,51 @@ final class ProgramFlowTests: XCTestCase {
         XCTAssertTrue(ProgramControls.canReveal(sample))
     }
 
+    /// copy.md section 5: a built-in row says what it does, then who may run it.
+    func testTheBuiltinSubtitleFollowsItsSwitchAndItsDocuments() {
+        var program = Program(id: "file-search", name: "file-search", path: String(), isBuiltin: true)
+        XCTAssertEqual(ProgramControls.builtinSubtitle(program), Strings.Programs.searchOffSub)
+
+        program.isOn = true
+        XCTAssertEqual(ProgramControls.builtinSubtitle(program),
+                       Strings.Programs.searchDoes + Strings.Programs.builtinDot + Strings.Programs.noneYetOn)
+
+        program.allowedDocuments = ["File Search.htmlclay"]
+        XCTAssertEqual(ProgramControls.builtinSubtitle(program),
+                       Strings.Programs.searchDoes + Strings.Programs.builtinDot + Strings.Programs.mayRun("File Search.htmlclay"))
+
+        program.allowedDocuments = ["a.htmlclay", "b.htmlclay"]
+        XCTAssertEqual(ProgramControls.builtinSubtitle(program),
+                       Strings.Programs.searchDoes + Strings.Programs.builtinDot + Strings.Programs.mayRunCount(2))
+
+        program.allTrustedFolders = true
+        XCTAssertEqual(ProgramControls.builtinSubtitle(program),
+                       Strings.Programs.searchDoes + Strings.Programs.builtinDot + Strings.Programs.allTrusted)
+
+        XCTAssertEqual(ProgramControls.programTitle("file-search"), Strings.Programs.fileSearch)
+        XCTAssertEqual(ProgramControls.programTitle("file-convert"), Strings.Programs.fileConverter)
+        XCTAssertEqual(ProgramControls.programTitle("folder-watch"), Strings.Programs.folderWatcher)
+        XCTAssertEqual(ProgramControls.programTitle("todo-search"), "todo-search")
+    }
+
+    func testABuiltinProgramRequestOffersTwoAnswers() {
+        let request = ProgramRequest(id: "r1", kind: .builtinProgram, document: "/Users/sam/notes/todo.htmlclay",
+                                     program: "file-search", folder: "Notes",
+                                     answers: [RequestAnswer.deny, RequestAnswer.allowDocument])
+        XCTAssertEqual(RequestControls.choice(RequestAnswer.deny, in: request, isSample: false)?.title,
+                       Strings.Request.dontAllow)
+        XCTAssertEqual(RequestControls.choice(RequestAnswer.allowDocument, in: request, isSample: false)?.title,
+                       Strings.Request.allowForThisDocument)
+        XCTAssertNil(RequestControls.choice(RequestAnswer.allowAllTrusted, in: request, isSample: false))
+        XCTAssertNil(RequestControls.choice(RequestAnswer.chooseFile, in: request, isSample: false))
+        XCTAssertEqual(RequestControls.documentName(request), "todo.htmlclay")
+
+        let sample = ProgramRequest(id: "s1", kind: .builtinProgram, document: "todo.htmlclay",
+                                    program: "file-search", folder: "Notes")
+        XCTAssertEqual(RequestControls.answers(sample, isSample: true),
+                       [RequestAnswer.deny, RequestAnswer.allowDocument])
+    }
+
     func testTheWideningSwitchShowsTheNewestValue() {
         XCTAssertFalse(ProgramControls.allTrusted(resize, pending: nil))
         XCTAssertTrue(ProgramControls.allTrusted(resize, pending: .setProgramAllTrusted(programID: "p1", on: true)))
@@ -213,7 +258,7 @@ final class ProgramFlowTests: XCTestCase {
         let host = try await LiveHost.start()
         let path = try makeExecutable(in: host, named: "resize")
         let model = AppModel(host: host.client, initial: try await host.client.load())
-        XCTAssertTrue(model.snapshot.programs.isEmpty, "the live host started with programs")
+        XCTAssertTrue(ProgramControls.userPrograms(model.snapshot).isEmpty, "the live host started with programs")
 
         model.folderChooser = PickOnce(path: path)
         let sheet = ProgramSheetModel(kind: .add, model: model)

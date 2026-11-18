@@ -10,3 +10,5 @@ require (
 )
 
 require github.com/godbus/dbus/v5 v5.2.2
+
+require golang.org/x/image v0.45.0

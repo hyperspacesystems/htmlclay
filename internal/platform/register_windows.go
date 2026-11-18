@@ -46,13 +46,15 @@ const (
 	shcnfIDList       = 0x0000
 )
 
-func registerFileTypes(exePath string) error {
+func registerFileTypes(exePath string, opts FileTypeOptions) error {
 	quoted := `"` + exePath + `"`
 	defaults := []struct{ subkey, value string }{
-		{`.htmlclay`, progID},
 		{progID, progIDLabel},
 		{progID + `\shell\open\command`, quoted + ` "%1"`},
 		{progID + `\DefaultIcon`, quoted + docIconIndex},
+	}
+	if opts.HTMLClay {
+		defaults = append([]struct{ subkey, value string }{{`.htmlclay`, progID}}, defaults...)
 	}
 
 	// Every write is attempted even after one fails, and the shell is told about
@@ -80,7 +82,13 @@ func registerFileTypes(exePath string) error {
 	// merged HKEY_CLASSES_ROOT view reading the ProgID out of HKLM, so the user's
 	// browser keeps them; only the Open With list gains an entry.
 	for _, ext := range []string{`.html`, `.htm`} {
-		changed, err := addOpenWithProgID(ext)
+		var changed bool
+		var err error
+		if opts.HTMLOpenWith {
+			changed, err = addOpenWithProgID(ext)
+		} else {
+			err = deleteOpenWithProgID(ext)
+		}
 		keep(err)
 		wrote = wrote || changed
 	}

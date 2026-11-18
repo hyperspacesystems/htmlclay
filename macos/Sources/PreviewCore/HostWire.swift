@@ -52,9 +52,13 @@ public struct WireSnapshot: Codable, Equatable, Sendable {
     public var update: WireUpdateState
     public var preferences: WirePreferences
     public var move: WireMove?
+    /// How many edits HTML Clay saved aside. Nil from a host older than this round.
+    public var recoveredChanges: Int?
+    /// Who opens .htmlclay files on Windows and Linux. Nil on the Mac.
+    public var fileTypes: WireFileTypes?
 
     enum CodingKeys: String, CodingKey {
-        case v, rev, epoch, host, documents, folders, programs, requests, waiting, counts, sync, update, preferences, move
+        case v, rev, epoch, host, documents, folders, programs, requests, waiting, counts, sync, update, preferences, move, recoveredChanges, fileTypes
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -73,6 +77,8 @@ public struct WireSnapshot: Codable, Equatable, Sendable {
         try container.encode(update, forKey: .update)
         try container.encode(preferences, forKey: .preferences)
         try container.encode(move, forKey: .move)
+        try container.encodeIfPresent(recoveredChanges, forKey: .recoveredChanges)
+        try container.encodeIfPresent(fileTypes, forKey: .fileTypes)
     }
 }
 
@@ -225,6 +231,10 @@ public struct WireProgram: Codable, Equatable, Sendable {
     public var allowedDocuments: [String]
     public var allTrustedFolders: Bool
     public var removedDocuments: [String]
+    /// True for the programs HTML Clay ships. Nil from a host older than this round.
+    public var builtin: Bool?
+    /// Whether a built-in program is switched on. Nil from a host older than this round.
+    public var on: Bool?
 }
 
 public struct WireRequest: Codable, Equatable, Sendable {
@@ -305,9 +315,11 @@ public struct WireSyncState: Codable, Equatable, Sendable {
     public var fullName: String
     /// "system" or "file"; nil from a host older than 08-sync.md 8.43.
     public var keyStore: String?
+    /// Whether sync has ever been on. Nil from a host older than this round.
+    public var everOn: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case connected, username, keySuffix, paused, syncingFiles, offlineChanges, viewOnlyTeams, lastFinishedAt, fullName, keyStore
+        case connected, username, keySuffix, paused, syncingFiles, offlineChanges, viewOnlyTeams, lastFinishedAt, fullName, keyStore, everOn
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -322,6 +334,7 @@ public struct WireSyncState: Codable, Equatable, Sendable {
         try container.encode(lastFinishedAt, forKey: .lastFinishedAt)
         try container.encode(fullName, forKey: .fullName)
         try container.encodeIfPresent(keyStore, forKey: .keyStore)
+        try container.encodeIfPresent(everOn, forKey: .everOn)
     }
 }
 
@@ -331,9 +344,13 @@ public struct WireUpdateState: Codable, Equatable, Sendable {
     public var checkedAt: Date?
     public var automatic: Bool
     public var finishing: Bool
+    /// A check is running now. Nil from a host older than this round.
+    public var checking: Bool?
+    /// Where to download a new version by hand. Nil from a host older than this round.
+    public var downloadURL: String?
 
     enum CodingKeys: String, CodingKey {
-        case current, ready, checkedAt, automatic, finishing
+        case current, ready, checkedAt, automatic, finishing, checking, downloadURL
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -343,6 +360,8 @@ public struct WireUpdateState: Codable, Equatable, Sendable {
         try container.encode(checkedAt, forKey: .checkedAt)
         try container.encode(automatic, forKey: .automatic)
         try container.encode(finishing, forKey: .finishing)
+        try container.encodeIfPresent(checking, forKey: .checking)
+        try container.encodeIfPresent(downloadURL, forKey: .downloadURL)
     }
 }
 
@@ -353,6 +372,40 @@ public struct WirePreferences: Codable, Equatable, Sendable {
     public var appearance: String
     public var yourName: String
     public var useName: Bool
+    /// The AI tool AI editing uses. Nil from a host older than this round.
+    public var aiEditTool: String?
+    /// The AI tools this Mac has. Nil from a host older than this round.
+    public var aiEditTools: [WireAIEditTool]?
+}
+
+public struct WireAIEditTool: Codable, Equatable, Sendable {
+    public var id: String
+    public var custom: Bool?
+    public var found: Bool?
+    public var model: String?
+    public var defaultModel: String?
+    public var models: [String]?
+    public var command: String?
+}
+
+public struct WireFileTypes: Codable, Equatable, Sendable {
+    public var managed: Bool?
+    public var defaultApp: String?
+    public var htmlOpenWith: Bool?
+    public var stopped: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case managed, htmlOpenWith, stopped
+        case defaultApp = "default"
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(managed, forKey: .managed)
+        try container.encodeIfPresent(defaultApp, forKey: .defaultApp)
+        try container.encodeIfPresent(htmlOpenWith, forKey: .htmlOpenWith)
+        try container.encodeIfPresent(stopped, forKey: .stopped)
+    }
 }
 
 public struct WireMove: Codable, Equatable, Sendable {

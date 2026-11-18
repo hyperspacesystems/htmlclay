@@ -33,9 +33,9 @@ final class SettingsControlsTests: XCTestCase {
         for pane in SettingsPane.allCases {
             XCTAssertTrue(SettingsControls.showsPane(pane, in: model.snapshot), pane.rawValue)
         }
-        let routes: [SettingsRoute] = [.pane(.general), .pane(.folders), .pane(.programs),
-                                       .pane(.sync), .pane(.yourName), .pane(.updates),
-                                       .pane(.advanced), .folder("notes"), .folderHistory("notes"),
+        let routes: [SettingsRoute] = [.pane(.general), .pane(.htmlclayFiles), .pane(.folders),
+                                       .pane(.programs), .pane(.updates), .pane(.advanced),
+                                       .pane(.sync), .folder("notes"), .folderHistory("notes"),
                                        .program("search-sh")]
         for route in routes {
             XCTAssertEqual(SettingsControls.visibleRoute(route, in: model.snapshot), route)
@@ -43,7 +43,6 @@ final class SettingsControlsTests: XCTestCase {
         XCTAssertTrue(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
         XCTAssertTrue(SettingsControls.showsAccountChange(isSample: model.isSample))
         XCTAssertTrue(SettingsControls.showsUpdateControls(can: model.can(HostActionType.updateStart)))
-        XCTAssertTrue(SettingsControls.showsTroubleshooting(isSample: model.isSample))
         XCTAssertTrue(SettingsControls.showsServiceRestart(can: model.can(HostActionType.serviceRestart)))
     }
 
@@ -53,7 +52,7 @@ final class SettingsControlsTests: XCTestCase {
 
         XCTAssertFalse(SettingsControls.showsPane(.programs, in: model.snapshot))
         XCTAssertFalse(SettingsControls.showsPane(.sync, in: model.snapshot))
-        for pane in [SettingsPane.general, .folders, .yourName, .updates, .advanced] {
+        for pane in [SettingsPane.general, .htmlclayFiles, .folders, .updates, .advanced] {
             XCTAssertTrue(SettingsControls.showsPane(pane, in: model.snapshot), pane.rawValue)
         }
         XCTAssertEqual(SettingsControls.visibleRoute(.pane(.programs), in: model.snapshot), .pane(.general))
@@ -64,7 +63,6 @@ final class SettingsControlsTests: XCTestCase {
         XCTAssertTrue(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
         XCTAssertFalse(SettingsControls.showsAccountChange(isSample: model.isSample))
         XCTAssertFalse(SettingsControls.showsUpdateControls(can: model.can(HostActionType.updateStart)))
-        XCTAssertFalse(SettingsControls.showsTroubleshooting(isSample: model.isSample))
         XCTAssertFalse(SettingsControls.showsServiceRestart(can: model.can(HostActionType.serviceRestart)))
     }
 
@@ -75,7 +73,15 @@ final class SettingsControlsTests: XCTestCase {
         XCTAssertFalse(model.isSample)
         XCTAssertTrue(SettingsControls.showsOpenAtLogin(isSample: model.isSample))
         XCTAssertFalse(SettingsControls.showsAccountChange(isSample: model.isSample))
-        XCTAssertFalse(SettingsControls.showsTroubleshooting(isSample: model.isSample))
+    }
+
+    /// copy.md section 2: the seven tabs, in this order, and no Your name tab.
+    func testTheSidebarListsTheSevenTabsInOrder() {
+        XCTAssertEqual(SettingsPane.allCases.map(\.rawValue),
+                       ["general", "htmlclayFiles", "folders", "programs", "updates", "advanced", "sync"])
+        XCTAssertEqual(SettingsPane.allCases.map(Strings.Settings.title),
+                       ["General", ".htmlclay files", "Folders", "Programs", "Updates", "Advanced", "Sync"])
+        XCTAssertNil(SettingsPane(rawValue: "yourName"))
     }
 
     func testAPaneShowsWhenTheHostRunsAnyOfItsActions() {
@@ -127,6 +133,60 @@ final class SettingsControlsTests: XCTestCase {
     func testThePortShowsTheSnapshotOnTheRealHostAndTheDesignedOneInThePreview() {
         XCTAssertEqual(SettingsControls.port(isSample: true, port: 4040), Strings.Advanced.portNumber)
         XCTAssertEqual(SettingsControls.port(isSample: false, port: 4040), "4040")
+    }
+
+    /// copy.md section 6, from the syncedWithTeams fixture: Claude was found and
+    /// is selected, Codex was not found so it is absent, and the custom command
+    /// comes last.
+    func testTheToolPickerListsFoundToolsThenTheCustomCommand() throws {
+        let fixtures = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/v1")
+        let data = try Data(contentsOf: fixtures.appendingPathComponent("syncedWithTeams.snapshot.json"))
+        let wire = try HostWireCoding.decoder().decode(WireSnapshot.self, from: data)
+        let prefs = HostSnapshotAdapter.snapshot(from: wire).preferences
+
+        let rows = SettingsControls.aiToolRows(prefs)
+        XCTAssertEqual(rows.map(\.id), ["claude", "custom"])
+        XCTAssertEqual(rows.map(\.title), [Strings.General.aiToolClaude, Strings.General.aiCustomTitle])
+        XCTAssertEqual(rows.map(\.selected), [true, false])
+        XCTAssertTrue(rows[0].subtitle == Strings.General.aiFoundHere)
+        XCTAssertEqual(rows[0].model, "claude-opus-5-5")
+        XCTAssertEqual(rows[0].placeholder, "claude-opus-5-5")
+        XCTAssertEqual(rows[1].subtitle, "my-agent {prompt}")
+        XCTAssertTrue(rows[1].custom)
+        XCTAssertFalse(SettingsControls.showsNoToolsNote(prefs))
+
+        var noneFound = prefs
+        noneFound.aiEditTools = prefs.aiEditTools.filter { $0.custom || !$0.found }
+        XCTAssertTrue(SettingsControls.showsNoToolsNote(noneFound))
+        XCTAssertEqual(SettingsControls.aiToolRows(noneFound).map(\.id), ["custom"])
+
+        var codexOnly = prefs
+        codexOnly.aiEditTool = "codex"
+        codexOnly.aiEditTools = [AIEditTool(id: "codex", found: true)]
+        let codex = SettingsControls.aiToolRows(codexOnly)
+        XCTAssertEqual(codex.map(\.id), ["codex"])
+        XCTAssertEqual(codex[0].title, Strings.General.aiToolCodex)
+        XCTAssertTrue(codex[0].selected)
+        XCTAssertEqual(codex[0].placeholder, Strings.General.aiCodexDefault)
+    }
+
+    func testTheSyncLogRowShowsOnceSyncHasBeenOn() {
+        XCTAssertFalse(SettingsControls.showsSyncLog(SyncState()))
+        XCTAssertTrue(SettingsControls.showsSyncLog(SyncState(connected: true, username: "panphora", everOn: true)))
+        XCTAssertTrue(SettingsControls.showsSyncLog(SyncState(everOn: true)))
+    }
+
+    func testThePortCheckKeepsTheRange() {
+        XCTAssertNil(SettingsControls.portProblem("1212"))
+        XCTAssertNil(SettingsControls.portProblem("1024"))
+        XCTAssertNil(SettingsControls.portProblem("65535"))
+        XCTAssertNil(SettingsControls.portProblem(" 8080 "))
+
+        for text in ["", "1023", "65536", "0", "abc", "12 12", "-1", "12.5"] {
+            XCTAssertEqual(SettingsControls.portProblem(text), Strings.Advanced.portRange, text)
+        }
     }
 
     func testStorageTotalsAreHiddenOnTheRealHost() {

@@ -2,6 +2,7 @@ package appcore
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 )
 
@@ -101,7 +102,34 @@ const (
 	TextTrayResumeSyncing        = "Resume syncing"                                // copy: tray item, Windows and Linux, max 30 chars
 	TextTrayOneConflict          = "1 conflict…"                                   // copy: tray item opening Needs you, max 30 chars
 	TextTrayConflicts            = "%d conflicts…"                                 // copy: tray item opening Needs you, the count, max 30 chars
+
+	TextMenuVersion         = "HTML Clay %s"                                                                                                         // copy: one menu, status row, %s is the version, max 32 chars
+	TextMenuChecking        = "Checking for updates…"                                                                                                // copy: one menu, status row while checking
+	TextMenuRestartToUpdate = "Restart to update to %s"                                                                                              // copy: one menu, status row with an update ready, %s is the version
+	TextMenuDownloadUpdate  = "Update available: %s"                                                                                                 // copy: one menu, Linux and Windows builds that cannot install the update themselves
+	TextMenuSyncUpToDate    = "Up to date · @%s"                                                                                                     // copy: one menu, sync line, %s is the username
+	TextMenuSyncingOne      = "Syncing 1 file… · @%s"                                                                                                // copy: one menu, sync line
+	TextMenuSyncingMany     = "Syncing %d files… · @%s"                                                                                              // copy: one menu, sync line
+	TextMenuSyncPaused      = "Syncing paused"                                                                                                       // copy: one menu, sync line
+	TextMenuNeedsYou        = "Needs you (%d)"                                                                                                       // copy: one menu, submenu title
+	TextMenuOpenDashboard   = "Open dashboard"                                                                                                       // copy: one menu
+	TextMenuOpenFile        = "Open a file…"                                                                                                         // copy: one menu
+	TextMenuRecent          = "Recent documents"                                                                                                     // copy: one menu, submenu title
+	TextMenuNoRecent        = "No recent documents"                                                                                                  // copy: one menu, the disabled row inside an empty Recent documents
+	TextMenuRecovered       = "Recovered changes…"                                                                                                   // copy: one menu, shown only when there is at least one
+	TextMenuSettings        = "Settings…"                                                                                                            // copy: one menu
+	TextMenuCheckForUpdates = "Check for updates…"                                                                                                   // copy: one menu
+	TextMenuQuitMac         = "Quit HTML Clay"                                                                                                       // copy: one menu, macOS
+	TextMenuQuitWindows     = "Exit"                                                                                                                 // copy: one menu, Windows
+	TextMenuQuitLinux       = "Quit"                                                                                                                 // copy: one menu, Linux
+	TextPortRestartFailed   = "HTML Clay saved the new port, though it could not restart on its own. Quit and reopen HTML Clay to use the new port." // copy: notification when the app could not restart on the new port; the new port takes effect at the next start, max 160 chars
+	TextUpToDateNotice      = "You're on the latest version"                                                                                         // copy: Windows and Linux notification after Check for updates… finds nothing
 )
+
+// TextPortMoved is the old port's answer to a save or other non-page request, %s
+// is the new address, max 160 chars. It is a variable so it still builds with
+// Sprintf.
+var TextPortMoved = "HTML Clay moved to %s. Copy any new edits, then reload this page to open it at the new address."
 
 // RefusalText is the one-line "what happened, and what to do" for each refusal code.
 // %s, where present, is the other folder (OtherPath, or OtherName when set).
@@ -171,6 +199,26 @@ var RefusalText = map[string]string{
 	RefuseServedElsewhere: "Another copy of HTML Clay is serving this folder. Stop it there first.",      // copy: refusal, max 140 chars
 	RefuseUnsavedEdits:    "Some edits in this folder haven't been saved yet. Try again in a moment.",    // copy: refusal, max 140 chars
 	RefuseQuitUnsaved:     "Some edits haven't been saved yet. Try again, or quit anyway and lose them.", // copy: refusal, max 140 chars
+	RefusePortInvalid:     "Enter a port number between 1024 and 65535.",
+	RefusePortSame:        "HTML Clay is already using that port. Enter a different port number.",
+	RefusePortTaken:       "Port %s is already being used by another app on this Mac. Try another number.",
+	RefusePortUnsaved:     "Save your open documents before changing the port, then try again.",
+	RefuseNoSuchTool:      "That AI tool was not found on this Mac. Choose an installed tool instead.",
+	RefuseCommandInvalid:  "Enter a command to run, and make sure every quotation mark is closed.",
+	RefuseCommandNotFound: "Could not find “%s” on this Mac. Enter a full file path or a command installed on your system.",
+	RefuseNotOnThisSystem: "Change this setting in the HTML Clay app window instead.",
+}
+
+// ForSystem swaps the Mac's words in text for goos's: "this Mac" becomes "this
+// PC" or "this computer", "Finder" becomes "File Explorer" or "your file manager".
+func ForSystem(text, goos string) string {
+	switch goos {
+	case "windows":
+		return strings.NewReplacer("this Mac", "this PC", "your Mac", "your PC", "in Finder", "in File Explorer").Replace(text)
+	case "linux":
+		return strings.NewReplacer("another app on this Mac", "another program on this computer", "this Mac", "this computer", "your Mac", "your computer", "in Finder", "in your file manager").Replace(text)
+	}
+	return text
 }
 
 // RefusalMessage fills in RefusalText for r.
@@ -186,11 +234,11 @@ func RefusalMessage(r *Refusal) string {
 		return r.Code
 	}
 	if !strings.Contains(text, "%s") {
-		return text
+		return ForSystem(text, runtime.GOOS)
 	}
 	other := r.OtherName
 	if other == "" {
 		other = r.OtherPath
 	}
-	return fmt.Sprintf(text, other)
+	return ForSystem(fmt.Sprintf(text, other), runtime.GOOS)
 }

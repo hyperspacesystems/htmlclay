@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
@@ -72,6 +73,14 @@ func TestM5MoveFromLocal(t *testing.T) {
 	writeTestFile(t, filepath.Join(studio, "board.html"), "<p>board</p>")
 	writeTestFile(t, filepath.Join(plain, "index.html"), "<p>recipes</p>")
 	writeTestFile(t, filepath.Join(oldTeam, "index.html"), "<p>old</p>")
+	realStudio, err := filepath.EvalSymlinks(studio)
+	if err != nil {
+		t.Fatal(err)
+	}
+	realPlain, err := filepath.EvalSymlinks(plain)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// The ports Local served these folders on. They are free, as they are once Local quits.
 	studioPort, plainPort, oldTeamPort := freeLoopbackPort(t), freeLoopbackPort(t), freeLoopbackPort(t)
 	marker := filepath.Join(studio, ".hyperclay", "sync-root.json")
@@ -80,8 +89,17 @@ func TestM5MoveFromLocal(t *testing.T) {
 		`{"id":%q,"kind":"team","path":%q,"port":%d},`+
 		`{"id":%q,"kind":"plain","path":%q,"port":%d},`+
 		`{"id":%q,"kind":"plain","path":%q,"port":%d,"formerAccount":{"id":41,"kind":"team"}}],`+
-		`"syncSessions":[{"id":%q,"rootId":%q,"accountId":40,"kind":"team","legacyMetaDir":null}]}`,
-		moveLocalTeamRoot, studio, studioPort, moveLocalPlainRoot, plain, plainPort, moveLocalOldTeam, oldTeam, oldTeamPort, moveLocalSession, moveLocalTeamRoot))
+		`"syncSessions":[{"id":%q,"rootId":%q,"accountId":40,"kind":"team","legacyMetaDir":null}],`+
+		`"helperPrograms":[`+
+		`{"id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","name":"resize","path":"/opt/tools/resize","anyDocument":false,"addedAt":1760000000000},`+
+		`{"id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","name":"pdf","path":"/opt/tools/pdf","anyDocument":true,"addedAt":1760000000000},`+
+		`{"id":"cccccccccccccccccccccccccccccccc","name":"file-search","path":"/opt/tools/search","anyDocument":false,"addedAt":1760000000000}],`+
+		`"helperDecisions":[`+
+		`{"document":%q,"name":"resize","program":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","allowed":true,"decidedAt":1760000001000,"accountId":40},`+
+		`{"document":%q,"name":"pdf","allowed":false,"decidedAt":1760000001000},`+
+		`{"document":"/elsewhere/notes.html","name":"resize","program":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","allowed":true,"decidedAt":1760000001000}]}`,
+		moveLocalTeamRoot, studio, studioPort, moveLocalPlainRoot, plain, plainPort, moveLocalOldTeam, oldTeam, oldTeamPort, moveLocalSession, moveLocalTeamRoot,
+		filepath.Join(realStudio, "board.html"), filepath.Join(realPlain, "index.html")))
 	localMeta := filepath.Join(userData, "sync-meta", "v2", moveLocalSession)
 	writeTestFile(t, filepath.Join(localMeta, "identity.json"), `{"rootId":"`+moveLocalTeamRoot+`","rootMarker":true,"rootDir":"1:2","accountId":40}`)
 	writeTestFile(t, filepath.Join(localMeta, "node-map.json"), `{"2":{"path":"board.html"}}`)
@@ -192,6 +210,31 @@ func TestM5MoveFromLocal(t *testing.T) {
 		if got := receipt.Root(moveLocalTeamRoot); got.FolderID != team.FolderID || got.SessionID != moveLocalSession || got.LocalPort != studioPort {
 			t.Fatalf("the synced folder's receipt = %+v", got)
 		}
+		programs := a.rt.cfg.HelperProgramList()
+		if len(programs) != 2 {
+			t.Fatalf("carried programs = %+v, want resize and pdf (never the built-in name)", programs)
+		}
+		for _, p := range programs {
+			switch p.ID {
+			case "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa":
+				if p.Name != "resize" || p.Path != "/opt/tools/resize" || p.AnyDocument || p.AddedAt != 1760000000000*int64(time.Millisecond) {
+					t.Fatalf("resize carried as %+v", p)
+				}
+			case "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb":
+				if p.Name != "pdf" || !p.AnyDocument {
+					t.Fatalf("pdf carried as %+v", p)
+				}
+			default:
+				t.Fatalf("an unexpected program was carried: %+v", p)
+			}
+		}
+		decisions := a.rt.cfg.HelperDecisionList()
+		if len(decisions) != 1 {
+			t.Fatalf("carried decisions = %+v, want only the allow inside a moved folder", decisions)
+		}
+		if d := decisions[0]; d.Document != filepath.Join(realStudio, "board.html") || d.Name != "resize" || d.Program != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || !d.Allowed || d.DecidedAt != 1760000001000*int64(time.Millisecond) || d.Scope != a.scopeOf(filepath.Join(realStudio, "board.html")) {
+			t.Fatalf("the carried allow = %+v", d)
+		}
 		if move := a.facts().Move; move == nil || move.State != appcore.MoveDone || len(move.Folders) != 3 {
 			t.Fatalf("after the move the facts say %+v", move)
 		}
@@ -240,6 +283,12 @@ func TestM5MoveFromLocal(t *testing.T) {
 		refusal := moveThroughDo(t, a, "m3")
 		if refusal == nil || refusal.Code != appcore.RefuseNothingToMove {
 			t.Fatalf("refusal = %+v, want %s", refusal, appcore.RefuseNothingToMove)
+		}
+		if got := len(a.rt.cfg.HelperProgramList()); got != 2 {
+			t.Fatalf("after a second move there are %d programs, want 2", got)
+		}
+		if got := len(a.rt.cfg.HelperDecisionList()); got != 1 {
+			t.Fatalf("after a second move there are %d decisions, want 1", got)
 		}
 	})
 }

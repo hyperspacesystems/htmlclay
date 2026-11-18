@@ -26,6 +26,9 @@ final class SparkleDriver: UpdateDriver {
             case .aborted: event = .aborted(text)
             case .installFailed: event = .installFailed(text)
             case .checkSkipped: event = .checkSkipped(text)
+            case .checking: event = .checking
+            case .upToDate: event = .upToDate
+            case .checkEnded: event = .checkEnded
             @unknown default: return
             }
             Task { @MainActor in events(event) }

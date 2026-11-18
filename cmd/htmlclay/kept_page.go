@@ -18,11 +18,12 @@ import (
 	"github.com/panphora/htmlclay/internal/versions"
 )
 
-// The Kept Copies page lists every copy the data guard kept when a change made
-// outside the page removed data, and lets the person at the computer delete one
-// or all copies of a document. It is served exactly like the Programs page: only
-// on http://127.0.0.1:<port>, only to a browser that came through a one-time
-// link, with a CSRF token on every action, and with no JavaScript.
+// The Recovered changes page lists every edit the data guard saved aside when a
+// change made outside the page removed data, and lets the person at the computer
+// delete one or all recovered changes of a document. It is served exactly like
+// the Programs page: only on http://127.0.0.1:<port>, only to a browser that came
+// through a one-time link, with a CSRF token on every action, and with no
+// JavaScript.
 const keptCookie = "htmlclay_kept"
 
 type keptRow struct {
@@ -77,7 +78,7 @@ func keptSize(n int64) string {
 	return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
 }
 
-// keptZone is the time zone the Kept Copies page shows times in. Tests set it
+// keptZone is the time zone the Recovered changes page shows times in. Tests set it
 // instead of time.Local, which the app's other goroutines read through
 // time.Now.
 var keptZone = time.Local
@@ -93,25 +94,26 @@ func keptRevealLabel() string {
 	return "Show in Folder"
 }
 
-// openKeptPage opens the Kept Copies page in the browser through a one-time
-// link. The link is never logged: it is the credential.
+// openKeptPage opens the Recovered changes page in the browser through a
+// one-time link. The link is never logged: it is the credential.
 func (a *app) openKeptPage() {
 	ticket, err := a.kept.mintTicket(time.Now())
 	if err != nil {
-		a.rt.logger.Printf("Could not open the Kept Copies page: %v", err)
+		a.rt.logger.Printf("Could not open the Recovered changes page: %v", err)
 		return
 	}
-	a.rt.logger.Printf("Opening the Kept Copies page")
+	a.rt.logger.Printf("Opening the Recovered changes page")
 	open := a.rt.openKeptURL
 	if open == nil {
 		open = browser.OpenURL
 	}
-	if err := open(fmt.Sprintf("http://127.0.0.1:%d/kept/open?t=%s", a.rt.port, ticket)); err != nil {
-		a.rt.logger.Printf("Error opening the Kept Copies page: %v", err)
+	if err := open(fmt.Sprintf("http://127.0.0.1:%d/recovered/open?t=%s", a.rt.port, ticket)); err != nil {
+		a.rt.logger.Printf("Error opening the Recovered changes page: %v", err)
 	}
 }
 
-// serveKept answers every /kept path on the bare 127.0.0.1 host.
+// serveKept answers every /recovered path on the bare 127.0.0.1 host. The old
+// /kept paths send a page that was open across the update on to the new ones.
 func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 	nonce, err := randomHex()
 	if err != nil {
@@ -124,8 +126,16 @@ func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now()
+	if r.URL.Path == "/kept" || strings.HasPrefix(r.URL.Path, "/kept/") {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "/recovered"+strings.TrimPrefix(r.URL.Path, "/kept")+queryOf(r.URL.RawQuery), http.StatusFound)
+		return
+	}
 	switch r.URL.Path {
-	case "/kept/open":
+	case "/recovered/open":
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
@@ -139,9 +149,9 @@ func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 			a.renderKeptSignIn(w, nonce)
 			return
 		}
-		http.SetCookie(w, &http.Cookie{Name: keptCookie, Value: sid, Path: "/kept", HttpOnly: true, SameSite: http.SameSiteStrictMode})
-		http.Redirect(w, r, "/kept", http.StatusSeeOther)
-	case "/kept":
+		http.SetCookie(w, &http.Cookie{Name: keptCookie, Value: sid, Path: "/recovered", HttpOnly: true, SameSite: http.SameSiteStrictMode})
+		http.Redirect(w, r, "/recovered", http.StatusSeeOther)
+	case "/recovered":
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
@@ -152,7 +162,7 @@ func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.renderKept(w, nonce, csrf, r.URL.Query().Get("done"))
-	case "/kept/confirm":
+	case "/recovered/confirm":
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
@@ -166,9 +176,9 @@ func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 		name := r.URL.Query().Get("name")
 		all := r.URL.Query().Get("all") == "1"
 		if !a.renderKeptConfirm(w, nonce, csrf, folder, name, all) {
-			http.Redirect(w, r, "/kept?done=gone", http.StatusSeeOther)
+			http.Redirect(w, r, "/recovered?done=gone", http.StatusSeeOther)
 		}
-	case "/kept/action":
+	case "/recovered/action":
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
@@ -189,7 +199,7 @@ func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		done := a.keptAction(r.PostForm.Get("action"), r.PostForm.Get("folder"), r.PostForm.Get("name"), r.PostForm["name"])
-		http.Redirect(w, r, "/kept?done="+done, http.StatusSeeOther)
+		http.Redirect(w, r, "/recovered?done="+done, http.StatusSeeOther)
 	default:
 		http.NotFound(w, r)
 	}
@@ -198,11 +208,11 @@ func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 // keptDone maps the outcome keys an action redirects with to the sentence the
 // page shows. An empty sentence shows nothing.
 var keptDone = map[string]string{
-	"deleted":     "Deleted that copy.",
-	"deleted-all": "Deleted every kept copy of that document.",
+	"deleted":     "Deleted that recovered change.",
+	"deleted-all": "Deleted all recovered changes for that document.",
 	"revealed":    "",
-	"gone":        "That copy is no longer kept. The list below is current.",
-	"failed":      "That did not work. HTML Clay's log has the details.",
+	"gone":        "That recovered change is already gone. The list below is current.",
+	"failed":      "That did not work. Open Settings and check the app log for details.",
 }
 
 // keptAction runs one form action and returns its outcome key.
@@ -237,16 +247,17 @@ func (a *app) keptAction(action, folder, name string, names []string) string {
 		if errors.Is(err, versions.ErrNotKept) || errors.Is(err, versions.ErrNoHistory) {
 			return "gone"
 		}
-		a.rt.logger.Printf("Kept Copies action %q failed: %v", action, err)
+		a.rt.logger.Printf("Recovered changes action %q failed: %v", action, err)
 		return "failed"
 	}
+	a.refreshRecovered()
 	return outcome
 }
 
 func (a *app) keptDocuments() ([]keptDocument, int, int64) {
 	histories, err := a.rt.versions.ListKept()
 	if err != nil {
-		a.rt.logger.Printf("Could not list kept copies: %v", err)
+		a.rt.logger.Printf("Could not list recovered changes: %v", err)
 		return nil, 0, 0
 	}
 	var docs []keptDocument
@@ -259,7 +270,7 @@ func (a *app) keptDocuments() ([]keptDocument, int, int64) {
 			doc.Path = a.tildePath(h.AbsPath)
 			if _, err := os.Stat(h.AbsPath); err != nil {
 				doc.Missing = true
-				doc.Status = "File not found here"
+				doc.Status = "Original file not found here"
 			}
 		} else {
 			doc.Path = h.Name
@@ -270,7 +281,7 @@ func (a *app) keptDocuments() ([]keptDocument, int, int64) {
 			doc.Rows = append(doc.Rows, keptRow{
 				Folder:  h.Folder,
 				Name:    e.Name,
-				Confirm: "/kept/confirm?" + url.Values{"folder": {h.Folder}, "name": {e.Name}}.Encode(),
+				Confirm: "/recovered/confirm?" + url.Values{"folder": {h.Folder}, "name": {e.Name}}.Encode(),
 				When:    keptWhen(e.Time),
 				Size:    keptSize(e.Size),
 			})
@@ -351,7 +362,7 @@ func (a *app) renderKeptSignIn(w http.ResponseWriter, nonce string) {
 func (a *app) writeKeptPage(w http.ResponseWriter, view keptView) {
 	var buf bytes.Buffer
 	if err := keptTemplate.Execute(&buf, view); err != nil {
-		a.rt.logger.Printf("Could not render the Kept Copies page: %v", err)
+		a.rt.logger.Printf("Could not render the Recovered changes page: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -360,8 +371,22 @@ func (a *app) writeKeptPage(w http.ResponseWriter, view keptView) {
 	w.Write(buf.Bytes())
 }
 
-// keptPath reports whether path is under /kept, one of the paths the bare
-// 127.0.0.1 host serves besides its index page.
+// keptPath reports whether path is under /recovered, one of the paths the bare
+// 127.0.0.1 host serves besides its index page, or under the page's old /kept
+// prefix, which serveKept sends on to /recovered.
 func keptPath(path string) bool {
-	return path == "/kept" || strings.HasPrefix(path, "/kept/")
+	for _, prefix := range []string{"/recovered", "/kept"} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// queryOf is ?query when there is one, for a redirect that keeps it.
+func queryOf(rawQuery string) string {
+	if rawQuery == "" {
+		return ""
+	}
+	return "?" + rawQuery
 }

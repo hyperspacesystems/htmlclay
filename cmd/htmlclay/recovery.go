@@ -93,7 +93,7 @@ func (a *app) ownsOrigin(host string) bool {
 		return false
 	}
 	port, _ := strconv.Atoi(p)
-	if port == a.rt.port {
+	if port == a.rt.port || a.isFormerPort(port) {
 		if name == "localhost" || name == "127.0.0.1" || name == "::1" {
 			return true
 		}
@@ -413,8 +413,8 @@ var deadFolderPage = []byte(`<!doctype html>
   <p>HTML Clay can no longer confirm that the folder at this location is the one you trusted.
      It may have been moved, deleted, or replaced. Nothing is served at this address until you approve it again.</p>
   <ul>
-    <li>If the folder is still there and you trust it, open the HTML Clay menu, choose
-        <strong>Trusted Folders</strong> &rsaquo; <strong>Trust a Folder…</strong>, and select the same folder.</li>
+    <li>If the folder is still there and you trust it, open HTML Clay Settings, go to
+        <strong>Folders</strong>, choose <strong>Trust a folder…</strong>, and select the same folder.</li>
     <li>Then reload this page. HTML Clay will use the folder's current address.</li>
   </ul>
 </main>

@@ -3,6 +3,8 @@ package appcore
 import (
 	"fmt"
 	"path/filepath"
+
+	"github.com/panphora/htmlclay/internal/builtin"
 )
 
 // waitingPane and waitingEarnsDot are the preview's waiting kinds
@@ -95,7 +97,7 @@ func waiting(f Facts) []WaitingItem {
 	}
 	for _, r := range f.Requests {
 		document := documentName(r.Document)
-		title := fmt.Sprintf(TextWaitingProgramRequest, document, r.Program)
+		title := fmt.Sprintf(TextWaitingProgramRequest, document, builtin.Title(r.Program))
 		if r.Program == AIEditProgram {
 			title = fmt.Sprintf(TextWaitingAIEditRequest, document)
 		}
@@ -109,7 +111,7 @@ func waiting(f Facts) []WaitingItem {
 	}
 	for _, p := range f.Programs {
 		if p.FileMissing {
-			add(p.ID, WaitingProgramFileMissing, fmt.Sprintf(TextWaitingProgramMissing, p.Name), displayPath(f.Home, p.Path), p.ID)
+			add(p.ID, WaitingProgramFileMissing, fmt.Sprintf(TextWaitingProgramMissing, builtin.Title(p.Name)), displayPath(f.Home, p.Path), p.ID)
 		}
 	}
 	for _, ff := range f.Folders {

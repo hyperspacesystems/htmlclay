@@ -1,0 +1,37 @@
+<main>
+  <h1>File search</h1>
+  <p class="sub">Search file names and text inside files in this folder. Copy this file into any trusted folder to search there.</p>
+  <form id="form"><input id="q" type="search" autocomplete="off" placeholder="Word or file name"><button>Search</button></form>
+  <p id="status" role="status"></p>
+  <ol id="results"></ol>
+</main>
+<script src="https://clayjs.com/v1/clay.js?plugins=wire"></script>
+<script>
+  const form = document.getElementById('form');
+  const status = document.getElementById('status');
+  const results = document.getElementById('results');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const query = document.getElementById('q').value.trim();
+    if (!query) return;
+    results.replaceChildren();
+    status.textContent = 'Searching…';
+    const outcome = await clay.wire.send({ query }, { helper: 'file-search', onStatus: s => { status.textContent = s.text; } }).done;
+    if (outcome.state !== 'done') { status.textContent = outcome.error || 'That did not work. Try again.'; return; }
+    const { matches, files, truncated } = outcome.result;
+    const matchWord = matches.length === 1 ? 'match' : 'matches';
+    const fileWord = files === 1 ? 'file' : 'files';
+    status.textContent = matches.length + ' ' + matchWord + ' across ' + files + ' ' + fileWord + (truncated ? ' · Stopped early. Narrow your search to see more.' : '.');
+    for (const m of matches) {
+      const li = document.createElement('li');
+      const label = document.createElement('span');
+      label.textContent = m.line ? m.path + ':' + m.line + '  ' + m.text : m.path;
+      const show = document.createElement('button');
+      show.type = 'button';
+      show.textContent = 'Show in folder';
+      show.addEventListener('click', () => clay.wire.send({ reveal: m.path }, { helper: 'file-search' }));
+      li.append(label, ' ', show);
+      results.append(li);
+    }
+  });
+</script>

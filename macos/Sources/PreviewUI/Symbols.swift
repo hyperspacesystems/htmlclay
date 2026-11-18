@@ -27,6 +27,9 @@ public enum Symbols {
     public static let downloaded = "arrow.down.circle"
     public static let renamed = "pencil"
     public static let settled = "arrow.triangle.merge"
+    public static let search = "magnifyingglass"
+    public static let convert = "photo.on.rectangle"
+    public static let watch = "eye"
 }
 
 public enum WebKeys {

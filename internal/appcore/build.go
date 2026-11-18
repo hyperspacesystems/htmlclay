@@ -40,6 +40,12 @@ func Build(f Facts) Snapshot {
 		Update:      f.Update,
 		Preferences: f.Preferences,
 		Move:        f.Move,
+
+		RecoveredChanges: f.RecoveredChanges,
+		FileTypes:        f.FileTypes,
+	}
+	if s.Preferences.AIEditTools == nil {
+		s.Preferences.AIEditTools = []AIEditTool{}
 	}
 	for _, d := range f.Documents {
 		doc := Document{
@@ -164,6 +170,7 @@ func syncState(f SyncFacts) SyncState {
 		LastFinishedAt: f.LastFinishedAt,
 		FullName:       f.FullName,
 		KeyStore:       f.KeyStore,
+		EverOn:         f.EverOn,
 	}
 }
 

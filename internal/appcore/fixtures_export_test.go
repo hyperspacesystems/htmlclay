@@ -56,6 +56,17 @@ func TestShellFixturesMatch(t *testing.T) {
 	if !bytes.Equal(actions, swiftActions) {
 		t.Errorf("actions.json differs from the Swift copy; run scripts/export-shell-fixtures.sh")
 	}
+	menu, err := os.ReadFile(filepath.Join(src, "menu.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	swiftMenu, err := os.ReadFile(filepath.Join(dst, "menu.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(menu, swiftMenu) {
+		t.Errorf("menu.json differs from the Swift copy; run scripts/export-shell-fixtures.sh")
+	}
 }
 
 // actionClass is one action type and the class it carries, as the Mac app reads

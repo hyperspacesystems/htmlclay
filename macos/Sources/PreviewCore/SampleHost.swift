@@ -162,12 +162,26 @@ public enum SampleReducer {
         case let .removeProgram(programID):
             guard next.program(programID) != nil else { return snapshot }
             next.programs.removeAll { $0.id == programID }
+        case let .setProgramOn(programID, on):
+            guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
+            next.programs[p].isOn = on
+        case let .setAIEditTool(tool):
+            next.preferences.aiEditTool = tool
+        case let .setAIEditModel(tool, model):
+            guard let t = next.preferences.aiEditTools.firstIndex(where: { $0.id == tool }) else { return snapshot }
+            next.preferences.aiEditTools[t].model = model
+        case let .setAIEditCustom(command):
+            if let t = next.preferences.aiEditTools.firstIndex(where: { $0.custom }) {
+                next.preferences.aiEditTools[t].command = command
+            }
         case let .forgetDocument(id):
             guard next.documents.contains(where: { $0.id == id }) else { return snapshot }
             next.documents.removeAll { $0.id == id }
         case .openDocument, .revealDocument, .openFile, .openDashboard,
              .revealFolder, .copyAddress, .connect, .quit, .revealProgram,
-             .exportDocument, .recoverDocument, .openVersions, .openKeptPage, .showRequest, .revealSyncLog:
+             .exportDocument, .recoverDocument, .openVersions, .openRecoveredChanges, .showRequest, .revealSyncLog,
+             .revealLog, .setPort, .openProgramExample, .checkForUpdates, .makeDefaultFileType,
+             .setHTMLOpenWith, .stopOpeningFiles:
             return snapshot
         }
         return next
