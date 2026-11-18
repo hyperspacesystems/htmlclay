@@ -12,7 +12,6 @@ import (
 type updateState struct {
 	mu        sync.Mutex
 	checking  bool
-	manual    bool
 	checkedAt time.Time
 	ready     string
 	url       string
@@ -23,19 +22,11 @@ type updateState struct {
 func (a *app) setUpdateChecking(on bool) {
 	a.updates.mu.Lock()
 	a.updates.checking = on
-	manual := false
 	if !on {
 		a.updates.checkedAt = time.Now().UTC()
-		manual, a.updates.manual = a.updates.manual, false
 	}
-	found := a.updates.ready != ""
 	a.updates.mu.Unlock()
 	a.changed()
-	if manual && !found {
-		if err := a.informUser("HTML Clay", appcore.TextUpToDateNotice); err != nil {
-			a.rt.logger.Printf("Could not show the update notice: %v", err)
-		}
-	}
 }
 
 func (a *app) setUpdateReady(version, url string, apply func()) {
@@ -86,15 +77,13 @@ func (a *app) setAutoUpdate(on bool) *appcore.Refusal {
 	return nil
 }
 
-// checkForUpdates is update.check: it starts a check at once and notifies when
-// nothing newer was found.
+// checkForUpdates is update.check: it starts a check at once. The Updates page shows what it found.
 func (a *app) checkForUpdates() *appcore.Refusal {
 	a.updates.mu.Lock()
 	if a.updates.ready != "" || a.updates.checking {
 		a.updates.mu.Unlock()
 		return nil
 	}
-	a.updates.manual = true
 	ch := a.updates.checkNow
 	a.updates.mu.Unlock()
 	if ch == nil {

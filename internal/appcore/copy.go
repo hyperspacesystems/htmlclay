@@ -129,7 +129,6 @@ const (
 	TextMenuQuitWindows     = "Exit"                                                                                                                 // copy: one menu, Windows
 	TextMenuQuitLinux       = "Quit"                                                                                                                 // copy: one menu, Linux
 	TextPortRestartFailed   = "HTML Clay saved the new port, though it could not restart on its own. Quit and reopen HTML Clay to use the new port." // copy: notification when the app could not restart on the new port; the new port takes effect at the next start, max 160 chars
-	TextUpToDateNotice      = "You're on the latest version"                                                                                         // copy: Windows and Linux notification after Check for updates… finds nothing
 )
 
 // TextPortMoved is the old port's answer to a save or other non-page request, %s

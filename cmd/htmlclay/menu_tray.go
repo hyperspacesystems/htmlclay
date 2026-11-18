@@ -45,8 +45,13 @@ func (a *app) doTrayMenu(id string) {
 		}
 	case appcore.MenuRecovered:
 		refusal = a.trayDo("app.openRecoveredChanges", map[string]any{})
+	case appcore.MenuSettings:
+		refusal = a.trayDo("dashboard.open", map[string]any{"route": "/settings"})
 	case appcore.MenuCheckUpdates:
 		refusal = a.trayDo("update.check", map[string]any{})
+		if refusal == nil {
+			refusal = a.trayDo("dashboard.open", map[string]any{"route": "/settings/updates"})
+		}
 	default:
 		for _, d := range s.Documents {
 			if d.ID == id {
@@ -55,10 +60,15 @@ func (a *app) doTrayMenu(id string) {
 			}
 		}
 		for _, w := range s.Waiting {
-			if w.ID == id {
-				refusal = a.trayDo("dashboard.open", map[string]any{"route": "/needs-you"})
-				break
+			if w.ID != id {
+				continue
 			}
+			if w.Kind == appcore.WaitingProgramRequest && w.SubjectID != nil && *w.SubjectID != "" {
+				refusal = a.trayDo("request.show", map[string]any{"id": *w.SubjectID})
+			} else {
+				refusal = a.trayDo("dashboard.open", map[string]any{"route": "/needs-you"})
+			}
+			break
 		}
 	}
 	a.reportTrayRefusal(refusal)

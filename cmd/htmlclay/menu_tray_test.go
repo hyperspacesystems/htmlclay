@@ -1,7 +1,6 @@
 package main
 
 import (
-	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -60,63 +59,42 @@ func TestTrayMenuQuitTitleBySystem(t *testing.T) {
 	}
 }
 
-// A built-in program's row carries its switch and, once it is on, the row that
-// opens its example, which turns it back off.
-func TestTraySettingsBuiltinRows(t *testing.T) {
+// A program request in the Needs you submenu raises that request's own dialog.
+// It does not send the person to the dashboard, where they would click Show
+// request again to get the same dialog.
+func TestTrayNeedsYouProgramRequestShowsTheRequest(t *testing.T) {
 	a := newTestApp(t, t.TempDir())
-	a.rt.cfg.SetBuiltinOn("file-search", true)
-
-	rows := a.traySettingItems("builtin")
-	at := -1
-	for i, r := range rows {
-		if r.Title == "File search" {
-			at = i
-		}
-	}
-	if at < 0 {
-		t.Fatalf("the built-in rows hold no File search row: %+v", rows)
-	}
-	if rows[at].Checked == nil || !*rows[at].Checked {
-		t.Errorf("File search is on but its row does not show a check: %+v", rows[at])
-	}
-	if at+1 >= len(rows) || rows[at+1].Title != "Open example" || rows[at+1].Action != "example:file-search" {
-		t.Fatalf("the row after File search is %+v, want its example", rows)
+	var opened []string
+	a.rt.launchBrowser = func(u string) error {
+		opened = append(opened, u)
+		return nil
 	}
 
-	a.doTraySetting("setOn:file-search")
-	for _, p := range a.snapshot().Programs {
-		if p.ID == "file-search" && p.On {
-			t.Fatal("setOn:file-search left the program on")
-		}
-	}
-	for _, r := range a.traySettingItems("builtin") {
-		if r.Title == "Open example" {
-			t.Fatalf("a program that is off still offers its example: %+v", r)
-		}
-	}
-}
+	askThroughRegistry(t, a, teamDocumentAsk("todo-search"))
+	request := openRequestNamed(t, waitForOpenRequests(t, a, 1), "todo-search")
 
-// Show sync log is a row only once sync has been on, which sync.json records.
-func TestTraySettingsSyncLogNeedsEverOn(t *testing.T) {
-	a := newTestApp(t, t.TempDir())
-	for _, r := range a.traySettingItems("advanced") {
-		if r.Title == "Show sync log" {
-			t.Fatalf("advanced offers Show sync log before sync was ever on: %+v", r)
+	row := ""
+	for _, w := range a.snapshot().Waiting {
+		if w.Kind == appcore.WaitingProgramRequest {
+			row = w.ID
 		}
+	}
+	if row == "" {
+		t.Fatalf("the snapshot lists no program request row: %+v", a.snapshot().Waiting)
 	}
 
-	b := newTestApp(t, t.TempDir())
-	writeTestFile(t, filepath.Join(b.rt.configDir, "sync.json"), `{"v":1,"deviceId":"d","syncSessions":[{"id":"s-1","rootId":"r-1","accountId":40,"kind":"team"}]}`)
-	found := false
-	for _, r := range b.traySettingItems("advanced") {
-		if r.Title == "Show sync log" {
-			found = true
-			if r.Action != "syncLog" || !r.Enabled {
-				t.Errorf("Show sync log row = %+v, want an enabled syncLog row", r)
+	a.doTrayMenu(row)
+
+	if len(opened) != 0 {
+		t.Fatalf("clicking the program request opened %v, want its own dialog", opened)
+	}
+	for _, r := range a.snapshot().Requests {
+		if r.ID == request.ID {
+			if r.Attention == 0 {
+				t.Errorf("the click did not ask for request %s to be shown: %+v", request.ID, r)
 			}
+			return
 		}
 	}
-	if !found {
-		t.Fatal("advanced holds no Show sync log row after sync has been on")
-	}
+	t.Fatalf("request %s is gone after the click", request.ID)
 }

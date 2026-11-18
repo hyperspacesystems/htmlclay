@@ -827,35 +827,8 @@ func (a *app) run() {
 		return
 	}
 	a.rt.logger.Printf("Starting system tray...")
-	tray.Run(a.rt.cfg, version, &tray.MenuHooks{
-		Rows: a.trayMenuRows,
-		Do:   a.doTrayMenu,
-	}, &tray.SettingsHooks{
-		Items: a.traySettingItems,
-		Do:    a.doTraySetting,
-	}, a.openExample, a.openBackups, func() {
+	tray.Run(&tray.MenuHooks{Rows: a.trayMenuRows, Do: a.doTrayMenu}, a.confirmQuit, func() {
 		a.shutdown()
-	}, &tray.TrustedFolderHooks{
-		List:   a.trustedFolderRows,
-		Add:    a.pickAndTrustFolder,
-		Remove: a.removeTrustedFolder,
-	}, &tray.ServedFolderHooks{
-		List:        a.servedFolderRows,
-		Add:         a.pickAndServeFolder,
-		Open:        a.openServedFolder,
-		CopyAddress: a.copyServedAddress,
-		Stop:        a.stopServedFromTray,
-		BeforeQuit:  a.confirmQuit,
-	}, &tray.HelperHooks{
-		Title:     a.helperProgramsTitle,
-		List:      a.helperProgramRows,
-		Manage:    a.openProgramsPage,
-		Row:       a.relinkHelperProgramFromTray,
-		Documents: a.helperDocumentRows,
-		Document:  a.trayHelperDocument,
-	}, &tray.ExportHooks{
-		Documents: a.exportDocumentRows,
-		Export:    a.exportDocument,
 	}, a.dialogAdvice)
 	a.rt.logger.Printf("Tray exited")
 }
