@@ -211,6 +211,7 @@ func (p *fakePolicy) AskAIEdit(document string) {
 }
 func (p *fakePolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
 func (p *fakePolicy) AIEditModels() map[string]string              { return nil }
+func (p *fakePolicy) AIEditEfforts() map[string]string             { return nil }
 
 func (p *fakePolicy) BuiltinFor(string, string) builtin.Access { return p.builtin }
 

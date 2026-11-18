@@ -69,6 +69,9 @@ func holdTailwind(name string) bool {
 	if !takeFault(faultTailwindHold, name) {
 		return false
 	}
+	finishedTailwind.Lock()
+	finishedTailwind.open++
+	finishedTailwind.Unlock()
 	released := make(chan struct{})
 	tailwindHolds.Lock()
 	if tailwindHolds.waiting == nil {
@@ -122,10 +125,13 @@ func remainingFaults(rel string) int {
 }
 
 // finishedTailwind counts, by stylesheet name, compiles a tailwind-hold stopped
-// that have since run to their end, whether they installed or not.
+// that have since run to their end, whether they installed or not. open counts
+// the held compiles that have not ended yet, across clears, so a harness can
+// wait for them before the next test counts its own.
 var finishedTailwind struct {
 	sync.Mutex
 	count map[string]int
+	open  int
 }
 
 func finishHeldTailwind(name string) {
@@ -135,6 +141,14 @@ func finishHeldTailwind(name string) {
 		finishedTailwind.count = map[string]int{}
 	}
 	finishedTailwind.count[name]++
+	finishedTailwind.open--
+}
+
+// openHeldTailwind answers how many held compiles have not ended yet.
+func openHeldTailwind() int {
+	finishedTailwind.Lock()
+	defer finishedTailwind.Unlock()
+	return finishedTailwind.open
 }
 
 // heldTailwindFinished answers how many held compiles of name have finished.

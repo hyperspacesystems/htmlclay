@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/update"
 )
 
 // updateState is what the host knows about updates on Windows and Linux, for
@@ -17,6 +19,12 @@ type updateState struct {
 	url       string
 	apply     func()
 	checkNow  chan struct{}
+	// downloading is the newer version the updater is downloading now.
+	downloading string
+	lastCheck   *appcore.UpdateCheck
+	// announce is set by the tray's Check for updates: the tray has no page,
+	// so the check's result is told in a notification.
+	announce bool
 }
 
 func (a *app) setUpdateChecking(on bool) {
@@ -36,11 +44,95 @@ func (a *app) setUpdateReady(version, url string, apply func()) {
 	a.changed()
 }
 
+// setUpdateDownloading is the updater finding a newer version before its
+// download starts. A check the tray asked for says so now, not after the
+// download.
+func (a *app) setUpdateDownloading(version string) {
+	a.updates.mu.Lock()
+	a.updates.downloading = version
+	announce := a.updates.announce
+	a.updates.mu.Unlock()
+	a.changed()
+	if announce {
+		a.announceUpdate(appcore.TextUpdateFoundTitle, fmt.Sprintf(appcore.TextUpdateDownloadingBody, version))
+	}
+}
+
+// updateChecked records how a check ended, which the Updates page shows, and
+// tells a person who asked from the tray.
+func (a *app) updateChecked(r update.CheckResult) {
+	result := appcore.UpdateLatest
+	switch {
+	case r.Err != nil:
+		result = appcore.UpdateFailed
+	case r.Found != "":
+		result = appcore.UpdateFound
+	}
+	a.updates.mu.Lock()
+	told := a.updates.downloading != ""
+	a.updates.downloading = ""
+	a.updates.lastCheck = &appcore.UpdateCheck{At: time.Now().UTC(), Result: result}
+	announce := a.updates.announce
+	a.updates.announce = false
+	a.updates.mu.Unlock()
+	a.changed()
+	if !announce {
+		return
+	}
+	switch {
+	case result == appcore.UpdateFailed:
+		a.announceUpdate(appcore.TextUpdateFailedTitle, appcore.TextUpdateFailedBody)
+	case result == appcore.UpdateLatest:
+		a.announceUpdate(appcore.TextUpdateLatestTitle, fmt.Sprintf(appcore.TextUpdateLatestBody, version))
+	case !told:
+		a.announceUpdate(appcore.TextUpdateFoundTitle, fmt.Sprintf(appcore.TextUpdateAvailableBody, r.Found))
+	}
+}
+
+// checkForUpdatesFromTray is the tray's Check for updates: update.check, with
+// its result told in a notification. An update already downloaded is told at once.
+func (a *app) checkForUpdatesFromTray() *appcore.Refusal {
+	a.updates.mu.Lock()
+	ready, url := a.updates.ready, a.updates.url
+	a.updates.announce = ready == ""
+	a.updates.mu.Unlock()
+	if ready != "" {
+		body := appcore.TextUpdateReadyBody
+		if url != "" {
+			body = appcore.TextUpdateAvailableBody
+		}
+		a.announceUpdate(appcore.TextUpdateFoundTitle, fmt.Sprintf(body, ready))
+		return nil
+	}
+	refusal := a.trayDo("update.check", map[string]any{})
+	if refusal != nil {
+		a.updates.mu.Lock()
+		a.updates.announce = false
+		a.updates.mu.Unlock()
+	}
+	return refusal
+}
+
+func (a *app) announceUpdate(title, body string) {
+	// On Windows the notice is a message box that waits for OK; the updater
+	// goes on downloading meanwhile.
+	go func() {
+		if err := a.informUser(title, body); err != nil {
+			a.rt.logger.Printf("Could not show the update check's result: %v", err)
+		}
+	}()
+}
+
 // updateFacts fills the snapshot's update from what the updater reported.
 func (a *app) updateFacts(u *appcore.UpdateState) {
 	a.updates.mu.Lock()
 	defer a.updates.mu.Unlock()
 	u.Checking = a.updates.checking
+	u.Downloading = a.updates.downloading
+	if a.updates.lastCheck != nil {
+		last := *a.updates.lastCheck
+		u.LastCheck = &last
+	}
 	if !a.updates.checkedAt.IsZero() {
 		at := a.updates.checkedAt
 		u.CheckedAt = &at
@@ -77,7 +169,8 @@ func (a *app) setAutoUpdate(on bool) *appcore.Refusal {
 	return nil
 }
 
-// checkForUpdates is update.check: it starts a check at once. The Updates page shows what it found.
+// checkForUpdates is update.check: it starts a check at once. The Updates page
+// shows what it found; the tray's check is told in a notification.
 func (a *app) checkForUpdates() *appcore.Refusal {
 	a.updates.mu.Lock()
 	if a.updates.ready != "" || a.updates.checking {

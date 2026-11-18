@@ -15,6 +15,7 @@ private struct LoopbackRefusalBody: Decodable {
     var subjectID: String?
     var documents: [String]?
     var counts: SyncCounts?
+    var running: [String]?
 }
 
 private struct LoopbackWarningBody: Decodable {
@@ -309,7 +310,8 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
             field: error.field,
             subjectID: error.subjectID,
             documents: error.documents ?? [],
-            counts: error.counts
+            counts: error.counts,
+            running: error.running ?? []
         )
     }
 

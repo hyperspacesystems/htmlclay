@@ -4,29 +4,32 @@ import (
 	"context"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/tray"
 )
 
-// The tray's one menu is the host's, row for row: separators left out, and the
-// Recent submenu holding its own empty row until a document opens.
+// The tray's one menu is the host's, row for row and line for line (the tray
+// once dropped the lines and drew fixed ones, so with sync on no line parted the
+// status row from the sync rows), and the Recent submenu holds its own empty row
+// until a document opens.
 func TestTrayMenuRowsFollowTheSnapshot(t *testing.T) {
 	a := newTestApp(t, t.TempDir())
 	rows := a.trayMenuRows()
-	var ids []string
-	for _, r := range rows {
-		ids = append(ids, r.ID)
-	}
-	want := []string{appcore.MenuStatus, appcore.MenuOpenDashboard, appcore.MenuOpenFile, appcore.MenuRecent, appcore.MenuSettings, appcore.MenuCheckUpdates, appcore.MenuQuit}
-	if len(ids) != len(want) {
-		t.Fatalf("menu rows = %v, want %v", ids, want)
-	}
-	for i := range want {
-		if ids[i] != want[i] {
-			t.Fatalf("menu rows = %v, want %v", ids, want)
+	ids := func(rows []tray.MenuItem) []string {
+		var out []string
+		for _, r := range rows {
+			out = append(out, r.ID)
 		}
+		return out
+	}
+	sep := appcore.MenuSeparator
+	want := []string{appcore.MenuStatus, sep, appcore.MenuOpenDashboard, appcore.MenuOpenFile, appcore.MenuRecent, sep, appcore.MenuSettings, appcore.MenuCheckUpdates, sep, appcore.MenuQuit}
+	if got := ids(rows); !slices.Equal(got, want) {
+		t.Fatalf("menu rows = %v, want %v", got, want)
 	}
 	for _, r := range rows {
 		if r.ID != appcore.MenuRecent {

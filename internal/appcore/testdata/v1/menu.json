@@ -752,6 +752,65 @@
           "enabled": true
         }
       ]
+    },
+    {
+      "name": "downloading",
+      "snapshot": "newPerson",
+      "update": {
+        "checking": true,
+        "ready": "",
+        "downloading": "2.0.4"
+      },
+      "recoveredChanges": 0,
+      "rows": [
+        {
+          "id": "status",
+          "kind": "downloading",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "openDashboard",
+          "enabled": true
+        },
+        {
+          "id": "openFile",
+          "enabled": true
+        },
+        {
+          "id": "recent",
+          "enabled": true,
+          "children": [
+            {
+              "id": "noRecent",
+              "enabled": false
+            }
+          ]
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "settings",
+          "enabled": true
+        },
+        {
+          "id": "checkForUpdates",
+          "enabled": false
+        },
+        {
+          "id": "-",
+          "enabled": false
+        },
+        {
+          "id": "quit",
+          "enabled": true
+        }
+      ]
     }
   ]
 }

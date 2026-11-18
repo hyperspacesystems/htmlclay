@@ -11,7 +11,8 @@ typedef NS_ENUM(NSInteger, HCSparkleEvent) {
     HCSparkleCheckSkipped,
     HCSparkleChecking,
     HCSparkleUpToDate,
-    HCSparkleCheckEnded
+    HCSparkleCheckEnded,
+    HCSparkleFound
 };
 
 @interface HCSparkleBridge : NSObject

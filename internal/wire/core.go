@@ -41,6 +41,8 @@ type Policy interface {
 	AIEditEngines() (string, map[string][]string)
 	// AIEditModels is the model each AI engine runs with, by engine name.
 	AIEditModels() map[string]string
+	// AIEditEfforts is the reasoning effort each AI engine runs with, by engine name.
+	AIEditEfforts() map[string]string
 	// BuiltinFor answers whether document may run a built-in program now, and
 	// the folder the program works in.
 	BuiltinFor(document, program string) builtin.Access

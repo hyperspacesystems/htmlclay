@@ -2,10 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/testutil"
+	"github.com/panphora/htmlclay/internal/update"
 )
 
 // The download-page row opens the URL the release receipt named.
@@ -37,6 +45,130 @@ func TestUpdateCheckWithoutAnUpdaterIsNotYet(t *testing.T) {
 	a := newTestApp(t, t.TempDir())
 	if refusal := a.runEffect(context.Background(), appcore.Effect{Type: "update.check"}); refusal == nil || refusal.Code != appcore.RefuseNotYet {
 		t.Fatalf("update.check = %+v, want %s", refusal, appcore.RefuseNotYet)
+	}
+}
+
+// The tray's Check for updates tells its result in a notification, because the
+// tray has no page to show it on; a page's check shows its result in the
+// snapshot only, so one click never shows the answer twice.
+func TestTrayCheckForUpdatesSaysWhatItFoundAndAPageCheckDoesNot(t *testing.T) {
+	var receipt atomic.Value
+	receipt.Store(version)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		latest := receipt.Load().(string)
+		if latest == "" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"latest": latest, "url": "https://example.invalid/dl"})
+	}))
+	t.Cleanup(srv.Close)
+	saved := releaseInfoURL
+	releaseInfoURL = srv.URL
+	t.Cleanup(func() { releaseInfoURL = saved })
+
+	a := newTestApp(t, t.TempDir())
+	a.rt.cfg.SetSelfUpdateOff(true)
+	var mu sync.Mutex
+	var told []string
+	a.rt.notify = func(title, body string) error {
+		mu.Lock()
+		told = append(told, title+": "+body)
+		mu.Unlock()
+		return nil
+	}
+	a.rt.launchBrowser = func(target string) error {
+		t.Errorf("Check for updates opened %s", target)
+		return nil
+	}
+	notices := func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), told...)
+	}
+	go a.checkForUpdateLink()
+	testutil.Eventually(t, 2*time.Second, "the update check waits for Check now", func() bool {
+		a.updates.mu.Lock()
+		defer a.updates.mu.Unlock()
+		return a.updates.checkNow != nil
+	})
+	lastCheck := func() string {
+		if c := a.facts().Update.LastCheck; c != nil {
+			return c.Result
+		}
+		return ""
+	}
+	clearLast := func() {
+		a.updates.mu.Lock()
+		a.updates.lastCheck = nil
+		a.updates.mu.Unlock()
+	}
+
+	if _, refusal := a.do(context.Background(), appcore.Action{ID: "page-check", Type: "update.check"}, ChannelDashboard); refusal != nil {
+		t.Fatalf("a page's update.check = %+v", refusal)
+	}
+	testutil.Eventually(t, 5*time.Second, "the page's check to end", func() bool { return lastCheck() == appcore.UpdateLatest })
+	time.Sleep(50 * time.Millisecond)
+	if got := notices(); len(got) != 0 {
+		t.Fatalf("a page's check showed %v; the page shows the result itself", got)
+	}
+
+	clearLast()
+	a.doTrayMenu(appcore.MenuCheckUpdates)
+	testutil.Eventually(t, 5*time.Second, "the tray's check to say it is the newest", func() bool { return len(notices()) == 1 })
+	if want := appcore.TextUpdateLatestTitle + ": " + fmt.Sprintf(appcore.TextUpdateLatestBody, version); notices()[0] != want {
+		t.Fatalf("the tray's check said %q, want %q", notices()[0], want)
+	}
+
+	receipt.Store("")
+	clearLast()
+	a.doTrayMenu(appcore.MenuCheckUpdates)
+	testutil.Eventually(t, 5*time.Second, "the tray's check to say it failed", func() bool { return len(notices()) == 2 })
+	if lastCheck() != appcore.UpdateFailed || notices()[1] != appcore.TextUpdateFailedTitle+": "+appcore.TextUpdateFailedBody {
+		t.Fatalf("a failed check = %q, told %q", lastCheck(), notices()[1])
+	}
+
+	receipt.Store("99.0.0")
+	clearLast()
+	a.doTrayMenu(appcore.MenuCheckUpdates)
+	testutil.Eventually(t, 5*time.Second, "the tray's check to say what it found", func() bool { return len(notices()) == 3 })
+	if want := appcore.TextUpdateFoundTitle + ": " + fmt.Sprintf(appcore.TextUpdateAvailableBody, "99.0.0"); lastCheck() != appcore.UpdateFound || notices()[2] != want {
+		t.Fatalf("a check that found 99.0.0 = %q, told %q", lastCheck(), notices()[2])
+	}
+}
+
+// The status row says Downloading while a found update downloads, and the
+// download's end clears it. The notice a tray check shows never holds up the
+// download: on Windows it is a message box that waits for OK.
+func TestTheStatusRowSaysDownloadingUntilTheCheckEnds(t *testing.T) {
+	a := newTestApp(t, t.TempDir())
+	release := make(chan struct{})
+	defer close(release)
+	a.rt.notify = func(string, string) error { <-release; return nil }
+	a.updates.mu.Lock()
+	a.updates.announce = true
+	a.updates.mu.Unlock()
+	a.setUpdateChecking(true)
+	found := make(chan struct{})
+	go func() { a.setUpdateDownloading("9.9.9"); close(found) }()
+	select {
+	case <-found:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the found notice held up the download until the person answered it")
+	}
+	s := a.snapshot()
+	rows := appcore.MenuRows(s, appcore.PhaseOf(s))
+	if s.Update.Downloading != "9.9.9" || rows[0].Kind != appcore.MenuStatusDownloading {
+		t.Fatalf("while downloading: update.downloading = %q, status row %q", s.Update.Downloading, rows[0].Kind)
+	}
+	if got, want := appcore.MenuTitle(rows[0], s, appcore.PhaseOf(s)), fmt.Sprintf(appcore.TextMenuDownloading, "9.9.9"); got != want {
+		t.Fatalf("status row = %q, want %q", got, want)
+	}
+	a.setUpdateChecking(false)
+	a.updateChecked(update.CheckResult{Err: fmt.Errorf("the download broke")})
+	s = a.snapshot()
+	if s.Update.Downloading != "" || s.Update.LastCheck == nil || s.Update.LastCheck.Result != appcore.UpdateFailed {
+		t.Fatalf("after a failed download: downloading %q, last check %+v", s.Update.Downloading, s.Update.LastCheck)
 	}
 }
 

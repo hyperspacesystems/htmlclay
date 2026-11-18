@@ -32,6 +32,7 @@ func (framesOnly) AIEditFor(string) (bool, bool)                { return false, 
 func (framesOnly) AskAIEdit(string)                             {}
 func (framesOnly) AIEditEngines() (string, map[string][]string) { return "", nil }
 func (framesOnly) AIEditModels() map[string]string              { return nil }
+func (framesOnly) AIEditEfforts() map[string]string             { return nil }
 func (framesOnly) BuiltinFor(string, string) builtin.Access     { return builtin.Access{} }
 func (framesOnly) AskBuiltin(string, string)                    {}
 func (framesOnly) RevealFile(string) error                      { return nil }

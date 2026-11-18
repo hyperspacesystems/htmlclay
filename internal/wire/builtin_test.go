@@ -180,3 +180,18 @@ func TestDocumentCannotShadowABuiltin(t *testing.T) {
 		t.Fatalf("file-search listed %d times, want once", count)
 	}
 }
+
+// A running conversion or search counts as work a restart would stop; the
+// folder watcher, which lives as long as its page, does not.
+func TestRunningWorkCountsBuiltinsButNotTheWatcher(t *testing.T) {
+	core, _, _, file := newFakeCore(t)
+	core.Builtin.mu.Lock()
+	core.Builtin.running = map[string]AIEditRun{
+		builtinKey(builtin.FileConvert, file): {ID: "c1", Cancel: func() {}},
+		builtinKey(builtin.FolderWatch, file): {ID: "w1", Cancel: func() {}},
+	}
+	core.Builtin.mu.Unlock()
+	if n := core.RunningWork(); n != 1 {
+		t.Fatalf("RunningWork with a conversion and a watcher = %d, want 1", n)
+	}
+}

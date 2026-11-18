@@ -10,6 +10,14 @@ public enum UpdateEvent: Equatable, Sendable {
     case checking
     case upToDate
     case checkEnded
+    /// Sparkle found a newer version and starts downloading it.
+    case found(String)
+}
+
+/// How a check the person asked for ended, when no restart row follows.
+public enum UpdateCheckResult: Equatable, Sendable {
+    case latest
+    case failed
 }
 
 /// Sparkle, seen from the app. The real one is SparkleDriver over HCSparkleBridge.
@@ -30,6 +38,9 @@ public protocol UpdatePresenter: QuitPresenter {
     func updateNotStarted()
     /// The host could not get ready for a restart; HTML Clay keeps running.
     func restartFailed()
+    /// A check the person asked for found nothing newer, or could not check.
+    /// Sparkle's convention for a manual check; a timed check stays silent.
+    func checkEnded(_ result: UpdateCheckResult)
 }
 
 public enum QuitPlan: Equatable, Sendable {
@@ -78,6 +89,11 @@ public final class UpdateCoordinator {
     public private(set) var checking = false
     /// When Sparkle last answered a check: up to date, or a version ready.
     public private(set) var checkedAt: Date?
+    /// When the last check or download failed; nil once a check answers again.
+    public private(set) var failedAt: Date?
+    /// The version Sparkle is downloading now, between found and ready. With Update automatically
+    /// off Sparkle asks first in its own window, so nothing downloads and this stays nil.
+    public private(set) var downloading: String?
     /// For the candidate's state file: "" until decided, "on", or "off <reason>".
     public private(set) var gate = ""
     /// For the candidate's state file: "" until Sparkle answers, "started", or "failed <reason>".
@@ -93,6 +109,10 @@ public final class UpdateCoordinator {
     private var startFailed: String?
     private var declined: String?
     private var requested: String?
+    /// A person asked for a check that has not started yet.
+    private var askPending = false
+    /// A person asked for the running check, so its end is told in an alert.
+    private var userInitiated = false
     private var requestedAt = Date.distantPast
 
     /// How long an update-now request waits for Sparkle to prepare the version. The canary resends every 30 s.
@@ -157,7 +177,11 @@ public final class UpdateCoordinator {
         }
     }
 
-    public func checkNow() { driver?.checkNow() }
+    /// A check the person asked for, from the menu, the panel's gear or the Updates pane.
+    public func checkNow() {
+        askPending = true
+        driver?.checkNow()
+    }
 
     /// Settings › Updates › Update automatically. Sparkle owns it on the Mac.
     public var automatic: Bool { driver?.automatic ?? true }
@@ -263,8 +287,11 @@ public final class UpdateCoordinator {
         switch event {
         case let .ready(version):
             prepared = version
+            downloading = nil
+            userInitiated = false
             checking = false
             checkedAt = now()
+            failedAt = nil
             onChange?()
             if requested == version {
                 requested = nil
@@ -279,20 +306,55 @@ public final class UpdateCoordinator {
             onChange?()
         case .aborted, .installFailed:
             relaunch = false
+            failedAt = now()
+            onChange?()
+            if downloading != nil {
+                downloading = nil
+                onChange?()
+            }
+            tell(.failed)
             Task { @MainActor [weak self] in await self?.abortPrepared() }
         case .checkSkipped:
-            break
+            if checking { userInitiated = true }
+            askPending = false
+        case let .found(version):
+            failedAt = nil
+            guard automatic else {
+                // Sparkle asks in its own window and owns the session from
+                // here; Settings stops saying Checking while that window waits.
+                checking = false
+                userInitiated = false
+                onChange?()
+                break
+            }
+            downloading = version
+            onChange?()
         case .checking:
+            if askPending {
+                userInitiated = true
+                askPending = false
+            } else if !checking {
+                userInitiated = false
+            }
             checking = true
             onChange?()
         case .upToDate:
             checking = false
             checkedAt = now()
+            failedAt = nil
             onChange?()
+            tell(.latest)
         case .checkEnded:
             checking = false
+            downloading = nil
             onChange?()
         }
+    }
+
+    private func tell(_ result: UpdateCheckResult) {
+        guard userInitiated, prepared == nil else { return }
+        userInitiated = false
+        presenter.checkEnded(result)
     }
 
     private func skipReason(_ version: String) -> String? {

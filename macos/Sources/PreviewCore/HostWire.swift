@@ -348,9 +348,13 @@ public struct WireUpdateState: Codable, Equatable, Sendable {
     public var checking: Bool?
     /// Where to download a new version by hand. Nil from a host older than this round.
     public var downloadURL: String?
+    /// The newer version being downloaded now (Windows and Linux). Nil from an older host.
+    public var downloading: String?
+    /// How the last finished check ended (Windows and Linux).
+    public var lastCheck: WireUpdateCheck?
 
     enum CodingKeys: String, CodingKey {
-        case current, ready, checkedAt, automatic, finishing, checking, downloadURL
+        case current, ready, checkedAt, automatic, finishing, checking, downloadURL, downloading, lastCheck
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -362,7 +366,15 @@ public struct WireUpdateState: Codable, Equatable, Sendable {
         try container.encode(finishing, forKey: .finishing)
         try container.encodeIfPresent(checking, forKey: .checking)
         try container.encodeIfPresent(downloadURL, forKey: .downloadURL)
+        try container.encodeIfPresent(downloading, forKey: .downloading)
+        try container.encode(lastCheck, forKey: .lastCheck)
     }
+}
+
+public struct WireUpdateCheck: Codable, Equatable, Sendable {
+    public var at: Date
+    /// latest, found or failed.
+    public var result: String
 }
 
 public struct WirePreferences: Codable, Equatable, Sendable {
@@ -385,6 +397,9 @@ public struct WireAIEditTool: Codable, Equatable, Sendable {
     public var model: String?
     public var defaultModel: String?
     public var models: [String]?
+    public var effort: String?
+    public var defaultEffort: String?
+    public var efforts: [String]?
     public var command: String?
 }
 

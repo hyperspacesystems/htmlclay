@@ -26,17 +26,20 @@ func (a *app) aiEditTools() []appcore.AIEditTool {
 	defer a.aiTools.mu.Unlock()
 	if a.aiTools.tools == nil || time.Since(a.aiTools.at) > aiToolsFresh {
 		_, engines := a.rt.cfg.AIEditEngines()
-		models := a.rt.cfg.AIEditModels()
+		models, efforts := a.rt.cfg.AIEditModels(), a.rt.cfg.AIEditEfforts()
 		tools := []appcore.AIEditTool{}
 		for _, t := range aiedit.Tools(engines, nil) {
 			tools = append(tools, appcore.AIEditTool{
-				ID:           t.ID,
-				Custom:       t.Custom,
-				Found:        t.Found,
-				Model:        models[t.ID],
-				DefaultModel: t.DefaultModel,
-				Models:       t.Models,
-				Command:      aiedit.JoinCommand(t.Command),
+				ID:            t.ID,
+				Custom:        t.Custom,
+				Found:         t.Found,
+				Model:         models[t.ID],
+				DefaultModel:  t.DefaultModel,
+				Models:        t.Models,
+				Effort:        efforts[t.ID],
+				DefaultEffort: t.DefaultEffort,
+				Efforts:       t.Efforts,
+				Command:       aiedit.JoinCommand(t.Command),
 			})
 		}
 		a.aiTools.tools, a.aiTools.at = tools, time.Now()
@@ -64,6 +67,13 @@ func (a *app) setAIEditModel(e appcore.Effect) *appcore.Refusal {
 		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "model"}
 	}
 	a.saveConfig("AI editing model")
+	a.forgetAITools()
+	return nil
+}
+
+func (a *app) setAIEditEffort(e appcore.Effect) *appcore.Refusal {
+	a.rt.cfg.SetAIEditEffort(e.Tool, e.Effort)
+	a.saveConfig("AI editing effort")
 	a.forgetAITools()
 	return nil
 }

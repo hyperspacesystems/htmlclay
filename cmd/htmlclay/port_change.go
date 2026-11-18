@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -28,9 +29,22 @@ type formerPort struct {
 	srv  *http.Server
 }
 
+// workARestartStops names what a restart would stop now: "work" for an AI
+// edit or a document's program, "sync" for changes sync has not sent.
+func (a *app) workARestartStops() []string {
+	var running []string
+	if a.runningWork() > 0 {
+		running = append(running, "work")
+	}
+	if !a.syncQuietForUpdate(portSyncLimit) {
+		running = append(running, "sync")
+	}
+	return running
+}
+
 // setPort is host.setPort: check the port is free and nothing is unsaved,
 // record it with the old port as a former port, and restart on it.
-func (a *app) setPort(port int) *appcore.Refusal {
+func (a *app) setPort(ctx context.Context, port int, confirmed bool) *appcore.Refusal {
 	if slices.Contains(oldDefaultPorts, port) {
 		return &appcore.Refusal{Code: appcore.RefusePortInvalid, Field: "port"}
 	}
@@ -50,22 +64,35 @@ func (a *app) setPort(port int) *appcore.Refusal {
 	if names, answered := a.unsavedDocuments(); !answered || len(names) > 0 {
 		return &appcore.Refusal{Code: appcore.RefusePortUnsaved, Documents: names}
 	}
-	// The restart stops a running AI edit or a document's program.
-	if a.runningWork() > 0 {
-		return &appcore.Refusal{Code: appcore.RefuseStillRunning}
-	}
-	// So does a delete or an upload the sync engine still holds, and the server
-	// then sends the old file back.
-	if !a.syncQuietForUpdate(portSyncLimit) {
-		return &appcore.Refusal{Code: appcore.RefuseStillRunning}
+	// The restart stops a running AI edit or a document's program, and a delete
+	// or an upload the sync engine still holds, which the server then sends back.
+	// The person may restart anyway; unsaved edits above are never overridden.
+	if !confirmed {
+		if running := a.workARestartStops(); len(running) > 0 {
+			return &appcore.Refusal{Code: appcore.RefuseRestartStopsWork, Running: running}
+		}
+	} else {
+		// Restart anyway still gives sync its few seconds to send what it holds,
+		// then goes on whatever it answers.
+		a.syncQuietForUpdate(portSyncLimit)
 	}
 	if !a.updating.CompareAndSwap(false, true) {
-		return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow}
+		return &appcore.Refusal{Code: appcore.RefuseStillRunning}
+	}
+	a.rt.writesMu.Lock()
+	a.rt.writesClosedForPort = true
+	a.rt.writesMu.Unlock()
+	held := heldWrites(ctx)
+	if !waitQuietTo(&a.rt.writesInFlight, held, updateQuietFor, updateQuietLimit) || !a.drainWritesTo(held, updateQuietLimit) {
+		a.reopenWrites()
+		a.updating.Store(false)
+		return &appcore.Refusal{Code: appcore.RefuseStillRunning}
 	}
 	oldPort, oldFormer := a.rt.cfg.Port(), a.rt.cfg.FormerPortList()
 	a.rt.cfg.MovePort(port)
 	if err := a.rt.cfg.Save(); err != nil {
 		a.rt.cfg.RestorePort(oldPort, oldFormer)
+		a.reopenWrites()
 		a.updating.Store(false)
 		a.rt.logger.Printf("Could not save the new port %d: %v", port, err)
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
@@ -86,9 +113,14 @@ func (a *app) restartForPort() {
 	if !a.shell {
 		exe, err := os.Executable()
 		if err == nil {
-			_, err = update.StartDetached(exe, portRestartArgs(os.Getpid(), a.noTray)...)
+			if a.rt.startDetached != nil {
+				err = a.rt.startDetached(exe, portRestartArgs(os.Getpid(), a.noTray)...)
+			} else {
+				_, err = update.StartDetached(exe, portRestartArgs(os.Getpid(), a.noTray)...)
+			}
 		}
 		if err != nil {
+			a.reopenWrites()
 			a.updating.Store(false)
 			a.rt.logger.Printf("Could not restart for the new port: %v", err)
 			if nerr := a.informUser("HTML Clay", appcore.TextPortRestartFailed); nerr != nil {

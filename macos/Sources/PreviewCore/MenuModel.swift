@@ -17,10 +17,20 @@ public struct MenuRow: Equatable, Sendable, Codable {
 public struct MenuUpdatePhase: Equatable, Sendable, Codable {
     public var checking: Bool
     public var ready: String
+    /// The newer version downloading now, or empty.
+    public var downloading: String
 
-    public init(checking: Bool = false, ready: String = "") {
+    public init(checking: Bool = false, ready: String = "", downloading: String = "") {
         self.checking = checking
         self.ready = ready
+        self.downloading = downloading
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        checking = try container.decode(Bool.self, forKey: .checking)
+        ready = try container.decode(String.self, forKey: .ready)
+        downloading = try container.decodeIfPresent(String.self, forKey: .downloading) ?? ""
     }
 }
 
@@ -51,6 +61,8 @@ public enum MenuModel {
         var status = MenuRow(id: "status", kind: "version")
         if !phase.ready.isEmpty {
             status = MenuRow(id: "status", kind: "ready", enabled: true)
+        } else if !phase.downloading.isEmpty {
+            status.kind = "downloading"
         } else if phase.checking {
             status.kind = "checking"
         }
@@ -71,7 +83,7 @@ public enum MenuModel {
         if input.recoveredChanges > 0 { rows.append(MenuRow(id: "recoveredChanges", enabled: true)) }
         rows.append(MenuRow(id: separator))
         rows.append(MenuRow(id: "settings", enabled: true))
-        rows.append(MenuRow(id: "checkForUpdates", enabled: !phase.checking))
+        rows.append(MenuRow(id: "checkForUpdates", enabled: !phase.checking && phase.downloading.isEmpty))
         rows.append(MenuRow(id: separator))
         rows.append(MenuRow(id: "quit", enabled: true))
         var out: [MenuRow] = []

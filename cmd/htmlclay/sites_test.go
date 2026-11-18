@@ -142,8 +142,11 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 			// stubbed: no test may put real UI on the user's screen. A test that
 			// cares what the user was told overrides this with a recorder.
 			notify: func(string, string) error { return nil },
-			guard:  guard,
-			policy: trust.Policy{Home: home, Guard: guard},
+			// Opening a page goes nowhere by default too: a test that opens a
+			// document must never open the person's real browser.
+			launchBrowser: func(string) error { return nil },
+			guard:         guard,
+			policy:        trust.Policy{Home: home, Guard: guard},
 		},
 	}
 	a.rt.portCandidates = []int{0}

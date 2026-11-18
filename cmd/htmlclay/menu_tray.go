@@ -6,7 +6,8 @@ import (
 	"github.com/panphora/htmlclay/internal/tray"
 )
 
-// trayMenuRows is the one menu for the Windows and Linux tray.
+// trayMenuRows is the one menu for the Windows and Linux tray, separators
+// included.
 func (a *app) trayMenuRows() []tray.MenuItem {
 	s := a.snapshot()
 	phase := appcore.PhaseOf(s)
@@ -14,9 +15,6 @@ func (a *app) trayMenuRows() []tray.MenuItem {
 	convert = func(rows []appcore.MenuRow) []tray.MenuItem {
 		out := make([]tray.MenuItem, 0, len(rows))
 		for _, r := range rows {
-			if r.ID == appcore.MenuSeparator {
-				continue
-			}
 			out = append(out, tray.MenuItem{ID: r.ID, Title: appcore.MenuTitle(r, s, phase), Enabled: r.Enabled, Children: convert(r.Children)})
 		}
 		return out
@@ -24,17 +22,12 @@ func (a *app) trayMenuRows() []tray.MenuItem {
 	return convert(appcore.MenuRows(s, phase))
 }
 
-// doTrayMenu runs a clicked row of the one menu.
+// doTrayMenu runs a clicked row of the one menu. Two rows do more from the
+// tray than their action: Open a file shows the tray's own chooser, and Check
+// for updates announces its result in a notification.
 func (a *app) doTrayMenu(id string) {
-	s := a.snapshot()
 	var refusal *appcore.Refusal
 	switch id {
-	case appcore.MenuStatus:
-		refusal = a.trayDo("update.start", map[string]any{})
-	case appcore.MenuPauseSync:
-		refusal = a.trayDo("sync.setPaused", map[string]any{"paused": !s.Sync.Paused})
-	case appcore.MenuOpenDashboard:
-		refusal = a.trayDo("dashboard.open", map[string]any{})
 	case appcore.MenuOpenFile:
 		path, ok, err := platform.ChooseFile("Open a file")
 		if err != nil {
@@ -43,31 +36,53 @@ func (a *app) doTrayMenu(id string) {
 		} else if ok {
 			a.openFile(path)
 		}
-	case appcore.MenuRecovered:
-		refusal = a.trayDo("app.openRecoveredChanges", map[string]any{})
-	case appcore.MenuSettings:
-		refusal = a.trayDo("dashboard.open", map[string]any{"route": "/settings"})
 	case appcore.MenuCheckUpdates:
-		refusal = a.trayDo("update.check", map[string]any{})
-		if refusal == nil {
-			refusal = a.trayDo("dashboard.open", map[string]any{"route": "/settings/updates"})
-		}
+		refusal = a.checkForUpdatesFromTray()
 	default:
-		for _, d := range s.Documents {
-			if d.ID == id {
-				refusal = a.trayDo("document.open", map[string]any{"id": id})
-				break
-			}
-		}
-		for _, w := range s.Waiting {
-			if w.ID != id {
-				continue
-			}
-			refusal = a.trayDo(waitingTrayAction(w))
-			break
+		if typ, args := menuAction(id, a.snapshot()); typ != "" {
+			refusal = a.trayDo(typ, args)
 		}
 	}
 	a.reportTrayRefusal(refusal)
+}
+
+// menuAction is the action one row of the one menu runs, for the tray and for
+// the Windows panel's gear menu (GET /api/app/menu); "" for a row that only
+// shows something. A Recent or Needs you child's id is its document's or its
+// item's.
+func menuAction(id string, s appcore.Snapshot) (string, map[string]any) {
+	switch id {
+	case appcore.MenuStatus:
+		if s.Update.Ready == nil {
+			return "", nil
+		}
+		return "update.start", map[string]any{}
+	case appcore.MenuPauseSync:
+		return "sync.setPaused", map[string]any{"paused": !s.Sync.Paused}
+	case appcore.MenuOpenDashboard:
+		return "dashboard.open", map[string]any{}
+	case appcore.MenuOpenFile:
+		return "file.open", map[string]any{}
+	case appcore.MenuRecovered:
+		return "app.openRecoveredChanges", map[string]any{}
+	case appcore.MenuSettings:
+		return "dashboard.open", map[string]any{"route": "/settings"}
+	case appcore.MenuCheckUpdates:
+		return "update.check", map[string]any{}
+	case appcore.MenuQuit:
+		return "host.quit", map[string]any{}
+	}
+	for _, d := range s.Documents {
+		if d.ID == id {
+			return "document.open", map[string]any{"id": id}
+		}
+	}
+	for _, w := range s.Waiting {
+		if w.ID == id {
+			return waitingTrayAction(w)
+		}
+	}
+	return "", nil
 }
 
 // reportTrayRefusal tells the person why a tray click did nothing.

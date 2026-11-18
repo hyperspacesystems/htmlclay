@@ -474,18 +474,6 @@ func TestKeptPageEscapesADocumentName(t *testing.T) {
 	}
 }
 
-func TestOldKeptPathRedirects(t *testing.T) {
-	a := newKeptApp(t)
-	c := &keptClient{t: t, a: a, origin: "http://127.0.0.1:24192"}
-	rec := c.do("GET", "/kept/open?t=x", nil, nil)
-	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/recovered/open?t=x" {
-		t.Fatalf("GET /kept/open?t=x = %d %q, want 302 to /recovered/open?t=x", rec.Code, rec.Header().Get("Location"))
-	}
-	if rec := c.do("POST", "/kept/action", url.Values{}, nil); rec.Code != http.StatusNotFound {
-		t.Fatalf("POST /kept/action = %d, want 404", rec.Code)
-	}
-}
-
 func TestRecoveredCountFollowsDeletes(t *testing.T) {
 	a := newKeptApp(t)
 	path := filepath.Join(t.TempDir(), "zeta.html")

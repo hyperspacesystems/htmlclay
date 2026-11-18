@@ -104,6 +104,15 @@ func (a *app) dashboardGrant(action appcore.Action) *appcore.Refusal {
 			return refusal
 		}
 	}
+	// A folder Open example would refuse is refused before its question, so
+	// the person is never asked to approve what cannot happen.
+	if action.Type == "program.openExample" {
+		if dir, err := examplesDir(); err == nil {
+			if refusal := a.checkExamplesFolder(dir); refusal != nil {
+				return refusal
+			}
+		}
+	}
 	flow := a.grantFlow(action.Type, args, raw)
 	if flow == nil {
 		return &appcore.Refusal{Code: appcore.RefuseBadArguments}

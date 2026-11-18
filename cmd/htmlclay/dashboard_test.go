@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -20,6 +21,7 @@ import (
 	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/platform"
+	servicefiles "github.com/panphora/htmlclay/service"
 )
 
 // dashboardNoService is the dashboard over an app that runs no live-room service:
@@ -57,7 +59,9 @@ func openDashboardOver(t *testing.T, a *app, proxy http.Handler) *dashboardNoSer
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := &dashboardNoService{t: t, app: a, host: host, server: httptest.NewServer(board)}
+	// Production serves the dashboard through countWrites (adoptPort), so an
+	// action's POST is itself a counted write here too.
+	c := &dashboardNoService{t: t, app: a, host: host, server: httptest.NewServer(a.countWrites(board))}
 	t.Cleanup(c.server.Close)
 
 	entry, err := board.EntryURL("/")
@@ -198,6 +202,149 @@ func TestM3DashboardWithoutService(t *testing.T) {
 		}
 		if !snapshot.Host.Can["folder.stopServing"] {
 			t.Fatalf("the dashboard offers none of the app's own actions: %v", snapshot.Host.Can)
+		}
+	})
+
+	t.Run("the template cards answer", func(t *testing.T) {
+		c := openDashboardWithNoService(t, evalTempHome(t))
+		status, body := c.api(http.MethodGet, "/api/app/templates", nil)
+		var list struct {
+			Templates []servicefiles.Card `json:"templates"`
+		}
+		if err := json.Unmarshal([]byte(body), &list); status != http.StatusOK || err != nil {
+			t.Fatalf("the template cards = %d %s", status, body)
+		}
+		if !slices.Equal(list.Templates, servicefiles.Cards()) || len(list.Templates) == 0 {
+			t.Fatalf("the template cards = %+v, want the built-in catalog", list.Templates)
+		}
+		if status, _ := c.request(http.MethodGet, "/api/app/templates", nil, map[string]string{"Cookie": c.cookie}); status != http.StatusForbidden {
+			t.Fatalf("the template cards without the page's token = %d, want 403", status)
+		}
+	})
+
+	t.Run("the gear menu is the tray's menu with each row's action", func(t *testing.T) {
+		c := openDashboardWithNoService(t, evalTempHome(t))
+		type row struct {
+			ID        string `json:"id"`
+			Title     string `json:"title"`
+			Enabled   bool   `json:"enabled"`
+			Separator bool   `json:"separator"`
+			Action    *struct {
+				Type string         `json:"type"`
+				Args map[string]any `json:"args"`
+			} `json:"action"`
+			Children []row `json:"children"`
+		}
+		menu := func() map[string]row {
+			status, body := c.api(http.MethodGet, "/api/app/menu", nil)
+			var answer struct {
+				Rows []row `json:"rows"`
+			}
+			if err := json.Unmarshal([]byte(body), &answer); status != http.StatusOK || err != nil {
+				t.Fatalf("the gear menu = %d %s", status, body)
+			}
+			tray := c.app.trayMenuRows()
+			if len(answer.Rows) != len(tray) {
+				t.Fatalf("the gear menu has %d rows, the tray %d: %s", len(answer.Rows), len(tray), body)
+			}
+			byID := map[string]row{}
+			for i, r := range answer.Rows {
+				if r.ID != tray[i].ID || r.Title != tray[i].Title || r.Separator != (r.ID == appcore.MenuSeparator) || r.Children == nil {
+					t.Errorf("row %d = %+v, the tray draws %+v", i, r, tray[i])
+				}
+				byID[r.ID] = r
+			}
+			return byID
+		}
+		rows := menu()
+		sends := func(id string) string {
+			if rows[id].Action == nil {
+				return ""
+			}
+			return rows[id].Action.Type
+		}
+		for id, want := range map[string]string{
+			appcore.MenuOpenDashboard: "dashboard.open", appcore.MenuSettings: "dashboard.open", appcore.MenuOpenFile: "file.open",
+			appcore.MenuCheckUpdates: "update.check", appcore.MenuQuit: "host.quit", appcore.MenuStatus: "", appcore.MenuRecent: "",
+		} {
+			if got := sends(id); got != want {
+				t.Errorf("the %s row sends %q, want %q", id, got, want)
+			}
+		}
+		if route := rows[appcore.MenuSettings].Action.Args["route"]; route != "/settings" {
+			t.Errorf("Settings opens %v, want /settings", route)
+		}
+		if !rows[appcore.MenuQuit].Enabled || rows[appcore.MenuOpenFile].Enabled {
+			t.Errorf("with no dialogs to ask, Quit enabled = %v and Open a file enabled = %v, want true and false",
+				rows[appcore.MenuQuit].Enabled, rows[appcore.MenuOpenFile].Enabled)
+		}
+		c.app.nativeGrants = true
+		if rows = menu(); !rows[appcore.MenuOpenFile].Enabled {
+			t.Error("Open a file is disabled where the host asks for the file in its own dialog")
+		}
+		if status, _ := c.request(http.MethodGet, "/api/app/menu", nil, map[string]string{"Cookie": c.cookie}); status != http.StatusForbidden {
+			t.Fatalf("the gear menu without the page's token = %d, want 403", status)
+		}
+	})
+
+	t.Run("a template card creates a document in the htmlclay folder", func(t *testing.T) {
+		home := evalTempHome(t)
+		c := openDashboardWithNoService(t, home)
+		var opened []string
+		c.app.rt.launchBrowser = func(target string) error {
+			opened = append(opened, target)
+			return nil
+		}
+		if !c.snapshot().Host.Can["template.create"] {
+			t.Fatal("the dashboard does not offer template.create")
+		}
+		kanban, _ := servicefiles.Template("kanban")
+		dir := filepath.Join(home, "htmlclay")
+		if status, body := c.act("create-1", "template.create", map[string]any{"templateID": "kanban"}); status != http.StatusOK {
+			t.Fatalf("template.create = %d %s", status, body)
+		}
+		first := filepath.Join(dir, "Kanban.htmlclay")
+		if got, err := os.ReadFile(first); err != nil || !bytes.Equal(got, kanban) {
+			t.Fatalf("%s holds %d bytes (%v), want the kanban template", first, len(got), err)
+		}
+		if len(opened) != 1 || !strings.Contains(opened[0], "Kanban.htmlclay") {
+			t.Fatalf("opened %v, want the new document", opened)
+		}
+		writeTestFile(t, first, "the person's own edits")
+		if status, body := c.act("create-2", "template.create", map[string]any{"templateID": "kanban"}); status != http.StatusOK {
+			t.Fatalf("a second template.create = %d %s", status, body)
+		}
+		if got, _ := os.ReadFile(first); string(got) != "the person's own edits" {
+			t.Fatal("a second card click replaced the first document")
+		}
+		if got, err := os.ReadFile(filepath.Join(dir, "Kanban 2.htmlclay")); err != nil || !bytes.Equal(got, kanban) {
+			t.Fatalf("the second document = %d bytes (%v), want the template at Kanban 2.htmlclay", len(got), err)
+		}
+		status, body := c.act("create-3", "template.create", map[string]any{"templateID": "blockeditor"})
+		if code := refusalOf(t, status, body); code != appcore.RefuseBadArguments {
+			t.Fatalf("template.create for the block editor = %s, want %s", code, appcore.RefuseBadArguments)
+		}
+		if entries, _ := os.ReadDir(dir); len(entries) != 2 {
+			t.Fatalf("%s holds %d files, want the two kanban documents", dir, len(entries))
+		}
+		if c.app.trustedLive(dir) {
+			t.Fatal("creating a document trusted the htmlclay folder")
+		}
+	})
+
+	t.Run("a template card refuses an htmlclay folder that links outside home, before writing", func(t *testing.T) {
+		home := evalTempHome(t)
+		outside := t.TempDir()
+		if err := os.Symlink(outside, filepath.Join(home, "htmlclay")); err != nil {
+			t.Skipf("cannot make a link here: %v", err)
+		}
+		c := openDashboardWithNoService(t, home)
+		status, body := c.act("create-out", "template.create", map[string]any{"templateID": "kanban"})
+		if code := refusalOf(t, status, body); code != appcore.RefuseFileOutsideHome {
+			t.Fatalf("template.create into a link outside home = %s, want %s", code, appcore.RefuseFileOutsideHome)
+		}
+		if entries, _ := os.ReadDir(outside); len(entries) != 0 {
+			t.Fatalf("the refused card still wrote %d files outside home", len(entries))
 		}
 	})
 

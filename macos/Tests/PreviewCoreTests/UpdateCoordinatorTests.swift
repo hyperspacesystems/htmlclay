@@ -112,6 +112,8 @@ final class FakePresenter: UpdatePresenter {
     func updateNotStarted() { log.add("notice not-started") }
 
     func restartFailed() { log.add("notice restart-failed") }
+
+    func checkEnded(_ result: UpdateCheckResult) { log.add("told \(result)") }
 }
 
 @MainActor
@@ -289,6 +291,84 @@ final class UpdateCoordinatorTests: XCTestCase {
         XCTAssertTrue(rig.coordinator.checking)
         rig.driver.send(.checkEnded)
         XCTAssertFalse(rig.coordinator.checking)
+    }
+
+    /// A check the person asked for ends in an alert when no restart row follows;
+    /// Sparkle's own timed checks stay silent, and a found update says Downloading.
+    /// The bridge sends .checking twice for a check the person asked for.
+    func testACheckThePersonAskedForIsToldAndATimedOneIsNot() async {
+        let rig = Rig()
+        await rig.coordinator.start(allowed: true)
+        rig.log.clear()
+
+        rig.driver.send(.checking)
+        rig.driver.send(.upToDate)
+        rig.driver.send(.checkEnded)
+        XCTAssertEqual(rig.log.lines, [], "a timed check that found nothing showed an alert")
+
+        rig.coordinator.checkNow()
+        rig.driver.send(.checking)
+        rig.driver.send(.checking)
+        rig.driver.send(.upToDate)
+        rig.driver.send(.checkEnded)
+        XCTAssertEqual(rig.log.lines, ["check", "told latest"])
+
+        rig.log.clear()
+        rig.coordinator.checkNow()
+        rig.driver.send(.checking)
+        rig.driver.send(.found("2.0.1"))
+        rig.driver.send(.checkEnded)
+        XCTAssertNil(rig.coordinator.downloading, "Remind me later left the row saying Downloading")
+        rig.driver.send(.checking)
+        rig.driver.send(.upToDate)
+        XCTAssertEqual(rig.log.lines, ["check"], "a later timed check told the end of one the person asked for")
+
+        rig.log.clear()
+        rig.coordinator.checkNow()
+        rig.driver.send(.checking)
+        rig.driver.send(.found("2.0.1"))
+        rig.driver.send(.aborted("The download failed."))
+        XCTAssertNil(rig.coordinator.downloading)
+        XCTAssertEqual(rig.log.lines, ["check", "told failed"], "a download that failed after the check found it was not told")
+
+        rig.log.clear()
+        rig.coordinator.checkNow()
+        rig.driver.send(.checking)
+        rig.driver.send(.aborted("The network connection was lost."))
+        rig.driver.send(.checkEnded)
+        XCTAssertEqual(rig.log.lines, ["check", "told failed"])
+        XCTAssertNotNil(rig.coordinator.failedAt, "Settings went back to You're on the latest version after a failed check")
+        rig.driver.send(.checking)
+        rig.driver.send(.upToDate)
+        XCTAssertNil(rig.coordinator.failedAt, "a check that answered still showed the failure")
+
+        rig.log.clear()
+        rig.coordinator.checkNow()
+        rig.driver.send(.checking)
+        rig.driver.send(.found("2.0.1"))
+        XCTAssertEqual(rig.coordinator.downloading, "2.0.1")
+        rig.driver.send(.ready("2.0.1"))
+        rig.driver.send(.checkEnded)
+        XCTAssertNil(rig.coordinator.downloading)
+        XCTAssertEqual(rig.coordinator.prepared, "2.0.1")
+        XCTAssertEqual(rig.log.lines, ["check"], "a found update shows the restart row, not an alert")
+    }
+
+    /// With Update automatically off, Sparkle asks in its own window before it downloads anything.
+    func testAFoundUpdateIsNotCalledDownloadingWhenSparkleAsksFirst() async {
+        let rig = Rig()
+        await rig.coordinator.start(allowed: true)
+        rig.coordinator.setAutomatic(false)
+        rig.driver.send(.checking)
+        rig.driver.send(.aborted("The network connection was lost."))
+        rig.driver.send(.checkEnded)
+
+        rig.coordinator.checkNow()
+        rig.driver.send(.checking)
+        rig.driver.send(.found("2.0.1"))
+        XCTAssertNil(rig.coordinator.failedAt, "Settings still said Couldn't check after a check found an update")
+        XCTAssertNil(rig.coordinator.downloading, "the row said Downloading while Sparkle's own window asked first")
+        XCTAssertFalse(rig.coordinator.checking, "Settings still said Checking while Sparkle's own window waited for the person")
     }
 
     func testNotAllowedNeverStartsDriver() async {

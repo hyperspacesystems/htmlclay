@@ -3,6 +3,7 @@
 
 // Sparkle's SUNoUpdateError. A check that finds nothing is not worth a log line.
 static const NSInteger hcSUNoUpdateError = 1001;
+static const NSInteger hcSUInstallationCanceledError = 4007;
 
 // Sparkle is loaded at run time, not linked, so its headers are not used. These
 // protocols declare only the methods called below, with Sparkle 2's signatures.
@@ -97,6 +98,16 @@ static void hcSend(HCSparkleBridge *bridge, HCSparkleEvent event, NSString *text
     return YES;
 }
 
+// Sparkle found a newer version it will download, so the status row can say
+// Downloading before the update is ready.
+- (void)updater:(id)u didFindValidUpdate:(id)item {
+    HCSparkleBridge *bridge = owner;
+    if (bridge == nil) {
+        return;
+    }
+    hcSend(bridge, HCSparkleFound, [(id<HCSUAppcastItem>)item versionString] ?: @"");
+}
+
 - (void)updater:(id)u didFinishUpdateCycleForUpdateCheck:(NSInteger)check error:(NSError *)error {
     HCSparkleBridge *bridge = owner;
     if (bridge == nil) {
@@ -106,7 +117,15 @@ static void hcSend(HCSparkleBridge *bridge, HCSparkleEvent event, NSString *text
 }
 
 - (void)updater:(id)u didAbortWithError:(NSError *)error {
-    if ([error.domain isEqualToString:@"SUSparkleErrorDomain"] && error.code == hcSUNoUpdateError) {
+    // The person cancelled: nothing failed, and the cycle's end follows.
+    if ([error.domain isEqualToString:@"SUSparkleErrorDomain"] && error.code == hcSUInstallationCanceledError) {
+        return;
+    }
+    // No newer version, or only one HTML Clay refuses because it failed to
+    // start before (shouldProceedWithUpdate): either way this is the newest
+    // version that runs, which is not a failed check.
+    if (([error.domain isEqualToString:@"SUSparkleErrorDomain"] && error.code == hcSUNoUpdateError)
+        || [error.domain isEqualToString:@"com.htmlclay.update"]) {
         HCSparkleBridge *bridge = owner;
         if (bridge != nil) {
             hcSend(bridge, HCSparkleUpToDate, @"");

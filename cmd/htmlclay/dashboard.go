@@ -23,6 +23,7 @@ import (
 	"github.com/panphora/htmlclay/internal/specwire"
 	"github.com/panphora/htmlclay/internal/trust"
 	"github.com/panphora/htmlclay/internal/versions"
+	servicefiles "github.com/panphora/htmlclay/service"
 )
 
 const (
@@ -63,7 +64,7 @@ const (
 	dashboardMaxActionID = 100
 )
 
-// dashboardAPI answers the dashboard's API: the app's own three routes from Go,
+// dashboardAPI answers the dashboard's API: the app's own routes from Go,
 // and every other route through proxy, which is the served host's window onto the
 // live-room service.
 func (a *app) dashboardAPI(proxy http.Handler) http.Handler {
@@ -112,6 +113,18 @@ func (d *dashboardApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		d.events(w, r)
+	case "/api/app/templates":
+		if r.Method != http.MethodGet {
+			writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
+			return
+		}
+		writeDashboardJSON(w, http.StatusOK, map[string]any{"templates": servicefiles.Cards()})
+	case "/api/app/menu":
+		if r.Method != http.MethodGet {
+			writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
+			return
+		}
+		writeDashboardJSON(w, http.StatusOK, map[string]any{"rows": d.menu()})
 	case "/api/app/conflicts":
 		if r.Method != http.MethodGet {
 			writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
@@ -634,6 +647,9 @@ func (d *dashboardApp) act(w http.ResponseWriter, r *http.Request) {
 		if refusal.Counts != nil {
 			body["counts"] = refusal.Counts
 		}
+		if len(refusal.Documents) > 0 {
+			body["documents"] = refusal.Documents
+		}
 		writeDashboardJSON(w, http.StatusConflict, map[string]any{"refusal": body})
 		return
 	}
@@ -716,6 +732,49 @@ func dashboardSnapshot(s appcore.Snapshot) appcore.Snapshot {
 		s.Folders[i].Why.Serve = &appcore.Reason{Code: whyNeedsApp, Text: text}
 	}
 	return s
+}
+
+// dashboardMenuRow is one row of the one menu as a dashboard page draws it:
+// the Windows panel's gear menu. Action is what the row sends through
+// /api/app/actions, nil for a row that only shows something; a row whose
+// action this page may not send is disabled.
+type dashboardMenuRow struct {
+	ID        string              `json:"id"`
+	Title     string              `json:"title"`
+	Enabled   bool                `json:"enabled"`
+	Separator bool                `json:"separator"`
+	Action    *dashboardMenuEntry `json:"action"`
+	Children  []dashboardMenuRow  `json:"children"`
+}
+
+type dashboardMenuEntry struct {
+	Type string         `json:"type"`
+	Args map[string]any `json:"args"`
+}
+
+// menu is the tray's one menu, with each row's action, for a dashboard page.
+func (d *dashboardApp) menu() []dashboardMenuRow {
+	s := d.a.snapshot()
+	phase := appcore.PhaseOf(s)
+	can := d.view(s).Host.Can
+	var convert func([]appcore.MenuRow) []dashboardMenuRow
+	convert = func(rows []appcore.MenuRow) []dashboardMenuRow {
+		out := make([]dashboardMenuRow, 0, len(rows))
+		for _, r := range rows {
+			if r.ID == appcore.MenuSeparator {
+				out = append(out, dashboardMenuRow{ID: r.ID, Separator: true, Children: []dashboardMenuRow{}})
+				continue
+			}
+			row := dashboardMenuRow{ID: r.ID, Title: appcore.MenuTitle(r, s, phase), Enabled: r.Enabled, Children: convert(r.Children)}
+			if typ, args := menuAction(r.ID, s); typ != "" {
+				row.Action = &dashboardMenuEntry{Type: typ, Args: args}
+				row.Enabled = row.Enabled && can[typ]
+			}
+			out = append(out, row)
+		}
+		return out
+	}
+	return convert(appcore.MenuRows(s, phase))
 }
 
 // view is the snapshot a dashboard page reads from this host.

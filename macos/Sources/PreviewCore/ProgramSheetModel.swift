@@ -162,12 +162,15 @@ public enum ProgramFlow {
         return true
     }
 
-    /// Remove all access: every document loses it, and the broad grant goes with them.
+    /// Remove all access: every document loses it, and the broad grant goes with
+    /// them, in one action the host saves once.
     public static func removeAllAccess(_ program: Program, model: AppModel) async -> Bool {
-        if program.allTrustedFolders {
-            guard case .done = await model.submit(.setProgramAllTrusted(programID: program.id, on: false)) else { return false }
+        switch await model.submit(.removeAllProgramAccess(programID: program.id)) {
+        case .done:
+            return true
+        case let .refused(refusal):
+            model.say(refusal.text)
+            return false
         }
-        guard case .done = await model.submit(.removeProgramAccess(programID: program.id, document: String())) else { return false }
-        return true
     }
 }

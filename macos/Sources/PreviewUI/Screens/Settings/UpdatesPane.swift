@@ -56,7 +56,7 @@ struct UpdatesPane: View {
                         .foregroundStyle(kiln.muted)
                 }
                 KilnLink(Strings.Updates.whatsNew) {
-                    if let url = URL(string: Strings.Updates.whatsNewURL) { openURL(url) }
+                    if let url = Strings.Updates.whatsNewLink(model.snapshot.update.current) { openURL(url) }
                 }
             }
             .padding(.top, 10)
@@ -75,12 +75,29 @@ struct UpdatesPane: View {
                 .buttonStyle(KilnButtonStyle(.primary))
                 .disabled(updater == nil)
             }
+        } else if let downloading = updater?.downloading {
+            KilnRow(title: Strings.Updates.downloading(UpdatesPane.short(downloading)),
+                    subtitle: Strings.Updates.checkingYouHave(version),
+                    leading: { Squircle(.jade, symbol: Symbols.update) }) {
+                ProgressView()
+                    .controlSize(.small)
+            }
         } else if checking {
             KilnRow(title: Strings.Updates.checking,
                     subtitle: Strings.Updates.checkingYouHave(version),
                     leading: { Squircle(.jade, symbol: Symbols.update) }) {
                 ProgressView()
                     .controlSize(.small)
+            }
+        } else if let failedAt = updater?.failedAt {
+            KilnRow(title: Strings.Updates.checkFailed,
+                    subtitle: Strings.Updates.checkFailedSub(version, tried: UpdatesPane.when(failedAt)),
+                    leading: { Squircle(.amber, symbol: Symbols.warning) }) {
+                Button(Strings.Updates.checkNow) {
+                    updater?.checkNow()
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
+                .disabled(updater?.started != true)
             }
         } else {
             KilnRow(title: Strings.Updates.youAreOnLatest,

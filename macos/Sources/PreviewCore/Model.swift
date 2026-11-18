@@ -381,10 +381,17 @@ public struct AIEditTool: Codable, Equatable, Identifiable, Sendable {
     public var model: String
     public var defaultModel: String
     public var models: [String]
+    /// The reasoning effort chosen, "" for HTML Clay's default; efforts is empty
+    /// for a tool with no effort setting.
+    public var effort: String
+    public var defaultEffort: String
+    public var efforts: [String]
     public var command: String
-    public init(id: String, custom: Bool = false, found: Bool = false, model: String = "", defaultModel: String = "", models: [String] = [], command: String = "") {
+    public init(id: String, custom: Bool = false, found: Bool = false, model: String = "", defaultModel: String = "", models: [String] = [],
+                effort: String = "", defaultEffort: String = "", efforts: [String] = [], command: String = "") {
         self.id = id; self.custom = custom; self.found = found
-        self.model = model; self.defaultModel = defaultModel; self.models = models; self.command = command
+        self.model = model; self.defaultModel = defaultModel; self.models = models
+        self.effort = effort; self.defaultEffort = defaultEffort; self.efforts = efforts; self.command = command
     }
 }
 
@@ -517,6 +524,7 @@ public enum HostAction: Equatable, Sendable {
     case setAppearance(Appearance)
     case setYourName(String)
     case removeProgramAccess(programID: String, document: String)
+    case removeAllProgramAccess(programID: String)
     case connectSample
     case disconnect
     /// Sets up an account or team folder at path. existing syncs into files
@@ -555,6 +563,9 @@ public enum HostAction: Equatable, Sendable {
     case openVersions(id: String)
     case openRecoveredChanges
     case openFile(path: String)
+    /// A Home card when no folder is served: the host writes the template into
+    /// ~/htmlclay under a free name and opens it.
+    case createFromTemplate(templateID: String)
     case openDashboard(route: String)
     case revealFolder(id: String)
     case copyAddress(folderID: String)
@@ -563,11 +574,13 @@ public enum HostAction: Equatable, Sendable {
     case connect(username: String, key: String)
     case revealSyncLog
     case revealLog
-    case setPort(Int)
+    /// confirmed is the person choosing Restart anyway after restart-stops-work.
+    case setPort(Int, confirmed: Bool = false)
     case setProgramOn(programID: String, on: Bool)
     case openProgramExample(programID: String)
     case setAIEditTool(String)
     case setAIEditModel(tool: String, model: String)
+    case setAIEditEffort(tool: String, effort: String)
     case setAIEditCustom(command: String)
     /// The host actions Windows and Linux send for themselves: the Mac sets
     /// file types and checks for updates in Swift, and never sends these.

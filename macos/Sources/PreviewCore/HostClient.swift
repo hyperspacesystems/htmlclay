@@ -10,11 +10,15 @@ public struct HostRefusal: Error, Equatable, Sendable {
     public var documents: [String]
     /// What syncing into a folder already there would do, on its confirm-needed refusal.
     public var counts: SyncCounts?
-    public init(code: String, text: String, retryable: Bool = false, field: String? = nil, subjectID: String? = nil, documents: [String] = [], counts: SyncCounts? = nil) {
+    /// What a restart would stop, on a restart-stops-work refusal: "work", "sync".
+    public var running: [String]
+    public init(code: String, text: String, retryable: Bool = false, field: String? = nil, subjectID: String? = nil, documents: [String] = [], counts: SyncCounts? = nil, running: [String] = []) {
         self.code = code; self.text = text; self.retryable = retryable
         self.field = field; self.subjectID = subjectID; self.documents = documents
-        self.counts = counts
+        self.counts = counts; self.running = running
     }
+
+    public static let restartStopsWork = "restart-stops-work"
 }
 
 /// The files a first sync into a folder already there would move (08-sync.md 8.21).

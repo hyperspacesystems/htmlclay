@@ -22,9 +22,10 @@ const (
 
 // Status row kinds.
 const (
-	MenuStatusVersion  = "version"
-	MenuStatusChecking = "checking"
-	MenuStatusReady    = "ready"
+	MenuStatusVersion     = "version"
+	MenuStatusChecking    = "checking"
+	MenuStatusDownloading = "downloading"
+	MenuStatusReady       = "ready"
 )
 
 const menuListCap = 8
@@ -32,8 +33,9 @@ const menuListCap = 8
 // UpdatePhase is the update check as the shell drawing the menu knows it: the
 // Mac app reads Sparkle, Windows and Linux read the snapshot's update.
 type UpdatePhase struct {
-	Checking bool   `json:"checking"`
-	Ready    string `json:"ready"`
+	Checking    bool   `json:"checking"`
+	Ready       string `json:"ready"`
+	Downloading string `json:"downloading,omitempty"`
 }
 
 // PhaseOf is the update phase the snapshot itself holds (Windows and Linux).
@@ -42,7 +44,7 @@ func PhaseOf(s Snapshot) UpdatePhase {
 	if s.Update.Ready != nil {
 		ready = *s.Update.Ready
 	}
-	return UpdatePhase{Checking: s.Update.Checking, Ready: ready}
+	return UpdatePhase{Checking: s.Update.Checking, Ready: ready, Downloading: s.Update.Downloading}
 }
 
 // MenuRow is one row of the one menu. A Recent or Needs you child's ID is the
@@ -65,6 +67,8 @@ func MenuRows(s Snapshot, phase UpdatePhase) []MenuRow {
 	switch {
 	case phase.Ready != "":
 		status = MenuRow{ID: MenuStatus, Kind: MenuStatusReady, Enabled: true}
+	case phase.Downloading != "":
+		status.Kind = MenuStatusDownloading
 	case phase.Checking:
 		status.Kind = MenuStatusChecking
 	}
@@ -98,7 +102,7 @@ func MenuRows(s Snapshot, phase UpdatePhase) []MenuRow {
 	}
 	rows = append(rows, MenuRow{ID: MenuSeparator},
 		MenuRow{ID: MenuSettings, Enabled: true},
-		MenuRow{ID: MenuCheckUpdates, Enabled: !phase.Checking},
+		MenuRow{ID: MenuCheckUpdates, Enabled: !phase.Checking && phase.Downloading == ""},
 		MenuRow{ID: MenuSeparator},
 		MenuRow{ID: MenuQuit, Enabled: true})
 	out := make([]MenuRow, 0, len(rows))
@@ -127,6 +131,8 @@ func MenuTitle(row MenuRow, s Snapshot, phase UpdatePhase) string {
 			return fmt.Sprintf(TextMenuRestartToUpdate, phase.Ready)
 		case MenuStatusChecking:
 			return TextMenuChecking
+		case MenuStatusDownloading:
+			return fmt.Sprintf(TextMenuDownloading, phase.Downloading)
 		}
 		return fmt.Sprintf(TextMenuVersion, s.Update.Current)
 	case MenuSyncLine:

@@ -197,7 +197,9 @@ public enum HostSnapshotAdapter {
             aiEditTools: (wire.aiEditTools ?? []).map {
                 AIEditTool(id: $0.id, custom: $0.custom ?? false, found: $0.found ?? false,
                            model: $0.model ?? "", defaultModel: $0.defaultModel ?? "",
-                           models: $0.models ?? [], command: $0.command ?? "")
+                           models: $0.models ?? [], effort: $0.effort ?? "",
+                           defaultEffort: $0.defaultEffort ?? "", efforts: $0.efforts ?? [],
+                           command: $0.command ?? "")
             }
         )
     }

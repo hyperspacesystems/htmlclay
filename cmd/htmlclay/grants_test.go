@@ -371,6 +371,21 @@ func TestDashboardAddsAProgramFromThePickerAfterOneQuestion(t *testing.T) {
 	})
 }
 
+func TestDashboardOpenExampleChecksTheFolderBeforeItsQuestion(t *testing.T) {
+	c, home := grantDashboard(t)
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	writeTestFile(t, filepath.Join(home, "htmlclay", "examples", "taxes.pdf"), "private")
+	c.app.rt.confirmTrust = func(title, message, affirmative string) (bool, error) {
+		t.Errorf("Open example asked %q about a folder it would refuse", message)
+		return false, nil
+	}
+	status, body := c.act("e1", "program.openExample", map[string]any{"programID": "file-search"})
+	if code := refusalOf(t, status, body); code != appcore.RefuseExamplesFolderInUse {
+		t.Fatalf("Open example with a person's file in the folder = %s, want %s", code, appcore.RefuseExamplesFolderInUse)
+	}
+}
+
 func TestDashboardCustomCommandIsCheckedBeforeItsQuestion(t *testing.T) {
 	c, _ := grantDashboard(t)
 	status, body := c.act("c1", "aiEdit.setCustom", map[string]any{"command": "no-such-program-htmlclay-test {prompt}"})

@@ -178,14 +178,15 @@ func (a *app) aiEditProgramFact() (appcore.Program, bool) {
 	}, true
 }
 
-// removeAIEditAccess is program.removeAccess for AI editing: one document, or
-// every document when the action names none. The allow is removed, so the
-// document asks again, and a request running on it is stopped.
+// removeAIEditAccess is program.removeAccess and program.removeAllAccess for AI
+// editing. The allow is removed, so the document asks again, and a request
+// running on it is stopped.
 func (a *app) removeAIEditAccess(e appcore.Effect) *appcore.Refusal {
+	all := e.Type == "program.removeAllAccess"
 	a.helperStateMu.Lock()
 	var removed []config.AIEditDocument
 	for _, row := range a.rt.cfg.AIEditDocumentList() {
-		if e.DocumentID != "" && row.Document != e.DocumentID {
+		if !all && row.Document != e.DocumentID {
 			continue
 		}
 		if forgotten, ok := a.rt.cfg.ForgetAIEditDocument(row.Document); ok {

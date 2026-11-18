@@ -20,6 +20,12 @@ public enum ProgramControls {
         snapshot.hostCan(HostActionType.programRemoveAccess)
     }
 
+    /// Remove all access shows only when there is access to remove.
+    public static func showsRemoveAllAccess(_ program: Program, _ snapshot: HostSnapshot) -> Bool {
+        (!program.allowedDocuments.isEmpty || program.allTrustedFolders)
+            && snapshot.hostCan(HostActionType.programRemoveAllAccess)
+    }
+
     public static func canRemove(_ snapshot: HostSnapshot) -> Bool {
         snapshot.hostCan(HostActionType.programRemove)
     }

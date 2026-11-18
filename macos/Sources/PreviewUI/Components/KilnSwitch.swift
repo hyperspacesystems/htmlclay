@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct KilnSwitchStyle: ToggleStyle {
     @Environment(\.kiln) private var kiln
+    @Environment(\.isEnabled) private var isEnabled
     public init() {}
     public func makeBody(configuration: Configuration) -> some View {
         Button { configuration.isOn.toggle() } label: {
@@ -13,5 +14,6 @@ public struct KilnSwitchStyle: ToggleStyle {
                 }
         }
         .buttonStyle(.plain)
+        .opacity(isEnabled ? 1 : 0.45)
     }
 }

@@ -1,6 +1,7 @@
 package tray
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -101,5 +102,56 @@ func TestChildrenFillTheirSlotsAndTheRestHide(t *testing.T) {
 	}
 	if shown != 8 {
 		t.Errorf("needs you shows %d rows, want 8", shown)
+	}
+}
+
+// The menu is built again when its rows or lines change, as when sync connects
+// and a line and two rows appear under the status row, and never for a new
+// title, enabled state or child: a rebuild closes a menu the person has open.
+func TestTheMenuRebuildsOnlyWhenItsShapeChanges(t *testing.T) {
+	sep := MenuItem{ID: appcore.MenuSeparator}
+	base := func(status string, recent ...MenuItem) []MenuItem {
+		return []MenuItem{
+			{ID: appcore.MenuStatus, Title: status}, sep,
+			{ID: appcore.MenuOpenDashboard, Title: "Open dashboard", Enabled: true},
+			{ID: appcore.MenuRecent, Title: "Recent documents", Enabled: true, Children: recent}, sep,
+			{ID: appcore.MenuQuit, Title: "Exit", Enabled: true},
+		}
+	}
+	before := base("HTML Clay 2.0")
+	retitled := base("Checking for updates…", MenuItem{ID: "d1", Title: "a.htmlclay", Enabled: true})
+	if !slices.Equal(menuShape(before), menuShape(retitled)) {
+		t.Fatalf("a new title and a new Recent document changed the shape: %v then %v", menuShape(before), menuShape(retitled))
+	}
+	synced := append(base("HTML Clay 2.0")[:2:2],
+		MenuItem{ID: appcore.MenuSyncLine, Title: "Up to date"}, MenuItem{ID: appcore.MenuPauseSync, Title: "Pause syncing", Enabled: true}, sep)
+	synced = append(synced, base("HTML Clay 2.0")[2:]...)
+	if slices.Equal(menuShape(before), menuShape(synced)) {
+		t.Fatal("sync connecting left the shape alone, so the menu would keep its old lines")
+	}
+	top, _ := planRows(synced)
+	if s := top[appcore.MenuSyncLine]; !s.visible || s.title != "Up to date" {
+		t.Fatalf("sync line = %+v", s)
+	}
+}
+
+// While sync works the host's rows change every few seconds but most items do
+// not: a poll that changes nothing must touch nothing, or Linux closes an open
+// Recent submenu and Windows logs an error for every hidden slot.
+func TestAnUnchangedPollTouchesNoItem(t *testing.T) {
+	shown := map[string]slotState{}
+	calls := 0
+	apply := func(key string, s slotState) { applyChanged(shown, key, s, func() { calls++ }) }
+	status := slotState{visible: true, title: "Syncing 3 files", enabled: false}
+	apply("status", status)
+	apply("recent-0", slotState{})
+	apply("status", status)
+	apply("recent-0", slotState{})
+	if calls != 2 {
+		t.Fatalf("two polls with the same rows touched items %d times, want 2 (the first poll only)", calls)
+	}
+	apply("status", slotState{visible: true, title: "Up to date", enabled: false})
+	if calls != 3 {
+		t.Fatalf("a new status title touched items %d times in all, want 3", calls)
 	}
 }

@@ -109,26 +109,37 @@ const (
 	TextTrayOneConflict          = "1 conflict…"                                   // copy: tray item opening Needs you, max 30 chars
 	TextTrayConflicts            = "%d conflicts…"                                 // copy: tray item opening Needs you, the count, max 30 chars
 
-	TextMenuVersion         = "HTML Clay %s"                                                                                                         // copy: one menu, status row, %s is the version, max 32 chars
-	TextMenuChecking        = "Checking for updates…"                                                                                                // copy: one menu, status row while checking
-	TextMenuRestartToUpdate = "Restart to update to %s"                                                                                              // copy: one menu, status row with an update ready, %s is the version
-	TextMenuDownloadUpdate  = "Update available: %s"                                                                                                 // copy: one menu, Linux and Windows builds that cannot install the update themselves
-	TextMenuSyncUpToDate    = "Up to date · @%s"                                                                                                     // copy: one menu, sync line, %s is the username
-	TextMenuSyncingOne      = "Syncing 1 file… · @%s"                                                                                                // copy: one menu, sync line
-	TextMenuSyncingMany     = "Syncing %d files… · @%s"                                                                                              // copy: one menu, sync line
-	TextMenuSyncPaused      = "Syncing paused"                                                                                                       // copy: one menu, sync line
-	TextMenuNeedsYou        = "Needs you (%d)"                                                                                                       // copy: one menu, submenu title
-	TextMenuOpenDashboard   = "Open dashboard"                                                                                                       // copy: one menu
-	TextMenuOpenFile        = "Open a file…"                                                                                                         // copy: one menu
-	TextMenuRecent          = "Recent documents"                                                                                                     // copy: one menu, submenu title
-	TextMenuNoRecent        = "No recent documents"                                                                                                  // copy: one menu, the disabled row inside an empty Recent documents
-	TextMenuRecovered       = "Recovered changes…"                                                                                                   // copy: one menu, shown only when there is at least one
-	TextMenuSettings        = "Settings…"                                                                                                            // copy: one menu
-	TextMenuCheckForUpdates = "Check for updates…"                                                                                                   // copy: one menu
-	TextMenuQuitMac         = "Quit HTML Clay"                                                                                                       // copy: one menu, macOS
-	TextMenuQuitWindows     = "Exit"                                                                                                                 // copy: one menu, Windows
-	TextMenuQuitLinux       = "Quit"                                                                                                                 // copy: one menu, Linux
-	TextPortRestartFailed   = "HTML Clay saved the new port, though it could not restart on its own. Quit and reopen HTML Clay to use the new port." // copy: notification when the app could not restart on the new port; the new port takes effect at the next start, max 160 chars
+	TextMenuVersion              = "HTML Clay %s"                                                                                                         // copy: one menu, status row, %s is the version, max 32 chars
+	TextMenuChecking             = "Checking for updates…"                                                                                                // copy: one menu, status row while checking
+	TextMenuRestartToUpdate      = "Restart to update to %s"                                                                                              // copy: one menu, status row with an update ready, %s is the version
+	TextMenuDownloading          = "Downloading HTML Clay %s…"                                                                                            // copy: one menu, status row while a found update downloads (Windows and Linux; the Mac reads Sparkle), %s is the version, max 40 chars
+	TextMenuDownloadUpdate       = "Update available: %s"                                                                                                 // copy: one menu, Linux and Windows builds that cannot install the update themselves
+	TextMenuSyncUpToDate         = "Up to date · @%s"                                                                                                     // copy: one menu, sync line, %s is the username
+	TextMenuSyncingOne           = "Syncing 1 file… · @%s"                                                                                                // copy: one menu, sync line
+	TextMenuSyncingMany          = "Syncing %d files… · @%s"                                                                                              // copy: one menu, sync line
+	TextMenuSyncPaused           = "Syncing paused"                                                                                                       // copy: one menu, sync line
+	TextMenuNeedsYou             = "Needs you (%d)"                                                                                                       // copy: one menu, submenu title
+	TextMenuOpenDashboard        = "Open dashboard"                                                                                                       // copy: one menu
+	TextMenuOpenFile             = "Open a file…"                                                                                                         // copy: one menu
+	TextMenuRecent               = "Recent documents"                                                                                                     // copy: one menu, submenu title
+	TextMenuNoRecent             = "No recent documents"                                                                                                  // copy: one menu, the disabled row inside an empty Recent documents
+	TextMenuRecovered            = "Recovered changes…"                                                                                                   // copy: one menu, shown only when there is at least one
+	TextMenuSettings             = "Settings…"                                                                                                            // copy: one menu
+	TextMenuCheckForUpdates      = "Check for updates…"                                                                                                   // copy: one menu
+	TextMenuQuitMac              = "Quit HTML Clay"                                                                                                       // copy: one menu, macOS
+	TextMenuQuitWindows          = "Exit"                                                                                                                 // copy: one menu, Windows
+	TextMenuQuitLinux            = "Quit"                                                                                                                 // copy: one menu, Linux
+	TextSaveRefusedUpdateRestart = "HTML Clay is restarting to finish an update, so nothing was saved. Try again in a few seconds."                       // copy: a save that arrived during an update restart; ClayJS sends it again, max 140 chars
+	TextSaveRefusedPortRestart   = "HTML Clay is restarting on its new port, so nothing was saved. Try again in a few seconds."                           // copy: a save that arrived while HTML Clay restarts on its new port; ClayJS sends it again, max 140 chars
+	TextUpdateLatestTitle        = "HTML Clay is up to date"                                                                                              // copy: notification title after the tray's Check for updates found nothing newer, max 40 chars
+	TextUpdateLatestBody         = "HTML Clay %s is the newest version."                                                                                  // copy: notification body, %s is this version, max 120 chars
+	TextUpdateFoundTitle         = "HTML Clay update available"                                                                                           // copy: notification title after the tray's Check for updates found a newer version, max 40 chars
+	TextUpdateDownloadingBody    = "HTML Clay %s is downloading now. Choose Restart to update in the tray menu when it is ready."                         // copy: notification body, %s is the new version, max 120 chars
+	TextUpdateReadyBody          = "HTML Clay %s is ready to install. Choose Restart to update in the tray menu."                                         // copy: notification body when the update was already downloaded, %s is the new version, max 120 chars
+	TextUpdateAvailableBody      = "HTML Clay %s is available. Choose Update available in the tray menu to download it."                                  // copy: notification body for a build that cannot install updates itself, %s is the new version, max 120 chars
+	TextUpdateFailedTitle        = "HTML Clay couldn't check for updates"                                                                                 // copy: notification title when the tray's Check for updates could not check, max 40 chars
+	TextUpdateFailedBody         = "The update server could not be reached, or the download stopped. Check your connection and try again in a moment."    // copy: notification body, max 120 chars
+	TextPortRestartFailed        = "HTML Clay saved the new port, though it could not restart on its own. Quit and reopen HTML Clay to use the new port." // copy: notification when the app could not restart on the new port; the new port takes effect at the next start, max 160 chars
 )
 
 // TextPortMoved is the old port's answer to a save or other non-page request, %s
@@ -178,22 +189,25 @@ var RefusalText = map[string]string{
 	RefuseSyncFolderInUse: "This folder is already in HTML Clay. Choose another folder or make a new one.",
 	RefuseSyncPaused:      "This folder isn't syncing. Turn syncing back on in HTML Clay, then try again.",
 	// copy: refusal when settling a conflict while the sync key needs replacing, max 120 chars
-	RefuseSyncKeyStopped:    "Your choice did not save. The item stays in Needs you. Enter your sync key again in Sync, then choose again.",
-	RefuseConflictGone:      "That file isn't in conflict anymore. Nothing was changed.",
-	RefuseConflictChanged:   "That file changed since you looked. Review it again, then choose.",
-	RefuseNotText:           "This page isn't UTF-8 text, so it can't upload. Save it as UTF-8 and try again.",
-	RefuseSyncDownloading:   "This folder's first sync is still running. Try Find it again once it finishes.",
-	RefuseRemovalGone:       "Those attachments aren't waiting for you anymore. Nothing was changed.",
-	RefuseConfirmNeeded:     "This folder already has files. Check what will sync, then confirm.",
-	RefuseNothingReady:      "No update is ready yet. Try again later.",                                                       // copy: refusal, max 140 chars
-	RefuseNeedsConfirmation: "This action needs your approval. Approve it in HTML Clay first.",                                // copy: refusal, max 140 chars
-	RefusePending:           "Answer the HTML Clay dialog to finish.",                                                         // copy: COPY:refusal.pending, shown on a dashboard button while the system dialog is open, max 140 chars
-	RefuseDialogOpen:        "Another HTML Clay dialog is already open. Answer it first.",                                     // copy: COPY:refusal.dialogOpen, max 140 chars
-	RefuseNoDialogs:         "HTML Clay cannot show dialogs on this computer yet. Install zenity or kdialog, then try again.", // copy: COPY:refusal.noDialogs, Linux only, max 140 chars
-	RefuseFailed:            "HTML Clay couldn't do that just now. Try again.",                                                // copy: refusal, max 140 chars
-	RefuseCannotTrust:       "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.",    // copy: refusal, max 140 chars
-	RefuseStillRunning:      "Something is still running in HTML Clay. Wait a moment, then try again.",                        // copy: refusal, max 140 chars
-	RefuseNotYet:            "HTML Clay can't do that yet. Update HTML Clay and try again.",                                   // copy: refusal, max 140 chars
+	RefuseSyncKeyStopped:      "Your choice did not save. The item stays in Needs you. Enter your sync key again in Sync, then choose again.",
+	RefuseConflictGone:        "That file isn't in conflict anymore. Nothing was changed.",
+	RefuseConflictChanged:     "That file changed since you looked. Review it again, then choose.",
+	RefuseNotText:             "This page isn't UTF-8 text, so it can't upload. Save it as UTF-8 and try again.",
+	RefuseSyncDownloading:     "This folder's first sync is still running. Try Find it again once it finishes.",
+	RefuseRemovalGone:         "Those attachments aren't waiting for you anymore. Nothing was changed.",
+	RefuseConfirmNeeded:       "This folder already has files. Check what will sync, then confirm.",
+	RefuseNothingReady:        "No update is ready yet. Try again later.",                                                                                                         // copy: refusal, max 140 chars
+	RefuseNeedsConfirmation:   "This action needs your approval. Approve it in HTML Clay first.",                                                                                  // copy: refusal, max 140 chars
+	RefusePending:             "Answer the HTML Clay dialog to finish.",                                                                                                           // copy: COPY:refusal.pending, shown on a dashboard button while the system dialog is open, max 140 chars
+	RefuseDialogOpen:          "Another HTML Clay dialog is already open. Answer it first.",                                                                                       // copy: COPY:refusal.dialogOpen, max 140 chars
+	RefuseNoDialogs:           "HTML Clay cannot show dialogs on this computer yet. Install zenity or kdialog, then try again.",                                                   // copy: COPY:refusal.noDialogs, Linux only, max 140 chars
+	RefuseFailed:              "HTML Clay couldn't do that just now. Try again.",                                                                                                  // copy: refusal, max 140 chars
+	RefuseCannotTrust:         "HTML Clay can't trust this folder. Pick a folder inside your home folder that isn't hidden.",                                                      // copy: refusal, max 140 chars
+	RefuseStillRunning:        "Something is still running in HTML Clay. Wait a moment, then try again.",                                                                          // copy: refusal, max 140 chars
+	RefuseNotYet:              "HTML Clay can't do that yet. Update HTML Clay and try again.",                                                                                     // copy: refusal, max 140 chars
+	RefuseRestartStopsWork:    "Changing the port restarts HTML Clay and stops any running AI edit, program or sync. Wait a moment, or choose Restart anyway.",                    // copy: refusal, a port change would stop an AI edit, a program or sync, max 140 chars
+	RefuseExamplesFolderInUse: "The htmlclay/examples folder in your home folder has files HTML Clay did not put there. Move them out, or trust the folder in Settings, Folders.", // copy: refusal, ~/htmlclay/examples holds other files: move them out, or trust the folder in Settings, max 160 chars
+	RefuseFinishInSettings:    "Windows still opens .htmlclay files with another app. Choose HTML Clay in the Windows Settings page that just opened.",                            // copy: refusal, Settings Files, after Make default opened Windows Settings because another app still holds .htmlclay, max 140 chars
 	// A folder rule's reason, when an action runs into it.
 	WhyIdentityChanged:    TextWhyServeIdentityChanged,
 	WhyNotOnComputer:      TextWhyNotOnComputer,

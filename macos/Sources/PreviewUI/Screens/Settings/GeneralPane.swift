@@ -97,6 +97,18 @@ struct GeneralPane: View {
                                 ModelField(row: row) { text in
                                     model.send(.setAIEditModel(tool: row.id, model: text))
                                 }
+                                if !row.efforts.isEmpty {
+                                    Text(Strings.General.aiEffort)
+                                        .font(.system(size: 11.5))
+                                        .foregroundStyle(kiln.muted)
+                                    Menu(row.effortTitle) {
+                                        ForEach(row.efforts, id: \.self) { effort in
+                                            Button(Strings.General.aiEffortName(effort)) {
+                                                model.send(.setAIEditEffort(tool: row.id, effort: effort))
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             .frame(width: 190, alignment: .trailing)
                         }

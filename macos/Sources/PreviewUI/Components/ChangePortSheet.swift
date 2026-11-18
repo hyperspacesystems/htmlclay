@@ -33,7 +33,7 @@ public struct ChangePortSheet: View {
                 model.sheet = nil
             }
             .buttonStyle(KilnButtonStyle(.plain))
-            Button(Strings.Advanced.changePortAction) {
+            Button(sheet.actionTitle) {
                 Task {
                     if await sheet.save() { model.sheet = nil }
                 }

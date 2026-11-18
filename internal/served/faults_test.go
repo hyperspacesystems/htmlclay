@@ -344,7 +344,7 @@ func (r *tailwindCompileRecorder) waitFor(t *testing.T, html string) {
 func tailwindHoldFixture(t *testing.T) (root, address string, port int, control *httptest.Server) {
 	t.Helper()
 	clearFaults()
-	t.Cleanup(clearFaults)
+	t.Cleanup(func() { settleTailwindHolds(t) })
 	localSource := requireTailwindLocalSource(t)
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -358,6 +358,22 @@ func tailwindHoldFixture(t *testing.T) (root, address string, port int, control 
 	address, port = serveTestServer(t, handler)
 	control = controlTestServer(t, controlTestRoot(t, "root-tailwind-hold-control"))
 	return root, address, port, control
+}
+
+// settleTailwindHolds releases every held compile and waits for each to end
+// before clearing. A compile one test released could otherwise end inside the
+// next test, under load, and count there (finished site = 2, want 1).
+func settleTailwindHolds(t *testing.T) {
+	releaseTailwind("")
+	deadline := time.Now().Add(30 * time.Second)
+	for openHeldTailwind() > 0 {
+		if time.Now().After(deadline) {
+			t.Errorf("%d held Tailwind compiles still running 30s after release", openHeldTailwind())
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	clearFaults()
 }
 
 func waitForHeldTailwind(t *testing.T, control *httptest.Server, name string, want float64) {

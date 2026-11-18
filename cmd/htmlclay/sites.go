@@ -241,6 +241,7 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		AskAIEdit:      a.askAIEdit,
 		AIEditEngines:  a.rt.cfg.AIEditEngines,
 		AIEditModels:   a.rt.cfg.AIEditModels,
+		AIEditEfforts:  a.rt.cfg.AIEditEfforts,
 		BuiltinFor:     a.builtinFor,
 		AskBuiltin:     a.askBuiltin,
 		Profile:        a.rt.cfg.SharedPerson,
@@ -508,6 +509,9 @@ func (a *app) shutdown() {
 
 func (a *app) shutdownNow() {
 	a.rt.logger.Printf("Shutting down...")
+	if a.trayPanel != nil {
+		a.trayPanel.Close()
+	}
 	if a.stopRecovered != nil {
 		close(a.stopRecovered)
 		a.stopRecovered = nil

@@ -134,7 +134,7 @@ final class ProgramFlowTests: XCTestCase {
         XCTAssertEqual(wire.args, ["programID": .string("p1"), "documentID": .string("/tmp/work/todo.htmlclay")])
     }
 
-    func testRemovingAllAccessTakesEveryDocumentAndTheBroadGrant() async {
+    func testRemovingAllAccessTakesEveryDocumentAndTheBroadGrant() async throws {
         let broad = Program(id: "p1", name: "resize", path: "/tmp/bin/resize",
                             allowedDocuments: ["/tmp/a.htmlclay", "/tmp/b.htmlclay"], allTrustedFolders: true)
         let host = ProgramHost(snapshot(programs: [broad]))
@@ -142,10 +142,21 @@ final class ProgramFlowTests: XCTestCase {
 
         let removed = await ProgramFlow.removeAllAccess(broad, model: model)
         XCTAssertTrue(removed)
-        XCTAssertEqual(host.recorded, [
-            .setProgramAllTrusted(programID: "p1", on: false),
-            .removeProgramAccess(programID: "p1", document: String()),
-        ])
+        XCTAssertEqual(host.recorded, [.removeAllProgramAccess(programID: "p1")])
+        let wire = try XCTUnwrap(HostActionWire.wire(host.recorded[0]))
+        XCTAssertEqual(wire.type, "program.removeAllAccess")
+        XCTAssertEqual(wire.args, ["programID": .string("p1")])
+    }
+
+    func testRemoveAllAccessShowsOnlyWhenThereIsAccessToRemove() {
+        let unused = Program(id: "p1", name: "resize", path: "/tmp/bin/resize")
+        let oneDocument = Program(id: "p1", name: "resize", path: "/tmp/bin/resize", allowedDocuments: ["/tmp/a.htmlclay"])
+        let broad = Program(id: "p1", name: "resize", path: "/tmp/bin/resize", allTrustedFolders: true)
+        let live = snapshot(programs: [unused])
+        XCTAssertFalse(ProgramControls.showsRemoveAllAccess(unused, live), "Remove all access showed with nothing to remove")
+        XCTAssertTrue(ProgramControls.showsRemoveAllAccess(oneDocument, live))
+        XCTAssertTrue(ProgramControls.showsRemoveAllAccess(broad, live))
+        XCTAssertFalse(ProgramControls.showsRemoveAllAccess(broad, snapshot(can: ["program.removeAllAccess": false])))
     }
 
     func testTheControlEnumsReadTheHostsCanList() {

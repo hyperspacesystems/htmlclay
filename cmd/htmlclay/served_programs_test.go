@@ -420,6 +420,10 @@ func TestM3ServedPrograms(t *testing.T) {
 			_, err := os.Stat(started)
 			return err == nil
 		})
+		// A port change or an update restart asks first while it runs.
+		if n := stand.a.runningWork(); n != 1 {
+			t.Fatalf("runningWork with a served folder's program running = %d, want 1", n)
+		}
 
 		if refusal := m3ProgramDo(t, stand.a, ChannelShell, "program.removeAccess", map[string]any{
 			"programID": stand.program.ID, "documentID": stand.document(t),

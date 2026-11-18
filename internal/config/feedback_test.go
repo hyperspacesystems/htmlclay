@@ -76,8 +76,11 @@ func TestBuiltinProgramsStartOff(t *testing.T) {
 	if !cfg.BuiltinAllTrusted("file-search") {
 		t.Fatal("SetBuiltinAllTrusted(true) did not stick")
 	}
-	if got, want := cfg.ForgetBuiltin("file-search", ""), []string{"/a.htmlclay"}; !slices.Equal(got, want) {
-		t.Fatalf("ForgetBuiltin() = %v, want %v", got, want)
+	if got := cfg.ForgetBuiltin("file-search", ""); len(got) != 0 || !cfg.BuiltinAllowed("file-search", "/a.htmlclay") || !cfg.BuiltinAllTrusted("file-search") {
+		t.Fatalf("ForgetBuiltin with no document removed %v; it must remove nothing", got)
+	}
+	if got, want := cfg.ForgetBuiltinAll("file-search"), []string{"/a.htmlclay"}; !slices.Equal(got, want) {
+		t.Fatalf("ForgetBuiltinAll() = %v, want %v", got, want)
 	}
 	if cfg.BuiltinAllTrusted("file-search") {
 		t.Fatal("forgetting every document must turn All documents in my trusted folders off")
@@ -95,7 +98,7 @@ func TestBuiltinProgramsStartOff(t *testing.T) {
 	if cfg.BuiltinRemoved("file-search", "/a.htmlclay") {
 		t.Fatal("allowing again must clear the removed mark")
 	}
-	cfg.ForgetBuiltin("file-search", "")
+	cfg.ForgetBuiltinAll("file-search")
 	cfg.AskBuiltinAgain("file-search", "")
 	if cfg.BuiltinRemoved("file-search", "/a.htmlclay") {
 		t.Fatal("AskBuiltinAgain must clear the removed mark")

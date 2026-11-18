@@ -3,6 +3,7 @@ import PreviewCore
 
 enum PanelSection: Hashable {
     case openDashboard, hostStopped, keyRefused, update, finishing, waiting, syncLine, offline
+    case downloading(String)
 }
 
 enum PanelFocus: Hashable {
@@ -19,7 +20,8 @@ public struct PanelView: View {
     public var body: some View {
         let _ = model.updaterRev
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Self.topSections(model.snapshot, prepared: model.updater?.prepared), id: \.self) {
+            ForEach(Self.topSections(model.snapshot, prepared: model.updater?.prepared,
+                                     downloading: model.updater?.downloading), id: \.self) {
                 section(for: $0)
             }
             if model.snapshot.documents.isEmpty {
@@ -42,7 +44,7 @@ public struct PanelView: View {
 
     /// `prepared` is the version Sparkle has ready on the Mac, where the host's own
     /// update state stays empty.
-    static func topSections(_ s: HostSnapshot, prepared: String? = nil) -> [PanelSection] {
+    static func topSections(_ s: HostSnapshot, prepared: String? = nil, downloading: String? = nil) -> [PanelSection] {
         var sections: [PanelSection] = [s.hostStopped ? .hostStopped : .openDashboard]
         let refused = s.waiting.contains { $0.kind == .syncKeyRefused }
         if refused { sections.append(.keyRefused) }
@@ -50,6 +52,8 @@ public struct PanelView: View {
             sections.append(.update)
         } else if s.update.ready != nil, PanelControls.showsUpdate(can: s.hostCan(HostActionType.updateStart)) {
             sections.append(s.update.finishing ? .finishing : .update)
+        } else if let downloading {
+            sections.append(.downloading(downloading))
         }
         if s.waiting.contains(where: { $0.earnsDot && $0.kind != .syncKeyRefused }) { sections.append(.waiting) }
         if s.sync.connected && !refused { sections.append(s.sync.offlineChanges > 0 ? .offline : .syncLine) }
@@ -96,6 +100,15 @@ public struct PanelView: View {
                         if sparkle != nil { model.updater?.restartToUpdate() } else { model.send(.startUpdate) }
                     }
                     .buttonStyle(KilnButtonStyle(.primary))
+                }
+            }
+        case let .downloading(version):
+            KilnCard {
+                KilnRow(title: Strings.Updates.downloading(UpdatesPane.short(version))) {
+                    Squircle(.jade, symbol: Symbols.update)
+                } trailing: {
+                    ProgressView()
+                        .controlSize(.small)
                 }
             }
         case .finishing:

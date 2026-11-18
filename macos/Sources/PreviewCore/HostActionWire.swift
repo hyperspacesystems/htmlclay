@@ -66,8 +66,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "app.openRecoveredChanges", args: [:])
         case .revealLog:
             return WireActionRequest(type: "app.revealLog", args: [:])
-        case let .setPort(port):
-            return WireActionRequest(type: "host.setPort", args: ["port": .int(port)])
+        case let .setPort(port, confirmed):
+            return WireActionRequest(type: "host.setPort", args: confirmed ? ["port": .int(port), "confirmed": .bool(true)] : ["port": .int(port)])
         case let .setProgramOn(programID, on):
             return WireActionRequest(type: "program.setOn", args: ["programID": .string(programID), "on": .bool(on)])
         case let .openProgramExample(programID):
@@ -76,6 +76,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "prefs.set", args: ["key": .string("aiEditTool"), "value": .string(tool)])
         case let .setAIEditModel(tool, model):
             return WireActionRequest(type: "aiEdit.setModel", args: ["tool": .string(tool), "model": .string(model)])
+        case let .setAIEditEffort(tool, effort):
+            return WireActionRequest(type: "aiEdit.setEffort", args: ["tool": .string(tool), "effort": .string(effort)])
         case let .setAIEditCustom(command):
             return WireActionRequest(type: "aiEdit.setCustom", args: ["command": .string(command)])
         case .checkForUpdates:
@@ -88,6 +90,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "fileTypes.stopOpening", args: [:])
         case let .openFile(path):
             return WireActionRequest(type: "file.open", args: ["path": .string(path)])
+        case let .createFromTemplate(templateID):
+            return WireActionRequest(type: "template.create", args: ["templateID": .string(templateID)])
         case let .openDashboard(route):
             return WireActionRequest(type: "dashboard.open", args: route.isEmpty ? [:] : ["route": .string(route)])
         case let .showRequest(requestID):
@@ -118,6 +122,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "prefs.set", args: ["key": .string("appearance"), "value": .string(appearance.rawValue)])
         case let .removeProgramAccess(programID, document):
             return WireActionRequest(type: "program.removeAccess", args: ["programID": .string(programID), "documentID": .string(document)])
+        case let .removeAllProgramAccess(programID):
+            return WireActionRequest(type: "program.removeAllAccess", args: ["programID": .string(programID)])
         case let .setProgramAllTrusted(programID, on):
             return WireActionRequest(type: "program.setAllTrusted", args: ["programID": .string(programID), "on": .bool(on)])
         case let .addProgram(name, path, acknowledged):

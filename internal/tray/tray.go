@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -50,7 +51,8 @@ type Row struct {
 }
 
 // MenuItem is one row of the one menu, as the host computes it from
-// appcore.MenuRows and MenuTitle. Children are a submenu's rows.
+// appcore.MenuRows and MenuTitle. Children are a submenu's rows. A row whose ID
+// is appcore.MenuSeparator is a line between groups.
 type MenuItem struct {
 	ID       string
 	Title    string
@@ -60,24 +62,13 @@ type MenuItem struct {
 
 // MenuHooks drive the one menu: Rows is read every listPollInterval, and Do is
 // called with the id of a clicked row (a child's id for Recent and Needs you).
+// Tapped, when set, runs on a left click instead of showing the menu, which a
+// right click still shows; the tray calls it with the menu's own thread, so it
+// must return at once.
 type MenuHooks struct {
-	Rows func() []MenuItem
-	Do   func(id string)
-}
-
-// The one menu, top to bottom. A row the host leaves out is hidden; separators
-// sit before the rows named here and never hide, so the groups stay apart.
-var menuOrder = []string{
-	appcore.MenuStatus, appcore.MenuSyncLine, appcore.MenuPauseSync, appcore.MenuNeedsYou,
-	appcore.MenuOpenDashboard, appcore.MenuOpenFile, appcore.MenuRecent, appcore.MenuRecovered,
-	appcore.MenuSettings, appcore.MenuCheckUpdates,
-	appcore.MenuQuit,
-}
-
-var separatorBefore = map[string]bool{
-	appcore.MenuOpenDashboard: true,
-	appcore.MenuSettings:      true,
-	appcore.MenuQuit:          true,
+	Rows   func() []MenuItem
+	Do     func(id string)
+	Tapped func()
 }
 
 // childSlots is how many rows each submenu can show: up to eight items, and for
@@ -87,27 +78,36 @@ var childSlots = map[string]int{
 	appcore.MenuRecent:   9,
 }
 
-// slotState is what one pre-made menu item should show.
+// slotState is what one menu item should show.
 type slotState struct {
 	visible bool
 	title   string
 	enabled bool
 }
 
-// planRows lays the host's rows onto the menu's pre-made items: each id in
-// menuOrder shows when the host sent a row with that id and hides when it did
-// not; a submenu's children fill its slots in order and the rest hide.
-func planRows(rows []MenuItem) (top map[string]slotState, children map[string][]slotState) {
-	byID := make(map[string]MenuItem, len(rows))
+// menuShape is the menu's top level as the tray builds it: each row's id in
+// order, separators included. A change in titles, enabled states or children
+// leaves it alone; sync connecting or a Needs you row appearing changes it.
+func menuShape(rows []MenuItem) []string {
+	shape := make([]string, 0, len(rows))
 	for _, r := range rows {
-		byID[r.ID] = r
+		shape = append(shape, r.ID)
 	}
-	top = make(map[string]slotState, len(menuOrder))
+	return shape
+}
+
+// planRows lays the host's rows onto the menu's items: every top-level row the
+// host sent shows, and a submenu's children fill its slots in order while the
+// rest hide.
+func planRows(rows []MenuItem) (top map[string]slotState, children map[string][]slotState) {
+	top = make(map[string]slotState, len(rows))
 	children = make(map[string][]slotState, len(childSlots))
-	for _, id := range menuOrder {
-		r, ok := byID[id]
-		top[id] = slotState{visible: ok, title: r.Title, enabled: r.Enabled}
-		n, parent := childSlots[id]
+	for _, r := range rows {
+		if r.ID == appcore.MenuSeparator {
+			continue
+		}
+		top[r.ID] = slotState{visible: true, title: r.Title, enabled: r.Enabled}
+		n, parent := childSlots[r.ID]
 		if !parent {
 			continue
 		}
@@ -116,9 +116,21 @@ func planRows(rows []MenuItem) (top map[string]slotState, children map[string][]
 			c := r.Children[i]
 			slots[i] = slotState{visible: true, title: c.Title, enabled: c.Enabled}
 		}
-		children[id] = slots
+		children[r.ID] = slots
 	}
 	return top, children
+}
+
+// applyChanged runs apply for a slot only when its state differs from what
+// it last showed, and records the new state. Every systray call is a D-Bus
+// signal on Linux, which closes an open submenu, and hiding an item already
+// hidden logs an error on Windows, so an unchanged poll touches nothing.
+func applyChanged[K comparable](shown map[K]slotState, key K, s slotState, apply func()) {
+	if last, ok := shown[key]; ok && last == s {
+		return
+	}
+	apply()
+	shown[key] = s
 }
 
 func applySlot(item *systray.MenuItem, s slotState) {
@@ -141,8 +153,13 @@ type Tray struct {
 	onQuit     func()
 	quitting   atomic.Bool
 
-	mu   sync.Mutex
-	rows []MenuItem
+	mu    sync.Mutex
+	rows  []MenuItem
+	shape []string
+	items map[string]*systray.MenuItem
+	kids  map[string][]*systray.MenuItem
+	// shown is what each item last showed; render and build only.
+	shown map[*systray.MenuItem]slotState
 
 	// notice is a permanent row for something about this machine that HTML Clay
 	// cannot fix and the person can. Empty means there is nothing to say.
@@ -157,6 +174,12 @@ func Run(menu *MenuHooks, beforeQuit func() bool, onQuit func(), notice string) 
 	systray.Run(t.onReady, t.onExit)
 }
 
+// MenuOnLeftClick goes back to showing the menu on a left click, for a tray
+// whose Tapped can no longer do anything.
+func MenuOnLeftClick() {
+	systray.SetOnTapped(nil)
+}
+
 func (t *Tray) onReady() {
 	// macOS uses the template (auto-inverts for light/dark menu bars); Linux ignores
 	// it and falls back to the colored PNG. Windows needs the ICO: its fallback path
@@ -167,6 +190,9 @@ func (t *Tray) onReady() {
 		systray.SetTemplateIcon(iconTemplateBytes, iconBytes)
 	}
 	systray.SetTooltip("HTML Clay")
+	if t.menu.Tapped != nil {
+		systray.SetOnTapped(t.menu.Tapped)
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
@@ -175,59 +201,73 @@ func (t *Tray) onReady() {
 		systray.Quit()
 	}()
 
-	t.addNotice()
-
-	items := make(map[string]*systray.MenuItem, len(menuOrder))
-	kids := make(map[string][]*systray.MenuItem, len(childSlots))
-	for _, id := range menuOrder {
-		if separatorBefore[id] {
-			systray.AddSeparator()
-		}
-		item := systray.AddMenuItem(id, "")
-		item.Hide()
-		items[id] = item
-		for i := 0; i < childSlots[id]; i++ {
-			child := item.AddSubMenuItem("", "")
-			child.Hide()
-			kids[id] = append(kids[id], child)
-		}
-	}
-
-	t.render(items, kids)
+	t.render()
 	go func() {
 		for range time.Tick(listPollInterval) {
-			t.render(items, kids)
+			t.render()
 		}
 	}()
-
-	for _, id := range menuOrder {
-		if id == appcore.MenuQuit {
-			go t.watchQuit(items[id])
-			continue
-		}
-		if _, parent := childSlots[id]; parent {
-			for i, child := range kids[id] {
-				go t.watchChild(id, i, child)
-			}
-			continue
-		}
-		go t.watchRow(id, items[id])
-	}
 }
 
-// render reads the host's rows and shows them on the pre-made items.
-func (t *Tray) render(items map[string]*systray.MenuItem, kids map[string][]*systray.MenuItem) {
+// render reads the host's rows and shows them. The menu is built again only
+// when its shape changed, because fyne's separators cannot be hidden and the
+// host's groups need a different number of lines with sync on or off; every
+// other change updates the existing items in place.
+func (t *Tray) render() {
 	rows := t.menu.Rows()
+	shape := menuShape(rows)
 	t.mu.Lock()
 	t.rows = rows
+	if !slices.Equal(shape, t.shape) {
+		if t.shape != nil {
+			systray.ResetMenu()
+		}
+		t.build(rows)
+		t.shape = shape
+	}
+	items, kids, shown := t.items, t.kids, t.shown
 	t.mu.Unlock()
 	top, children := planRows(rows)
 	for id, item := range items {
-		applySlot(item, top[id])
+		applyChanged(shown, item, top[id], func() { applySlot(item, top[id]) })
 	}
 	for id, slots := range kids {
 		for i, child := range slots {
-			applySlot(child, children[id][i])
+			applyChanged(shown, child, children[id][i], func() { applySlot(child, children[id][i]) })
+		}
+	}
+}
+
+// build makes the menu's items for rows, top to bottom, with the machine
+// notice first. A removed item closes its click channel, which ends its
+// watcher.
+func (t *Tray) build(rows []MenuItem) {
+	t.addNotice()
+	t.items = make(map[string]*systray.MenuItem, len(rows))
+	t.kids = make(map[string][]*systray.MenuItem, len(childSlots))
+	t.shown = make(map[*systray.MenuItem]slotState)
+	for _, r := range rows {
+		if r.ID == appcore.MenuSeparator {
+			systray.AddSeparator()
+			continue
+		}
+		item := systray.AddMenuItem(r.Title, "")
+		t.items[r.ID] = item
+		for i := 0; i < childSlots[r.ID]; i++ {
+			child := item.AddSubMenuItem("", "")
+			child.Hide()
+			t.shown[child] = slotState{}
+			t.kids[r.ID] = append(t.kids[r.ID], child)
+		}
+		switch {
+		case r.ID == appcore.MenuQuit:
+			go t.watchQuit(item)
+		case len(t.kids[r.ID]) > 0:
+			for i, child := range t.kids[r.ID] {
+				go t.watchChild(r.ID, i, child)
+			}
+		default:
+			go t.watchRow(r.ID, item)
 		}
 	}
 }

@@ -6,6 +6,7 @@ struct ProgramPage: View {
     let actions: SettingsActions
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
+    @State private var confirmingRemoveAll = false
 
     static func pathLine(_ program: Program) -> String {
         Strings.ProgramPage.pathLine(path: program.path, ready: !program.fileMissing, name: program.name)
@@ -189,13 +190,21 @@ struct ProgramPage: View {
                 }
             }
             Spacer(minLength: 0)
-            if model.can(HostActionType.programRemoveAccess) {
+            if ProgramControls.showsRemoveAllAccess(program, model.snapshot) {
                 KilnLink(Strings.ProgramPage.removeAllAccess, danger: true) {
-                    Task { _ = await ProgramFlow.removeAllAccess(program, model: model) }
+                    confirmingRemoveAll = true
                 }
             }
         }
         .padding(.top, 14)
+        .alert(Strings.ProgramPage.removeAllTitle(Self.title(program)), isPresented: $confirmingRemoveAll) {
+            Button(Strings.ProgramPage.cancel, role: .cancel) {}
+            Button(Strings.ProgramPage.removeAllAccess, role: .destructive) {
+                Task { _ = await ProgramFlow.removeAllAccess(program, model: model) }
+            }
+        } message: {
+            Text(Strings.ProgramPage.removeAllBody)
+        }
     }
 
     private func allowAgain(_ document: String, program: Program) {

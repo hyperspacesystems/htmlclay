@@ -6,6 +6,10 @@
       "class": "grant"
     },
     {
+      "type": "aiEdit.setEffort",
+      "class": "safe"
+    },
+    {
       "type": "aiEdit.setModel",
       "class": "safe"
     },
@@ -158,6 +162,10 @@
       "class": "revoke"
     },
     {
+      "type": "program.removeAllAccess",
+      "class": "revoke"
+    },
+    {
       "type": "program.reveal",
       "class": "safe"
     },
@@ -195,6 +203,10 @@
     },
     {
       "type": "sync.setPaused",
+      "class": "safe"
+    },
+    {
+      "type": "template.create",
       "class": "safe"
     },
     {

@@ -4,10 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/builtin"
+	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 )
 
@@ -101,6 +103,55 @@ func TestBuiltinAllowAndRemove(t *testing.T) {
 	}
 }
 
+func TestBuiltinRemoveAllTakesEveryDocumentAndAnEmptyDocumentTakesNothing(t *testing.T) {
+	s := newBuiltinStand(t)
+	s.app.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
+	s.app.rt.cfg.AllowBuiltin(builtin.FileSearch, s.doc)
+	s.app.rt.cfg.SetBuiltinAllTrusted(builtin.FileSearch, true)
+	refusal := s.app.runEffect(context.Background(), appcore.Effect{Type: "program.removeAccess", ProgramID: builtin.FileSearch})
+	if refusal == nil || refusal.Code != appcore.RefuseBadArguments {
+		t.Fatalf("remove access with no document = %+v, want bad-arguments", refusal)
+	}
+	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ready {
+		t.Fatalf("a remove with no document changed the document to %q", got)
+	}
+	if refusal := s.app.runEffect(context.Background(), appcore.Effect{Type: "program.removeAllAccess", ProgramID: builtin.FileSearch}); refusal != nil {
+		t.Fatalf("removeAllAccess = %+v, want none", refusal)
+	}
+	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Removed {
+		t.Fatalf("state after remove all = %q, want removed", got)
+	}
+	if s.app.rt.cfg.BuiltinAllTrusted(builtin.FileSearch) {
+		t.Fatal("remove all left All documents in my trusted folders on")
+	}
+}
+
+func TestBuiltinRemoveAllChangesNothingWhenTheSettingsCannotSave(t *testing.T) {
+	if os.Geteuid() == 0 || runtime.GOOS == "windows" {
+		t.Skip("a read-only folder stops neither root nor Windows")
+	}
+	cfgBase := t.TempDir()
+	a := newTestAppWithConfigDir(t, t.TempDir(), cfgBase)
+	a.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
+	a.rt.cfg.AllowBuiltin(builtin.FileSearch, "/docs/a.htmlclay")
+	a.rt.cfg.SetBuiltinAllTrusted(builtin.FileSearch, true)
+	if err := a.rt.cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	dir := config.DirFrom(cfgBase)
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	refusal := a.runEffect(context.Background(), appcore.Effect{Type: "program.removeAllAccess", ProgramID: builtin.FileSearch})
+	if refusal == nil || refusal.Code != appcore.RefuseFailed {
+		t.Fatalf("remove all with a settings file that cannot save = %+v, want failed", refusal)
+	}
+	if !a.rt.cfg.BuiltinAllowed(builtin.FileSearch, "/docs/a.htmlclay") || !a.rt.cfg.BuiltinAllTrusted(builtin.FileSearch) {
+		t.Fatal("a remove the settings file could not save still took effect in memory")
+	}
+}
+
 func TestBuiltinAllTrustedSkipsTheQuestion(t *testing.T) {
 	s := newBuiltinStand(t)
 	s.app.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
@@ -126,6 +177,42 @@ func TestBuiltinRowsComeFirst(t *testing.T) {
 		if !rows[i].Builtin {
 			t.Fatalf("row %d (%s) is not marked built-in", i, id)
 		}
+	}
+}
+
+func TestOpenExampleChecksTheExamplesFolderBeforeTrustingIt(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	s := newBuiltinStandAt(t, real(t, home))
+	s.app.rt.launchBrowser = func(string) error { return nil }
+	s.app.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
+	dir := filepath.Join(home, "htmlclay", "examples")
+	for _, name := range []string{".DS_Store", ".directory", "sample-photo.webp", "File Search.htmlclay", welcomeExampleName} {
+		writeTestFile(t, filepath.Join(dir, name), "x")
+	}
+	writeTestFile(t, filepath.Join(dir, "taxes.pdf"), "private")
+	open := func() *appcore.Refusal {
+		return s.app.runEffect(context.Background(), appcore.Effect{Type: "program.openExample", ProgramID: builtin.FileSearch})
+	}
+	if refusal := open(); refusal == nil || refusal.Code != appcore.RefuseExamplesFolderInUse {
+		t.Fatalf("Open example with a person's file in the folder = %+v, want %s", refusal, appcore.RefuseExamplesFolderInUse)
+	}
+	if s.app.trustedLive(real(t, dir)) {
+		t.Fatal("Open example trusted a folder holding a person's own file")
+	}
+	if err := os.Remove(filepath.Join(dir, "taxes.pdf")); err != nil {
+		t.Fatal(err)
+	}
+	if refusal := open(); refusal != nil {
+		t.Fatalf("Open example with only HTML Clay's and the system's files = %+v, want none", refusal)
+	}
+	if !s.app.trustedLive(real(t, dir)) {
+		t.Fatal("Open example did not trust the examples folder")
+	}
+	writeTestFile(t, filepath.Join(dir, "taxes.pdf"), "private")
+	if refusal := s.app.runEffect(context.Background(), appcore.Effect{Type: "program.openExample", ProgramID: builtin.FileConvert}); refusal != nil {
+		t.Fatalf("Open example in a folder the person already trusts = %+v, want none", refusal)
 	}
 }
 

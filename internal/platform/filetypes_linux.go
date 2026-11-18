@@ -27,7 +27,7 @@ func readFileTypes() FileTypeState {
 	return state
 }
 
-func makeDefault(_, _ string) error {
+func makeDefault(string) error {
 	return exec.Command("xdg-mime", "default", desktopID, "application/x-htmlclay").Run()
 }
 

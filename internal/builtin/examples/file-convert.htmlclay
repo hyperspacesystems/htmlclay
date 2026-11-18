@@ -3,7 +3,7 @@
   <p class="sub">Convert an image in this folder to a new format or smaller width. Never replaces your original file.</p>
   <form id="form">
     <label>Image file <input id="path" value="sample-photo.png"></label>
-    <label>New format <select id="to"><option value="jpeg">JPEG</option><option value="png">PNG</option><option value="gif">GIF</option><option value="bmp">BMP</option><option value="tiff">TIFF</option></select></label>
+    <label>New format <select id="to"><option value="jpeg">JPEG</option><option value="png">PNG</option><option value="gif">GIF</option><option value="bmp">BMP</option><option value="tiff">TIFF</option><option value="webp">WebP</option></select></label>
     <label>Max width (px) <input id="width" type="number" min="0" max="10000" value="320"></label>
     <button>Convert</button>
   </form>

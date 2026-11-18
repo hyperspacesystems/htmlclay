@@ -21,12 +21,20 @@ type Tool struct {
 	Found        bool
 	DefaultModel string
 	Models       []string
-	Command      []string
+	// DefaultEffort and Efforts are the tool's reasoning effort setting; Efforts
+	// is empty for a tool that has none.
+	DefaultEffort string
+	Efforts       []string
+	Command       []string
 }
 
 var toolModels = map[string][]string{
 	"claude": {"claude-opus-5-5", "claude-fable-5-2"},
-	"codex":  {},
+	"codex":  {"gpt-5.6-sol"},
+}
+
+var toolEfforts = map[string][]string{
+	"codex": {"low", "medium", "high", "xhigh"},
 }
 
 // Tools lists Claude and Codex, each marked found when its program is on the
@@ -42,10 +50,12 @@ func Tools(engines map[string][]string, env []string) []Tool {
 		program, _ := engineProgram(e)
 		_, err := lookPath(program, env)
 		tools = append(tools, Tool{
-			ID:           name,
-			Found:        err == nil,
-			DefaultModel: e.model,
-			Models:       append([]string(nil), toolModels[name]...),
+			ID:            name,
+			Found:         err == nil,
+			DefaultModel:  e.model,
+			Models:        append([]string(nil), toolModels[name]...),
+			DefaultEffort: e.effort,
+			Efforts:       append([]string{}, toolEfforts[name]...),
 		})
 	}
 	resolved := resolveEngines(engines)
@@ -57,7 +67,7 @@ func Tools(engines map[string][]string, env []string) []Tool {
 	}
 	slices.Sort(names)
 	for _, name := range names {
-		tools = append(tools, Tool{ID: name, Custom: true, Found: true, Command: append([]string(nil), resolved[name].command...), Models: []string{}})
+		tools = append(tools, Tool{ID: name, Custom: true, Found: true, Command: append([]string(nil), resolved[name].command...), Models: []string{}, Efforts: []string{}})
 	}
 	return tools
 }

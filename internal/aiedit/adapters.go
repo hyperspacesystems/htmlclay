@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -53,7 +54,7 @@ var codexDisabledFeatures = []string{
 	"multi_agent", "plugins", "image_generation", "view_image",
 }
 
-func codexArgs(dir, outFile, model string) []string {
+func codexArgs(dir, outFile, model, effort string) []string {
 	argv := []string{
 		"exec",
 		"--ephemeral", "--ignore-user-config", "--ignore-rules",
@@ -65,6 +66,9 @@ func codexArgs(dir, outFile, model string) []string {
 	}
 	if model != "" {
 		argv = append(argv, "-m", model)
+	}
+	if slices.Contains(toolEfforts["codex"], effort) {
+		argv = append(argv, "-c", `model_reasoning_effort="`+effort+`"`)
 	}
 	return append(argv, "-C", dir, "-o", outFile, "-")
 }
@@ -187,7 +191,7 @@ func runCodex(ctx context.Context, e engine, bin, prompt string, env []string) (
 	defer os.RemoveAll(scratch)
 	outFile := filepath.Join(scratch, "last-message.txt")
 
-	argv := append([]string{bin}, codexArgs(scratch, outFile, e.model)...)
+	argv := append([]string{bin}, codexArgs(scratch, outFile, e.model, e.effort)...)
 	cmd := childCommand(ctx, argv, scratch, env)
 	stderr := &tailBuffer{limit: stderrTail}
 	cmd.Stderr = stderr

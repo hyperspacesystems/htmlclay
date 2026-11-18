@@ -245,6 +245,13 @@ func (l looseWire) AIEditModels() map[string]string {
 	return l.s.hooks.AIEditModels()
 }
 
+func (l looseWire) AIEditEfforts() map[string]string {
+	if l.s.hooks.AIEditEfforts == nil {
+		return nil
+	}
+	return l.s.hooks.AIEditEfforts()
+}
+
 func (l looseWire) BuiltinFor(document, program string) builtin.Access {
 	if l.s.hooks.BuiltinFor == nil {
 		return builtin.Access{State: builtin.Off}

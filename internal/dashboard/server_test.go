@@ -1,9 +1,11 @@
 package dashboard
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -285,20 +287,34 @@ func TestOwnsIsWhatTheServerAnswers(t *testing.T) {
 	}
 }
 
-func TestTemplatePreviewsGoToTheServiceWithoutTheToken(t *testing.T) {
-	var got []string
-	s, _ := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = append(got, r.URL.Path)
-		w.WriteHeader(http.StatusOK)
-	}))
-	if !s.Owns("/templates/kanban.svg") {
-		t.Fatal("the dashboard does not own a template preview, so the address goes on to a document site")
+func TestTemplatePreviewsAnswerFromTheAppWithoutTheToken(t *testing.T) {
+	onDisk, err := os.ReadFile("../../service/local/src/main/document-templates/thumbnails/kanban.svg")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if w := do(s, "GET", "/templates/kanban.svg", nil); w.Code != http.StatusOK || len(got) != 1 || got[0] != "/templates/kanban.svg" {
-		t.Fatalf("GET /templates/kanban.svg = %d, service saw %v; want the service to answer it", w.Code, got)
+	service := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("the service was asked for %s", r.URL.Path)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+	withService, _ := newTestServer(t, service)
+	serviceOff, _ := newTestServer(t, nil)
+	for _, s := range []*Server{withService, serviceOff} {
+		if !s.Owns("/templates/kanban.svg") {
+			t.Fatal("the dashboard does not own a template preview, so the address goes on to a document site")
+		}
+		w := do(s, "GET", "/templates/kanban.svg", nil)
+		if w.Code != http.StatusOK || !bytes.Equal(w.Body.Bytes(), onDisk) {
+			t.Fatalf("GET /templates/kanban.svg = %d with %d bytes, want the service tree's picture", w.Code, w.Body.Len())
+		}
+		if ct, csp := w.Header().Get("Content-Type"), w.Header().Get("Content-Security-Policy"); ct != "image/svg+xml" || csp != "default-src 'none'; style-src 'unsafe-inline'" {
+			t.Fatalf("picture headers = %q, %q", ct, csp)
+		}
+		if w := do(s, "GET", "/templates/devlog.svg", nil); w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), `"missing"`) {
+			t.Fatalf("an unlisted template's picture = %d %s, want missing", w.Code, w.Body.String())
+		}
 	}
 	for _, p := range []string{"/templates/../api/roots", "/templates/kanban.html", "/templates/a/b.svg"} {
-		if s.Owns(p) {
+		if withService.Owns(p) {
 			t.Errorf("Owns(%q) = true for an address that is no template preview", p)
 		}
 	}

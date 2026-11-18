@@ -18,6 +18,7 @@ import (
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/versions"
 )
 
@@ -25,6 +26,7 @@ import (
 // reports it as host.can; TestImplementedActionsMatchRunEffect keeps the two equal.
 var implementedActions = []string{
 	"aiEdit.setCustom",
+	"aiEdit.setEffort",
 	"aiEdit.setModel",
 	"app.openRecoveredChanges",
 	"app.revealLog",
@@ -59,6 +61,7 @@ var implementedActions = []string{
 	"program.relink",
 	"program.remove",
 	"program.removeAccess",
+	"program.removeAllAccess",
 	"program.reveal",
 	"program.setAllTrusted",
 	"program.setOn",
@@ -69,6 +72,7 @@ var implementedActions = []string{
 	"sync.disconnect",
 	"sync.setPaused",
 	"sync.revealLog",
+	"template.create",
 	"update.check",
 	"update.start",
 	"conflict.resolve",
@@ -197,7 +201,9 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 	case "fileTypes.makeDefault", "fileTypes.stopOpening", "fileTypes.setHTMLOpenWith":
 		return a.runFileTypeEffect(e)
 	case "host.setPort":
-		return a.setPort(e.Port)
+		return a.setPort(ctx, e.Port, e.Confirmed)
+	case "template.create":
+		return a.createFromTemplate(e.TemplateID)
 	case "update.check":
 		return a.checkForUpdates()
 	case "update.start":
@@ -208,10 +214,17 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.resolveRemoval(e)
 	case "host.quit":
 		if !e.Force {
-			names, answered := a.unsavedDocuments()
-			if !answered || len(names) > 0 {
-				return &appcore.Refusal{Code: appcore.RefuseQuitUnsaved, Documents: names}
+			// The same lines the tray's own Exit asks with, including the one
+			// for a service that did not answer.
+			if lines, saved := a.unsavedBeforeQuit(); !saved {
+				return &appcore.Refusal{Code: appcore.RefuseQuitUnsaved, Documents: lines}
 			}
+		}
+		if !a.noTray {
+			// As the tray's Exit does: the tray takes its icon away, then runs
+			// the shutdown, so no dead icon stays in the notification area.
+			tray.Quit()
+			return nil
 		}
 		go func() {
 			a.shutdown()
@@ -251,6 +264,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return nil
 	case "aiEdit.setModel":
 		return a.setAIEditModel(e)
+	case "aiEdit.setEffort":
+		return a.setAIEditEffort(e)
 	case "aiEdit.setCustom":
 		return a.setAIEditCustom(e)
 	case "dashboard.open":
@@ -341,7 +356,7 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.setProgramAllTrusted(e)
 	case "program.askAgain":
 		return a.askProgramAgain(e)
-	case "program.removeAccess":
+	case "program.removeAccess", "program.removeAllAccess":
 		return a.removeProgramAccess(e)
 	case "program.setOn":
 		return a.setBuiltinOn(e.ProgramID, e.On)
@@ -615,11 +630,14 @@ func (a *app) askProgramAgain(e appcore.Effect) *appcore.Refusal {
 	return nil
 }
 
-// removeProgramAccess runs program.removeAccess: one document, or every document
-// that has the program when the action names none. Each denial is stored under
-// the document's own scope, so a removal in a team folder refuses at once instead
-// of asking again.
+// removeProgramAccess runs program.removeAccess for one document and
+// program.removeAllAccess for every document that has the program. Each denial
+// is stored under the document's own scope, so a removal in a team folder
+// refuses at once instead of asking again.
 func (a *app) removeProgramAccess(e appcore.Effect) *appcore.Refusal {
+	if e.Type != "program.removeAllAccess" && e.DocumentID == "" {
+		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "documentID"}
+	}
 	if e.ProgramID == aiEditProgramID {
 		return a.removeAIEditAccess(e)
 	}
@@ -642,8 +660,9 @@ func (a *app) removeProgramAccessLocked(e appcore.Effect) *appcore.Refusal {
 	if !ok {
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchProgram, SubjectID: e.ProgramID}
 	}
+	all := e.Type == "program.removeAllAccess"
 	documents := []string{e.DocumentID}
-	if e.DocumentID == "" {
+	if all {
 		documents = documents[:0]
 		for _, d := range a.rt.cfg.HelperDecisionList() {
 			if d.Allowed && d.Program == e.ProgramID && !slices.Contains(documents, d.Document) {
@@ -669,7 +688,7 @@ func (a *app) removeProgramAccessLocked(e appcore.Effect) *appcore.Refusal {
 	// Removing every document's access also takes the program's broad grant away,
 	// or a trusted folder's documents would go on running it.
 	widened, hadWide := false, false
-	if err == nil && e.DocumentID == "" {
+	if err == nil && all {
 		widened, hadWide = a.rt.cfg.SetHelperAnyDocument(e.ProgramID, false)
 	}
 	if err == nil {

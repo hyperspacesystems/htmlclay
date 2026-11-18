@@ -15,10 +15,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/deepteams/webp"
+	"github.com/gen2brain/h265/heic"
 	"golang.org/x/image/bmp"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/tiff"
-	_ "golang.org/x/image/webp"
 )
 
 // ConvertRequest is file-convert's payload. MaxWidth and MaxHeight shrink the
@@ -40,7 +41,7 @@ type ConvertResult struct {
 }
 
 // OutputFormats is what the converter writes, and the extension of each new file.
-var OutputFormats = map[string]string{"png": ".png", "jpeg": ".jpg", "gif": ".gif", "bmp": ".bmp", "tiff": ".tiff"}
+var OutputFormats = map[string]string{"png": ".png", "jpeg": ".jpg", "gif": ".gif", "bmp": ".bmp", "tiff": ".tiff", "webp": ".webp"}
 
 const (
 	maxConvertInput  = 64 << 20
@@ -50,10 +51,17 @@ const (
 	maxNameTries     = 99
 )
 
-// Convert reads a PNG, JPEG, GIF, BMP, TIFF or WebP image under root and writes
+// Convert reads a PNG, JPEG, GIF, BMP, TIFF, WebP or HEIC image under root and writes
 // it as req.To beside the original, under a name no file has. It never
 // replaces a file.
-func Convert(root string, req ConvertRequest) (ConvertResult, error) {
+func Convert(root string, req ConvertRequest) (result ConvertResult, err error) {
+	// A decoder that panics on a damaged image answers like an unreadable one:
+	// the converter runs inside the host, which also saves every open document.
+	defer func() {
+		if p := recover(); p != nil {
+			result, err = ConvertResult{}, &Error{Code: "unsupported", Message: "The image could not be read. Check that the file is not damaged."}
+		}
+	}()
 	ext, ok := OutputFormats[req.To]
 	if !ok {
 		return ConvertResult{}, invalid("to")
@@ -102,18 +110,21 @@ func Convert(root string, req ConvertRequest) (ConvertResult, error) {
 	if err != nil {
 		return ConvertResult{}, failed(err)
 	}
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return ConvertResult{}, &Error{Code: "unsupported", Message: "HTML Clay can read PNG, JPEG, GIF, BMP, TIFF and WebP images."}
+		return ConvertResult{}, &Error{Code: "unsupported", Message: "HTML Clay can read PNG, JPEG, GIF, BMP, TIFF, WebP and HEIC images."}
 	}
 	if cfg.Width*cfg.Height > maxConvertPixels {
 		return ConvertResult{}, &Error{Code: "too_large", Message: "The image has more than 50 million pixels."}
 	}
-	img, _, err := image.Decode(bytes.NewReader(data))
+	img, err := decodeImage(data, format)
 	if err != nil {
 		return ConvertResult{}, &Error{Code: "unsupported", Message: "The image could not be read. Check that the file is not damaged."}
 	}
 	img = fit(img, req.MaxWidth, req.MaxHeight)
+	if b := img.Bounds(); req.To == "webp" && (b.Dx() > webp.MaxDimension || b.Dy() > webp.MaxDimension) {
+		return ConvertResult{}, &Error{Code: "too_large", Message: "WebP images can't be wider or taller than 16,383 pixels. Set a smaller maximum width or height, or choose another format."}
+	}
 	var out bytes.Buffer
 	if err := encode(&out, img, req.To, quality); err != nil {
 		return ConvertResult{}, failed(err)
@@ -151,6 +162,18 @@ func fit(img image.Image, maxW, maxH int) image.Image {
 	return dst
 }
 
+// decodeImage decodes data, already checked by DecodeConfig. A HEIC is decoded
+// with its own options: turned the way the photo was taken, held to the same
+// pixel limit as the size its header claims (the coded picture inside may be
+// larger), and on this goroutine only, so the recover in Convert covers it.
+func decodeImage(data []byte, format string) (image.Image, error) {
+	if format == "heic" {
+		return heic.Decode(bytes.NewReader(data), heic.Options{AutoRotate: true, FrameSizeLimit: maxConvertPixels, Threads: 1})
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	return img, err
+}
+
 func encode(w io.Writer, img image.Image, to string, quality int) error {
 	switch to {
 	case "png":
@@ -163,6 +186,12 @@ func encode(w io.Writer, img image.Image, to string, quality int) error {
 		return bmp.Encode(w, img)
 	case "tiff":
 		return tiff.Encode(w, img, &tiff.Options{Compression: tiff.Deflate})
+	case "webp":
+		// DefaultOptions, not a bare struct: a zero AlphaQuality keeps only two
+		// levels of transparency, and zero filter strengths turn filters off.
+		opts := webp.DefaultOptions()
+		opts.Quality = float32(quality)
+		return webp.Encode(w, img, opts)
 	}
 	return fmt.Errorf("unknown format %q", to)
 }

@@ -19,11 +19,18 @@ public struct AIToolRow: Equatable, Sendable {
     public var custom: Bool
     /// False for the custom command row before a command is set: there is nothing to pick yet.
     public var selectable: Bool
+    /// The reasoning effort chosen ("" for the default) and the ones to pick
+    /// from; empty for a tool with no effort setting.
+    public var effort: String
+    public var efforts: [String]
+    public var effortTitle: String
 
     public init(id: String, title: String, subtitle: String, selected: Bool = false,
-                model: String = "", placeholder: String = "", custom: Bool = false, selectable: Bool = true) {
+                model: String = "", placeholder: String = "", custom: Bool = false, selectable: Bool = true,
+                effort: String = "", efforts: [String] = [], effortTitle: String = "") {
         self.id = id; self.title = title; self.subtitle = subtitle; self.selected = selected
         self.model = model; self.placeholder = placeholder; self.custom = custom; self.selectable = selectable
+        self.effort = effort; self.efforts = efforts; self.effortTitle = effortTitle
     }
 }
 
@@ -40,7 +47,10 @@ public enum SettingsControls {
                                   subtitle: Strings.General.aiFoundHere,
                                   selected: prefs.aiEditTool == tool.id,
                                   model: tool.model,
-                                  placeholder: aiToolPlaceholder(tool)))
+                                  placeholder: aiToolPlaceholder(tool),
+                                  effort: tool.effort,
+                                  efforts: tool.efforts,
+                                  effortTitle: Strings.General.aiEffortName(tool.effort.isEmpty ? tool.defaultEffort : tool.effort)))
         }
         for tool in prefs.aiEditTools where tool.custom {
             rows.append(AIToolRow(id: tool.id,

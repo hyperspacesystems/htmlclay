@@ -110,6 +110,8 @@ func (a *app) startSelfUpdater() bool {
 	a.updates.mu.Unlock()
 	u.CheckNow = checkNow
 	u.Checking = a.setUpdateChecking
+	u.Found = a.setUpdateDownloading
+	u.Checked = a.updateChecked
 	go u.Run(nil, func(r update.Ready) {
 		a.setUpdateReady(r.Version, "", func() { a.clickApplyUpdate(r, installPath) })
 	})
@@ -147,11 +149,14 @@ func (a *app) checkForUpdateLink() {
 	for {
 		if check {
 			a.setUpdateChecking(true)
-			info := update.Check(version, releaseInfoURL)
+			info, err := update.Check(version, releaseInfoURL)
+			result := update.CheckResult{Err: err}
 			if info != nil {
+				result.Found = info.Version
 				a.setUpdateReady(info.Version, info.URL, nil)
 			}
 			a.setUpdateChecking(false)
+			a.updateChecked(result)
 			if info != nil {
 				a.rt.logger.Printf("Update available: v%s at %s", info.Version, info.URL)
 				return
@@ -276,8 +281,9 @@ func (a *app) syncQuietForUpdate(limit time.Duration) bool {
 	return answer.Idle
 }
 
-// runningWork counts the AI edits and helper program requests running across
-// every live site.
+// runningWork counts the AI edits, helper program requests and built-in
+// program requests running across every live site and served folder, the same
+// set cancelAIEdits and cancelBuiltins stop.
 func (a *app) runningWork() int {
 	a.mu.Lock()
 	sites := append([]*site(nil), a.sites...)
@@ -287,6 +293,9 @@ func (a *app) runningWork() int {
 		if s.srv != nil {
 			n += s.srv.RunningWork()
 		}
+	}
+	for _, core := range a.servedWireCores() {
+		n += core.RunningWork()
 	}
 	return n
 }
@@ -304,12 +313,24 @@ func (a *app) countWrites(next http.Handler) http.Handler {
 			return
 		}
 		if !a.admitWrite() {
-			refuseWriteWhileRestarting(w)
+			refuseWriteWhileRestarting(w, a.restartingText())
 			return
 		}
 		defer a.rt.writesInFlight.Add(-1)
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), heldWriteKey{}, true)))
 	})
+}
+
+type heldWriteKey struct{}
+
+// heldWrites is 1 when ctx belongs to a request countWrites admitted as a
+// write, such as the browser's action that changes the port. A restart it asks
+// for waits for every other write, never for the request asking.
+func heldWrites(ctx context.Context) int64 {
+	if held, _ := ctx.Value(heldWriteKey{}).(bool); held {
+		return 1
+	}
+	return 0
 }
 
 // admitWrite counts one write in, unless writes are closed. The check and the
@@ -329,11 +350,17 @@ func (a *app) admitWrite() bool {
 // to finish. On timeout it reopens admission and reports false, so the app
 // keeps running as it was.
 func (a *app) drainWrites(limit time.Duration) bool {
+	return a.drainWritesTo(0, limit)
+}
+
+// drainWritesTo is drainWrites for a caller that is itself one of held admitted
+// writes: it waits for the count to fall to held, not to zero.
+func (a *app) drainWritesTo(held int64, limit time.Duration) bool {
 	a.rt.writesMu.Lock()
 	a.rt.writesClosed = true
 	a.rt.writesMu.Unlock()
 	deadline := time.Now().Add(limit)
-	for a.rt.writesInFlight.Load() != 0 {
+	for a.rt.writesInFlight.Load() > held {
 		if time.Now().After(deadline) {
 			a.reopenWrites()
 			return false
@@ -361,20 +388,31 @@ func (a *app) waitWritesIdle(limit time.Duration) bool {
 func (a *app) reopenWrites() {
 	a.rt.writesMu.Lock()
 	a.rt.writesClosed = false
+	a.rt.writesClosedForPort = false
 	a.rt.writesMu.Unlock()
+}
+
+// restartingText is the sentence a refused write gets while writes are closed.
+func (a *app) restartingText() string {
+	a.rt.writesMu.Lock()
+	defer a.rt.writesMu.Unlock()
+	if a.rt.writesClosedForPort {
+		return appcore.TextSaveRefusedPortRestart
+	}
+	return appcore.TextSaveRefusedUpdateRestart
 }
 
 // refuseWriteWhileRestarting answers a write that arrived after the restart
 // closed admission. ClayJS waits Retry-After and sends the same save again, also
 // through the refused connections while no version listens, so it lands on the
 // new version a few seconds later (clayjs src/core/save-core.js, `restarting`).
-func refuseWriteWhileRestarting(w http.ResponseWriter) {
+func refuseWriteWhileRestarting(w http.ResponseWriter, text string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Retry-After", "2")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	json.NewEncoder(w).Encode(map[string]any{
 		"ok":      false,
-		"msg":     "HTML Clay is restarting to finish an update, so nothing was saved. Try again in a few seconds.",
+		"msg":     text,
 		"msgType": "error",
 		"code":    "restarting",
 	})
@@ -383,11 +421,16 @@ func refuseWriteWhileRestarting(w http.ResponseWriter) {
 // waitQuiet reports whether inFlight stayed at zero for quiet, waiting at
 // most limit for that to happen.
 func waitQuiet(inFlight *atomic.Int64, quiet, limit time.Duration) bool {
+	return waitQuietTo(inFlight, 0, quiet, limit)
+}
+
+// waitQuietTo is waitQuiet for a caller that is itself one of held admitted writes.
+func waitQuietTo(inFlight *atomic.Int64, held int64, quiet, limit time.Duration) bool {
 	deadline := time.Now().Add(limit)
 	var since time.Time
 	for {
 		now := time.Now()
-		if inFlight.Load() == 0 {
+		if inFlight.Load() <= held {
 			if since.IsZero() {
 				since = now
 			}

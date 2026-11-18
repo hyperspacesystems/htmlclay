@@ -28,6 +28,7 @@ func (askingPolicy) AIEditFor(string) (bool, bool)                { return false
 func (askingPolicy) AskAIEdit(string)                             {}
 func (askingPolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
 func (askingPolicy) AIEditModels() map[string]string              { return nil }
+func (askingPolicy) AIEditEfforts() map[string]string             { return nil }
 func (askingPolicy) BuiltinFor(string, string) builtin.Access     { return builtin.Access{} }
 func (askingPolicy) AskBuiltin(string, string)                    {}
 func (askingPolicy) RevealFile(string) error                      { return nil }

@@ -169,4 +169,10 @@ final class UpdateNowTests: XCTestCase {
         XCTAssertFalse(ok)
         XCTAssertEqual(rig.coordinator.updateNow("9.0.2"), "failed the restart to v9.0.2 was cancelled on screen")
     }
+
+    // What's new opens the changelog page at the running version's entry.
+    func testWhatsNewOpensTheRunningVersionsEntry() {
+        XCTAssertEqual(Strings.Updates.whatsNewLink("2.0.3")?.absoluteString, "https://htmlclay.com/changelog#v2.0.3")
+        XCTAssertEqual(Strings.Updates.whatsNewLink("v2.0.3")?.absoluteString, "https://htmlclay.com/changelog#v2.0.3")
+    }
 }

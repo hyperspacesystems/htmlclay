@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -61,6 +62,37 @@ func TestAIEditToolPreferenceRefusesUnknown(t *testing.T) {
 	refusal := a.setPreference(appcore.Effect{Type: "prefs.set", Key: "aiEditTool", Value: value})
 	if refusal == nil || refusal.Code != appcore.RefuseNoSuchTool {
 		t.Fatalf("refusal = %+v, want no-such-tool", refusal)
+	}
+}
+
+func TestAIEditEffortIsCheckedSavedAndListed(t *testing.T) {
+	cfgBase := t.TempDir()
+	a := newTestAppWithConfigDir(t, t.TempDir(), cfgBase)
+	set := func(tool, effort string) *appcore.Refusal {
+		args, _ := json.Marshal(map[string]string{"tool": tool, "effort": effort})
+		_, refusal := a.do(context.Background(), appcore.Action{Type: "aiEdit.setEffort", Args: args}, ChannelShell)
+		return refusal
+	}
+	if refusal := set("codex", "ultra"); refusal == nil || refusal.Code != appcore.RefuseBadArguments {
+		t.Fatalf("an effort codex does not list = %+v, want bad-arguments", refusal)
+	}
+	if refusal := set("claude", "high"); refusal == nil || refusal.Code != appcore.RefuseNotAllowedNow {
+		t.Fatalf("an effort for a tool with no effort setting = %+v, want not-allowed-now", refusal)
+	}
+	if refusal := set("codex", "xhigh"); refusal != nil {
+		t.Fatalf("aiEdit.setEffort = %+v, want none", refusal)
+	}
+	fresh, _, err := config.LoadFrom(cfgBase, nil)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got := fresh.AIEditEfforts()["codex"]; got != "xhigh" {
+		t.Fatalf("saved codex effort = %q, want xhigh", got)
+	}
+	for _, tool := range a.aiEditTools() {
+		if tool.ID == "codex" && (tool.Effort != "xhigh" || tool.DefaultEffort != "high" || tool.DefaultModel != "gpt-5.6-sol") {
+			t.Fatalf("listed codex = %+v, want effort xhigh, default effort high, default model gpt-5.6-sol", tool)
+		}
 	}
 }
 

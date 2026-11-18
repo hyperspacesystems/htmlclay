@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/dashboard/assets"
+	servicefiles "github.com/panphora/htmlclay/service"
 )
 
 // TicketTTL is how long a ticket from EntryURL may wait to be spent.
@@ -42,8 +43,9 @@ const TextHowToOpen = "To open the workspace, choose Open Workspace in the HTML 
 // pagePath is every address the bundle renders: Local's own list, plus the
 // pages the dashboard's own Go routes read for a recent document, a waiting
 // request, or a trusted folder's files, plus the settings pages (the app's
-// settings on Windows and Linux, where no native settings window exists).
-var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new)|recent|needs-you|recent/[^/]+/versions|trusted/[^/]+/files|synced/[^/]+/history|settings(/(general|files|folders|programs|updates|advanced|sync))?|settings/(folders|programs)/[^/]+)?$`)
+// settings on Windows and Linux, where no native settings window exists), plus
+// the Windows panel's page.
+var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new)|recent|needs-you|panel|recent/[^/]+/versions|trusted/[^/]+/files|synced/[^/]+/history|settings(/(general|files|folders|programs|updates|advanced|sync))?|settings/(folders|programs)/[^/]+)?$`)
 
 // appAPIPrefix is the API the app answers in Go rather than through the service.
 // It is let in by the session the entry page set together with the entry page's
@@ -55,10 +57,11 @@ const appAPIPrefix = "/api/app/"
 // and the answer is only a redirect to the document's own address.
 var appOpenPath = regexp.MustCompile(`^/api/app/folders/[^/]+/open$`)
 
-// templatePath is a starter template's preview image, which the live-room
-// service answers. An <img> cannot add the token, and the images are the app's
-// own, so they need neither the token nor a session.
-var templatePath = regexp.MustCompile(`^/templates/[a-z0-9-]+\.svg$`)
+// templatePath is a starter template's preview image, answered from the
+// pictures built into the app, so Home shows them while the live-room service
+// is off. An <img> cannot add the token, and the images are the app's own, so
+// they need neither the token nor a session.
+var templatePath = regexp.MustCompile(`^/templates/([a-z0-9-]+)\.svg$`)
 
 // Options configures one dashboard.
 type Options struct {
@@ -313,8 +316,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.page(w, r)
 	case s.assetPaths[p]:
 		s.asset(w, r, strings.TrimPrefix(p, "/"))
-	case templatePath.MatchString(p) && s.api != nil:
-		s.api.ServeHTTP(w, r)
+	case templatePath.MatchString(p):
+		s.picture(w, templatePath.FindStringSubmatch(p)[1])
 	default:
 		refuse(w, http.StatusNotFound, "missing")
 	}
@@ -483,6 +486,19 @@ func (s *Server) asset(w http.ResponseWriter, r *http.Request, name string) {
 	}
 	w.Header().Set("Content-Type", ctype)
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Write(b)
+}
+
+func (s *Server) picture(w http.ResponseWriter, id string) {
+	b, ok := servicefiles.Picture(id)
+	if !ok {
+		refuse(w, http.StatusNotFound, "missing")
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "image/svg+xml")
+	h.Set("Cache-Control", "no-cache")
+	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
 	w.Write(b)
 }
 

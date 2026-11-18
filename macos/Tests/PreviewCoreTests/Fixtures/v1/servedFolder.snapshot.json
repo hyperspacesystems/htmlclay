@@ -11,6 +11,7 @@
     "stopped": false,
     "can": {
       "aiEdit.setCustom": false,
+      "aiEdit.setEffort": false,
       "aiEdit.setModel": false,
       "app.openRecoveredChanges": false,
       "app.revealLog": false,
@@ -49,6 +50,7 @@
       "program.relink": true,
       "program.remove": true,
       "program.removeAccess": true,
+      "program.removeAllAccess": true,
       "program.reveal": true,
       "program.setAllTrusted": true,
       "program.setOn": false,
@@ -59,6 +61,7 @@
       "sync.disconnect": false,
       "sync.revealLog": false,
       "sync.setPaused": false,
+      "template.create": true,
       "update.check": false,
       "update.start": false,
       "waiting.markSeen": true
@@ -265,7 +268,9 @@
     "automatic": true,
     "finishing": false,
     "checking": false,
-    "downloadURL": ""
+    "downloadURL": "",
+    "downloading": "",
+    "lastCheck": null
   },
   "preferences": {
     "openAtLogin": true,

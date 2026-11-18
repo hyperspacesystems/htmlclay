@@ -18,6 +18,7 @@ import (
 	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/logging"
+	"github.com/panphora/htmlclay/internal/panel"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/secret"
 	"github.com/panphora/htmlclay/internal/served"
@@ -201,12 +202,15 @@ type appRuntime struct {
 	writesInFlight atomic.Int64
 	writesMu       sync.Mutex
 	writesClosed   bool
+	// writesClosedForPort is a port change, not an update, closing writes.
+	writesClosedForPort bool
 	// quitForUpdate overrides how an applied update ends the process. Production
 	// leaves it nil and quits the tray, which runs the ordinary shutdown.
 	quitForUpdate func()
 	// restartHost overrides how a port change ends this process. Production
 	// leaves it nil and restarts for real; tests record the call.
-	restartHost func()
+	restartHost   func()
+	startDetached func(path string, args ...string) error
 	// held, while set, holds every request until startup has built the sites
 	// and restored the update handoff, so a request can never register a file
 	// under a fresh token before its old one comes back. main sets it before
@@ -246,6 +250,9 @@ type app struct {
 	nativeGrants bool
 	// grantOpen is true while one of those dialogs is open.
 	grantOpen atomic.Bool
+	// trayPanel is the Windows panel a left click on the tray icon opens; nil
+	// where a left click shows the menu (panel.go).
+	trayPanel *panel.Supervisor
 	// shell: started by the Mac app (--shell-stdin)
 	shell bool
 	// shellServer is the private listener the Mac app talks to, and shellDone closes
@@ -436,7 +443,14 @@ func main() {
 	finishUpdate := flag.Bool("finish-update", false, "Internal: finish an update this binary's previous version started")
 	afterPID := flag.Int("after-pid", 0, "Internal: wait for this process to exit first (a port change restart)")
 	openDashboard := flag.String("open-dashboard", "", "Internal: open this dashboard page once running (after a port change)")
+	panelChild := flag.Bool("panel", false, "Internal: run the Windows panel's window for the running app")
 	flag.Parse()
+
+	// The panel's child is started by the running app, so it must never reach
+	// the single-instance lock, which would forward its flag to that app.
+	if *panelChild {
+		os.Exit(panel.RunChild())
+	}
 
 	// Before initConfig, and so before the single-instance lock, on purpose. A
 	// launch that finds the lock held forwards its arguments to the running app
@@ -829,7 +843,11 @@ func (a *app) run() {
 		return
 	}
 	a.rt.logger.Printf("Starting system tray...")
-	tray.Run(&tray.MenuHooks{Rows: a.trayMenuRows, Do: a.doTrayMenu}, a.confirmQuit, func() {
+	hooks := &tray.MenuHooks{Rows: a.trayMenuRows, Do: a.doTrayMenu}
+	if a.trayPanel = a.newTrayPanel(); a.trayPanel != nil {
+		hooks.Tapped = a.panelTapped
+	}
+	tray.Run(hooks, a.confirmQuit, func() {
 		a.shutdown()
 	}, a.dialogAdvice)
 	a.rt.logger.Printf("Tray exited")

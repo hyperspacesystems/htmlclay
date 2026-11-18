@@ -301,6 +301,9 @@ func errorBody(r *appcore.Refusal) map[string]any {
 	if r.Counts != nil {
 		body["counts"] = r.Counts
 	}
+	if len(r.Running) > 0 {
+		body["running"] = r.Running
+	}
 	return body
 }
 

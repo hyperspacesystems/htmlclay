@@ -68,15 +68,18 @@ var ActionClasses = map[string]Class{
 	"update.check":              ClassSafe,
 	"host.setPort":              ClassSafe,
 	"aiEdit.setModel":           ClassSafe,
+	"aiEdit.setEffort":          ClassSafe,
 	"fileTypes.makeDefault":     ClassSafe,
 	"fileTypes.setHTMLOpenWith": ClassSafe,
 	"fileTypes.stopOpening":     ClassSafe,
+	"template.create":           ClassSafe,
 
-	"folder.stopServing":   ClassRevoke,
-	"folder.stopTrusting":  ClassRevoke,
-	"program.removeAccess": ClassRevoke,
-	"program.remove":       ClassRevoke,
-	"sync.disconnect":      ClassRevoke,
+	"folder.stopServing":      ClassRevoke,
+	"folder.stopTrusting":     ClassRevoke,
+	"program.removeAccess":    ClassRevoke,
+	"program.removeAllAccess": ClassRevoke,
+	"program.remove":          ClassRevoke,
+	"sync.disconnect":         ClassRevoke,
 
 	"folder.trust":        ClassGrant,
 	"folder.serve":        ClassGrant,
@@ -188,7 +191,9 @@ type Effect struct {
 	Port         int      `json:"port,omitempty"`
 	Tool         string   `json:"tool,omitempty"`
 	Model        string   `json:"model,omitempty"`
+	Effort       string   `json:"effort,omitempty"`
 	Command      string   `json:"command,omitempty"`
+	TemplateID   string   `json:"templateID,omitempty"`
 }
 
 // actionArgs is every argument any action takes; each action reads its own.
@@ -223,7 +228,9 @@ type actionArgs struct {
 	Port         int      `json:"port"`
 	Tool         string   `json:"tool"`
 	Model        string   `json:"model"`
+	Effort       string   `json:"effort"`
 	Command      string   `json:"command"`
+	TemplateID   string   `json:"templateID"`
 }
 
 // conflictChoices is which copies Local's resolveConflict can keep for each
@@ -305,7 +312,7 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if args.Port == f.Host.Port {
 			return nil, &Refusal{Code: RefusePortSame, Field: "port"}
 		}
-		return one(Effect{Type: a.Type, Port: args.Port})
+		return one(Effect{Type: a.Type, Port: args.Port, Confirmed: args.Confirmed})
 	case "program.setOn", "program.openExample":
 		p, ok := programByID(f, args.ProgramID)
 		if !ok || !p.Builtin || p.ID == AIEditProgram {
@@ -330,6 +337,23 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 			return nil, &Refusal{Code: RefuseNotAllowedNow, Field: "tool"}
 		}
 		return one(Effect{Type: a.Type, Tool: tool.ID, Model: args.Model})
+	case "aiEdit.setEffort":
+		tool, ok := aiTool(f, args.Tool)
+		if !ok {
+			return nil, &Refusal{Code: RefuseNoSuchTool, Field: "tool"}
+		}
+		if len(tool.Efforts) == 0 {
+			return nil, &Refusal{Code: RefuseNotAllowedNow, Field: "tool"}
+		}
+		if args.Effort != "" && !slices.Contains(tool.Efforts, args.Effort) {
+			return bad("effort")
+		}
+		return one(Effect{Type: a.Type, Tool: tool.ID, Effort: args.Effort})
+	case "template.create":
+		if args.TemplateID == "" {
+			return bad("templateID")
+		}
+		return one(Effect{Type: a.Type, TemplateID: args.TemplateID})
 	case "aiEdit.setCustom":
 		if strings.TrimSpace(args.Command) == "" {
 			return bad("command")
@@ -476,10 +500,17 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if _, ok := programByID(f, args.ProgramID); !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
 		}
-		// An empty document takes the program away from every document that has
-		// it. DocumentID is the document's path, which is what a decision is keyed
+		if args.DocumentID == "" {
+			return bad("documentID")
+		}
+		// DocumentID is the document's path, which is what a decision is keyed
 		// by, so a document that is not open can be removed too.
 		return one(Effect{Type: a.Type, ProgramID: args.ProgramID, DocumentID: args.DocumentID})
+	case "program.removeAllAccess":
+		if _, ok := programByID(f, args.ProgramID); !ok {
+			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
+		}
+		return one(Effect{Type: a.Type, ProgramID: args.ProgramID})
 	case "program.remove":
 		program, ok := programByID(f, args.ProgramID)
 		if !ok {

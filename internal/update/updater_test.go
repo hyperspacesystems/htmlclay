@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -206,11 +207,12 @@ func TestUpdaterRunRetriesThenReportsReady(t *testing.T) {
 	}
 }
 
-func TestRunChecksNow(t *testing.T) {
+func TestRunChecksNowAndSaysWhatItFound(t *testing.T) {
 	priv, keys := testKeys(t)
 	fs := newFeedServer(t)
-	feed, _ := SignPayload(payloadJSON(t, fs.release("1.13.3")), "test-a", priv)
-	fs.setFeed(feed)
+	current, _ := SignPayload(payloadJSON(t, fs.release("1.13.3")), "test-a", priv)
+	newer, _ := SignPayload(payloadJSON(t, fs.release("1.14.0")), "test-a", priv)
+	fs.setFeed(current)
 	u := newTestUpdater(t, fs, keys)
 	u.FirstCheck = time.Hour
 
@@ -218,32 +220,60 @@ func TestRunChecksNow(t *testing.T) {
 	u.CheckNow = checkNow
 	var mu sync.Mutex
 	var calls []bool
+	var heard []string
 	u.Checking = func(on bool) {
 		mu.Lock()
 		calls = append(calls, on)
 		mu.Unlock()
 	}
+	u.Found = func(version string) {
+		mu.Lock()
+		heard = append(heard, "found "+version)
+		mu.Unlock()
+	}
+	results := make(chan CheckResult, 3)
+	u.Checked = func(r CheckResult) { results <- r }
+	ready := make(chan Ready, 1)
 
 	stop := make(chan struct{})
 	defer close(stop)
-	go u.Run(stop, func(Ready) { t.Error("a check with nothing newer reported an update") })
-
-	checkNow <- struct{}{}
-	deadline := time.Now().Add(2 * time.Second)
-	for {
+	go u.Run(stop, func(r Ready) {
 		mu.Lock()
-		got := append([]bool(nil), calls...)
+		heard = append(heard, "ready "+r.Version)
 		mu.Unlock()
-		if len(got) >= 2 {
-			if !got[0] || got[1] {
-				t.Fatalf("Checking calls %v, want true then false", got)
-			}
-			return
+		ready <- r
+	})
+	next := func() CheckResult {
+		t.Helper()
+		checkNow <- struct{}{}
+		select {
+		case r := <-results:
+			return r
+		case <-time.After(10 * time.Second):
+			t.Fatal("a check started by Check now never said how it ended")
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("Checking calls %v within 2 s, want true then false", got)
-		}
-		time.Sleep(10 * time.Millisecond)
+		return CheckResult{}
+	}
+
+	if r := next(); r.Found != "" || r.Err != nil {
+		t.Fatalf("a check with nothing newer = %+v, want the newest", r)
+	}
+	fs.setFeed([]byte("not a feed"))
+	if r := next(); r.Err == nil {
+		t.Fatalf("a check of a broken feed = %+v, want a failure", r)
+	}
+	fs.setFeed(newer)
+	if r := next(); r.Found != "1.14.0" || r.Err != nil {
+		t.Fatalf("a check of a newer feed = %+v, want 1.14.0 found", r)
+	}
+	<-ready
+	mu.Lock()
+	defer mu.Unlock()
+	if want := []string{"found 1.14.0", "ready 1.14.0"}; !slices.Equal(heard, want) {
+		t.Fatalf("heard %v, want %v: the download is announced before it is staged", heard, want)
+	}
+	if want := []bool{true, false, true, false, true, false}; !slices.Equal(calls, want) {
+		t.Fatalf("Checking calls %v, want %v", calls, want)
 	}
 }
 

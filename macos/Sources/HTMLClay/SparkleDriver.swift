@@ -29,6 +29,7 @@ final class SparkleDriver: UpdateDriver {
             case .checking: event = .checking
             case .upToDate: event = .upToDate
             case .checkEnded: event = .checkEnded
+            case .found: event = .found(text)
             @unknown default: return
             }
             Task { @MainActor in events(event) }

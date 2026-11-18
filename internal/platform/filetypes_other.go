@@ -8,7 +8,7 @@ func readFileTypes() FileTypeState {
 	return FileTypeState{Default: "unknown"}
 }
 
-func makeDefault(_, _ string) error { return errors.ErrUnsupported }
+func makeDefault(string) error { return errors.ErrUnsupported }
 
 func stopOpening() error { return errors.ErrUnsupported }
 

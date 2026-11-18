@@ -107,11 +107,22 @@ func (c *Config) AllowBuiltin(id, document string) {
 	p.Removed = slices.DeleteFunc(p.Removed, func(d string) bool { return d == document })
 }
 
-// ForgetBuiltin takes a program away from one document, or from every document
-// when document is "", and lists them as removed. Removing every document also
-// turns off All documents in my trusted folders. It returns the documents it
-// removed.
+// ForgetBuiltin takes a program away from one document and lists it as removed.
+// It returns the documents it removed; an empty document removes nothing.
 func (c *Config) ForgetBuiltin(id, document string) []string {
+	if document == "" {
+		return nil
+	}
+	return c.forgetBuiltin(id, func(d string) bool { return d == document }, false)
+}
+
+// ForgetBuiltinAll takes a program away from every document, lists them as
+// removed, and turns off All documents in my trusted folders.
+func (c *Config) ForgetBuiltinAll(id string) []string {
+	return c.forgetBuiltin(id, func(string) bool { return true }, true)
+}
+
+func (c *Config) forgetBuiltin(id string, match func(string) bool, all bool) []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	p := c.BuiltinPrograms[id]
@@ -120,14 +131,14 @@ func (c *Config) ForgetBuiltin(id, document string) []string {
 	}
 	var removed, kept []string
 	for _, d := range p.Documents {
-		if document == "" || d == document {
+		if match(d) {
 			removed = append(removed, d)
 		} else {
 			kept = append(kept, d)
 		}
 	}
 	p.Documents = kept
-	if document == "" {
+	if all {
 		p.AllTrusted = false
 	}
 	for _, d := range removed {
@@ -139,6 +150,25 @@ func (c *Config) ForgetBuiltin(id, document string) []string {
 		p.Removed = p.Removed[len(p.Removed)-builtinDocumentCap:]
 	}
 	return removed
+}
+
+// BuiltinGrant copies a built-in program's settings, so a change the settings
+// file could not save can be undone with RestoreBuiltin.
+func (c *Config) BuiltinGrant(id string) (BuiltinProgram, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	p := c.BuiltinPrograms[id]
+	if p == nil {
+		return BuiltinProgram{}, false
+	}
+	return BuiltinProgram{On: p.On, AllTrusted: p.AllTrusted, Documents: slices.Clone(p.Documents), Removed: slices.Clone(p.Removed)}, true
+}
+
+// RestoreBuiltin puts back the settings BuiltinGrant copied.
+func (c *Config) RestoreBuiltin(id string, p BuiltinProgram) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	*c.builtinLocked(id) = p
 }
 
 // BuiltinRemoved reports whether the person removed document's access to program.
@@ -231,6 +261,37 @@ func (c *Config) AIEditModels() map[string]string {
 		}
 	}
 	return out
+}
+
+// AIEditEfforts returns a copy of the reasoning effort chosen for each engine.
+func (c *Config) AIEditEfforts() map[string]string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := map[string]string{}
+	if c.AIEdit != nil {
+		for k, v := range c.AIEdit.Efforts {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// SetAIEditEffort records the reasoning effort an engine runs with. "" goes
+// back to HTML Clay's default for the engine.
+func (c *Config) SetAIEditEffort(engine, effort string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.AIEdit == nil {
+		c.AIEdit = &AIEditSettings{}
+	}
+	if effort == "" {
+		delete(c.AIEdit.Efforts, engine)
+		return
+	}
+	if c.AIEdit.Efforts == nil {
+		c.AIEdit.Efforts = make(map[string]string)
+	}
+	c.AIEdit.Efforts[engine] = effort
 }
 
 // SetAIEditDefault makes engine the one AI editing uses when a request names none.

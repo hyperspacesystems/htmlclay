@@ -22,6 +22,9 @@ type Refusal struct {
 	// Documents names the documents a refusal is about, as "<served name>/<file>"
 	// (quit-unsaved: the edits the live-room service could not save).
 	Documents []string
+	// Running is what a restart would stop (restart-stops-work): "work" (an AI
+	// edit or a document's program) and "sync".
+	Running []string
 	// Text is the sentence to show instead of the one copy.go gives Code, for a
 	// refusal made from a folder rule's reason.
 	Text string
@@ -136,6 +139,16 @@ const (
 	// RefuseStillRunning is an action that is already running; the answer comes
 	// when its effects finish.
 	RefuseStillRunning = "still-running"
+	// RefuseRestartStopsWork is a restart that would stop running work; the
+	// person may send the action again confirmed.
+	RefuseRestartStopsWork = "restart-stops-work"
+	// RefuseExamplesFolderInUse is Open example finding files HTML Clay did not
+	// put in ~/htmlclay/examples, which it will not trust on its own.
+	RefuseExamplesFolderInUse = "examples-folder-in-use"
+	// RefuseFinishInSettings is Make default on Windows opening Windows
+	// Settings: another app still holds .htmlclay, and only the person can
+	// choose HTML Clay there.
+	RefuseFinishInSettings = "finish-in-settings"
 	// RefuseNotYet is an action whose effect the app has no code for yet.
 	RefuseNotYet = "not-yet"
 

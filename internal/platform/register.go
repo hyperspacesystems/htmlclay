@@ -34,9 +34,10 @@ type FileTypeState struct {
 // the snapshot path.
 func ReadFileTypes() FileTypeState { return readFileTypes() }
 
-// MakeDefault makes HTML Clay open .htmlclay files. On Windows, which lets only
-// the person choose, it opens the system's "open with" chooser for example.
-func MakeDefault(exePath, example string) error { return makeDefault(exePath, example) }
+// MakeDefault makes HTML Clay open .htmlclay files. On Windows it may delete
+// another app's stored choice for .htmlclay (never .html or .htm), and answers
+// ErrFinishInSettings, with Settings open, when Windows still names that app.
+func MakeDefault(exePath string) error { return makeDefault(exePath) }
 
 // StopOpening hands .htmlclay files back to the system: the default browser on
 // Linux, nothing registered on Windows.

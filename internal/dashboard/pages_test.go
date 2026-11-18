@@ -30,6 +30,7 @@ func TestM3PagePath(t *testing.T) {
 			"/settings/updates",
 			"/settings/advanced",
 			"/settings/sync",
+			"/panel",
 		} {
 			entry, err := s.EntryURL(to)
 			if err != nil {
@@ -60,6 +61,7 @@ func TestM3PagePath(t *testing.T) {
 			"/settings/sync/x",
 			"/settings/folders/a/b",
 			"/settingsx",
+			"/panel/x",
 		} {
 			if _, err := s.EntryURL(to); err == nil {
 				t.Fatalf("EntryURL(%q) succeeded", to)

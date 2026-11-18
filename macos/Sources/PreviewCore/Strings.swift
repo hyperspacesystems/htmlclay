@@ -219,8 +219,8 @@ public enum Strings {
         public static let searchExample = "File Search.htmlclay"
         public static let searchExampleSub = "Search a folder by word or file type and reveal matches in Finder."
         public static let convertDoes = "Converts and resizes images"
-        public static let convertOffSub = "Converts PNG, JPG, GIF, BMP, TIFF and WebP images to PNG, JPG, GIF, BMP or TIFF, and resizes them."
-        public static let convertEnableSub = "Lets allowed documents save PNG, JPG, GIF, BMP, TIFF or WebP images as PNG, JPG, GIF, BMP or TIFF and resize them. Documents ask for it as “file-convert”."
+        public static let convertOffSub = "Converts and resizes PNG, JPEG, GIF, BMP, TIFF and WebP images, and converts HEIC photos to those formats."
+        public static let convertEnableSub = "Lets allowed documents convert and resize PNG, JPEG, GIF, BMP, TIFF and WebP images, and save HEIC photos in those formats. Documents ask for it as “file-convert”."
         public static let convertExample = "Image Converter.htmlclay"
         public static let convertExampleSub = "Convert images between formats and sizes right inside a page."
         public static let watchDoes = "Tells a document when files in a folder change"
@@ -255,6 +255,9 @@ public enum Strings {
         public static let allowAgain = "Allow again…"
         public static let chooseAnotherFile = "Choose another file…"
         public static let removeAllAccess = "Remove all access"
+        public static func removeAllTitle(_ title: String) -> String { "Remove all access to \(title)?" }
+        public static let removeAllBody = "No document can use it until you allow it again."
+        public static let cancel = "Cancel"
         public static let showInFinder = Menu.showInFinder
         public static func pathLine(path: String, ready: Bool, name: String) -> String {
             "\(path) · \(ready ? "ready" : "file missing") · documents ask for it as “\(name)”"
@@ -270,6 +273,17 @@ public enum Strings {
         public static let aiToolClaude = "Claude"
         public static let aiToolCodex = "Codex"
         public static let aiCodexDefault = "Codex default"
+        public static let aiEffort = "Effort"
+        /// The name shown for a reasoning effort value: low, medium, high, xhigh.
+        public static func aiEffortName(_ effort: String) -> String {
+            switch effort {
+            case "low": "Low"
+            case "medium": "Medium"
+            case "high": "High"
+            case "xhigh": "Extra high"
+            default: effort
+            }
+        }
         public static let aiNoTools = "Claude and Codex were not found on this Mac. Install either tool, or set up a custom command below."
         public static let aiCustomTitle = "Custom command"
         public static let aiCustomSub = "Use any other command line tool on this Mac"
@@ -334,6 +348,8 @@ public enum Strings {
         public static func latest(_ version: String) -> String { "HTML Clay \(version)" }
         public static func latest(_ version: String, checked: String) -> String { "HTML Clay \(version) · Checked \(checked)" }
         public static let justNow = "just now"
+        public static let checkFailed = "Couldn't check for updates"
+        public static func checkFailedSub(_ version: String, tried: String) -> String { "HTML Clay \(version) · Tried \(tried)" }
         public static let checking = "Checking for updates…"
         public static func checkingYouHave(_ version: String) -> String { "You have HTML Clay \(version)" }
         public static func readySub(_ current: String) -> String { "You have \(current) · Downloaded and ready to install" }
@@ -349,7 +365,12 @@ public enum Strings {
         public static let versionDot = "."
         public static func wouldRestart(_ version: String) -> String { "Build 1: this would restart HTML Clay into \(version)." }
         public static let wouldCheck = "Build 1: this would check for a new version."
-        public static let whatsNewURL = "https://github.com/panphora/htmlclay/blob/main/CHANGELOG.md"
+        public static let whatsNewURL = "https://htmlclay.com/changelog"
+        /// What's new opens the changelog page at the running version's entry.
+        public static func whatsNewLink(_ version: String) -> URL? {
+            let bare = version.hasPrefix("v") ? String(version.dropFirst()) : version
+            return URL(string: whatsNewURL + "#v" + bare)
+        }
         // copy: dialog title when an AI edit or a document's program is still running at Restart to update, max 50 chars
         public static let runningWorkTitle = "Something is still running"
         // copy: dialog body for the same, says restarting stops it, max 140 chars
@@ -364,6 +385,16 @@ public enum Strings {
         public static let restartFailedTitle = "HTML Clay couldn't restart to update"
         // copy: notice body for the same, says nothing was lost and it keeps running, max 140 chars
         public static let restartFailedBody = "Nothing was lost and HTML Clay is still running. Try Restart to update again in a moment."
+        // copy: Updates pane status row, the status menu row and the panel while Sparkle downloads a found update, %@ is the version, max 40 chars
+        public static func downloading(_ version: String) -> String { "Downloading HTML Clay \(version)…" }
+        // copy: alert title after a Check for updates the person asked for found nothing newer, max 50 chars
+        public static let latestAlertTitle = "HTML Clay is up to date"
+        // copy: alert body for the same, %@ is this version, max 140 chars
+        public static func latestAlertBody(_ version: String) -> String { "HTML Clay \(version) is the newest version." }
+        // copy: alert title when a Check for updates the person asked for could not check, max 50 chars
+        public static let failedAlertTitle = "HTML Clay couldn't check for updates"
+        // copy: alert body for the same, what to do, max 140 chars
+        public static let failedAlertBody = "The update server could not be reached, or the download stopped. Check your connection and try again in a moment."
     }
     public enum Advanced {
         public static let port = "Port"

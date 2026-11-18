@@ -55,15 +55,15 @@ public enum SampleReducer {
         case let .setYourName(name): next.preferences.yourName = name
         case let .removeProgramAccess(programID, document):
             guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
-            if document.isEmpty {
-                for allowed in next.programs[p].allowedDocuments where !next.programs[p].removedDocuments.contains(allowed) {
-                    next.programs[p].removedDocuments.append(allowed)
-                }
-                next.programs[p].allowedDocuments = []
-            } else {
-                next.programs[p].allowedDocuments.removeAll { $0 == document }
-                if !next.programs[p].removedDocuments.contains(document) { next.programs[p].removedDocuments.append(document) }
+            next.programs[p].allowedDocuments.removeAll { $0 == document }
+            if !next.programs[p].removedDocuments.contains(document) { next.programs[p].removedDocuments.append(document) }
+        case let .removeAllProgramAccess(programID):
+            guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
+            for allowed in next.programs[p].allowedDocuments where !next.programs[p].removedDocuments.contains(allowed) {
+                next.programs[p].removedDocuments.append(allowed)
             }
+            next.programs[p].allowedDocuments = []
+            next.programs[p].allTrustedFolders = false
         case .connectSample, .connect:
             next.sync.connected = true
             next.sync.username = "panphora"
@@ -170,6 +170,9 @@ public enum SampleReducer {
         case let .setAIEditModel(tool, model):
             guard let t = next.preferences.aiEditTools.firstIndex(where: { $0.id == tool }) else { return snapshot }
             next.preferences.aiEditTools[t].model = model
+        case let .setAIEditEffort(tool, effort):
+            guard let t = next.preferences.aiEditTools.firstIndex(where: { $0.id == tool }) else { return snapshot }
+            next.preferences.aiEditTools[t].effort = effort
         case let .setAIEditCustom(command):
             if let t = next.preferences.aiEditTools.firstIndex(where: { $0.custom }) {
                 next.preferences.aiEditTools[t].command = command
@@ -177,7 +180,7 @@ public enum SampleReducer {
         case let .forgetDocument(id):
             guard next.documents.contains(where: { $0.id == id }) else { return snapshot }
             next.documents.removeAll { $0.id == id }
-        case .openDocument, .revealDocument, .openFile, .openDashboard,
+        case .openDocument, .revealDocument, .openFile, .createFromTemplate, .openDashboard,
              .revealFolder, .copyAddress, .connect, .quit, .revealProgram,
              .exportDocument, .recoverDocument, .openVersions, .openRecoveredChanges, .showRequest, .revealSyncLog,
              .revealLog, .setPort, .openProgramExample, .checkForUpdates, .makeDefaultFileType,

@@ -44,9 +44,14 @@ func Build(f Facts) Snapshot {
 		RecoveredChanges: f.RecoveredChanges,
 		FileTypes:        f.FileTypes,
 	}
-	if s.Preferences.AIEditTools == nil {
-		s.Preferences.AIEditTools = []AIEditTool{}
+	tools := make([]AIEditTool, 0, len(f.Preferences.AIEditTools))
+	for _, t := range f.Preferences.AIEditTools {
+		if t.Efforts == nil {
+			t.Efforts = []string{}
+		}
+		tools = append(tools, t)
 	}
+	s.Preferences.AIEditTools = tools
 	for _, d := range f.Documents {
 		doc := Document{
 			ID:           d.ID,

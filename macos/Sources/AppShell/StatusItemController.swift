@@ -61,7 +61,8 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     private var updatePhase: MenuUpdatePhase {
-        MenuUpdatePhase(checking: updates?.checking ?? false, ready: updates?.prepared ?? "")
+        MenuUpdatePhase(checking: updates?.checking ?? false, ready: updates?.prepared ?? "",
+                        downloading: updates?.downloading ?? "")
     }
 
     func buildOneMenu(rows: [MenuRow]) -> NSMenu {
@@ -129,6 +130,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
             switch row.kind {
             case "ready": return Strings.Menu.restartToUpdate(UpdateState.short(updatePhase.ready))
             case "checking": return Strings.Updates.checking
+            case "downloading": return Strings.Updates.downloading(UpdateState.short(updatePhase.downloading))
             default: return Strings.Menu.version(UpdateState.short(model.snapshot.update.current))
             }
         case "syncLine": return Strings.Panel.syncLine(model.snapshot.sync)
@@ -246,6 +248,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         withObservationTracking {
             _ = model.snapshot
             _ = model.note
+            _ = model.updaterRev
         } onChange: { [weak self] in
             DispatchQueue.main.async { self?.sizePanel() }
         }

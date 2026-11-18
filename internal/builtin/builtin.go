@@ -71,7 +71,7 @@ func invalid(field string) *Error {
 	case "path":
 		message = "Choose a file or folder inside this folder."
 	case "to":
-		message = "Choose JPEG, PNG, GIF, BMP or TIFF."
+		message = "Choose PNG, JPEG, GIF, BMP, TIFF or WebP."
 	case "maxWidth", "maxHeight":
 		message = "Enter a size up to 10,000 pixels."
 	case "quality":

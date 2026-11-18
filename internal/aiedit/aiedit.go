@@ -47,8 +47,20 @@ type Options struct {
 	Env      []string               // environment for the child; nil means helper.LoginEnv()
 	Internal func(path string) bool // reports a path in the server's own state; nil means none
 	Models   map[string]string      // engine name -> model; "" or missing is the engine's default
+	Efforts  map[string]string      // engine name -> reasoning effort; "" or missing is the engine's default
 	Mock     bool                   // deterministic fake reply, for tests and MOCK_MODEL=1
 	Status   func(text string)      // lifecycle status for the page; nil means none
+}
+
+// choose applies the model and effort the person picked for e.
+func (o Options) choose(e engine) engine {
+	if model := o.Models[e.name]; model != "" {
+		e.model = model
+	}
+	if effort := o.Efforts[e.name]; effort != "" {
+		e.effort = effort
+	}
+	return e
 }
 
 type Result struct {
@@ -72,6 +84,7 @@ type engine struct {
 	name    string
 	adapter string
 	model   string
+	effort  string
 	command []string
 }
 
@@ -81,7 +94,7 @@ func builtinEngines() map[string]engine {
 	return map[string]engine{
 		"claude": {name: "claude", adapter: "claude", model: "claude-opus-5-5"},
 		"fable":  {name: "fable", adapter: "claude", model: "claude-fable-5-2"},
-		"codex":  {name: "codex", adapter: "codex"},
+		"codex":  {name: "codex", adapter: "codex", model: "gpt-5.6-sol", effort: "high"},
 		"agy":    {name: "agy", adapter: "unsupported"},
 	}
 }
@@ -256,9 +269,7 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 	if routeErr != nil {
 		return Result{}, routeErr
 	}
-	if model := o.Models[chosen.name]; model != "" {
-		chosen.model = model
-	}
+	chosen = o.choose(chosen)
 	if chosen.adapter == "unsupported" {
 		return Result{}, &Error{
 			Code:    "engine_unsupported",
@@ -333,10 +344,7 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 			return Result{}, &Error{Code: "engine_unavailable", Message: "Neither Claude Code nor Codex is installed. Install one and sign in."}
 		}
 		status(fmt.Sprintf("%s isn't installed, editing with %s", programLabel(chosen), statusLabel(other)))
-		chosen, program, bin = other, otherProgram, otherBin
-		if model := o.Models[chosen.name]; model != "" {
-			chosen.model = model
-		}
+		chosen, program, bin = o.choose(other), otherProgram, otherBin
 	} else {
 		status("Editing with " + statusLabel(chosen))
 	}

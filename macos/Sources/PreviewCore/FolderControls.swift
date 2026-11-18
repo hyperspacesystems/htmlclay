@@ -39,6 +39,7 @@ public enum HostActionType {
     public static let programAdd = "program.add"
     public static let programSetAllTrusted = "program.setAllTrusted"
     public static let programRemoveAccess = "program.removeAccess"
+    public static let programRemoveAllAccess = "program.removeAllAccess"
     public static let programRelink = "program.relink"
     public static let programAskAgain = "program.askAgain"
     public static let programRemove = "program.remove"

@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -176,14 +177,32 @@ func (a *app) setBuiltinAllTrusted(e appcore.Effect) *appcore.Refusal {
 	return nil
 }
 
+// removeBuiltinAccess is program.removeAccess and program.removeAllAccess for a
+// built-in program. A settings file that cannot be saved leaves every allow as
+// it was.
 func (a *app) removeBuiltinAccess(e appcore.Effect) *appcore.Refusal {
-	for _, document := range a.rt.cfg.ForgetBuiltin(e.ProgramID, e.DocumentID) {
+	all := e.Type == "program.removeAllAccess"
+	previous, had := a.rt.cfg.BuiltinGrant(e.ProgramID)
+	var removed []string
+	if all {
+		removed = a.rt.cfg.ForgetBuiltinAll(e.ProgramID)
+	} else {
+		removed = a.rt.cfg.ForgetBuiltin(e.ProgramID, e.DocumentID)
+	}
+	if err := a.rt.cfg.Save(); err != nil {
+		if had {
+			a.rt.cfg.RestoreBuiltin(e.ProgramID, previous)
+		}
+		a.rt.logger.Printf("Could not remove access to %s: %v", e.ProgramID, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	a.changed()
+	for _, document := range removed {
 		a.cancelBuiltins(e.ProgramID, document)
 	}
-	if e.DocumentID == "" {
+	if all {
 		a.cancelBuiltins(e.ProgramID, "")
 	}
-	a.saveConfig("built-in program access")
 	return nil
 }
 
@@ -213,6 +232,15 @@ func (a *app) cancelBuiltins(program, document string) {
 	}
 }
 
+// examplesDir is ~/htmlclay/examples, where Open example writes.
+func examplesDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "htmlclay", "examples"), nil
+}
+
 // openBuiltinExample writes the program's example document (and, for the
 // converter, a sample image) to ~/htmlclay/examples, trusts that folder, allows
 // the example to run the program and opens it. An example already on disk is
@@ -222,11 +250,13 @@ func (a *app) openBuiltinExample(id string) *appcore.Refusal {
 	if !ok {
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchProgram, SubjectID: id}
 	}
-	home, err := os.UserHomeDir()
+	dir, err := examplesDir()
 	if err != nil {
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
-	dir := filepath.Join(home, "htmlclay", "examples")
+	if refusal := a.checkExamplesFolder(dir); refusal != nil {
+		return refusal
+	}
 	path := filepath.Join(dir, name)
 	if err := writeIfMissing(path, data); err != nil {
 		a.rt.logger.Printf("Could not write the %s example: %v", id, err)
@@ -245,6 +275,56 @@ func (a *app) openBuiltinExample(id string) *appcore.Refusal {
 	a.saveConfig("built-in program example")
 	a.openFile(path)
 	return nil
+}
+
+// checkExamplesFolder refuses to trust ~/htmlclay/examples while it holds
+// anything HTML Clay did not put there, because a trusted folder lets the
+// examples' programs read every file in it. A folder the person already
+// trusts is not checked.
+func (a *app) checkExamplesFolder(dir string) *appcore.Refusal {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		a.rt.logger.Printf("Could not read %s: %v", dir, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	if canonical, err := a.rt.policy.Canonical(dir); err == nil && a.trustedLive(canonical) {
+		return nil
+	}
+	for _, entry := range entries {
+		if !expectedInExamples(entry) {
+			a.rt.logger.Printf("Open example: %s holds %q, which HTML Clay did not put there", dir, entry.Name())
+			return &appcore.Refusal{Code: appcore.RefuseExamplesFolderInUse}
+		}
+	}
+	return nil
+}
+
+var (
+	systemFolderFiles      = []string{".ds_store", "thumbs.db", "desktop.ini", ".directory"}
+	exampleImageExtensions = []string{".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
+)
+
+// expectedInExamples is a regular file HTML Clay or the system put in the
+// examples folder: an example, the sample photo, an image the converter made,
+// the welcome example Make default writes, or a file the system's file
+// browser leaves behind (Finder, Explorer, KDE's Dolphin).
+func expectedInExamples(entry fs.DirEntry) bool {
+	if !entry.Type().IsRegular() {
+		return false
+	}
+	name := strings.ToLower(entry.Name())
+	if name == sampleImageName || name == welcomeExampleName || slices.Contains(systemFolderFiles, name) {
+		return true
+	}
+	for _, example := range builtin.ExampleNames {
+		if name == strings.ToLower(example) {
+			return true
+		}
+	}
+	return slices.Contains(exampleImageExtensions, filepath.Ext(name))
 }
 
 func writeIfMissing(path string, data []byte) error {

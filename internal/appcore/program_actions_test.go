@@ -38,13 +38,14 @@ func planOne(t *testing.T, f Facts, typ, args string) (Effect, *Refusal) {
 func TestM3ProgramPlan(t *testing.T) {
 	t.Run("the classes keep the dashboard from granting", func(t *testing.T) {
 		cases := map[string]Class{
-			"program.add":           ClassGrant,
-			"program.relink":        ClassGrant,
-			"program.askAgain":      ClassGrant,
-			"program.setAllTrusted": ClassGrant,
-			"program.removeAccess":  ClassRevoke,
-			"program.remove":        ClassRevoke,
-			"program.reveal":        ClassSafe,
+			"program.add":             ClassGrant,
+			"program.relink":          ClassGrant,
+			"program.askAgain":        ClassGrant,
+			"program.setAllTrusted":   ClassGrant,
+			"program.removeAccess":    ClassRevoke,
+			"program.removeAllAccess": ClassRevoke,
+			"program.remove":          ClassRevoke,
+			"program.reveal":          ClassSafe,
 		}
 		for typ, want := range cases {
 			if got := ClassOf(Action{Type: typ, Args: json.RawMessage(`{"on":true}`)}); got != want {
@@ -124,13 +125,16 @@ func TestM3ProgramPlan(t *testing.T) {
 		}
 	})
 
-	t.Run("remove access names one document or every document", func(t *testing.T) {
+	t.Run("remove access names one document and remove all access names none", func(t *testing.T) {
 		one, refusal := planOne(t, programFactsForPlan(), "program.removeAccess", `{"programID":"p1","documentID":"/Users/x/docs/one.htmlclay"}`)
 		if refusal != nil || one.DocumentID != "/Users/x/docs/one.htmlclay" || one.ProgramID != "p1" {
 			t.Fatalf("one document = %+v, %+v", one, refusal)
 		}
-		all, refusal := planOne(t, programFactsForPlan(), "program.removeAccess", `{"programID":"p1"}`)
-		if refusal != nil || all.DocumentID != "" || all.ProgramID != "p1" {
+		if _, refusal := Plan(programFactsForPlan(), Action{Type: "program.removeAccess", Args: json.RawMessage(`{"programID":"p1","documentID":""}`)}); refusal == nil || refusal.Code != RefuseBadArguments || refusal.Field != "documentID" {
+			t.Fatalf("remove access with an empty document = %+v, want bad-arguments on documentID", refusal)
+		}
+		all, refusal := planOne(t, programFactsForPlan(), "program.removeAllAccess", `{"programID":"p1"}`)
+		if refusal != nil || all.Type != "program.removeAllAccess" || all.ProgramID != "p1" {
 			t.Fatalf("every document = %+v, %+v", all, refusal)
 		}
 	})

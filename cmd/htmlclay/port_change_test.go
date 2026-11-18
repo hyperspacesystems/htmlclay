@@ -205,8 +205,8 @@ func TestSetPortWaitsForARunningAIEdit(t *testing.T) {
 	})
 
 	refusal := a.runEffect(context.Background(), appcore.Effect{Type: "host.setPort", Port: freeLoopbackPort(t)})
-	if refusal == nil || refusal.Code != appcore.RefuseStillRunning {
-		t.Fatalf("host.setPort during an AI edit = %+v, want %s", refusal, appcore.RefuseStillRunning)
+	if refusal == nil || refusal.Code != appcore.RefuseRestartStopsWork || !slices.Equal(refusal.Running, []string{"work"}) {
+		t.Fatalf("host.setPort during an AI edit = %+v, want %s naming work", refusal, appcore.RefuseRestartStopsWork)
 	}
 	if restarted {
 		t.Fatal("the port change restarted the app and stopped the AI edit")
@@ -221,8 +221,8 @@ func TestSetPortWaitsForSyncToGoQuiet(t *testing.T) {
 	oldPort := a.rt.cfg.Port()
 
 	refusal := a.runEffect(context.Background(), appcore.Effect{Type: "host.setPort", Port: freeLoopbackPort(t)})
-	if refusal == nil || refusal.Code != appcore.RefuseStillRunning {
-		t.Fatalf("host.setPort while sync is busy = %+v, want %s", refusal, appcore.RefuseStillRunning)
+	if refusal == nil || refusal.Code != appcore.RefuseRestartStopsWork || !slices.Equal(refusal.Running, []string{"sync"}) {
+		t.Fatalf("host.setPort while sync is busy = %+v, want %s naming sync", refusal, appcore.RefuseRestartStopsWork)
 	}
 	if restarted || a.rt.cfg.Port() != oldPort {
 		t.Fatalf("the port change went ahead while sync was busy (restarted %v, port %d)", restarted, a.rt.cfg.Port())

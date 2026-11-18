@@ -37,6 +37,13 @@ type Ready struct {
 	StagedPath string
 }
 
+// CheckResult is how one check ended: Found is the newer version it staged,
+// Err why it failed, and neither means this version is the newest.
+type CheckResult struct {
+	Found string
+	Err   error
+}
+
 // Updater checks the signed feed and stages a newer release for this
 // platform. It never applies anything: the person does, from the tray.
 type Updater struct {
@@ -59,6 +66,12 @@ type Updater struct {
 	// Automatic, when set and false, stops the timed checks: Run then checks only
 	// when CheckNow asks. A nil Automatic checks on the timer as before.
 	Automatic func() bool
+	// Found, when set, is told the newer version a feed offers, before its
+	// download starts.
+	Found func(version string)
+	// Checked, when set, is told how each check ended, after ready for a check
+	// that staged an update.
+	Checked func(CheckResult)
 }
 
 // seen is updates/seen.json, the highest version any verified feed has
@@ -107,10 +120,17 @@ func (u *Updater) Run(stop <-chan struct{}, ready func(Ready)) {
 		if u.Checking != nil {
 			u.Checking(false)
 		}
+		result := CheckResult{Err: err}
 		if err != nil {
 			u.logf("Update check failed, retrying in %s: %v", interval, err)
 		} else if r != nil {
+			result.Found = r.Version
 			ready(*r)
+		}
+		if u.Checked != nil {
+			u.Checked(result)
+		}
+		if result.Found != "" {
 			return
 		}
 		wait = interval
@@ -152,6 +172,9 @@ func (u *Updater) CheckOnce() (*Ready, error) {
 	a, ok := rel.ArtifactFor(u.GOOS, u.GOARCH)
 	if !ok {
 		return nil, fmt.Errorf("release %s has no artifact for %s-%s", rel.Version, u.GOOS, u.GOARCH)
+	}
+	if u.Found != nil {
+		u.Found(rel.Version)
 	}
 	verDir := filepath.Join(u.Dir, rel.Version)
 	// The download is only an intermediate: Stage leaves the binary beside the

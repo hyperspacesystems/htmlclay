@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -63,12 +64,7 @@ func (a *app) runFileTypeEffect(e appcore.Effect) *appcore.Refusal {
 	switch e.Type {
 	case "fileTypes.makeDefault":
 		a.rt.cfg.SetStopOpeningFiles(false)
-		example, perr := a.welcomeExamplePath()
-		if perr == nil {
-			err = platform.MakeDefault(exe, example)
-		} else {
-			err = perr
-		}
+		err = platform.MakeDefault(exe)
 	case "fileTypes.stopOpening":
 		if err = platform.StopOpening(); err == nil {
 			a.rt.cfg.SetStopOpeningFiles(true)
@@ -82,19 +78,33 @@ func (a *app) runFileTypeEffect(e appcore.Effect) *appcore.Refusal {
 	go a.refreshFileTypeState()
 	if err != nil {
 		a.rt.logger.Printf("Could not change file types (%s): %v", e.Type, err)
-		return &appcore.Refusal{Code: appcore.RefuseFailed}
+		return fileTypeRefusal(err)
 	}
 	return nil
 }
 
+// fileTypeRefusal is the answer to a file type change that did not finish:
+// Make default on Windows sending the person to Settings, or a failure.
+func fileTypeRefusal(err error) *appcore.Refusal {
+	if errors.Is(err, platform.ErrFinishInSettings) {
+		return &appcore.Refusal{Code: appcore.RefuseFinishInSettings}
+	}
+	return &appcore.Refusal{Code: appcore.RefuseFailed}
+}
+
+// welcomeExampleName is the welcome example that Make default wrote into
+// ~/htmlclay/examples before 2.0, for Windows's chooser; the examples folder
+// check still expects it there.
+const welcomeExampleName = "welcome.htmlclay"
+
 // welcomeExamplePath writes the welcome example if it is missing and returns
-// its path: Windows's chooser needs a .htmlclay file to ask about.
+// its path.
 func (a *app) welcomeExamplePath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(home, "htmlclay", "examples", "welcome.htmlclay")
+	path := filepath.Join(home, "htmlclay", "examples", welcomeExampleName)
 	return path, ensureExampleFile(path)
 }
 

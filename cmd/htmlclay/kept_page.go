@@ -112,8 +112,7 @@ func (a *app) openKeptPage() {
 	}
 }
 
-// serveKept answers every /recovered path on the bare 127.0.0.1 host. The old
-// /kept paths send a page that was open across the update on to the new ones.
+// serveKept answers every /recovered path on the bare 127.0.0.1 host.
 func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 	nonce, err := randomHex()
 	if err != nil {
@@ -126,14 +125,6 @@ func (a *app) serveKept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now()
-	if r.URL.Path == "/kept" || strings.HasPrefix(r.URL.Path, "/kept/") {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.NotFound(w, r)
-			return
-		}
-		http.Redirect(w, r, "/recovered"+strings.TrimPrefix(r.URL.Path, "/kept")+queryOf(r.URL.RawQuery), http.StatusFound)
-		return
-	}
 	switch r.URL.Path {
 	case "/recovered/open":
 		if r.Method != http.MethodGet {
@@ -372,21 +363,7 @@ func (a *app) writeKeptPage(w http.ResponseWriter, view keptView) {
 }
 
 // keptPath reports whether path is under /recovered, one of the paths the bare
-// 127.0.0.1 host serves besides its index page, or under the page's old /kept
-// prefix, which serveKept sends on to /recovered.
+// 127.0.0.1 host serves besides its index page.
 func keptPath(path string) bool {
-	for _, prefix := range []string{"/recovered", "/kept"} {
-		if path == prefix || strings.HasPrefix(path, prefix+"/") {
-			return true
-		}
-	}
-	return false
-}
-
-// queryOf is ?query when there is one, for a redirect that keeps it.
-func queryOf(rawQuery string) string {
-	if rawQuery == "" {
-		return ""
-	}
-	return "?" + rawQuery
+	return path == "/recovered" || strings.HasPrefix(path, "/recovered/")
 }

@@ -282,7 +282,24 @@ type UpdateState struct {
 	// DownloadURL is set when a newer version exists that this build cannot
 	// install itself: the update row opens it.
 	DownloadURL string `json:"downloadURL"`
+	// Downloading is the newer version being downloaded now, or empty.
+	Downloading string `json:"downloading"`
+	// LastCheck is how the last finished check ended; nil before the first.
+	LastCheck *UpdateCheck `json:"lastCheck"`
 }
+
+// UpdateCheck is one finished update check: when, and what it found.
+type UpdateCheck struct {
+	At     time.Time `json:"at"`
+	Result string    `json:"result"`
+}
+
+// Update check results.
+const (
+	UpdateLatest = "latest"
+	UpdateFound  = "found"
+	UpdateFailed = "failed"
+)
 
 // Appearances.
 const (
@@ -345,7 +362,12 @@ type AIEditTool struct {
 	Model        string   `json:"model"`
 	DefaultModel string   `json:"defaultModel"`
 	Models       []string `json:"models"`
-	Command      string   `json:"command"`
+	// Effort is the reasoning effort chosen for the tool, "" for HTML Clay's
+	// default; Efforts is empty for a tool with no effort setting.
+	Effort        string   `json:"effort"`
+	DefaultEffort string   `json:"defaultEffort"`
+	Efforts       []string `json:"efforts"`
+	Command       string   `json:"command"`
 }
 
 // FileTypes is what HTML Clay knows about the system's file types. Managed is

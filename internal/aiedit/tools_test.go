@@ -84,7 +84,7 @@ func TestSplitCommandKeepsWindowsPaths(t *testing.T) {
 }
 
 func TestCodexArgsCarryTheModel(t *testing.T) {
-	argv := codexArgs("/d", "/o", "gpt-x")
+	argv := codexArgs("/d", "/o", "gpt-x", "")
 	if !hasArg(argv, "-m") {
 		t.Fatalf("argv = %v, want a -m flag", argv)
 	}
@@ -94,8 +94,33 @@ func TestCodexArgsCarryTheModel(t *testing.T) {
 	if slices.Index(argv, "-m") > slices.Index(argv, "-C") {
 		t.Fatalf("argv = %v, want -m before -C", argv)
 	}
-	if hasArg(codexArgs("/d", "/o", ""), "-m") {
+	if hasArg(codexArgs("/d", "/o", "", ""), "-m") {
 		t.Fatal("an empty model must add no -m flag")
+	}
+}
+
+func TestCodexRunsTheChosenEffortAndRefusesOthers(t *testing.T) {
+	codex := builtinEngines()["codex"]
+	cases := []struct {
+		name    string
+		efforts map[string]string
+		want    string
+	}{
+		{"no choice saved", nil, `model_reasoning_effort="high"`},
+		{"a listed choice", map[string]string{"codex": "xhigh"}, `model_reasoning_effort="xhigh"`},
+	}
+	for _, tc := range cases {
+		e := Options{Efforts: tc.efforts}.choose(codex)
+		argv := codexArgs("/d", "/o", e.model, e.effort)
+		if got := argAfter(t, argv, "-m"); got != "gpt-5.6-sol" {
+			t.Fatalf("%s: -m = %q, want gpt-5.6-sol", tc.name, got)
+		}
+		if got := argAfter(t, argv, "-c"); got != tc.want {
+			t.Fatalf("%s: -c = %q, want %s", tc.name, got, tc.want)
+		}
+	}
+	if hasArg(codexArgs("/d", "/o", "", `high" --dangerously`), "-c") {
+		t.Fatal("an effort codex does not list must add no -c flag")
 	}
 }
 

@@ -33,6 +33,10 @@ func (p servedWirePolicy) AIEditModels() map[string]string {
 	return p.a.rt.cfg.AIEditModels()
 }
 
+func (p servedWirePolicy) AIEditEfforts() map[string]string {
+	return p.a.rt.cfg.AIEditEfforts()
+}
+
 // bindServedPage binds a served document's programs before its page loads,
 // with the decisions already made. Nothing is asked here: a page load is not a
 // request to set anything up.

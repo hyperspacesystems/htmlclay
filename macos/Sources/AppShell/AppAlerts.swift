@@ -87,6 +87,15 @@ public final class AppAlerts: UpdatePresenter {
         _ = make(Strings.Updates.restartFailedTitle, Strings.Updates.restartFailedBody, buttons: [Strings.Open.ok]).runModal()
     }
 
+    public func checkEnded(_ result: UpdateCheckResult) {
+        switch result {
+        case .latest:
+            _ = make(Strings.Updates.latestAlertTitle, Strings.Updates.latestAlertBody(UpdateState.short(model.snapshot.update.current)), buttons: [Strings.Open.ok]).runModal()
+        case .failed:
+            _ = make(Strings.Updates.failedAlertTitle, Strings.Updates.failedAlertBody, buttons: [Strings.Open.ok]).runModal()
+        }
+    }
+
     private func make(_ title: String, _ message: String, buttons: [String]) -> NSAlert {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()

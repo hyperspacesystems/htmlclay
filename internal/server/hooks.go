@@ -89,6 +89,9 @@ type Hooks struct {
 
 	// AIEditModels returns the model each AI engine runs with. Nil means defaults.
 	AIEditModels func() map[string]string
+	// AIEditEfforts returns the reasoning effort each AI engine runs with. Nil
+	// means defaults.
+	AIEditEfforts func() map[string]string
 	// BuiltinFor answers whether document may run a built-in program now. Nil
 	// means every built-in program is off.
 	BuiltinFor func(document, program string) builtin.Access

@@ -1,24 +1,14 @@
 package platform
 
 import (
-	"os/exec"
 	"strings"
-	"syscall"
 
 	"golang.org/x/sys/windows/registry"
 )
 
-const userChoicePath = `Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.htmlclay\UserChoice`
-
 func readFileTypes() FileTypeState {
 	state := FileTypeState{Default: "other"}
-	if k, err := registry.OpenKey(registry.CURRENT_USER, userChoicePath, registry.QUERY_VALUE); err == nil {
-		id, _, err := k.GetStringValue("ProgId")
-		k.Close()
-		if err == nil && strings.EqualFold(id, progID) {
-			state.Default = "htmlclay"
-		}
-	} else if classDefaultIs(`.htmlclay`, progID) {
+	if strings.EqualFold(effectiveOpener(), progID) {
 		state.Default = "htmlclay"
 	}
 	if k, err := registry.OpenKey(registry.CURRENT_USER, classesPath+`\.html\OpenWithProgids`, registry.QUERY_VALUE); err == nil {
@@ -29,25 +19,21 @@ func readFileTypes() FileTypeState {
 	return state
 }
 
-func makeDefault(exePath, example string) error {
-	if err := registerFileTypes(exePath, FileTypeOptions{HTMLClay: true, HTMLOpenWith: readFileTypes().HTMLOpenWith}); err != nil {
-		return err
-	}
-	cmd := exec.Command("rundll32.exe", "shell32.dll,OpenAs_RunDLL", example)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Start()
+func makeDefault(exePath string) error {
+	return runMakeDefault(windowsDefaultApp{exePath: exePath})
 }
 
-// stopOpening removes HTML Clay as the opener of .htmlclay files: the choice a
-// person made in Windows' "open with" chooser (UserChoice, which wins over the
-// class default) when it names HTML Clay, and the class default it registered.
+// stopOpening removes HTML Clay as the opener of .htmlclay files: each choice
+// the person made in Windows (UserChoiceLatest and UserChoice, which win over
+// the class default) that names HTML Clay, and the class default it registered.
+// A choice naming another app is that app's, and stays.
 func stopOpening() error {
 	var firstErr error
-	if k, err := registry.OpenKey(registry.CURRENT_USER, userChoicePath, registry.QUERY_VALUE); err == nil {
-		id, _, _ := k.GetStringValue("ProgId")
-		k.Close()
-		if strings.EqualFold(id, progID) {
-			firstErr = registry.DeleteKey(registry.CURRENT_USER, userChoicePath)
+	for _, path := range htmlclayChoiceKeys {
+		if id, ok := choiceProgID(path); ok && strings.EqualFold(id, progID) {
+			if err := deleteTree(registry.CURRENT_USER, path); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
 	if classDefaultIs(`.htmlclay`, progID) {

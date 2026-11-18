@@ -196,6 +196,9 @@ type AIEditSettings struct {
 	// Models is the model each engine runs with, by engine name. A missing or
 	// empty entry is the engine's own default.
 	Models map[string]string `json:"models,omitempty"`
+	// Efforts is the reasoning effort each engine runs with, by engine name. A
+	// missing or empty entry is HTML Clay's default for that engine.
+	Efforts map[string]string `json:"efforts,omitempty"`
 }
 
 // sitePortCap bounds the remembered-port map. Every entry becomes a bound

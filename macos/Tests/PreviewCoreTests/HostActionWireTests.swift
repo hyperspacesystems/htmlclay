@@ -9,7 +9,8 @@ final class HostActionWireTests: XCTestCase {
     private static let goArgumentNames: Set<String> = [
         "id", "ids", "path", "name", "route", "key", "value", "on", "allow", "paused", "force",
         "programID", "documentID", "revision", "answer", "username", "folderIDs", "acknowledged",
-        "destination", "keep", "choice", "port", "tool", "model", "command",
+        "destination", "keep", "choice", "port", "tool", "model", "command", "confirmed", "effort",
+        "templateID",
     ]
 
     private static let everyAction: [HostAction] = [
@@ -58,6 +59,9 @@ final class HostActionWireTests: XCTestCase {
         .openRecoveredChanges,
         .revealLog,
         .setPort(1313),
+        .setPort(1313, confirmed: true),
+        .removeAllProgramAccess(programID: "p1"),
+        .setAIEditEffort(tool: "codex", effort: "high"),
         .setProgramOn(programID: "file-search", on: true),
         .openProgramExample(programID: "file-search"),
         .setAIEditTool("claude"),
@@ -68,6 +72,7 @@ final class HostActionWireTests: XCTestCase {
         .setHTMLOpenWith(true),
         .stopOpeningFiles,
         .openFile(path: "/tmp/file.html"),
+        .createFromTemplate(templateID: "kanban"),
         .openDashboard(route: "/folders"),
         .revealFolder(id: "f1"),
         .copyAddress(folderID: "f1"),

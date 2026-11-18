@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -114,6 +115,21 @@ func TestQuitRefusalNamesDocuments(t *testing.T) {
 	}
 	if len(refusal.Documents) != 1 || refusal.Documents[0] != "notes/index.html" {
 		t.Fatalf("host.quit documents = %v, want [notes/index.html]", refusal.Documents)
+	}
+
+	c := openDashboardOver(t, a, nil)
+	status, body := c.act("quit-1", "host.quit", map[string]any{})
+	var answer struct {
+		Refusal struct {
+			Code      string   `json:"code"`
+			Documents []string `json:"documents"`
+		} `json:"refusal"`
+	}
+	if err := json.Unmarshal([]byte(body), &answer); status != http.StatusConflict || err != nil {
+		t.Fatalf("host.quit from a dashboard page = %d %s", status, body)
+	}
+	if answer.Refusal.Code != appcore.RefuseQuitUnsaved || !slices.Equal(answer.Refusal.Documents, []string{"notes/index.html"}) {
+		t.Fatalf("host.quit from a dashboard page = %s, want %s naming notes/index.html (the Windows panel's Quit question lists them)", body, appcore.RefuseQuitUnsaved)
 	}
 }
 
