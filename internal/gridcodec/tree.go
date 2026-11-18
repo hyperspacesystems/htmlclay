@@ -140,6 +140,7 @@ func cellModel(td *html.Node) *Cell {
 func rowModel(tr *html.Node, frozen bool) Row {
 	row := Row{ID: cleanText(attrOr(tr, "data-id", "")), Pos: cleanText(attrOr(tr, "data-pos", ""))}
 	row.Frozen = frozen
+	row.Hidden = hasAttr(tr, "hidden")
 	if style, ok := elementAttr(tr, "style"); ok {
 		row.Style = strp(cleanText(style))
 	}
@@ -158,6 +159,7 @@ func colModel(node *html.Node) Col {
 	if fmtValue, ok := elementAttr(node, "fmt"); ok {
 		col.Fmt = strp(cleanText(fmtValue))
 	}
+	col.Hidden = hasAttr(node, "hidden")
 	if match := widthPattern.FindStringSubmatch(attrOr(node, "style", "")); match != nil {
 		width, _ := strconv.Atoi(match[1])
 		col.Width = intp(width)
