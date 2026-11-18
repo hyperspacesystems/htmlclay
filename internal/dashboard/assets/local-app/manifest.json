@@ -3,9 +3,9 @@
   "protocol": 1,
   "package": "0.13.1",
   "entry": {
-    "javascript": "main-RXSS7LIL.js",
+    "javascript": "main-KDDAYWKF.js",
     "css": [
-      "main-6K2TLVWD.css"
+      "main-CNFJ26Q5.css"
     ]
   },
   "assets": [
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
-      "path": "main-6K2TLVWD.css",
-      "bytes": 393013,
-      "sha256": "d92f5fb47de7a26f441406fed9769f4b04e64ef63fc2e0beb90dfd86c0b0baf4"
+      "path": "main-CNFJ26Q5.css",
+      "bytes": 401232,
+      "sha256": "23c5e4d8f7a302fd81777f7f1b65f7d293574f8c5a90f4d7c30941617add3cfd"
     },
     {
-      "path": "main-RXSS7LIL.js",
-      "bytes": 1812066,
-      "sha256": "d9ab2de5f9023c79b98190867745c1442b480bf5bb0f9ad34431780a52147b5e"
+      "path": "main-KDDAYWKF.js",
+      "bytes": 1828823,
+      "sha256": "c1f2fa5a6bf602ec502f3ad9874f7a9a22c4c8027aec7aa9311617e1d4119a09"
     }
   ]
 }
