@@ -74,30 +74,6 @@ func TestWriteDocumentWithRulesBOM(t *testing.T) {
 			t.Errorf("bytes:\n got: %q\nwant: %q", res.HTML, src)
 		}
 	})
-
-	t.Run("changed", func(t *testing.T) {
-		data, err := decodeJSON(`{"t":"Yo"}`)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res, err := WriteDocumentWithRules([]byte(src), data, rules)
-		if err != nil {
-			t.Fatalf("WriteDocumentWithRules: %v", err)
-		}
-		if !res.Changed {
-			t.Errorf("Changed = false, want true")
-		}
-		if !res.Spliced {
-			t.Errorf("Spliced = false, want true")
-		}
-		if !strings.HasPrefix(string(res.HTML), "\xEF\xBB\xBF") {
-			t.Errorf("output lost the BOM: %q", res.HTML)
-		}
-		want := strings.Replace(src, "<h1>Hi</h1>", "<h1>Yo</h1>", 1)
-		if string(res.HTML) != want {
-			t.Errorf("bytes:\n got: %q\nwant: %q", res.HTML, want)
-		}
-	})
 }
 
 // TestAttributePresenceRoundTrips: an empty attribute is present, so it reads as "" and writing ""

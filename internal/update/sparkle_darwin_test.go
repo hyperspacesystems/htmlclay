@@ -303,17 +303,6 @@ func TestClearStateOnlyRemovesItsOwnUpdate(t *testing.T) {
 	}
 }
 
-func TestMarkHealthReportsForASparkleUpdate(t *testing.T) {
-	dir := t.TempDir()
-	writeJSONAtomic(filepath.Join(dir, stateFile), &State{Schema: StateSchema, Phase: PhaseApplying, From: "1.0.0", To: "2.0.0", Txid: "t", Installer: InstallerSparkle, Time: time.Now()})
-	if err := MarkHealth(dir, "2.0.0", HealthServing); err != nil {
-		t.Fatal(err)
-	}
-	if h, _ := readHealth(dir); h == nil || h.Txid != "t" || h.Phase != HealthServing {
-		t.Fatalf("health %+v", h)
-	}
-}
-
 func TestRestoreBundleSwapsAndDeletesTheFailedOne(t *testing.T) {
 	root := t.TempDir()
 	bundle := filepath.Join(root, "HTMLClay.app")

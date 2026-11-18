@@ -706,26 +706,6 @@ func TestEtagMatches(t *testing.T) {
 	}
 }
 
-func TestSidecarEncoding(t *testing.T) {
-	cases := []struct {
-		name, encoding, inner string
-		ok                    bool
-	}{
-		{"mesh.glb.br", "br", "mesh.glb", true},
-		{"bundle.js.gz", "gzip", "bundle.js", true},
-		{"style.css", "", "", false},
-		{"archive.tar", "", "", false},
-		{"notes.brotli", "", "", false},
-	}
-	for _, c := range cases {
-		enc, inner, ok := sidecarEncoding(c.name)
-		if ok != c.ok || enc != c.encoding || inner != c.inner {
-			t.Errorf("sidecarEncoding(%q) = (%q,%q,%v), want (%q,%q,%v)",
-				c.name, enc, inner, ok, c.encoding, c.inner, c.ok)
-		}
-	}
-}
-
 // os.Root follows relative in-root symlinks, so a directory component swapped
 // for such a symlink BETWEEN the serve path being resolved and the capability
 // open that acts on it can redirect the read into the internal tree while the

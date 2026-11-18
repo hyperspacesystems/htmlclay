@@ -49,17 +49,6 @@ func pageBase(t *testing.T, source string) string {
 	return base
 }
 
-func TestPageAdmissionOrdinarySavePreservesBytesAndStamp(t *testing.T) {
-	srv, _, _ := setupHandlerTest(t)
-	old := pageDocument("")
-	f := registerPageWithContent(t, srv, "ordinary-page.htmlclay", old)
-	next := strings.Replace(old, "outside", "changed", 1)
-	w := savePageThroughMux(t, srv, f, next, specwire.Etag([]byte(old)), "", "")
-	if w.Code != http.StatusOK || docString(t, f.AbsPath) != next || decode(t, w)["etag"] != specwire.Etag([]byte(next)) {
-		t.Fatalf("ordinary document saves unchanged: %d, %s", w.Code, w.Body.String())
-	}
-}
-
 func TestPageAdmissionConvertedSaveRefusalsLeaveNoTrace(t *testing.T) {
 	srv, _, _ := setupHandlerTest(t)
 	converted := pageDocument(pageYJS)

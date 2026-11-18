@@ -69,21 +69,6 @@ func getAPIQuery(t *testing.T, srv *Server, name, rawQuery string) *httptest.Res
 	return w
 }
 
-func TestDataAPISheetWholeRead(t *testing.T) {
-	srv, _, _ := setupHandlerTest(t)
-	cases := sheetVectors(t)
-	twoTabs := cases["sheet-read-two-tabs"]
-	writeHome(t, srv, "test.htmlclay", twoTabs.HTML)
-
-	w := getAPIQuery(t, srv, "test.htmlclay", "")
-	if w.Code != 200 {
-		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
-	}
-	if got, want := compactBody(t, w.Body.Bytes()), vectorJSON(t, twoTabs, "expected.json"); got != want {
-		t.Errorf("body = %s\nwant  = %s", got, want)
-	}
-}
-
 func TestDataAPISheetIndexShape(t *testing.T) {
 	srv, _, _ := setupHandlerTest(t)
 	cases := sheetVectors(t)

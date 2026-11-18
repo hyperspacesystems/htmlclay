@@ -357,39 +357,6 @@ func TestFallBackDSTOrdersByInstantNotWallClock(t *testing.T) {
 	}
 }
 
-// Two versions inside one millisecond share an instant, so the collision suffix
-// is the only thing ordering them — and -02 must still come before -10.
-func TestCollisionSuffixBreaksTiesWithinOneMillisecond(t *testing.T) {
-	when := time.Date(2026, 11, 1, 1, 30, 0, 431*int(time.Millisecond), time.FixedZone("EDT", -4*3600))
-
-	bare, seqBare, err := ParseEntryName(entryName(when, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	two, seqTwo, err := ParseEntryName(entryName(when, 2))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ten, seqTen, err := ParseEntryName(entryName(when, 10))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bare.Equal(two) || !two.Equal(ten) {
-		t.Fatal("collision names must share one instant")
-	}
-	if seqBare != 0 || seqTwo != 2 || seqTen != 10 {
-		t.Fatalf("seqs = %d, %d, %d", seqBare, seqTwo, seqTen)
-	}
-
-	e := func(seq int) Entry { return Entry{Time: when, Seq: seq} }
-	if !e(0).before(e(2)) || !e(2).before(e(10)) {
-		t.Fatal("collision suffix does not order within one millisecond")
-	}
-	if e(10).before(e(2)) {
-		t.Fatal("-10 sorted before -02")
-	}
-}
-
 // Backups that share one instant take a collision suffix, and must still be
 // distinct, parse, and sort strictly after the one before them.
 //

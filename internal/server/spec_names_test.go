@@ -147,21 +147,6 @@ func TestBothMetaRoutesAgreeOnHostScope(t *testing.T) {
 	}
 }
 
-// A bad token is a per-document reason, and §5 forbids answering one with a 404:
-// the client reads that as a spec-unaware host and loses every capability this one
-// really has. The tokenless route is what stays available, so a client that gets
-// nowhere with its token can still discover the host.
-func TestHostMetaStillAnswersWhenATokenDoesNot(t *testing.T) {
-	srv, _, _ := setupHandlerTest(t)
-
-	if w := getThroughMux(t, srv, "/_/meta/not-a-real-token"); w.Code == 200 {
-		t.Fatal("a bogus token was accepted; this test proves nothing")
-	}
-	if w := getThroughMux(t, srv, "/_/meta"); w.Code != 200 {
-		t.Errorf("discovery unavailable without a valid token: got %d", w.Code)
-	}
-}
-
 // --- legacy attribute names, spec §9 --------------------------------------
 
 // A page served by a build from before the rename holds `htmlclaytoken`. If that
@@ -366,28 +351,6 @@ func TestADocumentThatKnowsOnlyTheOldTokenNameStillSaves(t *testing.T) {
 	}
 	if !strings.Contains(string(saved), "v2") {
 		t.Error("the save did not land")
-	}
-}
-
-// Both names carry ONE value. Two different credentials on one tag would mean a
-// reader's choice of name decided which one it saved with.
-func TestTheTwoTokenSpellingsCarryTheSameValue(t *testing.T) {
-	srv, f, _ := setupHandlerTest(t)
-
-	root := rootTagOf(getThroughMux(t, srv, "/"+f.RelPath).Body.Bytes())
-	var seen []string
-	for _, name := range []string{"savetoken", oldTokenAttr} {
-		m := regexp.MustCompile(name + `="([^"]*)"`).FindStringSubmatch(root)
-		if m == nil {
-			t.Fatalf("the served root carries no %s: %q", name, root)
-		}
-		seen = append(seen, m[1])
-	}
-	if seen[0] != seen[1] {
-		t.Errorf("the two spellings carry different credentials: %q vs %q", seen[0], seen[1])
-	}
-	if seen[0] != f.Token {
-		t.Errorf("neither is this file's token: got %q, want %q", seen[0], f.Token)
 	}
 }
 

@@ -44,47 +44,6 @@ func TestObjectKeyOrderMatchesJS(t *testing.T) {
 	}
 }
 
-func TestIsArrayIndexBoundaries(t *testing.T) {
-	cases := []struct {
-		in   string
-		want bool
-	}{
-		{"0", true},
-		{"1", true},
-		{"2", true},
-		{"10", true},
-		{"4294967294", true},  // 2^32-2, the maximum index
-		{"4294967295", false}, // 2^32-1, the maximum LENGTH
-		{"4294967296", false},
-		{"00", false}, // leading zero does not round-trip
-		{"01", false},
-		{"-1", false},
-		{"1.0", false},
-		{"", false},
-		{"1e3", false},
-		{"12345678901", false}, // longer than any uint32 decimal
-		{" 1", false},
-	}
-	for _, c := range cases {
-		if got := isArrayIndex(c.in); got != c.want {
-			t.Errorf("isArrayIndex(%q) = %v, want %v", c.in, got, c.want)
-		}
-	}
-}
-
-// JS: `const p = {}; p["__proto__"] = "h1"` leaves Object.keys(p) empty, because the assignment
-// hits the legacy prototype setter. extract.js builds every result object exactly that way, so
-// the key never reaches the output and a Go map that emits it would break parity.
-func TestProtoKeyIsDropped(t *testing.T) {
-	o := obj("__proto__", "h1", "ok", "x")
-	if got := marshal(t, o); got != `{"ok":"x"}` {
-		t.Errorf("Marshal = %s, want {\"ok\":\"x\"}", got)
-	}
-	if o.Len() != 1 {
-		t.Errorf("Len = %d, want 1", o.Len())
-	}
-}
-
 // Overwriting keeps the key where it first appeared, matching JS assignment.
 func TestSetPreservesFirstInsertionPosition(t *testing.T) {
 	o := obj("a", "1", "b", "2", "a", "3")

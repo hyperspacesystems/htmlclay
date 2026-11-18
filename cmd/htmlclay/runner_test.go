@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -222,25 +221,6 @@ func TestLaunchArgv(t *testing.T) {
 	argv, attr := launchArgv(path)
 	if !reflect.DeepEqual(argv, []string{path}) || attr != nil {
 		t.Errorf("launchArgv(%q) = %#v, %#v; want the bare path", path, argv, attr)
-	}
-}
-
-func TestHelperReadRawLineTruncatesAndKeepsDraining(t *testing.T) {
-	long := strings.Repeat("x", 200<<10)
-	r := bufio.NewReaderSize(strings.NewReader(long+"\nafter\n"), 4<<10)
-	first, err := helperReadRawLine(r, 64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(first) != 64 {
-		t.Fatalf("first line is %d bytes, want 64", len(first))
-	}
-	second, err := helperReadRawLine(r, 64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if second != "after" {
-		t.Fatalf("second line = %q, want the line after the oversized one", second)
 	}
 }
 

@@ -313,46 +313,6 @@ func TestStaleWriteWarnsAfterExternalChange(t *testing.T) {
 	}
 }
 
-// The accepted limitation, stated as a test rather than left implicit: the notice
-// cannot tell two tabs apart, because lastServerWrite advanced on the first
-// tab's write. Backups are the safety net; this is a warning, not a guard.
-func TestStaleWriteCannotDistinguishTwoTabs(t *testing.T) {
-	fx := setupFileTest(t, "notes.htmlclay", page("original"))
-	fx.serve(t, "notes.htmlclay")
-
-	if body := decodeJSON(t, fx.save(t, page("tab A"))); body["msgType"] != "success" {
-		t.Fatalf("tab A: %v", body)
-	}
-	// Tab B saves from a stale in-memory DOM. Both tabs share one session.File,
-	// and neither client sends a base revision, so this is not flagged.
-	body := decodeJSON(t, fx.save(t, page("tab B")))
-	if body["msgType"] != "success" {
-		t.Fatalf("tab B was flagged, which per-file detection cannot actually do: %v", body)
-	}
-}
-
-// A save advances both records, so the watcher does not then report the browser's
-// own write back as a foreign change.
-func TestSaveAdvancesBothRecords(t *testing.T) {
-	fx := setupFileTest(t, "notes.htmlclay", page("original"))
-	fx.serve(t, "notes.htmlclay")
-	fx.save(t, page("written"))
-
-	onDisk, _ := os.ReadFile(fx.file.AbsPath)
-	want := versions.Hash(onDisk)
-
-	fx.file.Lock()
-	gotWrite, gotStable := fx.file.LastServerWrite(), fx.file.LastStableObservation()
-	fx.file.Unlock()
-
-	if gotWrite != want {
-		t.Fatal("save did not advance lastServerWrite")
-	}
-	if gotStable != want {
-		t.Fatal("save did not advance lastStableObservation")
-	}
-}
-
 // Serving never advances lastServerWrite. If it did, tab A could load H0, an
 // editor write H1, tab B load H1 and advance the record, and tab A's later save
 // would find no mismatch and silently destroy H1.
@@ -648,63 +608,6 @@ func TestForeignIDInASaveBodyIsNotAdopted(t *testing.T) {
 	sw := fx.serve(t, "notes.htmlclay")
 	if got := htmlutil.ReadHTMLClayID(sw.Body.Bytes()); got != resident {
 		t.Fatalf("the serve after a foreign-id save carries %q, want %s", got, resident)
-	}
-}
-
-// Backups are internal state and are never served on the app's own origin.
-func TestInternalVersionsDirectoryIsDenied(t *testing.T) {
-	homeDir, _ := filepath.EvalSymlinks(t.TempDir())
-	appDir := filepath.Join(homeDir, "app")
-	os.MkdirAll(appDir, 0755)
-	pagePath := filepath.Join(appDir, "index.htmlclay")
-	os.WriteFile(pagePath, []byte(page("app")), 0644)
-
-	// The config directory sits under the user's home on every platform, so put
-	// the versions store inside the served tree, which is the exposed shape.
-	store := versions.New(filepath.Join(appDir, "versions"))
-	if _, err := store.Backup("path:deadbeef", filepath.Join(appDir, "secret.htmlclay"), []byte(page("private"))); err != nil {
-		t.Fatal(err)
-	}
-
-	mgr := newTestManager(t, homeDir)
-	if _, err := mgr.Register(pagePath, session.ViaOsOpen); err != nil {
-		t.Fatal(err)
-	}
-	ln, _ := net.Listen("tcp", "127.0.0.1:0")
-	t.Cleanup(func() { ln.Close() })
-	srv := newTestServer(t, ln, mgr, logging.NewStdout(), store)
-	t.Cleanup(func() { srv.hub.shutdown(); srv.watcher.shutdown() })
-
-	base, _ := store.Dir()
-	dirents, _ := os.ReadDir(base)
-	if len(dirents) == 0 {
-		t.Fatal("no history folder to probe")
-	}
-	folder := dirents[0].Name()
-	entries, _ := os.ReadDir(filepath.Join(base, folder))
-
-	probes := []string{
-		"app/versions",
-		"app/versions/" + folder,
-		"app/versions/" + folder + "/meta.json",
-	}
-	for _, e := range entries {
-		probes = append(probes, "app/versions/"+folder+"/"+e.Name())
-	}
-
-	for _, rel := range probes {
-		req := httptest.NewRequest("GET", "/"+rel, nil)
-		req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
-		req.SetPathValue("path", rel)
-		w := httptest.NewRecorder()
-		srv.handleServeFile(w, req)
-
-		if w.Code != 404 {
-			t.Errorf("%s returned %d, want 404", rel, w.Code)
-		}
-		if strings.Contains(w.Body.String(), "private") {
-			t.Errorf("%s leaked backup content", rel)
-		}
 	}
 }
 

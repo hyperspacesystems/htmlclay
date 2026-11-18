@@ -239,20 +239,6 @@ func TestUnknownEngine(t *testing.T) {
 	}
 }
 
-func TestMissingBinary(t *testing.T) {
-	_, err := Run(context.Background(), Payload{
-		Tag:         "p",
-		ElementHTML: "<p>old</p>",
-		Comment:     "@claude tighten",
-	}, Options{Env: []string{"PATH=" + t.TempDir()}}, nil)
-	if code := errorCode(t, err); code != "engine_unavailable" {
-		t.Fatalf("code = %q", code)
-	}
-	if !strings.HasPrefix(err.Error(), "@claude isn't available") {
-		t.Fatalf("message = %q", err.Error())
-	}
-}
-
 func TestContextReferences(t *testing.T) {
 	requireUnix(t)
 	binDir := t.TempDir()

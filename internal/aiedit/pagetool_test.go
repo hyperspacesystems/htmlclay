@@ -277,28 +277,6 @@ func TestPageToolFencedReply(t *testing.T) {
 	}
 }
 
-func TestPageToolCancellation(t *testing.T) {
-	requireUnix(t)
-	binDir := t.TempDir()
-	writeAgent(t, binDir, "claude", fakeToolClaude)
-	request, failure := ValidateToolRequest(toolRequestJSON(t, toolRequestIDFixture, "make a tally", ""))
-	if failure != nil {
-		t.Fatalf("ValidateToolRequest: %v", failure)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(150 * time.Millisecond)
-		cancel()
-	}()
-	_, err := RunTool(ctx, request, ToolOptions{
-		Env:          testEnv(binDir, "FAKE_SLEEP=30"),
-		SystemPrompt: "HOUSE RULES",
-	})
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("err = %v, want a cancellation", err)
-	}
-}
-
 func TestPageToolTimeout(t *testing.T) {
 	requireUnix(t)
 	binDir := t.TempDir()

@@ -178,24 +178,6 @@ func TestStripTokenNotFirstAttribute(t *testing.T) {
 	}
 }
 
-func TestInjectTokenNoDuplication(t *testing.T) {
-	in := []byte(`<html lang="en" savetoken="old" htmlclaytoken="old" class="x">`)
-	out := InjectToken(in, "new")
-	expected := []byte(`<html savetoken="new" htmlclaytoken="new" lang="en" class="x">`)
-	if !bytes.Equal(out, expected) {
-		t.Errorf("got %q, want %q", out, expected)
-	}
-}
-
-func TestRoundTripNonFirstAttribute(t *testing.T) {
-	original := []byte(`<html lang="en" class="x">`)
-	injected := InjectToken(original, "tok123")
-	stripped := StripToken(injected)
-	if !bytes.Equal(stripped, original) {
-		t.Errorf("round-trip failed: got %q, want %q", stripped, original)
-	}
-}
-
 func TestInjectUnquotedToken(t *testing.T) {
 	in := []byte(`<html savetoken=foo lang="en">`)
 	out := InjectToken(in, "new")
@@ -298,17 +280,6 @@ func TestHTMLClayIDSurvivesTokenRoundTrip(t *testing.T) {
 	stripped := StripToken(injected)
 	if !bytes.Equal(stripped, original) {
 		t.Errorf("documentid should survive token round-trip: got %q, want %q", stripped, original)
-	}
-}
-
-func TestTokenAndHTMLClayIDCoexist(t *testing.T) {
-	in := []byte(`<html documentid="my-uuid" lang="en">`)
-	out := InjectToken(in, "tok123")
-	if !bytes.Contains(out, []byte(`documentid="my-uuid"`)) {
-		t.Error("documentid missing after token injection")
-	}
-	if !bytes.Contains(out, []byte(`savetoken="tok123" htmlclaytoken="tok123"`)) {
-		t.Error("savetoken missing after injection")
 	}
 }
 

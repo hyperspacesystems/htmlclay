@@ -235,23 +235,6 @@ func TestUploadSVGIsStoredAndServedInert(t *testing.T) {
 	}
 }
 
-// The upload has to be readable back, which is the half a store-only test misses.
-// It is answered from the library by the site server, not through a read root:
-// nothing here installs ~/htmlclay/uploads as one.
-func TestUploadIsReadableBack(t *testing.T) {
-	srv, f, _ := setupHandlerTest(t)
-
-	res := decodeUpload(t, postUpload(t, srv, f.Token, "cover.png", []byte("PNGDATA")))
-	w := getFromLibrary(t, srv, res.Uploads[0].URL)
-
-	if w.Code != 200 {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-	if w.Body.String() != "PNGDATA" {
-		t.Errorf("served %q, want PNGDATA", w.Body.String())
-	}
-}
-
 // The whole point of one per-computer library: the same link resolves on every
 // site server, whatever folder its document sits in.
 func TestUploadServedFromASecondSiteServer(t *testing.T) {

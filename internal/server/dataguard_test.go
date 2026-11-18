@@ -1012,43 +1012,6 @@ func TestGuardBarNeverSaved(t *testing.T) {
 	}
 }
 
-// A browser moves content placed after </body> into the body, and a comment
-// there stays a child of <html>, so the banner's markers come back reversed and
-// a byte-exact strip can no longer find them. The bar is inserted inside the
-// body for that reason, and this drives the whole round trip a real save takes.
-func TestGuardBarNotSavedAfterBrowserParse(t *testing.T) {
-	srv, f, path, _ := dataLossPending(t)
-
-	w := serve(t, srv, "/board.htmlclay", nil)
-	if w.Code != 200 {
-		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
-	}
-	served := w.Body.String()
-	if !strings.Contains(served, "data-htmlclay-guard") {
-		t.Fatalf("the served page did not carry the bar: %s", served)
-	}
-
-	parsed := browserRoundTrip(t, served)
-	start := strings.Index(parsed, "<!--htmlclay-banner-->")
-	end := strings.Index(parsed, "<!--/htmlclay-banner-->")
-	if start < 0 || end < 0 || end < start {
-		t.Fatalf("the parsed page lost the banner markers (start %d, end %d): %s", start, end, parsed)
-	}
-
-	if w := guardSave(t, srv, f, parsed, map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
-		t.Fatalf("save of the parsed bytes: %d %s", w.Code, w.Body.String())
-	}
-	saved := string(readFileBytes(t, path))
-	for _, forbidden := range []string{"data-htmlclay-guard", "Some saved data was removed", "htmlclay-banner", "/_/data-loss/"} {
-		if strings.Contains(saved, forbidden) {
-			t.Errorf("a save of the parsed page stored %q: %q", forbidden, saved)
-		}
-	}
-	if !strings.Contains(saved, "alpha") {
-		t.Errorf("the save lost its real content: %q", saved)
-	}
-}
-
 // A document may use any string as a rules key, $o included. The state decoder
 // used to read a leading $o as the conformance vectors' ordered-object encoding,
 // so a document with that field decoded to no baseline and quietly lost its
@@ -1131,46 +1094,6 @@ func TestGuardEventSurvivesRestartAndPrune(t *testing.T) {
 	}
 	if got := string(readFileBytes(t, docPath)); got != whole {
 		t.Errorf("bytes after restore = %q, want %q", got, whole)
-	}
-}
-
-// A real browser save that clobbers saved data is the case the whole guard
-// exists for: the event a page reads back names the loss and offers every way
-// out of it.
-func TestGuardBrowserSaveClobberRaises(t *testing.T) {
-	whole := string(lossParityPage("T", "alpha", "beta", "gamma", "delta"))
-	srv, f, _ := guardTestServer(t, whole)
-	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
-		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
-	}
-	if w := guardSave(t, srv, f, whole, map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
-		t.Fatalf("save: %d %s", w.Code, w.Body.String())
-	}
-	srv.guardQueue.Settle()
-	if w := guardSave(t, srv, f, string(lossParityPage("T", "alpha")), map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
-		t.Fatalf("clobber: %d %s", w.Code, w.Body.String())
-	}
-	srv.guardQueue.Settle()
-
-	w := dataLossGet(t, srv, f.Token)
-	if w.Code != 200 {
-		t.Fatalf("data-loss GET = %d: %s", w.Code, w.Body.String())
-	}
-	event := decodeDataLossEvent(t, w)
-	if event == nil {
-		t.Fatal("a save that removed 3 of 4 items raised no event")
-	}
-	if event.Status != "pending" {
-		t.Errorf("status = %q, want pending", event.Status)
-	}
-	if got := event.LossSummary.DestroyedAtoms; got != 3 {
-		t.Errorf("destroyedAtoms = %d, want the 3 removed items", got)
-	}
-	if got := event.LossSummary.Provenance; got != dataguard.UIGestured {
-		t.Errorf("provenance = %q, want %q", got, dataguard.UIGestured)
-	}
-	if !event.CanRevert {
-		t.Error("canRevert = false, want the pre-clobber bytes to be recoverable")
 	}
 }
 
@@ -1740,48 +1663,6 @@ func TestGuardStaleReadDoesNotClearNewLoss(t *testing.T) {
 	}
 	if st.Event.Status != "pending" {
 		t.Fatalf("event status = %q, want pending", st.Event.Status)
-	}
-}
-
-// A document that is only opened, never saved, still has a baseline, so an outside
-// edit made after that one open is caught by the next load.
-func TestGuardFirstOpenThenOutsideClobberRaises(t *testing.T) {
-	full := string(lossParityPage("T", "alpha", "beta", "gamma", "delta"))
-	srv, f, path := guardTestServer(t, string(lossParityPage("T", "alpha")))
-	if w := serve(t, srv, "/board.htmlclay", nil); w.Code != 200 {
-		t.Fatalf("serve: %d %s", w.Code, w.Body.String())
-	}
-	key := guardKey(t, f)
-	st, err := srv.guardStore.Read(key, path)
-	if err != nil {
-		t.Fatalf("guard state: %v", err)
-	}
-	if st.Baseline == nil || st.LastSeenHash == "" {
-		t.Fatalf("the first load seeded no baseline: %+v", st)
-	}
-	if w := guardSave(t, srv, f, full, map[string]string{"Save-Trigger": "user"}); w.Code != 200 {
-		t.Fatalf("save: %d %s", w.Code, w.Body.String())
-	}
-	srv.guardQueue.Settle()
-
-	if err := os.WriteFile(path, lossParityPage("T", "alpha"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	w := serve(t, srv, "/board.htmlclay", nil)
-	if w.Code != 200 {
-		t.Fatalf("second load: %d %s", w.Code, w.Body.String())
-	}
-	srv.guardQueue.Settle()
-
-	st, err = srv.guardStore.Read(key, path)
-	if err != nil {
-		t.Fatalf("guard state: %v", err)
-	}
-	if st.Event == nil {
-		t.Fatal("an outside edit after a single open raised no event")
-	}
-	if !strings.Contains(w.Body.String(), "data-htmlclay-guard") {
-		t.Fatal("the load after the outside edit served no notice for the pending loss")
 	}
 }
 

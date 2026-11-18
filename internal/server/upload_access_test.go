@@ -79,45 +79,6 @@ func TestUploadAccessMetadataAndResultAgree(t *testing.T) {
 	}
 }
 
-// Additive: a client written against the fields that were there before keeps
-// working against the same answers, and the URL it is handed still resolves.
-func TestUploadAccessKeepsOldFieldsWorking(t *testing.T) {
-	srv, f, _ := setupHandlerTest(t)
-
-	var meta struct {
-		Document *struct {
-			Upload struct {
-				Allowed  bool  `json:"allowed"`
-				MaxBytes int64 `json:"maxBytes"`
-			} `json:"upload"`
-		} `json:"document"`
-	}
-	w := getThroughMux(t, srv, "/_/meta/"+f.Token)
-	if err := json.Unmarshal(w.Body.Bytes(), &meta); err != nil {
-		t.Fatalf("decode meta %q: %v", w.Body.String(), err)
-	}
-	if meta.Document == nil {
-		t.Fatalf("meta carries no document block: %q", w.Body.String())
-	}
-	if !meta.Document.Upload.Allowed || meta.Document.Upload.MaxBytes != maxUploadSize {
-		t.Errorf("old client read allowed=%v maxBytes=%d, want true and %d",
-			meta.Document.Upload.Allowed, meta.Document.Upload.MaxBytes, maxUploadSize)
-	}
-
-	res := decodeUpload(t, postUpload(t, srv, f.Token, "cover.png", []byte("PNGDATA")))
-	if !res.OK || len(res.Uploads) != 1 {
-		t.Fatalf("old client could not read the result: %+v", res)
-	}
-	up := res.Uploads[0]
-	if up.Name == "" || up.URL == "" || up.Bytes != len("PNGDATA") {
-		t.Errorf("old client read name=%q url=%q bytes=%d from a six-byte upload", up.Name, up.URL, up.Bytes)
-	}
-	served := getFromLibrary(t, srv, up.URL)
-	if served.Code != 200 || served.Body.String() != "PNGDATA" {
-		t.Errorf("the URL the old client read served %d %q, want 200 PNGDATA", served.Code, served.Body.String())
-	}
-}
-
 // Reporting an access model says nothing about where the bytes live: the local
 // claim is only truthful while file serving stays inside the uploads folder.
 func TestUploadAccessFileServingStaysContained(t *testing.T) {

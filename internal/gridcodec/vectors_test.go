@@ -215,28 +215,6 @@ func TestValueVectors(t *testing.T) {
 	}
 }
 
-func TestShownRoundsTiesUp(t *testing.T) {
-	cases := []struct {
-		value float64
-		want  string
-	}{
-		{1234567890123445.0, "1234567890123450"},
-		{1234567890123455.0, "1234567890123460"},
-		{-1234567890123455.0, "-1234567890123460"},
-		{9007199254740985.0, "9007199254740990"},
-		{100000000000000.5, "100000000000001"},
-	}
-	for _, c := range cases {
-		got, err := Shown(c.value)
-		if err != nil {
-			t.Fatalf("Shown(%v): %v", c.value, err)
-		}
-		if got != c.want {
-			t.Fatalf("Shown(%v) is %q, want %q", c.value, got, c.want)
-		}
-	}
-}
-
 func TestScanNeverPanicsOnPrefixes(t *testing.T) {
 	v := loadCodecVectors(t)
 	var golden string

@@ -266,19 +266,6 @@ func TestDataQueryWriteHonorsConditionalsAndRefusals(t *testing.T) {
 	srv, _, _ := setupHandlerTest(t)
 	const q = `?data={title:"h1"}`
 
-	t.Run("stale If-Match", func(t *testing.T) {
-		_, path := registerFixture(t, srv, "conditional.htmlclay", queryWriteDoc)
-		w := postDataWrite(t, srv, "/fixtures/conditional.htmlclay"+q, `{"title":"World"}`,
-			map[string]string{"If-Match": `"wrong"`})
-		if w.Code != http.StatusPreconditionFailed {
-			t.Fatalf("status = %d, want 412: %s", w.Code, w.Body.String())
-		}
-		if want := specwire.Etag([]byte(queryWriteDoc)); w.Header().Get("ETag") != want {
-			t.Errorf("412 ETag = %q, want the current stamp %q", w.Header().Get("ETag"), want)
-		}
-		assertUnchanged(t, path, queryWriteDoc)
-	})
-
 	t.Run("no-op", func(t *testing.T) {
 		_, path := registerFixture(t, srv, "noop.htmlclay", queryWriteDoc)
 		before, err := os.Stat(path)

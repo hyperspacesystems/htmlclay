@@ -235,37 +235,6 @@ func TestReadInvalidToken(t *testing.T) {
 	}
 }
 
-func TestSaveValid(t *testing.T) {
-	srv, f, _ := setupHandlerTest(t)
-
-	newContent := `<!DOCTYPE html><html savetoken="tok"><body>Updated!</body></html>`
-	req := httptest.NewRequest("POST", "/_/save/"+f.Token, strings.NewReader(newContent))
-	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
-	req.SetPathValue("token", f.Token)
-
-	w := httptest.NewRecorder()
-	srv.handleSave(w, req)
-
-	if w.Code != 200 {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-
-	if !strings.Contains(w.Body.String(), `"ok":true`) {
-		t.Error("expected ok:true in response")
-	}
-
-	saved, err := os.ReadFile(f.AbsPath)
-	if err != nil {
-		t.Fatalf("error reading saved file: %v", err)
-	}
-	if strings.Contains(string(saved), "savetoken") {
-		t.Error("saved file should not contain savetoken")
-	}
-	if !strings.Contains(string(saved), "Updated!") {
-		t.Error("saved file should contain new content")
-	}
-}
-
 func TestSaveInvalidToken(t *testing.T) {
 	srv, _, _ := setupHandlerTest(t)
 

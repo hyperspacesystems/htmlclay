@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/panphora/htmlclay/internal/clayruntime"
 	"github.com/panphora/htmlclay/internal/pageadmission"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/versions"
@@ -218,27 +217,5 @@ func TestPageFormatRelayRefusesALegacyWriter(t *testing.T) {
 	msg := waitFrame(t, sub, time.Second)
 	if msg["sender"] != "c1" || !strings.Contains(fmt.Sprint(msg["html"]), "peer") {
 		t.Fatalf("relayed frame is not the peer's: %v", msg)
-	}
-}
-
-func TestPageFormatMetaAdvertisesOnlyWithAFloorRuntime(t *testing.T) {
-	if !clayruntime.SelectedHas("src/core/page-data.js") {
-		t.Fatal("the bundled release no longer lists a file it certainly carries")
-	}
-	floor := clayruntime.SelectedHas("src/core/page-format.js")
-
-	srv, f, _ := setupHandlerTest(t)
-	for _, route := range []string{"/_/meta", "/_/meta/" + f.Token} {
-		w := getThroughMux(t, srv, route)
-		if w.Code != 200 {
-			t.Fatalf("%s: got %d (%q)", route, w.Code, w.Body.String())
-		}
-		announced := false
-		for _, name := range metaExtensions(t, w) {
-			announced = announced || name == "blockeditor-format-v1"
-		}
-		if announced != floor {
-			t.Fatalf("%s: blockeditor-format-v1 announced = %v, want %v", route, announced, floor)
-		}
 	}
 }

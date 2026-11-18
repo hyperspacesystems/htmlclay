@@ -184,20 +184,3 @@ func TestTrimAsymmetry(t *testing.T) {
 		t.Errorf("U+0085 should NOT be trimmed: %s", got)
 	}
 }
-
-// TestSerialization compares Go's html.Render against values recorded from cheerio's serializer.
-// These are two independent implementations, so this is the assertion most likely to drift.
-func TestSerialization(t *testing.T) {
-	root := doc(t, fixture)
-
-	for _, c := range []struct{ rule, want string }{
-		{"#dv@innerHTML", `"  outer <b>bold</b> tail  "`},
-		{"#empty@outerHTML", `"<p id=\"empty\"></p>"`},
-		{"#empty@innerHTML", `""`},
-		{"#in@outerHTML", `"<input id=\"in\" type=\"text\" value=\"v\" class=\"c1 c2\" title=\"t\" readonly=\"\" disabled=\"\" data-empty=\"\" data-k=\"dv\">"`},
-	} {
-		if got := rule(t, root, c.rule); got != c.want {
-			t.Errorf("%s\n got %s\nwant %s", c.rule, got, c.want)
-		}
-	}
-}

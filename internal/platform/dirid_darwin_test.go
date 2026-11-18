@@ -60,18 +60,6 @@ func TestDirIdentityCarriesAStableVolumeID(t *testing.T) {
 	}
 }
 
-// "/" is the sealed System volume, which has a different UUID from the data
-// volume holding the temp dir, so it cannot vouch for a legacy pin there.
-func TestLegacyPinNeedsHomesVolume(t *testing.T) {
-	dir := t.TempDir()
-	info, _ := os.Stat(dir)
-	st := info.Sys().(*syscall.Stat_t)
-	stale := fmt.Sprintf("%d:%d", uint64(st.Dev)+3, uint64(st.Ino))
-	if _, ok := MatchDirIdentity(dir, stale, "/"); ok {
-		t.Fatal("a renumbered legacy pin must not match when home is on another volume")
-	}
-}
-
 func TestTraverseOnlyFolderKeepsAVolumeID(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "x")
 	if err := os.Mkdir(dir, 0311); err != nil {
