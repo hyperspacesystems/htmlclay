@@ -9,14 +9,16 @@ import (
 	"time"
 )
 
-// nextBatch waits for one batch of changes, failing the test after two seconds.
+// nextBatch waits for one batch of changes, failing the test after ten seconds:
+// the watch looks every 20 ms, so the limit only guards against a lost batch, and
+// a loaded test box can stall a scan for seconds.
 func nextBatch(t *testing.T, batches <-chan []Change) []Change {
 	t.Helper()
 	select {
 	case batch := <-batches:
 		return batch
-	case <-time.After(2 * time.Second):
-		t.Fatal("no batch of changes arrived within two seconds")
+	case <-time.After(10 * time.Second):
+		t.Fatal("no batch of changes arrived within ten seconds")
 		return nil
 	}
 }
