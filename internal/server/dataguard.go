@@ -103,42 +103,11 @@ func (h *GuardHistory) NewestDifferingFrom(hash string) ([]byte, bool) {
 	return nil, false
 }
 
-// Keep stores content as a version of the document and returns the name of an
-// entry that holds exactly those bytes. The guard uses it to make sure the bytes an
-// outside write replaced exist somewhere before pinning them.
+// Keep stores content as a version of the document and returns the name of the
+// version that holds exactly those bytes. The guard and the restore route use it
+// to make sure the bytes a write replaced exist somewhere before pinning them.
 func (h *GuardHistory) Keep(content []byte) (string, error) {
-	if name, ok := h.versionWithBytes(content); ok {
-		return name, nil
-	}
-	if _, err := h.versions.Backup(h.key, h.absPath, content); err != nil {
-		return "", err
-	}
-	if name, ok := h.versionWithBytes(content); ok {
-		return name, nil
-	}
-	return "", fmt.Errorf("no version of %s holds the kept bytes", h.absPath)
-}
-
-// versionWithBytes finds a stored version whose bytes hash equal content.
-func (h *GuardHistory) versionWithBytes(content []byte) (string, bool) {
-	want := versions.Hash(content)
-	entries, err := h.versions.List(h.key, h.absPath)
-	if err != nil {
-		return "", false
-	}
-	if len(entries) > newestDifferingScan {
-		entries = entries[:newestDifferingScan]
-	}
-	for _, entry := range entries {
-		body, err := h.versions.Read(h.key, h.absPath, entry.Name)
-		if err != nil {
-			continue
-		}
-		if versions.Hash(body) == want {
-			return entry.Name, true
-		}
-	}
-	return "", false
+	return h.versions.Keep(h.key, h.absPath, content)
 }
 
 // Pin marks one version as kept until the user deletes it, so no pruning rule can

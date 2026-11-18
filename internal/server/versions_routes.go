@@ -165,9 +165,16 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	// The safety backup before a restore is mandatory, unlike a normal save: a
 	// read-only versions directory would otherwise allow a destructive restore
 	// with no recovery copy. Success means a completely and atomically published
-	// usable version; a verified identical existing version satisfies it.
+	// usable version; a verified identical existing version satisfies it. The
+	// version that holds the replaced bytes is pinned, so no pruning rule can
+	// remove what a person restored over.
 	if readErr == nil {
-		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
+		history := NewGuardHistory(s.versions, key, f.AbsPath)
+		kept, bErr := history.Keep(current)
+		if bErr == nil {
+			bErr = history.Pin(kept)
+		}
+		if bErr != nil {
 			f.Unlock()
 			s.logger.Printf("Refusing to restore %s: safety backup failed: %v", f.RelPath, bErr)
 			s.writeError(w, http.StatusInternalServerError, "could not create a safety backup")

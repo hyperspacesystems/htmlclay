@@ -823,6 +823,47 @@ func TestRestoreMakesASafetyBackup(t *testing.T) {
 	if !found {
 		t.Fatal("restore destroyed the pre-restore content with no recovery copy")
 	}
+
+	// The replaced bytes must outlive every pruning rule, so a person can go back
+	// to them months later.
+	pinned, err := fx.srv.versions.Pinned(fx.key(t), fx.file.AbsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 || !strings.Contains(fx.versionBody(t, pinned[0]), "unsaved outside edit") {
+		t.Fatalf("pins after a restore: %v, want the one version holding the replaced page", pinned)
+	}
+}
+
+// A live file can grow past the size a version can be read back at, for example
+// through an outside tool inlining images. Restoring a smaller version is the way
+// out, so the safety copy must still be kept and pinned without reading it back.
+func TestRestoreKeepsALiveFileTooLargeToReadBack(t *testing.T) {
+	fx := setupFileTest(t, "big.htmlclay", page("v1"))
+	fx.serve(t, "big.htmlclay")
+	v1 := fx.history(t)[0].Name
+	fx.save(t, page("v2"))
+	huge := fx.withCurrentID(page(strings.Repeat("x", 51<<20)))
+	if err := os.WriteFile(fx.file.AbsPath, []byte(huge), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("POST", "/_/restore/"+fx.file.Token+"/"+v1, nil)
+	req.Host = fmt.Sprintf("127.0.0.1:%d", fx.srv.port)
+	req.SetPathValue("token", fx.file.Token)
+	req.SetPathValue("name", v1)
+	w := httptest.NewRecorder()
+	fx.srv.handleRestoreVersion(w, req)
+	if w.Code != 200 {
+		t.Fatalf("restore of a version under a live file too large to read back: %d %s", w.Code, w.Body.String())
+	}
+	pinned, err := fx.srv.versions.Pinned(fx.key(t), fx.file.AbsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 {
+		t.Fatalf("pins after the restore: %v, want the kept copy of the large page", pinned)
+	}
 }
 
 // A restore advances both records, so it participates in save suppression just
