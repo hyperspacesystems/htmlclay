@@ -270,6 +270,7 @@ public enum Strings {
         public static let aiSub = "Rewrites text you select, using an AI tool on this Mac. The selection goes to that tool's provider."
         public static let aiFoundHere = "Found on this Mac"
         public static let aiModel = "Model"
+        public static func aiModelLabel(_ tool: String) -> String { "\(tool) model" }
         public static let aiToolClaude = "Claude"
         public static let aiToolCodex = "Codex"
         public static let aiCodexDefault = "Codex default"

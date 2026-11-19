@@ -90,3 +90,7 @@ func findRow(menu dbus.BusObject, prefix string) ([]string, int32, error) {
 	}
 	return labels, found, nil
 }
+
+func closeTray(pid int, wait time.Duration) error {
+	return errors.New("close is for Windows; on Linux send the app SIGTERM, which its tray takes as Quit")
+}

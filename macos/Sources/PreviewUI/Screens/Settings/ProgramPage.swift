@@ -100,7 +100,7 @@ struct ProgramPage: View {
                     get: { program.isOn },
                     set: { model.send(.setProgramOn(programID: program.id, on: $0)) }
                 )) {
-                    EmptyView()
+                    Text(Strings.Programs.enableBuiltin(ProgramControls.programTitle(program.id)))
                 }
                 .toggleStyle(KilnSwitchStyle())
             }
@@ -129,7 +129,7 @@ struct ProgramPage: View {
                         get: { ProgramControls.allTrusted(program, pending: model.pending(AppModel.allTrustedSlot(program.id))) },
                         set: { model.send(.setProgramAllTrusted(programID: program.id, on: $0)) }
                     )) {
-                        EmptyView()
+                        Text(Strings.ProgramPage.allTrustedTitle)
                     }
                     .toggleStyle(KilnSwitchStyle())
                     .disabled(!model.can(HostActionType.programSetAllTrusted))

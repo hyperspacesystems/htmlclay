@@ -152,7 +152,7 @@ struct BuiltinProgramRow: View {
                 get: { program.isOn },
                 set: { model.send(.setProgramOn(programID: program.id, on: $0)) }
             )) {
-                EmptyView()
+                Text(Strings.Programs.enableBuiltin(ProgramControls.programTitle(program.id)))
             }
             .toggleStyle(KilnSwitchStyle())
             Image(systemName: Symbols.chevronRight)

@@ -156,7 +156,7 @@ struct FolderPage: View {
                 FolderPageCardHeader(title: Strings.FolderPage.trusted,
                                      subtitle: trusted.note ?? trustedSub(folder)) {
                     Toggle(isOn: trustedBinding) {
-                        EmptyView()
+                        Text(Strings.FolderPage.trusted)
                     }
                     .toggleStyle(KilnSwitchStyle())
                     .disabled(!trusted.enabled)
@@ -203,7 +203,7 @@ struct FolderPage: View {
             VStack(alignment: .leading, spacing: 0) {
                 FolderPageCardHeader(title: Strings.FolderPage.serve, subtitle: serveSub(folder)) {
                     Toggle(isOn: servedBinding) {
-                        EmptyView()
+                        Text(Strings.FolderPage.serve)
                     }
                     .toggleStyle(KilnSwitchStyle())
                     .disabled(!served.enabled)
@@ -271,7 +271,7 @@ struct FolderPage: View {
         return VStack(alignment: .leading, spacing: 0) {
             KilnRow(title: Strings.FolderPage.framing, subtitle: Strings.FolderPage.framingSub) {
                 Toggle(isOn: framingBinding) {
-                    EmptyView()
+                    Text(Strings.FolderPage.framing)
                 }
                 .toggleStyle(KilnSwitchStyle())
                 .disabled(!framing.enabled)
@@ -296,7 +296,7 @@ struct FolderPage: View {
             VStack(alignment: .leading, spacing: 0) {
                 FolderPageCardHeader(title: Strings.FolderPage.sync, subtitle: Strings.FolderPage.syncSub) {
                     Toggle(isOn: syncedBinding) {
-                        EmptyView()
+                        Text(Strings.FolderPage.sync)
                     }
                     .toggleStyle(KilnSwitchStyle())
                     .disabled(!synced.enabled)

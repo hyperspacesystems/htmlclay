@@ -1,7 +1,7 @@
 // Command updaterehearsal holds the three helpers the update rehearsals
 // (scripts/update-rehearsal-linux.sh and scripts/update-rehearsal-windows.ps1)
 // need and no shell tool gives them: a throwaway feed key, a loopback HTTPS
-// server for the feed, and a click on a row of the tray menu.
+// server for the feed, a click on a row of the tray menu, and a quit.
 //
 //	updaterehearsal keys -seed FILE -go FILE
 //	    writes a new feed key: the base64 seed for signfeed, and a keys.go that
@@ -15,6 +15,9 @@
 //	updaterehearsal click -pid PID -id N [-wait SECONDS]
 //	    Windows: clicks row N of PID's tray menu, counted from 1 in the order
 //	    the app made its rows
+//	updaterehearsal close -pid PID [-wait SECONDS]
+//	    Windows: quits PID the way its tray's Quit does, by closing the tray
+//	    window (Linux scripts send SIGTERM, which the tray takes the same way)
 //
 // Nothing here ships: the release workflows build cmd/htmlclay only.
 package main
@@ -79,6 +82,15 @@ func main() {
 			usage()
 		}
 		err = clickTray(*pid, *prefix, *id, time.Duration(*wait)*time.Second, *list)
+	case "close":
+		fs := flag.NewFlagSet("close", flag.ExitOnError)
+		pid := fs.Int("pid", 0, "pid of the running HTML Clay")
+		wait := fs.Int("wait", 0, "seconds to wait for the tray window to appear")
+		fs.Parse(os.Args[2:])
+		if *pid <= 0 || fs.NArg() != 0 {
+			usage()
+		}
+		err = closeTray(*pid, time.Duration(*wait)*time.Second)
 	default:
 		usage()
 	}
@@ -89,7 +101,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: updaterehearsal keys -seed FILE -go FILE | feed -dir DIR -cert FILE -addr FILE | click -pid PID (-prefix TEXT | -id N) [-wait SECONDS] [-list]")
+	fmt.Fprintln(os.Stderr, "usage: updaterehearsal keys -seed FILE -go FILE | feed -dir DIR -cert FILE -addr FILE | click -pid PID (-prefix TEXT | -id N) [-wait SECONDS] [-list] | close -pid PID [-wait SECONDS]")
 	os.Exit(2)
 }
 

@@ -50,7 +50,8 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/windows.swift" <<'SWIFT'
           import CoreGraphics
-          let all = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+          import Foundation
+          let all = (CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as NSArray? as? [[String: Any]]) ?? []
           for w in all {
               let owner = w[kCGWindowOwnerName as String] as? String ?? "?"
               let layer = w[kCGWindowLayer as String] as? Int ?? -1

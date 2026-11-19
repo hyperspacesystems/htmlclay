@@ -95,7 +95,9 @@ for goarch in "${GOARCHES[@]}"; do
   [ "$goarch" = amd64 ] && swiftarch=x86_64
   node service/build.mjs --goos darwin --goarch "$goarch"
   GOOS= GOARCH= go run ./cmd/fetchtailwind -goos darwin -goarch "$goarch"
-  CGO_ENABLED=1 GOOS=darwin GOARCH="$goarch" go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="$LDFLAGS" -o "$WORK/htmlclay-host-$goarch" ./cmd/htmlclay
+  # The flags carry the target into Go's build cache key (MACOSX_DEPLOYMENT_TARGET alone is not
+  # part of it), so cgo objects cached from a newer-SDK build are rebuilt for 14.0 too.
+  MACOSX_DEPLOYMENT_TARGET=14.0 CGO_CFLAGS="-O2 -g -mmacosx-version-min=14.0" CGO_LDFLAGS="-mmacosx-version-min=14.0" CGO_ENABLED=1 GOOS=darwin GOARCH="$goarch" go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="$LDFLAGS" -o "$WORK/htmlclay-host-$goarch" ./cmd/htmlclay
   go version -m "$WORK/htmlclay-host-$goarch" | grep -q -- '-tags=tailwind_bundle,service_bundle' || { echo "BUILD FAILED: the $goarch host was built without the Tailwind and service bundles" >&2; exit 1; }
   xcrun swift build -c release --package-path macos --scratch-path "$SWIFT_CACHE/$swiftarch" --triple "$swiftarch-apple-macosx14.0" --product HTMLClay
   bin="$(xcrun swift build -c release --package-path macos --scratch-path "$SWIFT_CACHE/$swiftarch" --triple "$swiftarch-apple-macosx14.0" --show-bin-path)/HTMLClay"

@@ -37,6 +37,12 @@ fi
 [ "$(plutil -extract CFBundleVersion raw "$PLIST")" = "$VERSION" ] || fail "CFBundleVersion is not $VERSION"
 [ "$(plutil -extract CFBundleShortVersionString raw "$PLIST")" = "$VERSION" ] || fail "CFBundleShortVersionString is not $VERSION"
 [ "$(plutil -extract LSMinimumSystemVersion raw "$PLIST")" = "14.0" ] || fail "LSMinimumSystemVersion is not 14.0"
+for program in htmlclay htmlclay-host; do
+  for arch in $(lipo -archs "$APP/Contents/MacOS/$program"); do
+    minos="$(vtool -arch "$arch" -show-build "$APP/Contents/MacOS/$program" | awk '$1 == "minos" { print $2; exit }')"
+    [ "$minos" = "14.0" ] || fail "$program ($arch) needs macOS ${minos:-unknown}, but Info.plist promises 14.0"
+  done
+done
 for key in LSUIElement SUFeedURL SUPublicEDKey SUEnableAutomaticChecks SUAutomaticallyUpdate SUAllowsAutomaticUpdates SUScheduledCheckInterval SUVerifyUpdateBeforeExtraction SURequireSignedFeed HCUpdateNowCommand; do
   plutil -extract "$key" raw "$PLIST" >/dev/null 2>&1 || fail "Info.plist has no $key"
 done

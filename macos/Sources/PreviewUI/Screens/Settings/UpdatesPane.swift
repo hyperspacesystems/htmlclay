@@ -40,7 +40,7 @@ struct UpdatesPane: View {
                             if model.isSample { model.send(.setAutoUpdate(on)) } else { updater?.setAutomatic(on) }
                         }
                     )) {
-                        EmptyView()
+                        Text(Strings.Updates.automatic)
                     }
                     .toggleStyle(KilnSwitchStyle())
                     .disabled(!model.isSample && updater?.started != true)

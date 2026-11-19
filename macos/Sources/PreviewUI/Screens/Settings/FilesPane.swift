@@ -105,7 +105,7 @@ struct FilesPane: View {
         KilnRow(title: Strings.Files.openWithTitle, subtitle: Strings.Files.openWithSub) {
             VStack(alignment: .trailing, spacing: 4) {
                 Toggle(isOn: Binding(get: { true }, set: { _ in })) {
-                    EmptyView()
+                    Text(Strings.Files.openWithTitle)
                 }
                 .toggleStyle(KilnSwitchStyle())
                 .disabled(true)
@@ -125,7 +125,7 @@ struct FilesPane: View {
                     get: { name.isOn },
                     set: { name.setUseName($0) }
                 )) {
-                    EmptyView()
+                    Text(Strings.YourName.useName)
                 }
                 .toggleStyle(KilnSwitchStyle())
             }

@@ -21,7 +21,7 @@ struct GeneralPane: View {
                             get: { model.snapshot.preferences.openAtLogin },
                             set: { model.send(.setOpenAtLogin($0)) }
                         )) {
-                            EmptyView()
+                            Text(Strings.General.openAtLogin)
                         }
                         .toggleStyle(KilnSwitchStyle())
                     }
@@ -45,7 +45,7 @@ struct GeneralPane: View {
                         get: { model.snapshot.preferences.aiEditing },
                         set: { model.send(.setAIEditing($0)) }
                     )) {
-                        EmptyView()
+                        Text(Strings.General.aiTitle)
                     }
                     .toggleStyle(KilnSwitchStyle())
                 }
@@ -83,6 +83,8 @@ struct GeneralPane: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(row.selected || !row.selectable)
+                        .accessibilityLabel(Text(row.title))
+                        .accessibilityAddTraits(row.selected ? .isSelected : [])
                     }) {
                         if row.custom {
                             Button(Strings.General.aiCustomButton) {
@@ -160,6 +162,7 @@ private struct ModelField: View {
 
     var body: some View {
         KilnInput(text: $text, placeholder: row.placeholder, mono: true)
+            .accessibilityLabel(Text(Strings.General.aiModelLabel(row.title)))
             .focused($focused)
             .onSubmit { commit(text) }
             .onChange(of: focused) { _, isFocused in

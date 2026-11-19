@@ -656,6 +656,14 @@ func (d *dashboardApp) act(w http.ResponseWriter, r *http.Request) {
 	writeDashboardJSON(w, http.StatusOK, map[string]any{"snapshot": d.view(snapshot)})
 }
 
+// dashboardEvent is one data line of the event stream, the frame the dashboard
+// reads (hyperclay-workspace src/local/app.ts, events).
+type dashboardEvent struct {
+	Type     string           `json:"type"`
+	Rev      uint64           `json:"rev"`
+	Snapshot appcore.Snapshot `json:"snapshot"`
+}
+
 // events streams one snapshot event per change, the current one first, and a
 // comment line every dashboardPingEvery.
 func (d *dashboardApp) events(w http.ResponseWriter, r *http.Request) {
@@ -673,7 +681,8 @@ func (d *dashboardApp) events(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	send := func(snapshot appcore.Snapshot) bool {
-		raw, err := json.Marshal(d.view(snapshot))
+		view := d.view(snapshot)
+		raw, err := json.Marshal(dashboardEvent{Type: "snapshot", Rev: view.Rev, Snapshot: view})
 		if err != nil {
 			return false
 		}

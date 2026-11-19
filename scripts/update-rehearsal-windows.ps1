@@ -24,6 +24,15 @@ Cases:
                     runs and never counts as serving; after 20 s the supervisor kills it
                     and puts 1.x back
   rollback-early    the new "build" exits at once, and the supervisor puts 1.x back
+  next              2.0 to the version after it: both sides are this checkout, the old
+                    side serves a folder with its service running, and the update is
+                    started with `htmlclay update-now`, with no click
+  next-start        the same 2.0 pair, installed at the next start: a browser tab presses
+                    Check for updates, the update downloads and waits, the app quits
+                    the way its tray's Quit does, and starting HTML Clay again with a
+                    document installs the update and opens that document
+  next-button       the same 2.0 pair, started by a browser tab pressing Check for
+                    updates and then the Update button, the way the dashboard does
 
 Why the VM only, and why elevated:
   - Go on Windows asks Windows whether a certificate is trusted and ignores
@@ -49,7 +58,7 @@ The last line on stdout is "REHEARSAL OK <case> ..." or "REHEARSAL FAILED <case>
 #>
 param(
   [Parameter(Mandatory = $true, Position = 0)]
-  [ValidateSet('first', 'rollback-version', 'rollback-early')]
+  [ValidateSet('first', 'rollback-version', 'rollback-early', 'next', 'next-start', 'next-button')]
   [string]$Case,
   [string]$OldTag = 'v1.16.4',
   # The number of the "Restart to Update" row in the old app's tray, counted
@@ -87,6 +96,11 @@ $Git = (Get-Command git).Source
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $OldVersion = '9.0.0'
 $NewVersion = '9.0.1'
+$Next = $Case -in 'next', 'next-start', 'next-button'
+if ($Next) {
+  $OldVersion = '9.0.1'
+  $NewVersion = '9.0.2'
+}
 $PublicUrl = 'https://github.com/panphora/htmlclay.git'
 $Arch = (& $Go env GOARCH).Trim()
 
@@ -282,6 +296,11 @@ function Count-ServiceStarts {
   if (-not (Test-Path "$Config\htmlclay.log")) { return 0 }
   return @(Select-String -LiteralPath "$Config\htmlclay.log" -SimpleMatch 'The live-room service started in').Count
 }
+function Get-RuntimeVersions {
+  if (-not (Test-Path -LiteralPath "$Config\service-runtime")) { return '' }
+  return ((Get-ChildItem -LiteralPath "$Config\service-runtime" -Directory | Where-Object { -not $_.Name.StartsWith('.') } |
+    Sort-Object Name | ForEach-Object { $_.Name }) -join ' ')
+}
 function Same-File([string]$One, [string]$Two) {
   if (-not (Test-Path -LiteralPath $One) -or -not (Test-Path -LiteralPath $Two)) { return $false }
   return ((Get-FileHash -LiteralPath $One -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath $Two -Algorithm SHA256).Hash)
@@ -380,27 +399,56 @@ try {
     if ($bundle.Code -ne 0) { Die "the service did not build, see $Logs\build-service.log" }
   }
 
-  $OldSrc = $env:HTMLCLAY_REHEARSAL_OLD_SRC
-  if (-not $OldSrc) {
-    $OldSrc = "$Lab\old-src"
-    Say "cloning the public $OldTag"
-    $clone = Invoke-Tool $Git @('clone', '--quiet', '--depth', '1', '--branch', $OldTag, $PublicUrl, $OldSrc)
-    Write-Text "$Logs\clone.log" ($clone.Out + $clone.Err)
-    if ($clone.Code -ne 0) { Die "could not clone $OldTag from $PublicUrl" }
-  }
-  $OldSrc = (Resolve-Path $OldSrc).Path
-  if (-not (Test-Path "$OldSrc\internal\update\keys.go")) { Die "$OldSrc is not an HTML Clay source tree" }
-  if (Test-Path "$OldSrc\.git") {
-    $dirty = (Invoke-Tool $Git @('-C', $OldSrc, 'status', '--porcelain')).Out.Trim()
-    if ($dirty) { Die "$OldSrc differs from its tag: $dirty" }
-  }
+  if ($Next) {
+    # The old side is this checkout too. Its service bundle is the same files
+    # packed again at another compression level, so the two versions unpack
+    # into two folders, as two real releases do.
+    Say "building the old app (this checkout as $OldVersion) with the service inside"
+    Write-Text "$Lab\keys\repack.cjs" @'
+const fs = require('fs'), zlib = require('zlib'), crypto = require('crypto');
+const [src, dst, sum] = process.argv.slice(2);
+const original = fs.readFileSync(src);
+const tar = zlib.gunzipSync(original);
+let out = zlib.gzipSync(tar, { level: 1 });
+if (out.equals(original)) out = zlib.gzipSync(tar, { level: 9 });
+if (out.equals(original)) { console.error('the repacked service bundle is the same bytes as the original'); process.exit(1); }
+fs.writeFileSync(dst, out);
+fs.writeFileSync(sum, crypto.createHash('sha256').update(out).digest('hex') + ' ' + out.length + '\n');
+'@
+    $repack = Invoke-Tool $Node @("$Lab\keys\repack.cjs", "$Blob.tar.gz", "$Lab\keys\old-service.tar.gz", "$Lab\keys\old-service.sha256") @{} $Root 120
+    if ($repack.Code -ne 0) { Die "could not repack the service bundle: $($repack.Err.Trim())" }
+    $replace = @{}
+    $replace["$Root\internal\update\keys.go"] = "$Lab\keys\keys.go"
+    $replace["$Blob.tar.gz"] = "$Lab\keys\old-service.tar.gz"
+    $replace["$Blob.sha256"] = "$Lab\keys\old-service.sha256"
+    Write-Text "$Lab\keys\overlay-old.json" (@{ Replace = $replace } | ConvertTo-Json -Compress)
+    $old = Invoke-Tool $Go @('build', '-overlay', "$Lab\keys\overlay-old.json", '-tags', 'service_bundle', '-ldflags', "-X main.version=$OldVersion -X main.updateChannel=stable",
+      '-o', "$Lab\old\htmlclay.exe", './cmd/htmlclay') $BuildVars $Root
+    Write-Text "$Logs\build-old.log" ($old.Out + $old.Err)
+    if ($old.Code -ne 0) { Die "the old app did not build, see $Logs\build-old.log" }
+  } else {
+    $OldSrc = $env:HTMLCLAY_REHEARSAL_OLD_SRC
+    if (-not $OldSrc) {
+      $OldSrc = "$Lab\old-src"
+      Say "cloning the public $OldTag"
+      $clone = Invoke-Tool $Git @('clone', '--quiet', '--depth', '1', '--branch', $OldTag, $PublicUrl, $OldSrc)
+      Write-Text "$Logs\clone.log" ($clone.Out + $clone.Err)
+      if ($clone.Code -ne 0) { Die "could not clone $OldTag from $PublicUrl" }
+    }
+    $OldSrc = (Resolve-Path $OldSrc).Path
+    if (-not (Test-Path "$OldSrc\internal\update\keys.go")) { Die "$OldSrc is not an HTML Clay source tree" }
+    if (Test-Path "$OldSrc\.git") {
+      $dirty = (Invoke-Tool $Git @('-C', $OldSrc, 'status', '--porcelain')).Out.Trim()
+      if ($dirty) { Die "$OldSrc differs from its tag: $dirty" }
+    }
 
-  Say "building the old app ($OldTag as $OldVersion)"
-  Write-Overlay $OldSrc "$Lab\keys\overlay-old.json"
-  $old = Invoke-Tool $Go @('build', '-overlay', "$Lab\keys\overlay-old.json", '-ldflags', "-X main.version=$OldVersion -X main.updateChannel=stable",
-    '-o', "$Lab\old\htmlclay.exe", './cmd/htmlclay') $BuildVars $OldSrc
-  Write-Text "$Logs\build-old.log" ($old.Out + $old.Err)
-  if ($old.Code -ne 0) { Die "the old app did not build, see $Logs\build-old.log" }
+    Say "building the old app ($OldTag as $OldVersion)"
+    Write-Overlay $OldSrc "$Lab\keys\overlay-old.json"
+    $old = Invoke-Tool $Go @('build', '-overlay', "$Lab\keys\overlay-old.json", '-ldflags', "-X main.version=$OldVersion -X main.updateChannel=stable",
+      '-o', "$Lab\old\htmlclay.exe", './cmd/htmlclay') $BuildVars $OldSrc
+    Write-Text "$Logs\build-old.log" ($old.Out + $old.Err)
+    if ($old.Code -ne 0) { Die "the old app did not build, see $Logs\build-old.log" }
+  }
 
   $BuildVersion = $NewVersion
   if ($Case -eq 'rollback-version') { $BuildVersion = '9.0.2' }
@@ -492,12 +540,33 @@ try {
   for ($i = 0; $i -lt 80 -and (Count-Slugs) -lt 3; $i++) { Start-Sleep -Milliseconds 250 }
   if ((Count-Slugs) -lt 3) { Die "the old app opened fewer than three sites: $(Get-Slugs)" }
   $SlugsBefore = Get-Slugs
-  # 1.x gives its first site the name the dashboard takes in 2.0.
-  if (-not $SlugsBefore.Contains(':"htmlclay"')) { Die "no first site named htmlclay: $SlugsBefore" }
+  # 1.x gives its first site the name the dashboard takes in 2.0; 2.0 never does.
+  if (-not $Next -and -not $SlugsBefore.Contains(':"htmlclay"')) { Die "no first site named htmlclay: $SlugsBefore" }
   Say "sites before the update: $SlugsBefore"
+
+  # In the next cases the old version is 2.0: it serves a folder before the
+  # update, so its service runs and its unpacked copy is on disk when the new
+  # version starts.
+  $OldRuntime = ''
+  if ($Next) {
+    $served = Serve-Site
+    if ($served.Code -ne 0) { Die "the old app could not serve a folder: $(($served.Out + $served.Err).Trim())" }
+    $match = [regex]::Match($served.Out, 'http://([^/ ]+)/')
+    if ($match.Success) { $SiteHost = $match.Groups[1].Value }
+    for ($i = 0; $i -lt 240 -and (Count-ServiceStarts) -lt 1; $i++) { Start-Sleep -Milliseconds 500 }
+    if ((Count-ServiceStarts) -lt 1) { Die "the old app's service never started, see $Config\htmlclay.log" }
+    for ($i = 0; $i -lt 20 -and -not (Test-Site); $i++) { Start-Sleep -Milliseconds 500 }
+    if (-not (Test-Site)) { Die "the old app does not answer its served folder at '$SiteHost'" }
+    $OldRuntime = Get-RuntimeVersions
+    Say "the old app serves $SiteHost, its service runs from service-runtime\$OldRuntime"
+  }
 
   $LedgerMode = 'rollback'
   if ($Case -eq 'first') { $LedgerMode = 'first' }
+  if ($Next) { $LedgerMode = 'next' }
+  # After a quit the tabs' save tokens are gone (they live in the running app's
+  # memory), so next-start asks only that every save acked before the quit survives.
+  if ($Case -eq 'next-start') { $LedgerMode = 'quit' }
   $ledgerArgs = @("$Root\scripts\upgrade-ledger.mjs", '--port', "$Port", '--config', $Config, '--out', $Logs, '--mode', $LedgerMode,
     '--stop-file', "$Logs\ledger.stop", '--times', $Logs, '--home', $HomeDir) + $Documents
   $LedgerProc = Start-Detached $Node $ledgerArgs @{} "$Logs\ledger.out"
@@ -506,30 +575,164 @@ try {
 
   # --- the update -------------------------------------------------------------
 
-  Say "waiting for the old app to download $NewVersion (its first check runs 60 s after it starts)"
-  $staged = $false
-  for ($i = 0; $i -lt 300 -and -not $staged; $i++) {
-    $staged = (Test-Path "$Config\htmlclay.log") -and [bool](Select-String -LiteralPath "$Config\htmlclay.log" -SimpleMatch "Update $NewVersion is downloaded and staged" -Quiet)
-    if (-not $staged) { Start-Sleep -Milliseconds 500 }
+  # A browser tab's requests: the host answers a first load of / with a ticket
+  # redirect, /enter spends the ticket and sets the session cookie, and the page
+  # carries the token every action needs (internal/dashboard/server.go). curl.exe
+  # maps *.localhost to loopback itself; --resolve makes it explicit.
+  $PageToken = ''
+  function Invoke-Page([string[]]$CurlArgs) {
+    $base = @('-sS', '--max-time', '10', '--resolve', "htmlclay.localhost:${Port}:127.0.0.1", '-b', "$Logs\page.cookies")
+    return Invoke-Tool "$env:SystemRoot\System32\curl.exe" ($base + $CurlArgs) @{} '' 30
   }
-  if (-not $staged) {
-    $tail = ''
-    if (Test-Path "$Config\htmlclay.log") { $tail = (Get-Content "$Config\htmlclay.log" -Tail 5) -join ' | ' }
-    # A wrong path in an overlay builds without a word, with the real feed key
-    # inside. The log then says the feed's key is not one the app trusts.
-    Fail "the old app never staged the update (if its log says the feed's key is not trusted, the overlay did not match keys.go): $tail"
-    Finish
+  function Page-SignIn {
+    $r = Invoke-Page @('-L', '-c', "$Logs\page.cookies", '-o', "$Logs\page.html", "http://htmlclay.localhost:$Port/")
+    if ($r.Code -ne 0 -or -not (Test-Path -LiteralPath "$Logs\page.html")) { return $false }
+    $m = [regex]::Match([string](Get-Content -LiteralPath "$Logs\page.html" -Raw), '<meta name="workspace-token" content="([^"]*)"')
+    if (-not $m.Success -or -not $m.Groups[1].Value) { return $false }
+    $script:PageToken = $m.Groups[1].Value
+    return $true
   }
-  # The tray row changes a moment after the log line. The click runs whatever the row means then.
-  Start-Sleep -Seconds 3
-  $click = Invoke-Tool "$Lab\bin\updaterehearsal.exe" @('click', '-pid', "$OldPid", '-id', "$UpdateRowId", '-wait', '20') @{} '' 60
-  Write-Text "$Logs\click.out" ($click.Out + $click.Err)
-  if ($click.Code -ne 0) {
-    Fail "the click did not reach the old app's tray: $($click.Err.Trim())"
-    Finish
+  # Page-Action sends what a page button sends, and is true when the host ran it
+  # (it answers with the new snapshot) rather than refusing it (a code).
+  function Page-Action([string]$Type) {
+    Write-Text "$Logs\action-body.json" (@{ id = [guid]::NewGuid().ToString(); type = $Type } | ConvertTo-Json -Compress)
+    $r = Invoke-Page @('-H', "X-Workspace-Token: $script:PageToken", '-H', 'Content-Type: application/json', '-X', 'POST',
+      '--data-binary', "@$Logs\action-body.json", "http://htmlclay.localhost:$Port/api/app/actions")
+    Write-Text "$Logs\action-$Type.json" $r.Out
+    try { $d = $r.Out | ConvertFrom-Json } catch { return $false }
+    if ($null -eq $d) { return $false }
+    $names = @($d.PSObject.Properties.Name)
+    return (($names -contains 'snapshot') -and -not ($names -contains 'code') -and -not (($names -contains 'pending') -and $d.pending))
   }
-  $ClickMs = NowMs
-  Say "$($click.Out.Trim()) after $([int]((Get-Date) - $StartedAt).TotalSeconds) s"
+  # The page's Update button shows when the snapshot has an update ready, none
+  # finishing, and update.start allowed.
+  Write-Text "$Lab\keys\offered.cjs" @'
+const s = JSON.parse(require('fs').readFileSync(process.argv[2], 'utf8'));
+const u = s.update || {};
+process.exit(u.ready === process.argv[3] && !u.finishing && ((s.host || {}).can || {})['update.start'] === true ? 0 : 1);
+'@
+  function Wait-UpdateOffered {
+    for ($i = 0; $i -lt 120; $i++) {
+      $r = Invoke-Page @('-H', "X-Workspace-Token: $script:PageToken", '-o', "$Logs\page-snapshot.json", "http://htmlclay.localhost:$Port/api/app/snapshot")
+      if ($r.Code -eq 0 -and (Invoke-Tool $Node @("$Lab\keys\offered.cjs", "$Logs\page-snapshot.json", $NewVersion) @{} '' 30).Code -eq 0) {
+        Say "the page offers Update to $NewVersion after $i s"
+        return $true
+      }
+      Start-Sleep -Seconds 1
+    }
+    return $false
+  }
+
+  if ($Case -eq 'next') {
+    # 2.0 takes update-now. "checking" means it is fetching the version now.
+    Say "asking the old app to update to $NewVersion with update-now"
+    $answer = ''
+    for ($i = 0; $i -lt 240; $i++) {
+      $r = Invoke-Tool $Install @('update-now', '--version', $NewVersion) $AppVars '' 30
+      $answer = [string](@((($r.Out + "`n" + $r.Err).Trim()) -split "`r?`n")[-1]).Trim()
+      if ($answer -eq 'accepted') { break }
+      Start-Sleep -Milliseconds 500
+    }
+    if ($answer -ne 'accepted') {
+      Fail "update-now was never accepted: $answer"
+      Finish
+    }
+    $ClickMs = NowMs
+    Say "update-now accepted after $([int]((Get-Date) - $StartedAt).TotalSeconds) s"
+  } elseif ($Case -in 'next-start', 'next-button') {
+    if (-not (Page-SignIn)) {
+      Fail "could not sign in as a browser tab, see $Logs\page.html"
+      Finish
+    }
+    # update.check is refused as not yet until the updater has started.
+    $checked = $false
+    for ($i = 0; $i -lt 30 -and -not $checked; $i++) {
+      $checked = Page-Action 'update.check'
+      if (-not $checked) { Start-Sleep -Seconds 1 }
+    }
+    if (-not $checked) {
+      Fail "Check for updates was refused: $([string](Get-Content -LiteralPath "$Logs\action-update.check.json" -Raw))"
+      Finish
+    }
+    Say "pressed Check for updates after $([int]((Get-Date) - $StartedAt).TotalSeconds) s"
+    if (-not (Wait-UpdateOffered)) {
+      Fail "the page never offered $NewVersion, see $Logs\page-snapshot.json"
+      Finish
+    }
+    if ($Case -eq 'next-button') {
+      if (-not (Page-Action 'update.start')) {
+        Fail "Update was refused: $([string](Get-Content -LiteralPath "$Logs\action-update.start.json" -Raw))"
+        Finish
+      }
+      $ClickMs = NowMs
+      Pass "pressed Update after $([int]((Get-Date) - $StartedAt).TotalSeconds) s"
+    } else {
+      if (Test-Path -LiteralPath "$Updates\waiting.json") { Pass 'the downloaded update waits in waiting.json' } else { Fail 'no waiting.json after the download' }
+      # Closing the tray's window is the path its own Quit takes (fyne systray).
+      $closed = Invoke-Tool "$Lab\bin\updaterehearsal.exe" @('close', '-pid', "$OldPid", '-wait', '20') @{} '' 60
+      Write-Text "$Logs\close.out" ($closed.Out + $closed.Err)
+      if ($closed.Code -ne 0) {
+        Fail "could not quit the old app: $($closed.Err.Trim())"
+        Finish
+      }
+      for ($i = 0; $i -lt 100 -and (Test-Alive $OldPid); $i++) { Start-Sleep -Milliseconds 200 }
+      if (Test-Alive $OldPid) {
+        Fail 'the old app did not quit'
+        Finish
+      }
+      Pass 'the old app quit with the update still waiting'
+      $ClickMs = NowMs
+      $again = Start-Detached $Install @($Documents[0]) $AppVars "$Logs\start-again.out"
+      # Windows PowerShell reports ExitCode only for a process whose handle was read while it ran.
+      $null = $again.Handle
+      $null = $again.WaitForExit(20000)
+      if (-not $again.HasExited) {
+        Fail 'starting again ran the old version instead of installing the waiting update'
+      } elseif ($again.ExitCode -eq 0) {
+        Pass "starting again handed over to the update and exited after $((NowMs) - $ClickMs) ms"
+      } else {
+        Fail "starting again exited $($again.ExitCode), see $Logs\start-again.out"
+      }
+    }
+  } else {
+    Say "waiting for the old app to download $NewVersion (its first check runs 60 s after it starts)"
+    $staged = $false
+    for ($i = 0; $i -lt 300 -and -not $staged; $i++) {
+      $staged = (Test-Path "$Config\htmlclay.log") -and [bool](Select-String -LiteralPath "$Config\htmlclay.log" -SimpleMatch "Update $NewVersion is downloaded and staged" -Quiet)
+      if (-not $staged) { Start-Sleep -Milliseconds 500 }
+    }
+    if (-not $staged) {
+      $tail = ''
+      if (Test-Path "$Config\htmlclay.log") { $tail = (Get-Content "$Config\htmlclay.log" -Tail 5) -join ' | ' }
+      # A wrong path in an overlay builds without a word, with the real feed key
+      # inside. The log then says the feed's key is not one the app trusts.
+      Fail "the old app never staged the update (if its log says the feed's key is not trusted, the overlay did not match keys.go): $tail"
+      Finish
+    }
+    # The tray row changes a moment after the log line. The click runs whatever the row means then.
+    Start-Sleep -Seconds 3
+    # 1.x refuses Restart to update while a save is in flight ("not applied ... requests were
+    # still in flight"), and the three tabs save every second, so a refused click is clicked
+    # again, as a person would.
+    $refusals = { @(Select-String -LiteralPath "$Config\htmlclay.log" -SimpleMatch 'not applied, still running' -ErrorAction SilentlyContinue).Count }
+    for ($try = 1; $try -le 5; $try++) {
+      $before = & $refusals
+      $click = Invoke-Tool "$Lab\bin\updaterehearsal.exe" @('click', '-pid', "$OldPid", '-id', "$UpdateRowId", '-wait', '20') @{} '' 60
+      Write-Text "$Logs\click.out" ($click.Out + $click.Err)
+      if ($click.Code -ne 0) {
+        Fail "the click did not reach the old app's tray: $($click.Err.Trim())"
+        Finish
+      }
+      $ClickMs = NowMs
+      Say "$($click.Out.Trim()) after $([int]((Get-Date) - $StartedAt).TotalSeconds) s"
+      for ($i = 0; $i -lt 80 -and -not (Test-Path -LiteralPath $Previous) -and -not (JGet "$Updates\state.json" 'phase') -and (& $refusals) -le $before; $i++) {
+        Start-Sleep -Milliseconds 100
+      }
+      if ((& $refusals) -le $before) { break }
+      Say "the old app refused the update while a save was in flight (try $try); clicking again"
+      Start-Sleep -Milliseconds 700
+    }
+  }
 
   # The moment the binary changed, which the ledger reads to tell the old version's saves from the new one's.
   for ($i = 0; $i -lt 1500 -and -not (Test-Path -LiteralPath $Previous); $i++) { Start-Sleep -Milliseconds 20 }
@@ -552,8 +755,14 @@ try {
         if ($judged.Count -eq 0) { Start-Sleep -Milliseconds 250 }
       }
     }
+    $unpacking = @(Get-ChildItem -LiteralPath "$Config\service-runtime" -Directory -Force -Filter '.extract-*' -ErrorAction SilentlyContinue)
     if ($judged.Count -gt 0) {
       Pass "the judged version's service was running as pid $($judged[0].ProcessId) ($($served.Out.Trim()))"
+    } elseif ($served.Code -eq 0 -and $unpacking.Count -gt 0) {
+      # A fresh 70 MB unpack can outlast the supervisor's 20 s on Windows (the scanner reads every
+      # file written), and nothing runs from service-runtime until it ends. The rollback then has
+      # no service to stop; the next 2.0 start removes the partial unpack (internal/service/extract.go, prune).
+      Note " the judged version was still unpacking its service ($($unpacking[0].Name)) when the rollback came"
     } else {
       Fail "the judged version's service never ran, so the rollback did not have to stop it: $(($served.Out + $served.Err).Trim())"
     }
@@ -569,7 +778,7 @@ try {
   Say "the supervisor's verdict: $Phase after $([int](($VerdictMs - $ClickMs) / 1000)) s"
   if (Test-Path "$Updates\supervisor.log") { Get-Content "$Updates\supervisor.log" | ForEach-Object { [Console]::Error.WriteLine("[supervisor] $_") } }
 
-  if ($Case -eq 'first') {
+  if ($Case -eq 'first' -or $Next) {
     if ($Phase -eq 'done') { Pass 'state.json says done' } else { Fail "state.json says '$Phase', not done" }
     $HVersion = [string](JGet "$Updates\health.json" 'version')
     $HPhase = [string](JGet "$Updates\health.json" 'phase')
@@ -595,17 +804,21 @@ try {
       Fail 'health.json holds no time'
     }
 
-    # Nothing 1.x leaves behind needs the service, so serve a folder: that is what starts it.
-    $served = Serve-Site
-    if ($served.Code -eq 0) {
-      Pass "htmlclay serve: $($served.Out.Trim())"
-    } else {
-      Fail "htmlclay serve failed: $(($served.Out + $served.Err).Trim())"
+    $WantStarts = 2
+    if ($Case -eq 'first') {
+      # Nothing 1.x leaves behind needs the service, so serve a folder: that is what starts it.
+      $served = Serve-Site
+      if ($served.Code -eq 0) {
+        Pass "htmlclay serve: $($served.Out.Trim())"
+      } else {
+        Fail "htmlclay serve failed: $(($served.Out + $served.Err).Trim())"
+      }
+      $match = [regex]::Match($served.Out, 'http://([^/ ]+)/')
+      if ($match.Success) { $SiteHost = $match.Groups[1].Value }
+      $WantStarts = 1
     }
-    $match = [regex]::Match($served.Out, 'http://([^/ ]+)/')
-    if ($match.Success) { $SiteHost = $match.Groups[1].Value }
-    for ($i = 0; $i -lt 240 -and (Count-ServiceStarts) -lt 1; $i++) { Start-Sleep -Milliseconds 500 }
-    if ((Count-ServiceStarts) -ge 1) {
+    for ($i = 0; $i -lt 240 -and (Count-ServiceStarts) -lt $WantStarts; $i++) { Start-Sleep -Milliseconds 500 }
+    if ((Count-ServiceStarts) -ge $WantStarts) {
       $line = [string](@(Select-String -LiteralPath "$Config\htmlclay.log" -SimpleMatch 'The live-room service started in')[-1].Line)
       $line = $line.Substring($line.IndexOf('The live-room service ') + 22)
       Pass "the new version's service runs: $line"
@@ -618,6 +831,35 @@ try {
     if (Test-Site) { Pass "the served folder answers at $SiteHost" } else { Fail "the served folder does not answer at '$SiteHost'" }
     if (Test-Port) { Pass "port $Port answers" } else { Fail "port $Port does not answer" }
     if (-not (Test-Alive $HPid)) { Fail 'the new app died after it reported serving' }
+
+    if ($Case -eq 'next-start') {
+      if (Test-Path -LiteralPath "$Updates\waiting.json") { Fail 'waiting.json is still there after the update' } else { Pass 'waiting.json is gone' }
+      # The "Opening" line comes before the open runs; a "Serving <name> at" line after it is the
+      # open succeeding (cmd/htmlclay/open.go).
+      $opened = $false
+      $name = Split-Path -Leaf $Documents[0]
+      for ($i = 0; $i -lt 40 -and -not $opened; $i++) {
+        $lines = @(Get-Content -LiteralPath "$Config\htmlclay.log" -ErrorAction SilentlyContinue)
+        $at = -1
+        for ($j = $lines.Count - 1; $j -ge 0; $j--) { if ($lines[$j].Contains("Opening file from before the update: $($Documents[0])")) { $at = $j; break } }
+        if ($at -ge 0) { $opened = [bool](@($lines[($at + 1)..($lines.Count - 1)] | Where-Object { $_.Contains("Serving $name at http") }).Count) }
+        if (-not $opened) { Start-Sleep -Milliseconds 250 }
+      }
+      if ($opened) { Pass 'the document HTML Clay was started with opened after the update' } else { Fail "the new version never opened $($Documents[0])" }
+      if (Test-Path -LiteralPath "$Config\open-after-update.json") { Fail 'open-after-update.json is still there' } else { Pass 'open-after-update.json is gone' }
+    }
+    if ($Next) {
+      Start-Sleep -Seconds 8
+      Stop-Ledger
+      $NowRuntime = Get-RuntimeVersions
+      if ($NowRuntime -and $NowRuntime -ne $OldRuntime -and -not $NowRuntime.Contains(' ')) {
+        Pass "the old version's service copy was removed after the verdict (service-runtime holds $NowRuntime)"
+      } else {
+        Fail "service-runtime holds '$NowRuntime' after the verdict; the old copy was $OldRuntime"
+      }
+      if ([string](Get-Slugs) -eq $SlugsBefore) { Pass 'the sites are the ones from before the update' } else { Fail "the sites changed across the update: $(Get-Slugs)" }
+      Finish
+    }
 
     # The first site moves only after the verdict, and the ledger needs saves on both sides of it.
     Start-Sleep -Seconds 30

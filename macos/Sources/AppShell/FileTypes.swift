@@ -6,7 +6,11 @@ import PreviewCore
 /// to make HTML Clay that app again or hand the files to the default browser.
 @MainActor
 public enum FileTypes {
-    public static let htmlclay = UTType(exportedAs: "com.htmlclay.document", conformingTo: .html)
+    /// A shell check bundle names its own throwaway type in HTMLClayDocumentType,
+    /// so Make default can be tried without touching who opens .htmlclay files.
+    public static let htmlclay = UTType(
+        exportedAs: Bundle.main.object(forInfoDictionaryKey: "HTMLClayDocumentType") as? String ?? "com.htmlclay.document",
+        conformingTo: .html)
 
     public enum Owner: Equatable {
         case htmlclay
@@ -23,7 +27,8 @@ public enum FileTypes {
         try await NSWorkspace.shared.setDefaultApplication(at: Bundle.main.bundleURL, toOpen: htmlclay)
     }
 
-    /// Hands .htmlclay files to the default web browser.
+    /// Hands .htmlclay files to the default web browser. macOS asks the person
+    /// to confirm, and this returns once they answer.
     public static func stopOpening() async throws {
         guard let probe = URL(string: "https://example.com"),
               let browser = NSWorkspace.shared.urlForApplication(toOpen: probe) else { return }

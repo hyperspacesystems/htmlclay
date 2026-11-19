@@ -38,7 +38,7 @@ public struct ComponentGallery: View {
                     }
                     KilnRowDivider()
                     KilnRow(title: Strings.Preview.Gallery.switchTitle, subtitle: Strings.Preview.Gallery.switchSubtitle) {
-                        Toggle(isOn: $switchOn) { EmptyView() }
+                        Toggle(isOn: $switchOn) { Text(Strings.Preview.Gallery.switchTitle) }
                             .toggleStyle(KilnSwitchStyle())
                     }
                     KilnRowDivider()

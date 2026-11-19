@@ -16,6 +16,7 @@ import (
 const (
 	trayWindowClass = "SystrayClass"
 	wmCommand       = 0x0111
+	wmClose         = 0x0010
 )
 
 var (
@@ -68,6 +69,26 @@ func clickTray(pid int, prefix string, id int, wait time.Duration, list bool) er
 				return fmt.Errorf("could not post the click to the tray window of pid %d: %w", pid, err)
 			}
 			fmt.Printf("clicked: row id %d of pid %d\n", id, pid)
+			return nil
+		}
+		if !time.Now().Before(deadline) {
+			return fmt.Errorf("pid %d has no tray window (class %s); the app must run in the signed-in desktop session", pid, trayWindowClass)
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+}
+
+// closeTray closes the tray window of pid. The tray library answers WM_CLOSE by
+// destroying its window and running its exit, which is the path its own Quit
+// takes, so the app shuts down the way a person's Quit makes it.
+func closeTray(pid int, wait time.Duration) error {
+	deadline := time.Now().Add(wait)
+	for {
+		if hwnd := trayWindow(pid); hwnd != 0 {
+			if ok, _, err := postMessage.Call(uintptr(hwnd), wmClose, 0, 0); ok == 0 {
+				return fmt.Errorf("could not close the tray window of pid %d: %w", pid, err)
+			}
+			fmt.Printf("closed: the tray window of pid %d\n", pid)
 			return nil
 		}
 		if !time.Now().Before(deadline) {

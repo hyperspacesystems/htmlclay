@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -373,8 +374,13 @@ func TestM3DashboardWithoutService(t *testing.T) {
 				if !strings.HasPrefix(line, "data: ") {
 					continue
 				}
+				// The frame the dashboard reads, with these exact keys: {"type":"snapshot","rev":N,"snapshot":{…}}.
+				var frame map[string]json.RawMessage
+				if json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &frame) != nil || string(frame["type"]) != `"snapshot"` || frame["rev"] == nil {
+					continue
+				}
 				var snapshot appcore.Snapshot
-				if json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &snapshot) == nil {
+				if json.Unmarshal(frame["snapshot"], &snapshot) == nil && string(frame["rev"]) == strconv.FormatUint(snapshot.Rev, 10) {
 					events <- snapshot
 				}
 			}

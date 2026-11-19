@@ -23,8 +23,14 @@
 #   next-rollback     the same, and the new build reports another version than the feed
 #                     promised: the supervisor puts the old 2.0 back, and its service
 #                     runs again from the copy it unpacked before the update
+#   next-start        2.0 to the version after it, installed at the next start: a browser
+#                     tab presses Check for updates, the app downloads the update and
+#                     keeps it waiting, the person quits, and starting HTML Clay again
+#                     with a file installs the update and opens that file
+#   next-button       the same as next, started by a browser tab pressing Check for
+#                     updates and then the Update button, the way the dashboard does
 #
-# Usage: scripts/update-rehearsal-linux.sh first|rollback-version|rollback-early|next|next-rollback [--old-tag <tag>]
+# Usage: scripts/update-rehearsal-linux.sh first|rollback-version|rollback-early|next|next-rollback|next-start|next-button [--old-tag <tag>]
 #
 #   HTMLCLAY_REHEARSAL_OLD_SRC  a checkout or export of the old tag (default: clones the public tag)
 #   HTMLCLAY_REHEARSAL_DIR      the run folder (default: a new folder under /tmp)
@@ -38,7 +44,7 @@
 set -uo pipefail
 
 say() { echo "[rehearsal] $*" >&2; }
-usage() { say "usage: update-rehearsal-linux.sh first|rollback-version|rollback-early|next|next-rollback [--old-tag <tag>]"; exit 2; }
+usage() { say "usage: update-rehearsal-linux.sh first|rollback-version|rollback-early|next|next-rollback|next-start|next-button [--old-tag <tag>]"; exit 2; }
 
 [ "$(uname -s)" = "Linux" ] || { say "this rehearsal runs on Linux only"; exit 2; }
 if [ -z "${HTMLCLAY_REHEARSAL_BUS:-}" ]; then
@@ -55,14 +61,14 @@ PUBLIC_URL="https://github.com/panphora/htmlclay.git"
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    first|rollback-version|rollback-early|next|next-rollback) [ -z "$CASE" ] || usage; CASE="$1"; shift ;;
+    first|rollback-version|rollback-early|next|next-rollback|next-start|next-button) [ -z "$CASE" ] || usage; CASE="$1"; shift ;;
     --old-tag) [ $# -ge 2 ] || usage; OLD_TAG="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
 [ -n "$CASE" ] || usage
 NEXT=""
-case "$CASE" in next|next-rollback) NEXT=1; OLD_VERSION="9.0.1"; NEW_VERSION="9.0.2" ;; esac
+case "$CASE" in next|next-rollback|next-start|next-button) NEXT=1; OLD_VERSION="9.0.1"; NEW_VERSION="9.0.2" ;; esac
 
 for tool in go node git curl gzip sha256sum; do
   command -v "$tool" >/dev/null || { say "$tool is missing"; exit 2; }
@@ -338,7 +344,10 @@ fi
 
 LEDGER_MODE="rollback"
 [ "$CASE" = "first" ] && LEDGER_MODE="first"
-[ "$CASE" = "next" ] && LEDGER_MODE="next"
+case "$CASE" in next|next-button) LEDGER_MODE="next" ;; esac
+# After a quit the tabs' save tokens are gone (they live in the running app's
+# memory), so next-start asks only that every save acked before the quit survives.
+[ "$CASE" = "next-start" ] && LEDGER_MODE="quit"
 node "$ROOT/scripts/upgrade-ledger.mjs" --port "$PORT" --config "$CONFIG" --out "$LOGS" --mode "$LEDGER_MODE" \
   --stop-file "$LOGS/ledger.stop" --times "$LOGS" --home "$FAKE_HOME" \
   "$FAKE_HOME/docs/a.htmlclay" "$FAKE_HOME/docs2/b.htmlclay" "$FAKE_HOME/loose/c.htmlclay" >"$LOGS/ledger.out" 2>"$LOGS/ledger.err" &
@@ -352,7 +361,83 @@ WATCH_PID=$!
 
 # --- the update ---------------------------------------------------------------
 
-if [ -n "$NEXT" ]; then
+# A browser tab's requests: the host answers a first load of / with a ticket
+# redirect, /enter spends the ticket and sets the session cookie, and the page
+# carries the token every action needs (internal/dashboard/server.go).
+PAGE_JAR="$LOGS/page.cookies"
+PAGE_TOKEN=""
+page_curl() { curl -sS --max-time 10 --resolve "htmlclay.localhost:$PORT:127.0.0.1" -b "$PAGE_JAR" "$@" 2>>"$LOGS/page-curl.log"; }
+page_sign_in() {
+  page_curl -L -c "$PAGE_JAR" -o "$LOGS/page.html" "http://htmlclay.localhost:$PORT/" || return 1
+  PAGE_TOKEN="$(sed -n 's/.*<meta name="workspace-token" content="\([^"]*\)".*/\1/p' "$LOGS/page.html" | head -n 1)"
+  [ -n "$PAGE_TOKEN" ]
+}
+# page_action TYPE sends what a page button sends, and succeeds when the host ran
+# it (it answers with the new snapshot) rather than refusing it (a code).
+page_action() {
+  local id answer
+  id="$(node -e 'console.log(require("crypto").randomUUID())')"
+  answer="$(page_curl -H "X-Workspace-Token: $PAGE_TOKEN" -H 'Content-Type: application/json' \
+    -X POST --data "{\"id\":\"$id\",\"type\":\"$1\"}" "http://htmlclay.localhost:$PORT/api/app/actions")"
+  printf '%s\n' "$answer" >"$LOGS/action-$1.json"
+  printf '%s' "$answer" | node -e '
+    let t = ""; process.stdin.on("data", c => t += c).on("end", () => {
+      try { const d = JSON.parse(t); process.exit("snapshot" in d && !("code" in d) && !d.pending ? 0 : 1); } catch { process.exit(1); }
+    });'
+}
+# wait_update_offered: the page's Update button shows when the snapshot has an
+# update ready, none finishing, and update.start allowed.
+wait_update_offered() {
+  local start=$SECONDS
+  while [ $((SECONDS - start)) -lt 120 ]; do
+    page_curl -H "X-Workspace-Token: $PAGE_TOKEN" -o "$LOGS/page-snapshot.json" "http://htmlclay.localhost:$PORT/api/app/snapshot"
+    if node -e '
+      const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+      const u = s.update || {};
+      process.exit(u.ready === process.argv[2] && !u.finishing && ((s.host || {}).can || {})["update.start"] === true ? 0 : 1);' \
+      "$LOGS/page-snapshot.json" "$NEW_VERSION" 2>/dev/null; then
+      say "the page offers Update to $NEW_VERSION after $((SECONDS - start)) s"
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+if [ "$CASE" = "next-start" ] || [ "$CASE" = "next-button" ]; then
+  page_sign_in || { fail "could not sign in as a browser tab: $(tail -n 2 "$LOGS/page-curl.log" 2>/dev/null)"; finish; }
+  # update.check is refused as not yet until the updater has started.
+  CHECKED=""
+  for _ in $(seq 1 30); do page_action update.check && { CHECKED=1; break; }; sleep 1; done
+  [ -n "$CHECKED" ] || { fail "Check for updates was refused: $(cat "$LOGS/action-update.check.json")"; finish; }
+  say "pressed Check for updates after $((SECONDS - STARTED_AT)) s"
+  wait_update_offered || { fail "the page never offered $NEW_VERSION: $(head -c 600 "$LOGS/page-snapshot.json")"; finish; }
+  if [ "$CASE" = "next-button" ]; then
+    page_action update.start || { fail "Update was refused: $(cat "$LOGS/action-update.start.json")"; finish; }
+    CLICK_MS="$(now_ms)"
+    pass "pressed Update after $((SECONDS - STARTED_AT)) s"
+  else
+    [ -s "$UPDATES/waiting.json" ] && pass "the downloaded update waits in waiting.json" || fail "no waiting.json after the download"
+    OPENED_BEFORE="$(grep -c 'a.htmlclay' "$LAB/opened-urls")"
+    # SIGTERM takes the tray's own Quit path (internal/tray/tray.go).
+    kill -TERM "$OLD_PID"
+    for _ in $(seq 1 100); do alive "$OLD_PID" || break; sleep 0.2; done
+    if alive "$OLD_PID"; then fail "the old app did not quit"; finish; fi
+    pass "the old app quit with the update still waiting"
+    CLICK_MS="$(now_ms)"
+    "${APP_ENV[@]}" "$INSTALL" "$FAKE_HOME/docs/a.htmlclay" >"$LOGS/start-again.out" 2>&1 &
+    AGAIN_PID=$!
+    for _ in $(seq 1 100); do alive "$AGAIN_PID" || break; sleep 0.2; done
+    if alive "$AGAIN_PID"; then
+      fail "starting again ran the old version instead of installing the waiting update"
+    else
+      wait "$AGAIN_PID"
+      AGAIN_EXIT=$?
+      [ "$AGAIN_EXIT" = 0 ] && pass "starting again handed over to the update and exited after $(( $(now_ms) - CLICK_MS )) ms" \
+        || fail "starting again exited $AGAIN_EXIT: $(tail -n 3 "$LOGS/start-again.out")"
+    fi
+  fi
+elif [ -n "$NEXT" ]; then
   # 2.0 takes update-now on Linux. "checking" means it is fetching the version now.
   say "asking the old app to update to $NEW_VERSION with update-now"
   ANSWER=""
@@ -421,7 +506,7 @@ stop_ledger() {
   esac
 }
 
-if [ "$CASE" = "first" ] || [ "$CASE" = "next" ]; then
+if [ "$CASE" = "first" ] || [ "$CASE" = "next" ] || [ "$CASE" = "next-start" ] || [ "$CASE" = "next-button" ]; then
   [ "$PHASE" = "done" ] && pass "state.json says done" || fail "state.json says '${PHASE:-nothing}', not done"
   H_VERSION="$(jget "$UPDATES/health.json" version 2>/dev/null || true)"
   H_PHASE="$(jget "$UPDATES/health.json" phase 2>/dev/null || true)"
@@ -472,7 +557,13 @@ if [ "$CASE" = "first" ] || [ "$CASE" = "next" ]; then
   port_answers && pass "port $PORT answers" || fail "port $PORT does not answer"
   alive "$(lock_pid)" || fail "the new app died after it reported serving"
 
-  if [ "$CASE" = "next" ]; then
+  if [ "$CASE" = "next-start" ]; then
+    [ -e "$UPDATES/waiting.json" ] && fail "waiting.json is still there after the update" || pass "waiting.json is gone"
+    for _ in $(seq 1 40); do [ "$(grep -c 'a.htmlclay' "$LAB/opened-urls")" -gt "$OPENED_BEFORE" ] && break; sleep 0.25; done
+    [ "$(grep -c 'a.htmlclay' "$LAB/opened-urls")" -gt "$OPENED_BEFORE" ] && pass "the file HTML Clay was started with opened after the update" \
+      || fail "a.htmlclay did not open after the update: $(tail -n 3 "$LAB/opened-urls")"
+  fi
+  if [ "$CASE" != "first" ]; then
     sleep 8
     stop_ledger
     NOW_RUNTIME="$(runtime_versions | tr -d ' ')"

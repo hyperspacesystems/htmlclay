@@ -9,7 +9,10 @@
 # prepared and the supervisor checks the new version serves before it leaves it
 # alone; `next-rollback` installs a bundle whose host is a version the bundle
 # does not claim, so the recovery supervisor puts the old bundle back and
-# relaunches it.
+# relaunches it; `next-button` waits, like `next-quit`, until Sparkle has
+# prepared the update on its own check, then signs in as a browser tab and
+# sends the `update.start` action the page's Update button sends, so the host
+# asks the shell to restart and Sparkle installs and relaunches.
 #
 # Both bundles carry the throwaway id com.htmlclay.UpgradeCheck and claim no
 # file types or URL schemes. Everything runs on a scratch home and config base
@@ -17,7 +20,7 @@
 # item, its config, its process and the app LaunchServices opens .htmlclay with
 # are compared before and after.
 #
-# Usage: scripts/next-rehearsal.sh next|next-quit|next-rollback [--served]
+# Usage: scripts/next-rehearsal.sh next|next-quit|next-rollback|next-button [--served]
 #
 # --served (the `next` case only): the old app serves ~/site before the update,
 # and the run also checks that the new app serves the same address again and
@@ -45,13 +48,13 @@ OBSERVE="${HTMLCLAY_REHEARSAL_OBSERVE:-60}"
 say() { echo "[rehearsal] $*" >&2; }
 
 usage() {
-  say "usage: next-rehearsal.sh next|next-quit|next-rollback [--served]"
+  say "usage: next-rehearsal.sh next|next-quit|next-rollback|next-button [--served]"
   exit 2
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    next|next-quit|next-rollback)
+    next|next-quit|next-rollback|next-button)
       [ -z "$CASE" ] || usage
       CASE="$1"
       shift
@@ -108,6 +111,11 @@ PORT_BEFORE=""
 PUB=""
 PRIV=""
 PREPARED="no"
+SIGNED_IN=""
+OFFERED=""
+PRESSED=""
+PAGE_JAR=""
+PAGE_TOKEN=""
 BUILD_VERSION="$NEW_VERSION"
 SHIPPED_VERSION="$NEW_VERSION"
 LEDGER_MODE="first"
@@ -569,7 +577,7 @@ fi
 [ "$(plist_key "$OLD/Contents/Info.plist" SUPublicEDKey)" = "$PUB" ] || say "warning: the old bundle does not carry the throwaway key"
 
 defaults write "$ID" welcomeDone -bool true
-if [ "$CASE" = "next-quit" ]; then
+if [ "$CASE" = "next-quit" ] || [ "$CASE" = "next-button" ]; then
   defaults write "$ID" SULastCheckTime -date "$(date -u -v-1d '+%Y-%m-%d %H:%M:%S +0000')"
 fi
 
@@ -649,6 +657,62 @@ wait_prepared() {
     sleep 1
   done
   return 1
+}
+
+page_base() { printf 'http://htmlclay.localhost:%s' "$PORT_BEFORE"; }
+
+# page_sign_in: what a browser tab does on its first load of /: the host answers
+# a load the person started with a ticket redirect, /enter spends the ticket and
+# sets the session cookie, and the page carries the token every action needs.
+page_sign_in() {
+  PAGE_JAR="$LOGS/page.cookies"
+  rm -f "$PAGE_JAR"
+  curl -sS -L --max-time 10 --resolve "htmlclay.localhost:$PORT_BEFORE:127.0.0.1" \
+    -c "$PAGE_JAR" -b "$PAGE_JAR" -o "$LOGS/page.html" "$(page_base)/" 2>>"$LOGS/page-curl.log" || return 1
+  PAGE_TOKEN="$(sed -n 's/.*<meta name="workspace-token" content="\([^"]*\)".*/\1/p' "$LOGS/page.html" | head -n 1)"
+  [ -n "$PAGE_TOKEN" ]
+}
+
+page_get() {
+  curl -sS --max-time 10 --resolve "htmlclay.localhost:$PORT_BEFORE:127.0.0.1" \
+    -b "$PAGE_JAR" -H "X-Workspace-Token: $PAGE_TOKEN" "$(page_base)$1"
+}
+
+# wait_update_offered: the page's Update button shows when the snapshot has an
+# update ready, none finishing, and update.start allowed (UpdateButton in the
+# workspace's src/local/local-chrome.tsx).
+wait_update_offered() {
+  local start=$SECONDS snap
+  while [ $((SECONDS - start)) -lt 60 ]; do
+    snap="$(page_get /api/app/snapshot 2>>"$LOGS/page-curl.log")"
+    printf '%s\n' "$snap" >"$LOGS/page-snapshot.json"
+    if printf '%s' "$snap" | python3 -c '
+import json, sys
+s = json.load(sys.stdin)
+u = s.get("update") or {}
+ok = u.get("ready") == sys.argv[1] and not u.get("finishing") and (s.get("host") or {}).get("can", {}).get("update.start") is True
+sys.exit(0 if ok else 1)' "$NEW_VERSION" 2>/dev/null; then
+      say "the page offers Update to $NEW_VERSION after $((SECONDS - start)) s"
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+# press_update: the request the Update button's click sends. The host answers
+# an action it ran with the new snapshot, and a refusal with its code.
+press_update() {
+  local id answer
+  id="$(uuidgen | tr 'A-Z' 'a-z')"
+  answer="$(curl -sS --max-time 10 --resolve "htmlclay.localhost:$PORT_BEFORE:127.0.0.1" \
+    -b "$PAGE_JAR" -H "X-Workspace-Token: $PAGE_TOKEN" -H 'Content-Type: application/json' \
+    -X POST --data "{\"id\":\"$id\",\"type\":\"update.start\"}" "$(page_base)/api/app/actions" 2>>"$LOGS/page-curl.log")"
+  printf '%s\n' "$answer" >"$LOGS/press-update.json"
+  printf '%s' "$answer" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+sys.exit(0 if "snapshot" in d and "code" not in d and not d.get("pending") else 1)' 2>/dev/null
 }
 
 wait_phase_done() {
@@ -1049,11 +1113,36 @@ run_rollback_checks() {
   CHECKS_RAN=yes
 }
 
+run_button_checks() {
+  if [ "$PREPARED" != "yes" ]; then
+    record_check prepared no "not exercised: Sparkle never prepared $NEW_VERSION within 120 s"
+    CHECKS_RAN=yes
+    return 0
+  fi
+  record_check prepared yes
+  if [ "$OFFERED" = "yes" ]; then
+    record_check offered yes "update.ready $NEW_VERSION and update.start allowed"
+  else
+    record_check offered no "signed in: ${SIGNED_IN:-no}; the last snapshot is logs/page-snapshot.json"
+    CHECKS_RAN=yes
+    return 0
+  fi
+  if [ "$PRESSED" = "yes" ]; then
+    record_check pressed yes
+  else
+    record_check pressed no "answer: $(cat "$LOGS/press-update.json" 2>/dev/null)"
+    CHECKS_RAN=yes
+    return 0
+  fi
+  run_next_checks
+}
+
 run_checks() {
   case "$CASE" in
     next) run_next_checks ;;
     next-quit) run_quit_checks ;;
     next-rollback) run_rollback_checks ;;
+    next-button) run_button_checks ;;
   esac
   check_ledger
 }
@@ -1104,6 +1193,24 @@ case "$CASE" in
     fi
     wait_host_port || say "no htmlclay-host on ${PORT_BEFORE:-unknown} within 60 s"
     sleep 5
+    stop_ledger
+    ;;
+  next-button)
+    if wait_prepared; then
+      PREPARED=yes
+      page_sign_in && SIGNED_IN=yes && say "signed in as a browser tab"
+      [ "$SIGNED_IN" = "yes" ] && wait_update_offered && OFFERED=yes
+      if [ "$OFFERED" = "yes" ] && press_update; then
+        PRESSED=yes
+        say "pressed Update"
+        wait_phase_done || say "state.json never reached done within $DEADLINE s"
+        wait_host_port || say "no htmlclay-host on ${PORT_BEFORE:-unknown} within 60 s"
+        sleep 5
+      fi
+    else
+      PREPARED=no
+      say "Sparkle never prepared $NEW_VERSION within 120 s"
+    fi
     stop_ledger
     ;;
   next-quit)
