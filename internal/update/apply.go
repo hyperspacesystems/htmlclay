@@ -635,6 +635,10 @@ func StartDetached(path string, args ...string) (*exec.Cmd, error) {
 	return startDetached(path, args...)
 }
 
+// ProcessAlive reports whether pid is a process that has not exited. On Windows
+// an exited process whose handle someone still holds counts as exited.
+func ProcessAlive(pid int) bool { return pid > 0 && processAlive(pid) }
+
 // WaitGone waits up to timeout for pid to exit and reports whether it did.
 func WaitGone(pid int, timeout time.Duration) bool { return waitGone(pid, timeout) }
 

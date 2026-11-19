@@ -16,16 +16,15 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/update"
 )
 
 // The wire CLI is a client of a RUNNING HTML Clay, never a second instance of
@@ -389,19 +388,7 @@ func wireLocalRoots(path string) []wireLocalRoot {
 }
 
 func wirePIDAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	if runtime.GOOS == "windows" {
-		p.Release()
-		return true
-	}
-	err = p.Signal(syscall.Signal(0))
-	return err == nil || errors.Is(err, syscall.EPERM)
+	return update.ProcessAlive(pid)
 }
 
 // wireCandidates orders the remembered origins by how likely each is to serve file.
