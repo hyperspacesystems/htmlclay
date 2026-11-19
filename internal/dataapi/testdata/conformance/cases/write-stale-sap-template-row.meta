@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: The only painting element sits in a template, which sapjs never paints in place: stale is false.

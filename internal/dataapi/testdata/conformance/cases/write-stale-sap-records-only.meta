@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A sapjs app whose rules read only stored records (a bound input, plain text): sapjs paints other elements, not these, so stale is false.

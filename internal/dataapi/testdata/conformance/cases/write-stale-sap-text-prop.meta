@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: Painted text read through the textContent property counts as text: stale is true.

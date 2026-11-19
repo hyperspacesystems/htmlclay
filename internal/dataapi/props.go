@@ -27,8 +27,8 @@ var domProperties = map[string]bool{
 	"title": true, "documentURI": true, "contentType": true,
 }
 
-// booleanAttrs is cheerio's rboolean. A name in this set is read as presence rather than value,
-// and — separately — reading it as a plain ATTRIBUTE returns the name itself, not the stored value.
+// booleanAttrs is cheerio's rboolean. A name in this set is read as presence rather than value
+// when it is read as a property. Read as a plain attribute it is the raw value (readPropOrAttr).
 // Matched case-insensitively, exactly as the /i regex does.
 var booleanAttrs = map[string]bool{
 	"autofocus": true, "autoplay": true, "async": true, "checked": true, "controls": true,
@@ -40,9 +40,8 @@ func isBooleanAttr(name string) bool { return booleanAttrs[strings.ToLower(name)
 
 // readPropOrAttr is the whole read contract for `@name`, ported from extract.js.
 //
-// The two branches treat emptiness differently and that asymmetry is real: the property branch
-// keeps an empty string, the attribute branch turns it into null, because the JS is `return v ? v
-// : null` and "" is falsy. So `@className` on class="" is "" while `@data-x` on data-x="" is null.
+// The attribute branch reads the raw attribute, as the reference's adapter.attr does: a bare
+// boolean attribute such as `hidden` reads as "", not as its name, and a missing one is null.
 func readPropOrAttr(d *Document, n *html.Node, name string) Value {
 	if isCustomPropertyName(name) {
 		style, ok := getAttr(n, "style")
@@ -62,7 +61,7 @@ func readPropOrAttr(d *Document, n *html.Node, name string) Value {
 		}
 		return v
 	}
-	v, ok := getAttr(n, name)
+	v, ok := attrValue(n, name)
 	if !ok {
 		return nil
 	}
@@ -136,11 +135,6 @@ func getAttr(n *html.Node, name string) (string, bool) {
 	}
 
 	if v, ok := attrValue(n, name); ok {
-		// A present boolean attribute reads back as its own NAME, not its stored value. So
-		// `@hidden` on <div hidden> is "hidden", and on <div hidden="x"> it is still "hidden".
-		if isBooleanAttr(name) {
-			return name, true
-		}
 		return v, true
 	}
 

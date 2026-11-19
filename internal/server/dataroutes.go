@@ -211,7 +211,9 @@ func (s *Server) handleDataAPI(w http.ResponseWriter, r *http.Request) {
 // writeExtracted is the ONLY place a data response is produced. It runs after every gate, with the
 // bytes already read, which is what makes the two faces impossible to use as a read primitive the
 // plain GET does not already grant.
-func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode) {
+// writeExtracted answers with the data a reader of raw sees. meta, when set, is a write answer's
+// __meta__ key: it goes last, and only into object data whose rules do not define the key.
+func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode, meta *dataapi.Object, stale bool) {
 	var value dataapi.Value
 
 	if mode.face == faceAPI && !mode.resolved {
@@ -257,6 +259,12 @@ func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode
 		}
 	}
 
+	if obj, ok := value.(*dataapi.Object); ok && meta != nil {
+		if _, own := obj.Get(dataapi.MetaKey); !own {
+			obj.Set(dataapi.MetaKey, meta)
+		}
+	}
+
 	body, err := dataapi.Marshal(value)
 	if err != nil {
 		s.logger.Printf("Data extraction could not marshal its result: %v", err)
@@ -265,6 +273,9 @@ func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode
 	}
 
 	w.Header().Set("ETag", specwire.Etag(raw))
+	if stale {
+		w.Header().Set("Clay-Stale", "true")
+	}
 
 	dataHeaders(w)
 	w.WriteHeader(http.StatusOK)

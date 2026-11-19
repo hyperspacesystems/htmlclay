@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: An agent posts back a whole answer, __meta__ included: the key is ignored and never written into the file.

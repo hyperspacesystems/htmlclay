@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A sheet holding a formula is computed (calculator plan 2.1), so even a title write answers stale.

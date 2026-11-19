@@ -361,14 +361,14 @@ func (w *writer) writePropOrAttr(n *html.Node, name string, value Value) error {
 		// null removes the attribute and "" keeps it present, so a presence flag like a Kanban
 		// card's data-done survives a round trip.
 		if value == nil || isUndefined(value) {
-			if _, ok := getAttr(n, name); ok && w.allowAttr(n, name, nil) {
+			if _, ok := attrValue(n, name); ok && w.allowAttr(n, name, nil) {
 				removeAttr(n, name)
 				w.dirty[n] = true
 			}
 			return nil
 		}
 		next := jsString(value)
-		if cur, ok := getAttr(n, name); !ok || cur != next {
+		if cur, ok := attrValue(n, name); !ok || cur != next {
 			if w.allowAttr(n, name, next) {
 				setAttr(n, name, next)
 				w.dirty[n] = true

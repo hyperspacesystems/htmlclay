@@ -540,7 +540,7 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	// while the page's own clay.extractData() sees the injected id.
 	if mode.active() {
 		f.Unlock()
-		s.writeExtracted(w, data, mode)
+		s.writeExtracted(w, data, mode, nil, false)
 		return
 	}
 
@@ -814,7 +814,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 			http.Error(w, "Not Found", http.StatusNotFound)
 			return
 		}
-		s.writeExtracted(w, raw, mode)
+		s.writeExtracted(w, raw, mode, nil, false)
 		return
 	}
 

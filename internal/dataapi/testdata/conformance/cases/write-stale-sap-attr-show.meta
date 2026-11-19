@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: Rules read an attribute sapjs paints (attr:href) and a hidden flag it paints (show): stale is true.

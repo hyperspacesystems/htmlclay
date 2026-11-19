@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A page with a script that only drives its own editor UI: no rule reads a computed value, so stale is false.

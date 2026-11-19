@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: Rules that define __meta__ own the name: it is written as data like any other key.

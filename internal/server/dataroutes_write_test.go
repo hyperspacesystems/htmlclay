@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -837,4 +838,103 @@ func TestDataWriteSheetPatchClearWithoutAVersionIsRefused(t *testing.T) {
 		t.Errorf("code = %q, want read-required (body %s)", body.Code, w.Body.String())
 	}
 	assertUnchanged(t, path, sheetGuardSource)
+}
+
+// A rules write whose rules read a value a page's script computes answers that the value is old:
+// HTML Clay runs no page script, so after {"qty":"7"} the invoice's total still reads 10. The
+// answer says so in a last __meta__ key and a Clay-Stale header; a page with a script that
+// computes nothing the rules read answers plain data. Neither changes a byte of the file.
+func TestDataWriteSaysWhenComputedValuesAreOld(t *testing.T) {
+	const why = "No page has recalculated since this write. Open the document to refresh its computed values."
+	srv, _, _ := setupHandlerTest(t)
+	invoice := writeHome(t, srv, "invoice.htmlclay", `<!DOCTYPE html><html><body>
+<main sap state="qty=1 price=10"><input id="qty" bind="qty" value="1"><b id="total" text="qty*price">10</b></main>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"qty":"#qty@value","total":"#total"}</script>
+</body></html>`)
+	notes := writeHome(t, srv, "notes.htmlclay", `<!DOCTYPE html><html><body>
+<h1>Notes</h1><div editor-ui><button id="b">Bold</button></div>
+<script>document.getElementById("b").textContent = "B"</script>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"title":"h1"}</script>
+</body></html>`)
+	ownMeta := writeHome(t, srv, "own-meta.htmlclay", `<!DOCTYPE html><html><body>
+<output id="sum">3</output><p id="m">mine</p>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"sum":"#sum","__meta__":"#m"}</script>
+</body></html>`)
+	totals := writeHome(t, srv, "totals.htmlclay", `<!DOCTYPE html><html><body>
+<output>12</output>
+<script type="application/json" data-rules-name="api" data-rules-version="1">"output[]"</script>
+</body></html>`)
+	for _, p := range []string{invoice, notes, ownMeta, totals} {
+		if _, err := srv.sessions.Register(p, session.ViaOsOpen); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	w := postDataWrite(t, srv, "/_/api/invoice.htmlclay", `{"qty":"7"}`, nil)
+	stale := `{"qty":"7","total":"10","__meta__":{"stale":true,"why":"` + why + `"}}`
+	if w.Code != 200 || w.Body.String() != stale {
+		t.Fatalf("invoice: %d %s\nwant %s", w.Code, w.Body.String(), stale)
+	}
+	if got := w.Header().Get("Clay-Stale"); got != "true" {
+		t.Errorf("invoice: Clay-Stale = %q, want true", got)
+	}
+
+	// The agent posts the whole answer back: __meta__ is not a rule, so it is dropped, not refused,
+	// and never reaches the file.
+	w = postDataWrite(t, srv, "/_/api/invoice.htmlclay", `{"qty":"8","total":"10","__meta__":{"stale":true,"why":"x"}}`, nil)
+	if w.Code != 200 {
+		t.Fatalf("posting the answer back: %d %s", w.Code, w.Body.String())
+	}
+	if doc := readDoc(t, invoice); strings.Contains(doc, "__meta__") || strings.Contains(doc, "stale") || !strings.Contains(doc, `value="8"`) {
+		t.Errorf("invoice file after the post back:\n%s", doc)
+	}
+
+	w = postDataWrite(t, srv, "/_/api/notes.htmlclay", `{"title":"Monday"}`, nil)
+	if w.Code != 200 || w.Body.String() != `{"title":"Monday"}` || w.Header().Get("Clay-Stale") != "" {
+		t.Errorf("notes: %d %q Clay-Stale=%q, want plain data", w.Code, w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+
+	// A query string write keeps its old answer: no key, no header.
+	w = postDataWrite(t, srv, "/_/api/invoice.htmlclay?data="+url.QueryEscape(`{"qty":"#qty@value","total":"#total"}`), `{"qty":"9"}`, nil)
+	if w.Code != 200 || strings.Contains(w.Body.String(), "__meta__") || w.Header().Get("Clay-Stale") != "" {
+		t.Errorf("?data= write: %d %s Clay-Stale=%q, want the old answer", w.Code, w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+
+	// Rules that define __meta__ own the key: the document's value stays, and the header alone
+	// says the values are old.
+	w = postDataWrite(t, srv, "/_/api/own-meta.htmlclay", `{"__meta__":"theirs"}`, nil)
+	if w.Code != 200 || w.Body.String() != `{"sum":"3","__meta__":"theirs"}` || w.Header().Get("Clay-Stale") != "true" {
+		t.Errorf("rules-defined __meta__: %d %s Clay-Stale=%q", w.Code, w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+
+	// ?meta asks for the whole key, stale or not.
+	w = postDataWrite(t, srv, "/_/api/notes.htmlclay?meta", `{"title":"Tuesday"}`, nil)
+	etag := specwire.Etag([]byte(readDoc(t, notes)))
+	full := `{"title":"Tuesday","__meta__":{"etag":` + mustJSON(t, etag) + `,"changed":true,"recalculated":false,"stale":false}}`
+	if w.Body.String() != full {
+		t.Errorf("notes ?meta: %s\nwant %s", w.Body.String(), full)
+	}
+
+	// A stale ?meta answer carries everything, why last.
+	w = postDataWrite(t, srv, "/_/api/invoice.htmlclay?meta", `{"qty":"7"}`, nil)
+	etag = specwire.Etag([]byte(readDoc(t, invoice)))
+	full = `{"qty":"7","total":"10","__meta__":{"etag":` + mustJSON(t, etag) + `,"changed":true,"recalculated":false,"stale":true,"why":"` + why + `"}}`
+	if w.Body.String() != full {
+		t.Errorf("invoice ?meta: %s\nwant %s", w.Body.String(), full)
+	}
+
+	// Data that is a list has no place for the key: the header alone says the values are old.
+	w = postDataWrite(t, srv, "/_/api/totals.htmlclay", `["6"]`, map[string]string{"If-Match": specwire.Etag([]byte(readDoc(t, totals)))})
+	if w.Code != 200 || strings.Contains(w.Body.String(), "__meta__") || w.Header().Get("Clay-Stale") != "true" {
+		t.Errorf("list data: %d %s Clay-Stale=%q, want the header only", w.Code, w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+}
+
+func mustJSON(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
 }

@@ -343,7 +343,34 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		s.versions.MaybePrune(key, f.AbsPath)
 		s.logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), res.Spliced)
 	}
-	s.writeExtracted(w, written, mode)
+	var meta *dataapi.Object
+	stale := mode.face == faceAPI && res.Stale
+	if mode.face == faceAPI {
+		meta = writeAnswerMeta(r.URL.Query().Has("meta"), specwire.Etag(written), res.Changed, res.Stale)
+	}
+	s.writeExtracted(w, written, mode, meta, stale)
+}
+
+// staleWhy is the M1a sentence. It must not name the wait option, which arrives in M2.
+const staleWhy = "No page has recalculated since this write. Open the document to refresh its computed values."
+
+// writeAnswerMeta is a rules write's __meta__ key: present while computed values are old, and
+// always when the caller asked with ?meta. HTML Clay runs no page script, so nothing recalculated.
+func writeAnswerMeta(full bool, etag string, changed, stale bool) *dataapi.Object {
+	if !full && !stale {
+		return nil
+	}
+	meta := dataapi.NewObject()
+	if full {
+		meta.Set("etag", etag)
+		meta.Set("changed", changed)
+		meta.Set("recalculated", false)
+	}
+	meta.Set("stale", stale)
+	if stale {
+		meta.Set("why", staleWhy)
+	}
+	return meta
 }
 
 // patchApplied applies a sheet patch body. Caller holds f.Lock; patchApplied releases it.
