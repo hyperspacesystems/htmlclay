@@ -405,6 +405,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.guardQueue.Settle()
 	s.broker.shutdown()
 	s.Hub.Shutdown()
+	s.RunFiles.Clear()
 	if s.ownsLiveSync {
 		s.ls.Shutdown()
 	}
@@ -420,6 +421,7 @@ func (s *Server) Close() error {
 	s.guardQueue.Settle()
 	s.broker.shutdown()
 	s.Hub.Shutdown()
+	s.RunFiles.Clear()
 	if s.ownsLiveSync {
 		s.ls.Shutdown()
 	}

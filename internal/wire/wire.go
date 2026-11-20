@@ -13,6 +13,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/aiedit"
 	"github.com/panphora/htmlclay/internal/builtin"
+	"github.com/panphora/htmlclay/internal/pathrel"
 )
 
 // builtinHelpers is the helpers this server answers itself: the name a page asks
@@ -221,6 +222,19 @@ func (s *Core) Forget(path string) {
 	evicted := s.Hub.closeChannel(path)
 	s.HelperBindings.mu.Unlock()
 	stopWireSubs(evicted)
+	s.RunFiles.Forget(path)
+}
+
+// ForgetUnder forgets every document at or under dir, as a folder that was
+// renamed or trashed is forgotten under its old path. A document the wire never
+// bound still loses its run files here.
+func (s *Core) ForgetUnder(dir string) {
+	for _, path := range s.BoundFiles() {
+		if pathrel.SameOrBelow(path, dir) {
+			s.Forget(path)
+		}
+	}
+	s.RunFiles.ForgetUnder(dir)
 }
 
 type Terminal struct {
@@ -695,6 +709,7 @@ func (s *Core) WireMux() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /_/wire/subscribe", s.handleWireSubscribe)
 	mux.HandleFunc("POST /_/wire/send", s.handleWireSend)
+	mux.HandleFunc("GET /_/wire/runs/{run}/files/{id}", s.handleRunFile)
 	return wireGuard(s.docs.Caller, mux)
 }
 

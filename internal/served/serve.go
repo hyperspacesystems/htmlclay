@@ -106,6 +106,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	host := newCommitHost(baseDir, root.id, registry, hooks, runtime.Releases)
 	host.service = cfg.service
 	host.onStructure = cfg.onStructure
+	host.onRetire = cfg.onRetire
 	if cfg.service != nil {
 		cfg.service.setRoot(root.id, baseDir)
 	}
@@ -172,7 +173,7 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if marked && s.wireMux != nil && (urlPath == "/wire/subscribe" || urlPath == "/wire/send") {
+	if marked && s.wireMux != nil && (urlPath == "/wire/subscribe" || urlPath == "/wire/send" || strings.HasPrefix(urlPath, "/wire/runs/")) {
 		s.wireMux.ServeHTTP(w, r)
 		return
 	}

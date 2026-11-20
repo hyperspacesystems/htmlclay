@@ -216,6 +216,9 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 		// the document's kept versions read at the name it had, which is where a
 		// restore puts it back.
 		if policy.retire {
+			if h.onRetire != nil && entry.FromName != "" {
+				h.onRetire(h.rootID, entry.FromName, entry.IsDir)
+			}
 			continue
 		}
 		if entry.IsDir {

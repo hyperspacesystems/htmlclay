@@ -48,6 +48,10 @@ type Options struct {
 	// record that follows a document by its path can follow the move. Nil hears
 	// nothing.
 	OnStructure func(rootID, from, to string, isDir bool)
+	// OnRetire hears about each structure step that retired a name, a trash
+	// move, so a record that follows a document by its path can forget what it
+	// held there. Nil hears nothing.
+	OnRetire func(rootID, name string, isDir bool)
 	// InternalDir is the app's own data folder. Nothing under it, and nothing
 	// under a dot-prefixed folder of a root, is a wire target.
 	InternalDir string
@@ -97,6 +101,7 @@ func NewHost(o Options) *Host {
 		onPageLoad:      o.OnPageLoad,
 		beforePage:      o.BeforePage,
 		onStructure:     o.OnStructure,
+		onRetire:        o.OnRetire,
 		internalDir:     o.InternalDir,
 		heldCopy:        o.HeldCopy,
 		events:          newEventRing(),

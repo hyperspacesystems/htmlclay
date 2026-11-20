@@ -69,6 +69,7 @@ type Core struct {
 	helperAskQuiet map[string]time.Time
 	AIEdit         aiEditRegistry
 	Builtin        builtinRegistry
+	RunFiles       RunFiles
 }
 
 func NewCore(docs Documents, policy Policy, logger *logging.Logger, writeError func(http.ResponseWriter, int, string)) *Core {
@@ -86,4 +87,5 @@ func NewCore(docs Documents, policy Policy, logger *logging.Logger, writeError f
 func (s *Core) Shutdown() {
 	s.CancelAIEdits()
 	s.Hub.Shutdown()
+	s.RunFiles.Clear()
 }

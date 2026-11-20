@@ -41,6 +41,8 @@ type config struct {
 	beforePage func(rootID, absPath string)
 	// onStructure hears about a completed structure step that moved a name.
 	onStructure func(rootID, from, to string, isDir bool)
+	// onRetire hears about a completed structure step that retired a name.
+	onRetire func(rootID, name string, isDir bool)
 	// internalDir is the app's own data folder (Options.InternalDir).
 	internalDir string
 	// events is the process's one frame stream: every root's commits and

@@ -614,3 +614,39 @@ func TestM3ServedWire(t *testing.T) {
 		}
 	})
 }
+
+// A page in a served folder reads its own run's files through the folder's
+// address, and another page in the same folder cannot.
+func TestServedRunFileReachesOnlyItsDocument(t *testing.T) {
+	stand := wireOpenStand(t)
+	if err := os.WriteFile(filepath.Join(stand.dir, "other.html"), []byte("<!doctype html><p>other</p>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	core, ok := stand.host.Wire(stand.rootID)
+	if !ok {
+		t.Fatal("the served folder has no wire")
+	}
+	ref, err := core.RunFiles.Put(stand.file(t), wire.NewRunID(), "diff", []byte("-one\n+two\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := func(document string) *http.Response {
+		t.Helper()
+		request, err := http.NewRequest(http.MethodGet, stand.server.URL+ref.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Host = stand.publicHost
+		request.Header.Set("Sec-Fetch-Site", "same-origin")
+		request.Header.Set("Document-URL", stand.documentURL(document))
+		return stand.do(t, request)
+	}
+	response := get(wireDocumentName)
+	body, _ := io.ReadAll(response.Body)
+	if response.StatusCode != http.StatusOK || string(body) != "-one\n+two\n" {
+		t.Fatalf("the run's own page: %d %q", response.StatusCode, body)
+	}
+	if response := get("other.html"); response.StatusCode != http.StatusNotFound {
+		t.Errorf("another page in the folder read the run file: %d", response.StatusCode)
+	}
+}

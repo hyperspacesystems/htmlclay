@@ -196,6 +196,9 @@ type commitHost struct {
 	// onStructure hears about each completed structure step that moved a name
 	// (Options.OnStructure). Nil hears nothing.
 	onStructure func(rootID, from, to string, isDir bool)
+	// onRetire hears about each completed structure step that retired a name, a
+	// trash move, so the host forgets what it held there. Nil hears nothing.
+	onRetire func(rootID, name string, isDir bool)
 }
 
 // newCommitHost builds the commit core for one served folder.
