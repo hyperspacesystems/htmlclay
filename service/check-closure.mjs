@@ -14,7 +14,9 @@ import path from 'node:path';
 import { builtinModules, createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const serviceDir = path.dirname(fileURLToPath(import.meta.url));
+// The folder to check: service/ itself, or the staged copy build.mjs passes once
+// its packages are installed.
+const serviceDir = process.argv[2] ? path.resolve(process.argv[2]) : path.dirname(fileURLToPath(import.meta.url));
 const requireCjs = createRequire(import.meta.url);
 const Module = requireCjs('node:module');
 

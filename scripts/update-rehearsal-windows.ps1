@@ -393,6 +393,15 @@ try {
       Write-Text "$Logs\npm-ci.log" ($ci.Out + $ci.Err)
       if ($ci.Code -ne 0) { Die "npm ci failed in service, see $Logs\npm-ci.log" }
     }
+    # service/build.mjs bundles the service with esbuild, a root dev dependency. Install
+    # scripts stay off: wrangler's workerd has no Windows ARM64 build and its script fails
+    # there, and esbuild finds its own platform package without its script.
+    if (-not (Test-Path "$Root\node_modules\esbuild")) {
+      Say 'installing the root packages (npm ci)'
+      $rootCi = Invoke-Tool $env:ComSpec @('/c', 'npm', 'ci', '--ignore-scripts', '--no-audit', '--no-fund') @{} $Root 1800
+      Write-Text "$Logs\npm-ci-root.log" ($rootCi.Out + $rootCi.Err)
+      if ($rootCi.Code -ne 0) { Die "npm ci failed at the repo root, see $Logs\npm-ci-root.log" }
+    }
     Say 'building the service bundle'
     $bundle = Invoke-Tool $Node @('service/build.mjs', '--goos', 'windows', '--goarch', $Arch) @{} $Root 1800
     Write-Text "$Logs\build-service.log" ($bundle.Out + $bundle.Err)

@@ -415,6 +415,8 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Fetch Tailwind
       run: go run ./cmd/fetchtailwind -goos linux -goarch arm64
     - name: Build the service bundle
@@ -643,6 +645,8 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Fetch Tailwind
       run: |
         go run ./cmd/fetchtailwind -goos windows -goarch arm64

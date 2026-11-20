@@ -93,13 +93,192 @@ function dropBinLinks(dir) {
   }
 }
 
+// Packing. Windows Defender scans every file the host unpacks, and 7,000 small
+// package files made the first start after an install or update take a minute.
+// So the installed app/ is bundled into two scripts plus the files its code
+// reads by path, each kept at its original relative path.
+
+// Bundled modules that name __dirname, __filename or import.meta.url, each
+// reviewed for what it reads, with how many times it names them. The plugin
+// gives each one its original folder, so those reads land on the files
+// DATA_FILES ships. A module that is not listed, or whose count changed (a
+// package update can add a worker file or a template), fails the build until
+// someone checks what it reads now and updates the entry (and DATA_FILES).
+const PATH_READERS = new Map([
+  ['shell.cjs', { refs: 2, reads: 'workspace-manifest.json' }],
+  ['local/src/main/server.js', { refs: 6, reads: 'templates/, assets/, local/assets/, offline-runtime/<v>/src/core/page-format.js' }],
+  ['local/src/main/runtime-assets.js', { refs: 1, reads: 'offline-runtime/manifest.json and <v>/offline-manifest.json' }],
+  ['local/src/main/workspace/commands.js', { refs: 1, reads: 'document-templates/' }],
+  ['local/src/main/workspace/shell-server.js', { refs: 1, reads: 'document-templates/, the workspace local-app manifest' }],
+  ['local/src/main/workspace/search-index.js', { refs: 1, reads: 'the search-worker.js bundle' }],
+  ['node_modules/@panphora/clayjs/dist/server/core.cjs', { refs: 4, reads: 'page-compaction-worker.cjs' }],
+  ['node_modules/@panphora/hyperclay-workspace/dist/server/index.cjs', { refs: 1, reads: 'anchors.js' }],
+  ['node_modules/@panphora/hyperclay-workspace/dist/server/cheerio.cjs', { refs: 2, reads: 'nothing (stack traces only)' }],
+  ['node_modules/undici/index.js', { refs: 3, reads: 'nothing (stack traces only)' }],
+  ['node_modules/tailwind-hyperclay/index.js', { refs: 3, reads: "tailwindcss's CSS and its plugins, shipped as packages" }],
+]);
+
+// Files and folders the bundled code reads by path, copied at their original
+// relative paths. The ClayJS browser runtime under offline-runtime/<v>/ is not
+// shipped: the Go host answers /_/clayjs/ itself and never forwards it here.
+const DATA_FILES = [
+  'package.json',
+  'BUILD.json',
+  'workspace-manifest.json',
+  'local/assets',
+  'local/src/main/assets',
+  'local/src/main/templates',
+  'local/src/main/document-templates',
+  'local/src/main/offline-runtime/manifest.json',
+  'node_modules/@panphora/hyperclay-workspace/package.json',
+  'node_modules/@panphora/hyperclay-workspace/dist/local-app/manifest.json',
+  'node_modules/@panphora/hyperclay-workspace/dist/server/anchors.js',
+  'node_modules/@panphora/clayjs/dist/server/page-compaction-worker.cjs',
+  // tailwind-hyperclay resolves tailwindcss's CSS and loads its two plugins by
+  // computed name, so these stay real packages.
+  'node_modules/tailwind-hyperclay/package.json',
+  'node_modules/tailwindcss',
+  'node_modules/@tailwindcss/typography',
+  'node_modules/@tailwindcss/forms',
+  'node_modules/postcss-selector-parser',
+  'node_modules/cssesc',
+  'node_modules/util-deprecate',
+  'node_modules/mini-svg-data-uri',
+];
+
+// The one warning left: shell-server.js resolves the workspace manifest as a
+// default that HTML Clay never uses (shell.cjs passes the manifest in); the
+// file ships anyway, so the path stays valid.
+const ALLOWED_WARNING = '@panphora/hyperclay-workspace/local-app/manifest.json';
+const JSDOM_SYNC_XHR = 'require.resolve ? require.resolve("./xhr-sync-worker.js") : null';
+const MAX_PACKED_FILES = 300;
+
+async function loadEsbuild() {
+  try {
+    return await import('esbuild');
+  } catch {
+    fail('esbuild is missing: run npm ci at the repo root');
+  }
+}
+
+async function packApp(installed, packed) {
+  const esbuild = await loadEsbuild();
+  // esbuild reports real, long paths: the temp folder is a symlink on macOS, and on
+  // Windows %TEMP% is often an 8.3 short path (C:\Users\RUNNER~1\...). The native
+  // resolver expands both; fs.realpathSync expands neither on Windows.
+  const app = fs.realpathSync.native(installed);
+  const rel = (file) => path.relative(app, file).split(path.sep).join('/');
+  const unreviewed = new Set();
+  let jsdomPatched = false;
+  const ownDirname = {
+    name: 'own-dirname',
+    setup(build) {
+      build.onLoad({ filter: /\.(c?js|mjs)$/ }, async (loaded) => {
+        let contents = await fs.promises.readFile(loaded.path, 'utf8');
+        const name = rel(loaded.path);
+        if (name.endsWith('jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js')) {
+          if (!contents.includes(JSDOM_SYNC_XHR)) fail(`${name} no longer has the sync XHR worker lookup this build removes`);
+          // The service's jsdom never runs page scripts, so synchronous XHR and its worker file are never used.
+          contents = contents.replace(JSDOM_SYNC_XHR, 'null');
+          jsdomPatched = true;
+        }
+        const refs = (contents.match(/\b__(dirname|filename)\b|import\.meta\.url/g) || []).length;
+        if (refs > 0) {
+          const reviewed = PATH_READERS.get(name);
+          if (!reviewed) unreviewed.add(`${name} (names its own path ${refs} times; not listed)`);
+          else if (reviewed.refs !== refs) unreviewed.add(`${name} (names its own path ${refs} times; reviewed at ${reviewed.refs})`);
+          // Every reviewed reader is CommonJS, so these land inside its own module wrapper.
+          contents = `var __dirname = require("path").join(__serviceRoot, ${JSON.stringify(rel(path.dirname(loaded.path)))});\n` +
+            `var __filename = require("path").join(__serviceRoot, ${JSON.stringify(name)});\n${contents}`;
+        }
+        return { contents, loader: 'js' };
+      });
+    },
+  };
+
+  const inputs = new Set();
+  const bundle = async (entry, rootExpr) => {
+    const result = await esbuild.build({
+      entryPoints: [path.join(app, entry)],
+      outfile: path.join(packed, entry),
+      bundle: true,
+      platform: 'node',
+      target: 'node24',
+      format: 'cjs',
+      external: ['electron'],
+      banner: { js: `const __serviceRoot = ${rootExpr};` },
+      plugins: [ownDirname],
+      logLevel: 'silent',
+      metafile: true,
+      legalComments: 'eof',
+      // Paths in the bundle's module comments stay relative to app/, not the build machine's temp folder.
+      absWorkingDir: app,
+    });
+    const unexpected = result.warnings.filter((w) => !w.text.includes(ALLOWED_WARNING));
+    if (unexpected.length > 0) {
+      const text = await esbuild.formatMessages(unexpected, { kind: 'warning' });
+      fail(`esbuild warned while bundling ${entry}:\n${text.join('\n')}`);
+    }
+    for (const input of Object.keys(result.metafile.inputs)) inputs.add(path.resolve(app, input));
+  };
+  await bundle('main.cjs', '__dirname');
+  await bundle('local/src/main/workspace/search-worker.js', 'require("path").resolve(__dirname, "../../../..")');
+
+  if (!jsdomPatched) fail('jsdom was not bundled; check the JSDOM_SYNC_XHR patch is still needed');
+  if (unreviewed.size > 0) {
+    fail(`these bundled modules read files relative to themselves and need a fresh review in PATH_READERS:\n  ${[...unreviewed].sort().join('\n  ')}`);
+  }
+
+  const runtimeDir = fs.readdirSync(path.join(app, 'local/src/main/offline-runtime'), { withFileTypes: true })
+    .filter((e) => e.isDirectory()).map((e) => e.name);
+  const data = [...DATA_FILES];
+  for (const version of runtimeDir) {
+    data.push(`local/src/main/offline-runtime/${version}/offline-manifest.json`,
+      `local/src/main/offline-runtime/${version}/src/core/page-format.js`);
+  }
+  for (const item of data) {
+    const from = path.join(app, item);
+    if (!fs.existsSync(from)) fail(`the packed service needs ${item}, which the installed app does not have`);
+    fs.cpSync(from, path.join(packed, item), { recursive: true });
+  }
+
+  fs.writeFileSync(path.join(packed, 'THIRD_PARTY_LICENSES.txt'), thirdPartyLicenses(app, inputs));
+}
+
+// thirdPartyLicenses gathers the license of every package bundled into the two
+// scripts, since bundling drops the LICENSE files node_modules carried.
+function thirdPartyLicenses(app, inputs) {
+  const packages = new Map();
+  for (const input of inputs) {
+    const relPath = path.relative(app, input).split(path.sep).join('/');
+    const match = relPath.match(/^(.*node_modules\/(?:@[^/]+\/)?[^/]+)\//);
+    if (match && !packages.has(match[1])) packages.set(match[1], path.join(app, match[1]));
+  }
+  const sections = [];
+  for (const [name, dir] of [...packages].sort(([a], [b]) => a.localeCompare(b))) {
+    const meta = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+    const files = fs.readdirSync(dir).filter((f) => /^(licen[cs]e|copying|notice|third-party-notices)([.-]|$)/i.test(f)).sort();
+    const text = files.length > 0
+      ? files.map((f) => fs.readFileSync(path.join(dir, f), 'utf8').trim()).join('\n\n')
+      : `License: ${meta.license || 'not stated'}`;
+    sections.push(`${meta.name}@${meta.version}\n\n${text}`);
+  }
+  return `${sections.join('\n\n' + '-'.repeat(72) + '\n\n')}\n`;
+}
+
+function checkPackedTree(root) {
+  const files = fs.readdirSync(root, { withFileTypes: true, recursive: true }).filter((e) => e.isFile());
+  const native = files.filter((e) => e.name.endsWith('.node'));
+  if (native.length > 0) fail(`the packed service carries native addons: ${native.map((e) => e.name).join(', ')}`);
+  if (files.length > MAX_PACKED_FILES) fail(`the packed service has ${files.length} files, more than ${MAX_PACKED_FILES}; Windows scans each one at first start`);
+  console.log(`service/build: packed into ${files.length} files`);
+}
+
 async function main() {
   const { goos, goarch, nodeArchive: given } = args();
   const pins = JSON.parse(fs.readFileSync(path.join(serviceDir, 'node-pins.json'), 'utf8'));
   const entry = pins.archives[`${goos}/${goarch}`];
   if (!entry) fail(`no Node archive pinned for ${goos}/${goarch}`);
-
-  execFileSync(process.execPath, [path.join(serviceDir, 'check-closure.mjs')], { stdio: 'inherit', cwd: repo });
 
   const archive = await nodeArchive(pins, entry, given);
   if (sha256(archive) !== entry.sha256) fail(`${entry.name} does not match its pinned sha256`);
@@ -126,7 +305,16 @@ async function main() {
       cwd: app, stdio: 'inherit', shell: onWindows, env: { ...process.env, npm_config_min_release_age: '0' },
     });
     dropBinLinks(path.join(app, 'node_modules'));
+    // On the staged copy, whose packages were just installed, so a build needs only the
+    // repo root's npm ci and never service/node_modules.
+    execFileSync(process.execPath, [path.join(serviceDir, 'check-closure.mjs'), app], { stdio: 'inherit', cwd: repo });
     fs.writeFileSync(path.join(app, 'BUILD.json'), `${JSON.stringify({ node: pins.version, goos, goarch }, null, 2)}\n`);
+
+    const packed = path.join(stage, 'packed');
+    await packApp(app, packed);
+    fs.rmSync(app, { recursive: true, force: true });
+    fs.renameSync(packed, app);
+    checkPackedTree(root);
 
     const out = path.join(stage, 'service.tar.gz');
     execFileSync(tarProgram, ['-czf', out, '-C', root, '.'], { env: { ...process.env, COPYFILE_DISABLE: '1' } });

@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -12,9 +13,9 @@ import (
 )
 
 // TestExtractedServiceRuns is the packaged-folder check: the embedded program,
-// extracted, starts and attaches with no other Node, npm or Bun reachable, and
-// its own Node loads every package the vendored code names, from the file that
-// names it.
+// extracted, passes its self-check (every lazily loaded part and every file it
+// reads by path, service/self-check.cjs) and starts and attaches, with no other
+// Node, npm or Bun reachable.
 func TestExtractedServiceRuns(t *testing.T) {
 	if !Bundled() {
 		t.Fatal("built with service_bundle but carries no program")
@@ -25,15 +26,11 @@ func TestExtractedServiceRuns(t *testing.T) {
 	}
 	noPath := []string{"PATH=" + filepath.Join(t.TempDir(), "empty")}
 
-	check, err := filepath.Abs("testdata/load-check.cjs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	load := exec.Command(cmd[0], check, filepath.Dir(cmd[1]))
-	load.Env = noPath
-	out, err := load.CombinedOutput()
-	if err != nil || !strings.Contains(string(out), "LOADED ") {
-		t.Fatalf("load check: %v\n%s", err, out)
+	check := exec.Command(cmd[0], cmd[1], "--self-check")
+	check.Env = append(os.Environ(), noPath...)
+	out, err := check.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "SELF-CHECK OK") {
+		t.Fatalf("self-check: %v\n%s", err, out)
 	}
 
 	server := stubGo(t)

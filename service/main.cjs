@@ -9,7 +9,7 @@
 // After ATTACHED, a {"sync":...} line hands over or clears the sync key (sync.cjs);
 // a line that is not JSON is answered SYNC KEY REFUSED and never echoed.
 //
-// Usage: main.cjs --data-dir <absolute dir>
+// Usage: main.cjs --data-dir <absolute dir>, or main.cjs --self-check (self-check.cjs)
 // The data dir is the only place the service may keep files of its own: sync's
 // metadata (<data dir>/sync-meta) and logs (<data dir>/logs). Every write in a
 // served folder goes through Go.
@@ -91,6 +91,11 @@ async function run(dataDir) {
   sync.close();
   await shell.close();
   await service.close();
+}
+
+if (process.argv[2] === '--self-check') {
+  require('./self-check.cjs')();
+  return;
 }
 
 const args = parseArgs(process.argv.slice(2));
