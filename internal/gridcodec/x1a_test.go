@@ -56,7 +56,7 @@ func TestX1aPatchIntoAHiddenRowKeepsItHidden(t *testing.T) {
 	if err := json.Unmarshal([]byte(`[{"range":"A2","values":[["written"]]}]`), &ops); err != nil {
 		t.Fatal(err)
 	}
-	out, _, err := PatchGrid(readX1aGolden(t, "hidden"), ops, func() string { return "n1" })
+	out, _, _, err := PatchGrid(readX1aGolden(t, "hidden"), ops, func() string { return "n1" })
 	if err != nil {
 		t.Fatal(err)
 	}

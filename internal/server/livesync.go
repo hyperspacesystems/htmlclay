@@ -841,6 +841,49 @@ func (h *hub) remove(sub *subscriber) {
 	}
 }
 
+// sendFlush offers one flush frame to every stream on a document match accepts, and returns the
+// streams that took it. The frame is not retained for replay: a reconnect after a quit has nothing
+// to flush. match reads files, so it runs outside the lock.
+func (h *hub) sendFlush(match func(key string) bool) []*subscriber {
+	h.mu.Lock()
+	keys := make([]string, 0, len(h.subs))
+	for key := range h.subs {
+		keys = append(keys, key)
+	}
+	h.mu.Unlock()
+	var matched []string
+	for _, key := range keys {
+		if match(key) {
+			matched = append(matched, key)
+		}
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var reached []*subscriber
+	for _, key := range matched {
+		seq := h.nextSeq()
+		f := frame(seq, flushPayload{Type: "flush", Seq: seq})
+		for sub := range h.subs[key] {
+			if offer(sub, [][]byte{f}) {
+				reached = append(reached, sub)
+			}
+		}
+	}
+	return reached
+}
+
+// anyOpen reports whether any of subs is still subscribed.
+func (h *hub) anyOpen(subs []*subscriber) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, sub := range subs {
+		if _, open := h.subs[sub.key][sub]; open {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *hub) subscriberCount(key string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -1034,10 +1077,17 @@ func (h *hub) relay(key, html, sender, etag string, identityMap json.RawMessage)
 // broadcastSaved sends post-strip on-disk HTML to the saved lane. Used by disk
 // saves and restores.
 func (h *hub) broadcastSaved(key, html, sender string) []*subscriber {
+	return h.broadcastStored(key, html, sender, "")
+}
+
+// broadcastStored is broadcastSaved with the stamp of the stored bytes, which only a document with
+// a sheet commit record gets (storedEtag): its file-only client reads a push as the file and its
+// ETag together.
+func (h *hub) broadcastStored(key, html, sender, etag string) []*subscriber {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	seq := h.nextSeq()
-	f := frame(seq, livePayload{HTML: html, Sender: sender, Seq: seq})
+	f := frame(seq, livePayload{HTML: html, Sender: sender, Seq: seq, Etag: etag})
 	if f == nil {
 		return nil
 	}
@@ -1098,7 +1148,7 @@ func (h *hub) publishExternalChange(key, msg, html, etag string) (delivered bool
 		evicted = append(evicted, dropped...)
 	}
 	bSeq := h.nextSeq()
-	if b := frame(bSeq, livePayload{HTML: html, Sender: "file-system", Seq: bSeq}); b != nil {
+	if b := frame(bSeq, livePayload{HTML: html, Sender: "file-system", Seq: bSeq, Etag: storedEtagOf(html, etag)}); b != nil {
 		took, dropped := h.enqueue(key, laneSaved, bSeq, b)
 		accepted += took
 		evicted = append(evicted, dropped...)
@@ -1731,5 +1781,5 @@ func forBrowser(data []byte, key, documentURL string) string {
 // broadcastDiskHTML publishes bytes that just landed on disk to the saved lane.
 // Caller holds f.Lock() and passes the history key it resolved there.
 func (s *Server) broadcastDiskHTML(f *session.File, data []byte, key string) {
-	s.coord.broadcastSaved(f, forBrowser(data, key, s.documentURLFor(f)), "file-system")
+	s.coord.broadcastStored(f, forBrowser(data, key, s.documentURLFor(f)), storedEtag(data))
 }

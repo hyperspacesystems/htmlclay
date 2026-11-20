@@ -473,7 +473,7 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 		}}
 	}
 
-	written := []byte(pageadmission.StripPageTag(string(html)))
+	written := s.foldRecord(f, []byte(pageadmission.StripPageTag(string(html))), current)
 	if readFirst {
 		if D := readRequiredWrite(current, written); D != nil {
 			return nil, "", &dataEditError{status: http.StatusPreconditionRequired, body: writeErrorBody{

@@ -99,6 +99,10 @@ func (co *streamCoordinator) broadcastSaved(f *session.File, html, sender string
 	co.evict(f, co.hub.broadcastSaved(f.AbsPath, html, sender))
 }
 
+func (co *streamCoordinator) broadcastStored(f *session.File, html, etag string) {
+	co.evict(f, co.hub.broadcastStored(f.AbsPath, html, "file-system", etag))
+}
+
 func (co *streamCoordinator) notifyWarning(f *session.File, msg string) {
 	co.evict(f, co.hub.notifyWarning(f.AbsPath, msg))
 }

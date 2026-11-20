@@ -571,13 +571,13 @@
       }
     ],
     "want": {
-      "html": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s2\" ><h2 bind=\"name\">Notes</h2><table grid stale><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td n>2</td></tr></tbody></table></section></div>",
+      "html": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s2\" ><h2 bind=\"name\">Notes</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td n>2</td></tr></tbody></table></section></div>",
       "changed": {
         "cells": 1,
         "rows": 0,
         "sheets": 1
       },
-      "stale": true
+      "stale": false
     }
   },
   {
@@ -616,6 +616,138 @@
         "sheets": 1
       },
       "stale": true
+    }
+  },
+  {
+    "name": "spell-functions-and-references",
+    "source": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+    "patch": [
+      {
+        "sheet": "Budget",
+        "range": "B2",
+        "values": [
+          [
+            "=sum(a1:a2)+my tab!a1"
+          ]
+        ]
+      }
+    ],
+    "want": {
+      "html": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid stale><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td f=\"=sum(a1:a2)+my tab!a1\"></td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+      "changed": {
+        "cells": 1,
+        "rows": 0
+      },
+      "stale": true
+    }
+  },
+  {
+    "name": "spell-quoted-tab-and-booleans",
+    "source": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+    "patch": [
+      {
+        "sheet": "Budget",
+        "range": "A2:B2",
+        "values": [
+          [
+            "=if(true,'my tab'!b1,\"a1\")",
+            "='a1'!a1*false"
+          ]
+        ]
+      }
+    ],
+    "want": {
+      "html": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid stale><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td f=\"=IF(TRUE,'my tab'!B1,&quot;a1&quot;)\"></td><td f=\"='A1'!A1*FALSE\"></td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+      "changed": {
+        "cells": 2,
+        "rows": 0
+      },
+      "stale": true
+    }
+  },
+  {
+    "name": "spell-append-and-unparsed",
+    "source": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+    "patch": [
+      {
+        "sheet": "Budget",
+        "append": [
+          [
+            "=sum(",
+            "=budget!b1"
+          ]
+        ]
+      }
+    ],
+    "want": {
+      "html": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid stale><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr><tr data-id=\"n1\" data-pos=\"t\"><td f=\"=sum(\"></td><td f=\"=Budget!B1\"></td></tr>\n</tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+      "changed": {
+        "cells": 2,
+        "rows": 1
+      },
+      "stale": true
+    }
+  },
+  {
+    "name": "spell-tab-named-like-a-cell-home",
+    "source": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+    "patch": [
+      {
+        "sheet": "A1",
+        "range": "A1",
+        "values": [
+          [
+            "=a1+budget!$a$1"
+          ]
+        ]
+      }
+    ],
+    "want": {
+      "html": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid stale><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td f=\"=A1+Budget!$A$1\"></td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+      "changed": {
+        "cells": 1,
+        "rows": 0
+      },
+      "stale": true
+    }
+  },
+  {
+    "name": "spell-too-deep",
+    "source": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+    "patch": [
+      {
+        "sheet": "Budget",
+        "range": "A1",
+        "values": [
+          [
+            "=((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))"
+          ]
+        ]
+      }
+    ],
+    "error": {
+      "type": "QueryRefused",
+      "code": "bad_value",
+      "message": "a formula nests too deeply to read"
+    }
+  },
+  {
+    "name": "spell-after-delete-frame",
+    "source": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section><section item data-id=\"s3\" ><h2 bind=\"name\">my tab</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td></td><td></td></tr></tbody></table></section></div>",
+    "patch": [
+      {
+        "sheet": "my tab",
+        "delete": true
+      }
+    ],
+    "want": {
+      "html": "<script type=\"application/json\" data-rules-name=\"api\" data-rules-version=\"2\">{\"sheets\":\"[items=sheets]@codec(sheet)\"}</script><div items=\"sheets\"><section item data-id=\"s1\" ><h2 bind=\"name\">Budget</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>1</td><td>2</td></tr><tr data-id=\"r2\" data-pos=\"l\"><td>3</td><td>4</td></tr></tbody></table></section><section item data-id=\"s2\" ><h2 bind=\"name\">A1</h2><table grid><colgroup><col data-id=\"c1\" data-pos=\"V\"><col data-id=\"c2\" data-pos=\"l\"></colgroup><tbody><tr data-id=\"r1\" data-pos=\"V\"><td>x</td><td>y</td></tr></tbody></table></section></div>",
+      "changed": {
+        "cells": 0,
+        "rows": 0,
+        "sheets": 1
+      },
+      "stale": false
     }
   }
 ]

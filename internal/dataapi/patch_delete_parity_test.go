@@ -5,13 +5,15 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/gridcodec"
 )
 
 // The reference-generated cases exercise parser repairs and data-region exclusions independently
-// of the Go source-position algorithm. Regenerate against the JS candidate, never this port.
+// of the Go source-position algorithm, and the spell-* cases the standard spelling of an agent's
+// formula (hyper-html-api a4eccda). Regenerate against the JS candidate, never this port.
 func TestPatchDeleteReferenceParity(t *testing.T) {
 	var fixtures []struct {
 		Name   string          `json:"name"`
@@ -37,7 +39,8 @@ func TestPatchDeleteReferenceParity(t *testing.T) {
 				t.Fatal(err)
 			}
 			input := []byte(c.Source)
-			got, err := PatchDocument(input, patch, PatchOptions{})
+			n := 0
+			got, err := PatchDocument(input, patch, PatchOptions{NewID: func() string { n++; return "n" + strconv.Itoa(n) }})
 			if string(input) != c.Source {
 				t.Fatal("patch mutated input")
 			}

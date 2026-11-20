@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
-
-	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 type patchErrorVector struct {
@@ -23,6 +24,7 @@ type patchVector struct {
 	Ops     []any             `json:"ops"`
 	Bytes   string            `json:"bytes"`
 	Changed *Changed          `json:"changed"`
+	Stale   *bool             `json:"stale"`
 	Error   *patchErrorVector `json:"error"`
 }
 
@@ -36,8 +38,17 @@ type patchVectors struct {
 
 func loadPatchVectors(t *testing.T) patchVectors {
 	t.Helper()
+	// sapjs's own host vectors, copied from sapjs test/grid-codec/golden/host-vectors.json at
+	// 2fbe1e9: they carry patchGrid's stale rule (53183ee), which the packed sheet-codec.json
+	// predates. E1 re-packs the tarball; until then the patches and keys come from this copy.
 	var v patchVectors
-	testutil.LoadVectors(t, "sheet-codec.json", &v)
+	raw, err := os.ReadFile(filepath.Join("testdata", "host-vectors.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &v); err != nil {
+		t.Fatal(err)
+	}
 	return v
 }
 
@@ -65,7 +76,7 @@ func TestPatchVectors(t *testing.T) {
 				n++
 				return fmt.Sprintf("n%d", n)
 			}
-			bytes, changed, err := PatchGrid(entry.Src, entry.Ops, counter)
+			bytes, changed, stale, err := PatchGrid(entry.Src, entry.Ops, counter)
 			if entry.Error == nil {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
@@ -75,6 +86,12 @@ func TestPatchVectors(t *testing.T) {
 				}
 				if entry.Changed == nil {
 					t.Fatalf("vector has no changed counts")
+				}
+				if entry.Stale == nil {
+					t.Fatalf("vector has no stale")
+				}
+				if stale != *entry.Stale || strings.Contains(bytes[:strings.Index(bytes, ">")], " stale") != stale {
+					t.Fatalf("stale is %v (start tag %q), want %v", stale, bytes[:strings.Index(bytes, ">")+1], *entry.Stale)
 				}
 				if changed != *entry.Changed {
 					t.Fatalf("changed is %+v, want %+v", changed, *entry.Changed)
@@ -182,7 +199,7 @@ func TestPatchRandomIDs(t *testing.T) {
 	if golden == nil {
 		t.Fatal("no accepted entry in the vectors")
 	}
-	bytes, changed, err := PatchGrid(golden.Src, []any{
+	bytes, changed, _, err := PatchGrid(golden.Src, []any{
 		map[string]any{"append": []any{[]any{"appended"}}},
 	}, nil)
 	if err != nil {

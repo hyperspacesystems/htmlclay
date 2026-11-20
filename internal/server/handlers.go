@@ -1188,6 +1188,16 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if readErr == nil {
+		if status, code := orderedSaveRefusal(r, current, body); status != 0 {
+			currentEtag := specwire.Etag(current)
+			f.Unlock()
+			s.logger.Printf("Refusing a save of %s: %s", f.RelPath, code)
+			w.Header().Set("ETag", currentEtag)
+			uploadError(w, status, code, orderedReloadMessage)
+			return
+		}
+	}
 	conversionHeader, hasConversionHeader := listHeader(r, "Blockeditor-Conversion")
 	if hasConversionHeader && conversionHeader == "" {
 		f.Unlock()

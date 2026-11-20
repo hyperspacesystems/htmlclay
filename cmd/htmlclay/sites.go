@@ -451,6 +451,9 @@ func (a *app) shutdown() {
 		p.close()
 	}
 
+	// Ask every open sheet to save what it holds, while the server still takes saves.
+	a.rt.ls.FlushOpenSheets(server.FlushWait)
+
 	// Close the shared live-sync streams once, before the HTTP drain, so graceful
 	// shutdown does not wait on open SSE connections.
 	a.rt.ls.Shutdown()

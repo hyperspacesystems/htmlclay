@@ -196,6 +196,10 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	data = []byte(pageadmission.WithPageFormatFloor(string(data),
 		max(pageadmission.PageFormatFloor(string(current)), pageadmission.PageFormatFloor(string(data)))))
 
+	if readErr == nil {
+		data = s.foldRecord(f, data, current)
+	}
+
 	if wErr := atomicWriteFile(f.AbsPath, data); wErr != nil {
 		f.Unlock()
 		s.logger.Printf("Error restoring %s: %v", f.AbsPath, wErr)
