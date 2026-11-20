@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -11,12 +12,14 @@ import (
 
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/session"
 )
 
 // handoffFixture is one app's worth of open documents: two files in a trusted
 // folder and one file opened ad hoc with a read grant beside it, every token and
 // host captured, and the app shut down. The handoff, when there is one, is
-// written before the shutdown exactly as the updater will write it.
+// written before the shutdown exactly as the updater will write it. Both apps
+// keep their tokens in one save-tokens.json, as one install does.
 type handoffFixture struct {
 	home, cfgBase          string
 	page, other, loose     string
@@ -25,10 +28,26 @@ type handoffFixture struct {
 	looseTok               string
 	trustedHost, looseHost string
 	handoff                string
+	kept                   string
 	port                   int
 }
 
+// handoffOpts changes how the fixture's first app ends.
+type handoffOpts struct {
+	// beforeQuit runs on the first app once every document is open and every
+	// token captured.
+	beforeQuit func(t *testing.T, first *app, fx handoffFixture)
+	// crash ends the first app without the record's final write at quit, the way
+	// a forced quit or a power loss does, once the record has caught up.
+	crash bool
+}
+
 func newHandoffFixture(t *testing.T, targetVersion string) handoffFixture {
+	t.Helper()
+	return newHandoffFixtureWith(t, targetVersion, handoffOpts{})
+}
+
+func newHandoffFixtureWith(t *testing.T, targetVersion string, opts handoffOpts) handoffFixture {
 	t.Helper()
 	home, _ := filepath.EvalSymlinks(t.TempDir())
 	fx := handoffFixture{
@@ -39,6 +58,7 @@ func newHandoffFixture(t *testing.T, targetVersion string) handoffFixture {
 		loose:   filepath.Join(home, "notes", "loose.htmlclay"),
 		assets:  filepath.Join(home, "assets"),
 		handoff: filepath.Join(t.TempDir(), updateHandoffFile),
+		kept:    filepath.Join(t.TempDir(), saveTokensFile),
 	}
 	writeTestFile(t, fx.page, "<html><body>index</body></html>")
 	writeTestFile(t, fx.other, "<html><body>other</body></html>")
@@ -46,6 +66,7 @@ func newHandoffFixture(t *testing.T, targetVersion string) handoffFixture {
 	writeTestFile(t, filepath.Join(fx.assets, "logo.txt"), "logo")
 
 	first := newTestAppWithConfigDir(t, home, fx.cfgBase)
+	first.startKeptTokens(fx.kept)
 	if err := first.trustFolder(filepath.Join(home, "proj")); err != nil {
 		t.Fatalf("trust: %v", err)
 	}
@@ -63,14 +84,78 @@ func newHandoffFixture(t *testing.T, targetVersion string) handoffFixture {
 	fx.looseTok = tokenFor(t, adHoc, fx.loose)
 	fx.port = first.rt.port
 
+	if opts.beforeQuit != nil {
+		opts.beforeQuit(t, first, fx)
+	}
 	if targetVersion != "" {
 		if err := first.writeUpdateHandoff(fx.handoff, targetVersion); err != nil {
 			t.Fatalf("write handoff: %v", err)
 		}
 	}
+	if opts.crash {
+		waitKeptCurrent(t, first, fx.kept)
+		first.tokens.Swap(nil).halt()
+	}
 	first.shutdown()
 	requirePortFree(t, fx.port)
 	return fx
+}
+
+func readKept(path string) (savedTokens, error) {
+	var rec savedTokens
+	data, err := os.ReadFile(path)
+	if err == nil {
+		err = json.Unmarshal(data, &rec)
+	}
+	return rec, err
+}
+
+// waitKeptCurrent waits until the record on disk names exactly the live
+// registrations, each with its file's identity now: what a crash at this moment
+// leaves behind.
+func waitKeptCurrent(t *testing.T, a *app, path string) {
+	t.Helper()
+	want := map[string]string{}
+	a.mu.Lock()
+	sites := append([]*site(nil), a.sites...)
+	a.mu.Unlock()
+	for _, s := range sites {
+		for _, r := range s.sessions.Snapshot().Registrations {
+			want[r.Token] = r.Path
+		}
+	}
+	waitFor(t, "the kept record to match the live sessions", func() bool {
+		rec, err := readKept(path)
+		if err != nil {
+			return false
+		}
+		got := map[string]string{}
+		for _, site := range rec.Sites {
+			for _, f := range site.Files {
+				if f.Identity != platform.DirIdentity(f.Path) {
+					return false
+				}
+				got[f.Token] = f.Path
+			}
+		}
+		return maps.Equal(got, want)
+	})
+}
+
+func editKept(t *testing.T, path string, edit func(*savedTokens)) {
+	t.Helper()
+	rec, err := readKept(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit(&rec)
+	data, err := json.Marshal(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func tokenFor(t *testing.T, s *site, path string) string {
@@ -93,6 +178,7 @@ func (fx handoffFixture) restart(t *testing.T) (*app, int, error) {
 	}
 	second.startSites()
 	n, err := second.restoreUpdateHandoff(fx.handoff)
+	second.startKeptTokens(fx.kept)
 	return second, n, err
 }
 
@@ -166,30 +252,161 @@ func liveSiteWithHost(t *testing.T, a *app, host string) *site {
 	return nil
 }
 
-// An ordinary restart, with no handoff, is unchanged: the old tokens are dead,
-// a trusted folder answers with its new tokens only, and the ad-hoc address
-// answers with the recovery page and holds nothing.
-func TestOrdinaryRestartStillRevokesEverySession(t *testing.T) {
-	fx := newHandoffFixture(t, "")
+// An ordinary restart keeps open tabs saving, whether the app quit or died:
+// the tokens kept in save-tokens.json come back with their checks, a trusted
+// folder's on its first request and an ad-hoc file's when a request reaches its
+// address, read grant included. Nothing is rebuilt before a request asks, so no
+// folder is held open for a tab nobody still has.
+func TestOrdinaryRestartKeepsOpenTabsSaving(t *testing.T) {
+	for _, crash := range []bool{false, true} {
+		name := "quit"
+		if crash {
+			name = "crash"
+		}
+		t.Run(name, func(t *testing.T) {
+			fx := newHandoffFixtureWith(t, "", handoffOpts{crash: crash})
+			if runtime.GOOS != "windows" {
+				info, err := os.Stat(fx.kept)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if perm := info.Mode().Perm(); perm != 0600 {
+					t.Fatalf("the record holds save tokens and must be 0600, got %o", perm)
+				}
+			}
 
-	second, n, err := fx.restart(t)
-	if err != nil || n != 0 {
-		t.Fatalf("restore with no handoff = (%d, %v), want (0, nil)", n, err)
+			second, n, err := fx.restart(t)
+			if err != nil || n != 0 {
+				t.Fatalf("restore with no handoff = (%d, %v), want (0, nil)", n, err)
+			}
+			looseSlug, _, _ := strings.Cut(fx.looseHost, ".")
+			second.hostMu.RLock()
+			_, built := second.bySlug[looseSlug]
+			second.hostMu.RUnlock()
+			if built {
+				t.Fatal("the ad-hoc site was rebuilt before any request reached it")
+			}
+
+			for _, c := range []struct{ host, token, path string }{
+				{fx.trustedHost, fx.pageTok, fx.page},
+				{fx.trustedHost, fx.otherTok, fx.other},
+				{fx.looseHost, fx.looseTok, fx.loose},
+			} {
+				if code, out := saveWith(t, c.host, c.token, "<html><body>after the restart</body></html>"); code != 200 {
+					t.Fatalf("save to %s with the kept token = %d: %s", c.host, code, out)
+				}
+				saved, _ := os.ReadFile(c.path)
+				if !strings.Contains(string(saved), "after the restart") {
+					t.Fatalf("the save to %s did not reach disk", c.path)
+				}
+			}
+			s := liveSiteWithHost(t, second, fx.looseHost)
+			if _, _, ok := s.sessions.AssetRoot(filepath.Join(fx.assets, "logo.txt")); !ok {
+				t.Fatal("the ad-hoc site's read grant did not come back")
+			}
+		})
 	}
-	if code, _ := saveWith(t, fx.trustedHost, fx.pageTok, "<html><body>x</body></html>"); code != 401 {
-		t.Fatalf("an old trusted token must be refused after an ordinary restart, got %d", code)
+}
+
+// Stop trusting ends a kept token at once: the record drops the folder's tokens
+// before any quit, so a crash right after cannot bring them back, and the old
+// address no longer saves.
+func TestStopTrustingEndsKeptTokens(t *testing.T) {
+	fx := newHandoffFixtureWith(t, "", handoffOpts{crash: true, beforeQuit: func(t *testing.T, first *app, fx handoffFixture) {
+		if err := first.untrustFolder(filepath.Join(fx.home, "proj")); err != nil {
+			t.Fatalf("untrust: %v", err)
+		}
+	}})
+	rec, err := readKept(fx.kept)
+	if err != nil {
+		t.Fatal(err)
 	}
-	code, body := saveWith(t, fx.looseHost, fx.looseTok, "<html><body>x</body></html>")
-	if code != 404 || !strings.Contains(body, "Nothing is open at this address") {
-		t.Fatalf("an old ad-hoc address must answer the recovery page, got %d", code)
-	}
-	second.mu.Lock()
-	defer second.mu.Unlock()
-	for _, s := range second.sites {
-		if _, ok := s.sessions.LookupByPath(fx.loose); ok {
-			t.Fatal("an ordinary restart registered the ad-hoc file")
+	for _, site := range rec.Sites {
+		for _, f := range site.Files {
+			if f.Token == fx.pageTok || f.Token == fx.otherTok {
+				t.Fatalf("the record still holds a token of the untrusted folder for %s", f.Path)
+			}
 		}
 	}
+	fx.restart(t)
+	if code, _ := saveWith(t, fx.trustedHost, fx.pageTok, "<html><body>x</body></html>"); code != 404 {
+		t.Fatalf("the untrusted folder's old address must not save after a restart, got %d", code)
+	}
+}
+
+// A kept token belongs to the file the tab opened. A file replaced while the
+// app was down is refused; the rest of its folder still saves.
+func TestKeptTokenRefusedForAReplacedFile(t *testing.T) {
+	fx := newHandoffFixture(t, "")
+	replacement := fx.page + ".new"
+	writeTestFile(t, replacement, "<html><body>replaced</body></html>")
+	if err := os.Rename(replacement, fx.page); err != nil {
+		t.Fatal(err)
+	}
+	fx.restart(t)
+	if code, _ := saveWith(t, fx.trustedHost, fx.pageTok, "<html><body>x</body></html>"); code != 401 {
+		t.Fatalf("a replaced file's kept token must be refused, got %d", code)
+	}
+	if code, out := saveWith(t, fx.trustedHost, fx.otherTok, "<html><body>x</body></html>"); code != 200 {
+		t.Fatalf("the folder's other file must still save, got %d: %s", code, out)
+	}
+}
+
+// Every save replaces the file through a temp file and a rename, so its identity
+// changes, and the record follows it: a crash after a save still restores that tab.
+func TestKeptTokenFollowsASaveAcrossACrash(t *testing.T) {
+	fx := newHandoffFixtureWith(t, "", handoffOpts{crash: true, beforeQuit: func(t *testing.T, first *app, fx handoffFixture) {
+		// Settle the writes the opens queued, so only the save can bring the record
+		// up to date before the crash.
+		waitKeptCurrent(t, first, fx.kept)
+		before := platform.DirIdentity(fx.page)
+		if code, out := saveWith(t, fx.trustedHost, fx.pageTok, "<html><body>saved before the crash</body></html>"); code != 200 {
+			t.Fatalf("save = %d: %s", code, out)
+		}
+		if platform.DirIdentity(fx.page) == before {
+			t.Fatal("the save kept the file's identity, so this test proves nothing")
+		}
+	}})
+	fx.restart(t)
+	if code, out := saveWith(t, fx.trustedHost, fx.pageTok, "<html><body>after the crash</body></html>"); code != 200 {
+		t.Fatalf("save after the crash = %d: %s", code, out)
+	}
+}
+
+// A kept token lasts keptUnusedDays from its last use, and only on the port its
+// addresses were on.
+func TestKeptTokensExpireAndNeedTheSamePort(t *testing.T) {
+	t.Run("unused too long", func(t *testing.T) {
+		fx := newHandoffFixture(t, "")
+		old := dayString(session.UnixDay(time.Now()) - keptUnusedDays - 1)
+		editKept(t, fx.kept, func(rec *savedTokens) {
+			for i := range rec.Sites {
+				for j := range rec.Sites[i].Files {
+					if rec.Sites[i].Files[j].Path == fx.loose {
+						rec.Sites[i].Files[j].Used = old
+					}
+				}
+			}
+		})
+		fx.restart(t)
+		if code, _ := saveWith(t, fx.looseHost, fx.looseTok, "<html><body>x</body></html>"); code != 404 {
+			t.Fatalf("a token unused for %d days must not come back, got %d", keptUnusedDays+1, code)
+		}
+		if code, out := saveWith(t, fx.trustedHost, fx.pageTok, "<html><body>x</body></html>"); code != 200 {
+			t.Fatalf("a recently used token must come back, got %d: %s", code, out)
+		}
+	})
+	t.Run("another port", func(t *testing.T) {
+		fx := newHandoffFixture(t, "")
+		editKept(t, fx.kept, func(rec *savedTokens) { rec.Port++ })
+		fx.restart(t)
+		if code, _ := saveWith(t, fx.trustedHost, fx.pageTok, "<html><body>x</body></html>"); code != 401 {
+			t.Fatalf("a record for another port must restore nothing, trusted save = %d", code)
+		}
+		if code, _ := saveWith(t, fx.looseHost, fx.looseTok, "<html><body>x</body></html>"); code != 404 {
+			t.Fatalf("a record for another port must restore nothing, ad-hoc save = %d", code)
+		}
+	})
 }
 
 // A handoff that is too old, or written for another version, is deleted and
@@ -208,6 +425,10 @@ func TestStaleOrMismatchedHandoffIsIgnoredAndDeleted(t *testing.T) {
 			fx := newHandoffFixture(t, c.target)
 			if c.age > 0 {
 				backdateHandoff(t, fx.handoff, c.age)
+			}
+			// This tests the handoff alone; the kept record would restore the same tokens.
+			if err := os.Remove(fx.kept); err != nil {
+				t.Fatal(err)
 			}
 			_, n, err := fx.restart(t)
 			if err == nil || n != 0 {

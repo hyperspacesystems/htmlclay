@@ -157,6 +157,9 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 	a.rt.portOwner = func(int) (int, string, bool) { return 0, "", false }
 	a.rt.quitProcess = func(int, bool) error { return nil }
 	t.Cleanup(func() {
+		// Closing the sites below wakes the kept-token writer, which must not write
+		// into a temp folder this test is removing.
+		a.tokens.Load().halt()
 		ls.Shutdown()
 		// The served folders' lock files stay open while mounted, and Windows
 		// cannot delete an open file, so they are released before t.TempDir

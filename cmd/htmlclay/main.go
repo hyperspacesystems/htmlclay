@@ -240,7 +240,11 @@ type app struct {
 	dashboard *dashboard.Server
 	// service runs the live-room service while a folder is served. It is nil, and
 	// every call on it is a no-op, until startRuntime builds it.
-	service  *serviceRunner
+	service *serviceRunner
+	// tokens keeps save permission across a quit (savetokens.go). Nil until
+	// startKeptTokens, and every use is nil-safe, so a test app without it keeps
+	// the old contract.
+	tokens   atomic.Pointer[tokenStore]
 	stopping bool
 	// shutdownOnce: the tray, host.quit and the shell's end of input can all shut down.
 	shutdownOnce sync.Once
@@ -568,6 +572,9 @@ func main() {
 	if _, err := a.restoreUpdateHandoff(filepath.Join(a.rt.configDir, updateHandoffFile)); err != nil {
 		a.rt.logger.Printf("Update handoff ignored: %v", err)
 	}
+	// Then the tokens kept at the last quit, so a tab left open across an ordinary
+	// restart keeps saving too. Each site takes its own back on its first request.
+	a.startKeptTokens(filepath.Join(a.rt.configDir, saveTokensFile))
 	a.releaseRequests()
 	if *openDashboard != "" {
 		go a.trayDo("dashboard.open", map[string]any{"route": *openDashboard})

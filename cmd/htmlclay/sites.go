@@ -195,6 +195,7 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 	a.mu.Unlock()
 	sessions := session.NewManagerWithHome(a.rt.home)
 	sessions.SetGuard(a.rt.guard)
+	sessions.SetOnChange(a.keptTokensChanged)
 	// Registration runs under a.mu, so this hook must never take it:
 	// ResolveDocument reads only the config fact (see there).
 	sessions.SetServedOwner(func(p string) bool {
@@ -217,7 +218,13 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		// holding no lock, and s.trusted is written under a.mu by adoptLocked. Nothing is
 		// lost by reading the value frozen at build time, because adoption installs the
 		// root itself. A closed site never arms, and a revoked manager refuses anyway.
-		if !trusted || s.closed.Load() {
+		if s.closed.Load() {
+			return
+		}
+		// Every site, trusted or not, first takes back the tokens kept at the last
+		// quit, before anything registers in it (savetokens.go).
+		a.restoreKept(s)
+		if !trusted {
 			return
 		}
 		if iErr := sessions.InstallTrustedRoot(anchor); iErr != nil && !errors.Is(iErr, session.ErrRevoked) {
@@ -349,6 +356,16 @@ func (a *app) registerLocked(s *site, absPath string, via session.Provenance) (s
 // auto-registration), so a file is only ever registered in one site and gets
 // exactly one token, whichever door it arrived through.
 func (a *app) route(absPath string, via session.Provenance) (*site, string, bool) {
+	// A site that exists but has not served a request since a restart still holds
+	// its kept tokens dormant. Arm it first, outside a.mu, so a file opened again
+	// keeps the token its old tab holds instead of minting a second one.
+	a.mu.Lock()
+	existing := a.siteForLocked(absPath)
+	a.mu.Unlock()
+	if existing != nil && !existing.closed.Load() {
+		existing.armOnce.Do(existing.arm)
+	}
+
 	a.mu.Lock()
 	if a.stopping {
 		a.mu.Unlock()
@@ -383,6 +400,9 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 	anchor, trusted := a.anchorFor(absPath)
 	key := a.originKey(absPath, anchor)
 	pending := a.buildSite(anchor, key, trusted)
+	// The same for a site rebuilt here: its kept tokens come back before the
+	// registration below.
+	pending.armOnce.Do(pending.arm)
 
 	a.mu.Lock()
 	// Another open may have produced a usable site while we were building.
@@ -575,6 +595,9 @@ func (a *app) shutdownNow() {
 			m.lock.Release()
 		}
 	}
+	// Write the kept save permission a last time before RevokeAll empties every
+	// session, so the next launch gives open tabs their permission back.
+	a.tokens.Load().finish(sites)
 	// RevokeAll closes the read-root capability handles, so it runs only once no request
 	// can still be reading through one.
 	for _, s := range sites {

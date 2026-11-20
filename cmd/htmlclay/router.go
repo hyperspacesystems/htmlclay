@@ -110,8 +110,11 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 	s := a.bySlug[slug]
 	a.hostMu.RUnlock()
 	if s == nil {
-		a.serveRetired(w, r, slug)
-		return
+		// An ad-hoc address with tokens kept at the last quit rebuilds its site here.
+		if s = a.restoreKeptSlug(slug); s == nil {
+			a.serveRetired(w, r, slug)
+			return
+		}
 	}
 	a.dispatch(w, r, s, slug)
 }
