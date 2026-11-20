@@ -48,14 +48,14 @@ type savedTokens struct {
 	Sites  []savedTokenSite `json:"sites"`
 }
 
+// savedTokenSite is one site's kept save tokens. Read grants are not kept: the
+// read prompt's "Allow once" lasts until the person quits, so a quit ends it.
 type savedTokenSite struct {
-	Key             string            `json:"key"`
-	Slug            string            `json:"slug"`
-	Anchor          string            `json:"anchor"`
-	Trusted         bool              `json:"trusted"`
-	Files           []savedTokenEntry `json:"files"`
-	GrantedRoots    []string          `json:"grantedRoots,omitempty"`
-	GrantIdentities map[string]string `json:"grantIdentities,omitempty"`
+	Key     string            `json:"key"`
+	Slug    string            `json:"slug"`
+	Anchor  string            `json:"anchor"`
+	Trusted bool              `json:"trusted"`
+	Files   []savedTokenEntry `json:"files"`
 }
 
 type savedTokenEntry struct {
@@ -65,8 +65,7 @@ type savedTokenEntry struct {
 }
 
 func (e savedTokenSite) handoff() updateHandoffSite {
-	h := updateHandoffSite{Key: e.Key, Slug: e.Slug, Anchor: e.Anchor, Trusted: e.Trusted,
-		GrantedRoots: e.GrantedRoots, GrantIdentities: e.GrantIdentities}
+	h := updateHandoffSite{Key: e.Key, Slug: e.Slug, Anchor: e.Anchor, Trusted: e.Trusted}
 	for _, f := range e.Files {
 		h.Files = append(h.Files, f.updateHandoffEntry)
 	}
@@ -296,13 +295,6 @@ func (t *tokenStore) writeSites(sites []*site) error {
 			continue
 		}
 		live[entry.Key] = true
-		if len(snap.GrantedRoots) > 0 {
-			entry.GrantedRoots = snap.GrantedRoots
-			entry.GrantIdentities = map[string]string{}
-			for _, root := range snap.GrantedRoots {
-				entry.GrantIdentities[root] = platform.DirIdentity(root)
-			}
-		}
 		rec.Sites = append(rec.Sites, entry)
 	}
 
@@ -376,11 +368,30 @@ func (a *app) keptSiteStillMapped(e savedTokenSite) bool {
 	if f, ok := a.rt.cfg.ServedFolderForPath(e.Anchor); ok && f.Serving {
 		return false
 	}
+	// An ad-hoc folder trusted since keeps its address (adoptLocked), so its
+	// entry still belongs to it; a folder around it trusted since does not.
 	anchor, inTrusted := a.trustedAnchor(e.Anchor)
 	if e.Trusted {
 		return inTrusted && anchor == e.Anchor
 	}
-	return !inTrusted
+	return !inTrusted || anchor == e.Anchor
+}
+
+// keptSlugFor names the dormant ad-hoc address whose folder holds absPath, the
+// most specific one, or "" when there is none.
+func (t *tokenStore) keptSlugFor(absPath string) string {
+	if t == nil {
+		return ""
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	anchor, slug := "", ""
+	for _, e := range t.kept {
+		if !e.Trusted && session.EqualOrUnder(absPath, e.Anchor) && len(e.Anchor) > len(anchor) {
+			anchor, slug = e.Anchor, e.Slug
+		}
+	}
+	return slug
 }
 
 // takeKept removes and returns the dormant entry for key, if there is one.
@@ -409,12 +420,14 @@ func (a *app) restoreKept(s *site) {
 	a.mu.Lock()
 	slug, trusted := s.slug, s.trusted
 	a.mu.Unlock()
-	if e.Slug != slug || e.Trusted != trusted {
+	if e.Slug != slug || (e.Trusted && !trusted) {
 		a.rt.logger.Printf("Kept save permission for %s no longer matches its site; dropping it", e.Anchor)
 		a.keptTokensChanged(true)
 		return
 	}
-	n := a.restoreHandoffFiles(s, e.handoff(), "Kept save permission")
+	h := e.handoff()
+	h.Trusted = trusted
+	n := a.restoreHandoffFiles(s, h, "Kept save permission")
 	restoreUsedDays(s, e)
 	a.rt.logger.Printf("Kept save permission: %d of %d file(s) restored for %s", n, len(e.Files), e.Anchor)
 	// Files refused here leave the record now.

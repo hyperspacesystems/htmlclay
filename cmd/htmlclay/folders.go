@@ -255,6 +255,7 @@ func (a *app) untrustFolder(dir string) error {
 
 	for _, p := range dropped {
 		a.rt.ls.DropSubscribers(p)
+		a.unsaved.forget(p)
 	}
 	for _, tf := range a.rt.cfg.TrustedFolderList() {
 		if tf.Path != dir && session.EqualOrUnder(tf.Path, dir) {

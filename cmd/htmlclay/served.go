@@ -64,6 +64,7 @@ func (a *app) newServedHost() *served.Host {
 		Dashboard:       a.dashboardOrigin(),
 		WorkspaceEntry:  a.workspaceEntry,
 		OnPageLoad:      a.noteServedPageLoad,
+		OnUnsavedReport: a.noteUnsavedReport,
 		BeforePage:      a.bindServedPage,
 		OnStructure:     a.noteServedStructure,
 		OnRetire:        a.noteServedRetire,
@@ -628,6 +629,11 @@ func (a *app) stopServing(id string) error {
 	f, ok := a.rt.cfg.ServedFolderByID(id)
 	if !ok {
 		return fmt.Errorf("no served folder with id %q", id)
+	}
+	// An open tab holding edits it saves on Ctrl+S could not save them once the
+	// folder's address is gone.
+	if names := a.unsavedTabsUnder(f.Path); len(names) > 0 {
+		return errUnsavedEdits{Names: names}
 	}
 	// Ask the service to let go of the folder and save what it holds before
 	// anything changes. A folder it kept has unsaved edits, and stopping now

@@ -244,7 +244,9 @@ type app struct {
 	// tokens keeps save permission across a quit (savetokens.go). Nil until
 	// startKeptTokens, and every use is nil-safe, so a test app without it keeps
 	// the old contract.
-	tokens   atomic.Pointer[tokenStore]
+	tokens atomic.Pointer[tokenStore]
+	// unsaved holds what open tabs report about their unsaved edits.
+	unsaved  unsavedReports
 	stopping bool
 	// shutdownOnce: the tray, host.quit and the shell's end of input can all shut down.
 	shutdownOnce sync.Once

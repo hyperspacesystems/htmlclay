@@ -144,7 +144,16 @@ func writePrivateFile(path string, data []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, path)
+	// Windows refuses to replace a file another process has open, and a virus
+	// scanner opens a just-written file for a moment: a few short retries
+	// outlast it, which matters most for the last write at quit.
+	for _, wait := range []time.Duration{0, 5, 15, 40, 100} {
+		time.Sleep(wait * time.Millisecond)
+		if err = os.Rename(tmpPath, path); err == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 // handoffPort returns the port in the handoff at path without consuming it, or
@@ -295,11 +304,20 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite, from string)
 			a.rt.logger.Printf("%s: %s is outside %s; skipping it", from, f.Path, s.anchor)
 			continue
 		}
-		if !entry.Trusted {
-			if _, ok := a.trustedAnchor(f.Path); ok {
-				a.rt.logger.Printf("%s: %s is inside a trusted folder now; skipping it", from, f.Path)
-				continue
-			}
+		// The file must still belong to this site's folder: a folder trusted since,
+		// or given its own address inside this one, owns its documents now.
+		if anchor, ok := a.trustedAnchor(f.Path); ok != entry.Trusted || (ok && anchor != s.anchor) {
+			a.rt.logger.Printf("%s: %s belongs to another folder's address now; skipping it", from, f.Path)
+			continue
+		}
+		// A file opened again since the restart already has a token at another
+		// address, and one file is held by one site.
+		a.mu.Lock()
+		other, _, open := a.lookupLocked(f.Path)
+		a.mu.Unlock()
+		if open && other != s {
+			a.rt.logger.Printf("%s: %s is already open at another address; skipping it", from, f.Path)
+			continue
 		}
 		// MatchDirIdentity, not equality: macOS renumbers a volume's device at each
 		// mount, and the same file must still pass after a reboot.

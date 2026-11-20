@@ -740,6 +740,31 @@ func TestRecordStableObservationLeavesServerWriteAlone(t *testing.T) {
 	}
 }
 
+// An outside editor that saves by rename gives the file a new identity, and the
+// kept save-tokens record learns it only through the change hook. Without the
+// signal, a crash after the edit leaves the old identity on disk and the open tab
+// cannot save after the restart. Seeing the same bytes again signals nothing.
+func TestOutsideChangeSignalsTheKeptRecord(t *testing.T) {
+	mgr, home := setupManager(t)
+	signals := 0
+	mgr.SetOnChange(func(bool) { signals++ })
+	f, err := mgr.Register(createTestFile(t, home, "page.htmlclay"), ViaOsOpen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Lock()
+	defer f.Unlock()
+	before := signals
+	f.RecordStableObservation("outside-edit")
+	if signals != before+1 {
+		t.Fatalf("an outside change sent %d signals, want 1", signals-before)
+	}
+	f.RecordStableObservation("outside-edit")
+	if signals != before+1 {
+		t.Fatalf("seeing the same bytes again sent another signal")
+	}
+}
+
 // The first observation seeds both records, so the first save of a file this
 // server has never written is not a false-positive stale write. It happens once.
 func TestNoteFirstObservationHappensOnce(t *testing.T) {

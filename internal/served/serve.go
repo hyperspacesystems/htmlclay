@@ -24,6 +24,9 @@ type rootServer struct {
 	// onPageLoad hears about a document that answered a top-level page load
 	// (Options.OnPageLoad). Nil hears nothing.
 	onPageLoad func(rootID, rel string)
+	// onUnsavedReport hears an open tab say whether its document holds unsaved
+	// edits (Options.OnUnsavedReport). Nil hears nothing.
+	onUnsavedReport func(absPath, tab string, seq int64, unsaved, frozen bool)
 	// heldCopy finds a held conflict's kept server copy (Options.HeldCopy).
 	heldCopy func(rootID, rel string) (string, bool)
 	// beforePage hears about a top-level page load before any of the page is
@@ -123,25 +126,26 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 		framePolicy = "frame-ancestors 'self' " + cfg.dashboard
 	}
 	server := &rootServer{
-		id:             root.id,
-		workspaceEntry: cfg.workspaceEntry,
-		onPageLoad:     cfg.onPageLoad,
-		heldCopy:       cfg.heldCopy,
-		beforePage:     cfg.beforePage,
-		baseDir:        baseDir,
-		publicHost:     root.publicHost,
-		registry:       registry,
-		assets:         cfg.assets,
-		selected:       runtime.Selected,
-		releases:       runtime.Releases,
-		commit:         host,
-		live:           liveRoot,
-		hooks:          hooks,
-		tailwind:       tailwind,
-		syncWorker:     worker,
-		syncDataWorker: dataWorker,
-		control:        newControlRoot(root.id, baseDir, registry, host, cfg.events),
-		framePolicy:    framePolicy,
+		id:              root.id,
+		workspaceEntry:  cfg.workspaceEntry,
+		onPageLoad:      cfg.onPageLoad,
+		onUnsavedReport: cfg.onUnsavedReport,
+		heldCopy:        cfg.heldCopy,
+		beforePage:      cfg.beforePage,
+		baseDir:         baseDir,
+		publicHost:      root.publicHost,
+		registry:        registry,
+		assets:          cfg.assets,
+		selected:        runtime.Selected,
+		releases:        runtime.Releases,
+		commit:          host,
+		live:            liveRoot,
+		hooks:           hooks,
+		tailwind:        tailwind,
+		syncWorker:      worker,
+		syncDataWorker:  dataWorker,
+		control:         newControlRoot(root.id, baseDir, registry, host, cfg.events),
+		framePolicy:     framePolicy,
 	}
 	server.allowFraming.Store(root.allowFraming)
 	if cfg.service != nil {
@@ -217,6 +221,8 @@ func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case marked && getOrHead && urlPath == "/data-loss":
 		err = s.serveDataLossGet(w, r)
+	case marked && r.Method == http.MethodPost && urlPath == "/unsaved" && s.publicHost != "":
+		err = s.serveUnsavedReport(w, r)
 	case marked && r.Method == http.MethodPost && urlPath == "/data-loss":
 		err = s.serveDataLossPost(w, r, "")
 	case marked && r.Method == http.MethodPost && hasDataLossTail:

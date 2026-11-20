@@ -58,6 +58,10 @@ type Hooks struct {
 	// MayTrustFolder gates Confirm's trust-folder answer for a candidate folder.
 	MayTrustFolder func(dir string) bool
 
+	// UnsavedReport hears an open tab say whether its document holds edits not
+	// saved yet (unsaved-report-v1). Nil hears nothing.
+	UnsavedReport func(absPath, tab string, seq int64, unsaved, frozen bool)
+
 	// MainFolder reports whether a candidate folder is one of the main personal
 	// folders. Nil leaves the question without that detail.
 	MainFolder func(dir string) bool

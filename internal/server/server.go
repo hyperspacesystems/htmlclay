@@ -228,6 +228,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 
 	mux.HandleFunc("GET /_/read/{token}", s.handleRead)
 	mux.HandleFunc("POST /_/save/{token}", sameOrigin(s.handleSave))
+	mux.HandleFunc("POST /_/unsaved/{token}", sameOrigin(s.handleUnsavedReport))
 	mux.HandleFunc("POST /_/upload/{token}", sameOrigin(s.handleUpload))
 	mux.HandleFunc("GET /_/meta/{token}", s.handleMeta)
 	mux.HandleFunc("GET /_/blockeditor-state/{token}", s.handlePageState)
@@ -444,7 +445,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 // never written to the log file or stderr.
 func redactPath(p string) string {
 	for _, prefix := range []string{
-		"/_/save/", "/_/read/", "/_/meta/", "/_/upload/",
+		"/_/save/", "/_/unsaved/", "/_/read/", "/_/meta/", "/_/upload/",
 		"/_/versions/", "/_/version/", "/_/restore/",
 		"/_/reveal/", "/_/versions-folder/", "/_/export/",
 		"/_/workspace-request/", "/_/helper-setup/",

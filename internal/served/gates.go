@@ -16,6 +16,7 @@ var systemRoutes = map[string]bool{
 	"wire":              true,
 	"helper-setup":      true,
 	"data-loss":         true,
+	"unsaved":           true,
 	"api":               true,
 	"meta":              true,
 	"upload":            true,

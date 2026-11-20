@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -268,5 +269,101 @@ func TestQuitShutdownRunsOnce(t *testing.T) {
 	}
 	if ran := strings.Count(readLog(), "Shutting down..."); ran != 1 {
 		t.Fatalf("the teardown ran %d times for two shutdowns, want 1", ran)
+	}
+}
+
+// TestQuitAsksAboutTabsWithUnsavedEdits proves Quit hears a page that saves only
+// on Ctrl+S: a tab's report reaches the same unsaved list every Quit path uses,
+// a second tab on the same document is listed once, and the report can arrive
+// over the document's own unsaved route.
+func TestQuitAsksAboutTabsWithUnsavedEdits(t *testing.T) {
+	home := evalTempHome(t)
+	a := newTestApp(t, home)
+	doc := filepath.Join(home, "notes", "index.html")
+	writeTestFile(t, doc, "<html><body>notes</body></html>")
+
+	a.noteUnsavedReport(doc, "t1", 1, true, false)
+	lines, saved := a.unsavedBeforeQuit()
+	if saved || len(lines) != 1 || lines[0] != "notes/index.html" {
+		t.Fatalf("unsavedBeforeQuit = %v %v, want notes/index.html unsaved", lines, saved)
+	}
+
+	a.noteUnsavedReport(doc, "t2", 1, true, false)
+	if lines, saved = a.unsavedBeforeQuit(); saved || len(lines) != 1 || lines[0] != "notes/index.html" {
+		t.Fatalf("a second unsaved tab changed the list: %v %v", lines, saved)
+	}
+
+	a.noteUnsavedReport(doc, "t1", 2, false, false)
+	a.noteUnsavedReport(doc, "t2", 2, false, false)
+	if lines, saved = a.unsavedBeforeQuit(); !saved || len(lines) != 0 {
+		t.Fatalf("after both tabs saved: %v %v, want saved with no lines", lines, saved)
+	}
+
+	s, _ := a.openForTest(t, doc)
+	token := tokenFor(t, s, doc)
+	target := "http://" + s.host + "/_/unsaved/" + token
+	if code, out := postSameOrigin(t, target, "application/json", `{"tab":"t9","seq":1,"unsaved":true}`); code != http.StatusNoContent {
+		t.Fatalf("POST %s = %d %s, want 204", target, code, out)
+	}
+	if lines, saved = a.unsavedBeforeQuit(); saved || len(lines) != 1 || lines[0] != "notes/index.html" {
+		t.Fatalf("after the tab's report: %v %v, want notes/index.html unsaved", lines, saved)
+	}
+}
+
+// Stop serving waits while an open tab says it holds unsaved edits: the tab could
+// not save them once the folder's address is gone. The refusal names the document
+// by its served name, also when the folder was added in other letter case, as a
+// case-insensitive disk allows.
+func TestStopServingWaitsForUnsavedTabs(t *testing.T) {
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "proj")
+	doc := filepath.Join(dir, "index.html")
+	writeTestFile(t, doc, servedTestDocument)
+	added := dir
+	if _, err := os.Stat(filepath.Join(home, "PROJ")); err == nil {
+		added = filepath.Join(home, "PROJ")
+	}
+	a := newServedTestApp(t, home, t.TempDir())
+	if err := a.trustFolder(added); err != nil {
+		t.Fatalf("trustFolder(%s): %v", added, err)
+	}
+	entry, refusal, err := a.serveFolder(added, "notes")
+	if err != nil || refusal != nil {
+		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+	}
+
+	a.noteUnsavedReport(doc, "t1", 1, true, false)
+	var unsaved errUnsavedEdits
+	if err := a.stopServing(entry.ID); !errors.As(err, &unsaved) || len(unsaved.Names) != 1 || unsaved.Names[0] != "notes/index.html" {
+		t.Fatalf("stopServing with an unsaved tab = %v (%+v), want notes/index.html unsaved", err, unsaved)
+	}
+	a.noteUnsavedReport(doc, "t1", 2, false, false)
+	if err := a.stopServing(entry.ID); err != nil {
+		t.Fatalf("stopServing after the tab saved: %v", err)
+	}
+}
+
+// Untrusting a folder takes its open pages' address, so they can neither save
+// nor say "saved" as they close: what they reported is forgotten, or Quit would
+// ask about them for ten minutes.
+func TestUntrustForgetsItsTabsReports(t *testing.T) {
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "proj")
+	doc := filepath.Join(dir, "index.html")
+	writeTestFile(t, doc, "<html><body>notes</body></html>")
+	a := newTestApp(t, home)
+	if err := a.trustFolder(dir); err != nil {
+		t.Fatalf("trustFolder(%s): %v", dir, err)
+	}
+	a.openForTest(t, doc)
+	a.noteUnsavedReport(doc, "t1", 1, true, false)
+	if _, saved := a.unsavedBeforeQuit(); saved {
+		t.Fatal("the tab's report did not count before untrusting")
+	}
+	if err := a.untrustFolder(dir); err != nil {
+		t.Fatalf("untrustFolder: %v", err)
+	}
+	if lines, saved := a.unsavedBeforeQuit(); !saved {
+		t.Fatalf("after untrusting: %v, want nothing unsaved", lines)
 	}
 }

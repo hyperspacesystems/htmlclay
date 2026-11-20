@@ -264,6 +264,11 @@ func (f *File) RecordStableObservation(hash string) {
 	if hash != f.lastServerWrite {
 		f.externalSinceOwnWrite = true
 	}
+	// An outside editor that saves by rename gives the file a new identity, which
+	// the kept record must learn before a crash, not only at a clean quit.
+	if hash != f.lastStableObservation && f.changed != nil {
+		f.changed(false)
+	}
 	f.lastStableObservation = hash
 }
 

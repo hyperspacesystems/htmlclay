@@ -255,7 +255,8 @@ func liveSiteWithHost(t *testing.T, a *app, host string) *site {
 // An ordinary restart keeps open tabs saving, whether the app quit or died:
 // the tokens kept in save-tokens.json come back with their checks, a trusted
 // folder's on its first request and an ad-hoc file's when a request reaches its
-// address, read grant included. Nothing is rebuilt before a request asks, so no
+// address. A read grant does not come back: "Allow once" lasts until the
+// person quits. Nothing is rebuilt before a request asks, so no
 // folder is held open for a tab nobody still has.
 func TestOrdinaryRestartKeepsOpenTabsSaving(t *testing.T) {
 	for _, crash := range []bool{false, true} {
@@ -301,8 +302,8 @@ func TestOrdinaryRestartKeepsOpenTabsSaving(t *testing.T) {
 				}
 			}
 			s := liveSiteWithHost(t, second, fx.looseHost)
-			if _, _, ok := s.sessions.AssetRoot(filepath.Join(fx.assets, "logo.txt")); !ok {
-				t.Fatal("the ad-hoc site's read grant did not come back")
+			if _, _, ok := s.sessions.AssetRoot(filepath.Join(fx.assets, "logo.txt")); ok {
+				t.Fatal("the read grant came back after a quit; Allow once lasts until the person quits")
 			}
 		})
 	}
@@ -623,4 +624,171 @@ func TestUpdateHandoffRestoresHelpers(t *testing.T) {
 			t.Fatalf("the revoked program ran during restore or stat failed: %v", err)
 		}
 	})
+}
+
+// Restarts where something changed before a dormant site's first request.
+type keptRestart struct {
+	home, cfgBase, kept string
+	port                int
+}
+
+func newKeptRestart(t *testing.T) (*app, keptRestart) {
+	t.Helper()
+	home, _ := filepath.EvalSymlinks(t.TempDir())
+	r := keptRestart{home: home, cfgBase: t.TempDir(), kept: filepath.Join(t.TempDir(), saveTokensFile)}
+	a := newTestAppWithConfigDir(t, home, r.cfgBase)
+	a.startKeptTokens(r.kept)
+	r.port = a.rt.port
+	return a, r
+}
+
+func (r keptRestart) again(t *testing.T) *app {
+	t.Helper()
+	second := newTestAppWithConfigDir(t, r.home, r.cfgBase)
+	if second.rt.port != r.port {
+		t.Fatalf("port moved: %d want %d", second.rt.port, r.port)
+	}
+	second.startSites()
+	second.restoreUpdateHandoff(filepath.Join(t.TempDir(), updateHandoffFile))
+	second.startKeptTokens(r.kept)
+	return second
+}
+
+func sitesHolding(t *testing.T, a *app, path string) []string {
+	t.Helper()
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	var hosts []string
+	for _, s := range a.sites {
+		if _, ok := s.sessions.LookupByPath(path); ok {
+			hosts = append(hosts, s.host)
+		}
+	}
+	return hosts
+}
+
+// A file in a subfolder of an ad-hoc site, opened again after a restart before
+// the old tab's first request, comes back at its old address with its old token,
+// as it would with no restart: one file, one site, one token.
+func TestKeptTokenFollowsAFileOpenedAgain(t *testing.T) {
+	first, r := newKeptRestart(t)
+	top := filepath.Join(r.home, "notes", "top.htmlclay")
+	deep := filepath.Join(r.home, "notes", "sub", "deep.htmlclay")
+	writeTestFile(t, top, "<html><body>top</body></html>")
+	writeTestFile(t, deep, "<html><body>deep</body></html>")
+
+	s1, _ := first.openForTest(t, top)
+	s2, _ := first.openForTest(t, deep)
+	if s1 != s2 {
+		t.Fatalf("precondition: deep landed on its own site (%s vs %s)", s1.host, s2.host)
+	}
+	if h := sitesHolding(t, first, deep); len(h) != 1 {
+		t.Fatalf("precondition: live app holds deep in %v", h)
+	}
+	oldHost, oldTok := s1.host, tokenFor(t, s1, deep)
+	first.shutdown()
+	requirePortFree(t, r.port)
+
+	second := r.again(t)
+	s3, _ := second.openForTest(t, deep)
+	if s3.host != oldHost || tokenFor(t, s3, deep) != oldTok {
+		t.Fatalf("reopened deep at %s with a new token, want its old address %s and old token", s3.host, oldHost)
+	}
+	if code, out := saveWith(t, oldHost, oldTok, "<html><body>old tab</body></html>"); code != 200 {
+		t.Fatalf("old tab save at %s = %d %s", oldHost, code, out)
+	}
+	if holders := sitesHolding(t, second, deep); len(holders) != 1 {
+		t.Fatalf("deep.htmlclay is registered in %d sites %v, want one", len(holders), holders)
+	}
+}
+
+// Trust-inside-trusted after a restart, before the outer site's first request.
+func TestKeptTokenFollowsTrustInside(t *testing.T) {
+	first, r := newKeptRestart(t)
+	proj := filepath.Join(r.home, "proj")
+	inner := filepath.Join(proj, "inner")
+	page := filepath.Join(inner, "page.htmlclay")
+	writeTestFile(t, page, "<html><body>page</body></html>")
+	if err := first.trustFolder(proj); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := first.openForTest(t, page)
+	oldHost, oldTok := s.host, tokenFor(t, s, page)
+	first.shutdown()
+	requirePortFree(t, r.port)
+
+	second := r.again(t)
+	n := 0
+	if refusal := trustAction(t, second, &n, inner, warnInsideTrusted); refusal != nil {
+		t.Fatalf("trust inside = %+v", refusal)
+	}
+	code, out := saveWith(t, oldHost, oldTok, "<html><body>old tab after the move</body></html>")
+	t.Logf("old tab save at the outer address %s = %d %s", oldHost, code, out)
+	holders := sitesHolding(t, second, page)
+	t.Logf("page is registered in %v", holders)
+	if code == 200 {
+		t.Errorf("the outer address still saves a document trust-inside moved to its own address")
+	}
+	again, _ := second.openForTest(t, page)
+	t.Logf("a fresh open of the moved document lands at %s (inner folder's own address is %s)", again.host, siteHost(second.rt.cfg.SiteSlug(inner), second.rt.port))
+}
+
+// A read grant given by the read prompt's "Trust this folder" button: the grant
+// and the trust come from one click, and Stop trusting takes both back from every
+// live site (closeSitesLocked). After a restart, it must not come back either.
+func keptGrantFixture(t *testing.T) (*app, keptRestart, string, string, string) {
+	t.Helper()
+	first, r := newKeptRestart(t)
+	loose := filepath.Join(r.home, "notes", "loose.htmlclay")
+	assets := filepath.Join(r.home, "assets")
+	writeTestFile(t, loose, "<html><body>loose</body></html>")
+	writeTestFile(t, filepath.Join(assets, "logo.txt"), "logo")
+	s, _ := first.openForTest(t, loose)
+	if err := s.sessions.GrantCanonicalRoot(assets); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.trustFolder(assets); err != nil {
+		t.Fatal(err)
+	}
+	return first, r, loose, assets, s.host
+}
+
+func TestStopTrustingEndsAKeptReadGrant(t *testing.T) {
+	first, r, loose, assets, host := keptGrantFixture(t)
+	tok := tokenFor(t, liveSiteWithHost(t, first, host), loose)
+	first.shutdown()
+	requirePortFree(t, r.port)
+
+	second := r.again(t)
+	if err := second.untrustFolder(assets); err != nil {
+		t.Fatal(err)
+	}
+	code, out := saveWith(t, host, tok, "<html><body>after</body></html>")
+	t.Logf("old tab save = %d %s", code, out)
+	s := liveSiteWithHost(t, second, host)
+	if _, _, ok := s.sessions.AssetRoot(filepath.Join(assets, "logo.txt")); ok {
+		t.Errorf("the read grant on %s came back after Stop trusting took it away", assets)
+	}
+}
+
+// Trusting an ad-hoc document's own folder after a restart, before its tab's
+// first request, keeps the tab saving at the same address, as a running app
+// does when it adopts the site in place.
+func TestKeptTokenSurvivesTrustingItsOwnFolder(t *testing.T) {
+	first, r := newKeptRestart(t)
+	proj := filepath.Join(r.home, "proj")
+	page := filepath.Join(proj, "page.htmlclay")
+	writeTestFile(t, page, "<html><body>page</body></html>")
+	s1, _ := first.openForTest(t, page)
+	oldHost, oldTok := s1.host, tokenFor(t, s1, page)
+	first.shutdown()
+	requirePortFree(t, r.port)
+
+	second := r.again(t)
+	if err := second.trustFolder(proj); err != nil {
+		t.Fatalf("trust: %v", err)
+	}
+	if code, out := saveWith(t, oldHost, oldTok, "<html><body>after trusting</body></html>"); code != 200 {
+		t.Fatalf("the open tab's save after trusting its folder = %d: %s", code, out)
+	}
 }

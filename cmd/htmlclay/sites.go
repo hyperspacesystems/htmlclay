@@ -257,6 +257,7 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		Reveal:         browser.Reveal,
 		OpenFolder:     browser.OpenURL,
 		ExportDocument: a.exportForPage,
+		UnsavedReport:  a.noteUnsavedReport,
 	})
 	s.srv = srv
 	return s
@@ -364,6 +365,15 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 	a.mu.Unlock()
 	if existing != nil && !existing.closed.Load() {
 		existing.armOnce.Do(existing.arm)
+	}
+	// A dormant ad-hoc site whose folder holds this file comes back the same way,
+	// through the router's own restore and its lock, so the file keeps the address
+	// and token its old tab holds, and a tab reconnecting at this moment finds the
+	// site instead of a second one built beside it.
+	if existing == nil {
+		if slug := a.tokens.Load().keptSlugFor(absPath); slug != "" {
+			a.restoreKeptSlug(slug)
+		}
 	}
 
 	a.mu.Lock()

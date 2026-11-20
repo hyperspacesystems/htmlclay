@@ -20,7 +20,7 @@ import (
 func confirmDialog(title, message string, labels ConfirmLabels) (ConfirmChoice, error) {
 	out, err := exec.Command("osascript", "-e", "activate me", "-e", confirmDialogScript(title, message, labels)).CombinedOutput()
 	if err != nil {
-		if userCancelled(labels.denyLabel(), out) {
+		if userCancelled(out) {
 			return ConfirmDeny, nil
 		}
 		return ConfirmDismissed, err
@@ -32,23 +32,25 @@ func confirmDialog(title, message string, labels ConfirmLabels) (ConfirmChoice, 
 // three buttons, so a Later button does not fit; asking for one instead leaves
 // the dialog with no default button and no cancel button, which is what makes
 // Return and Escape do nothing. Only a click answers it, or the timeout, which
-// answers nothing. Without Later, Deny is the default button, as it always was.
+// answers nothing. Without Later, Deny is the default button, as it always was,
+// and also the cancel button, so Escape refuses whatever Deny is labelled.
 func confirmDialogScript(title, message string, labels ConfirmLabels) string {
 	script := "display dialog " + appleScriptString(message) +
 		" with title " + appleScriptString(title) +
 		" buttons {" + appleScriptString(labels.denyLabel()) + ", " + appleScriptString(labels.Allow) + ", " + appleScriptString(labels.Always) + "}"
 	if labels.Later == "" {
-		script += " default button " + appleScriptString(labels.denyLabel())
+		script += " default button " + appleScriptString(labels.denyLabel()) + " cancel button " + appleScriptString(labels.denyLabel())
 	}
 	return script + " with icon caution giving up after 120"
 }
 
 // userCancelled reports whether osascript failed only because the person
-// clicked the refusing button. display dialog treats a button titled Cancel as
-// its cancel button: clicking it, or pressing Escape, ends the script with
-// error -128. That is an answer, the refusing one, not a failure.
-func userCancelled(refuseLabel string, out []byte) bool {
-	return refuseLabel == "Cancel" && strings.Contains(string(out), "(-128)")
+// clicked the refusing button. The scripts name it the cancel button (as display
+// dialog does by itself for a button titled Cancel): clicking it, or pressing
+// Escape, ends the script with error -128. That is an answer, the refusing one,
+// not a failure.
+func userCancelled(out []byte) bool {
+	return strings.Contains(string(out), "(-128)")
 }
 
 // osascriptButton returns the exact label the user clicked. `display dialog`
@@ -78,10 +80,10 @@ func confirmTwoButtons(title, message, allowLabel, refuseLabel string) (bool, er
 	dialog := "display dialog " + appleScriptString(message) +
 		" with title " + appleScriptString(title) +
 		" buttons {" + appleScriptString(refuseLabel) + ", " + appleScriptString(allowLabel) + "} default button " +
-		appleScriptString(refuseLabel) + " with icon caution giving up after 120"
+		appleScriptString(refuseLabel) + " cancel button " + appleScriptString(refuseLabel) + " with icon caution giving up after 120"
 	out, err := exec.Command("osascript", "-e", "activate me", "-e", dialog).CombinedOutput()
 	if err != nil {
-		if userCancelled(refuseLabel, out) {
+		if userCancelled(out) {
 			return false, nil
 		}
 		return false, err

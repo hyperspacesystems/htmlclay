@@ -39,6 +39,10 @@ type Options struct {
 	// load, which is a page a person asked the browser for. An asset, an API read
 	// and a watcher event never reach it. Nil hears nothing.
 	OnPageLoad func(rootID, rel string)
+	// OnUnsavedReport hears an open tab of a served document say whether it
+	// holds edits not saved yet (unsaved-report-v1), with the document's
+	// absolute path. Nil hears nothing.
+	OnUnsavedReport func(absPath, tab string, seq int64, unsaved, frozen bool)
 	// BeforePage hears about a top-level page load of a served document before
 	// any of the page is written, with the document's absolute path, so the app
 	// can bind the document's programs before the page's first request. Nil
@@ -99,6 +103,7 @@ func NewHost(o Options) *Host {
 		dashboard:       o.Dashboard,
 		workspaceEntry:  o.WorkspaceEntry,
 		onPageLoad:      o.OnPageLoad,
+		onUnsavedReport: o.OnUnsavedReport,
 		beforePage:      o.BeforePage,
 		onStructure:     o.OnStructure,
 		onRetire:        o.OnRetire,

@@ -7,10 +7,12 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/panphora/htmlclay/internal/helper"
 	"github.com/panphora/htmlclay/internal/specwire"
+	"github.com/panphora/htmlclay/internal/unsavedreport"
 )
 
 const (
@@ -213,6 +215,16 @@ func withDataGuardV2(extensions []string) []string {
 	return out
 }
 
+// withExtension returns a copy of the sorted list extensions with name added
+// where the sort puts it.
+func withExtension(extensions []string, name string) []string {
+	i := sort.SearchStrings(extensions, name)
+	out := make([]string, 0, len(extensions)+1)
+	out = append(out, extensions[:i]...)
+	out = append(out, name)
+	return append(out, extensions[i:]...)
+}
+
 // serveMeta is Local's GET /_/meta: the host's capabilities, and the facts and
 // stamp of the document the request names, withheld by omission on every
 // failure.
@@ -223,7 +235,7 @@ func (s *rootServer) serveMeta(w http.ResponseWriter, r *http.Request) error {
 		extensions = managedMetaExtensions
 	}
 	if s.publicHost != "" {
-		extensions = withDataGuardV2(extensions)
+		extensions = withExtension(withDataGuardV2(extensions), unsavedreport.Extension)
 	}
 	body := orderedObject{
 		{Key: "spec", Value: 1},

@@ -54,7 +54,7 @@ public final class AppAlerts: UpdatePresenter {
         let alert = NSAlert()
         alert.messageText = Strings.Quit.unsavedTitle
         alert.informativeText = Strings.Quit.unsavedBody(lines)
-        let names = [Strings.Quit.retry, Strings.Quit.quitAnyway, Strings.Quit.cancel]
+        let names = [Strings.Quit.checkAndQuit, Strings.Quit.discardAndQuit, Strings.Quit.keepOpen]
         for (index, name) in names.enumerated() {
             let button = alert.addButton(withTitle: name)
             switch index {

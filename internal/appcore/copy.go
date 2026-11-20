@@ -18,13 +18,13 @@ const (
 )
 
 const (
-	TextQuitUnsavedTitle   = "Some edits aren't saved yet"                                                       // copy: quit dialog title, max 40 chars
-	TextQuitUnsavedBody    = "HTML Clay couldn't save these documents:\n\n%s\n\nQuitting now loses those edits." // copy: quit dialog body, %s is the documents one per line, max 200 chars without the list
-	TextQuitRetry          = "Retry"                                                                             // copy: quit dialog button that tries to save again, max 16 chars
-	TextQuitAnyway         = "Quit anyway"                                                                       // copy: quit dialog button that quits and loses the edits, max 16 chars
-	TextQuitCancel         = "Cancel"                                                                            // copy: quit dialog button that keeps the app open, max 16 chars
-	TextQuitNotQuitting    = "HTML Clay is still open because you have unsaved edits: %s. Try quitting again in a moment."
-	TextQuitNoAnswer       = "Your open documents could not be checked."                          // copy: quit dialog list line when the service could not be asked, max 60 chars
+	TextQuitUnsavedTitle   = "You have unsaved edits"                                                                                                                                              // copy: quit dialog title, max 40 chars
+	TextQuitUnsavedBody    = "Edits in these documents aren't saved yet:\n\n%s\n\nSave any open page in its browser tab (Ctrl+S or Cmd+S), then check again. Quitting anyway loses unsaved edits." // copy: quit dialog body, %s is the documents one per line, max 200 chars without the list
+	TextQuitRetry          = "Check and quit"                                                                                                                                                      // copy: quit dialog button that tries to save again, max 16 chars
+	TextQuitAnyway         = "Discard and quit"                                                                                                                                                    // copy: quit dialog button that quits and loses the edits, max 16 chars
+	TextQuitCancel         = "Keep open"                                                                                                                                                           // copy: quit dialog button that keeps the app open, max 16 chars
+	TextQuitNotQuitting    = "HTML Clay is still open because edits aren't saved yet: %s. Save any open browser tabs (Ctrl+S), then try quitting again."
+	TextQuitNoAnswer       = "Pages edited live that HTML Clay could not check"                   // copy: quit dialog list line when the service could not be asked, max 60 chars
 	TextServeAFolder       = "Serve a folder…"                                                    // copy: tray row that opens the folder picker, max 24 chars
 	TextServedFolders      = "Served folders"                                                     // copy: tray submenu title, max 24 chars
 	TextNoServedFolders    = "No served folders yet"                                              // copy: tray, disabled row when the list is empty, max 32 chars

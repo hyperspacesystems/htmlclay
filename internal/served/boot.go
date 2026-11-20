@@ -35,6 +35,8 @@ type config struct {
 	workspaceEntry func(rootID string) string
 	// onPageLoad hears about a document that answered a top-level page load.
 	onPageLoad func(rootID, rel string)
+	// onUnsavedReport hears a tab say whether its document holds unsaved edits.
+	onUnsavedReport func(absPath, tab string, seq int64, unsaved, frozen bool)
 	// heldCopy is Options.HeldCopy.
 	heldCopy func(rootID, rel string) (string, bool)
 	// beforePage hears about a top-level page load before the page is written.

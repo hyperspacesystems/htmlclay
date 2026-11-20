@@ -755,12 +755,15 @@ public enum Strings {
         public static let showDocument = "Show document"
         public static let retry = "Retry"
         public static let quitAnyway = "Quit anyway"
-        public static let unsavedTitle = "Some edits aren't saved yet"
+        public static let unsavedTitle = "You have unsaved edits"
         public static func unsavedBody(_ lines: [String]) -> String {
-            "HTML Clay couldn't save these documents:\n\n\(lines.joined(separator: "\n"))\n\nQuitting now loses those edits."
+            "Edits in these documents aren't saved yet:\n\n\(lines.joined(separator: "\n"))\n\nSave any open page in its browser tab (Ctrl+S or Cmd+S), then check again. Quitting anyway loses unsaved edits."
         }
         public static let cancel = "Cancel"
-        public static let noAnswer = "Your open documents could not be checked."
+        public static let noAnswer = "Pages edited live that HTML Clay could not check"
+        public static let checkAndQuit = "Check and quit"
+        public static let discardAndQuit = "Discard and quit"
+        public static let keepOpen = "Keep open"
         public static func portTitle(_ port: String, process: String) -> String { "Port \(port) is in use by “\(process)”" }
         public static func portTakenTitle(_ port: Int) -> String { "Port \(port) is in use" }
         public static let portTakenMessage = "Another app is using the port HTML Clay needs. Quit that app, then open HTML Clay again."

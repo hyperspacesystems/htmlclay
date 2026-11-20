@@ -3,51 +3,101 @@ package main
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/session"
 )
 
-// unsavedDocuments asks the service to save, and names what it could not. answered
-// is false when the service did not answer, so nothing is known to be saved.
+// unsavedDocuments asks the service to save, and names what it could not,
+// with every document an open tab says still holds unsaved edits, each once.
+// answered is false when the service did not answer, so nothing it holds is
+// known to be saved; the tabs' documents are still named.
 func (a *app) unsavedDocuments() (names []string, answered bool) {
+	paths := map[string]bool{}
+	answered = true
 	unsaved, err := a.service.flush()
-	if err != nil {
-		if errors.Is(err, errNoService) {
-			return nil, true
+	switch {
+	case err == nil:
+		for _, doc := range unsaved {
+			if p, ok := a.servedDocPath(doc); ok {
+				paths[p] = true
+			} else {
+				names = append(names, doc.Name)
+			}
 		}
+	case errors.Is(err, errNoService):
+	default:
 		a.rt.logger.Printf("The live-room service did not answer before quitting: %v", err)
-		return nil, false
+		answered = false
 	}
-	for _, doc := range unsaved {
-		names = append(names, a.unsavedLine(doc))
+	for _, p := range a.unsaved.unsavedPaths(time.Now()) {
+		paths[p] = true
 	}
-	return names, true
+	sorted := make([]string, 0, len(paths))
+	for p := range paths {
+		sorted = append(sorted, p)
+	}
+	sort.Strings(sorted)
+	// One document can arrive spelled two ways (the service's folder path and
+	// a tab's resolved path), so each line is named once.
+	seen := map[string]bool{}
+	for _, p := range sorted {
+		if line := a.unsavedPathLine(p); !seen[line] {
+			seen[line] = true
+			names = append(names, line)
+		}
+	}
+	return names, answered
 }
 
 // unsavedBeforeQuit asks the live-room service to save every edit it holds and
-// answers the documents it could not, as lines for a person to read. saved is
-// true when nothing would be lost by quitting now: no service, or every edit
-// saved. A service that does not answer is not proof, so it counts as unsaved.
+// answers the documents still unsaved, as lines for a person to read. saved is
+// true when nothing would be lost by quitting now. A service that does not
+// answer is not proof, so it counts as unsaved.
 func (a *app) unsavedBeforeQuit() (lines []string, saved bool) {
 	names, answered := a.unsavedDocuments()
 	if !answered {
-		return []string{appcore.TextQuitNoAnswer}, false
+		return append([]string{appcore.TextQuitNoAnswer}, names...), false
 	}
 	return names, len(names) == 0
 }
 
-// unsavedLine names one unsaved document by its folder's served name.
-func (a *app) unsavedLine(doc unsavedDoc) string {
+// servedDocPath is the absolute path of a document the service named by its
+// served folder's id.
+func (a *app) servedDocPath(doc unsavedDoc) (string, bool) {
 	a.servedMu.RLock()
 	defer a.servedMu.RUnlock()
-	for name, m := range a.servedByName {
+	for _, m := range a.servedByName {
 		if m.folder.ID == doc.Root {
-			return name + "/" + doc.Name
+			return filepath.Join(m.folder.Path, filepath.FromSlash(doc.Name)), true
 		}
 	}
-	return doc.Name
+	return "", false
+}
+
+// unsavedPathLine names one unsaved document for a person: by its served
+// folder's name when a folder serves it, else by its path inside the home
+// folder.
+func (a *app) unsavedPathLine(abs string) string {
+	a.servedMu.RLock()
+	for name, m := range a.servedByName {
+		if session.EqualOrUnder(abs, m.folder.Path) {
+			if rel, ok := relativeWithin(abs, m.folder.Path); ok {
+				a.servedMu.RUnlock()
+				return name + "/" + filepath.ToSlash(rel)
+			}
+		}
+	}
+	a.servedMu.RUnlock()
+	if rel, ok := relativeWithin(abs, a.rt.home); ok {
+		return filepath.ToSlash(rel)
+	}
+	return abs
 }
 
 // confirmQuit is the tray's Quit: it quits at once when every edit is saved,
