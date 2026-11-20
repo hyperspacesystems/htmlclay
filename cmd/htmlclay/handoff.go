@@ -269,7 +269,9 @@ func (a *app) restoreHandoffSite(entry updateHandoffSite, from string) (*site, i
 	}
 	// A folder trusted since the old process registered these files belongs to
 	// that folder's origin now, and an ad-hoc site for it would break invariant 4.
-	if _, ok := a.trustedAnchor(entry.Anchor); ok {
+	// A stranger's own site inside a trusted folder is the exception: it stays
+	// untrusted on purpose, and its tab keeps its origin and save token.
+	if _, ok := a.trustedAnchor(entry.Anchor); ok && entry.Key == entry.Anchor {
 		a.rt.logger.Printf("%s: %s is inside a trusted folder now; skipping it", from, entry.Anchor)
 		return nil, 0
 	}
@@ -306,7 +308,9 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite, from string)
 		}
 		// The file must still belong to this site's folder: a folder trusted since,
 		// or given its own address inside this one, owns its documents now.
-		if anchor, ok := a.trustedAnchor(f.Path); ok != entry.Trusted || (ok && anchor != s.anchor) {
+		// A stranger's own site inside a trusted folder is the exception: it stays
+		// untrusted on purpose, and its tab keeps its origin and save token.
+		if anchor, ok := a.trustedAnchor(f.Path); s.key == s.anchor && (ok != entry.Trusted || (ok && anchor != s.anchor)) {
 			a.rt.logger.Printf("%s: %s belongs to another folder's address now; skipping it", from, f.Path)
 			continue
 		}

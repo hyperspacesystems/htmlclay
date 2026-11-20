@@ -13,6 +13,7 @@ import (
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/tier"
 )
 
 const (
@@ -57,6 +58,10 @@ var helperSuggestNow = time.Now
 // the request window under the Mac app, today's dialogs otherwise. Caller holds
 // helperMu; it is released while the person decides.
 func (a *app) askHelperSetup(document string, names []string, plan helperOpenPlan, name string, dialogs helperApprovalDialogs, notify bool) helperOpenPlan {
+	v := a.tierOf(document)
+	if a.askDocumentFirst(document, name, v) {
+		return plan
+	}
 	before := plan.allowed
 	defer func() {
 		_, has := plan.allowed[name]
@@ -206,8 +211,30 @@ func (a *app) askHelperSetup(document string, names []string, plan helperOpenPla
 		report(err)
 		return plan
 	}
+	a.allowTeamCode(document, v)
 	plan.allowed, plan.denied = a.resolvedHelpers(document, names)
 	return plan
+}
+
+// askDocumentFirst raises the question a document needs before the setup
+// question for name can mean anything, and reports whether it did: the warning
+// for a document nobody vouches for, and the team question for a team document
+// whose code changed since the person allowed name, or whose folder program
+// waits for it. A team document that never had name allowed goes straight to
+// the setup question, which records its code.
+func (a *app) askDocumentFirst(document, name string, v tier.Verdict) bool {
+	if !v.Warn() {
+		return false
+	}
+	if v.Tier == tier.Team {
+		_, _, waits := a.folderProgram(name, v)
+		resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.programTrusted(document), a.scopeOf(document))
+		if !waits && !(resolution.Decided && resolution.Allowed) {
+			return false
+		}
+	}
+	a.askDocument(document, name)
+	return true
 }
 
 // helperSetupAsk is the question the flow puts to the person: the file HTML Clay

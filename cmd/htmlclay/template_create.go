@@ -9,6 +9,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/tier"
 	servicefiles "github.com/panphora/htmlclay/service"
 )
 
@@ -51,6 +52,9 @@ func (a *app) createFromTemplate(templateID string) *appcore.Refusal {
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
 	a.rt.logger.Printf("Created %s from the %s template", path, templateID)
+	if err := a.recordMadeDocument(path, tier.HowCreated); err != nil {
+		a.rt.logger.Printf("Could not record %s as yours: %v", path, err)
+	}
 	return a.openPath(path)
 }
 

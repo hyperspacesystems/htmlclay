@@ -20,7 +20,7 @@ import (
 	"github.com/panphora/htmlclay/internal/wire"
 )
 
-const aiEditAskRefusal = "AI editing cannot be used until you allow this document in HTML Clay."
+const aiEditAskRefusal = "AI editing cannot run until you allow this version of the page in HTML Clay."
 
 // aiEditStand is one host with a document and its neighbor in one folder, and
 // the two things a row needs from it: send the page's ai-edit request and read
@@ -75,6 +75,7 @@ func newLooseAIEditStandAs(t *testing.T, shell bool) *aiEditStand {
 	neighbor := filepath.Join(folder, "budget.htmlclay")
 	writeTestFile(t, document, "<!doctype html><head></head><body><p>Old</p></body>")
 	writeTestFile(t, neighbor, "<!doctype html><head></head><body><p>Old</p></body>")
+	madeHere(t, a, document, neighbor)
 	sites := map[string]*site{}
 	for _, path := range []string{document, neighbor} {
 		s, _ := a.openForTest(t, path)
@@ -390,12 +391,48 @@ func TestM3AIEditTeamDocument(t *testing.T) {
 			}
 		})
 
+		t.Run(host.name+": a teammate's code change asks once, and a data edit does not", func(t *testing.T) {
+			s := host.open(t)
+			s.markTeam(t, "design")
+			s.requireAsks(t, s.document, "e1")
+			if p := s.awaitQuestion(t, s.document); p.Ask.Detail == teamCodeDetail {
+				t.Fatal("the first team question says the code changed")
+			}
+			s.answer(t, s.document, "allow-document")
+			s.requireRuns(t, s.document, "e2")
+			data, err := os.ReadFile(s.document)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeTestFile(t, s.document, strings.Replace(string(data), "</body>", "<p>more data</p></body>", 1))
+			s.requireRuns(t, s.document, "e3")
+			writeTestFile(t, s.document, strings.Replace(string(data), "</body>", "<script>steal()</script></body>", 1))
+			s.requireAsks(t, s.document, "e4")
+			p := s.awaitQuestion(t, s.document)
+			if p.Ask.Kind != appcore.RequestTeamDocument || !slices.Equal(p.Ask.Answers, []string{"deny", "allow-document"}) {
+				t.Fatalf("question after the code change = %+v", p.Ask)
+			}
+			if p.Ask.Detail != teamCodeDetail {
+				t.Fatalf("the question after the code change has detail %q, want %q", p.Ask.Detail, teamCodeDetail)
+			}
+			if err := s.a.registry().Answer(p.ID, p.Revision, "allow-document", ""); err != nil {
+				t.Fatal(err)
+			}
+			waitFor(t, "the code question to finish", func() bool {
+				s.a.helperStateMu.Lock()
+				defer s.a.helperStateMu.Unlock()
+				return len(s.a.documentAsking) == 0
+			})
+			s.requireRuns(t, s.document, "e5")
+		})
+
 		t.Run(host.name+": Remove Access stops a running edit", func(t *testing.T) {
 			s := host.open(t)
 			s.markTeam(t, "design")
 			if _, _, err := s.a.rt.cfg.AllowAIEditDocument(s.document, s.a.scopeOf(s.document)); err != nil {
 				t.Fatal(err)
 			}
+			s.a.allowTeamCode(s.document, s.a.tierOf(s.document))
 			terminal := make(chan wire.Envelope, 1)
 			go func() {
 				terminal <- s.post(t, s.document, "slow", "<p>"+strings.Repeat("x", 48*400)+"</p>")
@@ -560,4 +597,40 @@ func TestAIEditProgramNameMatchesTheHelper(t *testing.T) {
 	if appcore.AIEditProgram != aiedit.HelperName {
 		t.Fatalf("appcore.AIEditProgram = %q, helper name = %q", appcore.AIEditProgram, aiedit.HelperName)
 	}
+}
+
+// TestM3TeamAllowBeforeTheUpgrade is Opus 8: a team document the person already
+// allowed in the settings does not ask again because trust now follows the
+// code, and asks once its code changes.
+func TestM3TeamAllowBeforeTheUpgrade(t *testing.T) {
+	s := newLooseAIEditStand(t)
+	s.markTeam(t, "design")
+	if _, _, err := s.a.rt.cfg.AllowAIEditDocument(real(t, s.document), s.a.scopeOf(s.document)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.a.rt.cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	// The upgrade: this launch opens a trust store that has no upgrade record.
+	s.a.rt.configDir = filepath.Join(t.TempDir(), "htmlclay")
+	if err := os.MkdirAll(s.a.rt.configDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	store := s.a.openTiers(nil)
+	if store == nil {
+		t.Fatal("no trust store")
+	}
+	s.a.core.mu.Lock()
+	s.a.core.tiers = store
+	s.a.core.mu.Unlock()
+	s.requireRuns(t, s.document, "u1")
+	if got := s.questions(t); len(got) != 0 {
+		t.Fatalf("a document the settings already allow asked %d times", len(got))
+	}
+	// A data edit keeps the allow.
+	writeTestFile(t, s.document, "<!doctype html><head></head><body><p>New</p></body>")
+	s.requireRuns(t, s.document, "u2")
+	// A code change asks once more.
+	writeTestFile(t, s.document, "<!doctype html><head><script>go()</script></head><body><p>New</p></body>")
+	s.requireAsks(t, s.document, "u3")
 }

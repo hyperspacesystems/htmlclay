@@ -68,12 +68,13 @@ func (c *Config) ForgetFormerPort(port int) {
 	c.FormerPorts = slices.DeleteFunc(c.FormerPorts, func(p int) bool { return p == port })
 }
 
-// BuiltinOn reports whether a built-in program is switched on.
+// BuiltinOn reports whether a built-in program is switched on. A program the
+// person never switched is on.
 func (c *Config) BuiltinOn(id string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	p := c.BuiltinPrograms[id]
-	return p != nil && p.On
+	return p == nil || p.On
 }
 
 // SetBuiltinOn switches a built-in program on or off. The allowed documents stay.
@@ -240,7 +241,7 @@ func (c *Config) builtinLocked(id string) *BuiltinProgram {
 	}
 	p := c.BuiltinPrograms[id]
 	if p == nil {
-		p = &BuiltinProgram{}
+		p = &BuiltinProgram{On: true}
 		c.BuiltinPrograms[id] = p
 	}
 	return p

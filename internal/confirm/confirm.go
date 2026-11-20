@@ -310,6 +310,27 @@ func (r *Registry) Close(id string) {
 	r.notify()
 }
 
+// CloseDocument dismisses every open question about document, whether or not
+// it was answered, and denies each caller still waiting on one, so a document
+// the person refused leaves nothing behind in the window or in a call.
+func (r *Registry) CloseDocument(document string) {
+	r.mu.Lock()
+	var closing []*request
+	for _, req := range r.order {
+		if req.ask.Document == document {
+			closing = append(closing, req)
+		}
+	}
+	for _, req := range closing {
+		r.settle(req, Reply{ID: req.ask.ID, Choice: ChoiceDeny})
+		r.remove(req)
+	}
+	r.mu.Unlock()
+	if len(closing) > 0 {
+		r.notify()
+	}
+}
+
 // Stop denies every open question and empties the registry.
 func (r *Registry) Stop() {
 	r.mu.Lock()

@@ -14,6 +14,7 @@ import (
 	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/tier"
 	"github.com/panphora/htmlclay/internal/trust"
 )
 
@@ -196,6 +197,13 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 	sessions := session.NewManagerWithHome(a.rt.home)
 	sessions.SetGuard(a.rt.guard)
 	sessions.SetOnChange(a.keptTokensChanged)
+	if key != anchor {
+		sessions.SetFileOnly()
+		// A document that still needs the warning reads only itself; once the
+		// person allows or trusts it, its page keeps this origin and gains its
+		// folder as any opened file does.
+		sessions.SetStranger(func(p string) bool { return a.tierOf(p).Warn() })
+	}
 	// Registration runs under a.mu, so this hook must never take it:
 	// ResolveDocument reads only the config fact (see there).
 	sessions.SetServedOwner(func(p string) bool {
@@ -246,6 +254,9 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		TrustRequest:   a.trustFromPage,
 		AIEditFor:      a.aiEditFor,
 		AskAIEdit:      a.askAIEdit,
+		AIEditFiles:    a.aiEditFiles,
+		Stranger:       a.stranger,
+		StrangerRead:   a.strangerRead,
 		AIEditEngines:  a.rt.cfg.AIEditEngines,
 		AIEditModels:   a.rt.cfg.AIEditModels,
 		AIEditEfforts:  a.rt.cfg.AIEditEfforts,
@@ -264,13 +275,40 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 }
 
 // originKey names what a file's slug is remembered under. A file loose in home anchors at
-// home like every other such file, so its own path is the key.
-func (a *app) originKey(absPath, anchor string) string {
-	if anchor == a.rt.home {
+// home like every other such file, and a file with its own origin shares it with nothing,
+// so for both the file's own path is the key.
+func (a *app) originKey(absPath, anchor string, own bool) string {
+	if own || anchor == a.rt.home {
 		return absPath
 	}
 	return anchor
 }
+
+// ownOrigin reports a file that must not share an origin with any other, so its
+// page can never read a neighbour's storage or registration. Outside a trusted
+// folder: a document nobody vouches for, and a file that already has its own
+// origin, so trusting it later never moves what its page stored. Inside a
+// trusted folder: a stranger's document, so one dropped into a project never
+// joins the project's origin. Every other document there shares the folder's
+// origin, which its pages need to reach each other.
+func (a *app) ownOrigin(absPath string) bool {
+	if _, trusted := a.trustedAnchor(absPath); trusted {
+		return a.stranger(absPath)
+	}
+	return a.rt.cfg.SiteSlug(absPath) != "" || a.tierOf(absPath).Tier == tier.Unknown
+}
+
+// stranger reports a document HTML Clay knows came from someone else, a
+// download or one whose signature does not count, that nobody has vouched for
+// since. Its page runs only on an origin of its own, and another site serves
+// it sandboxed (Hooks.Stranger).
+func (a *app) stranger(absPath string) bool {
+	v := a.tierOf(absPath)
+	return v.Tier == tier.Unknown && (v.Reason == tier.ReasonDownloaded || v.Reason == tier.ReasonBrokenSignature)
+}
+
+// ownSite reports a site keyed by one file rather than by its folder.
+func (s *site) ownSite() bool { return s.key != s.anchor }
 
 // discardPendingLocked closes a site that was built and never published, and drops its
 // slug if this build allocated it, so a refused open records nothing. Caller holds a.mu.
@@ -294,7 +332,7 @@ func (a *app) lookupLocked(absPath string) (*site, string, bool) {
 // invariant 4's lookup: one folder, one site. Caller holds a.mu.
 func (a *app) siteAtLocked(folder string) *site {
 	for _, s := range a.sites {
-		if s.anchor == folder {
+		if s.anchor == folder && !s.ownSite() {
 			return s
 		}
 	}
@@ -307,7 +345,15 @@ func (a *app) siteAtLocked(folder string) *site {
 // Two rules, with genuinely different inputs. Conflating them is what produced
 // the inert-folder bug: rule 1 reads the declared config fact and never looks at
 // any site's installed roots, because a site bound at startup has armed none yet.
-func (a *app) siteForLocked(absPath string) *site {
+func (a *app) siteForLocked(absPath string, own bool) *site {
+	if own {
+		for _, s := range a.sites {
+			if s.key == absPath {
+				return s
+			}
+		}
+		return nil
+	}
 	if folder, ok := a.trustedAnchor(absPath); ok {
 		return a.siteAtLocked(folder)
 	}
@@ -360,8 +406,9 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 	// A site that exists but has not served a request since a restart still holds
 	// its kept tokens dormant. Arm it first, outside a.mu, so a file opened again
 	// keeps the token its old tab holds instead of minting a second one.
+	own := a.ownOrigin(absPath)
 	a.mu.Lock()
-	existing := a.siteForLocked(absPath)
+	existing := a.siteForLocked(absPath, own)
 	a.mu.Unlock()
 	if existing != nil && !existing.closed.Load() {
 		existing.armOnce.Do(existing.arm)
@@ -400,7 +447,7 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 		a.rt.logger.Printf("File already open, re-launching window: %s", absPath)
 		return s, rel, true
 	}
-	if s := a.siteForLocked(absPath); s != nil {
+	if s := a.siteForLocked(absPath, own); s != nil {
 		rel, ok := a.registerLocked(s, absPath, via)
 		a.mu.Unlock()
 		return s, rel, ok
@@ -408,7 +455,10 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 	a.mu.Unlock()
 
 	anchor, trusted := a.anchorFor(absPath)
-	key := a.originKey(absPath, anchor)
+	if own {
+		anchor, trusted = filepath.Dir(absPath), false
+	}
+	key := a.originKey(absPath, anchor, own)
 	pending := a.buildSite(anchor, key, trusted)
 	// The same for a site rebuilt here: its kept tokens come back before the
 	// registration below.
@@ -432,7 +482,7 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 		pending.close()
 		return s, rel, true
 	}
-	if s := a.siteForLocked(absPath); s != nil {
+	if s := a.siteForLocked(absPath, own); s != nil {
 		rel, ok := a.registerLocked(s, absPath, via)
 		a.discardPendingLocked(pending)
 		a.mu.Unlock()

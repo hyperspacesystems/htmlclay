@@ -11,6 +11,7 @@ import (
 	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/tier"
 )
 
 // builtinStand is a host with one trusted folder holding one document.
@@ -47,6 +48,7 @@ func newBuiltinStandAt(t *testing.T, home string) builtinStand {
 	if err := os.WriteFile(other, []byte("<html></html>"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	madeHere(t, a, doc, other)
 	return builtinStand{app: a, dir: dir, doc: doc, other: other}
 }
 
@@ -60,8 +62,12 @@ func real(t *testing.T, path string) string {
 	return resolved
 }
 
-func TestBuiltinStartsOff(t *testing.T) {
+func TestBuiltinStartsOnAndSwitchesOff(t *testing.T) {
 	s := newBuiltinStand(t)
+	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ready {
+		t.Fatalf("state = %q, want ready for the person's own document", got)
+	}
+	s.app.rt.cfg.SetBuiltinOn(builtin.FileSearch, false)
 	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Off {
 		t.Fatalf("state = %q, want off", got)
 	}
@@ -73,8 +79,8 @@ func TestBuiltinNeedsATrustedFolder(t *testing.T) {
 	if got := s.app.builtinFor(s.other, builtin.FileSearch).State; got != builtin.Untrusted {
 		t.Fatalf("a document outside every folder = %q, want untrusted", got)
 	}
-	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ask {
-		t.Fatalf("a document in a trusted folder = %q, want ask", got)
+	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ready {
+		t.Fatalf("the person's own document in a trusted folder = %q, want ready", got)
 	}
 }
 
@@ -98,8 +104,8 @@ func TestBuiltinAllowAndRemove(t *testing.T) {
 	if refusal := s.app.runEffect(context.Background(), appcore.Effect{Type: "program.askAgain", ProgramID: builtin.FileSearch, DocumentID: s.doc}); refusal != nil {
 		t.Fatalf("askAgain = %+v, want none", refusal)
 	}
-	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ask {
-		t.Fatalf("state = %q, want ask", got)
+	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ready {
+		t.Fatalf("state = %q, want ready: the person's own document runs once its removal is gone", got)
 	}
 }
 
@@ -107,7 +113,6 @@ func TestBuiltinRemoveAllTakesEveryDocumentAndAnEmptyDocumentTakesNothing(t *tes
 	s := newBuiltinStand(t)
 	s.app.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
 	s.app.rt.cfg.AllowBuiltin(builtin.FileSearch, s.doc)
-	s.app.rt.cfg.SetBuiltinAllTrusted(builtin.FileSearch, true)
 	refusal := s.app.runEffect(context.Background(), appcore.Effect{Type: "program.removeAccess", ProgramID: builtin.FileSearch})
 	if refusal == nil || refusal.Code != appcore.RefuseBadArguments {
 		t.Fatalf("remove access with no document = %+v, want bad-arguments", refusal)
@@ -121,9 +126,6 @@ func TestBuiltinRemoveAllTakesEveryDocumentAndAnEmptyDocumentTakesNothing(t *tes
 	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Removed {
 		t.Fatalf("state after remove all = %q, want removed", got)
 	}
-	if s.app.rt.cfg.BuiltinAllTrusted(builtin.FileSearch) {
-		t.Fatal("remove all left All documents in my trusted folders on")
-	}
 }
 
 func TestBuiltinRemoveAllChangesNothingWhenTheSettingsCannotSave(t *testing.T) {
@@ -134,7 +136,6 @@ func TestBuiltinRemoveAllChangesNothingWhenTheSettingsCannotSave(t *testing.T) {
 	a := newTestAppWithConfigDir(t, t.TempDir(), cfgBase)
 	a.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
 	a.rt.cfg.AllowBuiltin(builtin.FileSearch, "/docs/a.htmlclay")
-	a.rt.cfg.SetBuiltinAllTrusted(builtin.FileSearch, true)
 	if err := a.rt.cfg.Save(); err != nil {
 		t.Fatal(err)
 	}
@@ -147,19 +148,36 @@ func TestBuiltinRemoveAllChangesNothingWhenTheSettingsCannotSave(t *testing.T) {
 	if refusal == nil || refusal.Code != appcore.RefuseFailed {
 		t.Fatalf("remove all with a settings file that cannot save = %+v, want failed", refusal)
 	}
-	if !a.rt.cfg.BuiltinAllowed(builtin.FileSearch, "/docs/a.htmlclay") || !a.rt.cfg.BuiltinAllTrusted(builtin.FileSearch) {
+	if !a.rt.cfg.BuiltinAllowed(builtin.FileSearch, "/docs/a.htmlclay") {
 		t.Fatal("a remove the settings file could not save still took effect in memory")
 	}
 }
 
-func TestBuiltinAllTrustedSkipsTheQuestion(t *testing.T) {
+func TestBuiltinTeamDocumentAsksAgainWhenItsCodeChanges(t *testing.T) {
 	s := newBuiltinStand(t)
-	s.app.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
-	if refusal := s.app.runEffect(context.Background(), appcore.Effect{Type: "program.setAllTrusted", ProgramID: builtin.FileSearch, On: true}); refusal != nil {
-		t.Fatalf("setAllTrusted = %+v, want none", refusal)
+	dir := real(t, s.dir)
+	if err := s.app.rt.cfg.MarkTeamFolder(config.TeamFolder{Path: dir, Identity: platform.DirIdentity(dir), Kind: config.TeamFolderKindTeam, Key: "design"}); err != nil {
+		t.Fatal(err)
+	}
+	s.app.rt.cfg.AllowBuiltin(builtin.FileSearch, s.doc)
+	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ask {
+		t.Fatalf("a team document allowed the program but not its code = %q, want ask", got)
+	}
+	s.app.allowTeamCode(s.doc, s.app.tierOf(s.doc))
+	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ready {
+		t.Fatalf("after its code was allowed = %q, want ready", got)
+	}
+	if err := os.WriteFile(s.doc, []byte("<html><body><p>more data</p></body></html>"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ready {
-		t.Fatalf("state = %q, want ready", got)
+		t.Fatalf("after a data edit = %q, want ready", got)
+	}
+	if err := os.WriteFile(s.doc, []byte("<html><body onload=\"steal()\"></body></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.app.builtinFor(s.doc, builtin.FileSearch).State; got != builtin.Ask {
+		t.Fatalf("after a teammate changed its code = %q, want ask", got)
 	}
 }
 
@@ -185,6 +203,9 @@ func TestOpenBuiltinExampleAllowsIt(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 	s := newBuiltinStandAt(t, real(t, home))
+	if err := s.app.tierStore().SetDeveloper(false); err != nil {
+		t.Fatal(err)
+	}
 	opened := ""
 	s.app.rt.launchBrowser = func(target string) error {
 		opened = target
@@ -205,5 +226,8 @@ func TestOpenBuiltinExampleAllowsIt(t *testing.T) {
 	}
 	if got := s.app.builtinFor(filepath.Join(dir, "Image Converter.htmlclay"), builtin.FileConvert).State; got != builtin.Ready {
 		t.Fatalf("the example's state = %q, want ready", got)
+	}
+	if v := s.app.tierOf(filepath.Join(dir, "Image Converter.htmlclay")); v.Tier != tier.Mine {
+		t.Fatalf("the example HTML Clay wrote is %s %s, want the person's own", v.Tier, v.Reason)
 	}
 }

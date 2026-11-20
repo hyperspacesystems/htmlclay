@@ -106,6 +106,8 @@ func waiting(f Facts) []WaitingItem {
 			title = fmt.Sprintf(TextWaitingFolderRead, document, r.Folder)
 		case RequestFolderReadAgain:
 			title = fmt.Sprintf(TextWaitingFolderReadAgain, document, r.Folder)
+		case RequestUnknownDocument:
+			title = fmt.Sprintf(TextWaitingUnknownDocument, document, r.Folder)
 		}
 		add(r.ID, WaitingProgramRequest, title, r.Folder, r.ID)
 	}

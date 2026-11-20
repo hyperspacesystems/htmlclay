@@ -398,6 +398,7 @@ func TestDashboardCustomCommandIsCheckedBeforeItsQuestion(t *testing.T) {
 
 func TestDashboardBuiltinSwitchAsksBeforeItTurnsOn(t *testing.T) {
 	c, _ := grantDashboard(t)
+	c.app.rt.cfg.SetBuiltinOn("file-search", false)
 	asked := make(chan string, 2)
 	yes := false
 	c.app.rt.confirmTrust = func(title, message, affirmative string) (bool, error) {

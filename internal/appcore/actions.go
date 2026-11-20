@@ -154,6 +154,7 @@ var requestAnswers = map[string][]string{
 	RequestFolderRead:      {"deny", "allow-once", "trust-folder"},
 	RequestFolderReadAgain: {"deny", "trust-folder"},
 	RequestBuiltinProgram:  {"deny", "allow-document"},
+	RequestUnknownDocument: {"deny-document", "allow-document", "trust-document"},
 }
 
 // AnswersFor is the answers a request of kind offers, in button order.

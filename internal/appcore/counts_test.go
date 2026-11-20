@@ -2,6 +2,7 @@ package appcore
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -113,6 +114,18 @@ func TestCountsAIEditTitles(t *testing.T) {
 	}
 	if want := fmt.Sprintf(TextWaitingProgramRequest, "roadmap.htmlclay", "todo-search"); s.Waiting[1].Title != want {
 		t.Errorf("program request title = %q, want %q", s.Waiting[1].Title, want)
+	}
+}
+
+func TestCountsUnknownDocumentTitleNamesTheFolder(t *testing.T) {
+	s := Build(Facts{Requests: []RequestFact{
+		{ID: "a", Kind: RequestUnknownDocument, Document: "/Users/me/Downloads/invoice.html", Folder: "Downloads"},
+	}})
+	if title := s.Waiting[0].Title; !strings.Contains(title, "invoice.html") || !strings.Contains(title, "Downloads") {
+		t.Errorf("unknown document title = %q, want the document and the folder it can reach", title)
+	}
+	if got := s.Requests[0].Answers; !slices.Equal(got, []string{"deny-document", "allow-document", "trust-document"}) {
+		t.Errorf("unknown document answers = %v", got)
 	}
 }
 

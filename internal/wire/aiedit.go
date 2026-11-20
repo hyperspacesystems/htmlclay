@@ -23,7 +23,7 @@ const (
 	aiEditProgressEvery = 250 * time.Millisecond
 	maxAIEditEnvelope   = 1 << 20
 	aiEditOffText       = "AI Editing is off. Turn it on in HTML Clay's menu."
-	aiEditAskText       = "AI editing cannot be used until you allow this document in HTML Clay."
+	aiEditAskText       = "AI editing cannot run until you allow this version of the page in HTML Clay."
 )
 
 type AIEditRun struct {
@@ -155,6 +155,7 @@ func (s *Core) RunAIEdit(ctx context.Context, cancel context.CancelFunc, file st
 		Status: func(text string) {
 			s.publishAIEdit(request, "wire/status", text, nil)
 		},
+		ContextFiles: s.policy.AIEditFiles(file),
 	}
 
 	var progressMu sync.Mutex

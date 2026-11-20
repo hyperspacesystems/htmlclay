@@ -238,8 +238,20 @@ func readCapped(path string) ([]byte, error) {
 	return text, nil
 }
 
+// genericAdapter runs a person's own engine in the document's folder only when
+// the document may attach its sibling files. Anything else runs in an empty
+// folder, so an engine with file tools of its own cannot reach the neighbours.
 func genericAdapter(ctx context.Context, e engine, bin, userPrompt string, o Options, env []string, report func(string)) (Result, error) {
-	return runGeneric(ctx, e, bin, systemPrompt+"\n\n"+userPrompt, o.BaseDir, env, report)
+	dir := o.BaseDir
+	if !o.ContextFiles {
+		scratch, err := os.MkdirTemp("", "ai-edit-generic-")
+		if err != nil {
+			return Result{}, engineFailure(err)
+		}
+		defer os.RemoveAll(scratch)
+		dir = scratch
+	}
+	return runGeneric(ctx, e, bin, systemPrompt+"\n\n"+userPrompt, dir, env, report)
 }
 
 // runGeneric runs a user-configured engine. prompt is the whole turn: the

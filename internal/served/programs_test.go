@@ -26,6 +26,7 @@ func (askingPolicy) ProgramGranted(file, name, id string) bool    { return false
 func (askingPolicy) AIEditOffered() bool                          { return false }
 func (askingPolicy) AIEditFor(string) (bool, bool)                { return false, false }
 func (askingPolicy) AskAIEdit(string)                             {}
+func (askingPolicy) AIEditFiles(string) bool                      { return false }
 func (askingPolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
 func (askingPolicy) AIEditModels() map[string]string              { return nil }
 func (askingPolicy) AIEditEfforts() map[string]string             { return nil }

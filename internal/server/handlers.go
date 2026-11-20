@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -726,6 +727,14 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 			writeOutsideFolder(w)
 			return
 		}
+		// A page nobody vouches for never widens what it can read: the read is
+		// refused and the warning is raised about the page that asked.
+		if s.hooks.StrangerRead != nil {
+			if page := s.pagePath(r); page != "" && s.hooks.StrangerRead(page) {
+				write403(w)
+				return
+			}
+		}
 		// Hold the request open and ask the user to widen reads; on Allow the same
 		// request resumes with no reload, on Deny a fixed 403.
 		rc := http.NewResponseController(w)
@@ -823,17 +832,21 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 	}
 
 	uploaded := refusedUpload(strings.ToLower(filepath.Ext(real))) && inAssetsFolder(real)
+	stranger := !uploaded && rendersAsPage(real) && s.hooks.Stranger != nil && s.hooks.Stranger(real)
 
 	// A read-only HTML Clay document reached by a real user navigation forks to
 	// the bannered path: buffered, nonce-bearing, uncacheable. Everything else
 	// (assets, fetches, iframes, non-.htmlclay pages) streams below unchanged.
-	if !uploaded && s.shouldOfferOpen(r, real) {
+	if !uploaded && !stranger && s.shouldOfferOpen(r, real) {
 		s.serveReadOnlyWithBanner(w, r, file, real)
 		return
 	}
 
 	name := filepath.Base(absPath)
 	setAssetHeaders(w, name, uploaded)
+	if stranger {
+		w.Header().Set("Content-Security-Policy", "sandbox")
+	}
 
 	// B8: assets always revalidate. Detailed failure causes go in the log; the
 	// response bodies above stay coarse.
@@ -870,7 +883,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 // and a file with no extension or an unknown one that holds HTML would come back
 // as a page that runs script on this origin. An unknown type is a download.
 func setAssetHeaders(w http.ResponseWriter, name string, uploaded bool) {
-	ext := strings.ToLower(filepath.Ext(name))
+	ext := uncompressedExt(name)
 	if ext == ".svg" || ext == ".svgz" {
 		w.Header().Set("Content-Disposition", "attachment")
 	}
@@ -890,6 +903,28 @@ func setAssetHeaders(w http.ResponseWriter, name string, uploaded bool) {
 	if uploaded {
 		w.Header().Set("Content-Disposition", "attachment")
 	}
+}
+
+// pagePath is the document a request came from, when its Referer names this
+// very host and a page this site holds. Only the address of the page that asked
+// says which document it is: an asset request carries no token.
+func (s *Server) pagePath(r *http.Request) string {
+	if RefererHost(r) == "" || RefererHost(r) != strings.ToLower(r.Host) {
+		return ""
+	}
+	u, err := url.Parse(r.Header.Get("Referer"))
+	if err != nil {
+		return ""
+	}
+	rel := extractFilePath(strings.TrimPrefix(u.Path, "/"))
+	if rel == "" {
+		return ""
+	}
+	absPath, err := ValidatePath(rel, s.sessions.HomeDir())
+	if err != nil {
+		return ""
+	}
+	return absPath
 }
 
 // write403 is the fixed response for a denied out-of-scope read. It carries no
@@ -1056,11 +1091,18 @@ func (s *Server) handleRead(w http.ResponseWriter, r *http.Request) {
 // It reads the session's installed roots rather than the declared list on
 // purpose: this is the write path, and what authorizes a write is the held
 // capability, not what config says.
+//
+// A file-only site holds one document and no folder root, so for it the live,
+// identity-checked trusted list is the capability.
 func (s *Server) trustedWriteRevoked(f *session.File) bool {
 	via := s.sessions.Via(f.AbsPath)
-	return via.Has(session.ViaTrusted) &&
-		!via.Has(session.ViaOsOpen) &&
-		!s.sessions.TrustedCovers(f.AbsPath)
+	if !via.Has(session.ViaTrusted) || via.Has(session.ViaOsOpen) {
+		return false
+	}
+	if s.sessions.FileOnly() {
+		return !s.trustedLive(f.AbsPath)
+	}
+	return !s.sessions.TrustedCovers(f.AbsPath)
 }
 
 func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
@@ -1600,6 +1642,9 @@ func atomicWriteFile(targetPath string, data []byte) error {
 	if info, err := os.Stat(targetPath); err == nil {
 		os.Chmod(tmpPath, info.Mode())
 	}
+	// The rename replaces the file, and with it the download mark the system put
+	// on it. Copied first, a page that saves itself still reads as downloaded.
+	_ = platform.KeepDownloadMark(targetPath, tmpPath)
 
 	if beforeAtomicReplace != nil {
 		beforeAtomicReplace()

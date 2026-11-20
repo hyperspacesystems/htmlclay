@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
+
+	"github.com/panphora/htmlclay/internal/platform"
 )
 
 // Shared atomic publication for every writer that touches a served file,
@@ -187,6 +189,7 @@ func atomicWriteFile(filePath string, content []byte, beforeRename func() error,
 		os.Remove(tmpPath)
 		return err
 	}
+	_ = platform.KeepDownloadMark(filePath, tmpPath)
 	if takeFault(faultKillBeforeRename, filePath) {
 		killSelf()
 	}

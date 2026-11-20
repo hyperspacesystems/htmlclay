@@ -30,6 +30,7 @@ func (framesOnly) ProgramGranted(file, name, id string) bool    { return false }
 func (framesOnly) AIEditOffered() bool                          { return false }
 func (framesOnly) AIEditFor(string) (bool, bool)                { return false, false }
 func (framesOnly) AskAIEdit(string)                             {}
+func (framesOnly) AIEditFiles(string) bool                      { return false }
 func (framesOnly) AIEditEngines() (string, map[string][]string) { return "", nil }
 func (framesOnly) AIEditModels() map[string]string              { return nil }
 func (framesOnly) AIEditEfforts() map[string]string             { return nil }

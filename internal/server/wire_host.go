@@ -231,6 +231,10 @@ func (l looseWire) AskAIEdit(document string) {
 	}
 }
 
+func (l looseWire) AIEditFiles(document string) bool {
+	return l.s.hooks.AIEditFiles != nil && l.s.hooks.AIEditFiles(document)
+}
+
 func (l looseWire) AIEditEngines() (string, map[string][]string) {
 	if l.s.hooks.AIEditEngines == nil {
 		return "", nil

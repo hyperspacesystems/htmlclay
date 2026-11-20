@@ -58,6 +58,14 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 				writeServedElsewhere(w, owner.URL())
 				return
 			}
+			// A document with an origin of its own is served there, not by
+			// the folder it happens to sit in.
+			if a.ownOrigin(abs) {
+				if s, _, ok := a.route(abs, session.ViaTrusted); ok {
+					a.dispatch(w, r, s, "")
+					return
+				}
+			}
 			if s := a.siteServingPath(apiPath); s != nil {
 				a.dispatch(w, r, s, "")
 				return
@@ -189,7 +197,7 @@ func (a *app) siteServingPath(rel string) *site {
 		if s.key == abs {
 			return s
 		}
-		if s.anchor == a.rt.home || !session.EqualOrUnder(abs, s.anchor) {
+		if s.ownSite() || !session.EqualOrUnder(abs, s.anchor) {
 			continue
 		}
 		if best == nil || len(s.anchor) > len(best.anchor) {

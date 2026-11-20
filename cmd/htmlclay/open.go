@@ -58,6 +58,12 @@ func (a *app) openPath(filePath string) *appcore.Refusal {
 	// A file inside a served folder is opened where it is served, not by a site of
 	// its own: the served host is its only writer.
 	if owner, err := a.ResolveDocument(absPath); err == nil && owner.Kind == OwnerServed {
+		// A document nobody vouches for is served with its scripts off in a
+		// served folder, so the app asks about it the way it asks about any
+		// stranger; once allowed, it serves as itself.
+		if a.stranger(absPath) {
+			a.askDocument(absPath, servedOpenProgram)
+		}
 		a.rt.logger.Printf("Serving %s at %s", filepath.Base(absPath), owner.URL())
 		a.noteOpen(absPath, recents.HowServed, true)
 		document := filepath.Join(owner.FolderPath, filepath.FromSlash(owner.RelativePath))

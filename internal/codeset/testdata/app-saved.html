@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" htmlclayid="a1b2c3d4e5f6" look="dark">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://clayjs.com">
+<title>My notes</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://clayjs.com/v1/clay.js?plugins=cms,ai" defer></script>
+<script type="text/x-clay-instructions" name="review">Explain the change.
+Keep it short   and kind. 😀</script>
+<script type="text/x-clay-program" name="count">export default async (clay) => clay.files.list('<tag>&amp; -->');</script>
+<script type="application/json" id="wtf-data">{"reviews":[{"title":"second"},{"title":"first"}]}</script>
+<script type="application/ld+json">{"@type":"WebApplication"}</script>
+<style>body { color: #222 }</style>
+</head>
+<body x-data="{ open: false }">
+<h1>Notes <em>today</em></h1>
+<ul id="list"><li>milk</li><li>bread</li><li>eggs</li><li class="done">tea</li></ul>
+<button type="button" class="primary big" onclick="add()">Add</button>
+<a href="javascript:void(0)">nothing</a>
+<iframe src="https://example.com/embed" sandbox="allow-scripts"></iframe>
+<template id="row"><li onclick="pick(this)">row</li><script>console.log('in template')</script></template>
+<noscript><p>Turn on JavaScript.</p></noscript>
+<svg width="10" height="10"><a><animate attributeName="href" to="https://example.com"/></a></svg>
+<script type="module">
+import { start } from './app.js';
+start();
+</script>
+</body>
+</html>

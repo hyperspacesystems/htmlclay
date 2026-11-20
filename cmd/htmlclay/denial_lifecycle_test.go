@@ -5,9 +5,18 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 )
+
+// switchBuiltinsOff turns the three built-in programs off, for a test of a
+// declared helper whose document sits where the built-ins would run.
+func switchBuiltinsOff(a *app) {
+	for _, id := range builtin.IDs {
+		a.rt.cfg.SetBuiltinOn(id, false)
+	}
+}
 
 func helperDiscoveryState(t *testing.T, s *site, document string) string {
 	t.Helper()
@@ -29,7 +38,8 @@ func helperDiscoveryState(t *testing.T, s *site, document string) string {
 	}
 	// The declared helper, then the built-ins ai-edit and blockeditor-tool, both on by default
 	// (blockeditor-tool because the bundled runtime carries its tool-generation prompts), then
-	// the three built-in programs, none of which this document may run.
+	// the three built-in programs, none of which this document may run: it is
+	// loose, or the test switched them off.
 	if len(meta.Document.Helpers) != 6 || meta.Document.Helpers[1].Name != "ai-edit" || meta.Document.Helpers[1].State != "ready" ||
 		meta.Document.Helpers[2].Name != "blockeditor-tool" || meta.Document.Helpers[2].State != "ready" {
 		t.Fatalf("helpers: %+v", meta.Document.Helpers)

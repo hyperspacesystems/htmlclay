@@ -110,7 +110,8 @@ type Config struct {
 	AIEditDocuments []AIEditDocument `json:"aiEditDocuments,omitempty"`
 	// BuiltinPrograms are the built-in programs' switches and the documents the
 	// person allowed for each, keyed by program id (internal/builtin). A missing
-	// entry is off.
+	// entry is on: documents the person made, and signed ecosystem apps, use the
+	// built-in programs without a question unless the person switched one off.
 	BuiltinPrograms map[string]*BuiltinProgram `json:"builtinPrograms,omitempty"`
 	// StopOpeningFiles is true after the person chose "Stop opening .htmlclay
 	// files", so the startup file type refresh leaves the system's choice alone.

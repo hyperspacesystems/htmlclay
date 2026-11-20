@@ -22,6 +22,7 @@ import (
 	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/tier"
 	servicefiles "github.com/panphora/htmlclay/service"
 )
 
@@ -301,6 +302,9 @@ func TestM3DashboardWithoutService(t *testing.T) {
 		}
 		kanban, _ := servicefiles.Template("kanban")
 		dir := filepath.Join(home, "htmlclay")
+		if err := c.app.tierStore().SetDeveloper(false); err != nil {
+			t.Fatal(err)
+		}
 		if status, body := c.act("create-1", "template.create", map[string]any{"templateID": "kanban"}); status != http.StatusOK {
 			t.Fatalf("template.create = %d %s", status, body)
 		}
@@ -310,6 +314,15 @@ func TestM3DashboardWithoutService(t *testing.T) {
 		}
 		if len(opened) != 1 || !strings.Contains(opened[0], "Kanban.htmlclay") {
 			t.Fatalf("opened %v, want the new document", opened)
+		}
+		if v := c.app.tierOf(first); v.Tier != tier.Mine {
+			t.Fatalf("a document HTML Clay made is %s %s, want the person's own", v.Tier, v.Reason)
+		}
+		copied := filepath.Join(t.TempDir(), "Kanban.htmlclay")
+		writeTestFile(t, copied, string(kanban))
+		downloadedHere(t, c.app, copied)
+		if v := c.app.tierOf(copied); v.Tier != tier.Unknown {
+			t.Fatalf("a downloaded copy of the template code is %s %s, want unknown", v.Tier, v.Reason)
 		}
 		writeTestFile(t, first, "the person's own edits")
 		if status, body := c.act("create-2", "template.create", map[string]any{"templateID": "kanban"}); status != http.StatusOK {

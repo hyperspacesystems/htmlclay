@@ -88,6 +88,35 @@ func TestMetaWritableFalseAfterTrustedWriteRevoked(t *testing.T) {
 	}
 }
 
+// A file-only site holds one document and no folder root. A document reached
+// through a trusted folder, such as a download given its own origin there,
+// saves while the folder is trusted and stops at once when it is not.
+func TestFileOnlySiteSavesWhileItsFolderIsTrusted(t *testing.T) {
+	srv, _, content := setupHandlerTest(t)
+	ws := filepath.Join(srv.sessions.HomeDir(), "ws")
+	if err := os.MkdirAll(ws, 0755); err != nil {
+		t.Fatal(err)
+	}
+	page := filepath.Join(ws, "download.htmlclay")
+	if err := os.WriteFile(page, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	srv.sessions.SetFileOnly()
+	live := true
+	srv.SetHooks(Hooks{TrustedLive: func(string) bool { return live }})
+	f, err := srv.sessions.Register(page, session.ViaTrusted)
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if w := saveThroughMux(t, srv, f, content, ""); w.Code != 200 {
+		t.Fatalf("save while the folder is trusted answered %d, want 200: %s", w.Code, w.Body.String())
+	}
+	live = false
+	if w := saveThroughMux(t, srv, f, content, ""); w.Code != 401 {
+		t.Fatalf("save after the folder was untrusted answered %d, want 401: %s", w.Code, w.Body.String())
+	}
+}
+
 // Discovery without a token is about the host, never a document, and a token
 // nobody holds answers exactly as it did before this field existed.
 func TestMetaWritableAbsentWithoutADocument(t *testing.T) {

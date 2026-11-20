@@ -23,6 +23,7 @@ import (
 	"github.com/panphora/htmlclay/internal/served/assets"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/tailwind"
+	"github.com/panphora/htmlclay/internal/tier"
 	"github.com/panphora/htmlclay/internal/trust"
 )
 
@@ -67,6 +68,9 @@ func (a *app) newServedHost() *served.Host {
 		OnUnsavedReport: a.noteUnsavedReport,
 		BeforePage:      a.bindServedPage,
 		OnStructure:     a.noteServedStructure,
+		OnCreate:        a.noteServedCreate,
+		OnCopy:          a.noteServedCopy,
+		Stranger:        a.stranger,
 		OnRetire:        a.noteServedRetire,
 		InternalDir:     a.rt.configDir,
 		HeldCopy:        a.heldCopyFor,
@@ -107,6 +111,46 @@ func (a *app) noteServedStructure(rootID, from, to string, isDir bool) {
 	toPath := filepath.Join(folder.Path, filepath.FromSlash(to))
 	if err := store.Rebind(fromPath, toPath); err != nil {
 		a.rt.logger.Printf("Could not follow the rename of %s to %s: %v", fromPath, toPath, err)
+	}
+	// Moving a download keeps it a download, which the mark on disk carries;
+	// the records a tier keeps for the file follow it too.
+	if tiers := a.tierStore(); tiers != nil {
+		if err := tiers.Rebind(fromPath, toPath); err != nil {
+			a.rt.logger.Printf("Could not move the trust records of %s to %s: %v", fromPath, toPath, err)
+		}
+	}
+}
+
+// noteServedCopy records that a duplicate at to is a copy of from: it carries
+// the download mark when the source did, and with it the first sight that keeps
+// a stranger a stranger.
+func (a *app) noteServedCopy(rootID, from, to string) {
+	folder, ok := a.rt.cfg.ServedFolderByID(rootID)
+	if !ok {
+		return
+	}
+	tiers := a.tierStore()
+	if tiers == nil {
+		return
+	}
+	fromPath := filepath.Join(folder.Path, filepath.FromSlash(from))
+	toPath := filepath.Join(folder.Path, filepath.FromSlash(to))
+	if err := tiers.NoteCopy(fromPath, toPath); err != nil {
+		a.rt.logger.Printf("Could not record the copy of %s at %s: %v", fromPath, toPath, err)
+	}
+}
+
+// noteServedCreate records a document the workspace created in a served folder
+// as the person's own, so it opens without the Unknown warning and can attach
+// its sibling files.
+func (a *app) noteServedCreate(rootID, rel string) {
+	folder, ok := a.rt.cfg.ServedFolderByID(rootID)
+	if !ok {
+		return
+	}
+	path := filepath.Join(folder.Path, filepath.FromSlash(rel))
+	if err := a.recordMadeDocument(path, tier.HowCreated); err != nil {
+		a.rt.logger.Printf("Could not record %s as yours: %v", path, err)
 	}
 }
 

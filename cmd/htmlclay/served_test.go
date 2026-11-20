@@ -727,3 +727,37 @@ func TestServedServeAgainAfterStop(t *testing.T) {
 		t.Fatalf("the served folder is not serving: %+v", list[0])
 	}
 }
+
+// TestAStrangerPageInAServedFolderIsSandboxed is Opus 12: the served host asks
+// the app who a document belongs to, and serves a stranger's page, compressed
+// or not, with its scripts off while the person's own page is served as itself.
+func TestAStrangerPageInAServedFolderIsSandboxed(t *testing.T) {
+	home := evalTempHome(t)
+	dir := filepath.Join(home, "notes")
+	stranger := filepath.Join(dir, "stranger.html")
+	own := filepath.Join(dir, "own.html")
+	compressed := filepath.Join(dir, "evil.html.gz")
+	for _, path := range []string{stranger, own, compressed} {
+		writeTestFile(t, path, tierTestPage)
+	}
+	a := newServedTestApp(t, home, t.TempDir())
+	t.Cleanup(a.stopRequests)
+	if err := a.tierStore().SetDeveloper(false); err != nil {
+		t.Fatal(err)
+	}
+	if _, refusal, err := a.serveFolder(dir, "notes"); err != nil || refusal != nil {
+		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+	}
+	madeHere(t, a, own)
+	downloadedHere(t, a, stranger)
+	downloadedHere(t, a, compressed)
+	host := servedHostName("notes", a.rt.port)
+	for _, name := range []string{"stranger.html", "evil.html.gz"} {
+		if got := servedRequest(t, a, http.MethodGet, host, "/"+name, "", nil).Header().Get("Content-Security-Policy"); got != "sandbox" {
+			t.Fatalf("a stranger's %s in a served folder is served with Content-Security-Policy %q, want sandbox", name, got)
+		}
+	}
+	if got := servedRequest(t, a, http.MethodGet, host, "/own.html", "", nil).Header().Get("Content-Security-Policy"); got == "sandbox" {
+		t.Fatal("the person's own page in a served folder was sandboxed")
+	}
+}

@@ -580,7 +580,8 @@ func (a *app) registerProgramLocked(e appcore.Effect) *appcore.Refusal {
 // team folder.
 func (a *app) setProgramAllTrusted(e appcore.Effect) *appcore.Refusal {
 	if builtin.Is(e.ProgramID) {
-		return a.setBuiltinAllTrusted(e)
+		// A built-in asks each document once; there is no all-documents switch.
+		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "programID"}
 	}
 	a.helperStateMu.Lock()
 	refusal := a.setProgramAllTrustedLocked(e)

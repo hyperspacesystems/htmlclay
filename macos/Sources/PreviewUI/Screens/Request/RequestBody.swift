@@ -60,6 +60,22 @@ struct RequestBody: View {
         case .folderRead: folderReadContent
         case .folderReadAgain: folderReadAgainContent
         case .builtinProgram: builtinProgramContent
+        case .unknownDocument: unknownDocumentContent
+        }
+    }
+
+    /// One warning per document nobody vouches for: what it could reach and
+    /// why HTML Clay cannot vouch for it. It replaces every program question.
+    private var unknownDocumentContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            titleLine(Strings.Request.unknownTitle(RequestControls.documentName(request)))
+            leadLine(Strings.Request.unknownLead(request.folder))
+            noteLine(RequestControls.unknownReason(request))
+            stackedButtons {
+                if let allow = choice(RequestAnswer.allowDocument) { wideButton(allow) }
+                if let trust = choice(RequestAnswer.trustDocument) { wideButton(trust) }
+                if let deny = choice(RequestAnswer.denyDocument) { wideButton(deny) }
+            }
         }
     }
 
@@ -115,7 +131,7 @@ struct RequestBody: View {
                     RequestFileRow(color: .amber, symbol: Symbols.program, title: fileName, path: request.path, extra: nil, warn: false)
                 }
             }
-            noteLine(Strings.Request.teamAsksEachTime)
+            noteLine(RequestControls.teamNote(request))
             buttonsRow {
                 if let deny = choice(RequestAnswer.deny) { button(deny) }
                 if let allow = choice(RequestAnswer.allowDocument) { button(allow) }
@@ -254,6 +270,15 @@ struct RequestBody: View {
             .padding(.top, 14)
     }
 
+    /// The Unknown warning's answers stack full width, so the grant and the
+    /// refusal cannot be mistaken for one another.
+    private func stackedButtons<C: View>(@ViewBuilder content: () -> C) -> some View {
+        VStack(spacing: 8) {
+            content()
+        }
+        .padding(.top, 18)
+    }
+
     private func buttonsRow<C: View>(@ViewBuilder content: () -> C) -> some View {
         HStack(spacing: 8) {
             Spacer()
@@ -295,6 +320,20 @@ struct RequestBody: View {
             }
         }
         .buttonStyle(choice.look == .large ? KilnButtonStyle(.large) : KilnButtonStyle(.plain))
+    }
+
+    private func wideButton(_ choice: RequestChoice) -> some View {
+        Button {
+            if choice.answer == RequestAnswer.chooseFile {
+                chooseFile()
+            } else {
+                send(choice.answer)
+            }
+        } label: {
+            Text(choice.title)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(KilnButtonStyle(.large))
     }
 
     private func send(_ answer: String, path: String = String()) {

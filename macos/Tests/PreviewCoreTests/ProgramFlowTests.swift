@@ -228,6 +228,29 @@ final class ProgramFlowTests: XCTestCase {
                        [RequestAnswer.deny, RequestAnswer.allowDocument])
     }
 
+    func testAnUnknownDocumentOffersThreeAnswersAndSaysWhy() {
+        let request = ProgramRequest(id: "r1", kind: .unknownDocument, document: "/Users/sam/Downloads/invoice.html",
+                                     program: "", folder: "Downloads", path: "/Users/sam/Downloads", detail: "downloaded",
+                                     answers: [RequestAnswer.denyDocument, RequestAnswer.allowDocument, RequestAnswer.trustDocument])
+        XCTAssertEqual(RequestControls.choice(RequestAnswer.denyDocument, in: request, isSample: false)?.title,
+                       Strings.Request.dontAllow)
+        XCTAssertNil(RequestControls.choice(RequestAnswer.deny, in: request, isSample: false))
+        XCTAssertEqual(RequestControls.choice(RequestAnswer.allowDocument, in: request, isSample: false)?.title,
+                       Strings.Request.allowForThisDocument)
+        XCTAssertEqual(RequestControls.choice(RequestAnswer.trustDocument, in: request, isSample: false)?.title,
+                       Strings.Request.trustLikeMine)
+        XCTAssertNil(RequestControls.choice(RequestAnswer.chooseFile, in: request, isSample: false))
+        XCTAssertEqual(RequestControls.unknownReason(request), Strings.Request.unknownDownloaded)
+        var unrecorded = request
+        unrecorded.detail = "unrecorded"
+        XCTAssertEqual(RequestControls.unknownReason(unrecorded), Strings.Request.unknownUnrecorded)
+        var broken = request
+        broken.detail = "broken-signature"
+        XCTAssertEqual(RequestControls.unknownReason(broken), Strings.Request.unknownBrokenSignature)
+        XCTAssertEqual(RequestControls.answers(SampleData.request(.unknownDocument).request, isSample: true),
+                       [RequestAnswer.denyDocument, RequestAnswer.allowDocument, RequestAnswer.trustDocument])
+    }
+
     func testTheWideningSwitchShowsTheNewestValue() {
         XCTAssertFalse(ProgramControls.allTrusted(resize, pending: nil))
         XCTAssertTrue(ProgramControls.allTrusted(resize, pending: .setProgramAllTrusted(programID: "p1", on: true)))

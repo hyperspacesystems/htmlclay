@@ -123,7 +123,7 @@ struct ProgramPage: View {
 
     private func whoMayRunCard(_ program: Program) -> some View {
         KilnCard {
-            if Self.showsFileControls(program) || ProgramControls.isBuiltinProgram(program) {
+            if Self.showsFileControls(program) {
                 KilnRow(title: Strings.ProgramPage.allTrustedTitle, subtitle: Strings.ProgramPage.allTrustedSub, trailing: {
                     Toggle(isOn: Binding(
                         get: { ProgramControls.allTrusted(program, pending: model.pending(AppModel.allTrustedSlot(program.id))) },

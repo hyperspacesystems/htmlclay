@@ -43,6 +43,12 @@ type config struct {
 	beforePage func(rootID, absPath string)
 	// onStructure hears about a completed structure step that moved a name.
 	onStructure func(rootID, from, to string, isDir bool)
+	// onCreate hears about a document the workspace created in this root.
+	onCreate func(rootID, rel string)
+	// onCopy hears about a completed duplicate in this root.
+	onCopy func(rootID, from, to string)
+	// stranger reports a document served with its scripts off here.
+	stranger func(absPath string) bool
 	// onRetire hears about a completed structure step that retired a name.
 	onRetire func(rootID, name string, isDir bool)
 	// internalDir is the app's own data folder (Options.InternalDir).

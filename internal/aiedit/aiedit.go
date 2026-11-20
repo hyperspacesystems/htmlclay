@@ -50,6 +50,10 @@ type Options struct {
 	Efforts  map[string]string      // engine name -> reasoning effort; "" or missing is the engine's default
 	Mock     bool                   // deterministic fake reply, for tests and MOCK_MODEL=1
 	Status   func(text string)      // lifecycle status for the page; nil means none
+	// ContextFiles lets @file references attach the document's sibling files.
+	// HTML Clay sets it only for a document whose code the person or a signed
+	// release vouches for; anything else edits with the page alone.
+	ContextFiles bool
 }
 
 // choose applies the model and effort the person picked for e.
@@ -293,7 +297,7 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 		}
 		pageText = string(text)
 	}
-	sections, err := resolveContext(p.ContextRefs, o.BaseDir, o.Internal)
+	sections, err := resolveContext(p.ContextRefs, o.BaseDir, o.Internal, o.ContextFiles)
 	if err != nil {
 		return Result{}, err
 	}

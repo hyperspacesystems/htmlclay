@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/dataapi"
+	"github.com/panphora/htmlclay/internal/platform"
 )
 
 // Local's workspace structural writes: a move, a trash move, a duplicate and
@@ -143,6 +144,9 @@ func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID s
 			if err := copyStructure(entry.FromPath, entry.ToPath); err != nil {
 				failure = err
 				break
+			}
+			if h.onCopy != nil && entry.FromName != "" && entry.ToName != "" {
+				h.onCopy(h.rootID, entry.FromName, entry.ToName)
 			}
 			completed = index + 1
 		}
@@ -502,6 +506,9 @@ func copyStructure(from, to string) error {
 		if err := writeExclusive(to, stripCopyBytes(bytes), mode); err != nil {
 			return err
 		}
+		// A duplicate of a download is a download: the copy carries the mark,
+		// or it would open as if the person had made it.
+		_ = platform.KeepDownloadMark(from, to)
 		return os.Chmod(to, mode)
 	}
 
@@ -509,7 +516,11 @@ func copyStructure(from, to string) error {
 	if err != nil {
 		return err
 	}
-	return writeExclusive(to, bytes, mode)
+	if err := writeExclusive(to, bytes, mode); err != nil {
+		return err
+	}
+	_ = platform.KeepDownloadMark(from, to)
+	return nil
 }
 
 // stripCopyBytes is Local's stripCopyBytes: a copy carries no copy-only

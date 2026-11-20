@@ -86,6 +86,18 @@ type Hooks struct {
 	AIEditFor func(document string) (on, ask bool)
 	// AskAIEdit raises the AI editing question for document. Nil asks nothing.
 	AskAIEdit func(document string)
+	// AIEditFiles answers whether document's AI requests may attach its sibling
+	// files. Nil means none may: a request attaches the page alone.
+	AIEditFiles func(document string) bool
+	// Stranger reports a page that may run only on an origin of its own. A site
+	// that reaches it as an asset serves it sandboxed: no scripts and an opaque
+	// origin, so it cannot act as this site. Nil means no page is one.
+	Stranger func(absPath string) bool
+	// StrangerRead reports a page that still needs the warning asking to read
+	// outside what it may. The read is refused and the app raises the warning,
+	// because a page nobody vouches for never widens what it can read. It
+	// answers true for such a page. Nil never refuses.
+	StrangerRead func(pagePath string) bool
 
 	// AIEditEngines returns the default engine name ("" for claude) and the
 	// user-defined engines. Nil means the built-ins only.

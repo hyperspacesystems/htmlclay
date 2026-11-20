@@ -24,6 +24,7 @@ import (
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/testutil"
+	"github.com/panphora/htmlclay/internal/tier"
 	"github.com/panphora/htmlclay/internal/trust"
 	"github.com/panphora/htmlclay/internal/versions"
 )
@@ -103,6 +104,18 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 		t.Fatalf("config: %v", err)
 	}
 	configDir := filepath.Join(t.TempDir(), "htmlclay")
+	// Tests write their documents themselves, so they open them as a developer
+	// does: a file with no download mark is the person's own. A test of the
+	// unknown document warning marks its document downloaded, which developer
+	// mode never overrides. The store is the app's from the start, so a test
+	// that points the app at another config folder keeps it.
+	trustStore, _, err := tier.Open(filepath.Join(t.TempDir(), "trust"))
+	if err != nil {
+		t.Fatalf("trust store: %v", err)
+	}
+	if err := trustStore.SetDeveloper(true); err != nil {
+		t.Fatalf("developer mode: %v", err)
+	}
 	guard := func(dir string) bool {
 		return session.EqualOrUnder(dir, configDir) || session.EqualOrUnder(configDir, dir)
 	}
@@ -149,6 +162,7 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 			policy:        trust.Policy{Home: home, Guard: guard},
 		},
 	}
+	a.core.tiers = trustStore
 	a.rt.portCandidates = []int{0}
 	a.rt.confirmPort = func(title, message string, _ platform.ConfirmLabels) (platform.ConfirmChoice, error) {
 		t.Errorf("unexpected port dialog: %s: %s", title, message)
@@ -640,7 +654,7 @@ func TestOpenPrefersOpenedRootOverGrantedRoot(t *testing.T) {
 	// appearing before AND after the granted one, so check both directly.
 	for _, order := range []string{"opened last", "opened first"} {
 		a.mu.Lock()
-		got := a.siteForLocked(notes)
+		got := a.siteForLocked(notes, false)
 		a.mu.Unlock()
 		if got != siteC {
 			t.Fatalf("%s: the opened root must win over the broad grant", order)

@@ -88,6 +88,7 @@ const (
 	TextWaitingAIEditRequest     = "Allow AI editing for %s?"                                    // copy: waiting item title for AI editing, the document's name, max 70 chars
 	TextWaitingFolderRead        = "%s wants to read %s"                                         // copy: waiting item title, document then folder, max 70 chars
 	TextWaitingFolderReadAgain   = "%s wants you to trust %s"                                    // copy: waiting item title, document then folder, max 70 chars
+	TextWaitingUnknownDocument   = "%s wants to use files in %s"                                 // copy: waiting item title for the unknown document warning, document then folder, max 70 chars
 	TextWaitingProgramMissing    = "%s can't be found"                                           // copy: waiting item title, the program's name, max 70 chars
 	TextWaitingFolderMissing     = "%s can't be found"                                           // copy: waiting item title, the folder's name, max 70 chars
 	TextWaitingServiceFailed     = "HTML Clay's live features stopped"                           // copy: waiting item title when the service failed, max 70 chars
@@ -295,7 +296,7 @@ const (
 	TextGrantAddProgram       = "Add this program as \u201c%s\u201d?\n\n%s\n\nNo document can run it until you allow one. When allowed, it runs as you and can read or change your files."
 	TextGrantAddProgramRisk   = "Be careful with this file: it came from the internet, sits in a download or temporary folder, changed just now, or is not marked to run yet."
 	TextGrantAddProgramYes    = "Add program"
-	TextGrantBuiltinOn        = "Turn on %s? Documents still ask before they can use it."
+	TextGrantBuiltinOn        = "Turn on %s? Documents you made or trusted can use it right away, and other documents ask first."
 	TextGrantBuiltinOnYes     = "Turn on"
 	TextGrantExample          = "Open the %s example? HTML Clay saves it in an examples folder inside htmlclay in your home folder, trusts that folder, and lets the example run."
 	TextGrantExampleYes       = "Open example"

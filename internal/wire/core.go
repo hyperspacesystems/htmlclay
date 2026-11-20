@@ -38,6 +38,10 @@ type Policy interface {
 	// AskAIEdit raises the question for document. It answers at once; the
 	// person decides later.
 	AskAIEdit(document string)
+	// AIEditFiles answers whether document's AI requests may attach its sibling
+	// files with @file. Only a document whose code the person or a signed
+	// release vouches for may.
+	AIEditFiles(document string) bool
 	AIEditEngines() (string, map[string][]string)
 	// AIEditModels is the model each AI engine runs with, by engine name.
 	AIEditModels() map[string]string

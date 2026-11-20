@@ -3,12 +3,16 @@ import Foundation
 /// The answer strings the host knows, so no view writes them as text.
 public enum RequestAnswer {
     public static let deny = "deny"
+    /// The warning's own "Don't allow", which HTML Clay remembers. A plain deny
+    /// is also what a closed or stopped question answers, so it never is.
+    public static let denyDocument = "deny-document"
     public static let allowOnce = "allow-once"
     public static let trustFolder = "trust-folder"
     public static let allowDocument = "allow-document"
     public static let allowAllTrusted = "allow-all-trusted"
     public static let chooseFile = "choose-file"
     public static let allowAnyway = "allow-anyway"
+    public static let trustDocument = "trust-document"
 }
 
 /// One button the request window shows: the answer it sends and what it says.
@@ -65,6 +69,12 @@ public enum RequestControls {
             : Strings.Request.only(documentName(request))
     }
 
+    /// The note under a team document's question: one whose code changed says so,
+    /// the ordinary team question says team documents ask one at a time.
+    public static func teamNote(_ request: ProgramRequest) -> String {
+        request.detail == "team" ? Strings.Request.teamCodeChanged : Strings.Request.teamAsksEachTime
+    }
+
     /// The document that asks, shown by its file name: the host names it by its path.
     public static func documentName(_ request: ProgramRequest) -> String {
         ProgramControls.documentLabel(request.document)
@@ -77,7 +87,7 @@ public enum RequestControls {
 
     private static func title(_ answer: String, _ request: ProgramRequest) -> String {
         switch answer {
-        case RequestAnswer.deny: return Strings.Request.dontAllow
+        case RequestAnswer.deny, RequestAnswer.denyDocument: return Strings.Request.dontAllow
         case RequestAnswer.allowOnce: return Strings.Request.allowOnce
         case RequestAnswer.trustFolder:
             return request.kind == .folderReadAgain
@@ -86,13 +96,14 @@ public enum RequestControls {
         case RequestAnswer.allowDocument:
             switch request.kind {
             case .found: return Strings.Request.allowFile(fileName(request))
-            case .teamDocument, .builtinProgram: return Strings.Request.allowForThisDocument
+            case .teamDocument, .builtinProgram, .unknownDocument: return Strings.Request.allowForThisDocument
             default: return Strings.Request.allow
             }
         case RequestAnswer.allowAllTrusted: return Strings.ProgramPage.allTrustedTitle
         case RequestAnswer.chooseFile:
             return request.kind == .noFile ? Strings.Request.chooseAFile : Strings.Request.chooseAnother
         case RequestAnswer.allowAnyway: return Strings.Request.allowAnyway
+        case RequestAnswer.trustDocument: return Strings.Request.trustLikeMine
         default: return answer
         }
     }
@@ -115,6 +126,18 @@ public enum RequestControls {
             return [RequestAnswer.deny, RequestAnswer.trustFolder]
         case .builtinProgram:
             return [RequestAnswer.deny, RequestAnswer.allowDocument]
+        case .unknownDocument:
+            return [RequestAnswer.denyDocument, RequestAnswer.allowDocument, RequestAnswer.trustDocument]
+        }
+    }
+
+    /// Why HTML Clay cannot vouch for an unknown document, from the reason the
+    /// host sends in detail.
+    public static func unknownReason(_ request: ProgramRequest) -> String {
+        switch request.detail {
+        case "downloaded": return Strings.Request.unknownDownloaded
+        case "broken-signature": return Strings.Request.unknownBrokenSignature
+        default: return Strings.Request.unknownUnrecorded
         }
     }
 }

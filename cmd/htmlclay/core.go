@@ -21,6 +21,7 @@ import (
 	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recents"
+	"github.com/panphora/htmlclay/internal/tier"
 	"github.com/panphora/htmlclay/internal/trust"
 )
 
@@ -77,6 +78,12 @@ type coreState struct {
 	recents   *recents.Store
 	forgotten map[string]bool
 	recorded  map[string]time.Time
+	// tiers is the record of where documents came from and whose code the
+	// person trusts (internal/tier).
+	tiers *tier.Store
+	// codeSets holds each document's code set with a hash of the bytes it was
+	// read from, so an unchanged document is parsed once (see codeSetOf).
+	codeSets map[string]cachedCodeSet
 
 	// beforeEffect runs before each effect. Tests only.
 	beforeEffect func(appcore.Effect)
@@ -136,6 +143,9 @@ func (a *app) initCore() {
 			a.rt.logger.Printf("Could not read the record of recently opened documents: %v", err)
 		}
 		a.core.recents = store
+	}
+	if a.core.tiers == nil && a.rt.configDir != "" {
+		a.core.tiers = a.openTiers(a.core.recents)
 	}
 	if a.core.countCache == nil {
 		a.core.countCache = map[string]docCount{}

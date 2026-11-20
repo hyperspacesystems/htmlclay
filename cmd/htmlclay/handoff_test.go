@@ -564,6 +564,7 @@ func TestUpdateHandoffRestoresHelpers(t *testing.T) {
 	t.Run("restored page runs its allowed program", func(t *testing.T) {
 		fx := newHelperUpdateFixture(t)
 		second := newTestAppWithConfigDir(t, fx.home, fx.cfgBase)
+		switchBuiltinsOff(second)
 		second.rt.chooseHelperSetup = func(string, string, string, string, string) (platform.Choice, error) {
 			t.Fatal("restoring the update handoff raised the helper setup dialog")
 			return platform.ChoiceNone, nil
@@ -598,6 +599,7 @@ func TestUpdateHandoffRestoresHelpers(t *testing.T) {
 	t.Run("revoked grant stays revoked", func(t *testing.T) {
 		fx := newHelperUpdateFixture(t)
 		second := newTestAppWithConfigDir(t, fx.home, fx.cfgBase)
+		switchBuiltinsOff(second)
 		second.rt.chooseHelperSetup = func(string, string, string, string, string) (platform.Choice, error) {
 			t.Fatal("restoring the update handoff raised the helper setup dialog")
 			return platform.ChoiceNone, nil
@@ -790,5 +792,54 @@ func TestKeptTokenSurvivesTrustingItsOwnFolder(t *testing.T) {
 	}
 	if code, out := saveWith(t, oldHost, oldTok, "<html><body>after trusting</body></html>"); code != 200 {
 		t.Fatalf("the open tab's save after trusting its folder = %d: %s", code, out)
+	}
+}
+
+// TestHandoffKeepsAStrangersSiteAndToken is Carbon 10: a downloaded document
+// inside a trusted folder runs on a site of its own, and that site, its address
+// and its save token come back after an update restart.
+func TestHandoffKeepsAStrangersSiteAndToken(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	proj := filepath.Join(home, "proj")
+	page := filepath.Join(proj, "index.htmlclay")
+	stranger := filepath.Join(proj, "downloaded.htmlclay")
+	writeTestFile(t, page, "<html><body>index</body></html>")
+	writeTestFile(t, stranger, "<html><body>downloaded</body></html>")
+	handoff := filepath.Join(t.TempDir(), updateHandoffFile)
+
+	cfgBase := t.TempDir()
+	first := newTestAppWithConfigDir(t, home, cfgBase)
+	if err := first.trustFolder(proj); err != nil {
+		t.Fatalf("trust: %v", err)
+	}
+	downloadedHere(t, first, stranger)
+	s, _ := first.openForTest(t, stranger)
+	if outer, _ := first.openForTest(t, page); outer == s {
+		t.Fatal("a download inside a trusted folder joined the folder's site")
+	}
+	token, host, port := tokenFor(t, s, stranger), s.host, first.rt.port
+	if err := first.writeUpdateHandoff(handoff, version); err != nil {
+		t.Fatalf("write handoff: %v", err)
+	}
+	first.shutdown()
+	requirePortFree(t, port)
+
+	second := newTestAppWithConfigDir(t, home, cfgBase)
+	if second.rt.port != port {
+		t.Fatalf("the port moved across the restart: %d, want %d", second.rt.port, port)
+	}
+	second.startSites()
+	n, err := second.restoreUpdateHandoff(handoff)
+	if err != nil || n != 2 {
+		t.Fatalf("restore = (%d, %v), want the folder's site and the download's own", n, err)
+	}
+	if code, out := saveWith(t, host, token, "<html><body>downloaded, after the update</body></html>"); code != 200 {
+		t.Fatalf("save to the download's old token = %d: %s", code, out)
+	}
+	if saved, _ := os.ReadFile(stranger); !strings.Contains(string(saved), "after the update") {
+		t.Fatal("the stranger's save did not reach disk")
 	}
 }

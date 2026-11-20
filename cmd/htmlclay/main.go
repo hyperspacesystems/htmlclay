@@ -148,6 +148,10 @@ type appRuntime struct {
 	// confirm, when set, overrides the native read-permission dialog. Production
 	// leaves it nil (the server uses the real dialog); tests inject a decision.
 	confirm func(title, message string, allowTrust bool) (platform.ConfirmChoice, error)
+	// confirmDocument overrides the three-answer dialog behind the Unknown
+	// document warning and the team code question, where closing it decides
+	// nothing. Production leaves it nil.
+	confirmDocument func(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error)
 	// confirmTrust overrides the two-button dialog behind a page's request to
 	// trust its own folder. It is a separate seam from confirm on purpose: a test
 	// that auto-approves read grants must not silently auto-approve the
@@ -301,6 +305,11 @@ type app struct {
 	// nothing. Guarded by helperStateMu.
 	builtinAsking map[string]bool
 	builtinQuiet  map[string]time.Time
+	// documentAsking holds the documents whose warning or team code question
+	// is open, and documentQuiet those whose question closed without an answer
+	// HTML Clay keeps, until when. Guarded by helperStateMu.
+	documentAsking map[string]bool
+	documentQuiet  map[string]time.Time
 	// dialogAdvice is non-empty when this machine cannot raise a permission
 	// dialog at all. It is read once at startup and shown in two places, so it
 	// is held rather than asked for again: platform.MissingDialogAdvice runs
@@ -435,6 +444,9 @@ func main() {
 	}
 	// serve and stop-serving are clients of the running app too, for the same reasons.
 	if code, handled := serveDispatch(os.Args); handled {
+		os.Exit(code)
+	}
+	if code, handled := trustDispatch(os.Args); handled {
 		os.Exit(code)
 	}
 	if code, handled := syncDispatch(os.Args); handled {

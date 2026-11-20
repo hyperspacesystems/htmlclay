@@ -10,6 +10,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/tier"
 )
 
 type fileTypeCache struct {
@@ -98,14 +99,24 @@ func fileTypeRefusal(err error) *appcore.Refusal {
 const welcomeExampleName = "welcome.htmlclay"
 
 // welcomeExamplePath writes the welcome example if it is missing and returns
-// its path.
+// its path. A welcome example HTML Clay wrote is the person's own.
 func (a *app) welcomeExamplePath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
 	path := filepath.Join(home, "htmlclay", "examples", welcomeExampleName)
-	return path, ensureExampleFile(path)
+	_, statErr := os.Stat(path)
+	missing := errors.Is(statErr, os.ErrNotExist)
+	if err := ensureExampleFile(path); err != nil {
+		return "", err
+	}
+	if missing {
+		if err := a.recordMadeDocument(path, tier.HowCreated); err != nil {
+			a.rt.logger.Printf("Could not record %s as yours: %v", path, err)
+		}
+	}
+	return path, nil
 }
 
 // fileTypesEvery is how often the system's file type choice is read again, so a

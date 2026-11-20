@@ -37,7 +37,7 @@ public enum SampleReducer {
         case let .answer(requestID, revision, answer, _):
             guard let request = next.requests.first(where: { $0.id == requestID }),
                   request.revision == revision else { return snapshot }
-            let allow = answer != RequestAnswer.deny
+            let allow = answer != RequestAnswer.deny && answer != RequestAnswer.denyDocument
             next.requests.removeAll { $0.id == request.id }
             next.waiting.removeAll { $0.subjectID == request.id }
             if allow, let p = next.programs.firstIndex(where: { $0.name == request.program }) {

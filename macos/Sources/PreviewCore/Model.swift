@@ -265,7 +265,7 @@ public struct Program: Codable, Equatable, Identifiable, Sendable {
 
 public struct ProgramRequest: Codable, Equatable, Identifiable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
-        case found, noFile, teamDocument, riskyFile, folderRead, folderReadAgain, builtinProgram
+        case found, noFile, teamDocument, riskyFile, folderRead, folderReadAgain, builtinProgram, unknownDocument
     }
     public var id: String
     public var kind: Kind

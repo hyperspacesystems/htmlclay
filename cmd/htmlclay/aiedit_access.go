@@ -11,6 +11,7 @@ import (
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/tier"
 )
 
 // aiEditProgramID is the id the built-in AI editing goes by wherever a program
@@ -24,31 +25,46 @@ const (
 )
 
 // aiEditFor is both hosts' answer to whether document may use AI editing now.
-// The switch decides first. A document in a folder of this machine's own needs
-// nothing more. A team document, or one whose team record cannot be read, needs
-// the person's allow for that document in that scope; without it the page's
-// request is refused and the person is asked.
+// The switch decides first. The person's own and signed documents need nothing
+// more. A document nobody vouches for needs the person's allow on the unknown
+// document warning. A team document, or one whose team record cannot be read,
+// needs the person's allow for that document in that scope, and for its
+// current code; without both the page's request is refused and the person is
+// asked.
 func (a *app) aiEditFor(document string) (on, ask bool) {
 	if !a.rt.cfg.AIEditEnabled() {
 		return false, false
 	}
-	scope := a.scopeOf(document)
-	if scope.Kind == config.ScopeLocal || a.rt.cfg.AIEditDocumentAllowed(document, scope) {
+	switch v := a.tierOf(document); {
+	case v.Trusted():
 		return true, false
+	case v.Tier == tier.Unknown:
+		return v.Allowed, !v.Allowed
+	default:
+		on = v.Allowed && a.rt.cfg.AIEditDocumentAllowed(document, a.scopeOf(document))
+		return on, !on
 	}
-	return false, true
 }
 
-// askAIEdit is both hosts' AskAIEdit: it raises the team question for document
-// and returns at once, because it runs on the page's own request. One question
-// per document is open at a time, and after one that allowed nothing the
-// document stays quiet for a minute.
+// askAIEdit is both hosts' AskAIEdit: it raises the question document needs
+// and returns at once, because it runs on the page's own request: the warning
+// for a document nobody vouches for, the AI editing question for a team
+// document never allowed it, and the team question for one whose code changed
+// since. One question per document is open at a time, and after one that
+// allowed nothing the document stays quiet for a minute.
 func (a *app) askAIEdit(document string) {
-	scope := a.scopeOf(document)
-	if scope.Kind == config.ScopeLocal || !a.reserveAIEditAsk(document) {
+	v := a.tierOf(document)
+	switch {
+	case v.Trusted():
+		return
+	case v.Tier == tier.Unknown, a.rt.cfg.AIEditDocumentAllowed(document, a.scopeOf(document)):
+		a.askDocument(document, aiEditProgramID)
 		return
 	}
-	go a.runAIEditAsk(document, scope)
+	if !a.reserveAIEditAsk(document) {
+		return
+	}
+	go a.runAIEditAsk(document, a.scopeOf(document), v)
 }
 
 func (a *app) reserveAIEditAsk(document string) bool {
@@ -66,7 +82,7 @@ func (a *app) reserveAIEditAsk(document string) bool {
 
 // runAIEditAsk asks the question and stores the answer. Only allow-document
 // stores anything, under the scope the person was asked about.
-func (a *app) runAIEditAsk(document string, scope config.Scope) {
+func (a *app) runAIEditAsk(document string, scope config.Scope, v tier.Verdict) {
 	allowed := false
 	defer func() {
 		a.helperStateMu.Lock()
@@ -97,6 +113,7 @@ func (a *app) runAIEditAsk(document string, scope config.Scope) {
 		a.rt.logger.Printf("Could not allow AI editing for %s: %v", document, err)
 		return
 	}
+	a.allowTeamCode(document, v)
 	allowed = true
 	a.rt.logger.Printf("AI editing allowed: document=%s scope=%s", document, scope.Key)
 	a.changed()
@@ -115,6 +132,8 @@ func (a *app) aiEditAsk(document string, scope config.Scope) confirm.Ask {
 	}
 	if scope.Kind == config.ScopeUnknown {
 		ask.Detail = helperDetailScopeUnknown
+	} else if a.teamCodeChanged(document, a.tierOf(document)) {
+		ask.Detail = teamCodeDetail
 	}
 	return ask
 }

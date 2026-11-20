@@ -52,6 +52,17 @@ type Options struct {
 	// record that follows a document by its path can follow the move. Nil hears
 	// nothing.
 	OnStructure func(rootID, from, to string, isDir bool)
+	// OnCreate hears about a document the workspace created in a served
+	// folder, so the app can record it as the person's own. Nil hears nothing.
+	OnCreate func(rootID, rel string)
+	// OnCopy hears about each completed duplicate, with the names it came from
+	// and went to, so a record that follows a document by its path can start
+	// the copy with the source's facts. Nil hears nothing.
+	OnCopy func(rootID, from, to string)
+	// Stranger reports a document nobody vouches for. Its page is served with
+	// its scripts off, because this origin can read the whole folder. Nil
+	// counts no document as one.
+	Stranger func(absPath string) bool
 	// OnRetire hears about each structure step that retired a name, a trash
 	// move, so a record that follows a document by its path can forget what it
 	// held there. Nil hears nothing.
@@ -106,6 +117,9 @@ func NewHost(o Options) *Host {
 		onUnsavedReport: o.OnUnsavedReport,
 		beforePage:      o.BeforePage,
 		onStructure:     o.OnStructure,
+		onCreate:        o.OnCreate,
+		stranger:        o.Stranger,
+		onCopy:          o.OnCopy,
 		onRetire:        o.OnRetire,
 		internalDir:     o.InternalDir,
 		heldCopy:        o.HeldCopy,

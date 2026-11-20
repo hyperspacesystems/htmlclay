@@ -181,7 +181,8 @@ type Program struct {
 	On      bool `json:"on"`
 }
 
-// Request kinds, the preview's six.
+// Request kinds. UnknownDocument is the one warning a document nobody vouches
+// for shows before its programs or AI reach a folder.
 const (
 	RequestFound           = "found"
 	RequestNoFile          = "noFile"
@@ -190,6 +191,7 @@ const (
 	RequestFolderRead      = "folderRead"
 	RequestFolderReadAgain = "folderReadAgain"
 	RequestBuiltinProgram  = "builtinProgram"
+	RequestUnknownDocument = "unknownDocument"
 )
 
 const AIEditProgram = "ai-edit" // the program name the built-in AI editing asks under

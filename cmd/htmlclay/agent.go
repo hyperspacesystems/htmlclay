@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/panphora/htmlclay/internal/agentlane"
+	"github.com/panphora/htmlclay/internal/platform"
 )
 
 // agentLane is the lane a local program reads and writes documents through, on
@@ -55,9 +56,7 @@ func (h agentHost) List(ctx context.Context, limit int) ([]agentlane.Document, b
 		seen[doc.Path] = true
 		if address, ok := open[doc.Path]; ok {
 			doc.Open = true
-			if doc.URL == "" {
-				doc.URL = address
-			}
+			doc.URL = address
 		}
 		docs = append(docs, doc)
 	}
@@ -91,7 +90,9 @@ func (h agentHost) List(ctx context.Context, limit int) ([]agentlane.Document, b
 				Folder: filepath.Base(folder.Path),
 				Kind:   "trusted",
 			}
-			if address != "" {
+			// A download nobody vouched for is served on an origin of its
+			// own, sandboxed; its folder's address would not open it.
+			if address != "" && !a.listedAsStranger(abs) {
 				doc.URL = address + "/" + dashboardFolderPath(rel)
 			}
 			add(doc)
@@ -191,7 +192,12 @@ func (a *app) agentOpenFiles() map[string]string {
 			continue
 		}
 		owner, err := a.ResolveDocument(reg.path)
-		if err != nil || owner.Kind != OwnerLoose {
+		if err != nil {
+			continue
+		}
+		// A download inside a trusted folder has an origin of its own, so the
+		// site holding it is the one that opens it.
+		if owner.Kind != OwnerLoose && !a.listedAsStranger(reg.path) {
 			continue
 		}
 		open[reg.path] = reg.url
@@ -227,6 +233,25 @@ func (a *app) agentTrustedAddress(folder string) string {
 	return "http://" + s.host
 }
 
+// listedAsStranger reports a document a list must not send to its folder's
+// address: a download nobody vouched for, which serves sandboxed there and only
+// runs on an origin of its own. The download mark is checked first, because a
+// list walks large folders and hashing every file would make it crawl.
+func (a *app) listedAsStranger(absPath string) bool {
+	if platform.Downloaded(absPath) {
+		return true
+	}
+	store := a.tierStore()
+	if store == nil {
+		return false
+	}
+	if _, trusted := store.PathTrust(absPath); trusted {
+		return false
+	}
+	seen, ok := store.Seen(absPath)
+	return ok && seen.Downloaded
+}
+
 // agentDocument names one document the way a list does.
 func (a *app) agentDocument(absPath string) agentlane.Document {
 	doc := agentlane.Document{Path: absPath}
@@ -248,7 +273,7 @@ func (a *app) agentDocument(absPath string) agentlane.Document {
 	case OwnerTrusted:
 		doc.Kind = "trusted"
 		doc.Folder = filepath.Base(owner.FolderPath)
-		if doc.URL == "" {
+		if doc.URL == "" && !a.listedAsStranger(absPath) {
 			if address := a.agentTrustedAddress(owner.FolderPath); address != "" {
 				doc.URL = address + "/" + dashboardFolderPath(owner.RelativePath)
 			}

@@ -459,6 +459,7 @@ public enum Strings {
         public static let chooseAFile = "Choose a file…"
         public static func fromTeam(_ folder: String) -> String { "From \(folder). Its editors can change this document later." }
         public static let teamAsksEachTime = "Team documents always ask one at a time."
+        public static let teamCodeChanged = "This page's code changed since you last allowed it."
         public static let allowForThisDocument = "Allow for this document"
         public static func builtinTitle(document: String, program: String) -> String {
             "Let \(document) use \(program)?"
@@ -466,6 +467,14 @@ public enum Strings {
         public static func builtinLead(program: String, folder: String) -> String {
             "\(program) will work only for this document and only inside \(folder). After allowing, go back to the page and try again."
         }
+        public static func unknownTitle(_ document: String) -> String { "Make sure you trust \(document) before allowing it" }
+        public static func unknownLead(_ folder: String) -> String {
+            "Once allowed, this page can read and change the files in \(folder), and send anything it sees anywhere on the internet. Allowing this document holds until the page's code changes."
+        }
+        public static let unknownDownloaded = "This file was downloaded from the internet."
+        public static let unknownUnrecorded = "HTML Clay has no record of where this file came from."
+        public static let unknownBrokenSignature = "This file's signature does not match its code."
+        public static let trustLikeMine = "Trust it like a file I made"
         public static let useThisFile = "Use this file?"
         public static let riskyNote = "Programs that just arrived are the most common way to be tricked."
         public static let chooseAnother = "Choose another"
@@ -565,6 +574,7 @@ public enum Strings {
             case .folderRead: return "Reading outside the folder"
             case .folderReadAgain: return "A page asks to trust its own folder"
             case .builtinProgram: return "A page asks to use a built-in program"
+            case .unknownDocument: return "A document nobody vouches for"
             }
         }
         public static func wouldOpen(_ name: String) -> String { "Build 1: this would open \(name) in your browser." }

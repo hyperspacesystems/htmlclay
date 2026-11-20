@@ -351,6 +351,14 @@ type Manager struct {
 	// true for a revocation, false for an addition. It is called with mu held, so
 	// it must never block or take a lock that can wait on this manager.
 	onChange func(removed bool)
+	// stranger answers whether a document still needs the warning. A file-only
+	// site installs no folder read root while it does; once the person allows or
+	// trusts the document, the next registration installs the root as for any
+	// other opened file. Nil keeps the site as it was built.
+	stranger func(absPath string) bool
+	// fileOnly is a site that holds one document nobody vouches for: opening
+	// it grants no read access to its folder. Guarded by mu.
+	fileOnly bool
 }
 
 func NewManager() (*Manager, error) {
@@ -408,6 +416,42 @@ func (m *Manager) SetServedOwner(owned func(absPath string) bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.servedOwner = owned
+}
+
+// SetFileOnly makes opening a file grant its page no read access to the
+// file's folder. Call it once, at construction, before the manager registers
+// anything.
+func (m *Manager) SetFileOnly() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.fileOnly = true
+}
+
+// SetStranger installs the check that a document still needs the warning. Call
+// it once, at construction, before the manager registers anything.
+func (m *Manager) SetStranger(stranger func(absPath string) bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.stranger = stranger
+}
+
+// holdsStranger reports a file-only site whose document still needs the
+// warning, so opening it grants no read root for its folder.
+func (m *Manager) holdsStranger(absPath string) bool {
+	if !m.fileOnly {
+		return false
+	}
+	if m.stranger == nil {
+		return true
+	}
+	return m.stranger(absPath)
+}
+
+// FileOnly reports a manager made with SetFileOnly.
+func (m *Manager) FileOnly() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.fileOnly
 }
 
 func (m *Manager) HomeDir() string {
@@ -610,7 +654,7 @@ func (m *Manager) register(absPath string, via Provenance, token string) (*File,
 		f := m.byToken[existing]
 		before := f.via
 		f.via |= via
-		if via.Has(ViaOsOpen) {
+		if via.Has(ViaOsOpen) && !m.holdsStranger(cleaned) {
 			_ = m.installReadRoot(filepath.Dir(cleaned), rootOpened)
 		}
 		if f.via != before {
@@ -658,7 +702,7 @@ func (m *Manager) register(absPath string, via Provenance, token string) (*File,
 	// its reads already ride the trusted root, and an extra opened root would
 	// keep the folder readable after the folder is untrusted, which is exactly
 	// the zombie capability revocation exists to end.
-	if via.Has(ViaOsOpen) {
+	if via.Has(ViaOsOpen) && !m.holdsStranger(cleaned) {
 		_ = m.installReadRoot(filepath.Dir(cleaned), rootOpened)
 	}
 	return f, nil

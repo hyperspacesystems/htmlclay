@@ -340,6 +340,37 @@ func TestM3AIEditAsks(t *testing.T) {
 		}
 	})
 
+	t.Run("sibling files attach only for a document the policy vouches for", func(t *testing.T) {
+		t.Setenv("MOCK_MODEL", "1")
+		for _, files := range []bool{false, true} {
+			core, _, policy, file := newFakeCore(t)
+			policy.aiOffered = true
+			policy.aiOn = true
+			policy.aiFiles = files
+			if err := os.WriteFile(filepath.Join(filepath.Dir(file), "styles.css"), []byte("p { color: red }"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			srv := httptest.NewServer(core.WireMux())
+			t.Cleanup(srv.Close)
+
+			sub := observer(t, core, file)
+			body := fmt.Sprintf(`{"type":"wire/request","id":"e1","helper":%q,"payload":{"elementHTML":"<p>Old</p>","tag":"p","comment":"make it [mock:end_turn]","editId":"p","contextRefs":["styles.css"]}}`, aiedit.HelperName)
+			if resp := sendFrame(t, srv, body, "doc.htmlclay"); resp.StatusCode != http.StatusOK {
+				t.Fatalf("page request refused: %d", resp.StatusCode)
+			}
+			end := receiveHelperEnvelope(t, sub)
+			for end.Type != "wire/done" && end.Type != "wire/error" {
+				end = receiveHelperEnvelope(t, sub)
+			}
+			if files && end.Type != "wire/done" {
+				t.Fatalf("a document that may share files ended with %s %q", end.Type, end.Text)
+			}
+			if !files && (end.Type != "wire/error" || helperErrorCode(t, end) != "invalid_context") {
+				t.Fatalf("a document that may not share files ended with %s %q, want invalid_context", end.Type, end.Text)
+			}
+		}
+	})
+
 	t.Run("off refuses with the off text and asks nothing", func(t *testing.T) {
 		core, _, policy, file := newFakeCore(t)
 		policy.aiOffered = true

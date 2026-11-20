@@ -167,6 +167,9 @@ func (h *commitHost) commitCreate(request *commitRequest, filePath string) (comm
 	if !request.Text {
 		content = request.Bytes
 	}
+	if h.onCreate != nil && isDocumentName(request.Name) {
+		h.onCreate(h.rootID, request.Name)
+	}
 	return commitResult{
 		Outcome:     "committed",
 		Etag:        specwire.Etag(request.Bytes),

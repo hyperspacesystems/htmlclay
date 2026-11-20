@@ -17,6 +17,9 @@ func (p servedWirePolicy) AIEditFor(document string) (on, ask bool) {
 	return p.a.aiEditFor(document)
 }
 func (p servedWirePolicy) AskAIEdit(document string) { p.a.askAIEdit(document) }
+func (p servedWirePolicy) AIEditFiles(document string) bool {
+	return p.a.aiEditFiles(document)
+}
 func (p servedWirePolicy) AIEditEngines() (string, map[string][]string) {
 	return p.a.rt.cfg.AIEditEngines()
 }

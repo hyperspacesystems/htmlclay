@@ -228,8 +228,8 @@ func TestPlanRequestAnswersMatchTheSnapshot(t *testing.T) {
 		}
 	}
 	for kind := range requestAnswers {
-		if AnswersFor(kind)[0] != "deny" {
-			t.Errorf("%s does not offer deny first", kind)
+		if first := AnswersFor(kind)[0]; first != "deny" && first != "deny-document" {
+			t.Errorf("%s does not offer a refusal first", kind)
 		}
 	}
 }

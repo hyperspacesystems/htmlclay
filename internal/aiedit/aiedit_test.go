@@ -265,7 +265,7 @@ func TestContextReferences(t *testing.T) {
 	if err := os.Mkdir(baseDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	run := func(t *testing.T, ref string) (Result, error) {
+	runAs := func(t *testing.T, files bool, refs ...string) (Result, error) {
 		t.Helper()
 		if err := os.Remove(stdinFile); err != nil && !errors.Is(err, os.ErrNotExist) {
 			t.Fatal(err)
@@ -274,11 +274,16 @@ func TestContextReferences(t *testing.T) {
 			Tag:         "p",
 			ElementHTML: "<p>old</p>",
 			Comment:     "tighten",
-			ContextRefs: []string{ref},
+			ContextRefs: refs,
 		}, Options{
-			BaseDir: baseDir,
-			Env:     testEnv(binDir, "FAKE_ARGV="+argvFile, "FAKE_STDIN="+stdinFile),
+			BaseDir:      baseDir,
+			Env:          testEnv(binDir, "FAKE_ARGV="+argvFile, "FAKE_STDIN="+stdinFile),
+			ContextFiles: files,
 		}, nil)
+	}
+	run := func(t *testing.T, ref string) (Result, error) {
+		t.Helper()
+		return runAs(t, true, ref)
 	}
 
 	t.Run("escape", func(t *testing.T) {
@@ -361,6 +366,25 @@ func TestContextReferences(t *testing.T) {
 			t.Fatalf("stdin = %q", stdin)
 		}
 	})
+
+	t.Run("a document that may not attach files", func(t *testing.T) {
+		if err := os.WriteFile(filepath.Join(baseDir, "notes.md"), []byte("hello notes"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := runAs(t, false, "page", "notes.md")
+		if code := errorCode(t, err); code != "invalid_context" {
+			t.Fatalf("code = %q", code)
+		}
+		if !strings.Contains(err.Error(), "@notes.md") || !strings.Contains(err.Error(), "trust") {
+			t.Fatalf("message = %q", err.Error())
+		}
+		if _, err := os.Stat(stdinFile); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("the engine started for a request that attached a file it may not")
+		}
+		if _, err := runAs(t, false, "page"); err != nil {
+			t.Fatalf("the page alone must still work: %v", err)
+		}
+	})
 }
 
 func TestGenericEngines(t *testing.T) {
@@ -392,6 +416,29 @@ func TestGenericEngines(t *testing.T) {
 	}
 	if strings.Contains(substituted.HTML, "{prompt}") {
 		t.Fatalf("the placeholder reached the agent: %q", substituted.HTML)
+	}
+}
+
+func TestGenericEngineRunsInTheFolderOnlyWithSiblingFiles(t *testing.T) {
+	requireUnix(t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, files := range []bool{false, true} {
+		got, err := Run(context.Background(), Payload{Tag: "p", ElementHTML: "<p>old</p>", Comment: "@where hi"}, Options{
+			File:         filepath.Join(dir, "page.html"),
+			BaseDir:      dir,
+			Engines:      map[string][]string{"where": {"sh", "-c", "pwd -P"}},
+			Env:          testEnv(t.TempDir()),
+			ContextFiles: files,
+		}, nil)
+		if err != nil {
+			t.Fatalf("files=%v: Run: %v", files, err)
+		}
+		if inFolder := strings.TrimSpace(got.HTML) == dir; inFolder != files {
+			t.Fatalf("files=%v: the engine ran in %q, the document's folder is %q", files, strings.TrimSpace(got.HTML), dir)
+		}
 	}
 }
 

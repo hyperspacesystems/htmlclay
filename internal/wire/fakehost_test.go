@@ -188,6 +188,7 @@ type fakePolicy struct {
 	aiOffered bool
 	aiOn      bool
 	aiAsk     bool
+	aiFiles   bool
 	asked     []string
 
 	builtin      builtin.Access
@@ -209,6 +210,7 @@ func (p *fakePolicy) AskAIEdit(document string) {
 	defer p.mu.Unlock()
 	p.asked = append(p.asked, document)
 }
+func (p *fakePolicy) AIEditFiles(string) bool                      { return p.aiFiles }
 func (p *fakePolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
 func (p *fakePolicy) AIEditModels() map[string]string              { return nil }
 func (p *fakePolicy) AIEditEfforts() map[string]string             { return nil }

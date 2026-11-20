@@ -32,7 +32,10 @@ type rootServer struct {
 	// beforePage hears about a top-level page load before any of the page is
 	// written (Options.BeforePage). Nil hears nothing.
 	beforePage func(rootID, absPath string)
-	baseDir    string
+	// stranger reports a document this root must serve with its scripts off
+	// (Options.Stranger). Nil serves every page as itself.
+	stranger func(absPath string) bool
+	baseDir  string
 	// publicHost is the served folder's address; empty in the trial binary.
 	publicHost string
 	registry   *consentRegistry
@@ -110,6 +113,9 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	host.service = cfg.service
 	host.onStructure = cfg.onStructure
 	host.onRetire = cfg.onRetire
+	host.onCreate = cfg.onCreate
+	host.stranger = cfg.stranger
+	host.onCopy = cfg.onCopy
 	if cfg.service != nil {
 		cfg.service.setRoot(root.id, baseDir)
 	}
@@ -127,6 +133,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	}
 	server := &rootServer{
 		id:              root.id,
+		stranger:        cfg.stranger,
 		workspaceEntry:  cfg.workspaceEntry,
 		onPageLoad:      cfg.onPageLoad,
 		onUnsavedReport: cfg.onUnsavedReport,
@@ -335,6 +342,13 @@ func (s *rootServer) serve(w http.ResponseWriter, r *http.Request, marked bool) 
 	// header below. Uploads store directly inside `assets-<stem>/`, so only the
 	// immediate parent counts, compared without case.
 	uploaded := refusedUploadPath(realPath) && inUploadsFolder(realPath)
+	// A document nobody vouches for is served with its scripts off: this
+	// origin can read the whole folder, and a page on it can change any file
+	// here.
+	stranger := s.strangerPage(realPath)
+	if stranger {
+		w.Header().Set("Content-Security-Policy", "sandbox")
+	}
 	if match != nil && !uploaded {
 		if pageLoad(r) && s.beforePage != nil && r.Header.Get("Clay-Source") != "1" {
 			// The app keys a document on the path as the system writes it.
@@ -365,6 +379,25 @@ func (s *rootServer) serve(w http.ResponseWriter, r *http.Request, marked bool) 
 	}
 	sendFile(w, r, realPath, info, contentType)
 	return nil
+}
+
+// pageExtensions are the types a browser renders as a page that can run
+// script: a sandbox header on these is what keeps a stranger's page inert.
+var pageExtensions = map[string]bool{
+	".html": true, ".htm": true, ".htmlclay": true, ".xhtml": true, ".xml": true, ".svg": true, ".svgz": true,
+}
+
+// strangerPage reports a file that renders as a page and whose document needs
+// the warning. A compressed page (evil.html.gz) is a page with its sidecar on.
+func (s *rootServer) strangerPage(realPath string) bool {
+	if s.stranger == nil {
+		return false
+	}
+	ext := strings.ToLower(filepath.Ext(realPath))
+	if ext == ".gz" || ext == ".br" {
+		ext = strings.ToLower(filepath.Ext(strings.TrimSuffix(realPath, ext)))
+	}
+	return pageExtensions[ext] && s.stranger(realOrSame(realPath))
 }
 
 // serveDirListing renders one folder's listing.

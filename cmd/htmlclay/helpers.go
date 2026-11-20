@@ -13,6 +13,7 @@ import (
 	"github.com/panphora/htmlclay/internal/htmlutil"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/tier"
 	"github.com/panphora/htmlclay/internal/wire"
 )
 
@@ -262,27 +263,80 @@ func (a *app) servedWireCores() []*wire.Core {
 }
 
 // helperGranted is the server's last question before a program's process starts:
-// may name run programID for file right now? It reads the scope at this moment
-// rather than anything cached when the dispatcher attached, so a folder that
-// became a team folder, or an access the person removed, stops the process.
+// may name run programID for file right now? It reads the tier, the programs
+// folder and the scope at this moment rather than anything cached when the
+// dispatcher attached, so a folder that became a team folder, a teammate's
+// code change, developer mode turned off, or an access the person removed,
+// stops the process.
 func (a *app) helperGranted(file, name, programID string) bool {
+	view := a.helperViewOf(file, []string{name})
+	if p, ok := view.folder[name]; ok {
+		return p.ID == programID
+	}
+	if view.waits(name) {
+		return false
+	}
 	resolution, _ := a.rt.cfg.ResolveHelper(file, name, a.programTrusted(file), a.scopeOf(file))
 	return resolution.Decided && resolution.Allowed && resolution.Program.ID == programID
 }
 
-// A name that is in neither result was never decided: nobody was asked, the
-// picker was cancelled, or the program behind an old allow is gone.
-func (a *app) resolvedHelpers(document string, names []string) (map[string]config.HelperProgram, []string) {
-	a.helperStateMu.Lock()
-	defer a.helperStateMu.Unlock()
-	return a.resolvedHelpersLocked(document, names)
+// helperView is what deciding a document's programs reads from disk: the
+// document's tier, the programs folder's programs that answer it now, and the
+// names whose folder program waits for the warning or the team question. It is
+// read before helperStateMu, because reading a document takes a while.
+type helperView struct {
+	verdict tier.Verdict
+	folder  map[string]config.HelperProgram
+	waiting map[string]bool
 }
 
-func (a *app) resolvedHelpersLocked(document string, names []string) (map[string]config.HelperProgram, []string) {
+func (a *app) helperViewOf(document string, names []string) helperView {
+	view := helperView{verdict: a.tierOf(document), folder: map[string]config.HelperProgram{}, waiting: map[string]bool{}}
+	for _, name := range names {
+		switch program, ok, waits := a.folderProgram(name, view.verdict); {
+		case ok:
+			view.folder[name] = program
+		case waits:
+			view.waiting[name] = true
+		}
+	}
+	return view
+}
+
+// waits reports a name that cannot run until the person answers the question
+// its document needs: a folder program that waits for it, or a registered
+// program of a document nobody vouches for, or of a team document whose code
+// changed since the person allowed it.
+func (v helperView) waits(name string) bool {
+	return v.waiting[name] || v.verdict.Warn()
+}
+
+// A name that is in neither result was never decided: nobody was asked, the
+// picker was cancelled, the program behind an old allow is gone, or the
+// document waits for the warning or the team question.
+func (a *app) resolvedHelpers(document string, names []string) (map[string]config.HelperProgram, []string) {
+	view := a.helperViewOf(document, names)
+	a.helperStateMu.Lock()
+	defer a.helperStateMu.Unlock()
+	return a.resolvedHelpersLocked(document, names, view)
+}
+
+func (a *app) resolvedHelpersLocked(document string, names []string, view helperView) (map[string]config.HelperProgram, []string) {
 	allowed := make(map[string]config.HelperProgram)
 	var denied []string
 	scope := a.scopeOf(document)
 	for _, name := range names {
+		if program, ok := view.folder[name]; ok {
+			allowed[name] = program
+			continue
+		}
+		if view.verdict.Denied {
+			denied = append(denied, name)
+			continue
+		}
+		if view.waits(name) {
+			continue
+		}
 		resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.programTrusted(document), scope)
 		switch {
 		case !resolution.Decided:
@@ -468,13 +522,17 @@ func registeredAtPath(programs []config.HelperProgram, path string) (config.Help
 }
 
 func (a *app) applyHelperPlan(core *wire.Core, document string, plan helperOpenPlan) {
+	var view helperView
+	if len(plan.names) > 0 {
+		view = a.helperViewOf(document, plan.names)
+	}
 	a.helperStateMu.Lock()
 	defer a.helperStateMu.Unlock()
 	if len(plan.names) == 0 {
 		core.DetachHelpers(document)
 		return
 	}
-	allowed, denied := a.resolvedHelpersLocked(document, plan.names)
+	allowed, denied := a.resolvedHelpersLocked(document, plan.names, view)
 	if err := core.AttachHelpers(document, allowed, denied); err != nil {
 		a.rt.logger.Printf("Could not attach helpers for %s: %v", document, err)
 	}

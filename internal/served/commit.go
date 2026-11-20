@@ -199,6 +199,14 @@ type commitHost struct {
 	// onRetire hears about each completed structure step that retired a name, a
 	// trash move, so the host forgets what it held there. Nil hears nothing.
 	onRetire func(rootID, name string, isDir bool)
+	// onCreate hears about a document the workspace created here
+	// (Options.OnCreate). Nil hears nothing.
+	onCreate func(rootID, rel string)
+	// onCopy hears about each completed duplicate (Options.OnCopy). Nil hears
+	// nothing.
+	onCopy func(rootID, from, to string)
+	// stranger reports a document served with its scripts off here.
+	stranger func(absPath string) bool
 }
 
 // newCommitHost builds the commit core for one served folder.

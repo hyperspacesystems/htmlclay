@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"slices"
 	"testing"
 )
@@ -55,10 +56,26 @@ func TestMovePortBackDropsTheNewPortFromFormer(t *testing.T) {
 	}
 }
 
-func TestBuiltinProgramsStartOff(t *testing.T) {
+func TestBuiltinProgramsStartOn(t *testing.T) {
 	cfg := &Config{}
-	if cfg.BuiltinOn("file-search") {
-		t.Fatal("a program with no entry must read as off")
+	if !cfg.BuiltinOn("file-search") {
+		t.Fatal("a program with no entry must read as on")
+	}
+	cfg.AllowBuiltin("file-convert", "/a.htmlclay")
+	if !cfg.BuiltinOn("file-convert") {
+		t.Fatal("an allow on a program with no entry switched it off")
+	}
+	cfg.SetBuiltinOn("file-search", false)
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Config
+	if err := json.Unmarshal(data, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.BuiltinOn("file-search") {
+		t.Fatalf("a switch the person turned off came back on after a save: %s", data)
 	}
 	cfg.SetBuiltinOn("file-search", true)
 	if !cfg.BuiltinOn("file-search") {

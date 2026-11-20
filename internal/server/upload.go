@@ -84,6 +84,29 @@ func inAssetsFolder(realPath string) bool {
 	return strings.HasPrefix(strings.ToLower(filepath.Base(filepath.Dir(realPath))), "assets-")
 }
 
+// rendersAsPage reports a file a browser shows as a page that can run script:
+// every type an upload refuses except the scripts themselves, which run only
+// when a page loads them.
+func rendersAsPage(path string) bool {
+	switch ext := uncompressedExt(path); ext {
+	case ".js", ".mjs", ".cjs", ".ecma":
+		return false
+	default:
+		return refusedUpload(ext)
+	}
+}
+
+// uncompressedExt is the extension a name has before one compression suffix
+// comes off it: evil.html.gz is an HTML page that happens to be stored
+// compressed, and it runs as a page when a browser asks for it.
+func uncompressedExt(name string) string {
+	ext := strings.ToLower(filepath.Ext(name))
+	if ext == ".gz" || ext == ".br" {
+		ext = strings.ToLower(filepath.Ext(strings.TrimSuffix(name, ext)))
+	}
+	return ext
+}
+
 var documentExt = map[string]bool{
 	".htmlclay": true, ".html": true, ".htm": true, ".xhtml": true,
 }

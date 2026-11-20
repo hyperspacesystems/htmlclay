@@ -504,3 +504,46 @@ func TestM3ServedPrograms(t *testing.T) {
 		}
 	})
 }
+
+// TestDontAllowRefusesAWaitingServedProgramCall is Carbon 8: a served page's
+// program call parked while the warning is open ends with a refusal the moment
+// the person says Don't allow, rather than waiting out its budget.
+func TestDontAllowRefusesAWaitingServedProgramCall(t *testing.T) {
+	stand := servedProgramsOpenAs(t, true)
+	stand.shellApp(t)
+	downloadedHere(t, stand.a, stand.document(t))
+	stand.loadPage(t)
+
+	response, page := stand.pageSubscribe(t, servedProgramsDocumentName)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("page subscription answered %d: %s", response.StatusCode, servedWireReadBody(t, response))
+	}
+	sent := stand.pageRequest(t, "r1")
+	if sent.StatusCode != http.StatusOK {
+		t.Fatalf("page request answered %d: %s", sent.StatusCode, servedWireReadBody(t, sent))
+	}
+	page.waitFor(t, "wire/ack", "r1")
+
+	if stand.a.askHelperForUse(stand.document(t), "search") {
+		t.Fatal("the program was granted before the warning was answered")
+	}
+	request := waitForSetupRequest(t, stand.a, appcore.RequestUnknownDocument)
+	if err := answerSetup(t, stand.a, "a18", request, documentAnswerDeny, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := time.After(time.Second)
+	for {
+		select {
+		case env, ok := <-page.ch:
+			if !ok {
+				t.Fatal("the page stream ended without a refusal")
+			}
+			if env.ID == "r1" && env.Type == "wire/error" {
+				return
+			}
+		case <-deadline:
+			t.Fatal("the parked program call was not refused within a second of Don't allow")
+		}
+	}
+}

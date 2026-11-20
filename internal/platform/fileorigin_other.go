@@ -10,3 +10,5 @@ import (
 func downloaded(path string) bool { return false }
 
 func changeTime(info os.FileInfo) (time.Time, bool) { return time.Time{}, false }
+
+func createTime(info os.FileInfo) (time.Time, bool) { return time.Time{}, false }
