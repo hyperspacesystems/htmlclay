@@ -741,7 +741,7 @@ type syncReportRecord struct {
 func (a *app) takeSyncReport(report served.SyncReport) {
 	stop := false
 	a.rt.syncMu.Lock()
-	rereadConflicts := conflictsChanged(a.rt.syncLast, report)
+	rereadConflicts := conflictsChanged(a.rt.syncLast, a.rt.syncConflicts.facts, report)
 	keyRevoked := newlyKeyRevoked(a.rt.syncLast, report)
 	a.rt.syncLast = &report
 	record, err := a.syncRecordLocked()

@@ -87,9 +87,14 @@ func (a *app) notice(n shellapi.Notice) {
 		return
 	}
 	title, body := noticeText(n)
-	if err := a.notifyUser(title, body); err != nil {
-		a.rt.logger.Printf("Could not show a notification: %v", err)
-	}
+	// Detached because a system notification can block (on Windows, MessageBoxW
+	// waits until dismissed); blocking here holds POST /v1/sync/report open and
+	// stalls all further sync reports from the service.
+	go func() {
+		if err := a.notifyUser(title, body); err != nil {
+			a.rt.logger.Printf("Could not show a notification: %v", err)
+		}
+	}()
 }
 
 func noticeText(n shellapi.Notice) (title, body string) {

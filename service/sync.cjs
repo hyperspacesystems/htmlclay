@@ -113,16 +113,19 @@ function createReporter({ send, state, delayMs = 100, retryMs = RETRY_MS, onAcke
     if (stopped) return;
     inflight = true;
     again = false;
-    const report = { seq: ++seq, ...state(), events: events.slice() };
+    let report = null;
     let acked = false;
     try {
+      report = { seq: ++seq, ...state(), events: events.slice() };
       const answer = await send(report);
       acked = Boolean(answer && answer.ok === true && answer.seq === report.seq);
-    } catch {
+    } catch (error) {
+      console.error('[htmlclay-service] sync report failed:', error && error.message ? error.message : String(error));
       acked = false;
+    } finally {
+      inflight = false;
     }
-    inflight = false;
-    if (acked) {
+    if (acked && report) {
       attempt = 0;
       const sent = new Set(report.events.map((event) => event.id));
       events = events.filter((event) => !sent.has(event.id));

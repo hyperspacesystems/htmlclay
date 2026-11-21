@@ -126,6 +126,24 @@ func TestM4ConflictsRead(t *testing.T) {
 			t.Fatalf("a missing file: %d items", got)
 		}
 	})
+
+	t.Run("a report whose count disagrees with the cached list reads again", func(t *testing.T) {
+		write(`{"901": {"kind": "both-edited", "path": "board.html", "detectedAt": 1790000000000}}`)
+		report(8, 1)
+		// Simulate resolveConflict clearing conflicts.json and re-reading before a 0-count report arrives.
+		write(`{}`)
+		a.readHeldConflicts()
+		if got := len(conflictItems(a.snapshot())); got != 0 {
+			t.Fatalf("after local clear: %d items", got)
+		}
+		// A second conflict lands while syncLast still holds Conflicts=1.
+		write(`{"902": {"kind": "both-edited", "path": "second.html", "detectedAt": 1790000000200}}`)
+		report(9, 1)
+		items := conflictItems(a.snapshot())
+		if len(items) != 1 || !strings.Contains(items[0].Title, "second.html") {
+			t.Fatalf("second conflict after stale syncLast = %+v, want second.html", items)
+		}
+	})
 }
 
 func TestM4ConflictRoutes(t *testing.T) {

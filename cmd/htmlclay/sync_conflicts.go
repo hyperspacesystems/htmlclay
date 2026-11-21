@@ -154,7 +154,15 @@ func readConflictsFile(file string, session config.SyncSession) ([]appcore.Event
 // readHeldEntries reads one session's conflicts.json, in key order. A missing
 // file is no conflicts.
 func readHeldEntries(file string, session config.SyncSession) ([]heldEntry, error) {
-	data, err := os.ReadFile(file)
+	var data []byte
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		data, err = os.ReadFile(file)
+		if err == nil || errors.Is(err, fs.ErrNotExist) {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -281,8 +289,10 @@ func fileExists(file string) bool {
 }
 
 // conflictsChanged reports whether a report means the held conflicts changed: a
-// session's count moved, or an event names a conflict or its end.
-func conflictsChanged(previous *served.SyncReport, report served.SyncReport) bool {
+// session's count moved, disagrees with what Go last read from disk (for instance
+// after resolveConflict cleared the cache while the prior report still had the
+// old count), or an event names a conflict or its end.
+func conflictsChanged(previous *served.SyncReport, held map[string][]appcore.EventFact, report served.SyncReport) bool {
 	for _, event := range report.Events {
 		if event.Action == "conflict" || event.Action == "resolved" {
 			return true
@@ -295,7 +305,7 @@ func conflictsChanged(previous *served.SyncReport, report served.SyncReport) boo
 		}
 	}
 	for _, session := range report.Sessions {
-		if before[session.SessionID] != session.Conflicts {
+		if before[session.SessionID] != session.Conflicts || len(held[session.SessionID]) != session.Conflicts {
 			return true
 		}
 		delete(before, session.SessionID)

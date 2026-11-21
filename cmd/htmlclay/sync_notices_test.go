@@ -38,6 +38,11 @@ func TestM4Notices(t *testing.T) {
 		defer bannersMu.Unlock()
 		return slices.Clone(banners)
 	}
+	waitShown := func(want int) []string {
+		t.Helper()
+		waitFor(t, "system notification", func() bool { return len(shown()) >= want })
+		return shown()
+	}
 	setDiscovery(`{"ok":true,"actor":{"id":12,"username":"maya","fullName":"Maya Lin"},"accounts":[` +
 		`{"id":12,"kind":"personal","username":"maya","displayName":"maya","role":"owner","sync":{"enabled":true,"reason":null}},` +
 		`{"id":40,"kind":"team","username":"studio","displayName":"Studio","role":"editor","sync":{"enabled":true,"reason":null}}]}`)
@@ -59,7 +64,7 @@ func TestM4Notices(t *testing.T) {
 		writeTestFile(t, conflicts, `{"901": {"kind": "both-edited", "path": "board.html", "detectedAt": 1790000000000}}`)
 		a.readHeldConflicts()
 		a.readHeldConflicts()
-		if got := shown(); len(got) != 1 || got[0] != "board.html changed in both places" {
+		if got := waitShown(1); len(got) != 1 || got[0] != "board.html changed in both places" {
 			t.Fatalf("banners = %v", got)
 		}
 		if !slices.Contains(savedSync(t, a).Notified, session.ID+":901:1790000000000") {
@@ -153,7 +158,7 @@ func TestM4Notices(t *testing.T) {
 			`{"id":41,"kind":"team","username":"press","displayName":"Press","role":"editor","sync":{"enabled":true,"reason":null}}]`
 		report(10, false, accounts)
 		report(11, false, accounts)
-		got := shown()
+		got := waitShown(2)
 		if len(got) != 2 || got[1] != strings.Replace(appcore.TextNoticeAddedToTeam, "%s", "Press", 1) {
 			t.Fatalf("banners = %v", got)
 		}
@@ -162,9 +167,41 @@ func TestM4Notices(t *testing.T) {
 	t.Run("a refused key notifies once", func(t *testing.T) {
 		report(12, true, "null")
 		report(13, true, "null")
-		got := shown()
+		got := waitShown(3)
 		if len(got) != 3 || got[2] != appcore.TextWaitingSyncKeyRefused {
 			t.Fatalf("banners = %v", got)
+		}
+	})
+
+	t.Run("a blocking system notification does not stall sync reports", func(t *testing.T) {
+		prev := a.rt.notify
+		t.Cleanup(func() { a.rt.notify = prev })
+		started := make(chan struct{}, 1)
+		release := make(chan struct{})
+		t.Cleanup(func() { close(release) })
+		a.rt.notify = func(title, message string) error {
+			select {
+			case started <- struct{}{}:
+			default:
+			}
+			<-release
+			return nil
+		}
+		writeTestFile(t, conflicts, `{"903": {"kind": "both-edited", "path": "blocking.html", "detectedAt": 1790000000300}}`)
+		done := make(chan struct{})
+		go func() {
+			a.readHeldConflicts()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("readHeldConflicts blocked waiting for a modal system notification")
+		}
+		select {
+		case <-started:
+		case <-time.After(2 * time.Second):
+			t.Fatal("detached notification never started")
 		}
 	})
 }
