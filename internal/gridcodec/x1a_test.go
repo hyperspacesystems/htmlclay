@@ -8,11 +8,6 @@ import (
 	"testing"
 )
 
-// testdata/x1a holds sapjs's golden files byte for byte (test/grid-codec/golden/,
-// sapjs eb177cf). They are the JavaScript writer's output, so a Go writer that
-// reads and rewrites them unchanged writes the same bytes as the JavaScript one.
-var x1aGoldens = []string{"hidden", "tall-merge"}
-
 func readX1aGolden(t *testing.T, name string) string {
 	t.Helper()
 	raw, err := os.ReadFile("testdata/x1a/" + name + ".html")
@@ -20,33 +15,6 @@ func readX1aGolden(t *testing.T, name string) string {
 		t.Fatal(err)
 	}
 	return string(raw)
-}
-
-// A hidden row or column, and a merge taller than a tbody group, read and write
-// back to the bytes the JavaScript writer wrote, through both readers. Without
-// it an HTML Clay patch would drop a person's hidden rows, or regroup the tbody
-// so the next save shows changes nobody made.
-func TestX1aGoldensRoundTripThroughBothReaders(t *testing.T) {
-	for _, name := range x1aGoldens {
-		t.Run(name, func(t *testing.T) {
-			src := readX1aGolden(t, name)
-			model, err := GridModel(src, 0)
-			if err != nil {
-				t.Fatalf("GridModel: %v", err)
-			}
-			written, err := TableHTML(model, 50)
-			if err != nil {
-				t.Fatalf("TableHTML: %v", err)
-			}
-			if written != src {
-				t.Fatalf("the Go writer differs from the JavaScript writer\n got: %q\nwant: %q", written, src)
-			}
-			tree := TreeModel(parseTable(t, src))
-			if !reflect.DeepEqual(tree, model) {
-				t.Fatalf("tree model is not the byte model\n got: %s\nwant: %s", marshalJS(t, tree), marshalJS(t, model))
-			}
-		})
-	}
 }
 
 // An agent's write into a hidden row through the Go patch path keeps every

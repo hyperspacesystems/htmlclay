@@ -299,5 +299,9 @@ func TableHTML(sheet *Sheet, groupSize int) (string, error) {
 		html += "</tbody>"
 	}
 
-	return html + "</table>", nil
+	rules, err := RulesHTML(sheet.Rules)
+	if err != nil {
+		return "", err
+	}
+	return html + rules + "</table>", nil
 }

@@ -282,8 +282,8 @@ test('the package arguments are the fixed standalone capability set', () => {
   assert.equal(attachedValue('--target'), '/docs/page.htmlclay');
   assert.deepEqual(
     REQUIRED_EXTENSIONS,
-    ['conditional', 'data-guard-v1', 'data-read', 'data-write', 'page', 'blockeditor-awareness-v1', 'blockeditor-format-v1',
-      'blockeditor-recovery-v1', 'receipts', 'record-awareness-v1', 'sync', 'sync-worker', 'upload', 'wire'],
+    ['blockeditor', 'blockeditor-awareness-v1', 'blockeditor-format-v1', 'blockeditor-recovery-v1', 'conditional', 'data-guard-v1',
+      'data-read', 'data-write', 'ordered-file', 'receipts', 'record-awareness-v1', 'recovery-copies', 'sync', 'sync-worker', 'upload', 'wire'],
   );
 });
 

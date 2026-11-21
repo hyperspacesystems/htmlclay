@@ -1,6 +1,7 @@
 package gridcodec
 
 import (
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
@@ -167,6 +168,74 @@ func colModel(node *html.Node) Col {
 	return col
 }
 
+func ruleModel(node *html.Node) *Rule {
+	rule := Rule{}
+	if v, ok := elementAttr(node, "data-id"); ok {
+		rule.ID = cleanText(v)
+	}
+	if v, ok := elementAttr(node, "data-pos"); ok {
+		rule.Pos = cleanText(v)
+	}
+	if v, ok := elementAttr(node, "kind"); ok {
+		rule.Kind = cleanText(v)
+	}
+	if v, ok := elementAttr(node, "range"); ok {
+		rule.Range = cleanText(v)
+	}
+	for _, field := range ruleFields {
+		if field == "open" || field == "stacked" {
+			if hasAttr(node, field) {
+				if field == "open" {
+					rule.Open = true
+				} else {
+					rule.Stacked = true
+				}
+			}
+			continue
+		}
+		v, ok := elementAttr(node, field)
+		if !ok {
+			continue
+		}
+		switch field {
+		case "items":
+			var items []string
+			if err := json.Unmarshal([]byte(v), &items); err != nil || items == nil {
+				return nil
+			}
+			rule.Items = items
+		case "source":
+			rule.Source = strp(cleanText(v))
+		case "test":
+			rule.Test = strp(cleanText(v))
+		case "a":
+			rule.A = strp(cleanText(v))
+		case "b":
+			rule.B = strp(cleanText(v))
+		case "f":
+			rule.F = strp(cleanText(v))
+		case "style":
+			rule.Style = strp(cleanText(v))
+		case "low":
+			rule.Low = strp(cleanText(v))
+		case "mid":
+			rule.Mid = strp(cleanText(v))
+		case "high":
+			rule.High = strp(cleanText(v))
+		case "type":
+			rule.Type = strp(cleanText(v))
+		case "title":
+			rule.Title = strp(cleanText(v))
+		case "series":
+			rule.Series = strp(cleanText(v))
+		}
+	}
+	if RuleProblem(&rule) != "" {
+		return nil
+	}
+	return &rule
+}
+
 // TreeModel is canonical.js treeModel for a parsed <table> element.
 func TreeModel(table *html.Node) *Sheet {
 	sheet := &Sheet{Cols: []Col{}, Rows: []Row{}}
@@ -200,6 +269,16 @@ func TreeModel(table *html.Node) *Sheet {
 			}
 		case "tr":
 			data = append(data, rowModel(part, false))
+		case "template":
+			if hasAttr(part, "rules") {
+				for _, node := range elementChildren(part) {
+					if elementName(node) == "rule" {
+						if rule := ruleModel(node); rule != nil {
+							sheet.Rules = append(sheet.Rules, *rule)
+						}
+					}
+				}
+			}
 		}
 	}
 	sheet.Rows = append(frozen, data...)

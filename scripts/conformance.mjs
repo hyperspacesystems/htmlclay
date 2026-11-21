@@ -46,7 +46,7 @@ export const runsFrozen = (engine) => engine === 'all' || parseEngine(engine).in
 // because the vendored runtime carries page-format.js.
 export const REQUIRED_EXTENSIONS = [
   'blockeditor', 'blockeditor-awareness-v1', 'blockeditor-format-v1', 'blockeditor-recovery-v1', 'conditional', 'data-guard-v1',
-  'data-read', 'data-write', 'receipts', 'record-awareness-v1', 'sync', 'sync-worker', 'upload', 'wire',
+  'data-read', 'data-write', 'ordered-file', 'receipts', 'record-awareness-v1', 'recovery-copies', 'sync', 'sync-worker', 'upload', 'wire',
 ];
 
 const PROBE_TITLE = 'Conformance probe · HTML Clay';

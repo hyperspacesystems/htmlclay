@@ -190,8 +190,8 @@ func TestWriterFixpoint(t *testing.T) {
 			t.Fatalf("%s: TableHTML is\n %q\nwant\n %q", entry.Name, got, entry.Src)
 		}
 	}
-	if goldens != 7 {
-		t.Fatalf("checked %d goldens, want 7", goldens)
+	if goldens != 10 {
+		t.Fatalf("checked %d goldens, want 10", goldens)
 	}
 }
 
@@ -266,8 +266,8 @@ func TestTreeRouteMatchesByteRoute(t *testing.T) {
 			}
 		})
 	}
-	if goldens != 7 {
-		t.Fatalf("checked %d goldens, want 7", goldens)
+	if goldens != 10 {
+		t.Fatalf("checked %d goldens, want 10", goldens)
 	}
 }
 

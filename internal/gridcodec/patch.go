@@ -124,12 +124,13 @@ type gridState struct {
 	rows     []gridRow
 	groups   []gridGroup
 	startEnd int
+	rulesAt  int
 	table    Table
 	end      int
 }
 
 func readGrid(src string) (*gridState, error) {
-	grid := &gridState{}
+	grid := &gridState{rulesAt: -1}
 	sink := &Sink{
 		Table: func(table Table) { grid.table = table },
 		Col:   func(col Col) { grid.cols = append(grid.cols, col) },
@@ -138,6 +139,9 @@ func readGrid(src string) (*gridState, error) {
 		},
 		Group: func(start, end int, frozen bool) {
 			grid.groups = append(grid.groups, gridGroup{start: start, end: end, frozen: frozen})
+		},
+		Rules: func(start, end int) {
+			grid.rulesAt = start
 		},
 	}
 	end, err := ScanGrid(src, 0, sink)
@@ -386,9 +390,14 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, boo
 		edits = append(edits, edit{start: grid.rows[index].start, end: grid.rows[index].end, bytes: html})
 	}
 
+	tail := grid.end - len("</table>")
+	if grid.rulesAt >= 0 {
+		tail = grid.rulesAt
+	}
+
 	if len(appended) > 0 {
 		room := 0
-		at := grid.end - len("</table>")
+		at := tail
 		if len(grid.groups) > 0 {
 			last := grid.groups[len(grid.groups)-1]
 			if !last.frozen {
@@ -412,7 +421,7 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, boo
 			edits = append(edits, edit{start: at, end: at, bytes: bytes.String()})
 			rest = rest[room:]
 		}
-		at = grid.end - len("</table>")
+		at = tail
 		var bytes strings.Builder
 		for i := 0; i < len(rest); i += groupSize {
 			group := rest[i:min(i+groupSize, len(rest))]

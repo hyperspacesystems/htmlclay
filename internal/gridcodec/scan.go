@@ -1,6 +1,7 @@
 package gridcodec
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -62,6 +63,8 @@ type Sink struct {
 	Col   func(Col)
 	Row   func(row Row, start, end, index int)
 	Group func(start, end int, frozen bool)
+	Rule  func(rule Rule, start, end int)
+	Rules func(start, end int)
 }
 
 const maxCountDigits = 7
@@ -364,6 +367,76 @@ func (s *scanner) readGroup(i int, frozen bool, sink *Sink, index int) int {
 	return index
 }
 
+func (s *scanner) readRule(i int) Rule {
+	start := i
+	i = s.expect(i, `<rule data-id="`)
+	rule := Rule{ID: s.readAval(i)}
+	rule.Pos = s.readAval(s.expect(s.cursor, ` data-pos="`))
+	rule.Kind = s.readAval(s.expect(s.cursor, ` kind="`))
+	rule.Range = s.readAval(s.expect(s.cursor, ` range="`))
+	i = s.cursor
+	for _, field := range ruleFields {
+		if field == "open" || field == "stacked" {
+			if s.flag(i, " "+field) {
+				if field == "open" {
+					rule.Open = true
+				} else {
+					rule.Stacked = true
+				}
+				i += len(field) + 1
+			}
+			continue
+		}
+		prefix := " " + field + `="`
+		if !s.startsWith(prefix, i) {
+			continue
+		}
+		raw := s.readAval(i + len(prefix))
+		i = s.cursor
+		switch field {
+		case "items":
+			var items []string
+			if err := json.Unmarshal([]byte(raw), &items); err != nil || items == nil {
+				s.miss("rule items that are not JSON", start)
+			}
+			canonical, err := marshalItemsJSON(items)
+			if err != nil || canonical != raw {
+				s.miss("rule items that are not a list written as the writer writes it", start)
+			}
+			rule.Items = items
+		case "source":
+			rule.Source = strp(raw)
+		case "test":
+			rule.Test = strp(raw)
+		case "a":
+			rule.A = strp(raw)
+		case "b":
+			rule.B = strp(raw)
+		case "f":
+			rule.F = strp(raw)
+		case "style":
+			rule.Style = strp(raw)
+		case "low":
+			rule.Low = strp(raw)
+		case "mid":
+			rule.Mid = strp(raw)
+		case "high":
+			rule.High = strp(raw)
+		case "type":
+			rule.Type = strp(raw)
+		case "title":
+			rule.Title = strp(raw)
+		case "series":
+			rule.Series = strp(raw)
+		}
+	}
+	if problem := RuleProblem(&rule); problem != "" {
+		s.miss(problem, start)
+	}
+	s.cursor = s.expect(i, "></rule>")
+	return rule
+}
+
 // ScanGrid reads the grid that starts at byte offset at and returns the offset
 // just past "</table>", or a *Miss.
 func ScanGrid(src string, at int, sink *Sink) (end int, err error) {
@@ -421,6 +494,32 @@ func (s *scanner) scanGrid(at int, sink *Sink) int {
 	for s.startsWith("<tbody>", i) {
 		index = s.readGroup(i, false, sink, index)
 		i = s.skipSpace(s.cursor)
+	}
+	if s.startsWith("<template rules>", i) {
+		start := i
+		i += 16
+		count := 0
+		for {
+			i = s.skipSpace(i)
+			if s.startsWith("</template>", i) {
+				break
+			}
+			ruleStart := i
+			rule := s.readRule(i)
+			i = s.cursor
+			if sink != nil && sink.Rule != nil {
+				sink.Rule(rule, ruleStart, i)
+			}
+			count++
+		}
+		if count == 0 {
+			s.miss("an empty rules block", start)
+		}
+		i += 11
+		if sink != nil && sink.Rules != nil {
+			sink.Rules(start, i)
+		}
+		i = s.skipSpace(i)
 	}
 	return s.expect(i, "</table>")
 }
