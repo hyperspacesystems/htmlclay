@@ -53,17 +53,17 @@ td+td{padding-left:12px}
   <div class="path">{{.Path}}</div>
   {{if .All}}<p class="names">{{.Count}} {{if eq .Count 1}}copy{{else}}copies{{end}}, {{.Total}}</p>{{else}}<p class="names">{{.When}}, {{.Size}}</p>{{end}}
 </section>
-<p>After you delete {{if .All}}these copies{{else}}this copy{{end}}, the data that change removed cannot be brought back from it. Other versions in this document's history are not touched.</p>
+<p>After you delete {{if .All}}these copies{{else}}this copy{{end}}, you cannot restore from {{if .All}}them{{else}}it{{end}} again. Other versions in this document's history are not touched.</p>
 <div class="actions">
 <form method="post" action="/kept/action"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="{{if .All}}delete-all{{else}}delete{{end}}"><input type="hidden" name="folder" value="{{.Folder}}">{{if .All}}{{range .Names}}<input type="hidden" name="name" value="{{.}}">{{end}}{{else}}<input type="hidden" name="name" value="{{.Name}}">{{end}}<button class="danger" type="submit">{{if .All}}{{if eq .Count 1}}Delete This Copy{{else}}Delete All {{.Count}} Copies{{end}}{{else}}Delete{{end}}</button></form>
 <a href="/kept">Cancel</a>
 </div>
 {{else}}
 <h1>Kept Copies</h1>
-<p class="lede">HTML Clay kept these copies because a change made outside the page removed data. They stay on this computer until you delete them.</p>
+<p class="lede">HTML Clay kept these copies before an outside change removed data or before an earlier version was restored. They stay on this computer until you delete them.</p>
 {{if .Count}}<p>{{.Count}} {{if eq .Count 1}}copy{{else}}copies{{end}}, {{.Total}}</p>{{end}}
 {{with .Done}}<p class="done" role="status">{{.}}</p>{{end}}
-{{if not .Documents}}<p class="empty">No kept copies. When a change made outside a page removes data, HTML Clay keeps the version from before it and lists it here.</p>{{end}}
+{{if not .Documents}}<p class="empty">No kept copies. When an outside change removes data or you restore an earlier version, HTML Clay keeps the replaced version and lists it here.</p>{{end}}
 {{range .Documents}}
 <section class="card">
   <div class="head"><span class="file">{{.File}}</span>{{if .Missing}}<span class="status">{{.Status}}</span>{{end}}</div>

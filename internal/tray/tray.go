@@ -409,7 +409,7 @@ func (t *Tray) onReady() {
 
 	exampleItem := systray.AddMenuItem("Open Example File", "Create and open a sample self-saving HTML file")
 	backupsItem := systray.AddMenuItem("Backups", "Open the folder holding every saved version of your files")
-	keptItem := systray.AddMenuItem("Kept Copies…", "See and delete the copies HTML Clay kept when a change outside a page removed data")
+	keptItem := systray.AddMenuItem("Kept Copies…", "See and delete safety copies kept before outside data removals and version restores")
 	if t.export != nil {
 		em, _ := newListMenu("Export as Zip", "Save an open file and its attachments as one zip in Downloads", "No files open", "", "")
 		em.rowTooltip = "Click to save this file and its attachments as a zip in Downloads"
