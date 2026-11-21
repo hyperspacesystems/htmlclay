@@ -84,8 +84,8 @@ func TestPropsMeasuredAgainstJS(t *testing.T) {
 		{"#in@data-k", `"dv"`},
 		{"#in@data-missing", `null`},
 
-		// A boolean attribute read as an ATTRIBUTE returns its own name.
-		{"#in@readonly", `"readonly"`},
+		// A boolean attribute read as an ATTRIBUTE returns its raw value (hyper-html-api 6f0aceb).
+		{"#in@readonly", `""`},
 
 		// href and src are deliberately NOT on the allowlist, so they read as raw attributes with
 		// no URL resolution.

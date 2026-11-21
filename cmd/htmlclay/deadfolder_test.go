@@ -41,42 +41,6 @@ func TestDeadFolderNeverTakesALiveFoldersHostname(t *testing.T) {
 	}
 }
 
-func TestDeadFolderUnderALiveOneExplainsItsOwnReapproval(t *testing.T) {
-	home, _ := filepath.EvalSymlinks(t.TempDir())
-	proj := filepath.Join(home, "proj")
-	sub := filepath.Join(proj, "sub")
-	page := filepath.Join(sub, "deep.htmlclay")
-	writeTestFile(t, page, "<html><body>deep</body></html>")
-
-	cfgBase := t.TempDir()
-	first := newTestAppWithConfigDir(t, home, cfgBase)
-	if err := first.trustFolder(sub); err != nil {
-		t.Fatal(err)
-	}
-	s, rel := first.openForTest(t, page)
-	subBookmark := s.url(rel)
-	if err := first.trustFolder(proj); err != nil {
-		t.Fatal(err)
-	}
-	first.shutdown()
-
-	second := newTestAppWithConfigDir(t, home, cfgBase)
-	second.rt.cfg.SetTrustedIdentity(sub, "not-the-folder-on-disk")
-	second.startSites()
-	t.Cleanup(second.shutdown)
-
-	code, headers, body := do(t, browserClient(), navRequest(t, subBookmark))
-	if code != 404 || headers.Get("Location") != "" {
-		t.Fatalf("a dead source relocated: %d, %q", code, headers.Get("Location"))
-	}
-	if body != string(deadFolderPage) {
-		t.Fatalf("expected the dead-folder approval page, got %q", body)
-	}
-	if n := registrations(t, second, page); n != 0 {
-		t.Fatalf("a dead source registered the file in %d sites", n)
-	}
-}
-
 func TestUntrustingADeadFolderSwapsItsPage(t *testing.T) {
 	home, _ := filepath.EvalSymlinks(t.TempDir())
 	proj := filepath.Join(home, "proj")

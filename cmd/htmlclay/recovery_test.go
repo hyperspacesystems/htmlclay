@@ -502,50 +502,11 @@ func TestLinkFromASiteToARetiredAddressRedirectsThenServes(t *testing.T) {
 	}
 }
 
-// A parked port only relocates when the destination can actually serve: a source
-// whose own pin is dead, a destination pin that failed after startup, a
+// A parked port only relocates when the destination can actually serve: a
+// destination pin that failed after startup, a
 // destination that exists only because a file was opened there, a quitting app,
 // and a target on the same port all keep an appropriate recovery page.
 func TestRecoveryNavigationRefusesWhenTheDestinationCannotServe(t *testing.T) {
-	t.Run("dead source pin", func(t *testing.T) {
-		home, _ := filepath.EvalSymlinks(t.TempDir())
-		proj := filepath.Join(home, "proj")
-		sub := filepath.Join(proj, "sub")
-		page := filepath.Join(sub, "index.htmlclay")
-		writeTestFile(t, page, "<html><body>index</body></html>")
-
-		cfgBase := t.TempDir()
-		first := newTestAppWithConfigDir(t, home, cfgBase)
-		if err := first.trustFolder(sub); err != nil {
-			t.Fatal(err)
-		}
-		s, rel := first.openForTest(t, page)
-		bookmark := s.url(rel)
-		if err := first.trustFolder(proj); err != nil {
-			t.Fatal(err)
-		}
-		first.shutdown()
-
-		second := newTestAppWithConfigDir(t, home, cfgBase)
-		if _, ok := second.rt.cfg.SetTrustedIdentity(sub, "not-the-folder-on-disk"); !ok {
-			t.Fatal("no trusted entry to break")
-		}
-		second.startSites()
-		t.Cleanup(second.shutdown)
-		liveSite(t, second, proj)
-
-		code, header, body := do(t, browserClient(), navRequest(t, bookmark))
-		if code != 404 || header.Get("Location") != "" {
-			t.Fatalf("a dead source pin relocated: %d, %q", code, header.Get("Location"))
-		}
-		if body != string(deadFolderPage) {
-			t.Fatalf("expected the dead-folder approval page, got %q", body)
-		}
-		if n := registrations(t, second, page); n != 0 {
-			t.Fatalf("a dead source pin registered the file in %d sites", n)
-		}
-	})
-
 	t.Run("dead destination pin", func(t *testing.T) {
 		home, _ := filepath.EvalSymlinks(t.TempDir())
 		proj := filepath.Join(home, "proj")

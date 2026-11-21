@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: sapjs css:name paints only --name: --accent is stored, --width is painted, so stale is true through #bar@--width alone.

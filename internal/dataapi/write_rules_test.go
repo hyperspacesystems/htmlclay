@@ -99,4 +99,43 @@ func TestAttributePresenceRoundTrips(t *testing.T) {
 			t.Errorf("%s:\n got %s\nwant it to contain %s", c.data, result.HTML, c.want)
 		}
 	}
+
+	// A bare boolean attribute reads as its raw value, "", so an agent that posts back what it read
+	// changes nothing (sapjs's show paints a bare hidden).
+	bare := `<script data-rules-name="api" data-rules-version="1">{"msg":"#msg@hidden"}</script><p id="msg" hidden>done</p>`
+	d, err := ParseBytes([]byte(bare))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules, _ := decodeJSON(`{"msg":"#msg@hidden"}`)
+	read, err := d.Extract(rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := WriteDocument([]byte(bare), read, "api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed || string(result.HTML) != bare {
+		t.Errorf("posting back the read %v rewrote the file:\n%s", read, result.HTML)
+	}
+}
+
+// TestStaleIsJudgedOnTheWrittenBytes: a write that sets @readOnly leaves readOnly on the applied
+// tree, but a reader of the file sees readonly, so a rule whose selector needs [readonly] reads a
+// painted total only in the written file. The reference judges the written file.
+func TestStaleIsJudgedOnTheWrittenBytes(t *testing.T) {
+	src := `<main sap state="qty=1"><input id="qty" bind="qty"><b id="total" text="qty*2">2</b></main>` +
+		`<script data-rules-name="api" data-rules-version="1">{"locked":"#qty@readOnly","total":"#qty[readonly] ~ #total"}</script>`
+	data, err := decodeJSON(`{"locked":true}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := WriteDocument([]byte(src), data, "api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Changed || !result.Stale {
+		t.Errorf("changed %v stale %v, want both true:\n%s", result.Changed, result.Stale, result.HTML)
+	}
 }

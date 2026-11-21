@@ -14,6 +14,9 @@ type WriteResult struct {
 	HTML    []byte
 	Changed bool
 	Spliced bool
+	// Stale is true when a rule reads a computed value (computed.go), which this write did not
+	// recalculate. It never changes the bytes.
+	Stale bool
 }
 
 // WriteDocument applies data to src through the document's own rules tag under the content-only
@@ -67,6 +70,7 @@ func writeDocument(src []byte, data Value, resolve func(*Document) (Value, strin
 	if err := checkCodecRules(rules, version, codecs); err != nil {
 		return nil, err
 	}
+	data = withoutMeta(rules, data)
 
 	unknownKeys, unmatched, err := planWrite(d.Root, rules, data)
 	if err != nil {
@@ -104,9 +108,22 @@ func writeDocument(src []byte, data Value, resolve func(*Document) (Value, strin
 	}
 
 	if len(w.dirty) == 0 {
-		return &WriteResult{HTML: src, Changed: false, Spliced: true}, nil
+		return &WriteResult{HTML: src, Changed: false, Spliced: true, Stale: hasComputedRules(d.Root, rules)}, nil
 	}
 	result := w.splice(body, []byte(outerHTML(d, d.Root)))
+	// Stale is judged on the bytes written, re-parsed, as the reference does: the tree apply left
+	// behind can differ from what a reader of the file sees (an attribute set as readOnly reads
+	// back as readonly).
+	written, err := ParseBytes(result.HTML)
+	if err != nil {
+		return nil, err
+	}
+	result.Stale = hasComputedRules(written.Root, rules)
+	// Only a write that changed the bytes leaves the mark, as the reference does: a typed value equal
+	// to the stored text (1 into value="1") dirties the tree but splices back the same bytes.
+	if result.Changed && result.Stale && hasComputedRulesBesideSheets(written.Root, rules) {
+		result.HTML = withStaleMark(result.HTML)
+	}
 	if len(bom) > 0 {
 		result.HTML = append(append([]byte{}, bom...), result.HTML...)
 	}

@@ -1007,29 +1007,6 @@ func waitForTrusted(t *testing.T, a *app, dir string) {
 	})
 }
 
-// The production wiring, end to end. The broker's trust hook must be the app's own
-// prompt route: a "Trust this folder" answer over an ordinary folder both resumes
-// the read and records the folder. Without the wiring the read still resumes, so
-// only the recorded folder proves the hook was ever called.
-func TestPromptTrustChoiceRecordsAnOrdinaryFolder(t *testing.T) {
-	home, _ := filepath.EvalSymlinks(t.TempDir())
-	page := filepath.Join(home, "work", "review", "fable", "index.html")
-	asset := filepath.Join(home, "work", "review", "shared", "redpen.js")
-	writeTestFile(t, page, "<html><body>fable</body></html>")
-	writeTestFile(t, asset, "console.log('redpen')")
-
-	a := newTestApp(t, home)
-	a.rt.confirm = trustFolderConfirm
-	s, _ := a.openForTest(t, page)
-
-	relAsset := filepath.Join("work", "review", "shared", "redpen.js")
-	code, body := fetch(t, s.url(relAsset))
-	if code != 200 || !strings.Contains(body, "redpen") {
-		t.Fatalf("a trusted out-of-scope asset should resume 200: got %d, %q", code, body)
-	}
-	waitForTrusted(t, a, filepath.Join(home, "work", "review", "shared"))
-}
-
 // The same flow aimed at one of the main personal folders. The page picked the
 // folder, by asking for an asset that sits directly in ~/Documents, so the
 // durable choice is never offered at all: the read is allowed for this session

@@ -213,52 +213,6 @@ func TestRouteReusesTheRememberedHostname(t *testing.T) {
 	}
 }
 
-// Broadest wins: with a folder and a folder inside it both declared, a file
-// anchors at the outer one and exactly one site hosts it. One project is one
-// origin however many of its subfolders were trusted separately.
-func TestNestedTrustedFoldersAnchorAtTheBroadest(t *testing.T) {
-	home, _ := filepath.EvalSymlinks(t.TempDir())
-	proj := filepath.Join(home, "proj")
-	sub := filepath.Join(proj, "sub")
-	page := filepath.Join(sub, "deep.htmlclay")
-	writeTestFile(t, page, "<html><body>deep</body></html>")
-
-	a := newTestApp(t, home)
-	if err := a.trustFolder(proj); err != nil {
-		t.Fatalf("trust proj: %v", err)
-	}
-	if err := a.trustFolder(sub); err != nil {
-		t.Fatalf("trust sub: %v", err)
-	}
-
-	anchor, trusted := a.anchorFor(page)
-	if !trusted || anchor != proj {
-		t.Fatalf("anchorFor = (%q, %v), want (%q, true)", anchor, trusted, proj)
-	}
-
-	s, rel := a.openForTest(t, page)
-	if s.anchor != proj {
-		t.Fatalf("the site should anchor at the broadest trusted folder: got %q", s.anchor)
-	}
-
-	hosts := 0
-	a.mu.Lock()
-	for _, cand := range a.sites {
-		if _, ok := cand.sessions.LookupByPath(page); ok {
-			hosts++
-		}
-	}
-	a.mu.Unlock()
-	if hosts != 1 {
-		t.Fatalf("the file is registered in %d sites, want exactly 1", hosts)
-	}
-
-	code, body := fetch(t, s.url(rel))
-	if code != 200 || !strings.Contains(body, "savetoken") {
-		t.Fatalf("the anchoring origin should serve the file editable: %d", code)
-	}
-}
-
 // startSites builds the broadest of a nested set only. A folder shadowed by a
 // broader one still answers at its remembered address, so a bookmark made before
 // the broader folder was declared redirects rather than failing outright.

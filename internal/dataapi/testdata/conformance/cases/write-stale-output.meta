@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A rule reads an <output>, a value the page computes: stale is true.

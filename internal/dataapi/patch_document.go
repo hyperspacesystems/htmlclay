@@ -3,6 +3,7 @@ package dataapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -137,6 +138,7 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 	edits := []pendingEdit{}
 	cells, rows := 0, 0
 	stale := false
+	spell := speller(tabs, deleted, source)
 	for _, tab := range order {
 		if deleted[tab] {
 			if tab.sectionRegion == nil {
@@ -148,30 +150,69 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 		if tab.region == nil {
 			return nil, &CodecRefused{Code: "sheet-not-canonical", Message: NotCanonicalMessage}
 		}
-		out, changed, err := gridcodec.PatchGrid(source[tab.region.Start:tab.region.End], groups[tab], opts.NewID)
+		written, err := spellOps(groups[tab], func(f string) (string, error) { return spell(f, tab.id) })
+		if err != nil {
+			return nil, err
+		}
+		out, changed, tabStale, err := gridcodec.PatchGrid(source[tab.region.Start:tab.region.End], written, opts.NewID)
 		if err != nil {
 			return nil, err
 		}
 		edits = append(edits, pendingEdit{start: tab.region.Start, end: tab.region.End, bytes: out})
 		cells += changed.Cells
 		rows += changed.Rows
-		stale = true
-	}
-	if len(deleted) > 0 {
-		for i := range tabs {
-			tab := &tabs[i]
-			if _, grouped := groups[tab]; grouped || tab.table == nil || !hasFormulaDescendant(tab.table) {
-				continue
-			}
+		if tabStale {
 			stale = true
-			if hasAttribute(tab.table, "stale") {
-				continue
+		}
+	}
+	// Every tab this patch did not write is marked stale when it holds a formula, since the
+	// formula may read a written cell, and the answer is stale when any table holds the mark
+	// (hyper-html-api 0f1148a staleAt). A canonical table is judged on its bytes; another table
+	// on its parsed node, with its start tag found by the tokenizer.
+	var positioned []sheetTab
+	for i := range tabs {
+		tab := &tabs[i]
+		if _, grouped := groups[tab]; grouped {
+			continue
+		}
+		if tab.region != nil {
+			bytes := source[tab.region.Start:tab.region.End]
+			end := tab.region.Start + strings.IndexByte(bytes, '>')
+			if strings.HasSuffix(source[tab.region.Start:end], " stale") {
+				stale = true
+			} else if strings.Contains(bytes, ` f="`) {
+				stale = true
+				edits = append(edits, pendingEdit{start: end, end: end, bytes: " stale"})
 			}
-			if tab.staleAt < 0 {
+			continue
+		}
+		if tab.table == nil {
+			continue
+		}
+		if hasAttribute(tab.table, "stale") {
+			stale = true
+			continue
+		}
+		if !hasFormulaDescendant(tab.table) {
+			continue
+		}
+		stale = true
+		at := tab.staleAt
+		if !deleting {
+			if positioned == nil {
+				if positioned, err = locateDeleteTabs(source, token); err != nil {
+					return nil, err
+				}
+			}
+			if i >= len(positioned) {
 				return nil, &CodecRefused{Code: "sheet-not-canonical", Message: NotCanonicalMessage}
 			}
-			edits = append(edits, pendingEdit{start: tab.staleAt, end: tab.staleAt, bytes: " stale"})
+			at = positioned[i].staleAt
 		}
+		if at < 0 {
+			return nil, &CodecRefused{Code: "sheet-not-canonical", Message: NotCanonicalMessage}
+		}
+		edits = append(edits, pendingEdit{start: at, end: at, bytes: " stale"})
 	}
 
 	sort.Slice(edits, func(i, j int) bool { return edits[i].start > edits[j].start })
@@ -188,6 +229,126 @@ func PatchDocument(src []byte, patch Value, opts PatchOptions) (*PatchResult, er
 		Changed: gridcodec.Changed{Cells: cells, Rows: rows, Sheets: len(deleted)},
 		Stale:   stale,
 	}, nil
+}
+
+// speller writes an agent's formula in the standard spelling a tab stores (hyper-html-api a4eccda):
+// `=sum(a1:a3)` is `=SUM(A1:A3)`, `=budget!a1` is `=Budget!A1`, and text that does not parse is kept
+// as typed. The frame holds every surviving tab's name and row and column count, built on the first
+// formula; the printer needs only the order's size, so the ids are placeholders.
+func speller(tabs []sheetTab, deleted map[*sheetTab]bool, source string) func(f, homeID string) (string, error) {
+	var frame *gridcodec.Frame
+	return func(f, homeID string) (string, error) {
+		if frame == nil {
+			sheets := []gridcodec.FrameSheet{}
+			for i := range tabs {
+				tab := &tabs[i]
+				if deleted[tab] {
+					continue
+				}
+				rows, cols := tabSize(tab, source)
+				sheets = append(sheets, gridcodec.FrameSheet{ID: tab.id, Name: tab.name, Rows: placeholders(rows), Cols: placeholders(cols)})
+			}
+			frame = gridcodec.NewFrame(sheets)
+		}
+		out, err := gridcodec.Standard(f, homeID, frame)
+		if errors.Is(err, gridcodec.ErrFormulaTooDeep) {
+			return "", &gridcodec.QueryRefused{Code: "bad_value", Message: "a formula nests too deeply to read"}
+		}
+		return out, err
+	}
+}
+
+func placeholders(n int) []string {
+	ids := make([]string, n)
+	for i := range ids {
+		ids[i] = strconv.Itoa(i)
+	}
+	return ids
+}
+
+// tabSize is a tab's row and column count: scanned from a canonical table, counted from the parsed
+// table otherwise (cheerio's find('tr') and find('col')), and none with no table.
+func tabSize(tab *sheetTab, source string) (int, int) {
+	if tab.region != nil {
+		rows, cols := 0, 0
+		gridcodec.ScanGrid(source, tab.region.Start, &gridcodec.Sink{
+			Row: func(gridcodec.Row, int, int, int) { rows++ },
+			Col: func(gridcodec.Col) { cols++ },
+		})
+		return rows, cols
+	}
+	if tab.table == nil {
+		return 0, 0
+	}
+	return countDescendants(tab.table, "tr"), countDescendants(tab.table, "col")
+}
+
+func countDescendants(node *html.Node, name string) int {
+	n := 0
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == html.ElementNode && child.Data == name {
+			n++
+		}
+		n += countDescendants(child, name)
+	}
+	return n
+}
+
+// spellOps rewrites every formula in the values and append rows of a tab's operations.
+func spellOps(ops []any, spell func(string) (string, error)) ([]any, error) {
+	out := make([]any, len(ops))
+	for i, raw := range ops {
+		op, ok := raw.(map[string]any)
+		if !ok {
+			out[i] = raw
+			continue
+		}
+		copied := make(map[string]any, len(op))
+		for key, value := range op {
+			copied[key] = value
+		}
+		for _, key := range []string{"values", "append"} {
+			value, present := op[key]
+			if !present {
+				continue
+			}
+			spelled, err := spellValues(value, spell)
+			if err != nil {
+				return nil, err
+			}
+			copied[key] = spelled
+		}
+		out[i] = copied
+	}
+	return out, nil
+}
+
+func spellValues(values any, spell func(string) (string, error)) (any, error) {
+	rows, ok := values.([]any)
+	if !ok {
+		return values, nil
+	}
+	out := make([]any, len(rows))
+	for i, raw := range rows {
+		row, ok := raw.([]any)
+		if !ok {
+			out[i] = raw
+			continue
+		}
+		spelled := make([]any, len(row))
+		for j, value := range row {
+			spelled[j] = value
+			if text, isText := value.(string); isText && strings.HasPrefix(text, "=") {
+				f, err := spell(text)
+				if err != nil {
+					return nil, err
+				}
+				spelled[j] = f
+			}
+		}
+		out[i] = spelled
+	}
+	return out, nil
 }
 
 // hasFormulaDescendant matches cheerio table.find("[f]"): the table itself is excluded and

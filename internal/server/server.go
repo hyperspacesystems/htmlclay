@@ -46,9 +46,11 @@ type Server struct {
 	uploadsDir string
 	// uploadKeyMu guards the library key: the one secret that makes an upload's
 	// name unguessable, read out of the library on first use and then held here.
-	uploadKeyMu sync.Mutex
-	uploadKey   []byte
-	broker      *broker
+	uploadKeyMu  sync.Mutex
+	uploadKey    []byte
+	broker       *broker
+	recalcs      *recalcWaits
+	recalcRunner RecalcRunner
 	// beforeAssetCapabilityOpen runs between an asset path being resolved and the
 	// capability open that acts on it. Tests only; nil everywhere else.
 	beforeAssetCapabilityOpen func()
@@ -207,6 +209,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 		hosts:    hosts,
 		versions: store,
 		broker:   newBroker(sessions, logger, defaultConfirm),
+		recalcs:  newRecalcWaits(),
 		ls:       ls,
 		hub:      ls.hub,
 		watcher:  ls.watcher,
@@ -233,6 +236,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	mux.HandleFunc("GET /_/read/{token}", s.handleRead)
 	mux.HandleFunc("POST /_/save/{token}", sameOrigin(s.handleSave))
 	mux.HandleFunc("POST /_/unsaved/{token}", sameOrigin(s.handleUnsavedReport))
+	mux.HandleFunc("POST /_/recalc/{token}", sameOrigin(s.handleRecalcNote))
 	mux.HandleFunc("POST /_/upload/{token}", sameOrigin(s.handleUpload))
 	mux.HandleFunc("GET /_/meta/{token}", s.handleMeta)
 	mux.HandleFunc("GET /_/blockeditor-state/{token}", s.handlePageState)
@@ -345,6 +349,11 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	return s
 }
 
+// SetRecalcRunner wires the app's shared hidden-browser runner into this site server.
+func (s *Server) SetRecalcRunner(r RecalcRunner) {
+	s.recalcRunner = r
+}
+
 // SetInternalDir marks a directory the server must never serve, whatever the
 // read roots say. htmlclay's own config tree holds its log and settings, and a
 // grant that happens to cover that directory must not turn into a read path.
@@ -409,6 +418,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.CancelAI()
 	s.CancelBuiltins("", "")
 	s.guardQueue.Settle()
+	s.recalcs.shutdown()
 	s.broker.shutdown()
 	s.Hub.Shutdown()
 	s.RunFiles.Clear()
@@ -425,6 +435,7 @@ func (s *Server) Close() error {
 	s.CancelAI()
 	s.CancelBuiltins("", "")
 	s.guardQueue.Settle()
+	s.recalcs.shutdown()
 	s.broker.shutdown()
 	s.Hub.Shutdown()
 	s.RunFiles.Clear()
@@ -450,7 +461,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 // never written to the log file or stderr.
 func redactPath(p string) string {
 	for _, prefix := range []string{
-		"/_/save/", "/_/unsaved/", "/_/read/", "/_/meta/", "/_/upload/",
+		"/_/save/", "/_/unsaved/", "/_/recalc/", "/_/read/", "/_/meta/", "/_/upload/",
 		"/_/versions/", "/_/version/", "/_/restore/",
 		"/_/reveal/", "/_/versions-folder/", "/_/export/", "/_/new-document/",
 		"/_/workspace-request/", "/_/helper-setup/",

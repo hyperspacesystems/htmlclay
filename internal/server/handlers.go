@@ -136,7 +136,7 @@ func writeOldFormatRefusal(w http.ResponseWriter) {
 // promises that `document.blockeditorState.href` returns the page state stored with the exact
 // file bytes and backup identity, so a client may retire journaled page work against it
 // (Document 12 Step 8).
-var hostExtensions = []string{"blockeditor", "blockeditor-awareness-v1", "blockeditor-recovery-v1", "conditional", "data-guard-v1", "data-guard-v2", "data-read", "data-write", "receipts", "record-awareness-v1", "sync", "sync-worker", "unsaved-report-v1", "upload", "wire"}
+var hostExtensions = []string{"blockeditor", "blockeditor-awareness-v1", "blockeditor-recovery-v1", "conditional", "data-guard-v1", "data-guard-v2", "data-read", "data-write", "recalculate", "receipts", "record-awareness-v1", "sync", "sync-worker", "unsaved-report-v1", "upload", "wire"}
 
 // maxSaveIDLen caps the §6 receipt id this host will remember. The spec asks for
 // at least 128 bits of randomness, which is 32 hex characters or 22 in base64url;
@@ -547,7 +547,7 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	// while the page's own clay.extractData() sees the injected id.
 	if mode.active() {
 		f.Unlock()
-		s.writeExtracted(w, data, mode)
+		s.writeRead(w, r, data, mode)
 		return
 	}
 
@@ -673,6 +673,11 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Vary", "Clay-Source")
+	if s.isHiddenRecalcRequest(r) {
+		// Defense in depth for the hidden browser: blocks WebSockets to other local ports,
+		// Worker/SharedWorker scripts, and cross-origin .localhost subframes at the engine level.
+		w.Header().Set("Content-Security-Policy", "connect-src 'self'; worker-src 'none'; child-src 'self' about: data: blob:; frame-src 'self' about: data: blob:; form-action 'self'")
+	}
 	w.Write(served)
 }
 
@@ -727,6 +732,11 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 		// folder's read access, so refuse and say where it opens instead.
 		if browserNavigation(r) {
 			writeOutsideFolder(w)
+			return
+		}
+		// Never raise a native OS permission dialog for a hidden-browser recalculation load.
+		if s.isHiddenRecalcRequest(r) {
+			write403(w)
 			return
 		}
 		// A page nobody vouches for never widens what it can read: the read is
@@ -829,7 +839,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 			http.Error(w, "Not Found", http.StatusNotFound)
 			return
 		}
-		s.writeExtracted(w, raw, mode)
+		s.writeRead(w, r, raw, mode)
 		return
 	}
 
@@ -1117,6 +1127,26 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A hidden-browser save must carry an exact single If-Match so it can never overwrite a
+	// concurrent edit last-write-wins if host discovery was still in flight.
+	fromHidden := s.isHiddenRecalcRequest(r)
+	if fromHidden {
+		ifMatch, sent := listHeader(r, "If-Match")
+		trimmed := strings.TrimSpace(ifMatch)
+		if !sent || trimmed == "" || trimmed == "*" || strings.Contains(trimmed, ",") {
+			uploadError(w, http.StatusPreconditionRequired, "if-match-required", "hidden recalculation save requires an exact If-Match header")
+			return
+		}
+	}
+
+	// A data write waiting for a page to recalculate the version this save was built on hears
+	// how the save ended, after every lock below is released (calculator documents plan, M2).
+	if ifMatch, sent := listHeader(r, "If-Match"); sent && s.recalcs.waitingOn(f.AbsPath, ifMatch) {
+		status := &saveStatus{ResponseWriter: w}
+		w = status
+		defer func() { s.recalcs.saveFinished(f.AbsPath, ifMatch, status.landed(), fromHidden) }()
+	}
+
 	r.Body = http.MaxBytesReader(w, r.Body, maxSaveSize)
 
 	body, err := io.ReadAll(r.Body)
@@ -1174,6 +1204,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		blockeditorWrite: strings.TrimSpace(r.Header.Get("Blockeditor-Write")),
 		formatCapability: pageadmission.FormatCapability(r.Header.Get(pageadmission.PageFormatHeader)),
 		provenance:       provenanceFromRequest(r),
+		fromHidden:       fromHidden,
 	})
 	if refusal != nil {
 		refusal.answer(w)
@@ -1230,6 +1261,7 @@ type documentSave struct {
 	blockeditorWrite string
 	formatCapability int
 	provenance       dataguard.Provenance
+	fromHidden       bool
 
 	// program is a save with no tab behind it. The lane is the same and stricter
 	// in three places: the bytes it replaces are kept as a version first and the
@@ -1353,6 +1385,17 @@ func (s *Server) saveDocument(f *session.File, in documentSave) (documentSaved, 
 			s.Logger.Printf("Refusing a conditional save of %s: the stored bytes have moved on", f.RelPath)
 			return refuse(&StaleError{Etag: currentEtag, SaveID: receipt}, func(w http.ResponseWriter) {
 				conflictRefusal(w, f.Name, currentEtag, changedBy, receipt)
+			})
+		}
+	}
+	if !in.program && readErr == nil {
+		if status, code := orderedSaveRefusal(in.ifMatch, in.ifMatchSent, current, body); status != 0 {
+			currentEtag := specwire.Etag(current)
+			f.Unlock()
+			s.Logger.Printf("Refusing a save of %s: %s", f.RelPath, code)
+			return refuse(errors.New(code), func(w http.ResponseWriter) {
+				w.Header().Set("ETag", currentEtag)
+				uploadError(w, status, code, orderedReloadMessage)
 			})
 		}
 	}
@@ -1526,6 +1569,10 @@ func (s *Server) saveDocument(f *session.File, in documentSave) (documentSaved, 
 			// No tab relays this save to the others, so tabs that are editing the
 			// document hear of it on the live lane, as they do of a data API write.
 			s.coord.publishExternalChange(f, f.Name+" was updated through the data API", forBrowser(body, key, s.documentURLFor(f)), specwire.Etag(body))
+		} else if in.fromHidden {
+			// Publish every hidden-browser save to open edit tabs too (even if the wait timed out
+			// moments earlier), so an open edit tab never hits a 412 conflict on its next save.
+			s.coord.publishExternalChange(f, f.Name+" was recalculated", forBrowser(body, key, s.documentURLFor(f)), specwire.Etag(body))
 		} else {
 			s.broadcastDiskHTML(f, body, key)
 		}

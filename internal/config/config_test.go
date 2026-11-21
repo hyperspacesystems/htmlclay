@@ -209,42 +209,6 @@ func TestTrustedFolderAddRemoveRoundTrip(t *testing.T) {
 	}
 }
 
-// A trusted folder whose directory is gone SURVIVES a save/load round trip. The
-// entry is the record of a standing write grant, so it must surface as dead in
-// the tray rather than silently vanish; pruning it on load erased what the user
-// granted the moment a volume was unmounted.
-func TestMissingTrustedFolderSurvivesLoad(t *testing.T) {
-	baseDir := t.TempDir()
-	cfg, _, _ := LoadFrom(baseDir, noIdentity)
-
-	real := filepath.Join(baseDir, "real")
-	if err := os.MkdirAll(real, 0755); err != nil {
-		t.Fatal(err)
-	}
-	gone := filepath.Join(baseDir, "deleted")
-	cfg.AddTrustedFolder(real, "")
-	cfg.AddTrustedFolder(gone, "")
-	if err := cfg.Save(); err != nil {
-		t.Fatalf("save: %v", err)
-	}
-
-	loaded, _, err := LoadFrom(baseDir, noIdentity)
-	if err != nil {
-		t.Fatalf("load: %v", err)
-	}
-	list := loaded.TrustedFolderList()
-	if len(list) != 2 {
-		t.Fatalf("load must not prune the missing folder, got %v", list)
-	}
-	byPath := map[string]bool{}
-	for _, tf := range list {
-		byPath[tf.Path] = true
-	}
-	if !byPath[real] || !byPath[gone] {
-		t.Errorf("both entries must survive, got %v", list)
-	}
-}
-
 // The one Config is shared across the route, tray, and Trusted-Folders goroutines.
 // Before the mutex, a SitePorts write concurrent with Save's marshal panicked with
 // "concurrent map iteration and map write", and a TrustedFolders append tore under

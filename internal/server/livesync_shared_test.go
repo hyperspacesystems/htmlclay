@@ -483,13 +483,13 @@ func TestSharedStreamEvictionRemovesEveryRecord(t *testing.T) {
 		return srv.hub.subscriberCount(a.AbsPath) == 1 && srv.hub.subscriberCount(b.AbsPath) == 1
 	})
 
-	// The reader stops after a few frames. Frames large enough to fill the socket
-	// behind it leave the writer stuck and the queue full, and the next offer
-	// evicts. How many frames that takes depends on the kernel's socket buffers,
-	// so the wait keeps offering frames until the subscription is gone.
+	// The reader stops after a few frames. Frames that fill the socket behind it
+	// leave the writer stuck and the queue full, and the next offer evicts. How
+	// much the socket absorbs differs from machine to machine, so the frames keep
+	// coming until the eviction lands rather than stopping at a fixed count.
 	big := "<html>" + strings.Repeat("x", 16*1024) + "</html>"
 	waitFor(t, 10*time.Second, "every record to be removed", func() bool {
-		if srv.hub.subscriberCount(a.AbsPath) != 0 {
+		if srv.hub.subscriberCount(a.AbsPath) > 0 {
 			for i := 0; i < sharedQueueSize; i++ {
 				srv.hub.relay(a.AbsPath, big, "c1", "", nil)
 			}

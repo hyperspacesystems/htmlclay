@@ -447,10 +447,10 @@ func TestKeptRevealCallsThePlatformOpener(t *testing.T) {
 
 func TestKeptPageEscapesADocumentName(t *testing.T) {
 	a := newKeptApp(t)
-	// A name with a slash in it can never be a file on disk, so this history
-	// stands for a document bound to a path this machine does not hold. The page
-	// shows the path with this system's separator.
-	name := filepath.FromSlash("<b>x</b>.html")
+	// The file is never written, so this history stands for a document bound
+	// to a path this machine does not hold. The name has no slash, which
+	// Windows would read as a folder separator.
+	name := "<b>x<i>.html"
 	path := filepath.Join(t.TempDir(), name)
 	body := []byte("<html>bold</html>")
 	key := versions.Key(path, nil)

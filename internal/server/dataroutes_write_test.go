@@ -7,12 +7,14 @@ import (
 	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/dataapi"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/specwire"
 )
@@ -838,4 +840,427 @@ func TestDataWriteSheetPatchClearWithoutAVersionIsRefused(t *testing.T) {
 		t.Errorf("code = %q, want read-required (body %s)", body.Code, w.Body.String())
 	}
 	assertUnchanged(t, path, sheetGuardSource)
+}
+
+// A rules write whose rules read a value a page's script computes answers that the value is old:
+// HTML Clay runs no page script, so after {"qty":"7"} the invoice's total still reads 10. The
+// answer says so in a last __meta__ key and a Clay-Stale header, and the file it wrote carries one
+// stale mark so a later read can say the same. A page with a script that computes nothing the
+// rules read answers plain data and gets no mark.
+func TestDataWriteSaysWhenComputedValuesAreOld(t *testing.T) {
+	const why = "This write updated inputs and left computed values unchanged. Write with ?recalculate=wait for fresh values, or open the document."
+	srv, _, _ := setupHandlerTest(t)
+	invoice := writeHome(t, srv, "invoice.htmlclay", `<!DOCTYPE html><html><body>
+<main sap state="qty=1 price=10"><input id="qty" bind="qty" value="1"><b id="total" text="qty*price">10</b></main>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"qty":"#qty@value","total":"#total"}</script>
+</body></html>`)
+	notes := writeHome(t, srv, "notes.htmlclay", `<!DOCTYPE html><html><body>
+<h1>Notes</h1><div editor-ui><button id="b">Bold</button></div>
+<script>document.getElementById("b").textContent = "B"</script>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"title":"h1"}</script>
+</body></html>`)
+	ownMeta := writeHome(t, srv, "own-meta.htmlclay", `<!DOCTYPE html><html><body>
+<output id="sum">3</output><p id="m">mine</p>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"sum":"#sum","__meta__":"#m"}</script>
+</body></html>`)
+	totals := writeHome(t, srv, "totals.htmlclay", `<!DOCTYPE html><html><body>
+<output>12</output>
+<script type="application/json" data-rules-name="api" data-rules-version="1">"output[]"</script>
+</body></html>`)
+	for _, p := range []string{invoice, notes, ownMeta, totals} {
+		if _, err := srv.sessions.Register(p, session.ViaOsOpen); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	w := postDataWrite(t, srv, "/_/api/invoice.htmlclay", `{"qty":"7"}`, nil)
+	stale := `{"qty":"7","total":"10","__meta__":{"stale":true,"why":"` + why + `"}}`
+	if w.Code != 200 || w.Body.String() != stale {
+		t.Fatalf("invoice: %d %s\nwant %s", w.Code, w.Body.String(), stale)
+	}
+	if got := w.Header().Get("Clay-Stale"); got != "true" {
+		t.Errorf("invoice: Clay-Stale = %q, want true", got)
+	}
+
+	// The agent posts the whole answer back: __meta__ is not a rule, so it is dropped, not refused,
+	// and never reaches the file.
+	w = postDataWrite(t, srv, "/_/api/invoice.htmlclay", `{"qty":"8","total":"10","__meta__":{"stale":true,"why":"x"}}`, nil)
+	if w.Code != 200 {
+		t.Fatalf("posting the answer back: %d %s", w.Code, w.Body.String())
+	}
+	if doc := readDoc(t, invoice); strings.Contains(doc, "__meta__") || strings.Count(doc, string(dataapi.StaleMark)) != 1 || strings.Contains(doc, `"stale"`) || !strings.Contains(doc, `value="8"`) {
+		t.Errorf("invoice file after the post back:\n%s", doc)
+	}
+
+	w = postDataWrite(t, srv, "/_/api/notes.htmlclay", `{"title":"Monday"}`, nil)
+	if w.Code != 200 || w.Body.String() != `{"title":"Monday"}` || w.Header().Get("Clay-Stale") != "" {
+		t.Errorf("notes: %d %q Clay-Stale=%q, want plain data", w.Code, w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+	if strings.Contains(readDoc(t, notes), "clay-stale") {
+		t.Errorf("notes: a plain document got the stale mark")
+	}
+
+	// A query string write keeps its old answer: no key, no header.
+	w = postDataWrite(t, srv, "/_/api/invoice.htmlclay?data="+url.QueryEscape(`{"qty":"#qty@value","total":"#total"}`), `{"qty":"9"}`, nil)
+	if w.Code != 200 || strings.Contains(w.Body.String(), "__meta__") || w.Header().Get("Clay-Stale") != "" {
+		t.Errorf("?data= write: %d %s Clay-Stale=%q, want the old answer", w.Code, w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+
+	// Rules that define __meta__ own the key: the document's value stays, and the header alone
+	// says the values are old.
+	w = postDataWrite(t, srv, "/_/api/own-meta.htmlclay", `{"__meta__":"theirs"}`, nil)
+	if w.Code != 200 || w.Body.String() != `{"sum":"3","__meta__":"theirs"}` || w.Header().Get("Clay-Stale") != "true" {
+		t.Errorf("rules-defined __meta__: %d %s Clay-Stale=%q", w.Code, w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+
+	// ?meta asks for the whole key, stale or not.
+	w = postDataWrite(t, srv, "/_/api/notes.htmlclay?meta", `{"title":"Tuesday"}`, nil)
+	etag := specwire.Etag([]byte(readDoc(t, notes)))
+	full := `{"title":"Tuesday","__meta__":{"etag":` + mustJSON(t, etag) + `,"changed":true,"recalculated":false,"stale":false}}`
+	if w.Body.String() != full {
+		t.Errorf("notes ?meta: %s\nwant %s", w.Body.String(), full)
+	}
+
+	// A stale ?meta answer carries everything, why last.
+	w = postDataWrite(t, srv, "/_/api/invoice.htmlclay?meta", `{"qty":"7"}`, nil)
+	etag = specwire.Etag([]byte(readDoc(t, invoice)))
+	full = `{"qty":"7","total":"10","__meta__":{"etag":` + mustJSON(t, etag) + `,"changed":true,"recalculated":false,"stale":true,"why":"` + why + `"}}`
+	if w.Body.String() != full {
+		t.Errorf("invoice ?meta: %s\nwant %s", w.Body.String(), full)
+	}
+
+	// Data that is a list has no place for the key: the header alone says the values are old.
+	w = postDataWrite(t, srv, "/_/api/totals.htmlclay", `["6"]`, map[string]string{"If-Match": specwire.Etag([]byte(readDoc(t, totals)))})
+	if w.Code != 200 || strings.Contains(w.Body.String(), "__meta__") || w.Header().Get("Clay-Stale") != "true" {
+		t.Errorf("list data: %d %s Clay-Stale=%q, want the header only", w.Code, w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+}
+
+// A read of a file a stale write left the mark in answers that its computed values are old, and
+// keeps saying so with ?meta too. The bug it guards is a read that hides old computed values: an
+// agent that writes and then reads would get 10 with nothing saying 10 is not 7*10.
+func TestDataReadSaysWhenComputedValuesAreOld(t *testing.T) {
+	const why = "No page has recalculated since the last data write, so computed values may be old. Open the document to refresh them."
+	srv, _, _ := setupHandlerTest(t)
+	invoice := writeHome(t, srv, "invoice.htmlclay", `<!DOCTYPE html><html><body>
+<main sap state="qty=1 price=10"><input id="qty" bind="qty" value="1"><b id="total" text="qty*price">10</b></main>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"qty":"#qty@value","total":"#total"}</script>
+</body></html>`)
+	if _, err := srv.sessions.Register(invoice, session.ViaOsOpen); err != nil {
+		t.Fatal(err)
+	}
+
+	if w := postDataWrite(t, srv, "/_/api/invoice.htmlclay", `{"qty":"7"}`, nil); w.Code != 200 {
+		t.Fatalf("write: %d %s", w.Code, w.Body.String())
+	}
+
+	w := getAPI(t, srv, "invoice.htmlclay")
+	want := `{"qty":"7","total":"10","__meta__":{"stale":true,"why":"` + why + `"}}`
+	if w.Code != 200 || w.Body.String() != want {
+		t.Fatalf("read: %d %s\nwant %s", w.Code, w.Body.String(), want)
+	}
+	if got := w.Header().Get("Clay-Stale"); got != "true" {
+		t.Errorf("read: Clay-Stale = %q, want true", got)
+	}
+
+	w = getAPIQuery(t, srv, "invoice.htmlclay", "meta")
+	if w.Code != 200 {
+		t.Fatalf("read ?meta: %d %s", w.Code, w.Body.String())
+	}
+	var full struct {
+		Qty  string `json:"qty"`
+		Meta struct {
+			Etag  string `json:"etag"`
+			Stale bool   `json:"stale"`
+			Why   string `json:"why"`
+		} `json:"__meta__"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &full); err != nil {
+		t.Fatalf("read ?meta body is not JSON: %v: %s", err, w.Body.String())
+	}
+	if full.Meta.Etag != w.Header().Get("ETag") || full.Meta.Etag == "" {
+		t.Errorf("read ?meta: etag = %q, want the ETag header %q", full.Meta.Etag, w.Header().Get("ETag"))
+	}
+	if !full.Meta.Stale || full.Meta.Why != why {
+		t.Errorf("read ?meta: %s, want stale true and the why sentence", w.Body.String())
+	}
+
+	// The first page that recalculates and saves strips the mark, so the file alone decides.
+	fresh := strings.Replace(readDoc(t, invoice), string(dataapi.StaleMark), "", 1)
+	if err := os.WriteFile(invoice, []byte(fresh), 0644); err != nil {
+		t.Fatal(err)
+	}
+	w = getAPI(t, srv, "invoice.htmlclay")
+	if w.Body.String() != `{"qty":"7","total":"10"}` || w.Header().Get("Clay-Stale") != "" {
+		t.Errorf("read after the mark is gone: %s Clay-Stale=%q, want plain data", w.Body.String(), w.Header().Get("Clay-Stale"))
+	}
+}
+
+// A data write with ?recalculate=wait names itself in the disk frame it sends open edit tabs and
+// waits for one to save a version built on it, so an agent gets fresh computed values from one
+// call instead of the bytes the write itself produced.
+func TestDataWriteWaitsForAnOpenPage(t *testing.T) {
+	const doc = `<!DOCTYPE html><html><body>
+<main sap state="qty=1 price=10"><input id="qty" bind="qty" value="1"><b id="total" text="qty*price">10</b></main>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"qty":"#qty@value","total":"#total"}</script>
+</body></html>`
+
+	// setup writes and registers the invoice document, exactly as the M1a test does.
+	setup := func(t *testing.T) (*Server, *session.File) {
+		t.Helper()
+		srv, _, _ := setupHandlerTest(t)
+		invoice := writeHome(t, srv, "invoice.htmlclay", doc)
+		if _, err := srv.sessions.Register(invoice, session.ViaOsOpen); err != nil {
+			t.Fatal(err)
+		}
+		f, ok := srv.sessions.LookupByPath(invoice)
+		if !ok {
+			t.Fatal("the invoice is not registered")
+		}
+		return srv, f
+	}
+
+	// startWait runs the waited write in the background and returns the id and etag it named
+	// itself with in its disk frame, plus the channel its answer arrives on.
+	startWait := func(t *testing.T, srv *Server, sub *subscriber, target string) (string, string, chan *httptest.ResponseRecorder) {
+		t.Helper()
+		done := make(chan *httptest.ResponseRecorder, 1)
+		go func() { done <- postDataWrite(t, srv, target, `{"qty":"7"}`, nil) }()
+		data, _ := waitFrame(t, sub, 2*time.Second)["data"].(map[string]interface{})
+		recalc, _ := data["recalculate"].(map[string]interface{})
+		if recalc == nil {
+			t.Fatalf("the disk frame carries no recalculate field: %v", data)
+		}
+		id, _ := recalc["id"].(string)
+		etag, _ := recalc["etag"].(string)
+		if id == "" || etag == "" {
+			t.Fatalf("recalculate = %v, want an id and an etag", recalc)
+		}
+		return id, etag, done
+	}
+
+	recv := func(t *testing.T, done chan *httptest.ResponseRecorder) *httptest.ResponseRecorder {
+		t.Helper()
+		select {
+		case w := <-done:
+			return w
+		case <-time.After(10 * time.Second):
+			t.Fatal("the waited write did not answer within 10s")
+			return nil
+		}
+	}
+
+	metaOf := func(t *testing.T, w *httptest.ResponseRecorder) map[string]interface{} {
+		t.Helper()
+		var body map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatalf("answer is not JSON: %v (%q)", err, w.Body.String())
+		}
+		meta, _ := body["__meta__"].(map[string]interface{})
+		if meta == nil {
+			t.Fatalf("answer carries no __meta__: %q", w.Body.String())
+		}
+		return meta
+	}
+
+	t.Run("a save built on the written version answers fresh values", func(t *testing.T) {
+		// Bug: the save does not wake the write, or the write answers the bytes it wrote.
+		srv, f := setup(t)
+		sub := newSubscriber(f.AbsPath, laneLive)
+		srv.hub.add(sub)
+
+		_, etag, done := startWait(t, srv, sub, "/_/api/invoice.htmlclay?recalculate=wait")
+
+		recalculated := strings.Replace(readDoc(t, f.AbsPath), string(dataapi.StaleMark), "", 1)
+		recalculated = strings.Replace(recalculated, ">10</b>", ">70</b>", 1)
+		if w := saveThroughMux(t, srv, f, recalculated, etag); w.Code != 200 {
+			t.Fatalf("the recalculating save = %d, want 200: %s", w.Code, w.Body.String())
+		}
+
+		w := recv(t, done)
+		if w.Code != 200 || w.Body.String() != `{"qty":"7","total":"70"}` {
+			t.Errorf("the waited write = %d %s, want the saved file's fresh values", w.Code, w.Body.String())
+		}
+		if got := w.Header().Get("Clay-Stale"); got != "" {
+			t.Errorf("Clay-Stale = %q, want no header on a recalculated answer", got)
+		}
+	})
+
+	t.Run("with ?meta the answer says it recalculated", func(t *testing.T) {
+		// Bug: a waited write never claims it recalculated, or stamps the answer with the wrong etag.
+		srv, f := setup(t)
+		sub := newSubscriber(f.AbsPath, laneLive)
+		srv.hub.add(sub)
+
+		_, etag, done := startWait(t, srv, sub, "/_/api/invoice.htmlclay?recalculate=wait&meta")
+
+		recalculated := strings.Replace(readDoc(t, f.AbsPath), string(dataapi.StaleMark), "", 1)
+		recalculated = strings.Replace(recalculated, ">10</b>", ">70</b>", 1)
+		if w := saveThroughMux(t, srv, f, recalculated, etag); w.Code != 200 {
+			t.Fatalf("the recalculating save = %d, want 200: %s", w.Code, w.Body.String())
+		}
+
+		w := recv(t, done)
+		meta := metaOf(t, w)
+		if meta["recalculated"] != true || meta["changed"] != true || meta["stale"] != false {
+			t.Errorf("__meta__ = %v, want recalculated and changed true and stale false", meta)
+		}
+		if meta["etag"] != w.Header().Get("ETag") || meta["etag"] == "" {
+			t.Errorf("__meta__ etag = %v, want the ETag header %q", meta["etag"], w.Header().Get("ETag"))
+		}
+		if code, ok := meta["code"]; ok {
+			t.Errorf("__meta__ carries code %v on a recalculated answer", code)
+		}
+	})
+
+	t.Run("no open tab answers no-browser at once", func(t *testing.T) {
+		// Bug: the write waits for tabs that do not exist.
+		srv, _ := setup(t)
+		start := time.Now()
+		w := postDataWrite(t, srv, "/_/api/invoice.htmlclay?recalculate=wait", `{"qty":"7"}`, nil)
+		if took := time.Since(start); took > 2*time.Second {
+			t.Errorf("the write took %v: it waited out the tabs' time with no tab open", took)
+		}
+		want := `{"qty":"7","total":"10","__meta__":{"stale":true,"code":"no-browser","why":"` + recalcWhy["no-browser"] + `"}}`
+		if w.Code != 200 || w.Body.String() != want {
+			t.Fatalf("the waited write = %d %s\nwant %s", w.Code, w.Body.String(), want)
+		}
+		if got := w.Header().Get("Clay-Stale"); got != "true" {
+			t.Errorf("Clay-Stale = %q, want true", got)
+		}
+	})
+
+	t.Run("a tab that says busy ends the wait", func(t *testing.T) {
+		// Bug: a busy tab leaves the agent waiting the full limit.
+		srv, f := setup(t)
+		sub := newSubscriber(f.AbsPath, laneLive)
+		srv.hub.add(sub)
+
+		id, etag, done := startWait(t, srv, sub, "/_/api/invoice.htmlclay?recalculate=wait")
+
+		note := func(t *testing.T) *httptest.ResponseRecorder {
+			t.Helper()
+			req := httptest.NewRequest("POST", "/_/recalc/"+f.Token,
+				strings.NewReader(`{"id":"`+id+`","etag":"`+etag+`","status":"busy"}`))
+			req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
+			sameOriginHeaders(req)
+			w := httptest.NewRecorder()
+			srv.httpServer.Handler.ServeHTTP(w, req)
+			return w
+		}
+		noted := time.Now()
+		if w := note(t); w.Code != http.StatusNoContent {
+			t.Fatalf("the busy note = %d, want 204: %s", w.Code, w.Body.String())
+		}
+		w := recv(t, done)
+		if took := time.Since(noted); took > 2*time.Second {
+			t.Errorf("the write answered %v after the busy note: it waited out the tabs' time", took)
+		}
+		if meta := metaOf(t, w); meta["code"] != "no-browser" {
+			t.Errorf("__meta__ code = %v, want no-browser (body %s)", meta["code"], w.Body.String())
+		}
+
+		if w := note(t); w.Code != http.StatusNotFound {
+			t.Errorf("the second busy note = %d, want 404: the wait is gone", w.Code)
+		}
+	})
+
+	t.Run("a save that lands just after a busy note still answers fresh values", func(t *testing.T) {
+		// Bug: a browser's tabs share one subscription, so one tab's busy note ended the wait while a
+		// sibling tab (or the busy tab's own merge save) was still saving fresh values.
+		srv, f := setup(t)
+		sub := newSubscriber(f.AbsPath, laneLive)
+		srv.hub.add(sub)
+
+		id, etag, done := startWait(t, srv, sub, "/_/api/invoice.htmlclay?recalculate=wait")
+
+		req := httptest.NewRequest("POST", "/_/recalc/"+f.Token,
+			strings.NewReader(`{"id":"`+id+`","etag":"`+etag+`","status":"busy"}`))
+		req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
+		sameOriginHeaders(req)
+		nw := httptest.NewRecorder()
+		srv.httpServer.Handler.ServeHTTP(nw, req)
+		if nw.Code != http.StatusNoContent {
+			t.Fatalf("the busy note = %d, want 204: %s", nw.Code, nw.Body.String())
+		}
+		recalculated := strings.Replace(readDoc(t, f.AbsPath), string(dataapi.StaleMark), "", 1)
+		recalculated = strings.Replace(recalculated, ">10</b>", ">70</b>", 1)
+		if w := saveThroughMux(t, srv, f, recalculated, etag); w.Code != 200 {
+			t.Fatalf("the sibling's save = %d, want 200: %s", w.Code, w.Body.String())
+		}
+
+		w := recv(t, done)
+		if w.Code != 200 || w.Body.String() != `{"qty":"7","total":"70"}` {
+			t.Errorf("the waited write = %d %s, want the sibling's fresh values", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("a refused save answers save-refused", func(t *testing.T) {
+		// Bug: a refused save leaves the agent waiting, or reports fresh values that never landed.
+		srv, f := setup(t)
+		sub := newSubscriber(f.AbsPath, laneLive)
+		srv.hub.add(sub)
+
+		_, etag, done := startWait(t, srv, sub, "/_/api/invoice.htmlclay?recalculate=wait")
+
+		changed := strings.Replace(readDoc(t, f.AbsPath), `value="7"`, `value="9"`, 1)
+		if err := os.WriteFile(f.AbsPath, []byte(changed), 0644); err != nil {
+			t.Fatal(err)
+		}
+		recalculated := strings.Replace(changed, string(dataapi.StaleMark), "", 1)
+		recalculated = strings.Replace(recalculated, ">10</b>", ">70</b>", 1)
+		refusedAt := time.Now()
+		if w := saveThroughMux(t, srv, f, recalculated, etag); w.Code != http.StatusPreconditionFailed {
+			t.Fatalf("the stale save = %d, want 412: %s", w.Code, w.Body.String())
+		}
+
+		w := recv(t, done)
+		if took := time.Since(refusedAt); took > 2*time.Second {
+			t.Errorf("the write answered %v after the refusal: it waited out the tabs' time", took)
+		}
+		if meta := metaOf(t, w); meta["code"] != "save-refused" {
+			t.Errorf("__meta__ code = %v, want save-refused (body %s)", meta["code"], w.Body.String())
+		}
+	})
+
+	t.Run("a silent tab runs into the timeout", func(t *testing.T) {
+		// Bug: the limit is ignored.
+		srv, f := setup(t)
+		sub := newSubscriber(f.AbsPath, laneLive)
+		srv.hub.add(sub)
+
+		_, _, done := startWait(t, srv, sub, "/_/api/invoice.htmlclay?recalculate=wait&timeout=600")
+		w := recv(t, done)
+		if meta := metaOf(t, w); meta["code"] != "timeout" {
+			t.Errorf("__meta__ code = %v, want timeout (body %s)", meta["code"], w.Body.String())
+		}
+	})
+
+	t.Run("malformed parameters are refused before the file is touched", func(t *testing.T) {
+		// Bug: a typo writes without waiting.
+		srv, f := setup(t)
+		before := readDoc(t, f.AbsPath)
+		for _, target := range []string{
+			"/_/api/invoice.htmlclay?recalculate=now",
+			"/_/api/invoice.htmlclay?recalculate=wait&timeout=100",
+			"/_/api/invoice.htmlclay?recalculate=wait&timeout=abc",
+			"/_/api/invoice.htmlclay?data=%7B%22q%22%3A%22%23qty%40value%22%7D&recalculate=wait",
+		} {
+			if w := postDataWrite(t, srv, target, `{"qty":"7"}`, nil); w.Code != http.StatusBadRequest {
+				t.Errorf("%s = %d, want 400: %s", target, w.Code, w.Body.String())
+			}
+			if after := readDoc(t, f.AbsPath); after != before {
+				t.Fatalf("%s wrote the file:\n%s", target, after)
+			}
+		}
+	})
+}
+
+func mustJSON(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
 }

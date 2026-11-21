@@ -157,7 +157,28 @@ func readGrid(src string) (*gridState, error) {
 	return grid, nil
 }
 
-func applyRange(grid *gridState, op map[string]any, edited map[int]Row) (int, error) {
+// needsDraw is whether a written cell shows a number in a format the host cannot draw. Text ("@")
+// and automatic ("") show a number as the host writes it. The cell's format comes first, then the
+// column's (sapjs patchGrid).
+func needsDraw(cell *Cell, col *Col) bool {
+	format := (*string)(nil)
+	if cell != nil {
+		format = cell.Fmt
+	}
+	if format == nil && col != nil {
+		format = col.Fmt
+	}
+	return cell != nil && cell.N && format != nil && *format != "" && *format != "@"
+}
+
+func colAt(grid *gridState, index int) *Col {
+	if index < len(grid.cols) {
+		return &grid.cols[index]
+	}
+	return nil
+}
+
+func applyRange(grid *gridState, op map[string]any, edited map[int]Row, draw *bool) (int, error) {
 	rows, err := checkGrid(op["values"], "values")
 	if err != nil {
 		return 0, err
@@ -207,6 +228,9 @@ func applyRange(grid *gridState, op map[string]any, edited map[int]Row) (int, er
 				return 0, err
 			}
 			row.Cells[col] = cell
+			if needsDraw(cell, colAt(grid, col)) {
+				*draw = true
+			}
 			cells++
 		}
 		edited[index] = row
@@ -249,16 +273,20 @@ type edit struct {
 // names appended rows; nil means random ids ("r" plus 6 base-36 characters from crypto/rand).
 // Errors: *QueryRefused (bad_patch, bad_value, bad_range, outside_sheet, covered_cell) or *Miss
 // for a table that is not canonical. Nothing is returned on error.
-func PatchGrid(src string, ops []any, newID func() string) (string, Changed, error) {
+//
+// A host cannot recalculate or draw a format, so stale reports, and the table start tag gets, the
+// `stale` mark when the table holds a formula after the patch or the patch wrote a number into a
+// cell or column with a format; a mark already there stays (sapjs 53183ee).
+func PatchGrid(src string, ops []any, newID func() string) (string, Changed, bool, error) {
 	if len(ops) == 0 {
-		return "", Changed{}, &QueryRefused{Code: "bad_patch", Message: "patch is a non-empty list of operations"}
+		return "", Changed{}, false, &QueryRefused{Code: "bad_patch", Message: "patch is a non-empty list of operations"}
 	}
 	if newID == nil {
 		newID = randomID
 	}
 	grid, err := readGrid(src)
 	if err != nil {
-		return "", Changed{}, err
+		return "", Changed{}, false, err
 	}
 	ids := make(map[string]bool, len(grid.rows)+len(grid.cols))
 	for _, got := range grid.rows {
@@ -270,6 +298,7 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, err
 	edited := map[int]Row{}
 	appended := []appendedRow{}
 	cells := 0
+	draw := false
 
 	for _, raw := range ops {
 		op, _ := raw.(map[string]any)
@@ -277,9 +306,9 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, err
 		_, rangeIsText := rangeValue.(string)
 		_, hasAppend := op["append"]
 		if op != nil && rangeIsText && !hasAppend {
-			count, err := applyRange(grid, op, edited)
+			count, err := applyRange(grid, op, edited, &draw)
 			if err != nil {
-				return "", Changed{}, err
+				return "", Changed{}, false, err
 			}
 			cells += count
 			continue
@@ -287,12 +316,12 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, err
 		if op != nil && hasAppend && !hasRange {
 			values, err := checkGrid(op["append"], "append")
 			if err != nil {
-				return "", Changed{}, err
+				return "", Changed{}, false, err
 			}
 			for _, raw := range values {
 				rowValues := raw.([]any)
 				if len(rowValues) > len(grid.cols) {
-					return "", Changed{}, &QueryRefused{Code: "outside_sheet", Message: "an appended row has more values than the sheet has columns"}
+					return "", Changed{}, false, &QueryRefused{Code: "outside_sheet", Message: "an appended row has more values than the sheet has columns"}
 				}
 				id := newID()
 				for ids[id] {
@@ -301,31 +330,48 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, err
 				ids[id] = true
 				pos, err := KeyBetween(lastKey(grid, appended), nil)
 				if err != nil {
-					return "", Changed{}, err
+					return "", Changed{}, false, err
 				}
 				row := Row{ID: id, Pos: pos}
 				for _, value := range rowValues {
 					cell, err := setCell(nil, value)
 					if err != nil {
-						return "", Changed{}, err
+						return "", Changed{}, false, err
 					}
 					row.Cells = append(row.Cells, cell)
 					if cell != nil {
 						cells++
+					}
+					if needsDraw(cell, colAt(grid, len(row.Cells)-1)) {
+						draw = true
 					}
 				}
 				appended = append(appended, appendedRow{row: row})
 			}
 			continue
 		}
-		return "", Changed{}, &QueryRefused{Code: "bad_patch", Message: "an operation is { range, values } or { append }"}
+		return "", Changed{}, false, &QueryRefused{Code: "bad_patch", Message: "an operation is { range, values } or { append }"}
+	}
+	stale := grid.table.Stale || draw
+	for index := 0; index < len(grid.rows) && !stale; index++ {
+		row, ok := edited[index]
+		if !ok {
+			row = grid.rows[index].row
+		}
+		stale = holdsFormula(row)
+	}
+	for _, added := range appended {
+		stale = stale || holdsFormula(added.row)
 	}
 	edits := []edit{}
 	start := "<table grid"
 	if grid.table.FreezeCols != 0 {
 		start += fmt.Sprintf(" freeze-cols=\"%d\"", grid.table.FreezeCols)
 	}
-	start += " stale>"
+	if stale {
+		start += " stale"
+	}
+	start += ">"
 	edits = append(edits, edit{start: 0, end: grid.startEnd, bytes: start})
 	indexes := make([]int, 0, len(edited))
 	for index := range edited {
@@ -335,7 +381,7 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, err
 	for _, index := range indexes {
 		html, err := RowHTML(edited[index])
 		if err != nil {
-			return "", Changed{}, err
+			return "", Changed{}, false, err
 		}
 		edits = append(edits, edit{start: grid.rows[index].start, end: grid.rows[index].end, bytes: html})
 	}
@@ -359,7 +405,7 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, err
 			for _, got := range rest[:room] {
 				html, err := RowHTML(got.row)
 				if err != nil {
-					return "", Changed{}, err
+					return "", Changed{}, false, err
 				}
 				bytes.WriteString(html + "\n")
 			}
@@ -374,7 +420,7 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, err
 			for _, got := range group {
 				html, err := RowHTML(got.row)
 				if err != nil {
-					return "", Changed{}, err
+					return "", Changed{}, false, err
 				}
 				bytes.WriteString(html + "\n")
 			}
@@ -394,5 +440,14 @@ func PatchGrid(src string, ops []any, newID func() string) (string, Changed, err
 		from = got.end
 	}
 	out.WriteString(src[from:])
-	return out.String(), Changed{Cells: cells, Rows: len(appended)}, nil
+	return out.String(), Changed{Cells: cells, Rows: len(appended)}, stale, nil
+}
+
+func holdsFormula(row Row) bool {
+	for _, cell := range row.Cells {
+		if cell != nil && cell.F != nil {
+			return true
+		}
+	}
+	return false
 }

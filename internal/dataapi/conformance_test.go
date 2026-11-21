@@ -125,16 +125,20 @@ func loadConformance(t testing.TB) *conformanceCorpus {
 		corpus.cases[c.Name] = &conformanceCase{meta: meta, files: files}
 		corpus.order = append(corpus.order, c.Name)
 	}
-	loadSyncedSheetDeletes(t, corpus)
+	// The packed host corpus predates tab deletion and calculator documents M1a (hyper-html-api
+	// fb2157c). Use the synced reference cases until it catches up.
+	loadSyncedCases(t, corpus, filepath.Join("sheet", "sheet-*delete*.meta"), "patch", 15)
+	loadSyncedCases(t, corpus, filepath.Join("sheet", "sheet-patch-*.meta"), "patch", 32)
+	loadSyncedCases(t, corpus, filepath.Join("cases", "write-stale-*.meta"), "write", 18)
+	loadSyncedCases(t, corpus, filepath.Join("cases", "write-meta-*.meta"), "write", 2)
 	return corpus
 }
 
-// The packed host corpus predates tab deletion. Use the synced reference cases until it catches up.
-func loadSyncedSheetDeletes(t testing.TB, corpus *conformanceCorpus) {
+func loadSyncedCases(t testing.TB, corpus *conformanceCorpus, pattern, face string, atLeast int) {
 	t.Helper()
-	paths, err := filepath.Glob(filepath.Join(corpusDir, "sheet", "sheet-*delete*.meta"))
-	if err != nil || len(paths) < 15 {
-		t.Fatalf("synced sheet deletion corpus: %d cases, want at least 15 (%v)", len(paths), err)
+	paths, err := filepath.Glob(filepath.Join(corpusDir, pattern))
+	if err != nil || len(paths) < atLeast {
+		t.Fatalf("synced corpus %s: %d cases, want at least %d (%v)", pattern, len(paths), atLeast, err)
 	}
 	for _, path := range paths {
 		name := strings.TrimSuffix(filepath.Base(path), ".meta")
@@ -142,7 +146,7 @@ func loadSyncedSheetDeletes(t testing.TB, corpus *conformanceCorpus) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		meta := caseMeta{skip: map[string]string{}}
+		meta := caseMeta{token: "api", skip: map[string]string{}}
 		for _, line := range strings.Split(string(raw), "\n") {
 			key, value, _ := strings.Cut(line, ":")
 			value = strings.TrimSpace(value)
@@ -160,8 +164,8 @@ func loadSyncedSheetDeletes(t testing.TB, corpus *conformanceCorpus) {
 				t.Fatalf("%s: unsupported metadata %q", path, key)
 			}
 		}
-		if meta.face != "patch" || meta.token == "" || meta.tier == "" || meta.expect == "" {
-			t.Fatalf("%s: incomplete patch metadata", path)
+		if meta.face != face || meta.tier == "" || meta.expect == "" {
+			t.Fatalf("%s: incomplete %s metadata", path, face)
 		}
 		artifacts, err := filepath.Glob(strings.TrimSuffix(path, ".meta") + ".*")
 		if err != nil {

@@ -43,6 +43,10 @@ func (s *Server) documentActions(token string) *documentActions {
 // actionDocument resolves the token and refuses a trusted write that has been
 // revoked, which is the same admission every other route on a document applies.
 func (s *Server) actionDocument(w http.ResponseWriter, r *http.Request) (*session.File, bool) {
+	if s.isHiddenRecalcRequest(r) {
+		write403(w)
+		return nil, false
+	}
 	f, ok := s.lookupSession(w, r)
 	if !ok {
 		return nil, false

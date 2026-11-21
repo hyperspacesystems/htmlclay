@@ -1,0 +1,1401 @@
+{
+  "version": 1,
+  "now": 1000000000000,
+  "cases": [
+    {
+      "name": "first answer on a form is typed",
+      "op": "updateTyped",
+      "prev": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            }
+          ]
+        }
+      },
+      "typed": [],
+      "now": 1000000000000,
+      "want": [
+        {
+          "path": "api.questions[key:q1].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "numeric item id names the path",
+      "op": "updateTyped",
+      "prev": {
+        "items": [
+          {
+            "id": 1,
+            "note": ""
+          }
+        ]
+      },
+      "inc": {
+        "items": [
+          {
+            "id": 1,
+            "note": "bought milk"
+          }
+        ]
+      },
+      "typed": [],
+      "now": 1000000000000,
+      "want": [
+        {
+          "path": "items[id:1].note",
+          "digest": "\"bought milk\"",
+          "preview": "bought milk",
+          "at": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "string item id names the path",
+      "op": "updateTyped",
+      "prev": {
+        "items": [
+          {
+            "id": "a1",
+            "note": ""
+          }
+        ]
+      },
+      "inc": {
+        "items": [
+          {
+            "id": "a1",
+            "note": "first note"
+          }
+        ]
+      },
+      "typed": [],
+      "now": 1000000000000,
+      "want": [
+        {
+          "path": "items[id:a1].note",
+          "digest": "\"first note\"",
+          "preview": "first note",
+          "at": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "id-less list records star paths",
+      "op": "updateTyped",
+      "prev": {},
+      "inc": {
+        "tags": [
+          "draft",
+          "second"
+        ]
+      },
+      "typed": [],
+      "now": 1000000000000,
+      "want": [
+        {
+          "path": "tags[*]",
+          "digest": "\"draft\"",
+          "preview": "draft",
+          "at": 1000000000000
+        },
+        {
+          "path": "tags[*]",
+          "digest": "\"second\"",
+          "preview": "second",
+          "at": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "the identity field is not typed",
+      "op": "updateTyped",
+      "prev": {
+        "items": [
+          {
+            "id": "a1",
+            "title": "first",
+            "done": ""
+          }
+        ]
+      },
+      "inc": {
+        "items": [
+          {
+            "id": "a1",
+            "title": "first",
+            "done": "yes"
+          }
+        ]
+      },
+      "typed": [],
+      "now": 1000000000000,
+      "want": [
+        {
+          "path": "items[id:a1].done",
+          "digest": "\"yes\"",
+          "preview": "yes",
+          "at": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "replacing a name records what it was",
+      "op": "updateTyped",
+      "prev": {
+        "api": {
+          "name": "Bob"
+        }
+      },
+      "inc": {
+        "api": {
+          "name": "Alice"
+        }
+      },
+      "typed": [],
+      "now": 1000000000000,
+      "want": [
+        {
+          "path": "api.name",
+          "digest": "\"Alice\"",
+          "preview": "Alice",
+          "at": 1000000000000,
+          "prev": "\"Bob\""
+        }
+      ]
+    },
+    {
+      "name": "a sheet records nothing",
+      "op": "updateTyped",
+      "prev": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "a",
+                "b",
+                "c"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  3,
+                  3,
+                  "ae1e997d",
+                  "e50c289b",
+                  "7"
+                ]
+              ]
+            }
+          ]
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      },
+      "inc": {
+        "api": {
+          "sheets": [
+            {
+              "id": "s1",
+              "name": "Budget",
+              "cols": [
+                "a",
+                "b",
+                "c"
+              ],
+              "rows": [
+                [
+                  "r1",
+                  3,
+                  3,
+                  "3c172a42",
+                  "e50c289b",
+                  "7"
+                ]
+              ]
+            }
+          ]
+        },
+        "@codecs": {
+          "api": {
+            "sheets": "sheet"
+          }
+        },
+        "@form": "stored"
+      },
+      "typed": [],
+      "now": 1000000000000,
+      "want": []
+    },
+    {
+      "name": "guard bookkeeping is not typed",
+      "op": "updateTyped",
+      "prev": null,
+      "inc": {
+        "api": {
+          "note": "typed now"
+        },
+        "@form": "stored",
+        "@codecs": {}
+      },
+      "typed": [],
+      "now": 1000000000000,
+      "want": [
+        {
+          "path": "api.note",
+          "digest": "\"typed now\"",
+          "preview": "typed now",
+          "at": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "the incident: a tool replaces a blank question and keeps the answers",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q3",
+              "answer": "Green"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q3",
+              "answer": "Green"
+            },
+            {
+              "key": "q5",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.questions[key:q1].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 999999700000
+        },
+        {
+          "path": "api.questions[key:q2].answer",
+          "digest": "\"Red\"",
+          "preview": "Red",
+          "at": 999999700000
+        },
+        {
+          "path": "api.questions[key:q3].answer",
+          "digest": "\"Green\"",
+          "preview": "Green",
+          "at": 999999700000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": false,
+        "reason": "",
+        "gone": []
+      }
+    },
+    {
+      "name": "a recent answer removed",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q3",
+              "answer": "Green"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.questions[key:q1].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 999999700000
+        },
+        {
+          "path": "api.questions[key:q2].answer",
+          "digest": "\"Red\"",
+          "preview": "Red",
+          "at": 999999700000
+        },
+        {
+          "path": "api.questions[key:q3].answer",
+          "digest": "\"Green\"",
+          "preview": "Green",
+          "at": 999999700000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "recent",
+        "gone": [
+          {
+            "path": "api.questions[key:q3].answer",
+            "digest": "\"Green\"",
+            "preview": "Green",
+            "at": 999999700000
+          }
+        ]
+      }
+    },
+    {
+      "name": "the same removal eight minutes later",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q3",
+              "answer": "Green"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.questions[key:q1].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 999999520000
+        },
+        {
+          "path": "api.questions[key:q2].answer",
+          "digest": "\"Red\"",
+          "preview": "Red",
+          "at": 999999520000
+        },
+        {
+          "path": "api.questions[key:q3].answer",
+          "digest": "\"Green\"",
+          "preview": "Green",
+          "at": 999999520000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "recent",
+        "gone": [
+          {
+            "path": "api.questions[key:q3].answer",
+            "digest": "\"Green\"",
+            "preview": "Green",
+            "at": 999999520000
+          }
+        ]
+      }
+    },
+    {
+      "name": "the same removal eleven minutes later",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q3",
+              "answer": "Green"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.questions[key:q1].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 999999340000
+        },
+        {
+          "path": "api.questions[key:q2].answer",
+          "digest": "\"Red\"",
+          "preview": "Red",
+          "at": 999999340000
+        },
+        {
+          "path": "api.questions[key:q3].answer",
+          "digest": "\"Green\"",
+          "preview": "Green",
+          "at": 999999340000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": false,
+        "reason": "",
+        "gone": [
+          {
+            "path": "api.questions[key:q3].answer",
+            "digest": "\"Green\"",
+            "preview": "Green",
+            "at": 999999340000
+          }
+        ]
+      }
+    },
+    {
+      "name": "the same removal two hours later",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q3",
+              "answer": "Green"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q4",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.questions[key:q1].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 999992800000
+        },
+        {
+          "path": "api.questions[key:q2].answer",
+          "digest": "\"Red\"",
+          "preview": "Red",
+          "at": 999992800000
+        },
+        {
+          "path": "api.questions[key:q3].answer",
+          "digest": "\"Green\"",
+          "preview": "Green",
+          "at": 999992800000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": false,
+        "reason": "",
+        "gone": [
+          {
+            "path": "api.questions[key:q3].answer",
+            "digest": "\"Green\"",
+            "preview": "Green",
+            "at": 999992800000
+          }
+        ]
+      }
+    },
+    {
+      "name": "every typed answer removed",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            },
+            {
+              "key": "q2",
+              "answer": "Red"
+            },
+            {
+              "key": "q3",
+              "answer": "Green"
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "questions": []
+        }
+      },
+      "typed": [
+        {
+          "path": "api.questions[key:q1].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 999992800000
+        },
+        {
+          "path": "api.questions[key:q2].answer",
+          "digest": "\"Red\"",
+          "preview": "Red",
+          "at": 999992800000
+        },
+        {
+          "path": "api.questions[key:q3].answer",
+          "digest": "\"Green\"",
+          "preview": "Green",
+          "at": 999992800000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "all-typed",
+        "gone": [
+          {
+            "path": "api.questions[key:q1].answer",
+            "digest": "\"Blue\"",
+            "preview": "Blue",
+            "at": 999992800000
+          },
+          {
+            "path": "api.questions[key:q2].answer",
+            "digest": "\"Red\"",
+            "preview": "Red",
+            "at": 999992800000
+          },
+          {
+            "path": "api.questions[key:q3].answer",
+            "digest": "\"Green\"",
+            "preview": "Green",
+            "at": 999992800000
+          }
+        ]
+      }
+    },
+    {
+      "name": "ninety percent of the values emptied",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "note": "kept",
+          "a": "one",
+          "b": "two",
+          "c": "three",
+          "d": "four",
+          "e": "five",
+          "f": "six",
+          "g": "seven",
+          "h": "eight",
+          "i": "nine",
+          "j": "ten"
+        }
+      },
+      "inc": {
+        "api": {
+          "note": "kept"
+        }
+      },
+      "typed": [
+        {
+          "path": "api.note",
+          "digest": "\"kept\"",
+          "preview": "kept",
+          "at": 999992800000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "emptied",
+        "gone": []
+      }
+    },
+    {
+      "name": "an unreadable document with data",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "note": "saved"
+        }
+      },
+      "inc": null,
+      "typed": [
+        {
+          "path": "api.note",
+          "digest": "\"saved\"",
+          "preview": "saved",
+          "at": 999999940000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "unreadable",
+        "gone": []
+      }
+    },
+    {
+      "name": "an unreadable document with no data",
+      "op": "judgeOutside",
+      "base": {
+        "@form": "stored"
+      },
+      "inc": null,
+      "typed": [],
+      "now": 1000000000000,
+      "want": {
+        "fire": false,
+        "reason": "",
+        "gone": []
+      }
+    },
+    {
+      "name": "an id-less todo removed after a later toggle",
+      "op": "judgeOutside",
+      "base": {
+        "todos": [
+          {
+            "text": "buy milk",
+            "done": true
+          }
+        ]
+      },
+      "inc": {
+        "todos": []
+      },
+      "typed": [
+        {
+          "path": "todos[*].text",
+          "digest": "\"buy milk\"",
+          "preview": "buy milk",
+          "at": 999998800000
+        },
+        {
+          "path": "todos[*].done",
+          "digest": "true",
+          "preview": "true",
+          "at": 999999940000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "recent",
+        "gone": [
+          {
+            "path": "todos[*].text",
+            "digest": "\"buy milk\"",
+            "preview": "buy milk",
+            "at": 999998800000
+          },
+          {
+            "path": "todos[*].done",
+            "digest": "true",
+            "preview": "true",
+            "at": 999999940000
+          }
+        ]
+      }
+    },
+    {
+      "name": "the writer puts back exactly what the person replaced",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "name": "Alice"
+        }
+      },
+      "inc": {
+        "api": {
+          "name": "Bob"
+        }
+      },
+      "typed": [
+        {
+          "path": "api.name",
+          "digest": "\"Alice\"",
+          "preview": "Alice",
+          "at": 999999700000,
+          "prev": "\"Bob\""
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "recent",
+        "gone": [
+          {
+            "path": "api.name",
+            "digest": "\"Alice\"",
+            "preview": "Alice",
+            "at": 999999700000,
+            "prev": "\"Bob\""
+          }
+        ]
+      }
+    },
+    {
+      "name": "the writer puts a third value in the same place",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "name": "Alice"
+        }
+      },
+      "inc": {
+        "api": {
+          "name": "Carol"
+        }
+      },
+      "typed": [
+        {
+          "path": "api.name",
+          "digest": "\"Alice\"",
+          "preview": "Alice",
+          "at": 999999700000,
+          "prev": "\"Bob\""
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": false,
+        "reason": "",
+        "gone": []
+      }
+    },
+    {
+      "name": "ids added to an answered list with a blank question",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "questions": [
+            {
+              "answer": "Blue"
+            },
+            {
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "questions": [
+            {
+              "id": "a",
+              "answer": "Blue"
+            },
+            {
+              "id": "b",
+              "answer": ""
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.questions[*].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 999992800000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": false,
+        "reason": "",
+        "gone": []
+      }
+    },
+    {
+      "name": "an add-only write",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "typed"
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "typed"
+            },
+            {
+              "id": 2,
+              "note": "added"
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.items[id:1].note",
+          "digest": "\"typed\"",
+          "preview": "typed",
+          "at": 999999940000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": false,
+        "reason": "",
+        "gone": []
+      }
+    },
+    {
+      "name": "a numeric-id list loses an answered item",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "one"
+            },
+            {
+              "id": 2,
+              "note": "two"
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "one"
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.items[id:1].note",
+          "digest": "\"one\"",
+          "preview": "one",
+          "at": 999999700000
+        },
+        {
+          "path": "api.items[id:2].note",
+          "digest": "\"two\"",
+          "preview": "two",
+          "at": 999999700000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "recent",
+        "gone": [
+          {
+            "path": "api.items[id:2].note",
+            "digest": "\"two\"",
+            "preview": "two",
+            "at": 999999700000
+          }
+        ]
+      }
+    },
+    {
+      "name": "one value of the same save kept, the other removed",
+      "op": "judgeOutside",
+      "base": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "one"
+            },
+            {
+              "id": 2,
+              "note": "two"
+            }
+          ]
+        }
+      },
+      "inc": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "one"
+            },
+            {
+              "id": 3,
+              "note": "three"
+            }
+          ]
+        }
+      },
+      "typed": [
+        {
+          "path": "api.items[id:1].note",
+          "digest": "\"one\"",
+          "preview": "one",
+          "at": 999999940000
+        },
+        {
+          "path": "api.items[id:2].note",
+          "digest": "\"two\"",
+          "preview": "two",
+          "at": 999999940000
+        }
+      ],
+      "now": 1000000000000,
+      "want": {
+        "fire": true,
+        "reason": "recent",
+        "gone": [
+          {
+            "path": "api.items[id:2].note",
+            "digest": "\"two\"",
+            "preview": "two",
+            "at": 999999940000
+          }
+        ]
+      }
+    },
+    {
+      "name": "a re-keyed string is kept",
+      "op": "dropGone",
+      "typed": [
+        {
+          "path": "api.items[*].title",
+          "digest": "\"one\"",
+          "preview": "one",
+          "at": 999999940000
+        }
+      ],
+      "inc": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "title": "one"
+            }
+          ]
+        }
+      },
+      "want": [
+        {
+          "path": "api.items[*].title",
+          "digest": "\"one\"",
+          "preview": "one",
+          "at": 999999940000
+        }
+      ]
+    },
+    {
+      "name": "a re-keyed boolean is dropped",
+      "op": "dropGone",
+      "typed": [
+        {
+          "path": "api.items[*].done",
+          "digest": "false",
+          "preview": "false",
+          "at": 999999940000
+        }
+      ],
+      "inc": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "done": false
+            }
+          ]
+        }
+      },
+      "want": []
+    },
+    {
+      "name": "a removed value is dropped",
+      "op": "dropGone",
+      "typed": [
+        {
+          "path": "api.items[id:2].note",
+          "digest": "\"two\"",
+          "preview": "two",
+          "at": 999999940000
+        }
+      ],
+      "inc": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "one"
+            }
+          ]
+        }
+      },
+      "want": []
+    },
+    {
+      "name": "a keyed list value is restored beside the writer's other change",
+      "op": "putBack",
+      "current": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "",
+              "other": "changed"
+            }
+          ]
+        }
+      },
+      "gone": [
+        {
+          "path": "api.items[id:1].note",
+          "digest": "\"typed note\"",
+          "preview": "typed note",
+          "at": 999999940000
+        }
+      ],
+      "recoverable": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "typed note",
+              "other": "before"
+            }
+          ]
+        }
+      },
+      "want": {
+        "merged": {
+          "api": {
+            "items": [
+              {
+                "id": 1,
+                "note": "typed note",
+                "other": "changed"
+              }
+            ]
+          }
+        },
+        "placed": 1
+      }
+    },
+    {
+      "name": "a scalar list value is appended",
+      "op": "putBack",
+      "current": {
+        "api": {
+          "tags": [
+            "other"
+          ]
+        }
+      },
+      "gone": [
+        {
+          "path": "api.tags[*]",
+          "digest": "\"typed tag\"",
+          "preview": "typed tag",
+          "at": 999999940000
+        }
+      ],
+      "recoverable": {
+        "api": {
+          "tags": [
+            "typed tag"
+          ]
+        }
+      },
+      "want": {
+        "merged": {
+          "api": {
+            "tags": [
+              "other",
+              "typed tag"
+            ]
+          }
+        },
+        "placed": 1
+      }
+    },
+    {
+      "name": "a value whose item is gone cannot be placed",
+      "op": "putBack",
+      "current": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "x"
+            }
+          ]
+        }
+      },
+      "gone": [
+        {
+          "path": "api.items[id:2].note",
+          "digest": "\"gone\"",
+          "preview": "gone",
+          "at": 999999940000
+        }
+      ],
+      "recoverable": {
+        "api": {
+          "items": [
+            {
+              "id": 1,
+              "note": "x"
+            }
+          ]
+        }
+      },
+      "want": {
+        "merged": {
+          "api": {
+            "items": [
+              {
+                "id": 1,
+                "note": "x"
+              }
+            ]
+          }
+        },
+        "placed": 0
+      }
+    },
+    {
+      "name": "a form answer and a note",
+      "op": "typedLeaves",
+      "island": {
+        "api": {
+          "questions": [
+            {
+              "key": "q1",
+              "answer": "Blue"
+            }
+          ],
+          "note": "hi"
+        },
+        "@form": "stored"
+      },
+      "want": [
+        {
+          "path": "api.questions[key:q1].answer",
+          "digest": "\"Blue\"",
+          "preview": "Blue",
+          "at": 0
+        },
+        {
+          "path": "api.note",
+          "digest": "\"hi\"",
+          "preview": "hi",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "name": "a numeric id and a blank value",
+      "op": "typedLeaves",
+      "island": {
+        "items": [
+          {
+            "id": 1,
+            "note": "n",
+            "empty": ""
+          }
+        ]
+      },
+      "want": [
+        {
+          "path": "items[id:1].note",
+          "digest": "\"n\"",
+          "preview": "n",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "name": "an id-less scalar list",
+      "op": "typedLeaves",
+      "island": {
+        "tags": [
+          "a",
+          "b"
+        ]
+      },
+      "want": [
+        {
+          "path": "tags[*]",
+          "digest": "\"a\"",
+          "preview": "a",
+          "at": 0
+        },
+        {
+          "path": "tags[*]",
+          "digest": "\"b\"",
+          "preview": "b",
+          "at": 0
+        }
+      ]
+    }
+  ]
+}

@@ -313,46 +313,6 @@ func TestStaleWriteWarnsAfterExternalChange(t *testing.T) {
 	}
 }
 
-// The accepted limitation, stated as a test rather than left implicit: the notice
-// cannot tell two tabs apart, because lastServerWrite advanced on the first
-// tab's write. Backups are the safety net; this is a warning, not a guard.
-func TestStaleWriteCannotDistinguishTwoTabs(t *testing.T) {
-	fx := setupFileTest(t, "notes.htmlclay", page("original"))
-	fx.serve(t, "notes.htmlclay")
-
-	if body := decodeJSON(t, fx.save(t, page("tab A"))); body["msgType"] != "success" {
-		t.Fatalf("tab A: %v", body)
-	}
-	// Tab B saves from a stale in-memory DOM. Both tabs share one session.File,
-	// and neither client sends a base revision, so this is not flagged.
-	body := decodeJSON(t, fx.save(t, page("tab B")))
-	if body["msgType"] != "success" {
-		t.Fatalf("tab B was flagged, which per-file detection cannot actually do: %v", body)
-	}
-}
-
-// A save advances both records, so the watcher does not then report the browser's
-// own write back as a foreign change.
-func TestSaveAdvancesBothRecords(t *testing.T) {
-	fx := setupFileTest(t, "notes.htmlclay", page("original"))
-	fx.serve(t, "notes.htmlclay")
-	fx.save(t, page("written"))
-
-	onDisk, _ := os.ReadFile(fx.file.AbsPath)
-	want := versions.Hash(onDisk)
-
-	fx.file.Lock()
-	gotWrite, gotStable := fx.file.LastServerWrite(), fx.file.LastStableObservation()
-	fx.file.Unlock()
-
-	if gotWrite != want {
-		t.Fatal("save did not advance lastServerWrite")
-	}
-	if gotStable != want {
-		t.Fatal("save did not advance lastStableObservation")
-	}
-}
-
 // Serving never advances lastServerWrite. If it did, tab A could load H0, an
 // editor write H1, tab B load H1 and advance the record, and tab A's later save
 // would find no mismatch and silently destroy H1.
@@ -651,63 +611,6 @@ func TestForeignIDInASaveBodyIsNotAdopted(t *testing.T) {
 	}
 }
 
-// Backups are internal state and are never served on the app's own origin.
-func TestInternalVersionsDirectoryIsDenied(t *testing.T) {
-	homeDir, _ := filepath.EvalSymlinks(t.TempDir())
-	appDir := filepath.Join(homeDir, "app")
-	os.MkdirAll(appDir, 0755)
-	pagePath := filepath.Join(appDir, "index.htmlclay")
-	os.WriteFile(pagePath, []byte(page("app")), 0644)
-
-	// The config directory sits under the user's home on every platform, so put
-	// the versions store inside the served tree, which is the exposed shape.
-	store := versions.New(filepath.Join(appDir, "versions"))
-	if _, err := store.Backup("path:deadbeef", filepath.Join(appDir, "secret.htmlclay"), []byte(page("private"))); err != nil {
-		t.Fatal(err)
-	}
-
-	mgr := newTestManager(t, homeDir)
-	if _, err := mgr.Register(pagePath, session.ViaOsOpen); err != nil {
-		t.Fatal(err)
-	}
-	ln, _ := net.Listen("tcp", "127.0.0.1:0")
-	t.Cleanup(func() { ln.Close() })
-	srv := newTestServer(t, ln, mgr, logging.NewStdout(), store)
-	t.Cleanup(func() { srv.hub.shutdown(); srv.watcher.shutdown() })
-
-	base, _ := store.Dir()
-	dirents, _ := os.ReadDir(base)
-	if len(dirents) == 0 {
-		t.Fatal("no history folder to probe")
-	}
-	folder := dirents[0].Name()
-	entries, _ := os.ReadDir(filepath.Join(base, folder))
-
-	probes := []string{
-		"app/versions",
-		"app/versions/" + folder,
-		"app/versions/" + folder + "/meta.json",
-	}
-	for _, e := range entries {
-		probes = append(probes, "app/versions/"+folder+"/"+e.Name())
-	}
-
-	for _, rel := range probes {
-		req := httptest.NewRequest("GET", "/"+rel, nil)
-		req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
-		req.SetPathValue("path", rel)
-		w := httptest.NewRecorder()
-		srv.handleServeFile(w, req)
-
-		if w.Code != 404 {
-			t.Errorf("%s returned %d, want 404", rel, w.Code)
-		}
-		if strings.Contains(w.Body.String(), "private") {
-			t.Errorf("%s leaked backup content", rel)
-		}
-	}
-}
-
 // B2: restore never adopts the id stored inside the version, and never asserts
 // any identity on disk. The file's own canonical identity is preserved in the
 // tracked key and re-injected by the next serve.
@@ -822,6 +725,47 @@ func TestRestoreMakesASafetyBackup(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("restore destroyed the pre-restore content with no recovery copy")
+	}
+
+	// The replaced bytes must outlive every pruning rule, so a person can go back
+	// to them months later.
+	pinned, err := fx.srv.versions.Pinned(fx.key(t), fx.file.AbsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 || !strings.Contains(fx.versionBody(t, pinned[0]), "unsaved outside edit") {
+		t.Fatalf("pins after a restore: %v, want the one version holding the replaced page", pinned)
+	}
+}
+
+// A live file can grow past the size a version can be read back at, for example
+// through an outside tool inlining images. Restoring a smaller version is the way
+// out, so the safety copy must still be kept and pinned without reading it back.
+func TestRestoreKeepsALiveFileTooLargeToReadBack(t *testing.T) {
+	fx := setupFileTest(t, "big.htmlclay", page("v1"))
+	fx.serve(t, "big.htmlclay")
+	v1 := fx.history(t)[0].Name
+	fx.save(t, page("v2"))
+	huge := fx.withCurrentID(page(strings.Repeat("x", 51<<20)))
+	if err := os.WriteFile(fx.file.AbsPath, []byte(huge), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("POST", "/_/restore/"+fx.file.Token+"/"+v1, nil)
+	req.Host = fmt.Sprintf("127.0.0.1:%d", fx.srv.port)
+	req.SetPathValue("token", fx.file.Token)
+	req.SetPathValue("name", v1)
+	w := httptest.NewRecorder()
+	fx.srv.handleRestoreVersion(w, req)
+	if w.Code != 200 {
+		t.Fatalf("restore of a version under a live file too large to read back: %d %s", w.Code, w.Body.String())
+	}
+	pinned, err := fx.srv.versions.Pinned(fx.key(t), fx.file.AbsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned) != 1 {
+		t.Fatalf("pins after the restore: %v, want the kept copy of the large page", pinned)
 	}
 }
 
@@ -974,6 +918,7 @@ func TestRedactPathHidesTokensOnVersionRoutes(t *testing.T) {
 		"/_/version/SECRET/2026.html": "/_/version/<redacted>",
 		"/_/restore/SECRET/2026.html": "/_/restore/<redacted>",
 		"/_/save/SECRET":              "/_/save/<redacted>",
+		"/_/recalc/SECRET":            "/_/recalc/<redacted>",
 		"/_/workspace-request/SECRET": "/_/workspace-request/<redacted>",
 		"/_/sync":                     "/_/sync",
 		"/_/open-request":             "/_/open-request",

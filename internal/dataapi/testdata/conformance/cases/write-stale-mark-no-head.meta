@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: No head tag: the mark goes in a head of its own before <body>.

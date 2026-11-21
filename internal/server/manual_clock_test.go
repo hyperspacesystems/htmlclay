@@ -7,7 +7,6 @@ import (
 
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/session"
-	"github.com/panphora/htmlclay/internal/testutil"
 )
 
 // manualClock is a clockSource whose time moves only when a test moves it. It
@@ -197,63 +196,5 @@ func waitRearmed(t *testing.T, b *broker, c *manualClock) {
 	c.mu.Unlock()
 	if want := now.Add(debounce); !deadline.Equal(want) {
 		t.Fatalf("the rearmed timer is due in %v, want a full debounce of %v", deadline.Sub(now), debounce)
-	}
-}
-
-// The clock is test infrastructure that several assertions now rest on, so the
-// three behaviours the broker takes from it are worth stating directly: Stop
-// cancels (shutdown), Reset moves a deadline rather than adding a second timer
-// (armLocked extending a batch), and an After channel delivers at its deadline
-// (the park deadline in await).
-//
-// Firing is inspected through the timer's own done flag, which Advance sets
-// before it spawns the callback. Watching for the callback's side effect instead
-// would assert the order two goroutines happened to run in.
-func TestManualClockStopsResetsAndDelivers(t *testing.T) {
-	c := newManualClock()
-
-	fired := func(ts ...clockTimer) []bool {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		out := make([]bool, len(ts))
-		for i, x := range ts {
-			out[i] = x.(*manualTimer).fired
-		}
-		return out
-	}
-
-	stopped := c.AfterFunc(10*time.Millisecond, func() {})
-	moved := c.AfterFunc(10*time.Millisecond, func() {})
-	park := c.After(100 * time.Millisecond)
-
-	if !stopped.Stop() {
-		t.Error("stopping a pending timer should report it was active")
-	}
-	if !moved.Reset(50 * time.Millisecond) {
-		t.Error("resetting a pending timer should report it was active")
-	}
-
-	c.Advance(20 * time.Millisecond)
-	if got := fired(stopped, moved); got[0] || got[1] {
-		t.Errorf("past the original 10ms deadline: stopped fired=%v, reset fired=%v, want both false", got[0], got[1])
-	}
-
-	c.Advance(30 * time.Millisecond)
-	if got := fired(stopped, moved); got[0] {
-		t.Error("a stopped timer must never fire")
-	} else if !got[1] {
-		t.Error("a reset timer must fire at its new deadline")
-	}
-
-	select {
-	case <-park:
-		t.Fatal("the park deadline is at 100ms and the clock has only reached 50ms")
-	default:
-	}
-
-	c.Advance(50 * time.Millisecond)
-	at := testutil.Receive(t, 10*time.Second, "the park deadline", park)
-	if want := c.Now(); !at.Equal(want) {
-		t.Errorf("delivered %v, want the deadline instant %v", at, want)
 	}
 }

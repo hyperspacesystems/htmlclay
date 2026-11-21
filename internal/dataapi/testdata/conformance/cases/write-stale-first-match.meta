@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A rule without [*] reads its first match only; a later match holding an <output> is not read, so stale is false.

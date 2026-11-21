@@ -94,12 +94,18 @@ func checkWriteResult(t *testing.T, name string, meta caseMeta, result *WriteRes
 	if !ok {
 		t.Fatalf("%s has no .write.json", name)
 	}
+	// A case packed before hyper-html-api recorded stale has no stale key; the reference answers
+	// false for every one of them.
 	var want struct {
 		Changed bool `json:"changed"`
 		Spliced bool `json:"spliced"`
+		Stale   bool `json:"stale"`
 	}
 	if err := json.Unmarshal([]byte(rawWrite), &want); err != nil {
 		t.Fatalf("%s.write.json: %v", name, err)
+	}
+	if result.Stale != want.Stale {
+		t.Errorf("stale = %v, want %v", result.Stale, want.Stale)
 	}
 	if result.Changed != want.Changed {
 		t.Errorf("changed = %v, want %v", result.Changed, want.Changed)
@@ -121,6 +127,7 @@ func checkWriteResult(t *testing.T, name string, meta caseMeta, result *WriteRes
 		t.Fatalf("reparse written output: %v", err)
 	}
 	var rules Value
+	version := "1"
 	if meta.face == "write-query" {
 		rawRules, ok := readCaseFile(t, name, ".rules")
 		if !ok {
@@ -138,9 +145,9 @@ func checkWriteResult(t *testing.T, name string, meta caseMeta, result *WriteRes
 		if found == nil {
 			t.Fatalf("written output has no rules tag for %q", meta.token)
 		}
-		rules = found.Rules
+		rules, version = found.Rules, found.Version
 	}
-	got, err := d.Extract(rules)
+	got, err := d.ExtractWith(rules, ExtractOptions{Version: version, Codecs: map[string]Codec{"sheet": SheetCodec}})
 	if err != nil {
 		t.Fatalf("Extract on written output: %v", err)
 	}

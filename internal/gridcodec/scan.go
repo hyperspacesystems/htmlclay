@@ -24,10 +24,11 @@ type Table struct {
 }
 
 type Col struct {
-	ID    string  `json:"id"`
-	Pos   string  `json:"pos"`
-	Fmt   *string `json:"fmt,omitempty"`
-	Width *int    `json:"width,omitempty"`
+	ID     string  `json:"id"`
+	Pos    string  `json:"pos"`
+	Fmt    *string `json:"fmt,omitempty"`
+	Hidden bool    `json:"hidden,omitempty"`
+	Width  *int    `json:"width,omitempty"`
 }
 
 // A nil *Cell in Row.Cells is a bare empty <td></td>.
@@ -48,6 +49,7 @@ type Row struct {
 	ID     string  `json:"id"`
 	Pos    string  `json:"pos"`
 	Frozen bool    `json:"frozen,omitempty"`
+	Hidden bool    `json:"hidden,omitempty"`
 	Style  *string `json:"style,omitempty"`
 	Cells  []*Cell `json:"cells"`
 }
@@ -220,6 +222,10 @@ func (s *scanner) readCol(i int) Col {
 		col.Fmt = strp(s.readAval(i + 6))
 		i = s.cursor
 	}
+	if s.flag(i, " hidden") {
+		col.Hidden = true
+		i += 7
+	}
 	if s.startsWith(` style="width:`, i) {
 		col.Width = intp(s.readCount(i+14, 0))
 		i = s.expect(s.cursor, `px"`)
@@ -307,6 +313,10 @@ func (s *scanner) readRow(i int, frozen bool) Row {
 	i = s.cursor
 	if frozen {
 		row.Frozen = true
+	}
+	if s.flag(i, " hidden") {
+		row.Hidden = true
+		i += 7
 	}
 	if s.startsWith(` style="`, i) {
 		row.Style = strp(s.readAval(i + 8))

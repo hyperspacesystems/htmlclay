@@ -22,6 +22,7 @@ import (
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/panel"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/recalc"
 	"github.com/panphora/htmlclay/internal/secret"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/server"
@@ -35,7 +36,7 @@ import (
 	"github.com/panphora/htmlclay/internal/versions"
 )
 
-var version = "1.16.3"
+var version = "1.16.4"
 
 //go:embed example.htmlclay
 var exampleHTML []byte
@@ -69,6 +70,7 @@ type appRuntime struct {
 	versions  *versions.Store
 	si        platform.SingleInstance
 	ls        *server.LiveSync
+	recalc    *recalc.Runner
 	home      string
 	configDir string
 	// agentToken is what a local program sends to the agent lane, read or made at
@@ -750,6 +752,7 @@ func (a *app) startRuntime() {
 	go a.rt.versions.PruneAll()
 
 	a.rt.ls = server.NewLiveSync(a.rt.versions, a.rt.logger)
+	a.rt.recalc = recalc.New(recalc.WithLogger(a.rt.logger.Printf))
 
 	// A grant must not cover htmlclay's own config tree in either direction: not
 	// a grant inside it, and not a grant of an ancestor that swallows it. The

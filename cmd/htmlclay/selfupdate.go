@@ -14,6 +14,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/served"
+	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/update"
 )
@@ -302,6 +303,9 @@ func (a *app) restartForUpdate(target string, install func(handoffPath string) e
 			return errUpdateCancelled
 		}
 	}
+	// Open sheets save what they hold now: drainWrites below closes the server to saves before
+	// shutdown's own flush runs.
+	a.rt.ls.FlushOpenSheets(server.FlushWait)
 	if !waitQuiet(&a.rt.writesInFlight, updateQuietFor, updateQuietLimit) {
 		return errUpdateBusy
 	}

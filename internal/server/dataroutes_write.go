@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -119,6 +120,12 @@ func (s *Server) handleDataAPIWrite(w http.ResponseWriter, r *http.Request) {
 		mode = dataMode{face: faceAPI}
 	}
 
+	wait, badWait := recalcRequestFor(r, mode)
+	if badWait != nil {
+		writeWriteError(w, http.StatusBadRequest, *badWait)
+		return
+	}
+
 	var f *session.File
 	if isBrowser {
 		// A page proves the target's token before anything else is resolved or revealed. It can
@@ -170,7 +177,7 @@ func (s *Server) handleDataAPIWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeApplied(w, r, f, data, mode, isBrowser)
+	s.writeApplied(w, r, f, data, mode, isBrowser, wait)
 }
 
 // resolveWriteTarget turns the request path into the absolute path a write would touch, or reports
@@ -234,7 +241,7 @@ func (s *Server) mayRegisterForWrite(absPath string) bool {
 
 // writeApplied answers POST /_/api with what writeData stored: the data read back
 // through the rules, or a sheet patch's own answer.
-func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session.File, data dataapi.Value, mode dataMode, isBrowser bool) {
+func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session.File, data dataapi.Value, mode dataMode, isBrowser bool, wait *recalcRequest) {
 	ifMatch, sent := listHeader(r, "If-Match")
 	written, refusal := s.writeData(f, dataWrite{
 		host:        r.Host,
@@ -243,13 +250,39 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		ifMatch:     ifMatch,
 		ifMatchSent: sent,
 		program:     !isBrowser,
+		wait:        wait,
 	})
 	if refusal != nil {
 		refusal.answer(w)
 		return
 	}
 	if written.patch == nil {
-		s.writeExtracted(w, written.stored, written.mode)
+		stored := written.stored
+		var outcome *recalcOutcome
+		if written.parked != nil {
+			docURL := (&url.URL{Scheme: "http", Host: s.Host(), Path: servedPathOf(f)}).String()
+			o := s.awaitRecalc(r.Context(), written.parked, docURL, wait.total)
+			if o.recalculated {
+				f.Lock()
+				fresh, freshErr := s.readRegisteredFile(f.AbsPath)
+				f.Unlock()
+				if freshErr == nil {
+					stored = fresh
+				} else {
+					o = recalcOutcome{code: "no-browser"}
+				}
+			}
+			outcome = &o
+		}
+		var meta *dataapi.Object
+		stale := written.mode.face == faceAPI && (written.stale || dataapi.HasStaleMark(stored))
+		if outcome != nil && outcome.recalculated {
+			stale = dataapi.HasStaleMark(stored)
+		}
+		if written.mode.face == faceAPI {
+			meta = writeAnswerMeta(r.URL.Query().Has("meta"), specwire.Etag(stored), written.changed, stale, outcome)
+		}
+		s.writeExtracted(w, stored, written.mode, meta, stale)
 		return
 	}
 
@@ -296,6 +329,9 @@ type dataWrite struct {
 	// keep refuses the write unless the bytes it replaces are a kept version,
 	// whatever the If-Match proves.
 	keep bool
+	// wait asks the write lane to park a recalculation waiter when computed values
+	// are left stale.
+	wait *recalcRequest
 	// owned is asked once the file's lock is held. False refuses the write: the
 	// document stopped being this host's to write while the write waited.
 	owned func() bool
@@ -310,11 +346,13 @@ type dataWritten struct {
 	// data back.
 	mode    dataMode
 	changed bool
+	stale   bool
 	// replaced names the kept version that holds the bytes the write replaced,
 	// when the write had to keep them.
 	replaced string
 	// patch is the engine's answer when a sheet patch was applied.
-	patch *dataapi.PatchResult
+	patch  *dataapi.PatchResult
+	parked *recalcWait
 }
 
 // dataRefusal is a data write the lane did not store. Nothing was written. answer
@@ -333,7 +371,6 @@ func (s *Server) writeData(f *session.File, in dataWrite) (dataWritten, *dataRef
 	refuseWith := func(err error, status int, body writeErrorBody) (dataWritten, *dataRefusal) {
 		return refuse(err, func(w http.ResponseWriter) { writeWriteError(w, status, body) })
 	}
-
 	f.Lock()
 	if in.owned != nil && !in.owned() {
 		f.Unlock()
@@ -366,6 +403,10 @@ func (s *Server) writeData(f *session.File, in dataWrite) (dataWritten, *dataRef
 	ops, patching := in.data, in.shape == dataPatch
 	if in.shape == dataPosted && in.mode.face == faceAPI {
 		if rules, _, found, rErr := dataapi.DocumentRules(source, "api"); rErr == nil && found && dataapi.IsPatchBody(in.data, rules) {
+			if in.wait != nil {
+				f.Unlock()
+				return refuseWith(errors.New("recalculate=wait does not take a sheet patch"), http.StatusBadRequest, writeErrorBody{Error: "Invalid recalculate", Message: "recalculate=wait does not take a sheet patch."})
+			}
 			ops, _ = in.data.(*dataapi.Object).Get("patch")
 			patching = true
 		}
@@ -375,6 +416,7 @@ func (s *Server) writeData(f *session.File, in dataWrite) (dataWritten, *dataRef
 	var html []byte
 	var patched *dataapi.PatchResult
 	spliced := false
+	stale := false
 	if patching {
 		res, err := dataapi.PatchDocument(source, ops, dataapi.PatchOptions{Token: "api"})
 		if err != nil {
@@ -431,9 +473,11 @@ func (s *Server) writeData(f *session.File, in dataWrite) (dataWritten, *dataRef
 			html = res.HTML
 		}
 		spliced = res.Spliced
+		stale = res.Stale
 	}
 
 	exact := dataguard.NamesExactVersion(in.ifMatch)
+	var parked *recalcWait
 	written, key, replaced := current, "", ""
 	if html != nil {
 		var err error
@@ -455,7 +499,17 @@ func (s *Server) writeData(f *session.File, in dataWrite) (dataWritten, *dataRef
 		// Announced as an external change, not a save: no tab relays this write to the others,
 		// so edit-mode tabs must hear it on the live lane, through the same dirty-region
 		// protection a text editor's write gets.
-		s.coord.publishExternalChange(f, f.Name+" was updated through the data API", forBrowser(written, key, s.documentURLFor(f)), specwire.Etag(written))
+		etag := specwire.Etag(written)
+		var frame *recalcFrame
+		if in.wait != nil && (stale || dataapi.HasStaleMark(written)) {
+			if p, parkErr := s.recalcs.park(f.AbsPath, etag); parkErr == nil {
+				parked, frame = p, &recalcFrame{ID: p.id, Etag: etag}
+			}
+		}
+		live := s.coord.publishExternalChangeRecalc(f, f.Name+" was updated through the data API", forBrowser(written, key, s.documentURLFor(f)), etag, frame)
+		if parked != nil {
+			parked.expectTabs(live)
+		}
 	}
 	f.Unlock()
 
@@ -472,7 +526,54 @@ func (s *Server) writeData(f *session.File, in dataWrite) (dataWritten, *dataRef
 	if !changed {
 		replaced = ""
 	}
-	return dataWritten{stored: written, mode: mode, changed: changed, replaced: replaced, patch: patched}, nil
+	return dataWritten{stored: written, mode: mode, changed: changed, stale: stale, replaced: replaced, patch: patched, parked: parked}, nil
+}
+
+// staleWhy is the sentence on a write that left computed values old and did not wait.
+const staleWhy = "This write updated inputs and left computed values unchanged. Write with ?recalculate=wait for fresh values, or open the document."
+
+// writeAnswerMeta is a rules write's __meta__ key: present while computed values are old, and
+// always when the caller asked with ?meta. outcome is a waited write's result, nil otherwise.
+func writeAnswerMeta(full bool, etag string, changed, stale bool, outcome *recalcOutcome) *dataapi.Object {
+	if !full && !stale {
+		return nil
+	}
+	meta := dataapi.NewObject()
+	if full {
+		meta.Set("etag", etag)
+		meta.Set("changed", changed)
+		meta.Set("recalculated", outcome != nil && outcome.recalculated)
+	}
+	meta.Set("stale", stale)
+	if stale {
+		why := staleWhy
+		if outcome != nil && !outcome.recalculated {
+			meta.Set("code", outcome.code)
+			why = recalcWhy[outcome.code]
+		}
+		meta.Set("why", why)
+	}
+	return meta
+}
+
+// staleReadWhy is the sentence on a read of a file that carries the stale mark.
+const staleReadWhy = "No page has recalculated since the last data write, so computed values may be old. Open the document to refresh them."
+
+// readAnswerMeta is a rules read's __meta__ key: present while the file carries the stale mark,
+// and always when the caller asked with ?meta.
+func readAnswerMeta(full bool, etag string, stale bool) *dataapi.Object {
+	if !full && !stale {
+		return nil
+	}
+	meta := dataapi.NewObject()
+	if full {
+		meta.Set("etag", etag)
+	}
+	meta.Set("stale", stale)
+	if stale {
+		meta.Set("why", staleReadWhy)
+	}
+	return meta
 }
 
 // refusedData is what a program is told of a read or a write the engine refused:
@@ -554,7 +655,7 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 		}}
 	}
 
-	written := []byte(pageadmission.StripPageTag(string(html)))
+	written := s.foldRecord(f, []byte(pageadmission.StripPageTag(string(html))), current)
 	if readFirst {
 		if D := readRequiredWrite(current, written); D != nil {
 			return nil, "", "", &dataEditError{status: http.StatusPreconditionRequired, body: writeErrorBody{

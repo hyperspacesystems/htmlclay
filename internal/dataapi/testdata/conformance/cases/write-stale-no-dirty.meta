@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A rule reads inside a clay="no-dirty" region, which a script writes: stale is true.

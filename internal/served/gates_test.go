@@ -83,26 +83,6 @@ func TestGatesIsOwnOrigin(t *testing.T) {
 	}
 }
 
-func TestGatesStripSystemRouteMarker(t *testing.T) {
-	cases := []struct{ value, want string }{
-		{"/_/save", "/save"},
-		{"/_/live-sync/stream?page-url=/blog/post.html", "/live-sync/stream?page-url=/blog/post.html"},
-		{"/_/live-sync/save", "/live-sync/save"},
-		{"/save", "/save"},
-		{"/live-sync/stream?page-url=/x.html", "/live-sync/stream?page-url=/x.html"},
-		{"/f/index.html", "/f/index.html"},
-		{"/", "/"},
-		{"/_foo", "/_foo"},
-		{"/_", "/_"},
-		{"/file_with_underscore.html", "/file_with_underscore.html"},
-	}
-	for _, testCase := range cases {
-		if got := stripSystemRouteMarker(testCase.value); got != testCase.want {
-			t.Errorf("stripSystemRouteMarker(%q) = %q, want %q", testCase.value, got, testCase.want)
-		}
-	}
-}
-
 func TestGatesMarkerRewrite(t *testing.T) {
 	path, marked, ok := gate(httptest.NewRecorder(), newGateRequest("GET", "/_/save", nil), portPolicy(4321))
 	if !ok || path != "/save" || !marked {

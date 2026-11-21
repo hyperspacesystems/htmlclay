@@ -1030,31 +1030,45 @@ func (s *Store) RebindTo(key string, data []byte, absPath string) error {
 // It reports whether a new version was actually written: identical content is
 // deduped and reports false with a nil error.
 func (s *Store) Backup(key, absPath string, content []byte) (bool, error) {
+	_, wrote, err := s.publish(key, absPath, content)
+	return wrote, err
+}
+
+// Keep publishes content like Backup and returns the name of the version that
+// holds exactly those bytes: the newest version when it already matches, else
+// the one just written. Callers that pin the result never re-read the version,
+// so a version too large for Read is still kept and named.
+func (s *Store) Keep(key, absPath string, content []byte) (string, error) {
+	name, _, err := s.publish(key, absPath, content)
+	return name, err
+}
+
+func (s *Store) publish(key, absPath string, content []byte) (string, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	vroot, err := s.openVersionsRoot(true)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	defer vroot.Close()
 	ref, err := s.openHistory(vroot, key, absPath, true)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	defer ref.Close()
 	hroot := ref.root
 
 	entries, err := listEntries(hroot)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 
 	want := Hash(content)
 	if len(entries) > 0 {
 		newest := entries[len(entries)-1]
 		if existing, rErr := hroot.ReadFile(newest.Name); rErr == nil && Hash(existing) == want {
-			return false, nil
+			return newest.Name, false, nil
 		}
 	}
 
@@ -1074,7 +1088,7 @@ func (s *Store) Backup(key, absPath string, content []byte) (bool, error) {
 
 	tmpName, err := writeTemp(hroot, content)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	defer hroot.Remove(tmpName)
 
@@ -1085,12 +1099,12 @@ func (s *Store) Backup(key, absPath string, content []byte) (bool, error) {
 		err = hroot.Link(tmpName, final)
 		if err == nil {
 			if sErr := syncDirRoot(hroot); sErr != nil {
-				return true, sErr
+				return final, true, sErr
 			}
 			if err := writeMeta(hroot, key, absPath); err != nil {
-				return true, err
+				return final, true, err
 			}
-			return true, nil
+			return final, true, nil
 		}
 		if !errors.Is(err, fs.ErrExist) {
 			break
@@ -1106,17 +1120,17 @@ func (s *Store) Backup(key, absPath string, content []byte) (bool, error) {
 			continue
 		}
 		if rErr := hroot.Rename(tmpName, final); rErr != nil {
-			return false, rErr
+			return "", false, rErr
 		}
 		if sErr := syncDirRoot(hroot); sErr != nil {
-			return true, sErr
+			return final, true, sErr
 		}
 		if err := writeMeta(hroot, key, absPath); err != nil {
-			return true, err
+			return final, true, err
 		}
-		return true, nil
+		return final, true, nil
 	}
-	return false, fmt.Errorf("cannot publish version: %w", err)
+	return "", false, fmt.Errorf("cannot publish version: %w", err)
 }
 
 // writeTemp writes content to a hidden same-directory temp beneath root and

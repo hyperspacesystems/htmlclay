@@ -1,0 +1,6772 @@
+{
+ "about": "Made by spell-vectors.mjs from sapjs 2fbe1e9 src/grid/formula/text.js standard(f, home, frameFrom(tabs)).",
+ "tabs": [
+  {
+   "id": "s1",
+   "name": "Budget",
+   "rows": 10,
+   "cols": 5
+  },
+  {
+   "id": "s2",
+   "name": "Styled",
+   "rows": 3,
+   "cols": 2
+  },
+  {
+   "id": "s3",
+   "name": "my tab",
+   "rows": 4,
+   "cols": 4
+  },
+  {
+   "id": "s4",
+   "name": "it's",
+   "rows": 2,
+   "cols": 2
+  },
+  {
+   "id": "s5",
+   "name": "A1",
+   "rows": 1,
+   "cols": 1
+  }
+ ],
+ "vectors": [
+  {
+   "f": "=  SUM( A1 , B1 )",
+   "home": "s1",
+   "want": "=  SUM( A1 , B1 )"
+  },
+  {
+   "f": "=  SUM( A1 , B1 )",
+   "home": "s3",
+   "want": "=  SUM( A1 , B1 )"
+  },
+  {
+   "f": "=  sum( a1 , b1 )",
+   "home": "s1",
+   "want": "=  SUM( A1 , B1 )"
+  },
+  {
+   "f": "=  sum( a1 , b1 )",
+   "home": "s3",
+   "want": "=  SUM( A1 , B1 )"
+  },
+  {
+   "f": "=\"10\"+1",
+   "home": "s1",
+   "want": "=\"10\"+1"
+  },
+  {
+   "f": "=\"10\"+1",
+   "home": "s3",
+   "want": "=\"10\"+1"
+  },
+  {
+   "f": "=\"=SUM(A1)\"&A1",
+   "home": "s1",
+   "want": "=\"=SUM(A1)\"&A1"
+  },
+  {
+   "f": "=\"=SUM(A1)\"&A1",
+   "home": "s3",
+   "want": "=\"=SUM(A1)\"&A1"
+  },
+  {
+   "f": "=\"=sum(a1)\"&a1",
+   "home": "s1",
+   "want": "=\"=sum(a1)\"&A1"
+  },
+  {
+   "f": "=\"=sum(a1)\"&a1",
+   "home": "s3",
+   "want": "=\"=sum(a1)\"&A1"
+  },
+  {
+   "f": "=\"A\"&1.5&TRUE",
+   "home": "s1",
+   "want": "=\"A\"&1.5&TRUE"
+  },
+  {
+   "f": "=\"A\"&1.5&TRUE",
+   "home": "s3",
+   "want": "=\"A\"&1.5&TRUE"
+  },
+  {
+   "f": "=\"ABC\"=\"ABC\"",
+   "home": "s1",
+   "want": "=\"ABC\"=\"ABC\""
+  },
+  {
+   "f": "=\"ABC\"=\"ABC\"",
+   "home": "s3",
+   "want": "=\"ABC\"=\"ABC\""
+  },
+  {
+   "f": "=\"a\"&1.5&TRUE",
+   "home": "s1",
+   "want": "=\"a\"&1.5&TRUE"
+  },
+  {
+   "f": "=\"a\"&1.5&TRUE",
+   "home": "s3",
+   "want": "=\"a\"&1.5&TRUE"
+  },
+  {
+   "f": "=\"a\"&1.5&true",
+   "home": "s1",
+   "want": "=\"a\"&1.5&TRUE"
+  },
+  {
+   "f": "=\"a\"&1.5&true",
+   "home": "s3",
+   "want": "=\"a\"&1.5&TRUE"
+  },
+  {
+   "f": "=\"abc\"=\"ABC\"",
+   "home": "s1",
+   "want": "=\"abc\"=\"ABC\""
+  },
+  {
+   "f": "=\"abc\"=\"ABC\"",
+   "home": "s3",
+   "want": "=\"abc\"=\"ABC\""
+  },
+  {
+   "f": "=\"abc\"=\"abc\"",
+   "home": "s1",
+   "want": "=\"abc\"=\"abc\""
+  },
+  {
+   "f": "=\"abc\"=\"abc\"",
+   "home": "s3",
+   "want": "=\"abc\"=\"abc\""
+  },
+  {
+   "f": "=#N/A",
+   "home": "s1",
+   "want": "=#N/A"
+  },
+  {
+   "f": "=#N/A",
+   "home": "s3",
+   "want": "=#N/A"
+  },
+  {
+   "f": "=#REF!",
+   "home": "s1",
+   "want": "=#REF!"
+  },
+  {
+   "f": "=#REF!",
+   "home": "s3",
+   "want": "=#REF!"
+  },
+  {
+   "f": "=#REF!+#N/A",
+   "home": "s1",
+   "want": "=#REF!+#N/A"
+  },
+  {
+   "f": "=#REF!+#N/A",
+   "home": "s3",
+   "want": "=#REF!+#N/A"
+  },
+  {
+   "f": "=#REF!+#REF!",
+   "home": "s1",
+   "want": "=#REF!+#REF!"
+  },
+  {
+   "f": "=#REF!+#REF!",
+   "home": "s3",
+   "want": "=#REF!+#REF!"
+  },
+  {
+   "f": "=#n/a",
+   "home": "s1",
+   "want": "=#n/a"
+  },
+  {
+   "f": "=#n/a",
+   "home": "s3",
+   "want": "=#n/a"
+  },
+  {
+   "f": "=#ref!",
+   "home": "s1",
+   "want": "=#ref!"
+  },
+  {
+   "f": "=#ref!",
+   "home": "s3",
+   "want": "=#ref!"
+  },
+  {
+   "f": "=#ref!+#n/a",
+   "home": "s1",
+   "want": "=#ref!+#n/a"
+  },
+  {
+   "f": "=#ref!+#n/a",
+   "home": "s3",
+   "want": "=#ref!+#n/a"
+  },
+  {
+   "f": "=#ref!+#ref!",
+   "home": "s1",
+   "want": "=#ref!+#ref!"
+  },
+  {
+   "f": "=#ref!+#ref!",
+   "home": "s3",
+   "want": "=#ref!+#ref!"
+  },
+  {
+   "f": "=$A$1+A$2+$B3",
+   "home": "s1",
+   "want": "=$A$1+A$2+$B3"
+  },
+  {
+   "f": "=$A$1+A$2+$B3",
+   "home": "s3",
+   "want": "=$A$1+A$2+$B3"
+  },
+  {
+   "f": "=$a$1+a$2+$b3",
+   "home": "s1",
+   "want": "=$A$1+A$2+$B3"
+  },
+  {
+   "f": "=$a$1+a$2+$b3",
+   "home": "s3",
+   "want": "=$A$1+A$2+$B3"
+  },
+  {
+   "f": "='A1'!B2",
+   "home": "s1",
+   "want": "='A1'!B2"
+  },
+  {
+   "f": "='A1'!B2",
+   "home": "s3",
+   "want": "='A1'!B2"
+  },
+  {
+   "f": "='A1'!b2",
+   "home": "s1",
+   "want": "='A1'!B2"
+  },
+  {
+   "f": "='A1'!b2",
+   "home": "s3",
+   "want": "='A1'!B2"
+  },
+  {
+   "f": "='AB12'!B2",
+   "home": "s1",
+   "want": "='AB12'!B2"
+  },
+  {
+   "f": "='AB12'!B2",
+   "home": "s3",
+   "want": "='AB12'!B2"
+  },
+  {
+   "f": "='MY TAB'!A1+'IT''S'!B2",
+   "home": "s1",
+   "want": "='my tab'!A1+'it''s'!B2"
+  },
+  {
+   "f": "='MY TAB'!A1+'IT''S'!B2",
+   "home": "s3",
+   "want": "='my tab'!A1+'it''s'!B2"
+  },
+  {
+   "f": "='Q1 2026'!B2",
+   "home": "s1",
+   "want": "='Q1 2026'!B2"
+  },
+  {
+   "f": "='Q1 2026'!B2",
+   "home": "s3",
+   "want": "='Q1 2026'!B2"
+  },
+  {
+   "f": "='SHEET''S COPY'!B2",
+   "home": "s1",
+   "want": "='SHEET''S COPY'!B2"
+  },
+  {
+   "f": "='SHEET''S COPY'!B2",
+   "home": "s3",
+   "want": "='SHEET''S COPY'!B2"
+  },
+  {
+   "f": "='Sheet''s copy'!B2",
+   "home": "s1",
+   "want": "='Sheet''s copy'!B2"
+  },
+  {
+   "f": "='Sheet''s copy'!B2",
+   "home": "s3",
+   "want": "='Sheet''s copy'!B2"
+  },
+  {
+   "f": "='a1'!b2",
+   "home": "s1",
+   "want": "='A1'!B2"
+  },
+  {
+   "f": "='a1'!b2",
+   "home": "s3",
+   "want": "='A1'!B2"
+  },
+  {
+   "f": "='ab12'!b2",
+   "home": "s1",
+   "want": "='ab12'!b2"
+  },
+  {
+   "f": "='ab12'!b2",
+   "home": "s3",
+   "want": "='ab12'!b2"
+  },
+  {
+   "f": "='my tab'!a1+'it''s'!b2",
+   "home": "s1",
+   "want": "='my tab'!A1+'it''s'!B2"
+  },
+  {
+   "f": "='my tab'!a1+'it''s'!b2",
+   "home": "s3",
+   "want": "='my tab'!A1+'it''s'!B2"
+  },
+  {
+   "f": "='q1 2026'!b2",
+   "home": "s1",
+   "want": "='q1 2026'!b2"
+  },
+  {
+   "f": "='q1 2026'!b2",
+   "home": "s3",
+   "want": "='q1 2026'!b2"
+  },
+  {
+   "f": "='sheet''s copy'!b2",
+   "home": "s1",
+   "want": "='sheet''s copy'!b2"
+  },
+  {
+   "f": "='sheet''s copy'!b2",
+   "home": "s3",
+   "want": "='sheet''s copy'!b2"
+  },
+  {
+   "f": "=-A1%",
+   "home": "s1",
+   "want": "=-A1%"
+  },
+  {
+   "f": "=-A1%",
+   "home": "s3",
+   "want": "=-A1%"
+  },
+  {
+   "f": "=-a1%",
+   "home": "s1",
+   "want": "=-A1%"
+  },
+  {
+   "f": "=-a1%",
+   "home": "s3",
+   "want": "=-A1%"
+  },
+  {
+   "f": "=0-5",
+   "home": "s1",
+   "want": "=0-5"
+  },
+  {
+   "f": "=0-5",
+   "home": "s3",
+   "want": "=0-5"
+  },
+  {
+   "f": "=0.1+0.2",
+   "home": "s1",
+   "want": "=0.1+0.2"
+  },
+  {
+   "f": "=0.1+0.2",
+   "home": "s3",
+   "want": "=0.1+0.2"
+  },
+  {
+   "f": "=0.1+0.2=0.3",
+   "home": "s1",
+   "want": "=0.1+0.2=0.3"
+  },
+  {
+   "f": "=0.1+0.2=0.3",
+   "home": "s3",
+   "want": "=0.1+0.2=0.3"
+  },
+  {
+   "f": "=0^-1",
+   "home": "s1",
+   "want": "=0^-1"
+  },
+  {
+   "f": "=0^-1",
+   "home": "s3",
+   "want": "=0^-1"
+  },
+  {
+   "f": "=1+1",
+   "home": "s1",
+   "want": "=1+1"
+  },
+  {
+   "f": "=1+1",
+   "home": "s3",
+   "want": "=1+1"
+  },
+  {
+   "f": "=1+1,'=2",
+   "home": "s1",
+   "want": "=1+1,'=2"
+  },
+  {
+   "f": "=1+1,'=2",
+   "home": "s3",
+   "want": "=1+1,'=2"
+  },
+  {
+   "f": "=1+2",
+   "home": "s1",
+   "want": "=1+2"
+  },
+  {
+   "f": "=1+2",
+   "home": "s3",
+   "want": "=1+2"
+  },
+  {
+   "f": "=1/0",
+   "home": "s1",
+   "want": "=1/0"
+  },
+  {
+   "f": "=1/0",
+   "home": "s3",
+   "want": "=1/0"
+  },
+  {
+   "f": "=10+20",
+   "home": "s1",
+   "want": "=10+20"
+  },
+  {
+   "f": "=10+20",
+   "home": "s3",
+   "want": "=10+20"
+  },
+  {
+   "f": "=10/3",
+   "home": "s1",
+   "want": "=10/3"
+  },
+  {
+   "f": "=10/3",
+   "home": "s3",
+   "want": "=10/3"
+  },
+  {
+   "f": "=1E3+.5",
+   "home": "s1",
+   "want": "=1E3+.5"
+  },
+  {
+   "f": "=1E3+.5",
+   "home": "s3",
+   "want": "=1E3+.5"
+  },
+  {
+   "f": "=1e3+.5",
+   "home": "s1",
+   "want": "=1e3+.5"
+  },
+  {
+   "f": "=1e3+.5",
+   "home": "s3",
+   "want": "=1e3+.5"
+  },
+  {
+   "f": "=2",
+   "home": "s1",
+   "want": "=2"
+  },
+  {
+   "f": "=2",
+   "home": "s3",
+   "want": "=2"
+  },
+  {
+   "f": "=2*3",
+   "home": "s1",
+   "want": "=2*3"
+  },
+  {
+   "f": "=2*3",
+   "home": "s3",
+   "want": "=2*3"
+  },
+  {
+   "f": "=2.500*12",
+   "home": "s1",
+   "want": "=2.500*12"
+  },
+  {
+   "f": "=2.500*12",
+   "home": "s3",
+   "want": "=2.500*12"
+  },
+  {
+   "f": "=2^-1",
+   "home": "s1",
+   "want": "=2^-1"
+  },
+  {
+   "f": "=2^-1",
+   "home": "s3",
+   "want": "=2^-1"
+  },
+  {
+   "f": "=3+4",
+   "home": "s1",
+   "want": "=3+4"
+  },
+  {
+   "f": "=3+4",
+   "home": "s3",
+   "want": "=3+4"
+  },
+  {
+   "f": "=4*2",
+   "home": "s1",
+   "want": "=4*2"
+  },
+  {
+   "f": "=4*2",
+   "home": "s3",
+   "want": "=4*2"
+  },
+  {
+   "f": "=5+1",
+   "home": "s1",
+   "want": "=5+1"
+  },
+  {
+   "f": "=5+1",
+   "home": "s3",
+   "want": "=5+1"
+  },
+  {
+   "f": "=5000-BUDGET!B5",
+   "home": "s1",
+   "want": "=5000-Budget!B5"
+  },
+  {
+   "f": "=5000-BUDGET!B5",
+   "home": "s3",
+   "want": "=5000-Budget!B5"
+  },
+  {
+   "f": "=5000-Budget!B5",
+   "home": "s1",
+   "want": "=5000-Budget!B5"
+  },
+  {
+   "f": "=5000-Budget!B5",
+   "home": "s3",
+   "want": "=5000-Budget!B5"
+  },
+  {
+   "f": "=5000-budget!b5",
+   "home": "s1",
+   "want": "=5000-Budget!B5"
+  },
+  {
+   "f": "=5000-budget!b5",
+   "home": "s3",
+   "want": "=5000-Budget!B5"
+  },
+  {
+   "f": "=99",
+   "home": "s1",
+   "want": "=99"
+  },
+  {
+   "f": "=99",
+   "home": "s3",
+   "want": "=99"
+  },
+  {
+   "f": "=A1",
+   "home": "s1",
+   "want": "=A1"
+  },
+  {
+   "f": "=A1",
+   "home": "s3",
+   "want": "=A1"
+  },
+  {
+   "f": "=A1!A1",
+   "home": "s1",
+   "want": "='A1'!A1"
+  },
+  {
+   "f": "=A1!A1",
+   "home": "s3",
+   "want": "='A1'!A1"
+  },
+  {
+   "f": "=A1*1.5",
+   "home": "s1",
+   "want": "=A1*1.5"
+  },
+  {
+   "f": "=A1*1.5",
+   "home": "s3",
+   "want": "=A1*1.5"
+  },
+  {
+   "f": "=A1*2",
+   "home": "s1",
+   "want": "=A1*2"
+  },
+  {
+   "f": "=A1*2",
+   "home": "s3",
+   "want": "=A1*2"
+  },
+  {
+   "f": "=A1+",
+   "home": "s1",
+   "want": "=A1+"
+  },
+  {
+   "f": "=A1+",
+   "home": "s3",
+   "want": "=A1+"
+  },
+  {
+   "f": "=A1+1",
+   "home": "s1",
+   "want": "=A1+1"
+  },
+  {
+   "f": "=A1+1",
+   "home": "s3",
+   "want": "=A1+1"
+  },
+  {
+   "f": "=A1+A2",
+   "home": "s1",
+   "want": "=A1+A2"
+  },
+  {
+   "f": "=A1+A2",
+   "home": "s3",
+   "want": "=A1+A2"
+  },
+  {
+   "f": "=A1/2",
+   "home": "s1",
+   "want": "=A1/2"
+  },
+  {
+   "f": "=A1/2",
+   "home": "s3",
+   "want": "=A1/2"
+  },
+  {
+   "f": "=A1:A1",
+   "home": "s1",
+   "want": "=A1:A1"
+  },
+  {
+   "f": "=A1:A1",
+   "home": "s3",
+   "want": "=A1:A1"
+  },
+  {
+   "f": "=A1:A2",
+   "home": "s1",
+   "want": "=A1:A2"
+  },
+  {
+   "f": "=A1:A2",
+   "home": "s3",
+   "want": "=A1:A2"
+  },
+  {
+   "f": "=A1:B2 C1:D2",
+   "home": "s1",
+   "want": "=A1:B2 C1:D2"
+  },
+  {
+   "f": "=A1:B2 C1:D2",
+   "home": "s3",
+   "want": "=A1:B2 C1:D2"
+  },
+  {
+   "f": "=A1>35",
+   "home": "s1",
+   "want": "=A1>35"
+  },
+  {
+   "f": "=A1>35",
+   "home": "s3",
+   "want": "=A1>35"
+  },
+  {
+   "f": "=A2",
+   "home": "s1",
+   "want": "=A2"
+  },
+  {
+   "f": "=A2",
+   "home": "s3",
+   "want": "=A2"
+  },
+  {
+   "f": "=A2+B2",
+   "home": "s1",
+   "want": "=A2+B2"
+  },
+  {
+   "f": "=A2+B2",
+   "home": "s3",
+   "want": "=A2+B2"
+  },
+  {
+   "f": "=A3",
+   "home": "s1",
+   "want": "=A3"
+  },
+  {
+   "f": "=A3",
+   "home": "s3",
+   "want": "=A3"
+  },
+  {
+   "f": "=A3*2",
+   "home": "s1",
+   "want": "=A3*2"
+  },
+  {
+   "f": "=A3*2",
+   "home": "s3",
+   "want": "=A3*2"
+  },
+  {
+   "f": "=A4=\"\"",
+   "home": "s1",
+   "want": "=A4=\"\""
+  },
+  {
+   "f": "=A4=\"\"",
+   "home": "s3",
+   "want": "=A4=\"\""
+  },
+  {
+   "f": "=A4=0",
+   "home": "s1",
+   "want": "=A4=0"
+  },
+  {
+   "f": "=A4=0",
+   "home": "s3",
+   "want": "=A4=0"
+  },
+  {
+   "f": "=A5",
+   "home": "s1",
+   "want": "=A5"
+  },
+  {
+   "f": "=A5",
+   "home": "s3",
+   "want": "=A5"
+  },
+  {
+   "f": "=AB12!B2",
+   "home": "s1",
+   "want": "=AB12!B2"
+  },
+  {
+   "f": "=AB12!B2",
+   "home": "s3",
+   "want": "=AB12!B2"
+  },
+  {
+   "f": "=ABS(-3)",
+   "home": "s1",
+   "want": "=ABS(-3)"
+  },
+  {
+   "f": "=ABS(-3)",
+   "home": "s3",
+   "want": "=ABS(-3)"
+  },
+  {
+   "f": "=AND(B1:B2)",
+   "home": "s1",
+   "want": "=AND(B1:B2)"
+  },
+  {
+   "f": "=AND(B1:B2)",
+   "home": "s3",
+   "want": "=AND(B1:B2)"
+  },
+  {
+   "f": "=AND(TRUE,C1:C6)",
+   "home": "s1",
+   "want": "=AND(TRUE,C1:C6)"
+  },
+  {
+   "f": "=AND(TRUE,C1:C6)",
+   "home": "s3",
+   "want": "=AND(TRUE,C1:C6)"
+  },
+  {
+   "f": "=AVERAGE(A1:A6)",
+   "home": "s1",
+   "want": "=AVERAGE(A1:A6)"
+  },
+  {
+   "f": "=AVERAGE(A1:A6)",
+   "home": "s3",
+   "want": "=AVERAGE(A1:A6)"
+  },
+  {
+   "f": "=AVERAGE(A4)",
+   "home": "s1",
+   "want": "=AVERAGE(A4)"
+  },
+  {
+   "f": "=AVERAGE(A4)",
+   "home": "s3",
+   "want": "=AVERAGE(A4)"
+  },
+  {
+   "f": "=AVERAGEIF(C1:C6,\">3\")",
+   "home": "s1",
+   "want": "=AVERAGEIF(C1:C6,\">3\")"
+  },
+  {
+   "f": "=AVERAGEIF(C1:C6,\">3\")",
+   "home": "s3",
+   "want": "=AVERAGEIF(C1:C6,\">3\")"
+  },
+  {
+   "f": "=AVERAGEIFS(C1:C6,C1:C6,\">10\")",
+   "home": "s1",
+   "want": "=AVERAGEIFS(C1:C6,C1:C6,\">10\")"
+  },
+  {
+   "f": "=AVERAGEIFS(C1:C6,C1:C6,\">10\")",
+   "home": "s3",
+   "want": "=AVERAGEIFS(C1:C6,C1:C6,\">10\")"
+  },
+  {
+   "f": "=B1",
+   "home": "s1",
+   "want": "=B1"
+  },
+  {
+   "f": "=B1",
+   "home": "s3",
+   "want": "=B1"
+  },
+  {
+   "f": "=B1*2",
+   "home": "s1",
+   "want": "=B1*2"
+  },
+  {
+   "f": "=B1*2",
+   "home": "s3",
+   "want": "=B1*2"
+  },
+  {
+   "f": "=B1+B2",
+   "home": "s1",
+   "want": "=B1+B2"
+  },
+  {
+   "f": "=B1+B2",
+   "home": "s3",
+   "want": "=B1+B2"
+  },
+  {
+   "f": "=B2*2",
+   "home": "s1",
+   "want": "=B2*2"
+  },
+  {
+   "f": "=B2*2",
+   "home": "s3",
+   "want": "=B2*2"
+  },
+  {
+   "f": "=B2+1000",
+   "home": "s1",
+   "want": "=B2+1000"
+  },
+  {
+   "f": "=B2+1000",
+   "home": "s3",
+   "want": "=B2+1000"
+  },
+  {
+   "f": "=B2/B$5",
+   "home": "s1",
+   "want": "=B2/B$5"
+  },
+  {
+   "f": "=B2/B$5",
+   "home": "s3",
+   "want": "=B2/B$5"
+  },
+  {
+   "f": "=B3*2",
+   "home": "s1",
+   "want": "=B3*2"
+  },
+  {
+   "f": "=B3*2",
+   "home": "s3",
+   "want": "=B3*2"
+  },
+  {
+   "f": "=B3+1",
+   "home": "s1",
+   "want": "=B3+1"
+  },
+  {
+   "f": "=B3+1",
+   "home": "s3",
+   "want": "=B3+1"
+  },
+  {
+   "f": "=B3/B$5",
+   "home": "s1",
+   "want": "=B3/B$5"
+  },
+  {
+   "f": "=B3/B$5",
+   "home": "s3",
+   "want": "=B3/B$5"
+  },
+  {
+   "f": "=B5",
+   "home": "s1",
+   "want": "=B5"
+  },
+  {
+   "f": "=B5",
+   "home": "s3",
+   "want": "=B5"
+  },
+  {
+   "f": "=B7/B$5",
+   "home": "s1",
+   "want": "=B7/B$5"
+  },
+  {
+   "f": "=B7/B$5",
+   "home": "s3",
+   "want": "=B7/B$5"
+  },
+  {
+   "f": "=BUDGET!A1",
+   "home": "s1",
+   "want": "=Budget!A1"
+  },
+  {
+   "f": "=BUDGET!A1",
+   "home": "s3",
+   "want": "=Budget!A1"
+  },
+  {
+   "f": "=BUDGET!B1",
+   "home": "s1",
+   "want": "=Budget!B1"
+  },
+  {
+   "f": "=BUDGET!B1",
+   "home": "s3",
+   "want": "=Budget!B1"
+  },
+  {
+   "f": "=BUDGET!B2",
+   "home": "s1",
+   "want": "=Budget!B2"
+  },
+  {
+   "f": "=BUDGET!B2",
+   "home": "s3",
+   "want": "=Budget!B2"
+  },
+  {
+   "f": "=BUDGET!B2*2",
+   "home": "s1",
+   "want": "=Budget!B2*2"
+  },
+  {
+   "f": "=BUDGET!B2*2",
+   "home": "s3",
+   "want": "=Budget!B2*2"
+  },
+  {
+   "f": "=BUDGET!B5",
+   "home": "s1",
+   "want": "=Budget!B5"
+  },
+  {
+   "f": "=BUDGET!B5",
+   "home": "s3",
+   "want": "=Budget!B5"
+  },
+  {
+   "f": "=BUDGET!B6",
+   "home": "s1",
+   "want": "=Budget!B6"
+  },
+  {
+   "f": "=BUDGET!B6",
+   "home": "s3",
+   "want": "=Budget!B6"
+  },
+  {
+   "f": "=BUDGET!B6*2",
+   "home": "s1",
+   "want": "=Budget!B6*2"
+  },
+  {
+   "f": "=BUDGET!B6*2",
+   "home": "s3",
+   "want": "=Budget!B6*2"
+  },
+  {
+   "f": "=BUDGET!B7",
+   "home": "s1",
+   "want": "=Budget!B7"
+  },
+  {
+   "f": "=BUDGET!B7",
+   "home": "s3",
+   "want": "=Budget!B7"
+  },
+  {
+   "f": "=BUDGET!B7*2",
+   "home": "s1",
+   "want": "=Budget!B7*2"
+  },
+  {
+   "f": "=BUDGET!B7*2",
+   "home": "s3",
+   "want": "=Budget!B7*2"
+  },
+  {
+   "f": "=Budget!B1",
+   "home": "s1",
+   "want": "=Budget!B1"
+  },
+  {
+   "f": "=Budget!B1",
+   "home": "s3",
+   "want": "=Budget!B1"
+  },
+  {
+   "f": "=Budget!B2",
+   "home": "s1",
+   "want": "=Budget!B2"
+  },
+  {
+   "f": "=Budget!B2",
+   "home": "s3",
+   "want": "=Budget!B2"
+  },
+  {
+   "f": "=Budget!B2*2",
+   "home": "s1",
+   "want": "=Budget!B2*2"
+  },
+  {
+   "f": "=Budget!B2*2",
+   "home": "s3",
+   "want": "=Budget!B2*2"
+  },
+  {
+   "f": "=Budget!B5",
+   "home": "s1",
+   "want": "=Budget!B5"
+  },
+  {
+   "f": "=Budget!B5",
+   "home": "s3",
+   "want": "=Budget!B5"
+  },
+  {
+   "f": "=Budget!B6",
+   "home": "s1",
+   "want": "=Budget!B6"
+  },
+  {
+   "f": "=Budget!B6",
+   "home": "s3",
+   "want": "=Budget!B6"
+  },
+  {
+   "f": "=Budget!B6*2",
+   "home": "s1",
+   "want": "=Budget!B6*2"
+  },
+  {
+   "f": "=Budget!B6*2",
+   "home": "s3",
+   "want": "=Budget!B6*2"
+  },
+  {
+   "f": "=Budget!B7",
+   "home": "s1",
+   "want": "=Budget!B7"
+  },
+  {
+   "f": "=Budget!B7",
+   "home": "s3",
+   "want": "=Budget!B7"
+  },
+  {
+   "f": "=Budget!B7*2",
+   "home": "s1",
+   "want": "=Budget!B7*2"
+  },
+  {
+   "f": "=Budget!B7*2",
+   "home": "s3",
+   "want": "=Budget!B7*2"
+  },
+  {
+   "f": "=CEILING(2.1,0.5)",
+   "home": "s1",
+   "want": "=CEILING(2.1,0.5)"
+  },
+  {
+   "f": "=CEILING(2.1,0.5)",
+   "home": "s3",
+   "want": "=CEILING(2.1,0.5)"
+  },
+  {
+   "f": "=COLUMN(D1:F2)",
+   "home": "s1",
+   "want": "=COLUMN(D1:F2)"
+  },
+  {
+   "f": "=COLUMN(D1:F2)",
+   "home": "s3",
+   "want": "=COLUMN(D1:F2)"
+  },
+  {
+   "f": "=COLUMNS(A1:C1)",
+   "home": "s1",
+   "want": "=COLUMNS(A1:C1)"
+  },
+  {
+   "f": "=COLUMNS(A1:C1)",
+   "home": "s3",
+   "want": "=COLUMNS(A1:C1)"
+  },
+  {
+   "f": "=CORREL(A1:A3,C1:C3)",
+   "home": "s1",
+   "want": "=CORREL(A1:A3,C1:C3)"
+  },
+  {
+   "f": "=CORREL(A1:A3,C1:C3)",
+   "home": "s3",
+   "want": "=CORREL(A1:A3,C1:C3)"
+  },
+  {
+   "f": "=CORREL(C1,C2)",
+   "home": "s1",
+   "want": "=CORREL(C1,C2)"
+  },
+  {
+   "f": "=CORREL(C1,C2)",
+   "home": "s3",
+   "want": "=CORREL(C1,C2)"
+  },
+  {
+   "f": "=CORREL(C1:C2,D1:D2)",
+   "home": "s1",
+   "want": "=CORREL(C1:C2,D1:D2)"
+  },
+  {
+   "f": "=CORREL(C1:C2,D1:D2)",
+   "home": "s3",
+   "want": "=CORREL(C1:C2,D1:D2)"
+  },
+  {
+   "f": "=CORREL(C1:C3,C1:C2)",
+   "home": "s1",
+   "want": "=CORREL(C1:C3,C1:C2)"
+  },
+  {
+   "f": "=CORREL(C1:C3,C1:C2)",
+   "home": "s3",
+   "want": "=CORREL(C1:C3,C1:C2)"
+  },
+  {
+   "f": "=CORREL(C1:C3,C4:C6)",
+   "home": "s1",
+   "want": "=CORREL(C1:C3,C4:C6)"
+  },
+  {
+   "f": "=CORREL(C1:C3,C4:C6)",
+   "home": "s3",
+   "want": "=CORREL(C1:C3,C4:C6)"
+  },
+  {
+   "f": "=CORREL(I1:I3,C1:C3)",
+   "home": "s1",
+   "want": "=CORREL(I1:I3,C1:C3)"
+  },
+  {
+   "f": "=CORREL(I1:I3,C1:C3)",
+   "home": "s3",
+   "want": "=CORREL(I1:I3,C1:C3)"
+  },
+  {
+   "f": "=COUNT(A1:A6)",
+   "home": "s1",
+   "want": "=COUNT(A1:A6)"
+  },
+  {
+   "f": "=COUNT(A1:A6)",
+   "home": "s3",
+   "want": "=COUNT(A1:A6)"
+  },
+  {
+   "f": "=COUNTA(A1:A6)",
+   "home": "s1",
+   "want": "=COUNTA(A1:A6)"
+  },
+  {
+   "f": "=COUNTA(A1:A6)",
+   "home": "s3",
+   "want": "=COUNTA(A1:A6)"
+  },
+  {
+   "f": "=COUNTBLANK(A1:B6)",
+   "home": "s1",
+   "want": "=COUNTBLANK(A1:B6)"
+  },
+  {
+   "f": "=COUNTBLANK(A1:B6)",
+   "home": "s3",
+   "want": "=COUNTBLANK(A1:B6)"
+  },
+  {
+   "f": "=COUNTBLANK(C1:C20)",
+   "home": "s1",
+   "want": "=COUNTBLANK(C1:C20)"
+  },
+  {
+   "f": "=COUNTBLANK(C1:C20)",
+   "home": "s3",
+   "want": "=COUNTBLANK(C1:C20)"
+  },
+  {
+   "f": "=COUNTBLANK(NOPE!A1:A3)",
+   "home": "s1",
+   "want": "=COUNTBLANK(NOPE!A1:A3)"
+  },
+  {
+   "f": "=COUNTBLANK(NOPE!A1:A3)",
+   "home": "s3",
+   "want": "=COUNTBLANK(NOPE!A1:A3)"
+  },
+  {
+   "f": "=COUNTBLANK(Nope!A1:A3)",
+   "home": "s1",
+   "want": "=COUNTBLANK(Nope!A1:A3)"
+  },
+  {
+   "f": "=COUNTBLANK(Nope!A1:A3)",
+   "home": "s3",
+   "want": "=COUNTBLANK(Nope!A1:A3)"
+  },
+  {
+   "f": "=COUNTIF(A1:A5,\"X,Y\",TRUE)",
+   "home": "s1",
+   "want": "=COUNTIF(A1:A5,\"X,Y\",TRUE)"
+  },
+  {
+   "f": "=COUNTIF(A1:A5,\"X,Y\",TRUE)",
+   "home": "s3",
+   "want": "=COUNTIF(A1:A5,\"X,Y\",TRUE)"
+  },
+  {
+   "f": "=COUNTIF(A1:A5,\"x,y\",TRUE)",
+   "home": "s1",
+   "want": "=COUNTIF(A1:A5,\"x,y\",TRUE)"
+  },
+  {
+   "f": "=COUNTIF(A1:A5,\"x,y\",TRUE)",
+   "home": "s3",
+   "want": "=COUNTIF(A1:A5,\"x,y\",TRUE)"
+  },
+  {
+   "f": "=COUNTIF(B1:B6,\"\")",
+   "home": "s1",
+   "want": "=COUNTIF(B1:B6,\"\")"
+  },
+  {
+   "f": "=COUNTIF(B1:B6,\"\")",
+   "home": "s3",
+   "want": "=COUNTIF(B1:B6,\"\")"
+  },
+  {
+   "f": "=COUNTIF(B1:B6,\"<>\")",
+   "home": "s1",
+   "want": "=COUNTIF(B1:B6,\"<>\")"
+  },
+  {
+   "f": "=COUNTIF(B1:B6,\"<>\")",
+   "home": "s3",
+   "want": "=COUNTIF(B1:B6,\"<>\")"
+  },
+  {
+   "f": "=COUNTIF(B1:B6,\"BANANA\")",
+   "home": "s1",
+   "want": "=COUNTIF(B1:B6,\"BANANA\")"
+  },
+  {
+   "f": "=COUNTIF(B1:B6,\"BANANA\")",
+   "home": "s3",
+   "want": "=COUNTIF(B1:B6,\"BANANA\")"
+  },
+  {
+   "f": "=COUNTIF(B1:B6,\"banana\")",
+   "home": "s1",
+   "want": "=COUNTIF(B1:B6,\"banana\")"
+  },
+  {
+   "f": "=COUNTIF(B1:B6,\"banana\")",
+   "home": "s3",
+   "want": "=COUNTIF(B1:B6,\"banana\")"
+  },
+  {
+   "f": "=COUNTIF(C1:C20, \"\")",
+   "home": "s1",
+   "want": "=COUNTIF(C1:C20, \"\")"
+  },
+  {
+   "f": "=COUNTIF(C1:C20, \"\")",
+   "home": "s3",
+   "want": "=COUNTIF(C1:C20, \"\")"
+  },
+  {
+   "f": "=COUNTIF(C1:C6,3)",
+   "home": "s1",
+   "want": "=COUNTIF(C1:C6,3)"
+  },
+  {
+   "f": "=COUNTIF(C1:C6,3)",
+   "home": "s3",
+   "want": "=COUNTIF(C1:C6,3)"
+  },
+  {
+   "f": "=COUNTIF(D1:D3, D3)",
+   "home": "s1",
+   "want": "=COUNTIF(D1:D3, D3)"
+  },
+  {
+   "f": "=COUNTIF(D1:D3, D3)",
+   "home": "s3",
+   "want": "=COUNTIF(D1:D3, D3)"
+  },
+  {
+   "f": "=COUNTIF(NOPE!A1:A3, \"X\")",
+   "home": "s1",
+   "want": "=COUNTIF(NOPE!A1:A3, \"X\")"
+  },
+  {
+   "f": "=COUNTIF(NOPE!A1:A3, \"X\")",
+   "home": "s3",
+   "want": "=COUNTIF(NOPE!A1:A3, \"X\")"
+  },
+  {
+   "f": "=COUNTIF(Nope!A1:A3, \"x\")",
+   "home": "s1",
+   "want": "=COUNTIF(Nope!A1:A3, \"x\")"
+  },
+  {
+   "f": "=COUNTIF(Nope!A1:A3, \"x\")",
+   "home": "s3",
+   "want": "=COUNTIF(Nope!A1:A3, \"x\")"
+  },
+  {
+   "f": "=COUNTIFS(C1:C6,\">1\",C1:C6,\"<5\")",
+   "home": "s1",
+   "want": "=COUNTIFS(C1:C6,\">1\",C1:C6,\"<5\")"
+  },
+  {
+   "f": "=COUNTIFS(C1:C6,\">1\",C1:C6,\"<5\")",
+   "home": "s3",
+   "want": "=COUNTIFS(C1:C6,\">1\",C1:C6,\"<5\")"
+  },
+  {
+   "f": "=DATE(2026,1,1)",
+   "home": "s1",
+   "want": "=DATE(2026,1,1)"
+  },
+  {
+   "f": "=DATE(2026,1,1)",
+   "home": "s3",
+   "want": "=DATE(2026,1,1)"
+  },
+  {
+   "f": "=EDATE(A1,0)",
+   "home": "s1",
+   "want": "=EDATE(A1,0)"
+  },
+  {
+   "f": "=EDATE(A1,0)",
+   "home": "s3",
+   "want": "=EDATE(A1,0)"
+  },
+  {
+   "f": "=FLOOR(-2.5,1)",
+   "home": "s1",
+   "want": "=FLOOR(-2.5,1)"
+  },
+  {
+   "f": "=FLOOR(-2.5,1)",
+   "home": "s3",
+   "want": "=FLOOR(-2.5,1)"
+  },
+  {
+   "f": "=FV(5%/12,60,-100)",
+   "home": "s1",
+   "want": "=FV(5%/12,60,-100)"
+  },
+  {
+   "f": "=FV(5%/12,60,-100)",
+   "home": "s3",
+   "want": "=FV(5%/12,60,-100)"
+  },
+  {
+   "f": "=FV(5%/12,60,-100,F2)",
+   "home": "s1",
+   "want": "=FV(5%/12,60,-100,F2)"
+  },
+  {
+   "f": "=FV(5%/12,60,-100,F2)",
+   "home": "s3",
+   "want": "=FV(5%/12,60,-100,F2)"
+  },
+  {
+   "f": "=GHOST!A1",
+   "home": "s1",
+   "want": "=GHOST!A1"
+  },
+  {
+   "f": "=GHOST!A1",
+   "home": "s3",
+   "want": "=GHOST!A1"
+  },
+  {
+   "f": "=IF(1,&QUOT;-OK&QUOT;,&QUOT;&QUOT;)",
+   "home": "s1",
+   "want": "=IF(1,&QUOT;-OK&QUOT;,&QUOT;&QUOT;)"
+  },
+  {
+   "f": "=IF(1,&QUOT;-OK&QUOT;,&QUOT;&QUOT;)",
+   "home": "s3",
+   "want": "=IF(1,&QUOT;-OK&QUOT;,&QUOT;&QUOT;)"
+  },
+  {
+   "f": "=IF(1,&quot;-ok&quot;,&quot;&quot;)",
+   "home": "s1",
+   "want": "=IF(1,&quot;-ok&quot;,&quot;&quot;)"
+  },
+  {
+   "f": "=IF(1,&quot;-ok&quot;,&quot;&quot;)",
+   "home": "s3",
+   "want": "=IF(1,&quot;-ok&quot;,&quot;&quot;)"
+  },
+  {
+   "f": "=IF(A1>5,\"BIG\",\"SMALL\")",
+   "home": "s1",
+   "want": "=IF(A1>5,\"BIG\",\"SMALL\")"
+  },
+  {
+   "f": "=IF(A1>5,\"BIG\",\"SMALL\")",
+   "home": "s3",
+   "want": "=IF(A1>5,\"BIG\",\"SMALL\")"
+  },
+  {
+   "f": "=IF(A1>5,\"big\",\"small\")",
+   "home": "s1",
+   "want": "=IF(A1>5,\"big\",\"small\")"
+  },
+  {
+   "f": "=IF(A1>5,\"big\",\"small\")",
+   "home": "s3",
+   "want": "=IF(A1>5,\"big\",\"small\")"
+  },
+  {
+   "f": "=IF(A3,1,2)",
+   "home": "s1",
+   "want": "=IF(A3,1,2)"
+  },
+  {
+   "f": "=IF(A3,1,2)",
+   "home": "s3",
+   "want": "=IF(A3,1,2)"
+  },
+  {
+   "f": "=IF(BUDGET!B2>0,BUDGET!B2,#N/A)",
+   "home": "s1",
+   "want": "=IF(Budget!B2>0,Budget!B2,#N/A)"
+  },
+  {
+   "f": "=IF(BUDGET!B2>0,BUDGET!B2,#N/A)",
+   "home": "s3",
+   "want": "=IF(Budget!B2>0,Budget!B2,#N/A)"
+  },
+  {
+   "f": "=IF(BUDGET!B3>0,BUDGET!B3,#N/A)",
+   "home": "s1",
+   "want": "=IF(Budget!B3>0,Budget!B3,#N/A)"
+  },
+  {
+   "f": "=IF(BUDGET!B3>0,BUDGET!B3,#N/A)",
+   "home": "s3",
+   "want": "=IF(Budget!B3>0,Budget!B3,#N/A)"
+  },
+  {
+   "f": "=IF(Budget!B2>0,Budget!B2,#N/A)",
+   "home": "s1",
+   "want": "=IF(Budget!B2>0,Budget!B2,#N/A)"
+  },
+  {
+   "f": "=IF(Budget!B2>0,Budget!B2,#N/A)",
+   "home": "s3",
+   "want": "=IF(Budget!B2>0,Budget!B2,#N/A)"
+  },
+  {
+   "f": "=IF(Budget!B3>0,Budget!B3,#N/A)",
+   "home": "s1",
+   "want": "=IF(Budget!B3>0,Budget!B3,#N/A)"
+  },
+  {
+   "f": "=IF(Budget!B3>0,Budget!B3,#N/A)",
+   "home": "s3",
+   "want": "=IF(Budget!B3>0,Budget!B3,#N/A)"
+  },
+  {
+   "f": "=IF(FALSE,1)",
+   "home": "s1",
+   "want": "=IF(FALSE,1)"
+  },
+  {
+   "f": "=IF(FALSE,1)",
+   "home": "s3",
+   "want": "=IF(FALSE,1)"
+  },
+  {
+   "f": "=IF(TRUE, A2:A, FALSE)",
+   "home": "s1",
+   "want": "=IF(TRUE, A2:A, FALSE)"
+  },
+  {
+   "f": "=IF(TRUE, A2:A, FALSE)",
+   "home": "s3",
+   "want": "=IF(TRUE, A2:A, FALSE)"
+  },
+  {
+   "f": "=IF(TRUE,A1,\"A1\")",
+   "home": "s1",
+   "want": "=IF(TRUE,A1,\"A1\")"
+  },
+  {
+   "f": "=IF(TRUE,A1,\"A1\")",
+   "home": "s3",
+   "want": "=IF(TRUE,A1,\"A1\")"
+  },
+  {
+   "f": "=IFERROR(A1,0)",
+   "home": "s1",
+   "want": "=IFERROR(A1,0)"
+  },
+  {
+   "f": "=IFERROR(A1,0)",
+   "home": "s3",
+   "want": "=IFERROR(A1,0)"
+  },
+  {
+   "f": "=IFERROR(A4,7)",
+   "home": "s1",
+   "want": "=IFERROR(A4,7)"
+  },
+  {
+   "f": "=IFERROR(A4,7)",
+   "home": "s3",
+   "want": "=IFERROR(A4,7)"
+  },
+  {
+   "f": "=IFERROR(C1,7)",
+   "home": "s1",
+   "want": "=IFERROR(C1,7)"
+  },
+  {
+   "f": "=IFERROR(C1,7)",
+   "home": "s3",
+   "want": "=IFERROR(C1,7)"
+  },
+  {
+   "f": "=IFERROR(D1,7)",
+   "home": "s1",
+   "want": "=IFERROR(D1,7)"
+  },
+  {
+   "f": "=IFERROR(D1,7)",
+   "home": "s3",
+   "want": "=IFERROR(D1,7)"
+  },
+  {
+   "f": "=IFNA(D1,8)",
+   "home": "s1",
+   "want": "=IFNA(D1,8)"
+  },
+  {
+   "f": "=IFNA(D1,8)",
+   "home": "s3",
+   "want": "=IFNA(D1,8)"
+  },
+  {
+   "f": "=IFNA(NA(),8)",
+   "home": "s1",
+   "want": "=IFNA(NA(),8)"
+  },
+  {
+   "f": "=IFNA(NA(),8)",
+   "home": "s3",
+   "want": "=IFNA(NA(),8)"
+  },
+  {
+   "f": "=IFS(C1>5,\"A\",C1>0,\"B\")",
+   "home": "s1",
+   "want": "=IFS(C1>5,\"A\",C1>0,\"B\")"
+  },
+  {
+   "f": "=IFS(C1>5,\"A\",C1>0,\"B\")",
+   "home": "s3",
+   "want": "=IFS(C1>5,\"A\",C1>0,\"B\")"
+  },
+  {
+   "f": "=IFS(C1>5,\"a\",C1>0,\"b\")",
+   "home": "s1",
+   "want": "=IFS(C1>5,\"a\",C1>0,\"b\")"
+  },
+  {
+   "f": "=IFS(C1>5,\"a\",C1>0,\"b\")",
+   "home": "s3",
+   "want": "=IFS(C1>5,\"a\",C1>0,\"b\")"
+  },
+  {
+   "f": "=IFS(FALSE,1)",
+   "home": "s1",
+   "want": "=IFS(FALSE,1)"
+  },
+  {
+   "f": "=IFS(FALSE,1)",
+   "home": "s3",
+   "want": "=IFS(FALSE,1)"
+  },
+  {
+   "f": "=INT(-1.5)",
+   "home": "s1",
+   "want": "=INT(-1.5)"
+  },
+  {
+   "f": "=INT(-1.5)",
+   "home": "s3",
+   "want": "=INT(-1.5)"
+  },
+  {
+   "f": "=IRR(A1:A361)",
+   "home": "s1",
+   "want": "=IRR(A1:A361)"
+  },
+  {
+   "f": "=IRR(A1:A361)",
+   "home": "s3",
+   "want": "=IRR(A1:A361)"
+  },
+  {
+   "f": "=IRR(C1:C6)",
+   "home": "s1",
+   "want": "=IRR(C1:C6)"
+  },
+  {
+   "f": "=IRR(C1:C6)",
+   "home": "s3",
+   "want": "=IRR(C1:C6)"
+  },
+  {
+   "f": "=IRR(G1:G2)",
+   "home": "s1",
+   "want": "=IRR(G1:G2)"
+  },
+  {
+   "f": "=IRR(G1:G2)",
+   "home": "s3",
+   "want": "=IRR(G1:G2)"
+  },
+  {
+   "f": "=IRR(H1:H4)",
+   "home": "s1",
+   "want": "=IRR(H1:H4)"
+  },
+  {
+   "f": "=IRR(H1:H4)",
+   "home": "s3",
+   "want": "=IRR(H1:H4)"
+  },
+  {
+   "f": "=IRR(J1:J2)",
+   "home": "s1",
+   "want": "=IRR(J1:J2)"
+  },
+  {
+   "f": "=IRR(J1:J2)",
+   "home": "s3",
+   "want": "=IRR(J1:J2)"
+  },
+  {
+   "f": "=ISBLANK(A4)",
+   "home": "s1",
+   "want": "=ISBLANK(A4)"
+  },
+  {
+   "f": "=ISBLANK(A4)",
+   "home": "s3",
+   "want": "=ISBLANK(A4)"
+  },
+  {
+   "f": "=ISBLANK(B4)",
+   "home": "s1",
+   "want": "=ISBLANK(B4)"
+  },
+  {
+   "f": "=ISBLANK(B4)",
+   "home": "s3",
+   "want": "=ISBLANK(B4)"
+  },
+  {
+   "f": "=ISERROR(D1)",
+   "home": "s1",
+   "want": "=ISERROR(D1)"
+  },
+  {
+   "f": "=ISERROR(D1)",
+   "home": "s3",
+   "want": "=ISERROR(D1)"
+  },
+  {
+   "f": "=ISNA(NA())",
+   "home": "s1",
+   "want": "=ISNA(NA())"
+  },
+  {
+   "f": "=ISNA(NA())",
+   "home": "s3",
+   "want": "=ISNA(NA())"
+  },
+  {
+   "f": "=ISNUMBER(D2)",
+   "home": "s1",
+   "want": "=ISNUMBER(D2)"
+  },
+  {
+   "f": "=ISNUMBER(D2)",
+   "home": "s3",
+   "want": "=ISNUMBER(D2)"
+  },
+  {
+   "f": "=ISTEXT(D2)",
+   "home": "s1",
+   "want": "=ISTEXT(D2)"
+  },
+  {
+   "f": "=ISTEXT(D2)",
+   "home": "s3",
+   "want": "=ISTEXT(D2)"
+  },
+  {
+   "f": "=LARGE(C1:C6,0)",
+   "home": "s1",
+   "want": "=LARGE(C1:C6,0)"
+  },
+  {
+   "f": "=LARGE(C1:C6,0)",
+   "home": "s3",
+   "want": "=LARGE(C1:C6,0)"
+  },
+  {
+   "f": "=LARGE(C1:C6,2)",
+   "home": "s1",
+   "want": "=LARGE(C1:C6,2)"
+  },
+  {
+   "f": "=LARGE(C1:C6,2)",
+   "home": "s3",
+   "want": "=LARGE(C1:C6,2)"
+  },
+  {
+   "f": "=LEN(\"P\nQ\")",
+   "home": "s1",
+   "want": "=LEN(\"P\nQ\")"
+  },
+  {
+   "f": "=LEN(\"P\nQ\")",
+   "home": "s3",
+   "want": "=LEN(\"P\nQ\")"
+  },
+  {
+   "f": "=LEN(\"X\nY\")",
+   "home": "s1",
+   "want": "=LEN(\"X\nY\")"
+  },
+  {
+   "f": "=LEN(\"X\nY\")",
+   "home": "s3",
+   "want": "=LEN(\"X\nY\")"
+  },
+  {
+   "f": "=LEN(\"p\nq\")",
+   "home": "s1",
+   "want": "=LEN(\"p\nq\")"
+  },
+  {
+   "f": "=LEN(\"p\nq\")",
+   "home": "s3",
+   "want": "=LEN(\"p\nq\")"
+  },
+  {
+   "f": "=LEN(\"x\ny\")",
+   "home": "s1",
+   "want": "=LEN(\"x\ny\")"
+  },
+  {
+   "f": "=LEN(\"x\ny\")",
+   "home": "s3",
+   "want": "=LEN(\"x\ny\")"
+  },
+  {
+   "f": "=LITERAL\", A9: \"02134\", A10: \"",
+   "home": "s1",
+   "want": "=LITERAL\", A9: \"02134\", A10: \""
+  },
+  {
+   "f": "=LITERAL\", A9: \"02134\", A10: \"",
+   "home": "s3",
+   "want": "=LITERAL\", A9: \"02134\", A10: \""
+  },
+  {
+   "f": "=MAX(A1:A6)",
+   "home": "s1",
+   "want": "=MAX(A1:A6)"
+  },
+  {
+   "f": "=MAX(A1:A6)",
+   "home": "s3",
+   "want": "=MAX(A1:A6)"
+  },
+  {
+   "f": "=MAX(B1:B6)",
+   "home": "s1",
+   "want": "=MAX(B1:B6)"
+  },
+  {
+   "f": "=MAX(B1:B6)",
+   "home": "s3",
+   "want": "=MAX(B1:B6)"
+  },
+  {
+   "f": "=MEDIAN(C1:C6)",
+   "home": "s1",
+   "want": "=MEDIAN(C1:C6)"
+  },
+  {
+   "f": "=MEDIAN(C1:C6)",
+   "home": "s3",
+   "want": "=MEDIAN(C1:C6)"
+  },
+  {
+   "f": "=MIN(C1:C6)",
+   "home": "s1",
+   "want": "=MIN(C1:C6)"
+  },
+  {
+   "f": "=MIN(C1:C6)",
+   "home": "s3",
+   "want": "=MIN(C1:C6)"
+  },
+  {
+   "f": "=MOD(-3,2)",
+   "home": "s1",
+   "want": "=MOD(-3,2)"
+  },
+  {
+   "f": "=MOD(-3,2)",
+   "home": "s3",
+   "want": "=MOD(-3,2)"
+  },
+  {
+   "f": "=MOD(3,0)",
+   "home": "s1",
+   "want": "=MOD(3,0)"
+  },
+  {
+   "f": "=MOD(3,0)",
+   "home": "s3",
+   "want": "=MOD(3,0)"
+  },
+  {
+   "f": "=MODE(0.1+0.2,0.3,1)",
+   "home": "s1",
+   "want": "=MODE(0.1+0.2,0.3,1)"
+  },
+  {
+   "f": "=MODE(0.1+0.2,0.3,1)",
+   "home": "s3",
+   "want": "=MODE(0.1+0.2,0.3,1)"
+  },
+  {
+   "f": "=MODE(C1:C6)",
+   "home": "s1",
+   "want": "=MODE(C1:C6)"
+  },
+  {
+   "f": "=MODE(C1:C6)",
+   "home": "s3",
+   "want": "=MODE(C1:C6)"
+  },
+  {
+   "f": "=MODE(E1:E8)",
+   "home": "s1",
+   "want": "=MODE(E1:E8)"
+  },
+  {
+   "f": "=MODE(E1:E8)",
+   "home": "s3",
+   "want": "=MODE(E1:E8)"
+  },
+  {
+   "f": "=NOSUCH(1)",
+   "home": "s1",
+   "want": "=NOSUCH(1)"
+  },
+  {
+   "f": "=NOSUCH(1)",
+   "home": "s3",
+   "want": "=NOSUCH(1)"
+  },
+  {
+   "f": "=NOT(0)",
+   "home": "s1",
+   "want": "=NOT(0)"
+  },
+  {
+   "f": "=NOT(0)",
+   "home": "s3",
+   "want": "=NOT(0)"
+  },
+  {
+   "f": "=NOTES!A1",
+   "home": "s1",
+   "want": "=NOTES!A1"
+  },
+  {
+   "f": "=NOTES!A1",
+   "home": "s3",
+   "want": "=NOTES!A1"
+  },
+  {
+   "f": "=NOTES!B1",
+   "home": "s1",
+   "want": "=NOTES!B1"
+  },
+  {
+   "f": "=NOTES!B1",
+   "home": "s3",
+   "want": "=NOTES!B1"
+  },
+  {
+   "f": "=NOTES!B9",
+   "home": "s1",
+   "want": "=NOTES!B9"
+  },
+  {
+   "f": "=NOTES!B9",
+   "home": "s3",
+   "want": "=NOTES!B9"
+  },
+  {
+   "f": "=NPER(5%/12,-1073.6432460242797,200000)",
+   "home": "s1",
+   "want": "=NPER(5%/12,-1073.6432460242797,200000)"
+  },
+  {
+   "f": "=NPER(5%/12,-1073.6432460242797,200000)",
+   "home": "s3",
+   "want": "=NPER(5%/12,-1073.6432460242797,200000)"
+  },
+  {
+   "f": "=NPV(-1,F1:F3)",
+   "home": "s1",
+   "want": "=NPV(-1,F1:F3)"
+  },
+  {
+   "f": "=NPV(-1,F1:F3)",
+   "home": "s3",
+   "want": "=NPV(-1,F1:F3)"
+  },
+  {
+   "f": "=NPV(10%,100,200)",
+   "home": "s1",
+   "want": "=NPV(10%,100,200)"
+  },
+  {
+   "f": "=NPV(10%,100,200)",
+   "home": "s3",
+   "want": "=NPV(10%,100,200)"
+  },
+  {
+   "f": "=NPV(10%,F1:F3)",
+   "home": "s1",
+   "want": "=NPV(10%,F1:F3)"
+  },
+  {
+   "f": "=NPV(10%,F1:F3)",
+   "home": "s3",
+   "want": "=NPV(10%,F1:F3)"
+  },
+  {
+   "f": "=Notes!A1",
+   "home": "s1",
+   "want": "=Notes!A1"
+  },
+  {
+   "f": "=Notes!A1",
+   "home": "s3",
+   "want": "=Notes!A1"
+  },
+  {
+   "f": "=Notes!B1",
+   "home": "s1",
+   "want": "=Notes!B1"
+  },
+  {
+   "f": "=Notes!B1",
+   "home": "s3",
+   "want": "=Notes!B1"
+  },
+  {
+   "f": "=Notes!B9",
+   "home": "s1",
+   "want": "=Notes!B9"
+  },
+  {
+   "f": "=Notes!B9",
+   "home": "s3",
+   "want": "=Notes!B9"
+  },
+  {
+   "f": "=OR(0,FALSE)",
+   "home": "s1",
+   "want": "=OR(0,FALSE)"
+  },
+  {
+   "f": "=OR(0,FALSE)",
+   "home": "s3",
+   "want": "=OR(0,FALSE)"
+  },
+  {
+   "f": "=PERCENTILE(A1:A6,0.5)",
+   "home": "s1",
+   "want": "=PERCENTILE(A1:A6,0.5)"
+  },
+  {
+   "f": "=PERCENTILE(A1:A6,0.5)",
+   "home": "s3",
+   "want": "=PERCENTILE(A1:A6,0.5)"
+  },
+  {
+   "f": "=PERCENTILE(C1:C6,0.5)",
+   "home": "s1",
+   "want": "=PERCENTILE(C1:C6,0.5)"
+  },
+  {
+   "f": "=PERCENTILE(C1:C6,0.5)",
+   "home": "s3",
+   "want": "=PERCENTILE(C1:C6,0.5)"
+  },
+  {
+   "f": "=PERCENTILE(C1:C6,1.5)",
+   "home": "s1",
+   "want": "=PERCENTILE(C1:C6,1.5)"
+  },
+  {
+   "f": "=PERCENTILE(C1:C6,1.5)",
+   "home": "s3",
+   "want": "=PERCENTILE(C1:C6,1.5)"
+  },
+  {
+   "f": "=PERCENTILE.INC(C1:C6,1)",
+   "home": "s1",
+   "want": "=PERCENTILE.INC(C1:C6,1)"
+  },
+  {
+   "f": "=PERCENTILE.INC(C1:C6,1)",
+   "home": "s3",
+   "want": "=PERCENTILE.INC(C1:C6,1)"
+  },
+  {
+   "f": "=PLAN!B1",
+   "home": "s1",
+   "want": "=PLAN!B1"
+  },
+  {
+   "f": "=PLAN!B1",
+   "home": "s3",
+   "want": "=PLAN!B1"
+  },
+  {
+   "f": "=PLAN!B6*2",
+   "home": "s1",
+   "want": "=PLAN!B6*2"
+  },
+  {
+   "f": "=PLAN!B6*2",
+   "home": "s3",
+   "want": "=PLAN!B6*2"
+  },
+  {
+   "f": "=PLAN!B9",
+   "home": "s1",
+   "want": "=PLAN!B9"
+  },
+  {
+   "f": "=PLAN!B9",
+   "home": "s3",
+   "want": "=PLAN!B9"
+  },
+  {
+   "f": "=PMT(0,10,1000)",
+   "home": "s1",
+   "want": "=PMT(0,10,1000)"
+  },
+  {
+   "f": "=PMT(0,10,1000)",
+   "home": "s3",
+   "want": "=PMT(0,10,1000)"
+  },
+  {
+   "f": "=PMT(5%,10)",
+   "home": "s1",
+   "want": "=PMT(5%,10)"
+  },
+  {
+   "f": "=PMT(5%,10)",
+   "home": "s3",
+   "want": "=PMT(5%,10)"
+  },
+  {
+   "f": "=PMT(5%/12,360,200000)",
+   "home": "s1",
+   "want": "=PMT(5%/12,360,200000)"
+  },
+  {
+   "f": "=PMT(5%/12,360,200000)",
+   "home": "s3",
+   "want": "=PMT(5%/12,360,200000)"
+  },
+  {
+   "f": "=POWER(2,10)",
+   "home": "s1",
+   "want": "=POWER(2,10)"
+  },
+  {
+   "f": "=POWER(2,10)",
+   "home": "s3",
+   "want": "=POWER(2,10)"
+  },
+  {
+   "f": "=PRODUCT(C1:C4)",
+   "home": "s1",
+   "want": "=PRODUCT(C1:C4)"
+  },
+  {
+   "f": "=PRODUCT(C1:C4)",
+   "home": "s3",
+   "want": "=PRODUCT(C1:C4)"
+  },
+  {
+   "f": "=PV(5%/12,360,-1073.6432460242797)",
+   "home": "s1",
+   "want": "=PV(5%/12,360,-1073.6432460242797)"
+  },
+  {
+   "f": "=PV(5%/12,360,-1073.6432460242797)",
+   "home": "s3",
+   "want": "=PV(5%/12,360,-1073.6432460242797)"
+  },
+  {
+   "f": "=Plan!B1",
+   "home": "s1",
+   "want": "=Plan!B1"
+  },
+  {
+   "f": "=Plan!B1",
+   "home": "s3",
+   "want": "=Plan!B1"
+  },
+  {
+   "f": "=Plan!B6*2",
+   "home": "s1",
+   "want": "=Plan!B6*2"
+  },
+  {
+   "f": "=Plan!B6*2",
+   "home": "s3",
+   "want": "=Plan!B6*2"
+  },
+  {
+   "f": "=Plan!B9",
+   "home": "s1",
+   "want": "=Plan!B9"
+  },
+  {
+   "f": "=Plan!B9",
+   "home": "s3",
+   "want": "=Plan!B9"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,0)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,0)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,0)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,0)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,1)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,1)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,1)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,1)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,1.9)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,1.9)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,1.9)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,1.9)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,4)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,4)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,4)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,4)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,5)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,5)"
+  },
+  {
+   "f": "=QUARTILE(C1:C6,5)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,5)"
+  },
+  {
+   "f": "=RAND()",
+   "home": "s1",
+   "want": "=RAND()"
+  },
+  {
+   "f": "=RAND()",
+   "home": "s3",
+   "want": "=RAND()"
+  },
+  {
+   "f": "=RANK(0.1+0.2,I1:I4)",
+   "home": "s1",
+   "want": "=RANK(0.1+0.2,I1:I4)"
+  },
+  {
+   "f": "=RANK(0.1+0.2,I1:I4)",
+   "home": "s3",
+   "want": "=RANK(0.1+0.2,I1:I4)"
+  },
+  {
+   "f": "=RANK(5,C1:C6)",
+   "home": "s1",
+   "want": "=RANK(5,C1:C6)"
+  },
+  {
+   "f": "=RANK(5,C1:C6)",
+   "home": "s3",
+   "want": "=RANK(5,C1:C6)"
+  },
+  {
+   "f": "=RANK(5,C1:C6,1)",
+   "home": "s1",
+   "want": "=RANK(5,C1:C6,1)"
+  },
+  {
+   "f": "=RANK(5,C1:C6,1)",
+   "home": "s3",
+   "want": "=RANK(5,C1:C6,1)"
+  },
+  {
+   "f": "=RANK(5,C1:C6,D2)",
+   "home": "s1",
+   "want": "=RANK(5,C1:C6,D2)"
+  },
+  {
+   "f": "=RANK(5,C1:C6,D2)",
+   "home": "s3",
+   "want": "=RANK(5,C1:C6,D2)"
+  },
+  {
+   "f": "=RANK(7,C1:C6)",
+   "home": "s1",
+   "want": "=RANK(7,C1:C6)"
+  },
+  {
+   "f": "=RANK(7,C1:C6)",
+   "home": "s3",
+   "want": "=RANK(7,C1:C6)"
+  },
+  {
+   "f": "=RANK.EQ(4,E1:E8)",
+   "home": "s1",
+   "want": "=RANK.EQ(4,E1:E8)"
+  },
+  {
+   "f": "=RANK.EQ(4,E1:E8)",
+   "home": "s3",
+   "want": "=RANK.EQ(4,E1:E8)"
+  },
+  {
+   "f": "=RATE(12,-100,1000)",
+   "home": "s1",
+   "want": "=RATE(12,-100,1000)"
+  },
+  {
+   "f": "=RATE(12,-100,1000)",
+   "home": "s3",
+   "want": "=RATE(12,-100,1000)"
+  },
+  {
+   "f": "=RATE(36,-500,17990)",
+   "home": "s1",
+   "want": "=RATE(36,-500,17990)"
+  },
+  {
+   "f": "=RATE(36,-500,17990)",
+   "home": "s3",
+   "want": "=RATE(36,-500,17990)"
+  },
+  {
+   "f": "=RATE(36,-500,18000)",
+   "home": "s1",
+   "want": "=RATE(36,-500,18000)"
+  },
+  {
+   "f": "=RATE(36,-500,18000)",
+   "home": "s3",
+   "want": "=RATE(36,-500,18000)"
+  },
+  {
+   "f": "=RATE(360,-1073.6432460242797,200000)",
+   "home": "s1",
+   "want": "=RATE(360,-1073.6432460242797,200000)"
+  },
+  {
+   "f": "=RATE(360,-1073.6432460242797,200000)",
+   "home": "s3",
+   "want": "=RATE(360,-1073.6432460242797,200000)"
+  },
+  {
+   "f": "=RATE(360,-1073.6432460242797,200000,0,0,2)",
+   "home": "s1",
+   "want": "=RATE(360,-1073.6432460242797,200000,0,0,2)"
+  },
+  {
+   "f": "=RATE(360,-1073.6432460242797,200000,0,0,2)",
+   "home": "s3",
+   "want": "=RATE(360,-1073.6432460242797,200000,0,0,2)"
+  },
+  {
+   "f": "=ROUND(-2.5,0)",
+   "home": "s1",
+   "want": "=ROUND(-2.5,0)"
+  },
+  {
+   "f": "=ROUND(-2.5,0)",
+   "home": "s3",
+   "want": "=ROUND(-2.5,0)"
+  },
+  {
+   "f": "=ROUND(1.005,2)",
+   "home": "s1",
+   "want": "=ROUND(1.005,2)"
+  },
+  {
+   "f": "=ROUND(1.005,2)",
+   "home": "s3",
+   "want": "=ROUND(1.005,2)"
+  },
+  {
+   "f": "=ROUND(1234,-2)",
+   "home": "s1",
+   "want": "=ROUND(1234,-2)"
+  },
+  {
+   "f": "=ROUND(1234,-2)",
+   "home": "s3",
+   "want": "=ROUND(1234,-2)"
+  },
+  {
+   "f": "=ROUND(2.5,0)",
+   "home": "s1",
+   "want": "=ROUND(2.5,0)"
+  },
+  {
+   "f": "=ROUND(2.5,0)",
+   "home": "s3",
+   "want": "=ROUND(2.5,0)"
+  },
+  {
+   "f": "=ROUND(A1,2)",
+   "home": "s1",
+   "want": "=ROUND(A1,2)"
+  },
+  {
+   "f": "=ROUND(A1,2)",
+   "home": "s3",
+   "want": "=ROUND(A1,2)"
+  },
+  {
+   "f": "=ROUNDDOWN(-1.29,1)",
+   "home": "s1",
+   "want": "=ROUNDDOWN(-1.29,1)"
+  },
+  {
+   "f": "=ROUNDDOWN(-1.29,1)",
+   "home": "s3",
+   "want": "=ROUNDDOWN(-1.29,1)"
+  },
+  {
+   "f": "=ROUNDUP(1.21,1)",
+   "home": "s1",
+   "want": "=ROUNDUP(1.21,1)"
+  },
+  {
+   "f": "=ROUNDUP(1.21,1)",
+   "home": "s3",
+   "want": "=ROUNDUP(1.21,1)"
+  },
+  {
+   "f": "=ROW()",
+   "home": "s1",
+   "want": "=ROW()"
+  },
+  {
+   "f": "=ROW()",
+   "home": "s3",
+   "want": "=ROW()"
+  },
+  {
+   "f": "=ROW() FOLLOWS ITS ROW AFTER A ROW INSERT ABOVE IT",
+   "home": "s1",
+   "want": "=ROW() FOLLOWS ITS ROW AFTER A ROW INSERT ABOVE IT"
+  },
+  {
+   "f": "=ROW() FOLLOWS ITS ROW AFTER A ROW INSERT ABOVE IT",
+   "home": "s3",
+   "want": "=ROW() FOLLOWS ITS ROW AFTER A ROW INSERT ABOVE IT"
+  },
+  {
+   "f": "=ROW() follows its row after a row insert above it",
+   "home": "s1",
+   "want": "=ROW() follows its row after a row insert above it"
+  },
+  {
+   "f": "=ROW() follows its row after a row insert above it",
+   "home": "s3",
+   "want": "=ROW() follows its row after a row insert above it"
+  },
+  {
+   "f": "=ROW(A100)",
+   "home": "s1",
+   "want": "=ROW(A100)"
+  },
+  {
+   "f": "=ROW(A100)",
+   "home": "s3",
+   "want": "=ROW(A100)"
+  },
+  {
+   "f": "=ROW(BUDGET!B2)",
+   "home": "s1",
+   "want": "=ROW(Budget!B2)"
+  },
+  {
+   "f": "=ROW(BUDGET!B2)",
+   "home": "s3",
+   "want": "=ROW(Budget!B2)"
+  },
+  {
+   "f": "=ROW(BUDGET!B2) ON ANOTHER TAB FOLLOWS A ROW INSERT ON BUDGET",
+   "home": "s1",
+   "want": "=ROW(BUDGET!B2) ON ANOTHER TAB FOLLOWS A ROW INSERT ON BUDGET"
+  },
+  {
+   "f": "=ROW(BUDGET!B2) ON ANOTHER TAB FOLLOWS A ROW INSERT ON BUDGET",
+   "home": "s3",
+   "want": "=ROW(BUDGET!B2) ON ANOTHER TAB FOLLOWS A ROW INSERT ON BUDGET"
+  },
+  {
+   "f": "=ROW(Budget!B2)",
+   "home": "s1",
+   "want": "=ROW(Budget!B2)"
+  },
+  {
+   "f": "=ROW(Budget!B2)",
+   "home": "s3",
+   "want": "=ROW(Budget!B2)"
+  },
+  {
+   "f": "=ROW(Budget!B2) on another tab follows a row insert on Budget",
+   "home": "s1",
+   "want": "=ROW(Budget!B2) on another tab follows a row insert on Budget"
+  },
+  {
+   "f": "=ROW(Budget!B2) on another tab follows a row insert on Budget",
+   "home": "s3",
+   "want": "=ROW(Budget!B2) on another tab follows a row insert on Budget"
+  },
+  {
+   "f": "=ROW(C3)",
+   "home": "s1",
+   "want": "=ROW(C3)"
+  },
+  {
+   "f": "=ROW(C3)",
+   "home": "s3",
+   "want": "=ROW(C3)"
+  },
+  {
+   "f": "=ROWS(A1:B6)",
+   "home": "s1",
+   "want": "=ROWS(A1:B6)"
+  },
+  {
+   "f": "=ROWS(A1:B6)",
+   "home": "s3",
+   "want": "=ROWS(A1:B6)"
+  },
+  {
+   "f": "=SMALL(A1:A6,1)",
+   "home": "s1",
+   "want": "=SMALL(A1:A6,1)"
+  },
+  {
+   "f": "=SMALL(A1:A6,1)",
+   "home": "s3",
+   "want": "=SMALL(A1:A6,1)"
+  },
+  {
+   "f": "=SMALL(C1:C6,7)",
+   "home": "s1",
+   "want": "=SMALL(C1:C6,7)"
+  },
+  {
+   "f": "=SMALL(C1:C6,7)",
+   "home": "s3",
+   "want": "=SMALL(C1:C6,7)"
+  },
+  {
+   "f": "=SQRT(-1)",
+   "home": "s1",
+   "want": "=SQRT(-1)"
+  },
+  {
+   "f": "=SQRT(-1)",
+   "home": "s3",
+   "want": "=SQRT(-1)"
+  },
+  {
+   "f": "=STDEV(\"X\",1,2)",
+   "home": "s1",
+   "want": "=STDEV(\"X\",1,2)"
+  },
+  {
+   "f": "=STDEV(\"X\",1,2)",
+   "home": "s3",
+   "want": "=STDEV(\"X\",1,2)"
+  },
+  {
+   "f": "=STDEV(\"x\",1,2)",
+   "home": "s1",
+   "want": "=STDEV(\"x\",1,2)"
+  },
+  {
+   "f": "=STDEV(\"x\",1,2)",
+   "home": "s3",
+   "want": "=STDEV(\"x\",1,2)"
+  },
+  {
+   "f": "=STDEV(10)",
+   "home": "s1",
+   "want": "=STDEV(10)"
+  },
+  {
+   "f": "=STDEV(10)",
+   "home": "s3",
+   "want": "=STDEV(10)"
+  },
+  {
+   "f": "=STDEV(A1:A6)",
+   "home": "s1",
+   "want": "=STDEV(A1:A6)"
+  },
+  {
+   "f": "=STDEV(A1:A6)",
+   "home": "s3",
+   "want": "=STDEV(A1:A6)"
+  },
+  {
+   "f": "=STDEV(B1:B2)",
+   "home": "s1",
+   "want": "=STDEV(B1:B2)"
+  },
+  {
+   "f": "=STDEV(B1:B2)",
+   "home": "s3",
+   "want": "=STDEV(B1:B2)"
+  },
+  {
+   "f": "=STDEV(B9)",
+   "home": "s1",
+   "want": "=STDEV(B9)"
+  },
+  {
+   "f": "=STDEV(B9)",
+   "home": "s3",
+   "want": "=STDEV(B9)"
+  },
+  {
+   "f": "=STDEV(C1:C3,D1)",
+   "home": "s1",
+   "want": "=STDEV(C1:C3,D1)"
+  },
+  {
+   "f": "=STDEV(C1:C3,D1)",
+   "home": "s3",
+   "want": "=STDEV(C1:C3,D1)"
+  },
+  {
+   "f": "=STDEV(E1:E8)",
+   "home": "s1",
+   "want": "=STDEV(E1:E8)"
+  },
+  {
+   "f": "=STDEV(E1:E8)",
+   "home": "s3",
+   "want": "=STDEV(E1:E8)"
+  },
+  {
+   "f": "=STDEV(I1:I3)",
+   "home": "s1",
+   "want": "=STDEV(I1:I3)"
+  },
+  {
+   "f": "=STDEV(I1:I3)",
+   "home": "s3",
+   "want": "=STDEV(I1:I3)"
+  },
+  {
+   "f": "=STDEV.P(E1:E8)",
+   "home": "s1",
+   "want": "=STDEV.P(E1:E8)"
+  },
+  {
+   "f": "=STDEV.P(E1:E8)",
+   "home": "s3",
+   "want": "=STDEV.P(E1:E8)"
+  },
+  {
+   "f": "=STDEV.S(E1:E8)",
+   "home": "s1",
+   "want": "=STDEV.S(E1:E8)"
+  },
+  {
+   "f": "=STDEV.S(E1:E8)",
+   "home": "s3",
+   "want": "=STDEV.S(E1:E8)"
+  },
+  {
+   "f": "=STDEVP(10)",
+   "home": "s1",
+   "want": "=STDEVP(10)"
+  },
+  {
+   "f": "=STDEVP(10)",
+   "home": "s3",
+   "want": "=STDEVP(10)"
+  },
+  {
+   "f": "=STDEVP(E1:E8)",
+   "home": "s1",
+   "want": "=STDEVP(E1:E8)"
+  },
+  {
+   "f": "=STDEVP(E1:E8)",
+   "home": "s3",
+   "want": "=STDEVP(E1:E8)"
+  },
+  {
+   "f": "=SUBTOTAL(10,A1:A2)",
+   "home": "s1",
+   "want": "=SUBTOTAL(10,A1:A2)"
+  },
+  {
+   "f": "=SUBTOTAL(10,A1:A2)",
+   "home": "s3",
+   "want": "=SUBTOTAL(10,A1:A2)"
+  },
+  {
+   "f": "=SUBTOTAL(7,A1:A3)",
+   "home": "s1",
+   "want": "=SUBTOTAL(7,A1:A3)"
+  },
+  {
+   "f": "=SUBTOTAL(7,A1:A3)",
+   "home": "s3",
+   "want": "=SUBTOTAL(7,A1:A3)"
+  },
+  {
+   "f": "=SUBTOTAL(9,A1:A2)",
+   "home": "s1",
+   "want": "=SUBTOTAL(9,A1:A2)"
+  },
+  {
+   "f": "=SUBTOTAL(9,A1:A2)",
+   "home": "s3",
+   "want": "=SUBTOTAL(9,A1:A2)"
+  },
+  {
+   "f": "=SUBTOTAL(9,A1:A5)",
+   "home": "s1",
+   "want": "=SUBTOTAL(9,A1:A5)"
+  },
+  {
+   "f": "=SUBTOTAL(9,A1:A5)",
+   "home": "s3",
+   "want": "=SUBTOTAL(9,A1:A5)"
+  },
+  {
+   "f": "=SUBTOTAL(9,A4)",
+   "home": "s1",
+   "want": "=SUBTOTAL(9,A4)"
+  },
+  {
+   "f": "=SUBTOTAL(9,A4)",
+   "home": "s3",
+   "want": "=SUBTOTAL(9,A4)"
+  },
+  {
+   "f": "=SUM(",
+   "home": "s1",
+   "want": "=SUM("
+  },
+  {
+   "f": "=SUM(",
+   "home": "s3",
+   "want": "=SUM("
+  },
+  {
+   "f": "=SUM(\"X\")",
+   "home": "s1",
+   "want": "=SUM(\"X\")"
+  },
+  {
+   "f": "=SUM(\"X\")",
+   "home": "s3",
+   "want": "=SUM(\"X\")"
+  },
+  {
+   "f": "=SUM(\"x\")",
+   "home": "s1",
+   "want": "=SUM(\"x\")"
+  },
+  {
+   "f": "=SUM(\"x\")",
+   "home": "s3",
+   "want": "=SUM(\"x\")"
+  },
+  {
+   "f": "=SUM(#REF!)",
+   "home": "s1",
+   "want": "=SUM(#REF!)"
+  },
+  {
+   "f": "=SUM(#REF!)",
+   "home": "s3",
+   "want": "=SUM(#REF!)"
+  },
+  {
+   "f": "=SUM($A$1:$A$5)",
+   "home": "s1",
+   "want": "=SUM($A$1:$A$5)"
+  },
+  {
+   "f": "=SUM($A$1:$A$5)",
+   "home": "s3",
+   "want": "=SUM($A$1:$A$5)"
+  },
+  {
+   "f": "=SUM($A$1:A3)",
+   "home": "s1",
+   "want": "=SUM($A$1:A3)"
+  },
+  {
+   "f": "=SUM($A$1:A3)",
+   "home": "s3",
+   "want": "=SUM($A$1:A3)"
+  },
+  {
+   "f": "=SUM($A$1:B2)",
+   "home": "s1",
+   "want": "=SUM($A$1:B2)"
+  },
+  {
+   "f": "=SUM($A$1:B2)",
+   "home": "s3",
+   "want": "=SUM($A$1:B2)"
+  },
+  {
+   "f": "=SUM($A$2:A4)",
+   "home": "s1",
+   "want": "=SUM($A$2:A4)"
+  },
+  {
+   "f": "=SUM($A$2:A4)",
+   "home": "s3",
+   "want": "=SUM($A$2:A4)"
+  },
+  {
+   "f": "=SUM($B$2:B)+BUDGET!C5:C",
+   "home": "s1",
+   "want": "=SUM($B$2:B)+Budget!C5:C"
+  },
+  {
+   "f": "=SUM($B$2:B)+BUDGET!C5:C",
+   "home": "s3",
+   "want": "=SUM($B$2:B)+Budget!C5:C"
+  },
+  {
+   "f": "=SUM($B$2:B)+Budget!C5:C",
+   "home": "s1",
+   "want": "=SUM($B$2:B)+Budget!C5:C"
+  },
+  {
+   "f": "=SUM($B$2:B)+Budget!C5:C",
+   "home": "s3",
+   "want": "=SUM($B$2:B)+Budget!C5:C"
+  },
+  {
+   "f": "=SUM($a$1:b2)",
+   "home": "s1",
+   "want": "=SUM($A$1:B2)"
+  },
+  {
+   "f": "=SUM($a$1:b2)",
+   "home": "s3",
+   "want": "=SUM($A$1:B2)"
+  },
+  {
+   "f": "=SUM(1:5)",
+   "home": "s1",
+   "want": "=SUM(1:5)"
+  },
+  {
+   "f": "=SUM(1:5)",
+   "home": "s3",
+   "want": "=SUM(1:5)"
+  },
+  {
+   "f": "=SUM(A1)",
+   "home": "s1",
+   "want": "=SUM(A1)"
+  },
+  {
+   "f": "=SUM(A1)",
+   "home": "s3",
+   "want": "=SUM(A1)"
+  },
+  {
+   "f": "=SUM(A1)\", \"123,FALSE\", \"",
+   "home": "s1",
+   "want": "=SUM(A1)\", \"123,FALSE\", \""
+  },
+  {
+   "f": "=SUM(A1)\", \"123,FALSE\", \"",
+   "home": "s3",
+   "want": "=SUM(A1)\", \"123,FALSE\", \""
+  },
+  {
+   "f": "=SUM(A1),",
+   "home": "s1",
+   "want": "=SUM(A1),"
+  },
+  {
+   "f": "=SUM(A1),",
+   "home": "s3",
+   "want": "=SUM(A1),"
+  },
+  {
+   "f": "=SUM(A1,2.5)",
+   "home": "s1",
+   "want": "=SUM(A1,2.5)"
+  },
+  {
+   "f": "=SUM(A1,2.5)",
+   "home": "s3",
+   "want": "=SUM(A1,2.5)"
+  },
+  {
+   "f": "=SUM(A1,B1)",
+   "home": "s1",
+   "want": "=SUM(A1,B1)"
+  },
+  {
+   "f": "=SUM(A1,B1)",
+   "home": "s3",
+   "want": "=SUM(A1,B1)"
+  },
+  {
+   "f": "=SUM(A1:A2)",
+   "home": "s1",
+   "want": "=SUM(A1:A2)"
+  },
+  {
+   "f": "=SUM(A1:A2)",
+   "home": "s3",
+   "want": "=SUM(A1:A2)"
+  },
+  {
+   "f": "=SUM(A1:A20)",
+   "home": "s1",
+   "want": "=SUM(A1:A20)"
+  },
+  {
+   "f": "=SUM(A1:A20)",
+   "home": "s3",
+   "want": "=SUM(A1:A20)"
+  },
+  {
+   "f": "=SUM(A1:A20) ON A 10-ROW TAB COVERS THE ROWS AN INSERT BRINGS AND IS COMPUTED AFTER THE INSERT",
+   "home": "s1",
+   "want": "=SUM(A1:A20) ON A 10-ROW TAB COVERS THE ROWS AN INSERT BRINGS AND IS COMPUTED AFTER THE INSERT"
+  },
+  {
+   "f": "=SUM(A1:A20) ON A 10-ROW TAB COVERS THE ROWS AN INSERT BRINGS AND IS COMPUTED AFTER THE INSERT",
+   "home": "s3",
+   "want": "=SUM(A1:A20) ON A 10-ROW TAB COVERS THE ROWS AN INSERT BRINGS AND IS COMPUTED AFTER THE INSERT"
+  },
+  {
+   "f": "=SUM(A1:A20) on a 10-row tab covers the rows an insert brings and is computed after the insert",
+   "home": "s1",
+   "want": "=SUM(A1:A20) on a 10-row tab covers the rows an insert brings and is computed after the insert"
+  },
+  {
+   "f": "=SUM(A1:A20) on a 10-row tab covers the rows an insert brings and is computed after the insert",
+   "home": "s3",
+   "want": "=SUM(A1:A20) on a 10-row tab covers the rows an insert brings and is computed after the insert"
+  },
+  {
+   "f": "=SUM(A1:A3)",
+   "home": "s1",
+   "want": "=SUM(A1:A3)"
+  },
+  {
+   "f": "=SUM(A1:A3)",
+   "home": "s3",
+   "want": "=SUM(A1:A3)"
+  },
+  {
+   "f": "=SUM(A1:A5)",
+   "home": "s1",
+   "want": "=SUM(A1:A5)"
+  },
+  {
+   "f": "=SUM(A1:A5)",
+   "home": "s3",
+   "want": "=SUM(A1:A5)"
+  },
+  {
+   "f": "=SUM(A1:A6)",
+   "home": "s1",
+   "want": "=SUM(A1:A6)"
+  },
+  {
+   "f": "=SUM(A1:A6)",
+   "home": "s3",
+   "want": "=SUM(A1:A6)"
+  },
+  {
+   "f": "=SUM(A1;B1)",
+   "home": "s1",
+   "want": "=SUM(A1;B1)"
+  },
+  {
+   "f": "=SUM(A1;B1)",
+   "home": "s3",
+   "want": "=SUM(A1;B1)"
+  },
+  {
+   "f": "=SUM(A200:A)",
+   "home": "s1",
+   "want": "=SUM(A200:A)"
+  },
+  {
+   "f": "=SUM(A200:A)",
+   "home": "s3",
+   "want": "=SUM(A200:A)"
+  },
+  {
+   "f": "=SUM(A2:A)",
+   "home": "s1",
+   "want": "=SUM(A2:A)"
+  },
+  {
+   "f": "=SUM(A2:A)",
+   "home": "s3",
+   "want": "=SUM(A2:A)"
+  },
+  {
+   "f": "=SUM(A2:A) TOTALS THE COLUMN BELOW ITS FIRST ROW ACROSS A ROW INSERT",
+   "home": "s1",
+   "want": "=SUM(A2:A) TOTALS THE COLUMN BELOW ITS FIRST ROW ACROSS A ROW INSERT"
+  },
+  {
+   "f": "=SUM(A2:A) TOTALS THE COLUMN BELOW ITS FIRST ROW ACROSS A ROW INSERT",
+   "home": "s3",
+   "want": "=SUM(A2:A) TOTALS THE COLUMN BELOW ITS FIRST ROW ACROSS A ROW INSERT"
+  },
+  {
+   "f": "=SUM(A2:A) totals the column below its first row across a row insert",
+   "home": "s1",
+   "want": "=SUM(A2:A) totals the column below its first row across a row insert"
+  },
+  {
+   "f": "=SUM(A2:A) totals the column below its first row across a row insert",
+   "home": "s3",
+   "want": "=SUM(A2:A) totals the column below its first row across a row insert"
+  },
+  {
+   "f": "=SUM(A2:A1000)",
+   "home": "s1",
+   "want": "=SUM(A2:A1000)"
+  },
+  {
+   "f": "=SUM(A2:A1000)",
+   "home": "s3",
+   "want": "=SUM(A2:A1000)"
+  },
+  {
+   "f": "=SUM(A3)",
+   "home": "s1",
+   "want": "=SUM(A3)"
+  },
+  {
+   "f": "=SUM(A3)",
+   "home": "s3",
+   "want": "=SUM(A3)"
+  },
+  {
+   "f": "=SUM(A3:A)",
+   "home": "s1",
+   "want": "=SUM(A3:A)"
+  },
+  {
+   "f": "=SUM(A3:A)",
+   "home": "s3",
+   "want": "=SUM(A3:A)"
+  },
+  {
+   "f": "=SUM(A3:A10)",
+   "home": "s1",
+   "want": "=SUM(A3:A10)"
+  },
+  {
+   "f": "=SUM(A3:A10)",
+   "home": "s3",
+   "want": "=SUM(A3:A10)"
+  },
+  {
+   "f": "=SUM(A3:A1000)",
+   "home": "s1",
+   "want": "=SUM(A3:A1000)"
+  },
+  {
+   "f": "=SUM(A3:A1000)",
+   "home": "s3",
+   "want": "=SUM(A3:A1000)"
+  },
+  {
+   "f": "=SUM(A:A)",
+   "home": "s1",
+   "want": "=SUM(A:A)"
+  },
+  {
+   "f": "=SUM(A:A)",
+   "home": "s3",
+   "want": "=SUM(A:A)"
+  },
+  {
+   "f": "=SUM(A:A)+SUM(2:3)",
+   "home": "s1",
+   "want": "=SUM(A:A)+SUM(2:3)"
+  },
+  {
+   "f": "=SUM(A:A)+SUM(2:3)",
+   "home": "s3",
+   "want": "=SUM(A:A)+SUM(2:3)"
+  },
+  {
+   "f": "=SUM(B1:B)",
+   "home": "s1",
+   "want": "=SUM(B1:B)"
+  },
+  {
+   "f": "=SUM(B1:B)",
+   "home": "s3",
+   "want": "=SUM(B1:B)"
+  },
+  {
+   "f": "=SUM(B1:B2)",
+   "home": "s1",
+   "want": "=SUM(B1:B2)"
+  },
+  {
+   "f": "=SUM(B1:B2)",
+   "home": "s3",
+   "want": "=SUM(B1:B2)"
+  },
+  {
+   "f": "=SUM(B1:B3)",
+   "home": "s1",
+   "want": "=SUM(B1:B3)"
+  },
+  {
+   "f": "=SUM(B1:B3)",
+   "home": "s3",
+   "want": "=SUM(B1:B3)"
+  },
+  {
+   "f": "=SUM(B1:B4)",
+   "home": "s1",
+   "want": "=SUM(B1:B4)"
+  },
+  {
+   "f": "=SUM(B1:B4)",
+   "home": "s3",
+   "want": "=SUM(B1:B4)"
+  },
+  {
+   "f": "=SUM(B1:B5)",
+   "home": "s1",
+   "want": "=SUM(B1:B5)"
+  },
+  {
+   "f": "=SUM(B1:B5)",
+   "home": "s3",
+   "want": "=SUM(B1:B5)"
+  },
+  {
+   "f": "=SUM(B1:B6)",
+   "home": "s1",
+   "want": "=SUM(B1:B6)"
+  },
+  {
+   "f": "=SUM(B1:B6)",
+   "home": "s3",
+   "want": "=SUM(B1:B6)"
+  },
+  {
+   "f": "=SUM(B2:B)",
+   "home": "s1",
+   "want": "=SUM(B2:B)"
+  },
+  {
+   "f": "=SUM(B2:B)",
+   "home": "s3",
+   "want": "=SUM(B2:B)"
+  },
+  {
+   "f": "=SUM(B2:B3)",
+   "home": "s1",
+   "want": "=SUM(B2:B3)"
+  },
+  {
+   "f": "=SUM(B2:B3)",
+   "home": "s3",
+   "want": "=SUM(B2:B3)"
+  },
+  {
+   "f": "=SUM(B2:B3)+1",
+   "home": "s1",
+   "want": "=SUM(B2:B3)+1"
+  },
+  {
+   "f": "=SUM(B2:B3)+1",
+   "home": "s3",
+   "want": "=SUM(B2:B3)+1"
+  },
+  {
+   "f": "=SUM(B2:B3)+STYLED!B1",
+   "home": "s1",
+   "want": "=SUM(B2:B3)+Styled!B1"
+  },
+  {
+   "f": "=SUM(B2:B3)+STYLED!B1",
+   "home": "s3",
+   "want": "=SUM(B2:B3)+Styled!B1"
+  },
+  {
+   "f": "=SUM(B2:B4)",
+   "home": "s1",
+   "want": "=SUM(B2:B4)"
+  },
+  {
+   "f": "=SUM(B2:B4)",
+   "home": "s3",
+   "want": "=SUM(B2:B4)"
+  },
+  {
+   "f": "=SUM(B2:B5)",
+   "home": "s1",
+   "want": "=SUM(B2:B5)"
+  },
+  {
+   "f": "=SUM(B2:B5)",
+   "home": "s3",
+   "want": "=SUM(B2:B5)"
+  },
+  {
+   "f": "=SUM(B2:B6)",
+   "home": "s1",
+   "want": "=SUM(B2:B6)"
+  },
+  {
+   "f": "=SUM(B2:B6)",
+   "home": "s3",
+   "want": "=SUM(B2:B6)"
+  },
+  {
+   "f": "=SUM(B2:B8)",
+   "home": "s1",
+   "want": "=SUM(B2:B8)"
+  },
+  {
+   "f": "=SUM(B2:B8)",
+   "home": "s3",
+   "want": "=SUM(B2:B8)"
+  },
+  {
+   "f": "=SUM(B3:B4)",
+   "home": "s1",
+   "want": "=SUM(B3:B4)"
+  },
+  {
+   "f": "=SUM(B3:B4)",
+   "home": "s3",
+   "want": "=SUM(B3:B4)"
+  },
+  {
+   "f": "=SUM(B5:B2)",
+   "home": "s1",
+   "want": "=SUM(B2:B5)"
+  },
+  {
+   "f": "=SUM(B5:B2)",
+   "home": "s3",
+   "want": "=SUM(B5:B2)"
+  },
+  {
+   "f": "=SUM(BUDGET!B1:B3)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B3)"
+  },
+  {
+   "f": "=SUM(BUDGET!B1:B3)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B3)"
+  },
+  {
+   "f": "=SUM(BUDGET!B1:B4)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B4)"
+  },
+  {
+   "f": "=SUM(BUDGET!B1:B4)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B4)"
+  },
+  {
+   "f": "=SUM(BUDGET!B5:B1)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B5)"
+  },
+  {
+   "f": "=SUM(BUDGET!B5:B1)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B5)"
+  },
+  {
+   "f": "=SUM(Budget!B1:B3)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B3)"
+  },
+  {
+   "f": "=SUM(Budget!B1:B3)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B3)"
+  },
+  {
+   "f": "=SUM(Budget!B1:B4)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B4)"
+  },
+  {
+   "f": "=SUM(Budget!B1:B4)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B4)"
+  },
+  {
+   "f": "=SUM(Budget!B5:B1)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B5)"
+  },
+  {
+   "f": "=SUM(Budget!B5:B1)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B5)"
+  },
+  {
+   "f": "=SUM(D1:D2)",
+   "home": "s1",
+   "want": "=SUM(D1:D2)"
+  },
+  {
+   "f": "=SUM(D1:D2)",
+   "home": "s3",
+   "want": "=SUM(D1:D2)"
+  },
+  {
+   "f": "=SUM(TRUE,2)",
+   "home": "s1",
+   "want": "=SUM(TRUE,2)"
+  },
+  {
+   "f": "=SUM(TRUE,2)",
+   "home": "s3",
+   "want": "=SUM(TRUE,2)"
+  },
+  {
+   "f": "=SUMIF(A1:A3, \">0\", B1)",
+   "home": "s1",
+   "want": "=SUMIF(A1:A3, \">0\", B1)"
+  },
+  {
+   "f": "=SUMIF(A1:A3, \">0\", B1)",
+   "home": "s3",
+   "want": "=SUMIF(A1:A3, \">0\", B1)"
+  },
+  {
+   "f": "=SUMIF(A1:A3, \"X\", B1:B2)",
+   "home": "s1",
+   "want": "=SUMIF(A1:A3, \"X\", B1:B2)"
+  },
+  {
+   "f": "=SUMIF(A1:A3, \"X\", B1:B2)",
+   "home": "s3",
+   "want": "=SUMIF(A1:A3, \"X\", B1:B2)"
+  },
+  {
+   "f": "=SUMIF(A1:A3, \"x\", B1:B2)",
+   "home": "s1",
+   "want": "=SUMIF(A1:A3, \"x\", B1:B2)"
+  },
+  {
+   "f": "=SUMIF(A1:A3, \"x\", B1:B2)",
+   "home": "s3",
+   "want": "=SUMIF(A1:A3, \"x\", B1:B2)"
+  },
+  {
+   "f": "=SUMIF(A1:A3,\">0,5\",B1)+1.5",
+   "home": "s1",
+   "want": "=SUMIF(A1:A3,\">0,5\",B1)+1.5"
+  },
+  {
+   "f": "=SUMIF(A1:A3,\">0,5\",B1)+1.5",
+   "home": "s3",
+   "want": "=SUMIF(A1:A3,\">0,5\",B1)+1.5"
+  },
+  {
+   "f": "=SUMIF(A1:A6,\">15\")",
+   "home": "s1",
+   "want": "=SUMIF(A1:A6,\">15\")"
+  },
+  {
+   "f": "=SUMIF(A1:A6,\">15\")",
+   "home": "s3",
+   "want": "=SUMIF(A1:A6,\">15\")"
+  },
+  {
+   "f": "=SUMIF(B1:B6,\"A*\",C1:C6)",
+   "home": "s1",
+   "want": "=SUMIF(B1:B6,\"A*\",C1:C6)"
+  },
+  {
+   "f": "=SUMIF(B1:B6,\"A*\",C1:C6)",
+   "home": "s3",
+   "want": "=SUMIF(B1:B6,\"A*\",C1:C6)"
+  },
+  {
+   "f": "=SUMIF(B1:B6,\"A~*B\",C1:C6)",
+   "home": "s1",
+   "want": "=SUMIF(B1:B6,\"A~*B\",C1:C6)"
+  },
+  {
+   "f": "=SUMIF(B1:B6,\"A~*B\",C1:C6)",
+   "home": "s3",
+   "want": "=SUMIF(B1:B6,\"A~*B\",C1:C6)"
+  },
+  {
+   "f": "=SUMIF(B1:B6,\"a*\",C1:C6)",
+   "home": "s1",
+   "want": "=SUMIF(B1:B6,\"a*\",C1:C6)"
+  },
+  {
+   "f": "=SUMIF(B1:B6,\"a*\",C1:C6)",
+   "home": "s3",
+   "want": "=SUMIF(B1:B6,\"a*\",C1:C6)"
+  },
+  {
+   "f": "=SUMIF(B1:B6,\"a~*b\",C1:C6)",
+   "home": "s1",
+   "want": "=SUMIF(B1:B6,\"a~*b\",C1:C6)"
+  },
+  {
+   "f": "=SUMIF(B1:B6,\"a~*b\",C1:C6)",
+   "home": "s3",
+   "want": "=SUMIF(B1:B6,\"a~*b\",C1:C6)"
+  },
+  {
+   "f": "=SUMIF(NOPE!A1:A3, \"X\")",
+   "home": "s1",
+   "want": "=SUMIF(NOPE!A1:A3, \"X\")"
+  },
+  {
+   "f": "=SUMIF(NOPE!A1:A3, \"X\")",
+   "home": "s3",
+   "want": "=SUMIF(NOPE!A1:A3, \"X\")"
+  },
+  {
+   "f": "=SUMIF(Nope!A1:A3, \"x\")",
+   "home": "s1",
+   "want": "=SUMIF(Nope!A1:A3, \"x\")"
+  },
+  {
+   "f": "=SUMIF(Nope!A1:A3, \"x\")",
+   "home": "s3",
+   "want": "=SUMIF(Nope!A1:A3, \"x\")"
+  },
+  {
+   "f": "=SUMIFS(B1:B2, A1:A3, \"X\")",
+   "home": "s1",
+   "want": "=SUMIFS(B1:B2, A1:A3, \"X\")"
+  },
+  {
+   "f": "=SUMIFS(B1:B2, A1:A3, \"X\")",
+   "home": "s3",
+   "want": "=SUMIFS(B1:B2, A1:A3, \"X\")"
+  },
+  {
+   "f": "=SUMIFS(B1:B2, A1:A3, \"x\")",
+   "home": "s1",
+   "want": "=SUMIFS(B1:B2, A1:A3, \"x\")"
+  },
+  {
+   "f": "=SUMIFS(B1:B2, A1:A3, \"x\")",
+   "home": "s3",
+   "want": "=SUMIFS(B1:B2, A1:A3, \"x\")"
+  },
+  {
+   "f": "=SUMIFS(C1:C6,B1:B6,\"A*\",C1:C6,\">1\")",
+   "home": "s1",
+   "want": "=SUMIFS(C1:C6,B1:B6,\"A*\",C1:C6,\">1\")"
+  },
+  {
+   "f": "=SUMIFS(C1:C6,B1:B6,\"A*\",C1:C6,\">1\")",
+   "home": "s3",
+   "want": "=SUMIFS(C1:C6,B1:B6,\"A*\",C1:C6,\">1\")"
+  },
+  {
+   "f": "=SUMIFS(C1:C6,B1:B6,\"a*\",C1:C6,\">1\")",
+   "home": "s1",
+   "want": "=SUMIFS(C1:C6,B1:B6,\"a*\",C1:C6,\">1\")"
+  },
+  {
+   "f": "=SUMIFS(C1:C6,B1:B6,\"a*\",C1:C6,\">1\")",
+   "home": "s3",
+   "want": "=SUMIFS(C1:C6,B1:B6,\"a*\",C1:C6,\">1\")"
+  },
+  {
+   "f": "=SUMME(1,5;2)",
+   "home": "s1",
+   "want": "=SUMME(1,5;2)"
+  },
+  {
+   "f": "=SUMME(1,5;2)",
+   "home": "s3",
+   "want": "=SUMME(1,5;2)"
+  },
+  {
+   "f": "=SUMME(A1, B1)",
+   "home": "s1",
+   "want": "=SUMME(A1, B1)"
+  },
+  {
+   "f": "=SUMME(A1, B1)",
+   "home": "s3",
+   "want": "=SUMME(A1, B1)"
+  },
+  {
+   "f": "=SUMME(A1;2,5)",
+   "home": "s1",
+   "want": "=SUMME(A1;2,5)"
+  },
+  {
+   "f": "=SUMME(A1;2,5)",
+   "home": "s3",
+   "want": "=SUMME(A1;2,5)"
+  },
+  {
+   "f": "=SUMME(A1;A2)",
+   "home": "s1",
+   "want": "=SUMME(A1;A2)"
+  },
+  {
+   "f": "=SUMME(A1;A2)",
+   "home": "s3",
+   "want": "=SUMME(A1;A2)"
+  },
+  {
+   "f": "=SUMME(A1;B1)",
+   "home": "s1",
+   "want": "=SUMME(A1;B1)"
+  },
+  {
+   "f": "=SUMME(A1;B1)",
+   "home": "s3",
+   "want": "=SUMME(A1;B1)"
+  },
+  {
+   "f": "=SUMMEWENN(A1:A3;\">0,5\";B1)+1,5",
+   "home": "s1",
+   "want": "=SUMMEWENN(A1:A3;\">0,5\";B1)+1,5"
+  },
+  {
+   "f": "=SUMMEWENN(A1:A3;\">0,5\";B1)+1,5",
+   "home": "s3",
+   "want": "=SUMMEWENN(A1:A3;\">0,5\";B1)+1,5"
+  },
+  {
+   "f": "=SUMPRODUCT(C1:C3,C1:C2)",
+   "home": "s1",
+   "want": "=SUMPRODUCT(C1:C3,C1:C2)"
+  },
+  {
+   "f": "=SUMPRODUCT(C1:C3,C1:C2)",
+   "home": "s3",
+   "want": "=SUMPRODUCT(C1:C3,C1:C2)"
+  },
+  {
+   "f": "=SUMPRODUCT(C1:C3,C4:C6)",
+   "home": "s1",
+   "want": "=SUMPRODUCT(C1:C3,C4:C6)"
+  },
+  {
+   "f": "=SUMPRODUCT(C1:C3,C4:C6)",
+   "home": "s3",
+   "want": "=SUMPRODUCT(C1:C3,C4:C6)"
+  },
+  {
+   "f": "=SVERWEIS(3;C1:C6;1;FALSCH)",
+   "home": "s1",
+   "want": "=SVERWEIS(3;C1:C6;1;FALSCH)"
+  },
+  {
+   "f": "=SVERWEIS(3;C1:C6;1;FALSCH)",
+   "home": "s3",
+   "want": "=SVERWEIS(3;C1:C6;1;FALSCH)"
+  },
+  {
+   "f": "=SWITCH(9,1,\"ONE\")",
+   "home": "s1",
+   "want": "=SWITCH(9,1,\"ONE\")"
+  },
+  {
+   "f": "=SWITCH(9,1,\"ONE\")",
+   "home": "s3",
+   "want": "=SWITCH(9,1,\"ONE\")"
+  },
+  {
+   "f": "=SWITCH(9,1,\"one\")",
+   "home": "s1",
+   "want": "=SWITCH(9,1,\"one\")"
+  },
+  {
+   "f": "=SWITCH(9,1,\"one\")",
+   "home": "s3",
+   "want": "=SWITCH(9,1,\"one\")"
+  },
+  {
+   "f": "=SWITCH(C2,1,\"ONE\",2,\"TWO\",\"OTHER\")",
+   "home": "s1",
+   "want": "=SWITCH(C2,1,\"ONE\",2,\"TWO\",\"OTHER\")"
+  },
+  {
+   "f": "=SWITCH(C2,1,\"ONE\",2,\"TWO\",\"OTHER\")",
+   "home": "s3",
+   "want": "=SWITCH(C2,1,\"ONE\",2,\"TWO\",\"OTHER\")"
+  },
+  {
+   "f": "=SWITCH(C2,1,\"one\",2,\"two\",\"other\")",
+   "home": "s1",
+   "want": "=SWITCH(C2,1,\"one\",2,\"two\",\"other\")"
+  },
+  {
+   "f": "=SWITCH(C2,1,\"one\",2,\"two\",\"other\")",
+   "home": "s3",
+   "want": "=SWITCH(C2,1,\"one\",2,\"two\",\"other\")"
+  },
+  {
+   "f": "=TEXT(A1,\"# ?/?\")",
+   "home": "s1",
+   "want": "=TEXT(A1,\"# ?/?\")"
+  },
+  {
+   "f": "=TEXT(A1,\"# ?/?\")",
+   "home": "s3",
+   "want": "=TEXT(A1,\"# ?/?\")"
+  },
+  {
+   "f": "=TODAY()",
+   "home": "s1",
+   "want": "=TODAY()"
+  },
+  {
+   "f": "=TODAY()",
+   "home": "s3",
+   "want": "=TODAY()"
+  },
+  {
+   "f": "=TOTALS!B2",
+   "home": "s1",
+   "want": "=TOTALS!B2"
+  },
+  {
+   "f": "=TOTALS!B2",
+   "home": "s3",
+   "want": "=TOTALS!B2"
+  },
+  {
+   "f": "=TRUE+FALSE",
+   "home": "s1",
+   "want": "=TRUE+FALSE"
+  },
+  {
+   "f": "=TRUE+FALSE",
+   "home": "s3",
+   "want": "=TRUE+FALSE"
+  },
+  {
+   "f": "=TWICE(1)",
+   "home": "s1",
+   "want": "=TWICE(1)"
+  },
+  {
+   "f": "=TWICE(1)",
+   "home": "s3",
+   "want": "=TWICE(1)"
+  },
+  {
+   "f": "=TWICE(2)",
+   "home": "s1",
+   "want": "=TWICE(2)"
+  },
+  {
+   "f": "=TWICE(2)",
+   "home": "s3",
+   "want": "=TWICE(2)"
+  },
+  {
+   "f": "=TWICE(4)",
+   "home": "s1",
+   "want": "=TWICE(4)"
+  },
+  {
+   "f": "=TWICE(4)",
+   "home": "s3",
+   "want": "=TWICE(4)"
+  },
+  {
+   "f": "=Totals!B2",
+   "home": "s1",
+   "want": "=Totals!B2"
+  },
+  {
+   "f": "=Totals!B2",
+   "home": "s3",
+   "want": "=Totals!B2"
+  },
+  {
+   "f": "=VAR(E1:E8)",
+   "home": "s1",
+   "want": "=VAR(E1:E8)"
+  },
+  {
+   "f": "=VAR(E1:E8)",
+   "home": "s3",
+   "want": "=VAR(E1:E8)"
+  },
+  {
+   "f": "=VARP(E1:E8)",
+   "home": "s1",
+   "want": "=VARP(E1:E8)"
+  },
+  {
+   "f": "=VARP(E1:E8)",
+   "home": "s3",
+   "want": "=VARP(E1:E8)"
+  },
+  {
+   "f": "=VLOOKUP(3,C1:C6,1,FALSE)",
+   "home": "s1",
+   "want": "=VLOOKUP(3,C1:C6,1,FALSE)"
+  },
+  {
+   "f": "=VLOOKUP(3,C1:C6,1,FALSE)",
+   "home": "s3",
+   "want": "=VLOOKUP(3,C1:C6,1,FALSE)"
+  },
+  {
+   "f": "=WEEKNUM(A1,21)",
+   "home": "s1",
+   "want": "=WEEKNUM(A1,21)"
+  },
+  {
+   "f": "=WEEKNUM(A1,21)",
+   "home": "s3",
+   "want": "=WEEKNUM(A1,21)"
+  },
+  {
+   "f": "=X",
+   "home": "s1",
+   "want": "=X"
+  },
+  {
+   "f": "=X",
+   "home": "s3",
+   "want": "=X"
+  },
+  {
+   "f": "=Z99+ZZ1",
+   "home": "s1",
+   "want": "=Z99+ZZ1"
+  },
+  {
+   "f": "=Z99+ZZ1",
+   "home": "s3",
+   "want": "=Z99+ZZ1"
+  },
+  {
+   "f": "=Z99+zz1",
+   "home": "s1",
+   "want": "=Z99+ZZ1"
+  },
+  {
+   "f": "=Z99+zz1",
+   "home": "s3",
+   "want": "=Z99+ZZ1"
+  },
+  {
+   "f": "=ZZZ1",
+   "home": "s1",
+   "want": "=ZZZ1"
+  },
+  {
+   "f": "=ZZZ1",
+   "home": "s3",
+   "want": "=ZZZ1"
+  },
+  {
+   "f": "=ZZZ2",
+   "home": "s1",
+   "want": "=ZZZ2"
+  },
+  {
+   "f": "=ZZZ2",
+   "home": "s3",
+   "want": "=ZZZ2"
+  },
+  {
+   "f": "=ZÄHLENWENN(A1:A5;\"X,Y\";WAHR)",
+   "home": "s1",
+   "want": "=ZÄHLENWENN(A1:A5;\"X,Y\";WAHR)"
+  },
+  {
+   "f": "=ZÄHLENWENN(A1:A5;\"X,Y\";WAHR)",
+   "home": "s3",
+   "want": "=ZÄHLENWENN(A1:A5;\"X,Y\";WAHR)"
+  },
+  {
+   "f": "=ZÄHLENWENN(A1:A5;\"x,y\";WAHR)",
+   "home": "s1",
+   "want": "=ZÄHLENWENN(A1:A5;\"x,y\";WAHR)"
+  },
+  {
+   "f": "=ZÄHLENWENN(A1:A5;\"x,y\";WAHR)",
+   "home": "s3",
+   "want": "=ZÄHLENWENN(A1:A5;\"x,y\";WAHR)"
+  },
+  {
+   "f": "=a1",
+   "home": "s1",
+   "want": "=A1"
+  },
+  {
+   "f": "=a1",
+   "home": "s3",
+   "want": "=A1"
+  },
+  {
+   "f": "=a1!a1",
+   "home": "s1",
+   "want": "='A1'!A1"
+  },
+  {
+   "f": "=a1!a1",
+   "home": "s3",
+   "want": "='A1'!A1"
+  },
+  {
+   "f": "=a1*1.5",
+   "home": "s1",
+   "want": "=A1*1.5"
+  },
+  {
+   "f": "=a1*1.5",
+   "home": "s3",
+   "want": "=A1*1.5"
+  },
+  {
+   "f": "=a1*2",
+   "home": "s1",
+   "want": "=A1*2"
+  },
+  {
+   "f": "=a1*2",
+   "home": "s3",
+   "want": "=A1*2"
+  },
+  {
+   "f": "=a1+",
+   "home": "s1",
+   "want": "=a1+"
+  },
+  {
+   "f": "=a1+",
+   "home": "s3",
+   "want": "=a1+"
+  },
+  {
+   "f": "=a1+1",
+   "home": "s1",
+   "want": "=A1+1"
+  },
+  {
+   "f": "=a1+1",
+   "home": "s3",
+   "want": "=A1+1"
+  },
+  {
+   "f": "=a1+a2",
+   "home": "s1",
+   "want": "=A1+A2"
+  },
+  {
+   "f": "=a1+a2",
+   "home": "s3",
+   "want": "=A1+A2"
+  },
+  {
+   "f": "=a1/2",
+   "home": "s1",
+   "want": "=A1/2"
+  },
+  {
+   "f": "=a1/2",
+   "home": "s3",
+   "want": "=A1/2"
+  },
+  {
+   "f": "=a1:a1",
+   "home": "s1",
+   "want": "=A1:A1"
+  },
+  {
+   "f": "=a1:a1",
+   "home": "s3",
+   "want": "=A1:A1"
+  },
+  {
+   "f": "=a1:a2",
+   "home": "s1",
+   "want": "=A1:A2"
+  },
+  {
+   "f": "=a1:a2",
+   "home": "s3",
+   "want": "=A1:A2"
+  },
+  {
+   "f": "=a1:b2 c1:d2",
+   "home": "s1",
+   "want": "=a1:b2 c1:d2"
+  },
+  {
+   "f": "=a1:b2 c1:d2",
+   "home": "s3",
+   "want": "=a1:b2 c1:d2"
+  },
+  {
+   "f": "=a1>35",
+   "home": "s1",
+   "want": "=A1>35"
+  },
+  {
+   "f": "=a1>35",
+   "home": "s3",
+   "want": "=A1>35"
+  },
+  {
+   "f": "=a2",
+   "home": "s1",
+   "want": "=A2"
+  },
+  {
+   "f": "=a2",
+   "home": "s3",
+   "want": "=A2"
+  },
+  {
+   "f": "=a2+b2",
+   "home": "s1",
+   "want": "=A2+B2"
+  },
+  {
+   "f": "=a2+b2",
+   "home": "s3",
+   "want": "=A2+B2"
+  },
+  {
+   "f": "=a3",
+   "home": "s1",
+   "want": "=A3"
+  },
+  {
+   "f": "=a3",
+   "home": "s3",
+   "want": "=A3"
+  },
+  {
+   "f": "=a3*2",
+   "home": "s1",
+   "want": "=A3*2"
+  },
+  {
+   "f": "=a3*2",
+   "home": "s3",
+   "want": "=A3*2"
+  },
+  {
+   "f": "=a4=\"\"",
+   "home": "s1",
+   "want": "=A4=\"\""
+  },
+  {
+   "f": "=a4=\"\"",
+   "home": "s3",
+   "want": "=A4=\"\""
+  },
+  {
+   "f": "=a4=0",
+   "home": "s1",
+   "want": "=A4=0"
+  },
+  {
+   "f": "=a4=0",
+   "home": "s3",
+   "want": "=A4=0"
+  },
+  {
+   "f": "=a5",
+   "home": "s1",
+   "want": "=A5"
+  },
+  {
+   "f": "=a5",
+   "home": "s3",
+   "want": "=A5"
+  },
+  {
+   "f": "=ab12!b2",
+   "home": "s1",
+   "want": "=ab12!b2"
+  },
+  {
+   "f": "=ab12!b2",
+   "home": "s3",
+   "want": "=ab12!b2"
+  },
+  {
+   "f": "=abs(-3)",
+   "home": "s1",
+   "want": "=ABS(-3)"
+  },
+  {
+   "f": "=abs(-3)",
+   "home": "s3",
+   "want": "=ABS(-3)"
+  },
+  {
+   "f": "=and(b1:b2)",
+   "home": "s1",
+   "want": "=AND(B1:B2)"
+  },
+  {
+   "f": "=and(b1:b2)",
+   "home": "s3",
+   "want": "=AND(B1:B2)"
+  },
+  {
+   "f": "=and(true,c1:c6)",
+   "home": "s1",
+   "want": "=AND(TRUE,C1:C6)"
+  },
+  {
+   "f": "=and(true,c1:c6)",
+   "home": "s3",
+   "want": "=AND(TRUE,C1:C6)"
+  },
+  {
+   "f": "=average(a1:a6)",
+   "home": "s1",
+   "want": "=AVERAGE(A1:A6)"
+  },
+  {
+   "f": "=average(a1:a6)",
+   "home": "s3",
+   "want": "=AVERAGE(A1:A6)"
+  },
+  {
+   "f": "=average(a4)",
+   "home": "s1",
+   "want": "=AVERAGE(A4)"
+  },
+  {
+   "f": "=average(a4)",
+   "home": "s3",
+   "want": "=AVERAGE(A4)"
+  },
+  {
+   "f": "=averageif(c1:c6,\">3\")",
+   "home": "s1",
+   "want": "=AVERAGEIF(C1:C6,\">3\")"
+  },
+  {
+   "f": "=averageif(c1:c6,\">3\")",
+   "home": "s3",
+   "want": "=AVERAGEIF(C1:C6,\">3\")"
+  },
+  {
+   "f": "=averageifs(c1:c6,c1:c6,\">10\")",
+   "home": "s1",
+   "want": "=AVERAGEIFS(C1:C6,C1:C6,\">10\")"
+  },
+  {
+   "f": "=averageifs(c1:c6,c1:c6,\">10\")",
+   "home": "s3",
+   "want": "=AVERAGEIFS(C1:C6,C1:C6,\">10\")"
+  },
+  {
+   "f": "=b1",
+   "home": "s1",
+   "want": "=B1"
+  },
+  {
+   "f": "=b1",
+   "home": "s3",
+   "want": "=B1"
+  },
+  {
+   "f": "=b1*2",
+   "home": "s1",
+   "want": "=B1*2"
+  },
+  {
+   "f": "=b1*2",
+   "home": "s3",
+   "want": "=B1*2"
+  },
+  {
+   "f": "=b1+b2",
+   "home": "s1",
+   "want": "=B1+B2"
+  },
+  {
+   "f": "=b1+b2",
+   "home": "s3",
+   "want": "=B1+B2"
+  },
+  {
+   "f": "=b2*2",
+   "home": "s1",
+   "want": "=B2*2"
+  },
+  {
+   "f": "=b2*2",
+   "home": "s3",
+   "want": "=B2*2"
+  },
+  {
+   "f": "=b2+1000",
+   "home": "s1",
+   "want": "=B2+1000"
+  },
+  {
+   "f": "=b2+1000",
+   "home": "s3",
+   "want": "=B2+1000"
+  },
+  {
+   "f": "=b2/b$5",
+   "home": "s1",
+   "want": "=B2/B$5"
+  },
+  {
+   "f": "=b2/b$5",
+   "home": "s3",
+   "want": "=B2/B$5"
+  },
+  {
+   "f": "=b3*2",
+   "home": "s1",
+   "want": "=B3*2"
+  },
+  {
+   "f": "=b3*2",
+   "home": "s3",
+   "want": "=B3*2"
+  },
+  {
+   "f": "=b3+1",
+   "home": "s1",
+   "want": "=B3+1"
+  },
+  {
+   "f": "=b3+1",
+   "home": "s3",
+   "want": "=B3+1"
+  },
+  {
+   "f": "=b3/b$5",
+   "home": "s1",
+   "want": "=B3/B$5"
+  },
+  {
+   "f": "=b3/b$5",
+   "home": "s3",
+   "want": "=B3/B$5"
+  },
+  {
+   "f": "=b5",
+   "home": "s1",
+   "want": "=B5"
+  },
+  {
+   "f": "=b5",
+   "home": "s3",
+   "want": "=B5"
+  },
+  {
+   "f": "=b7/b$5",
+   "home": "s1",
+   "want": "=B7/B$5"
+  },
+  {
+   "f": "=b7/b$5",
+   "home": "s3",
+   "want": "=B7/B$5"
+  },
+  {
+   "f": "=budget!a1",
+   "home": "s1",
+   "want": "=Budget!A1"
+  },
+  {
+   "f": "=budget!a1",
+   "home": "s3",
+   "want": "=Budget!A1"
+  },
+  {
+   "f": "=budget!b1",
+   "home": "s1",
+   "want": "=Budget!B1"
+  },
+  {
+   "f": "=budget!b1",
+   "home": "s3",
+   "want": "=Budget!B1"
+  },
+  {
+   "f": "=budget!b2",
+   "home": "s1",
+   "want": "=Budget!B2"
+  },
+  {
+   "f": "=budget!b2",
+   "home": "s3",
+   "want": "=Budget!B2"
+  },
+  {
+   "f": "=budget!b2*2",
+   "home": "s1",
+   "want": "=Budget!B2*2"
+  },
+  {
+   "f": "=budget!b2*2",
+   "home": "s3",
+   "want": "=Budget!B2*2"
+  },
+  {
+   "f": "=budget!b5",
+   "home": "s1",
+   "want": "=Budget!B5"
+  },
+  {
+   "f": "=budget!b5",
+   "home": "s3",
+   "want": "=Budget!B5"
+  },
+  {
+   "f": "=budget!b6",
+   "home": "s1",
+   "want": "=Budget!B6"
+  },
+  {
+   "f": "=budget!b6",
+   "home": "s3",
+   "want": "=Budget!B6"
+  },
+  {
+   "f": "=budget!b6*2",
+   "home": "s1",
+   "want": "=Budget!B6*2"
+  },
+  {
+   "f": "=budget!b6*2",
+   "home": "s3",
+   "want": "=Budget!B6*2"
+  },
+  {
+   "f": "=budget!b7",
+   "home": "s1",
+   "want": "=Budget!B7"
+  },
+  {
+   "f": "=budget!b7",
+   "home": "s3",
+   "want": "=Budget!B7"
+  },
+  {
+   "f": "=budget!b7*2",
+   "home": "s1",
+   "want": "=Budget!B7*2"
+  },
+  {
+   "f": "=budget!b7*2",
+   "home": "s3",
+   "want": "=Budget!B7*2"
+  },
+  {
+   "f": "=ceiling(2.1,0.5)",
+   "home": "s1",
+   "want": "=CEILING(2.1,0.5)"
+  },
+  {
+   "f": "=ceiling(2.1,0.5)",
+   "home": "s3",
+   "want": "=CEILING(2.1,0.5)"
+  },
+  {
+   "f": "=column(d1:f2)",
+   "home": "s1",
+   "want": "=COLUMN(D1:F2)"
+  },
+  {
+   "f": "=column(d1:f2)",
+   "home": "s3",
+   "want": "=COLUMN(D1:F2)"
+  },
+  {
+   "f": "=columns(a1:c1)",
+   "home": "s1",
+   "want": "=COLUMNS(A1:C1)"
+  },
+  {
+   "f": "=columns(a1:c1)",
+   "home": "s3",
+   "want": "=COLUMNS(A1:C1)"
+  },
+  {
+   "f": "=correl(a1:a3,c1:c3)",
+   "home": "s1",
+   "want": "=CORREL(A1:A3,C1:C3)"
+  },
+  {
+   "f": "=correl(a1:a3,c1:c3)",
+   "home": "s3",
+   "want": "=CORREL(A1:A3,C1:C3)"
+  },
+  {
+   "f": "=correl(c1,c2)",
+   "home": "s1",
+   "want": "=CORREL(C1,C2)"
+  },
+  {
+   "f": "=correl(c1,c2)",
+   "home": "s3",
+   "want": "=CORREL(C1,C2)"
+  },
+  {
+   "f": "=correl(c1:c2,d1:d2)",
+   "home": "s1",
+   "want": "=CORREL(C1:C2,D1:D2)"
+  },
+  {
+   "f": "=correl(c1:c2,d1:d2)",
+   "home": "s3",
+   "want": "=CORREL(C1:C2,D1:D2)"
+  },
+  {
+   "f": "=correl(c1:c3,c1:c2)",
+   "home": "s1",
+   "want": "=CORREL(C1:C3,C1:C2)"
+  },
+  {
+   "f": "=correl(c1:c3,c1:c2)",
+   "home": "s3",
+   "want": "=CORREL(C1:C3,C1:C2)"
+  },
+  {
+   "f": "=correl(c1:c3,c4:c6)",
+   "home": "s1",
+   "want": "=CORREL(C1:C3,C4:C6)"
+  },
+  {
+   "f": "=correl(c1:c3,c4:c6)",
+   "home": "s3",
+   "want": "=CORREL(C1:C3,C4:C6)"
+  },
+  {
+   "f": "=correl(i1:i3,c1:c3)",
+   "home": "s1",
+   "want": "=CORREL(I1:I3,C1:C3)"
+  },
+  {
+   "f": "=correl(i1:i3,c1:c3)",
+   "home": "s3",
+   "want": "=CORREL(I1:I3,C1:C3)"
+  },
+  {
+   "f": "=count(a1:a6)",
+   "home": "s1",
+   "want": "=COUNT(A1:A6)"
+  },
+  {
+   "f": "=count(a1:a6)",
+   "home": "s3",
+   "want": "=COUNT(A1:A6)"
+  },
+  {
+   "f": "=counta(a1:a6)",
+   "home": "s1",
+   "want": "=COUNTA(A1:A6)"
+  },
+  {
+   "f": "=counta(a1:a6)",
+   "home": "s3",
+   "want": "=COUNTA(A1:A6)"
+  },
+  {
+   "f": "=countblank(a1:b6)",
+   "home": "s1",
+   "want": "=COUNTBLANK(A1:B6)"
+  },
+  {
+   "f": "=countblank(a1:b6)",
+   "home": "s3",
+   "want": "=COUNTBLANK(A1:B6)"
+  },
+  {
+   "f": "=countblank(c1:c20)",
+   "home": "s1",
+   "want": "=COUNTBLANK(C1:C20)"
+  },
+  {
+   "f": "=countblank(c1:c20)",
+   "home": "s3",
+   "want": "=COUNTBLANK(C1:C20)"
+  },
+  {
+   "f": "=countblank(nope!a1:a3)",
+   "home": "s1",
+   "want": "=COUNTBLANK(nope!a1:a3)"
+  },
+  {
+   "f": "=countblank(nope!a1:a3)",
+   "home": "s3",
+   "want": "=COUNTBLANK(nope!a1:a3)"
+  },
+  {
+   "f": "=countif(a1:a5,\"x,y\",true)",
+   "home": "s1",
+   "want": "=COUNTIF(A1:A5,\"x,y\",TRUE)"
+  },
+  {
+   "f": "=countif(a1:a5,\"x,y\",true)",
+   "home": "s3",
+   "want": "=COUNTIF(A1:A5,\"x,y\",TRUE)"
+  },
+  {
+   "f": "=countif(b1:b6,\"\")",
+   "home": "s1",
+   "want": "=COUNTIF(B1:B6,\"\")"
+  },
+  {
+   "f": "=countif(b1:b6,\"\")",
+   "home": "s3",
+   "want": "=COUNTIF(B1:B6,\"\")"
+  },
+  {
+   "f": "=countif(b1:b6,\"<>\")",
+   "home": "s1",
+   "want": "=COUNTIF(B1:B6,\"<>\")"
+  },
+  {
+   "f": "=countif(b1:b6,\"<>\")",
+   "home": "s3",
+   "want": "=COUNTIF(B1:B6,\"<>\")"
+  },
+  {
+   "f": "=countif(b1:b6,\"banana\")",
+   "home": "s1",
+   "want": "=COUNTIF(B1:B6,\"banana\")"
+  },
+  {
+   "f": "=countif(b1:b6,\"banana\")",
+   "home": "s3",
+   "want": "=COUNTIF(B1:B6,\"banana\")"
+  },
+  {
+   "f": "=countif(c1:c20, \"\")",
+   "home": "s1",
+   "want": "=COUNTIF(C1:C20, \"\")"
+  },
+  {
+   "f": "=countif(c1:c20, \"\")",
+   "home": "s3",
+   "want": "=COUNTIF(C1:C20, \"\")"
+  },
+  {
+   "f": "=countif(c1:c6,3)",
+   "home": "s1",
+   "want": "=COUNTIF(C1:C6,3)"
+  },
+  {
+   "f": "=countif(c1:c6,3)",
+   "home": "s3",
+   "want": "=COUNTIF(C1:C6,3)"
+  },
+  {
+   "f": "=countif(d1:d3, d3)",
+   "home": "s1",
+   "want": "=COUNTIF(D1:D3, D3)"
+  },
+  {
+   "f": "=countif(d1:d3, d3)",
+   "home": "s3",
+   "want": "=COUNTIF(D1:D3, D3)"
+  },
+  {
+   "f": "=countif(nope!a1:a3, \"x\")",
+   "home": "s1",
+   "want": "=COUNTIF(nope!a1:a3, \"x\")"
+  },
+  {
+   "f": "=countif(nope!a1:a3, \"x\")",
+   "home": "s3",
+   "want": "=COUNTIF(nope!a1:a3, \"x\")"
+  },
+  {
+   "f": "=countifs(c1:c6,\">1\",c1:c6,\"<5\")",
+   "home": "s1",
+   "want": "=COUNTIFS(C1:C6,\">1\",C1:C6,\"<5\")"
+  },
+  {
+   "f": "=countifs(c1:c6,\">1\",c1:c6,\"<5\")",
+   "home": "s3",
+   "want": "=COUNTIFS(C1:C6,\">1\",C1:C6,\"<5\")"
+  },
+  {
+   "f": "=date(2026,1,1)",
+   "home": "s1",
+   "want": "=DATE(2026,1,1)"
+  },
+  {
+   "f": "=date(2026,1,1)",
+   "home": "s3",
+   "want": "=DATE(2026,1,1)"
+  },
+  {
+   "f": "=edate(a1,0)",
+   "home": "s1",
+   "want": "=EDATE(A1,0)"
+  },
+  {
+   "f": "=edate(a1,0)",
+   "home": "s3",
+   "want": "=EDATE(A1,0)"
+  },
+  {
+   "f": "=floor(-2.5,1)",
+   "home": "s1",
+   "want": "=FLOOR(-2.5,1)"
+  },
+  {
+   "f": "=floor(-2.5,1)",
+   "home": "s3",
+   "want": "=FLOOR(-2.5,1)"
+  },
+  {
+   "f": "=fv(5%/12,60,-100)",
+   "home": "s1",
+   "want": "=FV(5%/12,60,-100)"
+  },
+  {
+   "f": "=fv(5%/12,60,-100)",
+   "home": "s3",
+   "want": "=FV(5%/12,60,-100)"
+  },
+  {
+   "f": "=fv(5%/12,60,-100,f2)",
+   "home": "s1",
+   "want": "=FV(5%/12,60,-100,F2)"
+  },
+  {
+   "f": "=fv(5%/12,60,-100,f2)",
+   "home": "s3",
+   "want": "=FV(5%/12,60,-100,F2)"
+  },
+  {
+   "f": "=ghost!a1",
+   "home": "s1",
+   "want": "=ghost!a1"
+  },
+  {
+   "f": "=ghost!a1",
+   "home": "s3",
+   "want": "=ghost!a1"
+  },
+  {
+   "f": "=if(1,&quot;-ok&quot;,&quot;&quot;)",
+   "home": "s1",
+   "want": "=if(1,&quot;-ok&quot;,&quot;&quot;)"
+  },
+  {
+   "f": "=if(1,&quot;-ok&quot;,&quot;&quot;)",
+   "home": "s3",
+   "want": "=if(1,&quot;-ok&quot;,&quot;&quot;)"
+  },
+  {
+   "f": "=if(a1>5,\"big\",\"small\")",
+   "home": "s1",
+   "want": "=IF(A1>5,\"big\",\"small\")"
+  },
+  {
+   "f": "=if(a1>5,\"big\",\"small\")",
+   "home": "s3",
+   "want": "=IF(A1>5,\"big\",\"small\")"
+  },
+  {
+   "f": "=if(a3,1,2)",
+   "home": "s1",
+   "want": "=IF(A3,1,2)"
+  },
+  {
+   "f": "=if(a3,1,2)",
+   "home": "s3",
+   "want": "=IF(A3,1,2)"
+  },
+  {
+   "f": "=if(budget!b2>0,budget!b2,#n/a)",
+   "home": "s1",
+   "want": "=IF(Budget!B2>0,Budget!B2,#n/a)"
+  },
+  {
+   "f": "=if(budget!b2>0,budget!b2,#n/a)",
+   "home": "s3",
+   "want": "=IF(Budget!B2>0,Budget!B2,#n/a)"
+  },
+  {
+   "f": "=if(budget!b3>0,budget!b3,#n/a)",
+   "home": "s1",
+   "want": "=IF(Budget!B3>0,Budget!B3,#n/a)"
+  },
+  {
+   "f": "=if(budget!b3>0,budget!b3,#n/a)",
+   "home": "s3",
+   "want": "=IF(Budget!B3>0,Budget!B3,#n/a)"
+  },
+  {
+   "f": "=if(false,1)",
+   "home": "s1",
+   "want": "=IF(FALSE,1)"
+  },
+  {
+   "f": "=if(false,1)",
+   "home": "s3",
+   "want": "=IF(FALSE,1)"
+  },
+  {
+   "f": "=if(true, a2:a, false)",
+   "home": "s1",
+   "want": "=IF(TRUE, A2:A, FALSE)"
+  },
+  {
+   "f": "=if(true, a2:a, false)",
+   "home": "s3",
+   "want": "=IF(TRUE, A2:A, FALSE)"
+  },
+  {
+   "f": "=if(true,a1,\"a1\")",
+   "home": "s1",
+   "want": "=IF(TRUE,A1,\"a1\")"
+  },
+  {
+   "f": "=if(true,a1,\"a1\")",
+   "home": "s3",
+   "want": "=IF(TRUE,A1,\"a1\")"
+  },
+  {
+   "f": "=iferror(a1,0)",
+   "home": "s1",
+   "want": "=IFERROR(A1,0)"
+  },
+  {
+   "f": "=iferror(a1,0)",
+   "home": "s3",
+   "want": "=IFERROR(A1,0)"
+  },
+  {
+   "f": "=iferror(a4,7)",
+   "home": "s1",
+   "want": "=IFERROR(A4,7)"
+  },
+  {
+   "f": "=iferror(a4,7)",
+   "home": "s3",
+   "want": "=IFERROR(A4,7)"
+  },
+  {
+   "f": "=iferror(c1,7)",
+   "home": "s1",
+   "want": "=IFERROR(C1,7)"
+  },
+  {
+   "f": "=iferror(c1,7)",
+   "home": "s3",
+   "want": "=IFERROR(C1,7)"
+  },
+  {
+   "f": "=iferror(d1,7)",
+   "home": "s1",
+   "want": "=IFERROR(D1,7)"
+  },
+  {
+   "f": "=iferror(d1,7)",
+   "home": "s3",
+   "want": "=IFERROR(D1,7)"
+  },
+  {
+   "f": "=ifna(d1,8)",
+   "home": "s1",
+   "want": "=IFNA(D1,8)"
+  },
+  {
+   "f": "=ifna(d1,8)",
+   "home": "s3",
+   "want": "=IFNA(D1,8)"
+  },
+  {
+   "f": "=ifna(na(),8)",
+   "home": "s1",
+   "want": "=IFNA(NA(),8)"
+  },
+  {
+   "f": "=ifna(na(),8)",
+   "home": "s3",
+   "want": "=IFNA(NA(),8)"
+  },
+  {
+   "f": "=ifs(c1>5,\"a\",c1>0,\"b\")",
+   "home": "s1",
+   "want": "=IFS(C1>5,\"a\",C1>0,\"b\")"
+  },
+  {
+   "f": "=ifs(c1>5,\"a\",c1>0,\"b\")",
+   "home": "s3",
+   "want": "=IFS(C1>5,\"a\",C1>0,\"b\")"
+  },
+  {
+   "f": "=ifs(false,1)",
+   "home": "s1",
+   "want": "=IFS(FALSE,1)"
+  },
+  {
+   "f": "=ifs(false,1)",
+   "home": "s3",
+   "want": "=IFS(FALSE,1)"
+  },
+  {
+   "f": "=int(-1.5)",
+   "home": "s1",
+   "want": "=INT(-1.5)"
+  },
+  {
+   "f": "=int(-1.5)",
+   "home": "s3",
+   "want": "=INT(-1.5)"
+  },
+  {
+   "f": "=irr(a1:a361)",
+   "home": "s1",
+   "want": "=IRR(A1:A361)"
+  },
+  {
+   "f": "=irr(a1:a361)",
+   "home": "s3",
+   "want": "=IRR(A1:A361)"
+  },
+  {
+   "f": "=irr(c1:c6)",
+   "home": "s1",
+   "want": "=IRR(C1:C6)"
+  },
+  {
+   "f": "=irr(c1:c6)",
+   "home": "s3",
+   "want": "=IRR(C1:C6)"
+  },
+  {
+   "f": "=irr(g1:g2)",
+   "home": "s1",
+   "want": "=IRR(G1:G2)"
+  },
+  {
+   "f": "=irr(g1:g2)",
+   "home": "s3",
+   "want": "=IRR(G1:G2)"
+  },
+  {
+   "f": "=irr(h1:h4)",
+   "home": "s1",
+   "want": "=IRR(H1:H4)"
+  },
+  {
+   "f": "=irr(h1:h4)",
+   "home": "s3",
+   "want": "=IRR(H1:H4)"
+  },
+  {
+   "f": "=irr(j1:j2)",
+   "home": "s1",
+   "want": "=IRR(J1:J2)"
+  },
+  {
+   "f": "=irr(j1:j2)",
+   "home": "s3",
+   "want": "=IRR(J1:J2)"
+  },
+  {
+   "f": "=isblank(a4)",
+   "home": "s1",
+   "want": "=ISBLANK(A4)"
+  },
+  {
+   "f": "=isblank(a4)",
+   "home": "s3",
+   "want": "=ISBLANK(A4)"
+  },
+  {
+   "f": "=isblank(b4)",
+   "home": "s1",
+   "want": "=ISBLANK(B4)"
+  },
+  {
+   "f": "=isblank(b4)",
+   "home": "s3",
+   "want": "=ISBLANK(B4)"
+  },
+  {
+   "f": "=iserror(d1)",
+   "home": "s1",
+   "want": "=ISERROR(D1)"
+  },
+  {
+   "f": "=iserror(d1)",
+   "home": "s3",
+   "want": "=ISERROR(D1)"
+  },
+  {
+   "f": "=isna(na())",
+   "home": "s1",
+   "want": "=ISNA(NA())"
+  },
+  {
+   "f": "=isna(na())",
+   "home": "s3",
+   "want": "=ISNA(NA())"
+  },
+  {
+   "f": "=isnumber(d2)",
+   "home": "s1",
+   "want": "=ISNUMBER(D2)"
+  },
+  {
+   "f": "=isnumber(d2)",
+   "home": "s3",
+   "want": "=ISNUMBER(D2)"
+  },
+  {
+   "f": "=istext(d2)",
+   "home": "s1",
+   "want": "=ISTEXT(D2)"
+  },
+  {
+   "f": "=istext(d2)",
+   "home": "s3",
+   "want": "=ISTEXT(D2)"
+  },
+  {
+   "f": "=large(c1:c6,0)",
+   "home": "s1",
+   "want": "=LARGE(C1:C6,0)"
+  },
+  {
+   "f": "=large(c1:c6,0)",
+   "home": "s3",
+   "want": "=LARGE(C1:C6,0)"
+  },
+  {
+   "f": "=large(c1:c6,2)",
+   "home": "s1",
+   "want": "=LARGE(C1:C6,2)"
+  },
+  {
+   "f": "=large(c1:c6,2)",
+   "home": "s3",
+   "want": "=LARGE(C1:C6,2)"
+  },
+  {
+   "f": "=len(\"p\nq\")",
+   "home": "s1",
+   "want": "=LEN(\"p\nq\")"
+  },
+  {
+   "f": "=len(\"p\nq\")",
+   "home": "s3",
+   "want": "=LEN(\"p\nq\")"
+  },
+  {
+   "f": "=len(\"x\ny\")",
+   "home": "s1",
+   "want": "=LEN(\"x\ny\")"
+  },
+  {
+   "f": "=len(\"x\ny\")",
+   "home": "s3",
+   "want": "=LEN(\"x\ny\")"
+  },
+  {
+   "f": "=literal\", A9: \"02134\", A10: \"",
+   "home": "s1",
+   "want": "=literal\", A9: \"02134\", A10: \""
+  },
+  {
+   "f": "=literal\", A9: \"02134\", A10: \"",
+   "home": "s3",
+   "want": "=literal\", A9: \"02134\", A10: \""
+  },
+  {
+   "f": "=literal\", a9: \"02134\", a10: \"",
+   "home": "s1",
+   "want": "=literal\", a9: \"02134\", a10: \""
+  },
+  {
+   "f": "=literal\", a9: \"02134\", a10: \"",
+   "home": "s3",
+   "want": "=literal\", a9: \"02134\", a10: \""
+  },
+  {
+   "f": "=max(a1:a6)",
+   "home": "s1",
+   "want": "=MAX(A1:A6)"
+  },
+  {
+   "f": "=max(a1:a6)",
+   "home": "s3",
+   "want": "=MAX(A1:A6)"
+  },
+  {
+   "f": "=max(b1:b6)",
+   "home": "s1",
+   "want": "=MAX(B1:B6)"
+  },
+  {
+   "f": "=max(b1:b6)",
+   "home": "s3",
+   "want": "=MAX(B1:B6)"
+  },
+  {
+   "f": "=median(c1:c6)",
+   "home": "s1",
+   "want": "=MEDIAN(C1:C6)"
+  },
+  {
+   "f": "=median(c1:c6)",
+   "home": "s3",
+   "want": "=MEDIAN(C1:C6)"
+  },
+  {
+   "f": "=min(c1:c6)",
+   "home": "s1",
+   "want": "=MIN(C1:C6)"
+  },
+  {
+   "f": "=min(c1:c6)",
+   "home": "s3",
+   "want": "=MIN(C1:C6)"
+  },
+  {
+   "f": "=mod(-3,2)",
+   "home": "s1",
+   "want": "=MOD(-3,2)"
+  },
+  {
+   "f": "=mod(-3,2)",
+   "home": "s3",
+   "want": "=MOD(-3,2)"
+  },
+  {
+   "f": "=mod(3,0)",
+   "home": "s1",
+   "want": "=MOD(3,0)"
+  },
+  {
+   "f": "=mod(3,0)",
+   "home": "s3",
+   "want": "=MOD(3,0)"
+  },
+  {
+   "f": "=mode(0.1+0.2,0.3,1)",
+   "home": "s1",
+   "want": "=MODE(0.1+0.2,0.3,1)"
+  },
+  {
+   "f": "=mode(0.1+0.2,0.3,1)",
+   "home": "s3",
+   "want": "=MODE(0.1+0.2,0.3,1)"
+  },
+  {
+   "f": "=mode(c1:c6)",
+   "home": "s1",
+   "want": "=MODE(C1:C6)"
+  },
+  {
+   "f": "=mode(c1:c6)",
+   "home": "s3",
+   "want": "=MODE(C1:C6)"
+  },
+  {
+   "f": "=mode(e1:e8)",
+   "home": "s1",
+   "want": "=MODE(E1:E8)"
+  },
+  {
+   "f": "=mode(e1:e8)",
+   "home": "s3",
+   "want": "=MODE(E1:E8)"
+  },
+  {
+   "f": "=nosuch(1)",
+   "home": "s1",
+   "want": "=NOSUCH(1)"
+  },
+  {
+   "f": "=nosuch(1)",
+   "home": "s3",
+   "want": "=NOSUCH(1)"
+  },
+  {
+   "f": "=not(0)",
+   "home": "s1",
+   "want": "=NOT(0)"
+  },
+  {
+   "f": "=not(0)",
+   "home": "s3",
+   "want": "=NOT(0)"
+  },
+  {
+   "f": "=notes!a1",
+   "home": "s1",
+   "want": "=notes!a1"
+  },
+  {
+   "f": "=notes!a1",
+   "home": "s3",
+   "want": "=notes!a1"
+  },
+  {
+   "f": "=notes!b1",
+   "home": "s1",
+   "want": "=notes!b1"
+  },
+  {
+   "f": "=notes!b1",
+   "home": "s3",
+   "want": "=notes!b1"
+  },
+  {
+   "f": "=notes!b9",
+   "home": "s1",
+   "want": "=notes!b9"
+  },
+  {
+   "f": "=notes!b9",
+   "home": "s3",
+   "want": "=notes!b9"
+  },
+  {
+   "f": "=nper(5%/12,-1073.6432460242797,200000)",
+   "home": "s1",
+   "want": "=NPER(5%/12,-1073.6432460242797,200000)"
+  },
+  {
+   "f": "=nper(5%/12,-1073.6432460242797,200000)",
+   "home": "s3",
+   "want": "=NPER(5%/12,-1073.6432460242797,200000)"
+  },
+  {
+   "f": "=npv(-1,f1:f3)",
+   "home": "s1",
+   "want": "=NPV(-1,F1:F3)"
+  },
+  {
+   "f": "=npv(-1,f1:f3)",
+   "home": "s3",
+   "want": "=NPV(-1,F1:F3)"
+  },
+  {
+   "f": "=npv(10%,100,200)",
+   "home": "s1",
+   "want": "=NPV(10%,100,200)"
+  },
+  {
+   "f": "=npv(10%,100,200)",
+   "home": "s3",
+   "want": "=NPV(10%,100,200)"
+  },
+  {
+   "f": "=npv(10%,f1:f3)",
+   "home": "s1",
+   "want": "=NPV(10%,F1:F3)"
+  },
+  {
+   "f": "=npv(10%,f1:f3)",
+   "home": "s3",
+   "want": "=NPV(10%,F1:F3)"
+  },
+  {
+   "f": "=or(0,false)",
+   "home": "s1",
+   "want": "=OR(0,FALSE)"
+  },
+  {
+   "f": "=or(0,false)",
+   "home": "s3",
+   "want": "=OR(0,FALSE)"
+  },
+  {
+   "f": "=percentile(a1:a6,0.5)",
+   "home": "s1",
+   "want": "=PERCENTILE(A1:A6,0.5)"
+  },
+  {
+   "f": "=percentile(a1:a6,0.5)",
+   "home": "s3",
+   "want": "=PERCENTILE(A1:A6,0.5)"
+  },
+  {
+   "f": "=percentile(c1:c6,0.5)",
+   "home": "s1",
+   "want": "=PERCENTILE(C1:C6,0.5)"
+  },
+  {
+   "f": "=percentile(c1:c6,0.5)",
+   "home": "s3",
+   "want": "=PERCENTILE(C1:C6,0.5)"
+  },
+  {
+   "f": "=percentile(c1:c6,1.5)",
+   "home": "s1",
+   "want": "=PERCENTILE(C1:C6,1.5)"
+  },
+  {
+   "f": "=percentile(c1:c6,1.5)",
+   "home": "s3",
+   "want": "=PERCENTILE(C1:C6,1.5)"
+  },
+  {
+   "f": "=percentile.inc(c1:c6,1)",
+   "home": "s1",
+   "want": "=PERCENTILE.INC(C1:C6,1)"
+  },
+  {
+   "f": "=percentile.inc(c1:c6,1)",
+   "home": "s3",
+   "want": "=PERCENTILE.INC(C1:C6,1)"
+  },
+  {
+   "f": "=plan!b1",
+   "home": "s1",
+   "want": "=plan!b1"
+  },
+  {
+   "f": "=plan!b1",
+   "home": "s3",
+   "want": "=plan!b1"
+  },
+  {
+   "f": "=plan!b6*2",
+   "home": "s1",
+   "want": "=plan!b6*2"
+  },
+  {
+   "f": "=plan!b6*2",
+   "home": "s3",
+   "want": "=plan!b6*2"
+  },
+  {
+   "f": "=plan!b9",
+   "home": "s1",
+   "want": "=plan!b9"
+  },
+  {
+   "f": "=plan!b9",
+   "home": "s3",
+   "want": "=plan!b9"
+  },
+  {
+   "f": "=pmt(0,10,1000)",
+   "home": "s1",
+   "want": "=PMT(0,10,1000)"
+  },
+  {
+   "f": "=pmt(0,10,1000)",
+   "home": "s3",
+   "want": "=PMT(0,10,1000)"
+  },
+  {
+   "f": "=pmt(5%,10)",
+   "home": "s1",
+   "want": "=PMT(5%,10)"
+  },
+  {
+   "f": "=pmt(5%,10)",
+   "home": "s3",
+   "want": "=PMT(5%,10)"
+  },
+  {
+   "f": "=pmt(5%/12,360,200000)",
+   "home": "s1",
+   "want": "=PMT(5%/12,360,200000)"
+  },
+  {
+   "f": "=pmt(5%/12,360,200000)",
+   "home": "s3",
+   "want": "=PMT(5%/12,360,200000)"
+  },
+  {
+   "f": "=power(2,10)",
+   "home": "s1",
+   "want": "=POWER(2,10)"
+  },
+  {
+   "f": "=power(2,10)",
+   "home": "s3",
+   "want": "=POWER(2,10)"
+  },
+  {
+   "f": "=product(c1:c4)",
+   "home": "s1",
+   "want": "=PRODUCT(C1:C4)"
+  },
+  {
+   "f": "=product(c1:c4)",
+   "home": "s3",
+   "want": "=PRODUCT(C1:C4)"
+  },
+  {
+   "f": "=pv(5%/12,360,-1073.6432460242797)",
+   "home": "s1",
+   "want": "=PV(5%/12,360,-1073.6432460242797)"
+  },
+  {
+   "f": "=pv(5%/12,360,-1073.6432460242797)",
+   "home": "s3",
+   "want": "=PV(5%/12,360,-1073.6432460242797)"
+  },
+  {
+   "f": "=quartile(c1:c6,0)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,0)"
+  },
+  {
+   "f": "=quartile(c1:c6,0)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,0)"
+  },
+  {
+   "f": "=quartile(c1:c6,1)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,1)"
+  },
+  {
+   "f": "=quartile(c1:c6,1)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,1)"
+  },
+  {
+   "f": "=quartile(c1:c6,1.9)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,1.9)"
+  },
+  {
+   "f": "=quartile(c1:c6,1.9)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,1.9)"
+  },
+  {
+   "f": "=quartile(c1:c6,4)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,4)"
+  },
+  {
+   "f": "=quartile(c1:c6,4)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,4)"
+  },
+  {
+   "f": "=quartile(c1:c6,5)",
+   "home": "s1",
+   "want": "=QUARTILE(C1:C6,5)"
+  },
+  {
+   "f": "=quartile(c1:c6,5)",
+   "home": "s3",
+   "want": "=QUARTILE(C1:C6,5)"
+  },
+  {
+   "f": "=rand()",
+   "home": "s1",
+   "want": "=RAND()"
+  },
+  {
+   "f": "=rand()",
+   "home": "s3",
+   "want": "=RAND()"
+  },
+  {
+   "f": "=rank(0.1+0.2,i1:i4)",
+   "home": "s1",
+   "want": "=RANK(0.1+0.2,I1:I4)"
+  },
+  {
+   "f": "=rank(0.1+0.2,i1:i4)",
+   "home": "s3",
+   "want": "=RANK(0.1+0.2,I1:I4)"
+  },
+  {
+   "f": "=rank(5,c1:c6)",
+   "home": "s1",
+   "want": "=RANK(5,C1:C6)"
+  },
+  {
+   "f": "=rank(5,c1:c6)",
+   "home": "s3",
+   "want": "=RANK(5,C1:C6)"
+  },
+  {
+   "f": "=rank(5,c1:c6,1)",
+   "home": "s1",
+   "want": "=RANK(5,C1:C6,1)"
+  },
+  {
+   "f": "=rank(5,c1:c6,1)",
+   "home": "s3",
+   "want": "=RANK(5,C1:C6,1)"
+  },
+  {
+   "f": "=rank(5,c1:c6,d2)",
+   "home": "s1",
+   "want": "=RANK(5,C1:C6,D2)"
+  },
+  {
+   "f": "=rank(5,c1:c6,d2)",
+   "home": "s3",
+   "want": "=RANK(5,C1:C6,D2)"
+  },
+  {
+   "f": "=rank(7,c1:c6)",
+   "home": "s1",
+   "want": "=RANK(7,C1:C6)"
+  },
+  {
+   "f": "=rank(7,c1:c6)",
+   "home": "s3",
+   "want": "=RANK(7,C1:C6)"
+  },
+  {
+   "f": "=rank.eq(4,e1:e8)",
+   "home": "s1",
+   "want": "=RANK.EQ(4,E1:E8)"
+  },
+  {
+   "f": "=rank.eq(4,e1:e8)",
+   "home": "s3",
+   "want": "=RANK.EQ(4,E1:E8)"
+  },
+  {
+   "f": "=rate(12,-100,1000)",
+   "home": "s1",
+   "want": "=RATE(12,-100,1000)"
+  },
+  {
+   "f": "=rate(12,-100,1000)",
+   "home": "s3",
+   "want": "=RATE(12,-100,1000)"
+  },
+  {
+   "f": "=rate(36,-500,17990)",
+   "home": "s1",
+   "want": "=RATE(36,-500,17990)"
+  },
+  {
+   "f": "=rate(36,-500,17990)",
+   "home": "s3",
+   "want": "=RATE(36,-500,17990)"
+  },
+  {
+   "f": "=rate(36,-500,18000)",
+   "home": "s1",
+   "want": "=RATE(36,-500,18000)"
+  },
+  {
+   "f": "=rate(36,-500,18000)",
+   "home": "s3",
+   "want": "=RATE(36,-500,18000)"
+  },
+  {
+   "f": "=rate(360,-1073.6432460242797,200000)",
+   "home": "s1",
+   "want": "=RATE(360,-1073.6432460242797,200000)"
+  },
+  {
+   "f": "=rate(360,-1073.6432460242797,200000)",
+   "home": "s3",
+   "want": "=RATE(360,-1073.6432460242797,200000)"
+  },
+  {
+   "f": "=rate(360,-1073.6432460242797,200000,0,0,2)",
+   "home": "s1",
+   "want": "=RATE(360,-1073.6432460242797,200000,0,0,2)"
+  },
+  {
+   "f": "=rate(360,-1073.6432460242797,200000,0,0,2)",
+   "home": "s3",
+   "want": "=RATE(360,-1073.6432460242797,200000,0,0,2)"
+  },
+  {
+   "f": "=round(-2.5,0)",
+   "home": "s1",
+   "want": "=ROUND(-2.5,0)"
+  },
+  {
+   "f": "=round(-2.5,0)",
+   "home": "s3",
+   "want": "=ROUND(-2.5,0)"
+  },
+  {
+   "f": "=round(1.005,2)",
+   "home": "s1",
+   "want": "=ROUND(1.005,2)"
+  },
+  {
+   "f": "=round(1.005,2)",
+   "home": "s3",
+   "want": "=ROUND(1.005,2)"
+  },
+  {
+   "f": "=round(1234,-2)",
+   "home": "s1",
+   "want": "=ROUND(1234,-2)"
+  },
+  {
+   "f": "=round(1234,-2)",
+   "home": "s3",
+   "want": "=ROUND(1234,-2)"
+  },
+  {
+   "f": "=round(2.5,0)",
+   "home": "s1",
+   "want": "=ROUND(2.5,0)"
+  },
+  {
+   "f": "=round(2.5,0)",
+   "home": "s3",
+   "want": "=ROUND(2.5,0)"
+  },
+  {
+   "f": "=round(a1,2)",
+   "home": "s1",
+   "want": "=ROUND(A1,2)"
+  },
+  {
+   "f": "=round(a1,2)",
+   "home": "s3",
+   "want": "=ROUND(A1,2)"
+  },
+  {
+   "f": "=rounddown(-1.29,1)",
+   "home": "s1",
+   "want": "=ROUNDDOWN(-1.29,1)"
+  },
+  {
+   "f": "=rounddown(-1.29,1)",
+   "home": "s3",
+   "want": "=ROUNDDOWN(-1.29,1)"
+  },
+  {
+   "f": "=roundup(1.21,1)",
+   "home": "s1",
+   "want": "=ROUNDUP(1.21,1)"
+  },
+  {
+   "f": "=roundup(1.21,1)",
+   "home": "s3",
+   "want": "=ROUNDUP(1.21,1)"
+  },
+  {
+   "f": "=row()",
+   "home": "s1",
+   "want": "=ROW()"
+  },
+  {
+   "f": "=row()",
+   "home": "s3",
+   "want": "=ROW()"
+  },
+  {
+   "f": "=row() follows its row after a row insert above it",
+   "home": "s1",
+   "want": "=row() follows its row after a row insert above it"
+  },
+  {
+   "f": "=row() follows its row after a row insert above it",
+   "home": "s3",
+   "want": "=row() follows its row after a row insert above it"
+  },
+  {
+   "f": "=row(a100)",
+   "home": "s1",
+   "want": "=ROW(A100)"
+  },
+  {
+   "f": "=row(a100)",
+   "home": "s3",
+   "want": "=ROW(A100)"
+  },
+  {
+   "f": "=row(budget!b2)",
+   "home": "s1",
+   "want": "=ROW(Budget!B2)"
+  },
+  {
+   "f": "=row(budget!b2)",
+   "home": "s3",
+   "want": "=ROW(Budget!B2)"
+  },
+  {
+   "f": "=row(budget!b2) on another tab follows a row insert on budget",
+   "home": "s1",
+   "want": "=row(budget!b2) on another tab follows a row insert on budget"
+  },
+  {
+   "f": "=row(budget!b2) on another tab follows a row insert on budget",
+   "home": "s3",
+   "want": "=row(budget!b2) on another tab follows a row insert on budget"
+  },
+  {
+   "f": "=row(c3)",
+   "home": "s1",
+   "want": "=ROW(C3)"
+  },
+  {
+   "f": "=row(c3)",
+   "home": "s3",
+   "want": "=ROW(C3)"
+  },
+  {
+   "f": "=rows(a1:b6)",
+   "home": "s1",
+   "want": "=ROWS(A1:B6)"
+  },
+  {
+   "f": "=rows(a1:b6)",
+   "home": "s3",
+   "want": "=ROWS(A1:B6)"
+  },
+  {
+   "f": "=small(a1:a6,1)",
+   "home": "s1",
+   "want": "=SMALL(A1:A6,1)"
+  },
+  {
+   "f": "=small(a1:a6,1)",
+   "home": "s3",
+   "want": "=SMALL(A1:A6,1)"
+  },
+  {
+   "f": "=small(c1:c6,7)",
+   "home": "s1",
+   "want": "=SMALL(C1:C6,7)"
+  },
+  {
+   "f": "=small(c1:c6,7)",
+   "home": "s3",
+   "want": "=SMALL(C1:C6,7)"
+  },
+  {
+   "f": "=sqrt(-1)",
+   "home": "s1",
+   "want": "=SQRT(-1)"
+  },
+  {
+   "f": "=sqrt(-1)",
+   "home": "s3",
+   "want": "=SQRT(-1)"
+  },
+  {
+   "f": "=stdev(\"x\",1,2)",
+   "home": "s1",
+   "want": "=STDEV(\"x\",1,2)"
+  },
+  {
+   "f": "=stdev(\"x\",1,2)",
+   "home": "s3",
+   "want": "=STDEV(\"x\",1,2)"
+  },
+  {
+   "f": "=stdev(10)",
+   "home": "s1",
+   "want": "=STDEV(10)"
+  },
+  {
+   "f": "=stdev(10)",
+   "home": "s3",
+   "want": "=STDEV(10)"
+  },
+  {
+   "f": "=stdev(a1:a6)",
+   "home": "s1",
+   "want": "=STDEV(A1:A6)"
+  },
+  {
+   "f": "=stdev(a1:a6)",
+   "home": "s3",
+   "want": "=STDEV(A1:A6)"
+  },
+  {
+   "f": "=stdev(b1:b2)",
+   "home": "s1",
+   "want": "=STDEV(B1:B2)"
+  },
+  {
+   "f": "=stdev(b1:b2)",
+   "home": "s3",
+   "want": "=STDEV(B1:B2)"
+  },
+  {
+   "f": "=stdev(b9)",
+   "home": "s1",
+   "want": "=STDEV(B9)"
+  },
+  {
+   "f": "=stdev(b9)",
+   "home": "s3",
+   "want": "=STDEV(B9)"
+  },
+  {
+   "f": "=stdev(c1:c3,d1)",
+   "home": "s1",
+   "want": "=STDEV(C1:C3,D1)"
+  },
+  {
+   "f": "=stdev(c1:c3,d1)",
+   "home": "s3",
+   "want": "=STDEV(C1:C3,D1)"
+  },
+  {
+   "f": "=stdev(e1:e8)",
+   "home": "s1",
+   "want": "=STDEV(E1:E8)"
+  },
+  {
+   "f": "=stdev(e1:e8)",
+   "home": "s3",
+   "want": "=STDEV(E1:E8)"
+  },
+  {
+   "f": "=stdev(i1:i3)",
+   "home": "s1",
+   "want": "=STDEV(I1:I3)"
+  },
+  {
+   "f": "=stdev(i1:i3)",
+   "home": "s3",
+   "want": "=STDEV(I1:I3)"
+  },
+  {
+   "f": "=stdev.p(e1:e8)",
+   "home": "s1",
+   "want": "=STDEV.P(E1:E8)"
+  },
+  {
+   "f": "=stdev.p(e1:e8)",
+   "home": "s3",
+   "want": "=STDEV.P(E1:E8)"
+  },
+  {
+   "f": "=stdev.s(e1:e8)",
+   "home": "s1",
+   "want": "=STDEV.S(E1:E8)"
+  },
+  {
+   "f": "=stdev.s(e1:e8)",
+   "home": "s3",
+   "want": "=STDEV.S(E1:E8)"
+  },
+  {
+   "f": "=stdevp(10)",
+   "home": "s1",
+   "want": "=STDEVP(10)"
+  },
+  {
+   "f": "=stdevp(10)",
+   "home": "s3",
+   "want": "=STDEVP(10)"
+  },
+  {
+   "f": "=stdevp(e1:e8)",
+   "home": "s1",
+   "want": "=STDEVP(E1:E8)"
+  },
+  {
+   "f": "=stdevp(e1:e8)",
+   "home": "s3",
+   "want": "=STDEVP(E1:E8)"
+  },
+  {
+   "f": "=subtotal(10,a1:a2)",
+   "home": "s1",
+   "want": "=SUBTOTAL(10,A1:A2)"
+  },
+  {
+   "f": "=subtotal(10,a1:a2)",
+   "home": "s3",
+   "want": "=SUBTOTAL(10,A1:A2)"
+  },
+  {
+   "f": "=subtotal(7,a1:a3)",
+   "home": "s1",
+   "want": "=SUBTOTAL(7,A1:A3)"
+  },
+  {
+   "f": "=subtotal(7,a1:a3)",
+   "home": "s3",
+   "want": "=SUBTOTAL(7,A1:A3)"
+  },
+  {
+   "f": "=subtotal(9,A4)",
+   "home": "s1",
+   "want": "=SUBTOTAL(9,A4)"
+  },
+  {
+   "f": "=subtotal(9,A4)",
+   "home": "s3",
+   "want": "=SUBTOTAL(9,A4)"
+  },
+  {
+   "f": "=subtotal(9,a1:a2)",
+   "home": "s1",
+   "want": "=SUBTOTAL(9,A1:A2)"
+  },
+  {
+   "f": "=subtotal(9,a1:a2)",
+   "home": "s3",
+   "want": "=SUBTOTAL(9,A1:A2)"
+  },
+  {
+   "f": "=subtotal(9,a1:a5)",
+   "home": "s1",
+   "want": "=SUBTOTAL(9,A1:A5)"
+  },
+  {
+   "f": "=subtotal(9,a1:a5)",
+   "home": "s3",
+   "want": "=SUBTOTAL(9,A1:A5)"
+  },
+  {
+   "f": "=subtotal(9,a4)",
+   "home": "s1",
+   "want": "=SUBTOTAL(9,A4)"
+  },
+  {
+   "f": "=subtotal(9,a4)",
+   "home": "s3",
+   "want": "=SUBTOTAL(9,A4)"
+  },
+  {
+   "f": "=sum(",
+   "home": "s1",
+   "want": "=sum("
+  },
+  {
+   "f": "=sum(",
+   "home": "s3",
+   "want": "=sum("
+  },
+  {
+   "f": "=sum(\"x\")",
+   "home": "s1",
+   "want": "=SUM(\"x\")"
+  },
+  {
+   "f": "=sum(\"x\")",
+   "home": "s3",
+   "want": "=SUM(\"x\")"
+  },
+  {
+   "f": "=sum(#ref!)",
+   "home": "s1",
+   "want": "=SUM(#ref!)"
+  },
+  {
+   "f": "=sum(#ref!)",
+   "home": "s3",
+   "want": "=SUM(#ref!)"
+  },
+  {
+   "f": "=sum($A$1:$A$5)",
+   "home": "s1",
+   "want": "=SUM($A$1:$A$5)"
+  },
+  {
+   "f": "=sum($A$1:$A$5)",
+   "home": "s3",
+   "want": "=SUM($A$1:$A$5)"
+  },
+  {
+   "f": "=sum($A$2:A4)",
+   "home": "s1",
+   "want": "=SUM($A$2:A4)"
+  },
+  {
+   "f": "=sum($A$2:A4)",
+   "home": "s3",
+   "want": "=SUM($A$2:A4)"
+  },
+  {
+   "f": "=sum($a$1:$a$5)",
+   "home": "s1",
+   "want": "=SUM($A$1:$A$5)"
+  },
+  {
+   "f": "=sum($a$1:$a$5)",
+   "home": "s3",
+   "want": "=SUM($A$1:$A$5)"
+  },
+  {
+   "f": "=sum($a$1:a3)",
+   "home": "s1",
+   "want": "=SUM($A$1:A3)"
+  },
+  {
+   "f": "=sum($a$1:a3)",
+   "home": "s3",
+   "want": "=SUM($A$1:A3)"
+  },
+  {
+   "f": "=sum($a$1:b2)",
+   "home": "s1",
+   "want": "=SUM($A$1:B2)"
+  },
+  {
+   "f": "=sum($a$1:b2)",
+   "home": "s3",
+   "want": "=SUM($A$1:B2)"
+  },
+  {
+   "f": "=sum($a$2:a4)",
+   "home": "s1",
+   "want": "=SUM($A$2:A4)"
+  },
+  {
+   "f": "=sum($a$2:a4)",
+   "home": "s3",
+   "want": "=SUM($A$2:A4)"
+  },
+  {
+   "f": "=sum($b$2:b)+budget!c5:c",
+   "home": "s1",
+   "want": "=SUM($B$2:B)+Budget!C5:C"
+  },
+  {
+   "f": "=sum($b$2:b)+budget!c5:c",
+   "home": "s3",
+   "want": "=SUM($B$2:B)+Budget!C5:C"
+  },
+  {
+   "f": "=sum(1:5)",
+   "home": "s1",
+   "want": "=SUM(1:5)"
+  },
+  {
+   "f": "=sum(1:5)",
+   "home": "s3",
+   "want": "=SUM(1:5)"
+  },
+  {
+   "f": "=sum(A1)",
+   "home": "s1",
+   "want": "=SUM(A1)"
+  },
+  {
+   "f": "=sum(A1)",
+   "home": "s3",
+   "want": "=SUM(A1)"
+  },
+  {
+   "f": "=sum(A1,B1)",
+   "home": "s1",
+   "want": "=SUM(A1,B1)"
+  },
+  {
+   "f": "=sum(A1,B1)",
+   "home": "s3",
+   "want": "=SUM(A1,B1)"
+  },
+  {
+   "f": "=sum(A1;B1)",
+   "home": "s1",
+   "want": "=sum(A1;B1)"
+  },
+  {
+   "f": "=sum(A1;B1)",
+   "home": "s3",
+   "want": "=sum(A1;B1)"
+  },
+  {
+   "f": "=sum(a1)",
+   "home": "s1",
+   "want": "=SUM(A1)"
+  },
+  {
+   "f": "=sum(a1)",
+   "home": "s3",
+   "want": "=SUM(A1)"
+  },
+  {
+   "f": "=sum(a1)\", \"123,false\", \"",
+   "home": "s1",
+   "want": "=sum(a1)\", \"123,false\", \""
+  },
+  {
+   "f": "=sum(a1)\", \"123,false\", \"",
+   "home": "s3",
+   "want": "=sum(a1)\", \"123,false\", \""
+  },
+  {
+   "f": "=sum(a1),",
+   "home": "s1",
+   "want": "=sum(a1),"
+  },
+  {
+   "f": "=sum(a1),",
+   "home": "s3",
+   "want": "=sum(a1),"
+  },
+  {
+   "f": "=sum(a1,2.5)",
+   "home": "s1",
+   "want": "=SUM(A1,2.5)"
+  },
+  {
+   "f": "=sum(a1,2.5)",
+   "home": "s3",
+   "want": "=SUM(A1,2.5)"
+  },
+  {
+   "f": "=sum(a1,b1)",
+   "home": "s1",
+   "want": "=SUM(A1,B1)"
+  },
+  {
+   "f": "=sum(a1,b1)",
+   "home": "s3",
+   "want": "=SUM(A1,B1)"
+  },
+  {
+   "f": "=sum(a1:a2)",
+   "home": "s1",
+   "want": "=SUM(A1:A2)"
+  },
+  {
+   "f": "=sum(a1:a2)",
+   "home": "s3",
+   "want": "=SUM(A1:A2)"
+  },
+  {
+   "f": "=sum(a1:a20)",
+   "home": "s1",
+   "want": "=SUM(A1:A20)"
+  },
+  {
+   "f": "=sum(a1:a20)",
+   "home": "s3",
+   "want": "=SUM(A1:A20)"
+  },
+  {
+   "f": "=sum(a1:a20) on a 10-row tab covers the rows an insert brings and is computed after the insert",
+   "home": "s1",
+   "want": "=sum(a1:a20) on a 10-row tab covers the rows an insert brings and is computed after the insert"
+  },
+  {
+   "f": "=sum(a1:a20) on a 10-row tab covers the rows an insert brings and is computed after the insert",
+   "home": "s3",
+   "want": "=sum(a1:a20) on a 10-row tab covers the rows an insert brings and is computed after the insert"
+  },
+  {
+   "f": "=sum(a1:a3)",
+   "home": "s1",
+   "want": "=SUM(A1:A3)"
+  },
+  {
+   "f": "=sum(a1:a3)",
+   "home": "s3",
+   "want": "=SUM(A1:A3)"
+  },
+  {
+   "f": "=sum(a1:a5)",
+   "home": "s1",
+   "want": "=SUM(A1:A5)"
+  },
+  {
+   "f": "=sum(a1:a5)",
+   "home": "s3",
+   "want": "=SUM(A1:A5)"
+  },
+  {
+   "f": "=sum(a1:a6)",
+   "home": "s1",
+   "want": "=SUM(A1:A6)"
+  },
+  {
+   "f": "=sum(a1:a6)",
+   "home": "s3",
+   "want": "=SUM(A1:A6)"
+  },
+  {
+   "f": "=sum(a1;b1)",
+   "home": "s1",
+   "want": "=sum(a1;b1)"
+  },
+  {
+   "f": "=sum(a1;b1)",
+   "home": "s3",
+   "want": "=sum(a1;b1)"
+  },
+  {
+   "f": "=sum(a200:a)",
+   "home": "s1",
+   "want": "=SUM(A200:A)"
+  },
+  {
+   "f": "=sum(a200:a)",
+   "home": "s3",
+   "want": "=SUM(A200:A)"
+  },
+  {
+   "f": "=sum(a2:a)",
+   "home": "s1",
+   "want": "=SUM(A2:A)"
+  },
+  {
+   "f": "=sum(a2:a)",
+   "home": "s3",
+   "want": "=SUM(A2:A)"
+  },
+  {
+   "f": "=sum(a2:a) totals the column below its first row across a row insert",
+   "home": "s1",
+   "want": "=sum(a2:a) totals the column below its first row across a row insert"
+  },
+  {
+   "f": "=sum(a2:a) totals the column below its first row across a row insert",
+   "home": "s3",
+   "want": "=sum(a2:a) totals the column below its first row across a row insert"
+  },
+  {
+   "f": "=sum(a2:a1000)",
+   "home": "s1",
+   "want": "=SUM(A2:A1000)"
+  },
+  {
+   "f": "=sum(a2:a1000)",
+   "home": "s3",
+   "want": "=SUM(A2:A1000)"
+  },
+  {
+   "f": "=sum(a3)",
+   "home": "s1",
+   "want": "=SUM(A3)"
+  },
+  {
+   "f": "=sum(a3)",
+   "home": "s3",
+   "want": "=SUM(A3)"
+  },
+  {
+   "f": "=sum(a3:a)",
+   "home": "s1",
+   "want": "=SUM(A3:A)"
+  },
+  {
+   "f": "=sum(a3:a)",
+   "home": "s3",
+   "want": "=SUM(A3:A)"
+  },
+  {
+   "f": "=sum(a3:a10)",
+   "home": "s1",
+   "want": "=SUM(A3:A10)"
+  },
+  {
+   "f": "=sum(a3:a10)",
+   "home": "s3",
+   "want": "=SUM(A3:A10)"
+  },
+  {
+   "f": "=sum(a3:a1000)",
+   "home": "s1",
+   "want": "=SUM(A3:A1000)"
+  },
+  {
+   "f": "=sum(a3:a1000)",
+   "home": "s3",
+   "want": "=SUM(A3:A1000)"
+  },
+  {
+   "f": "=sum(a:a)",
+   "home": "s1",
+   "want": "=SUM(A:A)"
+  },
+  {
+   "f": "=sum(a:a)",
+   "home": "s3",
+   "want": "=SUM(A:A)"
+  },
+  {
+   "f": "=sum(a:a)+sum(2:3)",
+   "home": "s1",
+   "want": "=SUM(A:A)+SUM(2:3)"
+  },
+  {
+   "f": "=sum(a:a)+sum(2:3)",
+   "home": "s3",
+   "want": "=SUM(A:A)+SUM(2:3)"
+  },
+  {
+   "f": "=sum(b1:b)",
+   "home": "s1",
+   "want": "=SUM(B1:B)"
+  },
+  {
+   "f": "=sum(b1:b)",
+   "home": "s3",
+   "want": "=SUM(B1:B)"
+  },
+  {
+   "f": "=sum(b1:b2)",
+   "home": "s1",
+   "want": "=SUM(B1:B2)"
+  },
+  {
+   "f": "=sum(b1:b2)",
+   "home": "s3",
+   "want": "=SUM(B1:B2)"
+  },
+  {
+   "f": "=sum(b1:b3)",
+   "home": "s1",
+   "want": "=SUM(B1:B3)"
+  },
+  {
+   "f": "=sum(b1:b3)",
+   "home": "s3",
+   "want": "=SUM(B1:B3)"
+  },
+  {
+   "f": "=sum(b1:b4)",
+   "home": "s1",
+   "want": "=SUM(B1:B4)"
+  },
+  {
+   "f": "=sum(b1:b4)",
+   "home": "s3",
+   "want": "=SUM(B1:B4)"
+  },
+  {
+   "f": "=sum(b1:b5)",
+   "home": "s1",
+   "want": "=SUM(B1:B5)"
+  },
+  {
+   "f": "=sum(b1:b5)",
+   "home": "s3",
+   "want": "=SUM(B1:B5)"
+  },
+  {
+   "f": "=sum(b1:b6)",
+   "home": "s1",
+   "want": "=SUM(B1:B6)"
+  },
+  {
+   "f": "=sum(b1:b6)",
+   "home": "s3",
+   "want": "=SUM(B1:B6)"
+  },
+  {
+   "f": "=sum(b2:b)",
+   "home": "s1",
+   "want": "=SUM(B2:B)"
+  },
+  {
+   "f": "=sum(b2:b)",
+   "home": "s3",
+   "want": "=SUM(B2:B)"
+  },
+  {
+   "f": "=sum(b2:b3)",
+   "home": "s1",
+   "want": "=SUM(B2:B3)"
+  },
+  {
+   "f": "=sum(b2:b3)",
+   "home": "s3",
+   "want": "=SUM(B2:B3)"
+  },
+  {
+   "f": "=sum(b2:b3)+1",
+   "home": "s1",
+   "want": "=SUM(B2:B3)+1"
+  },
+  {
+   "f": "=sum(b2:b3)+1",
+   "home": "s3",
+   "want": "=SUM(B2:B3)+1"
+  },
+  {
+   "f": "=sum(b2:b3)+styled!b1",
+   "home": "s1",
+   "want": "=SUM(B2:B3)+Styled!B1"
+  },
+  {
+   "f": "=sum(b2:b3)+styled!b1",
+   "home": "s3",
+   "want": "=SUM(B2:B3)+Styled!B1"
+  },
+  {
+   "f": "=sum(b2:b4)",
+   "home": "s1",
+   "want": "=SUM(B2:B4)"
+  },
+  {
+   "f": "=sum(b2:b4)",
+   "home": "s3",
+   "want": "=SUM(B2:B4)"
+  },
+  {
+   "f": "=sum(b2:b5)",
+   "home": "s1",
+   "want": "=SUM(B2:B5)"
+  },
+  {
+   "f": "=sum(b2:b5)",
+   "home": "s3",
+   "want": "=SUM(B2:B5)"
+  },
+  {
+   "f": "=sum(b2:b6)",
+   "home": "s1",
+   "want": "=SUM(B2:B6)"
+  },
+  {
+   "f": "=sum(b2:b6)",
+   "home": "s3",
+   "want": "=SUM(B2:B6)"
+  },
+  {
+   "f": "=sum(b2:b8)",
+   "home": "s1",
+   "want": "=SUM(B2:B8)"
+  },
+  {
+   "f": "=sum(b2:b8)",
+   "home": "s3",
+   "want": "=SUM(B2:B8)"
+  },
+  {
+   "f": "=sum(b3:b4)",
+   "home": "s1",
+   "want": "=SUM(B3:B4)"
+  },
+  {
+   "f": "=sum(b3:b4)",
+   "home": "s3",
+   "want": "=SUM(B3:B4)"
+  },
+  {
+   "f": "=sum(b5:b2)",
+   "home": "s1",
+   "want": "=SUM(B2:B5)"
+  },
+  {
+   "f": "=sum(b5:b2)",
+   "home": "s3",
+   "want": "=SUM(B5:B2)"
+  },
+  {
+   "f": "=sum(budget!b1:b3)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B3)"
+  },
+  {
+   "f": "=sum(budget!b1:b3)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B3)"
+  },
+  {
+   "f": "=sum(budget!b1:b4)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B4)"
+  },
+  {
+   "f": "=sum(budget!b1:b4)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B4)"
+  },
+  {
+   "f": "=sum(budget!b5:b1)",
+   "home": "s1",
+   "want": "=SUM(Budget!B1:B5)"
+  },
+  {
+   "f": "=sum(budget!b5:b1)",
+   "home": "s3",
+   "want": "=SUM(Budget!B1:B5)"
+  },
+  {
+   "f": "=sum(d1:d2)",
+   "home": "s1",
+   "want": "=SUM(D1:D2)"
+  },
+  {
+   "f": "=sum(d1:d2)",
+   "home": "s3",
+   "want": "=SUM(D1:D2)"
+  },
+  {
+   "f": "=sum(true,2)",
+   "home": "s1",
+   "want": "=SUM(TRUE,2)"
+  },
+  {
+   "f": "=sum(true,2)",
+   "home": "s3",
+   "want": "=SUM(TRUE,2)"
+  },
+  {
+   "f": "=sumif(a1:a3, \">0\", b1)",
+   "home": "s1",
+   "want": "=SUMIF(A1:A3, \">0\", B1)"
+  },
+  {
+   "f": "=sumif(a1:a3, \">0\", b1)",
+   "home": "s3",
+   "want": "=SUMIF(A1:A3, \">0\", B1)"
+  },
+  {
+   "f": "=sumif(a1:a3, \"x\", b1:b2)",
+   "home": "s1",
+   "want": "=SUMIF(A1:A3, \"x\", B1:B2)"
+  },
+  {
+   "f": "=sumif(a1:a3, \"x\", b1:b2)",
+   "home": "s3",
+   "want": "=SUMIF(A1:A3, \"x\", B1:B2)"
+  },
+  {
+   "f": "=sumif(a1:a3,\">0,5\",b1)+1.5",
+   "home": "s1",
+   "want": "=SUMIF(A1:A3,\">0,5\",B1)+1.5"
+  },
+  {
+   "f": "=sumif(a1:a3,\">0,5\",b1)+1.5",
+   "home": "s3",
+   "want": "=SUMIF(A1:A3,\">0,5\",B1)+1.5"
+  },
+  {
+   "f": "=sumif(a1:a6,\">15\")",
+   "home": "s1",
+   "want": "=SUMIF(A1:A6,\">15\")"
+  },
+  {
+   "f": "=sumif(a1:a6,\">15\")",
+   "home": "s3",
+   "want": "=SUMIF(A1:A6,\">15\")"
+  },
+  {
+   "f": "=sumif(b1:b6,\"a*\",c1:c6)",
+   "home": "s1",
+   "want": "=SUMIF(B1:B6,\"a*\",C1:C6)"
+  },
+  {
+   "f": "=sumif(b1:b6,\"a*\",c1:c6)",
+   "home": "s3",
+   "want": "=SUMIF(B1:B6,\"a*\",C1:C6)"
+  },
+  {
+   "f": "=sumif(b1:b6,\"a~*b\",c1:c6)",
+   "home": "s1",
+   "want": "=SUMIF(B1:B6,\"a~*b\",C1:C6)"
+  },
+  {
+   "f": "=sumif(b1:b6,\"a~*b\",c1:c6)",
+   "home": "s3",
+   "want": "=SUMIF(B1:B6,\"a~*b\",C1:C6)"
+  },
+  {
+   "f": "=sumif(nope!a1:a3, \"x\")",
+   "home": "s1",
+   "want": "=SUMIF(nope!a1:a3, \"x\")"
+  },
+  {
+   "f": "=sumif(nope!a1:a3, \"x\")",
+   "home": "s3",
+   "want": "=SUMIF(nope!a1:a3, \"x\")"
+  },
+  {
+   "f": "=sumifs(b1:b2, a1:a3, \"x\")",
+   "home": "s1",
+   "want": "=SUMIFS(B1:B2, A1:A3, \"x\")"
+  },
+  {
+   "f": "=sumifs(b1:b2, a1:a3, \"x\")",
+   "home": "s3",
+   "want": "=SUMIFS(B1:B2, A1:A3, \"x\")"
+  },
+  {
+   "f": "=sumifs(c1:c6,b1:b6,\"a*\",c1:c6,\">1\")",
+   "home": "s1",
+   "want": "=SUMIFS(C1:C6,B1:B6,\"a*\",C1:C6,\">1\")"
+  },
+  {
+   "f": "=sumifs(c1:c6,b1:b6,\"a*\",c1:c6,\">1\")",
+   "home": "s3",
+   "want": "=SUMIFS(C1:C6,B1:B6,\"a*\",C1:C6,\">1\")"
+  },
+  {
+   "f": "=summe(1,5;2)",
+   "home": "s1",
+   "want": "=summe(1,5;2)"
+  },
+  {
+   "f": "=summe(1,5;2)",
+   "home": "s3",
+   "want": "=summe(1,5;2)"
+  },
+  {
+   "f": "=summe(a1, b1)",
+   "home": "s1",
+   "want": "=SUMME(A1, B1)"
+  },
+  {
+   "f": "=summe(a1, b1)",
+   "home": "s3",
+   "want": "=SUMME(A1, B1)"
+  },
+  {
+   "f": "=summe(a1;2,5)",
+   "home": "s1",
+   "want": "=summe(a1;2,5)"
+  },
+  {
+   "f": "=summe(a1;2,5)",
+   "home": "s3",
+   "want": "=summe(a1;2,5)"
+  },
+  {
+   "f": "=summe(a1;a2)",
+   "home": "s1",
+   "want": "=summe(a1;a2)"
+  },
+  {
+   "f": "=summe(a1;a2)",
+   "home": "s3",
+   "want": "=summe(a1;a2)"
+  },
+  {
+   "f": "=summe(a1;b1)",
+   "home": "s1",
+   "want": "=summe(a1;b1)"
+  },
+  {
+   "f": "=summe(a1;b1)",
+   "home": "s3",
+   "want": "=summe(a1;b1)"
+  },
+  {
+   "f": "=summewenn(a1:a3;\">0,5\";b1)+1,5",
+   "home": "s1",
+   "want": "=summewenn(a1:a3;\">0,5\";b1)+1,5"
+  },
+  {
+   "f": "=summewenn(a1:a3;\">0,5\";b1)+1,5",
+   "home": "s3",
+   "want": "=summewenn(a1:a3;\">0,5\";b1)+1,5"
+  },
+  {
+   "f": "=sumproduct(c1:c3,c1:c2)",
+   "home": "s1",
+   "want": "=SUMPRODUCT(C1:C3,C1:C2)"
+  },
+  {
+   "f": "=sumproduct(c1:c3,c1:c2)",
+   "home": "s3",
+   "want": "=SUMPRODUCT(C1:C3,C1:C2)"
+  },
+  {
+   "f": "=sumproduct(c1:c3,c4:c6)",
+   "home": "s1",
+   "want": "=SUMPRODUCT(C1:C3,C4:C6)"
+  },
+  {
+   "f": "=sumproduct(c1:c3,c4:c6)",
+   "home": "s3",
+   "want": "=SUMPRODUCT(C1:C3,C4:C6)"
+  },
+  {
+   "f": "=sverweis(3;c1:c6;1;falsch)",
+   "home": "s1",
+   "want": "=sverweis(3;c1:c6;1;falsch)"
+  },
+  {
+   "f": "=sverweis(3;c1:c6;1;falsch)",
+   "home": "s3",
+   "want": "=sverweis(3;c1:c6;1;falsch)"
+  },
+  {
+   "f": "=switch(9,1,\"one\")",
+   "home": "s1",
+   "want": "=SWITCH(9,1,\"one\")"
+  },
+  {
+   "f": "=switch(9,1,\"one\")",
+   "home": "s3",
+   "want": "=SWITCH(9,1,\"one\")"
+  },
+  {
+   "f": "=switch(c2,1,\"one\",2,\"two\",\"other\")",
+   "home": "s1",
+   "want": "=SWITCH(C2,1,\"one\",2,\"two\",\"other\")"
+  },
+  {
+   "f": "=switch(c2,1,\"one\",2,\"two\",\"other\")",
+   "home": "s3",
+   "want": "=SWITCH(C2,1,\"one\",2,\"two\",\"other\")"
+  },
+  {
+   "f": "=text(a1,\"# ?/?\")",
+   "home": "s1",
+   "want": "=TEXT(A1,\"# ?/?\")"
+  },
+  {
+   "f": "=text(a1,\"# ?/?\")",
+   "home": "s3",
+   "want": "=TEXT(A1,\"# ?/?\")"
+  },
+  {
+   "f": "=today()",
+   "home": "s1",
+   "want": "=TODAY()"
+  },
+  {
+   "f": "=today()",
+   "home": "s3",
+   "want": "=TODAY()"
+  },
+  {
+   "f": "=totals!b2",
+   "home": "s1",
+   "want": "=totals!b2"
+  },
+  {
+   "f": "=totals!b2",
+   "home": "s3",
+   "want": "=totals!b2"
+  },
+  {
+   "f": "=true+false",
+   "home": "s1",
+   "want": "=TRUE+FALSE"
+  },
+  {
+   "f": "=true+false",
+   "home": "s3",
+   "want": "=TRUE+FALSE"
+  },
+  {
+   "f": "=twice(1)",
+   "home": "s1",
+   "want": "=TWICE(1)"
+  },
+  {
+   "f": "=twice(1)",
+   "home": "s3",
+   "want": "=TWICE(1)"
+  },
+  {
+   "f": "=twice(2)",
+   "home": "s1",
+   "want": "=TWICE(2)"
+  },
+  {
+   "f": "=twice(2)",
+   "home": "s3",
+   "want": "=TWICE(2)"
+  },
+  {
+   "f": "=twice(4)",
+   "home": "s1",
+   "want": "=TWICE(4)"
+  },
+  {
+   "f": "=twice(4)",
+   "home": "s3",
+   "want": "=TWICE(4)"
+  },
+  {
+   "f": "=var(e1:e8)",
+   "home": "s1",
+   "want": "=VAR(E1:E8)"
+  },
+  {
+   "f": "=var(e1:e8)",
+   "home": "s3",
+   "want": "=VAR(E1:E8)"
+  },
+  {
+   "f": "=varp(e1:e8)",
+   "home": "s1",
+   "want": "=VARP(E1:E8)"
+  },
+  {
+   "f": "=varp(e1:e8)",
+   "home": "s3",
+   "want": "=VARP(E1:E8)"
+  },
+  {
+   "f": "=vlookup(3,c1:c6,1,false)",
+   "home": "s1",
+   "want": "=VLOOKUP(3,C1:C6,1,FALSE)"
+  },
+  {
+   "f": "=vlookup(3,c1:c6,1,false)",
+   "home": "s3",
+   "want": "=VLOOKUP(3,C1:C6,1,FALSE)"
+  },
+  {
+   "f": "=weeknum(a1,21)",
+   "home": "s1",
+   "want": "=WEEKNUM(A1,21)"
+  },
+  {
+   "f": "=weeknum(a1,21)",
+   "home": "s3",
+   "want": "=WEEKNUM(A1,21)"
+  },
+  {
+   "f": "=x",
+   "home": "s1",
+   "want": "=x"
+  },
+  {
+   "f": "=x",
+   "home": "s3",
+   "want": "=x"
+  },
+  {
+   "f": "=z99+zz1",
+   "home": "s1",
+   "want": "=Z99+ZZ1"
+  },
+  {
+   "f": "=z99+zz1",
+   "home": "s3",
+   "want": "=Z99+ZZ1"
+  },
+  {
+   "f": "=zzz1",
+   "home": "s1",
+   "want": "=ZZZ1"
+  },
+  {
+   "f": "=zzz1",
+   "home": "s3",
+   "want": "=ZZZ1"
+  },
+  {
+   "f": "=zzz2",
+   "home": "s1",
+   "want": "=ZZZ2"
+  },
+  {
+   "f": "=zzz2",
+   "home": "s3",
+   "want": "=ZZZ2"
+  },
+  {
+   "f": "=zählenwenn(a1:a5;\"x,y\";wahr)",
+   "home": "s1",
+   "want": "=zählenwenn(a1:a5;\"x,y\";wahr)"
+  },
+  {
+   "f": "=zählenwenn(a1:a5;\"x,y\";wahr)",
+   "home": "s3",
+   "want": "=zählenwenn(a1:a5;\"x,y\";wahr)"
+  },
+  {
+   "f": "=((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))",
+   "home": "s1",
+   "error": "RangeError"
+  }
+ ]
+}

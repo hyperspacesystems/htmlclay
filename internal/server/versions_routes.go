@@ -194,9 +194,16 @@ func (s *Server) RestoreVersion(f *session.File, host, name string) error {
 	// The safety backup before a restore is mandatory, unlike a normal save: a
 	// read-only versions directory would otherwise allow a destructive restore
 	// with no recovery copy. Success means a completely and atomically published
-	// usable version; a verified identical existing version satisfies it.
+	// usable version; a verified identical existing version satisfies it. The
+	// version that holds the replaced bytes is pinned, so no pruning rule can
+	// remove what a person restored over.
 	if readErr == nil {
-		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
+		history := NewGuardHistory(s.versions, key, f.AbsPath)
+		kept, bErr := history.Keep(current)
+		if bErr == nil {
+			bErr = history.Pin(kept)
+		}
+		if bErr != nil {
 			f.Unlock()
 			s.Logger.Printf("Refusing to restore %s: safety backup failed: %v", f.RelPath, bErr)
 			return &RestoreRefusal{Status: http.StatusInternalServerError, Message: "could not create a safety backup"}
@@ -216,6 +223,10 @@ func (s *Server) RestoreVersion(f *session.File, host, name string) error {
 	data = canonicalForWrite(host, data)
 	data = []byte(pageadmission.WithPageFormatFloor(string(data),
 		max(pageadmission.PageFormatFloor(string(current)), pageadmission.PageFormatFloor(string(data)))))
+
+	if readErr == nil {
+		data = s.foldRecord(f, data, current)
+	}
 
 	if wErr := atomicWriteFile(f.AbsPath, data); wErr != nil {
 		f.Unlock()

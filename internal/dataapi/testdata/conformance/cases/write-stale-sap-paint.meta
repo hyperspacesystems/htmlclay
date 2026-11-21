@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A rule reads text sapjs paints (#total), which a host write cannot recalculate: stale is true and the bytes keep the old total.

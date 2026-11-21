@@ -155,7 +155,11 @@ func RowHTML(row Row) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return "<tr" + id + pos + style + ">" + strings.Join(cells, "") + "</tr>", nil
+	hidden := ""
+	if row.Hidden {
+		hidden = " hidden"
+	}
+	return "<tr" + id + pos + hidden + style + ">" + strings.Join(cells, "") + "</tr>", nil
 }
 
 // ColHTML writes one column as canonical bytes.
@@ -176,6 +180,9 @@ func ColHTML(col Col) (string, error) {
 		}
 		attrs += a
 	}
+	if col.Hidden {
+		attrs += " hidden"
+	}
 	if col.Width != nil {
 		n, err := count(*col.Width, 0, "width")
 		if err != nil {
@@ -186,8 +193,28 @@ func ColHTML(col Col) (string, error) {
 	return "<col" + attrs + ">", nil
 }
 
-// TableHTML writes the whole table as canonical bytes, groupSize data rows per tbody.
-// A groupSize of 0 means 50.
+// GroupStarts is write.js groupStarts: the index of the first row of each tbody
+// group. A group holds groupSize rows, and runs on past that to the end of any
+// vertical merge that crosses its cut, so no group ends inside a merge.
+func GroupStarts(rows []Row, groupSize int) []int {
+	starts := []int{0}
+	start, open := 0, 0
+	for r, row := range rows {
+		if r-start >= groupSize && open <= r {
+			starts = append(starts, r)
+			start = r
+		}
+		for _, cell := range row.Cells {
+			if cell != nil && cell.Rowspan > 1 && r+cell.Rowspan > open {
+				open = r + cell.Rowspan
+			}
+		}
+	}
+	return starts
+}
+
+// TableHTML writes the whole table as canonical bytes, groupSize data rows per tbody,
+// never ending a group inside a vertical merge. A groupSize of 0 means 50.
 func TableHTML(sheet *Sheet, groupSize int) (string, error) {
 	if groupSize == 0 {
 		groupSize = 50
@@ -250,9 +277,13 @@ func TableHTML(sheet *Sheet, groupSize int) (string, error) {
 		html += "<thead>\n" + strings.Join(rows, "\n") + "\n</thead>"
 	}
 
-	groups := max(1, (len(data)+groupSize-1)/groupSize)
-	for g := 0; g < groups; g++ {
-		group := data[min(g*groupSize, len(data)):min((g+1)*groupSize, len(data))]
+	starts := GroupStarts(data, groupSize)
+	for g, from := range starts {
+		to := len(data)
+		if g+1 < len(starts) {
+			to = starts[g+1]
+		}
+		group := data[from:to]
 		html += "<tbody>\n"
 		if len(group) > 0 {
 			rows := make([]string, 0, len(group))

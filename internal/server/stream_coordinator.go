@@ -99,6 +99,10 @@ func (co *streamCoordinator) broadcastSaved(f *session.File, html, sender string
 	co.evict(f, co.hub.broadcastSaved(f.AbsPath, html, sender))
 }
 
+func (co *streamCoordinator) broadcastStored(f *session.File, html, etag string) {
+	co.evict(f, co.hub.broadcastStored(f.AbsPath, html, "file-system", etag))
+}
+
 func (co *streamCoordinator) notifyWarning(f *session.File, msg string) {
 	co.evict(f, co.hub.notifyWarning(f.AbsPath, msg))
 }
@@ -116,6 +120,15 @@ func (co *streamCoordinator) publishExternalChange(f *session.File, msg, html, e
 	delivered, evicted := co.hub.publishExternalChange(f.AbsPath, msg, html, etag)
 	co.evict(f, evicted)
 	return delivered
+}
+
+// publishExternalChangeRecalc is publishExternalChange for a data write: its live frame carries
+// recalc when the write waits, and it answers how many edit tabs took that frame. Caller holds
+// f.Lock.
+func (co *streamCoordinator) publishExternalChangeRecalc(f *session.File, msg, html, etag string, recalc *recalcFrame) int {
+	live, _, evicted := co.hub.publishExternalChangeWith(f.AbsPath, msg, html, etag, recalc)
+	co.evict(f, evicted)
+	return live
 }
 
 // acceptServerReplacement re-anchors the incarnation after a server-authorized
