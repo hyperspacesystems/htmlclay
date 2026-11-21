@@ -1,7 +1,7 @@
 {
   "version": 1,
   "protocol": 1,
-  "package": "0.13.1",
+  "package": "0.14.0",
   "entry": {
     "javascript": "main-UBS3AZWI.js",
     "css": [
