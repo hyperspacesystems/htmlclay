@@ -998,16 +998,17 @@ func frame(seq int64, v interface{}) []byte {
 // stamp, and discovery answers about whatever is on disk at that later moment,
 // which is not necessarily what this frame delivered. Empty when the stamp could
 // not be taken, which leaves the client on its older fetch-and-reseed path.
-func encodeExternalChangeData(html, etag string) json.RawMessage {
+func encodeExternalChangeData(html, etag string, recalc *recalcFrame) json.RawMessage {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(struct {
-		Kind   string `json:"kind"`
-		HTML   string `json:"html"`
-		Sender string `json:"sender"`
-		Etag   string `json:"etag,omitempty"`
-	}{Kind: "external-change", HTML: html, Sender: "file-system", Etag: etag}); err != nil {
+		Kind        string       `json:"kind"`
+		HTML        string       `json:"html"`
+		Sender      string       `json:"sender"`
+		Etag        string       `json:"etag,omitempty"`
+		Recalculate *recalcFrame `json:"recalculate,omitempty"`
+	}{Kind: "external-change", HTML: html, Sender: "file-system", Etag: etag, Recalculate: recalc}); err != nil {
 		return nil
 	}
 	return json.RawMessage(bytes.TrimRight(buf.Bytes(), "\n"))
@@ -1119,6 +1120,14 @@ func (h *hub) broadcastStored(key, html, sender, etag string) []*subscriber {
 // reported. Not recording costs one redundant frame when replay did work; the
 // client discards or re-morphs identical content either way.
 func (h *hub) publishExternalChange(key, msg, html, etag string) (delivered bool, evicted []*subscriber) {
+	_, delivered, evicted = h.publishExternalChangeWith(key, msg, html, etag, nil)
+	return delivered, evicted
+}
+
+// publishExternalChangeWith is publishExternalChange with a waited write's recalc field in the
+// live frame. live counts the edit tabs that took a frame carrying it: a tab sent a frame without
+// the document (too large) cannot answer, so it is not counted.
+func (h *hub) publishExternalChangeWith(key, msg, html, etag string, recalc *recalcFrame) (live int, delivered bool, evicted []*subscriber) {
 	probe := probeIdentity(key)
 
 	h.mu.Lock()
@@ -1130,14 +1139,14 @@ func (h *hub) publishExternalChange(key, msg, html, etag string) (delivered bool
 	// would keep a descriptor open for the life of the process.
 	if h.closed {
 		probe.Close()
-		return false, nil
+		return 0, false, nil
 	}
 
 	h.observeIdentityLocked(key, probe)
 
 	var data any
 	if len(html) <= maxLiveSyncSize {
-		data = encodeExternalChangeData(html, etag)
+		data = encodeExternalChangeData(html, etag, recalc)
 	}
 
 	accepted := 0
@@ -1145,6 +1154,9 @@ func (h *hub) publishExternalChange(key, msg, html, etag string) (delivered bool
 	if n := frame(nSeq, notifyPayload{Type: "notification", MsgType: "warning", Msg: msg, Seq: nSeq, Data: data}); n != nil {
 		took, dropped := h.enqueue(key, laneLive, nSeq, n)
 		accepted += took
+		if data != nil {
+			live = took
+		}
 		evicted = append(evicted, dropped...)
 	}
 	bSeq := h.nextSeq()
@@ -1153,7 +1165,7 @@ func (h *hub) publishExternalChange(key, msg, html, etag string) (delivered bool
 		accepted += took
 		evicted = append(evicted, dropped...)
 	}
-	return accepted > 0, evicted
+	return live, accepted > 0, evicted
 }
 
 // notifyWarning sends a warning notification to the live lane.

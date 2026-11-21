@@ -119,6 +119,11 @@ func writeDocument(src []byte, data Value, resolve func(*Document) (Value, strin
 		return nil, err
 	}
 	result.Stale = hasComputedRules(written.Root, rules)
+	// Only a write that changed the bytes leaves the mark, as the reference does: a typed value equal
+	// to the stored text (1 into value="1") dirties the tree but splices back the same bytes.
+	if result.Changed && result.Stale && hasComputedRulesBesideSheets(written.Root, rules) {
+		result.HTML = withStaleMark(result.HTML)
+	}
 	if len(bom) > 0 {
 		result.HTML = append(append([]byte{}, bom...), result.HTML...)
 	}

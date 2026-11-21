@@ -131,7 +131,7 @@ func writeOldFormatRefusal(w http.ResponseWriter) {
 // promises that `document.blockeditorState.href` returns the page state stored with the exact
 // file bytes and backup identity, so a client may retire journaled page work against it
 // (Document 12 Step 8).
-var hostExtensions = []string{"blockeditor", "blockeditor-awareness-v1", "blockeditor-recovery-v1", "conditional", "data-guard-v1", "data-guard-v2", "data-read", "data-write", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
+var hostExtensions = []string{"blockeditor", "blockeditor-awareness-v1", "blockeditor-recovery-v1", "conditional", "data-guard-v1", "data-guard-v2", "data-read", "data-write", "recalculate", "receipts", "record-awareness-v1", "sync", "sync-worker", "upload", "wire"}
 
 // maxSaveIDLen caps the §6 receipt id this host will remember. The spec asks for
 // at least 128 bits of randomness, which is 32 hex characters or 22 in base64url;
@@ -540,7 +540,7 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	// while the page's own clay.extractData() sees the injected id.
 	if mode.active() {
 		f.Unlock()
-		s.writeExtracted(w, data, mode, nil, false)
+		s.writeRead(w, r, data, mode)
 		return
 	}
 
@@ -666,6 +666,11 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Vary", "Clay-Source")
+	if s.isHiddenRecalcRequest(r) {
+		// Defense in depth for the hidden browser: blocks WebSockets to other local ports,
+		// Worker/SharedWorker scripts, and cross-origin .localhost subframes at the engine level.
+		w.Header().Set("Content-Security-Policy", "connect-src 'self'; worker-src 'none'; child-src 'self' about: data: blob:; frame-src 'self' about: data: blob:; form-action 'self'")
+	}
 	w.Write(served)
 }
 
@@ -720,6 +725,11 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 		// folder's read access, so refuse and say where it opens instead.
 		if browserNavigation(r) {
 			writeOutsideFolder(w)
+			return
+		}
+		// Never raise a native OS permission dialog for a hidden-browser recalculation load.
+		if s.isHiddenRecalcRequest(r) {
+			write403(w)
 			return
 		}
 		// Hold the request open and ask the user to widen reads; on Allow the same
@@ -814,7 +824,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, rawPath stri
 			http.Error(w, "Not Found", http.StatusNotFound)
 			return
 		}
-		s.writeExtracted(w, raw, mode, nil, false)
+		s.writeRead(w, r, raw, mode)
 		return
 	}
 
@@ -1067,6 +1077,26 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	if s.trustedWriteRevoked(f) {
 		s.writeError(w, http.StatusUnauthorized, "invalid token")
 		return
+	}
+
+	// A hidden-browser save must carry an exact single If-Match so it can never overwrite a
+	// concurrent edit last-write-wins if host discovery was still in flight.
+	fromHidden := s.isHiddenRecalcRequest(r)
+	if fromHidden {
+		ifMatch, sent := listHeader(r, "If-Match")
+		trimmed := strings.TrimSpace(ifMatch)
+		if !sent || trimmed == "" || trimmed == "*" || strings.Contains(trimmed, ",") {
+			uploadError(w, http.StatusPreconditionRequired, "if-match-required", "hidden recalculation save requires an exact If-Match header")
+			return
+		}
+	}
+
+	// A data write waiting for a page to recalculate the version this save was built on hears
+	// how the save ended, after every lock below is released (calculator documents plan, M2).
+	if ifMatch, sent := listHeader(r, "If-Match"); sent && s.recalcs.waitingOn(f.AbsPath, ifMatch) {
+		status := &saveStatus{ResponseWriter: w}
+		w = status
+		defer func() { s.recalcs.saveFinished(f.AbsPath, ifMatch, status.landed(), fromHidden) }()
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxSaveSize)
@@ -1343,7 +1373,13 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 			s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 		}
 		s.coord.acceptServerReplacement(f)
-		s.broadcastDiskHTML(f, body, key)
+		// Publish every hidden-browser save to open edit tabs too (even if the wait timed out
+		// moments earlier), so an open edit tab never hits a 412 conflict on its next save.
+		if fromHidden {
+			s.coord.publishExternalChange(f, f.Name+" was recalculated", forBrowser(body, key, s.documentURLFor(f)), specwire.Etag(body))
+		} else {
+			s.broadcastDiskHTML(f, body, key)
+		}
 	}
 	f.Unlock()
 

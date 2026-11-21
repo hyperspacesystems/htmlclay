@@ -122,6 +122,15 @@ func (co *streamCoordinator) publishExternalChange(f *session.File, msg, html, e
 	return delivered
 }
 
+// publishExternalChangeRecalc is publishExternalChange for a data write: its live frame carries
+// recalc when the write waits, and it answers how many edit tabs took that frame. Caller holds
+// f.Lock.
+func (co *streamCoordinator) publishExternalChangeRecalc(f *session.File, msg, html, etag string, recalc *recalcFrame) int {
+	live, _, evicted := co.hub.publishExternalChangeWith(f.AbsPath, msg, html, etag, recalc)
+	co.evict(f, evicted)
+	return live
+}
+
 // acceptServerReplacement re-anchors the incarnation after a server-authorized
 // atomic write without rolling the generation. Caller holds f.Lock.
 func (co *streamCoordinator) acceptServerReplacement(f *session.File) {

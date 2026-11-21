@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A file that starts with a byte order mark gets the mark in its head like any other.

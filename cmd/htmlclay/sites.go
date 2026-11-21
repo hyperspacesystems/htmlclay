@@ -189,6 +189,9 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 	}
 
 	srv := server.NewHosted(s.host, a.ownsOrigin, sessions, a.rt.logger, a.rt.versions, a.rt.ls)
+	if a.rt.recalc != nil {
+		srv.SetRecalcRunner(a.rt.recalc)
+	}
 	srv.SetInternalDir(a.rt.configDir)
 	srv.SetSiteLabel(filepath.Base(anchor))
 	srv.SetHooks(server.Hooks{
@@ -449,6 +452,10 @@ func (a *app) shutdown() {
 
 	for _, p := range parkedPorts {
 		p.close()
+	}
+
+	if a.rt.recalc != nil {
+		a.rt.recalc.Close()
 	}
 
 	// Ask every open sheet to save what it holds, while the server still takes saves.

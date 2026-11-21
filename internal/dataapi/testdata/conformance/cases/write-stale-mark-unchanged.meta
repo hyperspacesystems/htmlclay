@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A write that changes nothing adds no mark.

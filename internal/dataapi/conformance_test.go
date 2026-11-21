@@ -129,7 +129,7 @@ func loadConformance(t testing.TB) *conformanceCorpus {
 	// fb2157c). Use the synced reference cases until it catches up.
 	loadSyncedCases(t, corpus, filepath.Join("sheet", "sheet-*delete*.meta"), "patch", 15)
 	loadSyncedCases(t, corpus, filepath.Join("sheet", "sheet-patch-*.meta"), "patch", 32)
-	loadSyncedCases(t, corpus, filepath.Join("cases", "write-stale-*.meta"), "write", 13)
+	loadSyncedCases(t, corpus, filepath.Join("cases", "write-stale-*.meta"), "write", 18)
 	loadSyncedCases(t, corpus, filepath.Join("cases", "write-meta-*.meta"), "write", 2)
 	return corpus
 }

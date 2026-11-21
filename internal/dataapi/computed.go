@@ -14,10 +14,21 @@ import (
 // a sheet rule's table holds a formula or a stale mark. Nothing runs: only rules and markup are
 // read.
 func hasComputedRules(root *html.Node, rules Value) bool {
+	return computedIn(root, rules, true)
+}
+
+// hasComputedRulesBesideSheets is hasComputedRules with sheet tables left out. The stale mark
+// uses it: a sheet engine clears its own table's stale attribute, never this mark, so a value only
+// a sheet computes is never marked (hyper-html-api: hasComputedRules with opts.sheets === false).
+func hasComputedRulesBesideSheets(root *html.Node, rules Value) bool {
+	return computedIn(root, rules, false)
+}
+
+func computedIn(root *html.Node, rules Value, sheets bool) bool {
 	if !holdsMarker(root) {
 		return false
 	}
-	return readsComputed(root, rules)
+	return readsComputed(root, rules, sheets)
 }
 
 // The reference's internal lookups pass templateAttr:null, so they see [cms-template] seeds but,
@@ -102,10 +113,10 @@ func firstOnly(nodes []*html.Node) []*html.Node {
 	return nodes
 }
 
-func readsComputed(ctx *html.Node, rule Value) bool {
+func readsComputed(ctx *html.Node, rule Value, sheets bool) bool {
 	switch r := rule.(type) {
 	case string:
-		return scalarComputed(ctx, r)
+		return scalarComputed(ctx, r, sheets)
 	case []Value:
 		if len(r) == 0 {
 			return false
@@ -119,14 +130,14 @@ func readsComputed(ctx *html.Node, rule Value) bool {
 			shape = r[1]
 		}
 		for _, node := range findRule(ctx, selector) {
-			if readsComputed(node, shape) {
+			if readsComputed(node, shape, sheets) {
 				return true
 			}
 		}
 	case *Object:
 		for _, key := range r.Keys() {
 			sub, _ := r.Get(key)
-			if readsComputed(ctx, sub) {
+			if readsComputed(ctx, sub, sheets) {
 				return true
 			}
 		}
@@ -135,7 +146,7 @@ func readsComputed(ctx *html.Node, rule Value) bool {
 }
 
 // A scalar rule reads its first match only, unless it is a [*] rule.
-func scalarComputed(ctx *html.Node, rule string) bool {
+func scalarComputed(ctx *html.Node, rule string, sheets bool) bool {
 	if strings.HasSuffix(rule, "[]") {
 		for _, node := range findRule(ctx, strings.TrimSuffix(rule, "[]")) {
 			if textComputed(node) {
@@ -153,7 +164,7 @@ func scalarComputed(ctx *html.Node, rule string) bool {
 			nodes = firstOnly(findRule(ctx, selector))
 		}
 		for _, node := range nodes {
-			if sheetComputed(node) {
+			if sheets && sheetComputed(node) {
 				return true
 			}
 		}

@@ -208,6 +208,17 @@ func (s *Server) handleDataAPI(w http.ResponseWriter, r *http.Request) {
 	s.serveFile(w, r, rawPath, mode)
 }
 
+// writeRead answers a read of a document's data. On the api face it adds the __meta__ key and the
+// Clay-Stale header while the file carries the stale mark, and the key always with ?meta.
+func (s *Server) writeRead(w http.ResponseWriter, r *http.Request, raw []byte, mode dataMode) {
+	stale := mode.face == faceAPI && dataapi.HasStaleMark(raw)
+	var meta *dataapi.Object
+	if mode.face == faceAPI {
+		meta = readAnswerMeta(r.URL.Query().Has("meta"), specwire.Etag(raw), stale)
+	}
+	s.writeExtracted(w, raw, mode, meta, stale)
+}
+
 // writeExtracted is the ONLY place a data response is produced. It runs after every gate, with the
 // bytes already read, which is what makes the two faces impossible to use as a read primitive the
 // plain GET does not already grant.

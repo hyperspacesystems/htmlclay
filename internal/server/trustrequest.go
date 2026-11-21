@@ -36,6 +36,10 @@ func writeTrustRefused(w http.ResponseWriter) {
 // (handleOpenRequest). The two differ only in the front door: a token here, a
 // nonce there, and openedByUser true here because the user opened this file.
 func (s *Server) handleTrustRequest(w http.ResponseWriter, r *http.Request) {
+	if s.isHiddenRecalcRequest(r) {
+		write403(w)
+		return
+	}
 	f, ok := s.lookupSession(w, r)
 	if !ok {
 		return

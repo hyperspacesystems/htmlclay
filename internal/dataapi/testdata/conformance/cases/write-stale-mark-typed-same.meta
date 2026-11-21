@@ -1,0 +1,4 @@
+tier: 1
+face: write
+expect: ok
+note: A number equal to the stored text (1 into value="1") changes no bytes, so it adds no mark.

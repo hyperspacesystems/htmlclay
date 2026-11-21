@@ -23,6 +23,12 @@ const (
 	serverHelperArg  = "HTMLCLAY_SERVER_HELPER_ARG"
 )
 
+// testOrigUserProfile holds the real Windows USERPROFILE before TestMain pins it to a temp home.
+// Chromium 136+ on Windows calls SHGetKnownFolderPath(LocalAppData) when checking whether
+// --user-data-dir is non-default, and rejects remote debugging if USERPROFILE is pointed at a
+// temp directory. Tests that launch a real Chromium restore it via t.Setenv.
+var testOrigUserProfile string
+
 // TestMain also pins HOME for the whole package. New resolves and creates the
 // uploads library from HOME, so without this every test that builds a Server --
 // and every helper process this binary re-runs itself as, which inherits this
@@ -32,6 +38,7 @@ func TestMain(m *testing.M) {
 		runServerHelperProcess(mode, os.Getenv(serverHelperArg))
 		return
 	}
+	testOrigUserProfile = os.Getenv("USERPROFILE")
 	// Playwright finds its browsers under the user cache, which moves with HOME:
 	// keep pointing it at the real one so the conformance gate can launch Chromium.
 	if os.Getenv("PLAYWRIGHT_BROWSERS_PATH") == "" {

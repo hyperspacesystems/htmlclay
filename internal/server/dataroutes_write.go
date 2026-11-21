@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,6 +118,12 @@ func (s *Server) handleDataAPIWrite(w http.ResponseWriter, r *http.Request) {
 		mode = dataMode{face: faceAPI}
 	}
 
+	wait, badWait := recalcRequestFor(r, mode)
+	if badWait != nil {
+		writeWriteError(w, http.StatusBadRequest, *badWait)
+		return
+	}
+
 	var f *session.File
 	if isBrowser {
 		// A page proves the target's token before anything else is resolved or revealed. It can
@@ -168,7 +175,7 @@ func (s *Server) handleDataAPIWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeApplied(w, r, f, data, mode, isBrowser)
+	s.writeApplied(w, r, f, data, mode, isBrowser, wait)
 }
 
 // resolveWriteTarget turns the request path into the absolute path a write would touch, or reports
@@ -231,7 +238,7 @@ func (s *Server) mayRegisterForWrite(absPath string) bool {
 }
 
 // writeApplied is handleSave's commit sequence with the body computed from the stored bytes.
-func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session.File, data dataapi.Value, mode dataMode, isBrowser bool) {
+func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session.File, data dataapi.Value, mode dataMode, isBrowser bool, wait *recalcRequest) {
 	f.Lock()
 	current, readErr := s.readRegisteredFile(f.AbsPath)
 	if readErr != nil {
@@ -259,6 +266,11 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 	if mode.face == faceAPI {
 		stripped := htmlutil.StripToken(current)
 		if rules, _, found, rErr := dataapi.DocumentRules(stripped, "api"); rErr == nil && found && dataapi.IsPatchBody(data, rules) {
+			if wait != nil {
+				f.Unlock()
+				writeWriteError(w, http.StatusBadRequest, writeErrorBody{Error: "Invalid recalculate", Message: "recalculate=wait does not take a sheet patch."})
+				return
+			}
 			s.patchApplied(w, r, f, current, data, isBrowser)
 			return
 		}
@@ -308,6 +320,7 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		}
 	}
 
+	var parked *recalcWait
 	written := current
 	key := ""
 	if res.Changed {
@@ -332,7 +345,17 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		// Announced as an external change, not a save: no tab relays this write to the others,
 		// so edit-mode tabs must hear it on the live lane, through the same dirty-region
 		// protection a text editor's write gets.
-		s.coord.publishExternalChange(f, f.Name+" was updated through the data API", forBrowser(written, key, s.documentURLFor(f)), specwire.Etag(written))
+		etag := specwire.Etag(written)
+		var frame *recalcFrame
+		if wait != nil && (res.Stale || dataapi.HasStaleMark(written)) {
+			if p, parkErr := s.recalcs.park(f.AbsPath, etag); parkErr == nil {
+				parked, frame = p, &recalcFrame{ID: p.id, Etag: etag}
+			}
+		}
+		live := s.coord.publishExternalChangeRecalc(f, f.Name+" was updated through the data API", forBrowser(written, key, s.documentURLFor(f)), etag, frame)
+		if parked != nil {
+			parked.expectTabs(live)
+		}
 	}
 	f.Unlock()
 
@@ -343,20 +366,39 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		s.versions.MaybePrune(key, f.AbsPath)
 		s.logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), res.Spliced)
 	}
+	var outcome *recalcOutcome
+	if parked != nil {
+		docURL := (&url.URL{Scheme: "http", Host: s.Host(), Path: servedPathOf(f)}).String()
+		o := s.awaitRecalc(r.Context(), parked, docURL, wait.total)
+		if o.recalculated {
+			f.Lock()
+			fresh, freshErr := s.readRegisteredFile(f.AbsPath)
+			f.Unlock()
+			if freshErr == nil {
+				written = fresh
+			} else {
+				o = recalcOutcome{code: "no-browser"}
+			}
+		}
+		outcome = &o
+	}
 	var meta *dataapi.Object
-	stale := mode.face == faceAPI && res.Stale
+	stale := mode.face == faceAPI && (res.Stale || dataapi.HasStaleMark(written))
+	if outcome != nil && outcome.recalculated {
+		stale = dataapi.HasStaleMark(written)
+	}
 	if mode.face == faceAPI {
-		meta = writeAnswerMeta(r.URL.Query().Has("meta"), specwire.Etag(written), res.Changed, res.Stale)
+		meta = writeAnswerMeta(r.URL.Query().Has("meta"), specwire.Etag(written), res.Changed, stale, outcome)
 	}
 	s.writeExtracted(w, written, mode, meta, stale)
 }
 
-// staleWhy is the M1a sentence. It must not name the wait option, which arrives in M2.
-const staleWhy = "No page has recalculated since this write. Open the document to refresh its computed values."
+// staleWhy is the sentence on a write that left computed values old and did not wait.
+const staleWhy = "This write updated inputs and left computed values unchanged. Write with ?recalculate=wait for fresh values, or open the document."
 
 // writeAnswerMeta is a rules write's __meta__ key: present while computed values are old, and
-// always when the caller asked with ?meta. HTML Clay runs no page script, so nothing recalculated.
-func writeAnswerMeta(full bool, etag string, changed, stale bool) *dataapi.Object {
+// always when the caller asked with ?meta. outcome is a waited write's result, nil otherwise.
+func writeAnswerMeta(full bool, etag string, changed, stale bool, outcome *recalcOutcome) *dataapi.Object {
 	if !full && !stale {
 		return nil
 	}
@@ -364,11 +406,36 @@ func writeAnswerMeta(full bool, etag string, changed, stale bool) *dataapi.Objec
 	if full {
 		meta.Set("etag", etag)
 		meta.Set("changed", changed)
-		meta.Set("recalculated", false)
+		meta.Set("recalculated", outcome != nil && outcome.recalculated)
 	}
 	meta.Set("stale", stale)
 	if stale {
-		meta.Set("why", staleWhy)
+		why := staleWhy
+		if outcome != nil && !outcome.recalculated {
+			meta.Set("code", outcome.code)
+			why = recalcWhy[outcome.code]
+		}
+		meta.Set("why", why)
+	}
+	return meta
+}
+
+// staleReadWhy is the sentence on a read of a file that carries the stale mark.
+const staleReadWhy = "No page has recalculated since the last data write, so computed values may be old. Open the document to refresh them."
+
+// readAnswerMeta is a rules read's __meta__ key: present while the file carries the stale mark,
+// and always when the caller asked with ?meta.
+func readAnswerMeta(full bool, etag string, stale bool) *dataapi.Object {
+	if !full && !stale {
+		return nil
+	}
+	meta := dataapi.NewObject()
+	if full {
+		meta.Set("etag", etag)
+	}
+	meta.Set("stale", stale)
+	if stale {
+		meta.Set("why", staleReadWhy)
 	}
 	return meta
 }
