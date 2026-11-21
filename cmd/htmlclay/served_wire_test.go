@@ -279,8 +279,16 @@ func TestM3ServedWireRoundTrip(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(moved), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Rename(stand.dir, moved); err != nil {
-			t.Fatal(err)
+		var renameErr error
+		for deadline := time.Now().Add(3 * time.Second); ; {
+			renameErr = os.Rename(stand.dir, moved)
+			if renameErr == nil || time.Now().After(deadline) {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if renameErr != nil {
+			t.Fatal(renameErr)
 		}
 		if refusal := m3ProgramDo(t, stand.a, ChannelShell, "folder.relink", map[string]any{
 			"id": stand.entry.ID, "path": moved, "acknowledged": []string{},
