@@ -408,9 +408,10 @@ function createSync({ gate, service = null, dataDir = null }) {
       if (found.error) return { ok: false, error: found.error };
       let inventory;
       try {
-        inventory = await listNodes({ serverUrl: held.serverOrigin, apiKey: held.key, protocol: 2, syncBase: syncBaseOf(found.account) });
+        inventory = await listNodes({ serverUrl: held.serverOrigin, apiKey: held.key, accountId: found.account.id, protocol: 2, syncBase: syncBaseOf(found.account) });
       } catch (error) {
-        return { ok: false, error: 'offline' };
+        const status = error && error.statusCode;
+        return { ok: false, error: status === 401 || status === 403 ? 'key-refused' : 'offline' };
       }
       if (!inventory || inventory.complete !== true) return { ok: false, error: 'inventory-incomplete' };
       const nodes = [...inventory];

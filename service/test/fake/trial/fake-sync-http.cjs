@@ -78,6 +78,10 @@ async function startFakeSyncHttp({ nodes = [], key, actor, accounts = [] } = {})
 
     if (!authorized) return send(res, 401, { error: 'unauthorized' });
 
+    if (req.headers['x-sync-protocol'] === '2' && path !== '/_/sync/accounts' && path !== '/_/sync/status' && !req.headers['x-sync-account-id']) {
+      return send(res, 428, { code: 'account-identity-required', msg: 'X-Sync-Account-ID is required.' });
+    }
+
     try {
       if (req.method === 'GET' && path === '/_/sync/nodes') {
         const list = await server.listNodes();

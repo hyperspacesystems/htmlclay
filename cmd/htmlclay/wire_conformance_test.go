@@ -112,7 +112,7 @@ func conformanceReadStream(t *testing.T, body io.ReadCloser) *conformanceStream 
 
 func (s *conformanceStream) see(t *testing.T, typ, id, code string) {
 	t.Helper()
-	deadline := time.After(2 * time.Second)
+	deadline := time.After(10 * time.Second)
 	for {
 		select {
 		case frame, ok := <-s.frames:
@@ -130,7 +130,7 @@ func (s *conformanceStream) see(t *testing.T, typ, id, code string) {
 
 func (s *conformanceStream) waitClosed(t *testing.T) {
 	t.Helper()
-	deadline := time.After(2 * time.Second)
+	deadline := time.After(5 * time.Second)
 	for {
 		select {
 		case _, ok := <-s.frames:

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -97,6 +98,7 @@ func newHandoffFixtureWith(t *testing.T, targetVersion string, opts handoffOpts)
 		first.tokens.Swap(nil).halt()
 	}
 	first.shutdown()
+	http.DefaultClient.CloseIdleConnections()
 	requirePortFree(t, fx.port)
 	return fx
 }
@@ -563,6 +565,7 @@ func newHelperUpdateFixture(t *testing.T) helperUpdateFixture {
 		t.Fatalf("write handoff: %v", err)
 	}
 	first.shutdown()
+	http.DefaultClient.CloseIdleConnections()
 	requirePortFree(t, fx.port)
 	return fx
 }
