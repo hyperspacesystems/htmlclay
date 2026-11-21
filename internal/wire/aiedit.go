@@ -179,6 +179,9 @@ func (s *Core) RunAIEdit(ctx context.Context, cancel context.CancelFunc, file st
 	release()
 	switch {
 	case err == nil:
+		if opts.ContextFiles {
+			s.policy.NoteAIEditResult(file, payload.ElementHTML, payload.Tag, result.HTML)
+		}
 		s.publishAIEdit(request, "wire/done", "", result)
 	case errors.Is(ctxErr, context.DeadlineExceeded):
 		s.refuseAIEdit(request, "host", "helper_timeout", "the AI edit did not finish within five minutes")

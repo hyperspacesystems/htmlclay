@@ -162,6 +162,12 @@ public enum ProgramFlow {
         return true
     }
 
+    /// Ask again: clears a stored Don't allow so the document can ask again.
+    public static func askDocumentAgain(_ document: String, model: AppModel) async -> Bool {
+        guard case .done = await model.submit(.askProgramAgain(programID: ProgramControls.documentTrustID, documentID: document)) else { return false }
+        return true
+    }
+
     /// Remove all access: every document loses it, and the broad grant goes with
     /// them, in one action the host saves once.
     public static func removeAllAccess(_ program: Program, model: AppModel) async -> Bool {

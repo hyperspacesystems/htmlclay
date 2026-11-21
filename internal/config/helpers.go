@@ -84,6 +84,13 @@ func ValidHelperName(s string) bool {
 	return true
 }
 
+// IsReservedHelperName reports whether name belongs to a built-in helper or
+// internal prompt identifier and may not be registered or used as a carried
+// program name.
+func IsReservedHelperName(name string) bool {
+	return builtin.Is(name) || name == "ai-tools" || name == "ai-edit" || name == "document-trust" || name == "programs"
+}
+
 // Canonical ordering lets a rollback restore the exact bytes Save wrote without
 // exposing mutable slice indexes through the transaction API.
 func helperProgramLess(a, b HelperProgram) bool {
@@ -139,7 +146,7 @@ func (c *Config) AddHelperProgram(name, path string) (HelperProgram, error) {
 	if !ValidHelperName(name) {
 		return HelperProgram{}, ErrHelperNameInvalid
 	}
-	if builtin.Is(name) {
+	if IsReservedHelperName(name) {
 		return HelperProgram{}, ErrHelperNameReserved
 	}
 	c.mu.Lock()

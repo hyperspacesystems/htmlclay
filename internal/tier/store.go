@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -38,6 +39,10 @@ const (
 	HowDeveloper = "developer"
 	HowUpgrade   = "upgrade"
 	HowCopy      = "copy"
+	// HowNewDocument is a blank copy the person made of their own document.
+	HowNewDocument = "new-document"
+	// HowAIEdit is code an AI edit wrote into a document the person trusted.
+	HowAIEdit = "ai-edit"
 )
 
 var kinds = []string{"code", "mine", "seen", "answer"}
@@ -80,8 +85,11 @@ type SeenRecord struct {
 	// Developer is whether developer mode was on at this first sight. A first
 	// sight in developer mode is the person's; turning developer mode on
 	// later changes nothing.
-	Developer bool  `json:"developer,omitempty"`
-	At        int64 `json:"at"`
+	Developer bool `json:"developer,omitempty"`
+	// BrokenSignature is whether the document carried a signature that did not
+	// count. A copy keeps it, so dropping the signature tag clears nothing.
+	BrokenSignature bool  `json:"brokenSignature,omitempty"`
+	At              int64 `json:"at"`
 }
 
 // AnswerRecord is the person's last answer for a document. An allow holds for
@@ -89,10 +97,11 @@ type SeenRecord struct {
 // changes. "Don't allow" holds whatever the code, so a page cannot ask again by
 // changing itself; htmlclay untrust takes it back.
 type AnswerRecord struct {
-	Path   string `json:"path"`
-	Code   string `json:"code,omitempty"`
-	Denied bool   `json:"denied,omitempty"`
-	At     int64  `json:"at"`
+	Path    string `json:"path"`
+	Display string `json:"display,omitempty"`
+	Code    string `json:"code,omitempty"`
+	Denied  bool   `json:"denied,omitempty"`
+	At      int64  `json:"at"`
 }
 
 type codeRecord struct {
@@ -212,18 +221,20 @@ func (s *Store) PathTrust(path string) (MineRecord, bool) {
 // the record keeps what the file was before any save. first reports the call
 // that wrote it.
 func (s *Store) NoteSeen(path string, downloaded bool) (first bool, err error) {
-	return s.noteSeen(path, downloaded, s.Developer())
+	return s.noteSeen(SeenRecord{Path: path, Downloaded: downloaded, Developer: s.Developer()})
 }
 
 // noteSeen records the first sight with the developer mode of that moment. The
 // record is published with a link, so of two writers the first one wins and the
 // other sees the name already taken.
-func (s *Store) noteSeen(path string, downloaded, developer bool) (first bool, err error) {
-	path = canonicalPath(path)
+func (s *Store) noteSeen(rec SeenRecord) (first bool, err error) {
+	rec.Path = canonicalPath(rec.Path)
+	path := rec.Path
 	if _, ok := s.Seen(path); ok {
 		return false, nil
 	}
-	data, err := json.Marshal(SeenRecord{Path: path, Downloaded: downloaded, Developer: developer, At: now()})
+	rec.At = now()
+	data, err := json.Marshal(rec)
 	if err != nil {
 		return false, err
 	}
@@ -267,7 +278,7 @@ func (s *Store) Allow(path, code string) error {
 
 // Deny records "Don't allow" for path.
 func (s *Store) Deny(path string) error {
-	return s.write(s.file("answer", pathKey(path)), AnswerRecord{Path: canonicalPath(path), Denied: true, At: now()})
+	return s.write(s.file("answer", pathKey(path)), AnswerRecord{Path: canonicalPath(path), Display: filepath.Clean(path), Denied: true, At: now()})
 }
 
 // Answer returns the person's last answer for path, if there is one.
@@ -276,6 +287,42 @@ func (s *Store) Answer(path string) (AnswerRecord, bool) {
 	var r AnswerRecord
 	ok := s.read(s.file("answer", pathKey(path)), &r) && r.Path == path
 	return r, ok
+}
+
+// DeniedDocuments lists every document with a stored "Don't allow", sorted by
+// path.
+func (s *Store) DeniedDocuments() []string {
+	entries, err := os.ReadDir(filepath.Join(s.dir, "answer"))
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, entry := range entries {
+		var r AnswerRecord
+		if s.read(filepath.Join(s.dir, "answer", entry.Name()), &r) && r.Denied && r.Path != "" {
+			if r.Display != "" {
+				out = append(out, r.Display)
+			} else {
+				out = append(out, r.Path)
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// ClearDeny removes a stored "Don't allow" for path so the document can ask
+// again, leaving its first-sight record untouched.
+func (s *Store) ClearDeny(path string) error {
+	path = canonicalPath(path)
+	r, ok := s.Answer(path)
+	if !ok || !r.Denied {
+		return nil
+	}
+	if err := os.Remove(s.file("answer", pathKey(path))); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 // Forget takes back the person's trust and answer for the document at path,
@@ -405,7 +452,9 @@ func (s *Store) rebindKind(kind, from, to string) error {
 					errs = append(errs, err)
 					continue
 				}
-				errs = append(errs, removeRecord(name))
+				if s.file(kind, pathKey(rec.Path)) != name {
+					errs = append(errs, removeRecord(name))
+				}
 			}
 		case "seen":
 			var rec SeenRecord
@@ -415,17 +464,24 @@ func (s *Store) rebindKind(kind, from, to string) error {
 					errs = append(errs, err)
 					continue
 				}
-				errs = append(errs, removeRecord(name))
+				if s.file(kind, pathKey(rec.Path)) != name {
+					errs = append(errs, removeRecord(name))
+				}
 			}
 		case "answer":
 			var rec AnswerRecord
 			if s.read(name, &rec) && atOrUnder(rec.Path, from) {
 				rec.Path = rebindPath(rec.Path, from, to)
+				if rec.Display != "" {
+					rec.Display = filepath.Clean(rec.Path)
+				}
 				if err := s.write(s.file(kind, pathKey(rec.Path)), rec); err != nil {
 					errs = append(errs, err)
 					continue
 				}
-				errs = append(errs, removeRecord(name))
+				if s.file(kind, pathKey(rec.Path)) != name {
+					errs = append(errs, removeRecord(name))
+				}
 			}
 		}
 	}
@@ -444,7 +500,7 @@ func (s *Store) NoteCopy(from, to string) error {
 	if _, ok := s.Seen(to); ok {
 		return nil
 	}
-	return s.write(s.file("seen", pathKey(to)), SeenRecord{Path: to, Downloaded: seen.Downloaded, Developer: seen.Developer, At: now()})
+	return s.write(s.file("seen", pathKey(to)), SeenRecord{Path: to, Downloaded: seen.Downloaded, Developer: seen.Developer, BrokenSignature: seen.BrokenSignature, At: now()})
 }
 
 // atOrUnder reports whether path is dir or sits inside it.

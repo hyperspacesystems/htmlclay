@@ -16,7 +16,7 @@ type groupProcess struct {
 	input *stdinPipe
 }
 
-func startGroup(ctx context.Context, cmd *exec.Cmd, pipes []*pipe, in *stdinPipe) (Process, error) {
+func startGroup(ctx context.Context, cmd *exec.Cmd, pipes []*pipe, in *stdinPipe, _ uint64) (Process, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		closePipes(pipes)
@@ -53,6 +53,8 @@ func (g *groupProcess) Wait() error {
 	<-g.done
 	return g.err
 }
+
+func (g *groupProcess) Pid() int { return g.cmd.Process.Pid }
 
 func (g *groupProcess) Kill() error {
 	select {

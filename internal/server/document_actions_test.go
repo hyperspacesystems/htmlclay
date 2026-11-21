@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/panphora/htmlclay/internal/session"
 )
 
 // postActionRoutes names the three actions and the route each advertises, so a
@@ -237,5 +239,108 @@ func TestDocumentActionRefusesUnknownToken(t *testing.T) {
 	}
 	if len(calls) != 0 {
 		t.Errorf("an unknown token reached the hooks: %v", calls)
+	}
+}
+
+func postNewDocument(t *testing.T, srv *Server, token, contentType, body string, sameOrigin bool) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest("POST", "/_/new-document/"+token, strings.NewReader(body))
+	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
+	req.Header.Set("Content-Type", contentType)
+	if sameOrigin {
+		sameOriginHeaders(req)
+	} else {
+		// Another HTML Clay site, such as a stranger's own origin, is another port
+		// on the same host: same-site to a browser, never same-origin.
+		req.Header.Set("Sec-Fetch-Site", "same-site")
+		req.Header.Set("Origin", "http://127.0.0.1:1")
+	}
+	w := httptest.NewRecorder()
+	srv.httpServer.Handler.ServeHTTP(w, req)
+	return w
+}
+
+// New blank document: the page names the action's address from meta, sends the
+// blank copy it built as text, and gets back where the new file serves. The
+// host is handed THIS document's path, never one the page chose, and one site
+// makes at most one new document per gap, so a script cannot fill a folder.
+func TestNewDocumentHandsTheCopyToTheHostAndAnswersWhereItServes(t *testing.T) {
+	srv, f, _ := setupHandlerTest(t)
+	var sources []string
+	var bodies []string
+	var vias []session.Provenance
+	refuse := ""
+	srv.SetHooks(Hooks{NewDocument: func(source string, via session.Provenance, html []byte) (string, error) {
+		if refuse != "" {
+			return "", ActionRefusal{Message: refuse}
+		}
+		sources = append(sources, source)
+		vias = append(vias, via)
+		bodies = append(bodies, string(html))
+		return "http://127.0.0.1:1/list-new.html", nil
+	}})
+
+	meta := getThroughMux(t, srv, "/_/meta/"+f.Token)
+	if got := documentActionsFromMeta(t, meta.Body.Bytes())["newDocument"]; got != "/_/new-document/"+f.Token {
+		t.Fatalf("actions.newDocument = %q (%q)", got, meta.Body.String())
+	}
+
+	if w := postNewDocument(t, srv, f.Token, "text/html;charset=utf-8", "<!doctype html><p></p>", false); w.Code == 200 || len(sources) != 0 {
+		t.Fatalf("another site's page made a new document: %d %q", w.Code, w.Body.String())
+	}
+	if w := postNewDocument(t, srv, f.Token, "application/json", `{"content":"<p></p>"}`, true); w.Code != http.StatusUnsupportedMediaType || len(sources) != 0 {
+		t.Fatalf("a JSON body: got %d %q, want 415 and no file", w.Code, w.Body.String())
+	}
+	if w := postNewDocument(t, srv, f.Token, "text/html", "  \n", true); w.Code != http.StatusBadRequest || len(sources) != 0 {
+		t.Fatalf("an empty body: got %d %q, want 400 and no file", w.Code, w.Body.String())
+	}
+	if w := postNewDocument(t, srv, f.Token, "text/html", "<p>only a fragment</p>", true); w.Code != http.StatusBadRequest || len(sources) != 0 {
+		t.Fatalf("a fragment: got %d %q, want 400 and no file", w.Code, w.Body.String())
+	}
+
+	// The page's copy is its served DOM, so it carries this tab's save token
+	// and the source's document id; neither may reach the new file.
+	served := `<!doctype html><html savetoken="` + f.Token + `" documentid="source-id"><p></p></html>`
+	w := postNewDocument(t, srv, f.Token, "text/html;charset=utf-8", served, true)
+	if w.Code != 200 {
+		t.Fatalf("new document: got %d %q", w.Code, w.Body.String())
+	}
+	var reply struct {
+		OK   bool   `json:"ok"`
+		Href string `json:"href"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &reply); err != nil || !reply.OK || reply.Href != "http://127.0.0.1:1/list-new.html" {
+		t.Fatalf("reply %q (%v)", w.Body.String(), err)
+	}
+	if len(sources) != 1 || sources[0] != f.AbsPath || !strings.Contains(bodies[0], "<p></p>") {
+		t.Fatalf("hook got %q with %q, want %q and the page's copy", sources, bodies, f.AbsPath)
+	}
+	if strings.Contains(bodies[0], f.Token) || strings.Contains(bodies[0], "source-id") {
+		t.Fatalf("the copy kept the save token or the source's id: %q", bodies[0])
+	}
+	if vias[0] != srv.sessions.Via(f.AbsPath) {
+		t.Fatalf("hook got provenance %v, want the source's %v", vias[0], srv.sessions.Via(f.AbsPath))
+	}
+	if got := redactPath("/_/new-document/" + f.Token); strings.Contains(got, f.Token) {
+		t.Fatalf("the log shows the save token: %q", got)
+	}
+
+	again := postNewDocument(t, srv, f.Token, "text/html", "<!doctype html><html><p></p></html>", true)
+	if again.Code != http.StatusTooManyRequests || len(sources) != 1 {
+		t.Fatalf("a second new document at once: got %d %q, %d files", again.Code, again.Body.String(), len(sources))
+	}
+	srv.newDocumentMu.Lock()
+	srv.newDocumentAt = srv.newDocumentAt.Add(-newDocumentGap)
+	srv.newDocumentMu.Unlock()
+	if w := postNewDocument(t, srv, f.Token, "text/html", "<!doctype html><html><p></p></html>", true); w.Code != 200 || len(sources) != 2 {
+		t.Fatalf("after the gap: got %d %q", w.Code, w.Body.String())
+	}
+
+	srv.newDocumentMu.Lock()
+	srv.newDocumentAt = srv.newDocumentAt.Add(-newDocumentGap)
+	srv.newDocumentMu.Unlock()
+	refuse = "Allow this document first."
+	if w := postNewDocument(t, srv, f.Token, "text/html", "<!doctype html><html><p></p></html>", true); w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), refuse) {
+		t.Fatalf("a refused copy: got %d %q, want 403 with the host's sentence", w.Code, w.Body.String())
 	}
 }

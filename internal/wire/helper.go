@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/aiedit"
+	"github.com/panphora/htmlclay/internal/aitools"
 	"github.com/panphora/htmlclay/internal/builtin"
+	"github.com/panphora/htmlclay/internal/carried"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/helper"
 	"github.com/panphora/htmlclay/internal/htmlutil"
@@ -746,14 +748,14 @@ func encodedHelperEnvelopeSize(env Envelope) int {
 }
 
 // HelperDiscovery is the document's declared helpers, then the built-in helpers
-// this server offers: ai-edit, and blockeditor-tool when its prompt files are vendored.
+// this server offers: ai-edit, ai-tools, and blockeditor-tool when its prompt
+// files are vendored.
 func (s *Core) HelperDiscovery(file string) (string, []HelperMeta) {
 	mode, meta := s.declaredHelperDiscovery(file)
-	if entry, ok := s.aiEditMeta(file); ok {
-		meta = append(meta, entry)
-	}
-	if entry, ok := s.pageToolMeta(file); ok {
-		meta = append(meta, entry)
+	for _, entry := range []func(string) (HelperMeta, bool){s.aiEditMeta, s.aiToolsMeta, s.programsMeta, s.pageToolMeta} {
+		if m, ok := entry(file); ok {
+			meta = append(meta, m)
+		}
 	}
 	meta = append(meta, s.builtinMeta(file)...)
 	return mode, meta
@@ -786,6 +788,9 @@ func (s *Core) declaredHelperDiscovery(file string) (string, []HelperMeta) {
 	meta := make([]HelperMeta, 0, len(names))
 	for _, name := range names {
 		if name == aiedit.HelperName && s.aiEditOffered() {
+			continue // the built-in answers this name; a document cannot shadow it
+		}
+		if name == aitools.HelperName || name == carried.HelperName {
 			continue // the built-in answers this name; a document cannot shadow it
 		}
 		if name == aiedit.PageToolHelperName && s.pageToolOffered() {

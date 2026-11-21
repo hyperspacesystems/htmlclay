@@ -11,6 +11,8 @@ public enum RequestAnswer {
     public static let allowDocument = "allow-document"
     public static let allowAllTrusted = "allow-all-trusted"
     public static let chooseFile = "choose-file"
+    /// The folder a page's AI agent may read, which carries a path like choose-file.
+    public static let chooseFolder = "choose-folder"
     public static let allowAnyway = "allow-anyway"
     public static let trustDocument = "trust-document"
 }
@@ -102,6 +104,7 @@ public enum RequestControls {
         case RequestAnswer.allowAllTrusted: return Strings.ProgramPage.allTrustedTitle
         case RequestAnswer.chooseFile:
             return request.kind == .noFile ? Strings.Request.chooseAFile : Strings.Request.chooseAnother
+        case RequestAnswer.chooseFolder: return Strings.Request.chooseAFolder
         case RequestAnswer.allowAnyway: return Strings.Request.allowAnyway
         case RequestAnswer.trustDocument: return Strings.Request.trustLikeMine
         default: return answer
@@ -128,6 +131,8 @@ public enum RequestControls {
             return [RequestAnswer.deny, RequestAnswer.allowDocument]
         case .unknownDocument:
             return [RequestAnswer.denyDocument, RequestAnswer.allowDocument, RequestAnswer.trustDocument]
+        case .aiTools:
+            return [RequestAnswer.deny, RequestAnswer.chooseFolder]
         }
     }
 

@@ -65,6 +65,11 @@ public enum ProgramControls {
 
     /// The id the built-in AI editing goes by wherever a program would appear.
     public static let aiEditID = "ai-edit"
+    /// The program a folder question names when the page's AI agent asks;
+    /// any other name is one of the page's own carried programs.
+    public static let aiToolsID = "ai-tools"
+    /// The programID passed to program.askAgain when clearing a stored Don't allow.
+    public static let documentTrustID = "document-trust"
 
     /// The names a built-in program asks under.
     public static let fileSearchID = "file-search"
@@ -88,6 +93,7 @@ public enum ProgramControls {
         case fileSearchID: return Strings.Programs.fileSearch
         case fileConvertID: return Strings.Programs.fileConverter
         case folderWatchID: return Strings.Programs.folderWatcher
+        case aiToolsID: return Strings.Programs.aiAgent
         default: return id
         }
     }

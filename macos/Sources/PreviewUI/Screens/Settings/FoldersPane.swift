@@ -52,6 +52,7 @@ struct FoldersPane: View {
             }
             localGroup
             accountGroup
+            readAccessGroup
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -132,6 +133,33 @@ struct FoldersPane: View {
                                   parent: parent(of: folder),
                                   waiting: Self.waitingCount(model.snapshot, folderID: id))
                     }
+                }
+            }
+        }
+    }
+
+    /// The folders a page may read because the person allowed it on the read
+    /// prompt. Remove ends one at once; the page asks again on its next read.
+    @ViewBuilder private var readAccessGroup: some View {
+        if !model.snapshot.readAccess.isEmpty {
+            KilnGroupTitle(Strings.Folders.readAccessTitle)
+            KilnCard {
+                KilnNoteRow(Strings.Folders.readAccessHelp)
+                ForEach(model.snapshot.readAccess) { access in
+                    KilnRowDivider()
+                    KilnRow(title: access.place, subtitle: Strings.Folders.readAccessPages(access.pages), leading: {
+                        Image(systemName: Symbols.folder)
+                            .font(.system(size: 14))
+                            .foregroundStyle(kiln.muted)
+                    }, trailing: {
+                        if model.can(HostActionType.readAccessRemove) {
+                            Button(Strings.Folders.readAccessRemove) {
+                                model.send(.removeReadAccess(id: access.id))
+                            }
+                            .buttonStyle(KilnButtonStyle(.plain))
+                            .accessibilityLabel(Text(Strings.Folders.readAccessRemoveLabel(access.place)))
+                        }
+                    })
                 }
             }
         }

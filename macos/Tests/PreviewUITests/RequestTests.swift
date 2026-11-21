@@ -62,6 +62,32 @@ final class RequestTests: XCTestCase {
         Program(id: ProgramControls.aiEditID, name: ProgramControls.aiEditID, path: "", allowedDocuments: documents)
     }
 
+    func testAFolderQuestionNamesTheProgramThatAsks() {
+        var agent = SampleData.request(.aiTools).request
+        XCTAssertEqual(RequestBody.folderTitle(agent), Strings.Request.aiToolsTitle(agent.document))
+        agent.detail = "change"
+        XCTAssertEqual(RequestBody.folderLead(agent), Strings.Request.aiToolsChangeLead)
+        XCTAssertTrue(RequestBody.folderTitle(agent).contains("read and change"))
+
+        var program = SampleData.request(.aiTools).request
+        program.program = "release-notes"
+        XCTAssertEqual(RequestBody.folderTitle(program), Strings.Request.programFolderTitle(program: "release-notes", document: program.document))
+        XCTAssertEqual(RequestBody.folderLead(program), Strings.Request.programFolderLead)
+        program.detail = "change"
+        XCTAssertEqual(RequestBody.folderLead(program), Strings.Request.programFolderChangeLead)
+        XCTAssertFalse(RequestBody.folderLead(program).contains("AI agent"))
+        XCTAssertTrue(RequestBody.folderTitle(program).contains("read and change"))
+    }
+
+    func testATeamDocumentWithNoBinaryShowsNoFileRow() {
+        var team = SampleData.request(.teamDocument).request
+        team.program = "release-notes"
+        team.path = ""
+        XCTAssertFalse(RequestBody.showsTeamFileCard(team))
+        team.path = "/Users/me/Helpers/release-notes"
+        XCTAssertTrue(RequestBody.showsTeamFileCard(team))
+    }
+
     func testAIEditTeamRequestSaysAIEditing() {
         let ai = aiEditRequest().request
         XCTAssertTrue(RequestBody.isAIEditing(ai))

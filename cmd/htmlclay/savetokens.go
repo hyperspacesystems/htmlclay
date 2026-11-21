@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -48,14 +50,17 @@ type savedTokens struct {
 	Sites  []savedTokenSite `json:"sites"`
 }
 
-// savedTokenSite is one site's kept save tokens. Read grants are not kept: the
-// read prompt's "Allow once" lasts until the person quits, so a quit ends it.
+// savedTokenSite is one site's kept save tokens and the read grants its pages
+// were given. A grant lives as long as its site keeps a file, and Stop trusting
+// or serving the folder ends it here as it does on a live site.
 type savedTokenSite struct {
-	Key     string            `json:"key"`
-	Slug    string            `json:"slug"`
-	Anchor  string            `json:"anchor"`
-	Trusted bool              `json:"trusted"`
-	Files   []savedTokenEntry `json:"files"`
+	Key             string            `json:"key"`
+	Slug            string            `json:"slug"`
+	Anchor          string            `json:"anchor"`
+	Trusted         bool              `json:"trusted"`
+	Files           []savedTokenEntry `json:"files"`
+	GrantedRoots    []string          `json:"grantedRoots,omitempty"`
+	GrantIdentities map[string]string `json:"grantIdentities,omitempty"`
 }
 
 type savedTokenEntry struct {
@@ -65,7 +70,8 @@ type savedTokenEntry struct {
 }
 
 func (e savedTokenSite) handoff() updateHandoffSite {
-	h := updateHandoffSite{Key: e.Key, Slug: e.Slug, Anchor: e.Anchor, Trusted: e.Trusted}
+	h := updateHandoffSite{Key: e.Key, Slug: e.Slug, Anchor: e.Anchor, Trusted: e.Trusted,
+		GrantedRoots: e.GrantedRoots, GrantIdentities: e.GrantIdentities}
 	for _, f := range e.Files {
 		h.Files = append(h.Files, f.updateHandoffEntry)
 	}
@@ -294,21 +300,43 @@ func (t *tokenStore) writeSites(sites []*site) error {
 		if len(entry.Files) == 0 {
 			continue
 		}
+		if len(snap.GrantedRoots) > 0 {
+			entry.GrantedRoots = snap.GrantedRoots
+			entry.GrantIdentities = map[string]string{}
+			for _, root := range snap.GrantedRoots {
+				entry.GrantIdentities[root] = platform.DirIdentity(root)
+			}
+		}
 		live[entry.Key] = true
 		rec.Sites = append(rec.Sites, entry)
 	}
 
+	// The mapping check reads the disk, so it runs on a copy with t.mu released:
+	// Stop trusting takes t.mu while holding a.mu (forgetKeptGrants), and must
+	// never wait on a slow folder. An entry it changes meanwhile signals another
+	// write, so this one may carry the old copy.
 	t.mu.Lock()
-	for key, e := range t.kept {
+	dormant := make(map[string]savedTokenSite, len(t.kept))
+	maps.Copy(dormant, t.kept)
+	t.mu.Unlock()
+	var gone []string
+	for key, e := range dormant {
 		// Dormant entries keep the identity they were written with: reading it
 		// again from disk would bless a file replaced while the app was down.
 		e.Files = freshFiles(e.Files, today)
 		if live[key] || len(e.Files) == 0 || !a.keptSiteStillMapped(e) {
-			delete(t.kept, key)
+			gone = append(gone, key)
 			continue
 		}
-		t.kept[key] = e
 		rec.Sites = append(rec.Sites, e)
+	}
+	t.mu.Lock()
+	for _, key := range gone {
+		delete(t.kept, key)
+	}
+	for key, e := range t.kept {
+		e.Files = freshFiles(e.Files, today)
+		t.kept[key] = e
 	}
 	t.mu.Unlock()
 
@@ -375,6 +403,55 @@ func (a *app) keptSiteStillMapped(e savedTokenSite) bool {
 		return inTrusted && anchor == e.Anchor
 	}
 	return !inTrusted || anchor == e.Anchor
+}
+
+// forgetKeptGrants takes folder's read grant out of every dormant entry, as
+// closeSitesLocked takes it from every live site, so a grant Stop trusting
+// ended cannot come back when its site's first request restores the entry.
+// Caller holds a.mu; t.mu is only ever taken after it.
+func (t *tokenStore) forgetKeptGrants(folder string) {
+	if t == nil {
+		return
+	}
+	same := func(_, root string) bool { return session.SamePath(root, folder) }
+	t.forgetKeptGrantsWhere(same)
+}
+
+// forgetKeptGrant takes the one dormant grant whose read access id is id out
+// of the record (readAccess.remove), and reports whether there was one.
+func (t *tokenStore) forgetKeptGrant(id string) bool {
+	if t == nil {
+		return false
+	}
+	return t.forgetKeptGrantsWhere(func(key, root string) bool { return readAccessID(key, root) == id })
+}
+
+func (t *tokenStore) forgetKeptGrantsWhere(drop func(key, root string) bool) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	forgot := false
+	for key, e := range t.kept {
+		if !slices.ContainsFunc(e.GrantedRoots, func(root string) bool { return drop(key, root) }) {
+			continue
+		}
+		// New slices and maps, never edits in place: a write in progress may be
+		// encoding the old ones.
+		var roots []string
+		ids := map[string]string{}
+		for _, root := range e.GrantedRoots {
+			if !drop(key, root) {
+				roots = append(roots, root)
+				ids[root] = e.GrantIdentities[root]
+			}
+		}
+		e.GrantedRoots, e.GrantIdentities = roots, ids
+		t.kept[key] = e
+		forgot = true
+	}
+	if forgot {
+		t.a.keptTokensChanged(true)
+	}
+	return forgot
 }
 
 // keptSlugFor names the dormant ad-hoc address whose folder holds absPath, the

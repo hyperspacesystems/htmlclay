@@ -178,6 +178,10 @@
       "class": "grant"
     },
     {
+      "type": "readAccess.remove",
+      "class": "revoke"
+    },
+    {
       "type": "request.answer",
       "class": "grant"
     },

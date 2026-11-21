@@ -517,6 +517,7 @@ func (a *app) closeSitesLocked(closing []*site, folder string) []string {
 		other.sessions.RevokeTrustedRoot(folder)
 		other.sessions.RevokeReadRoot(folder)
 	}
+	a.tokens.Load().forgetKeptGrants(folder)
 	return dropped
 }
 
@@ -700,7 +701,7 @@ func (a *app) confirmTrayChange(title, message, affirmative string) (bool, error
 // would never raise another permission dialog for the rest of its life.
 func (a *app) reportTrustRefused(dir, reason string) {
 	msg := dir + " was not added to your trusted folders.\n\n" + reason +
-		"\n\nIt stays readable until you quit. You can add it yourself from the HTML Clay menu."
+		"\n\nIt stays readable as long as this page can save. You can add it yourself from the HTML Clay menu."
 	go func() {
 		if nErr := a.notifyUser("HTML Clay", msg); nErr != nil {
 			a.rt.logger.Printf("Could not notify about the refused trust of %s: %v", dir, nErr)

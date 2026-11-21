@@ -4,7 +4,7 @@
 // reads files by path, the parts the boot and room tests never reach, and
 // prints SELF-CHECK OK. The packed service (build.mjs) ships only the files
 // these reads need, so a file the packing misses fails here instead of on a
-// person's first framed document, Tailwind page or search.
+// person's first framed document or search.
 
 const fs = require('fs');
 const os = require('os');
@@ -30,9 +30,9 @@ async function selfCheck() {
   const dom = new JSDOM('<!doctype html><p id="x">hi</p>');
   if (dom.window.document.getElementById('x').textContent !== 'hi') throw new Error('jsdom did not parse');
 
-  const { compileTailwind } = require('tailwind-hyperclay');
-  const css = await compileTailwind('<html><head><link rel="stylesheet" href="/tailwindcss/x.css"></head><body><div class="prose p-4"><input type="text" class="form-input"></div></body></html>');
-  if (!css.includes('.prose') || !css.includes('.p-4')) throw new Error('Tailwind compiled without its typography plugin or utilities');
+  // Only the link helpers: Go compiles every stylesheet (no-tailwind.cjs).
+  const { getTailwindCssName } = require('tailwind-hyperclay');
+  if (getTailwindCssName('<link rel="stylesheet" href="/tailwindcss/x.css">') !== 'x') throw new Error('the Tailwind link helpers did not load');
 
   const checkpoint = await import('@panphora/clayjs/server/checkpoint');
   if (typeof checkpoint.renderCheckpoint !== 'function') throw new Error('the checkpoint module did not load');

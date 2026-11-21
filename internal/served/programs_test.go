@@ -20,19 +20,25 @@ import (
 // grants nothing else.
 type askingPolicy struct{}
 
-func (askingPolicy) CanAskProgram() bool                          { return true }
-func (askingPolicy) AskProgram(file, name string) bool            { return false }
-func (askingPolicy) ProgramGranted(file, name, id string) bool    { return false }
-func (askingPolicy) AIEditOffered() bool                          { return false }
-func (askingPolicy) AIEditFor(string) (bool, bool)                { return false, false }
-func (askingPolicy) AskAIEdit(string)                             {}
-func (askingPolicy) AIEditFiles(string) bool                      { return false }
-func (askingPolicy) AIEditEngines() (string, map[string][]string) { return "", nil }
-func (askingPolicy) AIEditModels() map[string]string              { return nil }
-func (askingPolicy) AIEditEfforts() map[string]string             { return nil }
-func (askingPolicy) BuiltinFor(string, string) builtin.Access     { return builtin.Access{} }
-func (askingPolicy) AskBuiltin(string, string)                    {}
-func (askingPolicy) RevealFile(string) error                      { return nil }
+func (askingPolicy) CanAskProgram() bool                             { return true }
+func (askingPolicy) AskProgram(file, name string) bool               { return false }
+func (askingPolicy) ProgramGranted(file, name, id string) bool       { return false }
+func (askingPolicy) AIEditOffered() bool                             { return false }
+func (askingPolicy) AIEditFor(string) (bool, bool)                   { return false, false }
+func (askingPolicy) AskAIEdit(string)                                {}
+func (askingPolicy) AIEditFiles(string) bool                         { return false }
+func (askingPolicy) AIEditEngines() (string, map[string][]string)    { return "", nil }
+func (askingPolicy) AIEditModels() map[string]string                 { return nil }
+func (askingPolicy) AIEditEfforts() map[string]string                { return nil }
+func (askingPolicy) BuiltinFor(string, string) builtin.Access        { return builtin.Access{} }
+func (askingPolicy) AskBuiltin(string, string)                       {}
+func (askingPolicy) RevealFile(string) error                         { return nil }
+func (askingPolicy) NoteAIEditResult(string, string, string, string) {}
+func (askingPolicy) NoteDocumentSaved(string, []byte)                {}
+func (askingPolicy) DocumentTrust(string) wire.Trust                 { return wire.Trust{Tier: "unknown"} }
+func (askingPolicy) AskDocument(string, string)                      {}
+func (askingPolicy) AITools() wire.AIToolsHost                       { return nil }
+func (askingPolicy) Programs() wire.ProgramsHost                     { return nil }
 
 const (
 	programsRootID    = "programs-root"

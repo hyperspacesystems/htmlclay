@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/panphora/htmlclay/internal/aitools"
 	"github.com/panphora/htmlclay/internal/logging"
 )
 
@@ -29,10 +30,35 @@ func helperRelayRequest(t *testing.T, srv *Server, path, body string) *httptest.
 	return w
 }
 
-func TestHelperBoundRelayRefusesBothAliasesAndLanes(t *testing.T) {
-	srv, f := setupLiveSyncTest(t)
-	srv.BindHelpers(f.AbsPath)
+// folderTools is an ai-tools host where every document has a folder.
+type folderTools struct{}
 
+func (folderTools) Enabled() bool                          { return true }
+func (folderTools) Service() *aitools.Service              { return nil }
+func (folderTools) Preferred() (string, map[string]string) { return "", nil }
+func (folderTools) HasFolder(string) bool                  { return true }
+func (folderTools) Folder(context.Context, string, bool, string, func()) (string, bool, error) {
+	return "", false, nil
+}
+
+func TestHelperBoundRelayRefusesBothAliasesAndLanes(t *testing.T) {
+	for why, setup := range map[string]func(*Server, string){
+		"programs bound":          func(srv *Server, path string) { srv.BindHelpers(path) },
+		"an AI with tools folder": func(srv *Server, path string) { srv.hooks.AITools = folderTools{} },
+		"the ai plugin on disk": func(srv *Server, path string) {
+			os.WriteFile(path, []byte(`<!DOCTYPE html><html><head><script src="https://clayjs.com/v1/clay.js?plugins=wire,ai"></script></head><body>hi</body></html>`), 0o644)
+		},
+	} {
+		t.Run(why, func(t *testing.T) {
+			srv, f := setupLiveSyncTest(t)
+			setup(srv, f.AbsPath)
+			refusesEveryRelayLane(t, srv)
+		})
+	}
+}
+
+func refusesEveryRelayLane(t *testing.T, srv *Server) {
+	t.Helper()
 	cases := []struct {
 		name string
 		path string
@@ -54,7 +80,8 @@ func TestHelperBoundRelayRefusesBothAliasesAndLanes(t *testing.T) {
 }
 
 func TestUnboundRelayAliasesAndLanesKeepTheirExistingBehavior(t *testing.T) {
-	srv, _ := setupLiveSyncTest(t)
+	srv, f := setupLiveSyncTest(t)
+	os.WriteFile(f.AbsPath, []byte(`<!DOCTYPE html><html><head><script src="https://clayjs.com/v1/clay.js?plugins=blockeditor"></script></head><body>hi</body></html>`), 0o644)
 	cases := []struct {
 		name string
 		path string

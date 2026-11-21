@@ -84,10 +84,18 @@ func (a *app) tierStore() *tier.Store {
 // sees a document it records whether the file carried a download mark, before
 // a save of its own could change the file.
 func (a *app) tierOf(document string) tier.Verdict {
+	v, _ := a.readTier(document)
+	return v
+}
+
+// readTier reads document once and returns its verdict with the bytes the
+// verdict is for, so a caller that acts on the file's content acts on exactly
+// the code that was checked. data is nil when the file cannot be read.
+func (a *app) readTier(document string) (v tier.Verdict, data []byte) {
 	path := closedPath(document)
 	store := a.tierStore()
 	if store == nil {
-		return tier.Verdict{Tier: tier.Unknown, Reason: tier.ReasonUnrecorded}
+		return tier.Verdict{Tier: tier.Unknown, Reason: tier.ReasonUnrecorded}, nil
 	}
 	in := tier.Input{
 		Path:       path,
@@ -98,10 +106,12 @@ func (a *app) tierOf(document string) tier.Verdict {
 	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() || info.Size() > codeset.MaxDocument {
 		in.Unreadable = true
-	} else if set, ok := a.codeSetOf(path); ok {
+	} else if data, err = os.ReadFile(path); err != nil || len(data) > codeset.MaxDocument {
+		in.Unreadable, data = true, nil
+	} else if set, ok := a.codeSetOfData(path, data); ok {
 		in.Set = &set
 	} else {
-		in.Unreadable = true
+		in.Unreadable, data = true, nil
 	}
 	seen, known := store.Seen(path)
 	if !known && !in.Unreadable {
@@ -117,7 +127,7 @@ func (a *app) tierOf(document string) tier.Verdict {
 	// Developer mode acts through the first sight only: turning it on later
 	// does not adopt documents HTML Clay already saw.
 	in.Developer = seen.Developer
-	return store.Of(in)
+	return store.Of(in), data
 }
 
 type cachedCodeSet struct {
@@ -135,6 +145,10 @@ func (a *app) codeSetOf(path string) (codeset.Set, bool) {
 	if err != nil {
 		return codeset.Set{}, false
 	}
+	return a.codeSetOfData(path, data)
+}
+
+func (a *app) codeSetOfData(path string, data []byte) (codeset.Set, bool) {
 	sum := sha256.Sum256(data)
 	a.core.mu.Lock()
 	cached, ok := a.core.codeSets[path]
@@ -379,11 +393,11 @@ func (a *app) keepTeamAllows(store *tier.Store) {
 func (a *app) settleRefusedDocument(path string) {
 	a.registry().CloseDocument(path)
 	if core, ok := a.wireCoreFor(path); ok {
-		core.CancelAIEditFor(path)
+		core.CancelAIFor(path)
 		core.CancelBuiltinFor("", path)
 	}
 	for _, core := range a.servedWireCores() {
-		core.CancelAIEditFor(path)
+		core.CancelAIFor(path)
 		core.CancelBuiltinFor("", path)
 	}
 	a.cancelBuiltins("", path)
@@ -405,7 +419,13 @@ func (a *app) denyDocument(path string) error {
 	if store == nil {
 		return fmt.Errorf("HTML Clay has no settings folder to record this in")
 	}
-	return store.Deny(path)
+	if err := store.Deny(path); err != nil {
+		return err
+	}
+	if s := a.aiToolsService(); s != nil {
+		_ = s.Store().ForgetFolder(closedPath(path))
+	}
+	return nil
 }
 
 // allowTeamCode records the code a team document had when the person allowed

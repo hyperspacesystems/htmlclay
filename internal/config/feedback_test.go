@@ -203,4 +203,10 @@ func TestBuiltinNameIsReserved(t *testing.T) {
 	if _, err := cfg.AddHelperProgram("file-search", "/bin/echo"); err != ErrHelperNameReserved {
 		t.Fatalf("AddHelperProgram(file-search) = %v, want ErrHelperNameReserved", err)
 	}
+	if _, err := cfg.AddHelperProgram("ai-tools", "/bin/echo"); err != ErrHelperNameReserved {
+		t.Fatalf("AddHelperProgram(ai-tools) = %v, want ErrHelperNameReserved", err)
+	}
+	if _, err := cfg.AddHelperProgram("programs", "/bin/echo"); err != ErrHelperNameReserved {
+		t.Fatalf("AddHelperProgram(programs) = %v, want ErrHelperNameReserved", err)
+	}
 }

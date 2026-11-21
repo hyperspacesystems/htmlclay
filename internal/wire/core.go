@@ -55,6 +55,20 @@ type Policy interface {
 	AskBuiltin(document, program string)
 	// RevealFile shows a file in the file manager (file-search's reveal).
 	RevealFile(path string) error
+	// DocumentTrust is what the host knows of document's trust.
+	DocumentTrust(document string) Trust
+	// AskDocument raises the one question document's code needs, for program.
+	// It answers at once; the person decides later.
+	AskDocument(document, program string)
+	// AITools is the ai-tools host, or nil where AI with tools is not offered.
+	AITools() AIToolsHost
+	// Programs is the carried programs host, or nil where programs do not run.
+	Programs() ProgramsHost
+	// NoteAIEditResult hears an AI edit that finished on document, so a save
+	// after Keep can trust exactly the code that edit produces.
+	NoteAIEditResult(document, elementHTML, tag, resultHTML string)
+	// NoteDocumentSaved hears the bytes a page saved into document.
+	NoteDocumentSaved(document string, data []byte)
 }
 
 type Core struct {
@@ -72,6 +86,8 @@ type Core struct {
 	helperSetting  map[string]bool
 	helperAskQuiet map[string]time.Time
 	AIEdit         aiEditRegistry
+	AITools        aiToolsRegistry
+	Programs       aiToolsRegistry
 	Builtin        builtinRegistry
 	RunFiles       RunFiles
 }
@@ -86,10 +102,10 @@ func NewCore(docs Documents, policy Policy, logger *logging.Logger, writeError f
 	}
 }
 
-// Shutdown cancels every AI edit and closes every stream. A served root calls
+// Shutdown cancels every AI run and closes every stream. A served root calls
 // it when the root goes away; the loose Server keeps its own two calls.
 func (s *Core) Shutdown() {
-	s.CancelAIEdits()
+	s.CancelAI()
 	s.Hub.Shutdown()
 	s.RunFiles.Clear()
 }

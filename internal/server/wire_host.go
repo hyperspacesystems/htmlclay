@@ -235,6 +235,35 @@ func (l looseWire) AIEditFiles(document string) bool {
 	return l.s.hooks.AIEditFiles != nil && l.s.hooks.AIEditFiles(document)
 }
 
+func (l looseWire) DocumentTrust(document string) wire.Trust {
+	if l.s.hooks.DocumentTrust == nil {
+		return wire.Trust{Tier: "unknown"}
+	}
+	return l.s.hooks.DocumentTrust(document)
+}
+
+func (l looseWire) NoteAIEditResult(document, elementHTML, tag, resultHTML string) {
+	if l.s.hooks.NoteAIEditResult != nil {
+		l.s.hooks.NoteAIEditResult(document, elementHTML, tag, resultHTML)
+	}
+}
+
+func (l looseWire) NoteDocumentSaved(document string, data []byte) {
+	if l.s.hooks.Saved != nil {
+		l.s.hooks.Saved(document, data)
+	}
+}
+
+func (l looseWire) AskDocument(document, program string) {
+	if l.s.hooks.AskDocument != nil {
+		l.s.hooks.AskDocument(document, program)
+	}
+}
+
+func (l looseWire) AITools() wire.AIToolsHost { return l.s.hooks.AITools }
+
+func (l looseWire) Programs() wire.ProgramsHost { return l.s.hooks.Programs }
+
 func (l looseWire) AIEditEngines() (string, map[string][]string) {
 	if l.s.hooks.AIEditEngines == nil {
 		return "", nil

@@ -294,6 +294,8 @@ type documentActions struct {
 	Reveal   *postAction `json:"reveal,omitempty"`
 	Versions *postAction `json:"versions,omitempty"`
 	Export   *postAction `json:"export,omitempty"`
+	// NewDocument takes a blank copy the page built and answers {ok, href}.
+	NewDocument *postAction `json:"newDocument,omitempty"`
 }
 
 // postAction names a same-origin URL the page POSTs to, rather than one it
@@ -1541,6 +1543,9 @@ func (s *Server) saveDocument(f *session.File, in documentSave) (documentSaved, 
 	if err != nil {
 		s.Logger.Printf("Error saving %s: %v", f.AbsPath, err)
 		return refuseWith(err, http.StatusInternalServerError, "write error")
+	}
+	if !in.program && s.hooks.Saved != nil {
+		s.hooks.Saved(f.AbsPath, body)
 	}
 
 	// Bulk pruning runs on the store lock only, never inside f.Lock().

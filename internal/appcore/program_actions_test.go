@@ -154,3 +154,19 @@ func TestM3ProgramPlan(t *testing.T) {
 		}
 	})
 }
+
+func TestAskDocumentAgainPlansDocumentTrustClear(t *testing.T) {
+	facts := programFactsForPlan()
+	facts.DeniedDocuments = []string{"/Users/Sam/Downloads/Stranger.html"}
+
+	effect, refusal := planOne(t, facts, "program.askAgain", `{"programID":"document-trust","documentID":"/Users/Sam/Downloads/Stranger.html"}`)
+	if refusal != nil {
+		t.Fatalf("Plan refused denied document askAgain: %+v", refusal)
+	}
+	if effect.ProgramID != DocumentTrustProgram || effect.DocumentID != "/Users/Sam/Downloads/Stranger.html" {
+		t.Fatalf("effect = %+v, want document-trust + Stranger.html", effect)
+	}
+	if _, refusal := Plan(facts, Action{Type: "program.askAgain", Args: json.RawMessage(`{"programID":"document-trust","documentID":"/Users/Sam/Downloads/NotDenied.html"}`)}); refusal == nil || refusal.Code != RefuseNoSuchDocument {
+		t.Fatalf("askAgain on non-denied document = %+v, want no-such-document", refusal)
+	}
+}

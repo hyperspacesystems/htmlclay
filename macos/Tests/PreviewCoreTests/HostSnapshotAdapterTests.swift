@@ -41,6 +41,17 @@ final class HostSnapshotAdapterTests: XCTestCase {
         }
     }
 
+    func testReadAccessReachesTheFoldersPane() throws {
+        var wire = try wire("trustedFolder")
+        XCTAssertEqual(HostSnapshotAdapter.snapshot(from: wire).readAccess, [])
+        wire.readAccess = [WireReadAccess(id: "a1", folder: "/Users/x/Receipts", place: "~/Receipts", pages: ["/Users/x/a.htmlclay", "/Users/x/b.htmlclay"])]
+        let access = try XCTUnwrap(HostSnapshotAdapter.snapshot(from: wire).readAccess.first)
+        XCTAssertEqual(access, ReadAccess(id: "a1", place: "~/Receipts", pages: ["/Users/x/a.htmlclay", "/Users/x/b.htmlclay"]))
+        XCTAssertEqual(Strings.Folders.readAccessPages(access.pages), "Readable by a.htmlclay and 1 more")
+        XCTAssertEqual(Strings.Folders.readAccessPages(["/Users/x/a.htmlclay"]), "Readable by a.htmlclay")
+        XCTAssertEqual(Strings.Folders.readAccessPages([]), "No documents open right now")
+    }
+
     func testServedFolderFixture() throws {
         let snapshot = HostSnapshotAdapter.snapshot(from: try wire("servedFolder"))
         let served = try XCTUnwrap(snapshot.folders.first { $0.served })
@@ -92,10 +103,12 @@ final class HostSnapshotAdapterTests: XCTestCase {
           "counts": {"total":2,"byPane":{"folders":2},"dot":true},
           "sync": {"connected":false,"username":"","keySuffix":"","paused":false,"syncingFiles":0,"offlineChanges":0,"viewOnlyTeams":0,"lastFinishedAt":null,"fullName":""},
           "update": {"current":"2.0.3","ready":null,"checkedAt":null,"automatic":true,"finishing":false},
-          "preferences": {"openAtLogin":true,"openAtLoginChosen":true,"aiEditing":true,"appearance":"system","yourName":"","useName":false}
+          "preferences": {"openAtLogin":true,"openAtLoginChosen":true,"aiEditing":true,"appearance":"system","yourName":"","useName":false},
+          "deniedDocuments": ["/Users/sam/Downloads/stranger.html"]
         }
         """
         let snapshot = HostSnapshotAdapter.snapshot(from: try decode(json))
+        XCTAssertEqual(snapshot.deniedDocuments, ["/Users/sam/Downloads/stranger.html"])
         XCTAssertTrue(snapshot.waiting.isEmpty)
         XCTAssertEqual(snapshot.totalCount, 2)
         XCTAssertEqual(snapshot.count(in: .folders), 2)

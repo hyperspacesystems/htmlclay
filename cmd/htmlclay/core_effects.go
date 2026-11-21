@@ -62,6 +62,7 @@ var implementedActions = []string{
 	"program.remove",
 	"program.removeAccess",
 	"program.removeAllAccess",
+	"readAccess.remove",
 	"program.reveal",
 	"program.setAllTrusted",
 	"program.setOn",
@@ -360,6 +361,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.setProgramAllTrusted(e)
 	case "program.askAgain":
 		return a.askProgramAgain(e)
+	case "readAccess.remove":
+		return a.removeReadAccess(e)
 	case "program.removeAccess", "program.removeAllAccess":
 		return a.removeProgramAccess(e)
 	case "program.setOn":
@@ -611,6 +614,9 @@ func (a *app) setProgramAllTrustedLocked(e appcore.Effect) *appcore.Refusal {
 // document, so a person can allow a program they removed access to. The action
 // grants nothing by itself; the answer does.
 func (a *app) askProgramAgain(e appcore.Effect) *appcore.Refusal {
+	if e.ProgramID == appcore.DocumentTrustProgram {
+		return a.askDocumentAgainEffect(e)
+	}
 	if builtin.Is(e.ProgramID) {
 		return a.askBuiltinAgain(e)
 	}

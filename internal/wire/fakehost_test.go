@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/builtin"
+	"github.com/panphora/htmlclay/internal/carried"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/logging"
 )
@@ -30,6 +31,9 @@ const (
 // TestMain pins HOME for the whole package so nothing here touches the real
 // ~/htmlclay, including every helper process this binary re-runs itself as.
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == carried.WorkerArg {
+		os.Exit(carried.RunWorker(os.Stdin, os.Stdout))
+	}
 	if mode := os.Getenv(wireHelperMode); mode != "" {
 		runWireHelperProcess(mode, os.Getenv(wireHelperArg))
 		return
@@ -194,6 +198,14 @@ type fakePolicy struct {
 	builtin      builtin.Access
 	askedBuiltin []string
 	revealed     []string
+
+	tier          string
+	ready         bool
+	denied        bool
+	askedDocument []string
+	askedProgram  []string
+	tools         AIToolsHost
+	programs      ProgramsHost
 }
 
 func (p *fakePolicy) CanAskProgram() bool               { return false }
@@ -228,6 +240,34 @@ func (p *fakePolicy) RevealFile(path string) error {
 	defer p.mu.Unlock()
 	p.revealed = append(p.revealed, path)
 	return nil
+}
+
+func (p *fakePolicy) DocumentTrust(string) Trust {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return Trust{Tier: p.tier, Ready: p.ready, Denied: p.denied}
+}
+
+func (*fakePolicy) NoteAIEditResult(string, string, string, string) {}
+func (*fakePolicy) NoteDocumentSaved(string, []byte)                {}
+
+func (p *fakePolicy) AskDocument(document, program string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.askedDocument = append(p.askedDocument, document)
+	p.askedProgram = append(p.askedProgram, program)
+}
+
+func (p *fakePolicy) Programs() ProgramsHost {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.programs
+}
+
+func (p *fakePolicy) AITools() AIToolsHost {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.tools
 }
 
 func newFakeCore(t *testing.T) (*Core, *fakeDocs, *fakePolicy, string) {

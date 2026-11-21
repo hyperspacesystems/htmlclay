@@ -29,12 +29,18 @@ type Spec struct {
 	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
+	// MemoryLimit, when not zero, is the most memory in bytes the program may
+	// commit. Windows enforces it in the job object; elsewhere the caller
+	// watches the process itself.
+	MemoryLimit uint64
 }
 
 type Process interface {
 	Wait() error
 	// Kill ends the whole process tree.
 	Kill() error
+	// Pid is the first program's process id.
+	Pid() int
 }
 
 var (
@@ -88,7 +94,7 @@ func Start(ctx context.Context, s Spec) (Process, error) {
 			pipes = append(pipes, p)
 		}
 	}
-	return startGroup(ctx, cmd, pipes, in)
+	return startGroup(ctx, cmd, pipes, in, s.MemoryLimit)
 }
 
 // interfaceEqual compares two writers as os/exec does: only when both dynamic

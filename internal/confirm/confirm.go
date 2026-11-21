@@ -41,6 +41,10 @@ const ChoiceDeny = "deny"
 // that leaves the request listed until the flow asks again or closes it.
 const ChoiceChooseFile = "choose-file"
 
+// ChoiceChooseFolder answers with a folder the person picked. It carries a
+// path like choose-file, and settles the request like every other answer.
+const ChoiceChooseFolder = "choose-folder"
+
 // maxPending is how many questions the window can show at once. The next ask
 // beyond it is refused rather than queued: a request nobody can see is one
 // nobody can answer.
@@ -261,7 +265,7 @@ func (r *Registry) Answer(id string, revision uint64, choice, path string) error
 		r.mu.Unlock()
 		return ErrAnswerNotOffered
 	}
-	if choice == ChoiceChooseFile {
+	if choice == ChoiceChooseFile || choice == ChoiceChooseFolder {
 		if !filepath.IsAbs(path) {
 			r.mu.Unlock()
 			return ErrBadPath

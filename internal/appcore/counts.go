@@ -97,7 +97,11 @@ func waiting(f Facts) []WaitingItem {
 	}
 	for _, r := range f.Requests {
 		document := documentName(r.Document)
-		title := fmt.Sprintf(TextWaitingProgramRequest, document, builtin.Title(r.Program))
+		programTitle := builtin.Title(r.Program)
+		if r.Program == AIToolsProgram {
+			programTitle = "AI agent"
+		}
+		title := fmt.Sprintf(TextWaitingProgramRequest, document, programTitle)
 		if r.Program == AIEditProgram {
 			title = fmt.Sprintf(TextWaitingAIEditRequest, document)
 		}
@@ -108,6 +112,18 @@ func waiting(f Facts) []WaitingItem {
 			title = fmt.Sprintf(TextWaitingFolderReadAgain, document, r.Folder)
 		case RequestUnknownDocument:
 			title = fmt.Sprintf(TextWaitingUnknownDocument, document, r.Folder)
+		case RequestAITools:
+			if r.Program == AIToolsProgram {
+				if r.Detail == "change" {
+					title = fmt.Sprintf(TextWaitingAIToolsChange, document)
+				} else {
+					title = fmt.Sprintf(TextWaitingAITools, document)
+				}
+			} else if r.Detail == "change" {
+				title = fmt.Sprintf(TextWaitingProgramFolderChange, document, r.Program)
+			} else {
+				title = fmt.Sprintf(TextWaitingProgramFolder, document, r.Program)
+			}
 		}
 		add(r.ID, WaitingProgramRequest, title, r.Folder, r.ID)
 	}

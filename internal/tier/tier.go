@@ -131,7 +131,7 @@ func (s *Store) Of(in Input) Verdict {
 	switch {
 	case in.Downloaded || seen.Downloaded:
 		doubt = ReasonDownloaded
-	case BrokenSignature(sigErr):
+	case BrokenSignature(sigErr) || seen.BrokenSignature:
 		doubt = ReasonBrokenSignature
 	}
 	rec, trustedPath := s.PathTrust(in.Path)
@@ -214,7 +214,7 @@ type Sight struct {
 // signature does not count, is never recorded as the person's here. Later
 // sights change nothing.
 func (s *Store) Note(in Sight) error {
-	first, err := s.noteSeen(in.Path, in.Downloaded, in.Developer)
+	first, err := s.noteSeen(SeenRecord{Path: in.Path, Downloaded: in.Downloaded, Developer: in.Developer, BrokenSignature: in.BrokenSignature})
 	if err != nil || !first || in.Downloaded {
 		return err
 	}

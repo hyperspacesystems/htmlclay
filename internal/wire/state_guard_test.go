@@ -15,10 +15,10 @@ import (
 // (receiver s or srv, which embeds *Core), or the Hub's own fields. Those fields
 // are exported only so the loose host's tests can inspect them; product code
 // must go through the Core's methods.
-var stateSelector = regexp.MustCompile(`\b(s|srv)\.(HelperMu|Helpers|HelperOffline|HelperAsking|HelperSetting|HelperAskQuiet|HelperBindings|AIEdit)\.|\b(s|srv)\.(HelperMu|Helpers|HelperOffline|HelperAsking|HelperSetting|HelperAskQuiet)\b|\.Hub\.(Mu|Chans|TerminalBytes)\b`)
+var stateSelector = regexp.MustCompile(`\b(s|srv)\.(HelperMu|Helpers|HelperOffline|HelperAsking|HelperSetting|HelperAskQuiet|HelperBindings|AIEdit|AITools|Programs)\.|\b(s|srv)\.(HelperMu|Helpers|HelperOffline|HelperAsking|HelperSetting|HelperAskQuiet)\b|\.Hub\.(Mu|Chans|TerminalBytes)\b`)
 
 func TestWireStateSelectorCatchesAPlantedRead(t *testing.T) {
-	for _, line := range []string{"n := len(s.Helpers)", "s.AIEdit.Mu.Lock()", "srv.Hub.Chans[path]", "s.HelperBindings.mu.RLock()"} {
+	for _, line := range []string{"n := len(s.Helpers)", "s.AIEdit.Mu.Lock()", "srv.Hub.Chans[path]", "s.HelperBindings.mu.RLock()", "s.Programs.Mu.Lock()", "srv.AITools.Running[path]"} {
 		if !stateSelector.MatchString(line) {
 			t.Errorf("the guard misses %q", line)
 		}

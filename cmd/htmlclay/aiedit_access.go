@@ -225,7 +225,7 @@ func (a *app) removeAIEditAccess(e appcore.Effect) *appcore.Refusal {
 	}
 	for _, row := range removed {
 		if core, ok := a.wireCoreFor(row.Document); ok {
-			core.CancelAIEditFor(row.Document)
+			core.CancelAIFor(row.Document)
 		}
 		a.rt.logger.Printf("AI editing access removed: document=%s", row.Document)
 	}

@@ -62,6 +62,7 @@ final class HostActionWireTests: XCTestCase {
         .setPort(1313),
         .setPort(1313, confirmed: true),
         .removeAllProgramAccess(programID: "p1"),
+        .removeReadAccess(id: "a1"),
         .setAIEditEffort(tool: "codex", effort: "high"),
         .setProgramOn(programID: "file-search", on: true),
         .openProgramExample(programID: "file-search"),

@@ -54,6 +54,7 @@
       "program.reveal": true,
       "program.setAllTrusted": true,
       "program.setOn": false,
+      "readAccess.remove": false,
       "request.answer": true,
       "request.show": true,
       "service.restart": true,
@@ -358,6 +359,7 @@
       "on": false
     }
   ],
+  "readAccess": [],
   "requests": [
     {
       "id": "req-todo",

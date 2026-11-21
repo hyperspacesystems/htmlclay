@@ -34,6 +34,7 @@ func Build(f Facts) Snapshot {
 		Documents:   make([]Document, 0, len(f.Documents)),
 		Folders:     make([]Folder, 0, len(f.Folders)),
 		Programs:    make([]Program, 0, len(f.Programs)),
+		ReadAccess:  make([]ReadAccess, 0, len(f.ReadAccess)),
 		Requests:    make([]Request, 0, len(f.Requests)),
 		Waiting:     waiting(f),
 		Sync:        syncState(f.Sync),
@@ -43,6 +44,10 @@ func Build(f Facts) Snapshot {
 
 		RecoveredChanges: f.RecoveredChanges,
 		FileTypes:        f.FileTypes,
+	}
+	if len(f.DeniedDocuments) > 0 {
+		s.DeniedDocuments = slices.Clone(f.DeniedDocuments)
+		slices.Sort(s.DeniedDocuments)
 	}
 	tools := make([]AIEditTool, 0, len(f.Preferences.AIEditTools))
 	for _, t := range f.Preferences.AIEditTools {
@@ -105,6 +110,14 @@ func Build(f Facts) Snapshot {
 			program.RemovedDocuments = []string{}
 		}
 		s.Programs = append(s.Programs, program)
+	}
+	for _, r := range f.ReadAccess {
+		access := r
+		access.Place = displayPath(f.Home, access.Folder)
+		if access.Pages == nil {
+			access.Pages = []string{}
+		}
+		s.ReadAccess = append(s.ReadAccess, access)
 	}
 	for _, r := range f.Requests {
 		answers := AnswersFor(r.Kind)

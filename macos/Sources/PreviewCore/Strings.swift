@@ -94,6 +94,15 @@ public enum Strings {
         public static let emptyTitle = "Trust a folder when its documents belong together"
         public static let emptySub = "Documents in a trusted folder open without asking and can link to each other."
         public static let serveLink = "Building a site or an app? Serve a folder…"
+        public static let readAccessTitle = "Read access"
+        public static let readAccessHelp = "Folders you allowed a page to read. Removing one makes the page ask again."
+        public static let readAccessRemove = "Remove access"
+        public static func readAccessRemoveLabel(_ folder: String) -> String { "Remove access to \(folder)" }
+        /// The line under a read access row: the documents that share it.
+        public static func readAccessPages(_ pages: [String]) -> String {
+            guard let first = pages.first.map(ProgramControls.documentLabel) else { return "No documents open right now" }
+            return pages.count == 1 ? "Readable by \(first)" : "Readable by \(first) and \(pages.count - 1) more"
+        }
         public static let moveTitle = "Move from Hyperclay Local"
         public static let moveSub = "Your Hyperclay Local folders were found. Bring them into HTML Clay."
         public static let move = "Move…"
@@ -232,6 +241,8 @@ public enum Strings {
         public static let answer = "Answer…"
         public static let findIt = "Find it…"
         public static let allTrusted = "All documents in trusted folders"
+        public static let blockedDocuments = "Blocked documents"
+        public static let askAgain = "Ask again"
         public static let noneYet = "No document may run it until you allow one."
         public static func wants(document: String, program: String) -> String { "\(document) wants “\(program)”" }
         public static func mayRun(_ document: String) -> String { "\(document) may run it" }
@@ -243,13 +254,14 @@ public enum Strings {
         public static func aiEditAllowedFor(_ document: String) -> String { "Allowed for \(document)" }
         public static func aiEditAllowedCount(_ count: Int) -> String { "Allowed for \(count) documents" }
         public static func aiEditWaiting(document: String) -> String { "Allow AI editing for \(document)?" }
+        public static let aiAgent = "AI agent"
     }
     public enum ProgramPage {
         public static let runsAsYou = "This program runs as you. It can read and change any file you can."
         public static let whoMayRun = "Who may run it"
         public static let aiEditNote = "An AI tool on this Mac rewrites selected text when you press ⌘J. Turn AI editing on or off in Settings › General."
         public static let allTrustedTitle = "All documents in my trusted folders"
-        public static let allTrustedSub = "Not for team folders. Those documents always ask one at a time."
+        public static let allTrustedSub = "Documents in your own trusted folders run it without asking, after the one warning for a document nobody vouches for. Team folders still ask one document at a time."
         public static let removeAccess = "Remove access"
         public static let accessRemoved = "Access removed"
         public static let allowAgain = "Allow again…"
@@ -467,6 +479,25 @@ public enum Strings {
         public static func builtinLead(program: String, folder: String) -> String {
             "\(program) will work only for this document and only inside \(folder). After allowing, go back to the page and try again."
         }
+        public static func aiToolsTitle(_ document: String, level: String = "") -> String {
+            level == "change"
+                ? "Which folder may your AI agent read and change for \(document)?"
+                : "Which folder may your AI agent read for \(document)?"
+        }
+        public static let aiToolsLead = "Your AI agent reads the folder you choose, and nothing outside it, to answer this page. It cannot change files or run commands. The page sees its answer."
+        /// The folder question's lead for the level the page asked: "change" lets the agent edit files.
+        public static func aiToolsLead(level: String) -> String { level == "change" ? aiToolsChangeLead : aiToolsLead }
+        public static let aiToolsChangeLead = "Your AI agent can read, edit and create files in the folder you choose, and nothing outside it, to do what this page asks. It cannot run commands. Choose a folder whose changes you can undo, such as one kept in git."
+        public static func programFolderTitle(program: String, document: String, level: String = "") -> String {
+            level == "change"
+                ? "Which folder may the program \(program) in \(document) read and change?"
+                : "Which folder may the program \(program) in \(document) read?"
+        }
+        public static let programFolderLead = "The program can read files and git history in the folder you choose, and nothing outside it. It cannot reach the internet or start other programs. The page sees what it returns."
+        public static let programFolderChangeLead = "The program can read, edit and create files only in the folder you choose. It cannot reach the internet or start other programs. Choose a folder whose changes you can undo, such as one kept in git."
+        /// The folder question's lead for a page's own program at the level it was given: "change" lets it edit files.
+        public static func programFolderLead(level: String) -> String { level == "change" ? programFolderChangeLead : programFolderLead }
+        public static let chooseAFolder = "Choose a folder…"
         public static func unknownTitle(_ document: String) -> String { "Make sure you trust \(document) before allowing it" }
         public static func unknownLead(_ folder: String) -> String {
             "Once allowed, this page can read and change the files in \(folder), and send anything it sees anywhere on the internet. Allowing this document holds until the page's code changes."
@@ -480,7 +511,7 @@ public enum Strings {
         public static let chooseAnother = "Choose another"
         public static let allowAnyway = "Allow anyway"
         public static func readFolder(_ document: String) -> String { "Let \(document) read a folder?" }
-        public static func readNote(_ folder: String) -> String { "Allow once lasts until you close the document. Trust lets every document in \(folder) save and link." }
+        public static func readNote(_ folder: String) -> String { "Allow once lasts as long as this document can save. Trust lets every document in \(folder) save and link." }
         public static let allowOnce = "Allow once"
         public static let trustThisFolder = "Trust this folder"
         public static func trustOwnFolder(_ document: String) -> String { "Trust the folder \(document) is in?" }
@@ -575,6 +606,7 @@ public enum Strings {
             case .folderReadAgain: return "A page asks to trust its own folder"
             case .builtinProgram: return "A page asks to use a built-in program"
             case .unknownDocument: return "A document nobody vouches for"
+            case .aiTools: return "A page asks your AI agent to read a folder"
             }
         }
         public static func wouldOpen(_ name: String) -> String { "Build 1: this would open \(name) in your browser." }

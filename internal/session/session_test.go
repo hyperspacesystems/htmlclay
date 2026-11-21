@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"runtime"
 	"strings"
 	"sync"
@@ -521,6 +522,27 @@ func TestRootProvenanceFlagsAreIndependent(t *testing.T) {
 	}
 	if !m.TrustedCovers(trusted) {
 		t.Error("a trusted root must report itself trusted")
+	}
+
+	// The read permissions list shows only the grant that alone gives access:
+	// a grant on an opened or trusted folder, in any spelling the disk folds
+	// together, would list a Remove that ends nothing.
+	for _, dir := range []string{"opened", "trusted"} {
+		if err := m.GrantCanonicalRoot(filepath.Join(home, dir)); err != nil {
+			t.Fatalf("grant %s: %v", dir, err)
+		}
+	}
+	want := []string{filepath.Join(home, "granted")}
+	if caseInsensitiveFS() {
+		for _, dir := range []string{"OPENED", "GRANTED"} {
+			if err := m.GrantCanonicalRoot(filepath.Join(home, dir)); err != nil {
+				t.Fatalf("grant %s: %v", dir, err)
+			}
+		}
+		want = []string{filepath.Join(home, "GRANTED")}
+	}
+	if got := m.ReadGrants(); !slices.Equal(got, want) {
+		t.Errorf("ReadGrants = %v, want %v", got, want)
 	}
 
 	// A grant revoke aimed at each root touches only the granted flag.

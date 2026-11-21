@@ -17,6 +17,7 @@ type Snapshot struct {
 	Documents   []Document    `json:"documents"`
 	Folders     []Folder      `json:"folders"`
 	Programs    []Program     `json:"programs"`
+	ReadAccess  []ReadAccess  `json:"readAccess"`
 	Requests    []Request     `json:"requests"`
 	Waiting     []WaitingItem `json:"waiting"`
 	Counts      Counts        `json:"counts"`
@@ -28,6 +29,10 @@ type Snapshot struct {
 	// not save normally (the Recovered changes page). 0 hides every menu row for it.
 	RecoveredChanges int       `json:"recoveredChanges"`
 	FileTypes        FileTypes `json:"fileTypes"`
+	// DeniedDocuments are documents for which the person chose "Don't allow" on
+	// the unknown-document warning. Omitted when empty so existing snapshots do
+	// not change.
+	DeniedDocuments []string `json:"deniedDocuments,omitempty"`
 }
 
 // Service states.
@@ -181,6 +186,19 @@ type Program struct {
 	On      bool `json:"on"`
 }
 
+// ReadAccess is one folder a site's pages may read because the person allowed
+// it on the read prompt. Pages are the documents that share the permission:
+// the open tabs' documents on a live site, the kept files for a site no tab
+// has reached since a restart. Remove is
+// readAccess.remove with ID; the page asks again on its next read.
+type ReadAccess struct {
+	ID     string `json:"id"`
+	Folder string `json:"folder"`
+	// Place is Folder as a person reads it (~/Documents/Receipts); Build sets it.
+	Place string   `json:"place"`
+	Pages []string `json:"pages"`
+}
+
 // Request kinds. UnknownDocument is the one warning a document nobody vouches
 // for shows before its programs or AI reach a folder.
 const (
@@ -192,9 +210,17 @@ const (
 	RequestFolderReadAgain = "folderReadAgain"
 	RequestBuiltinProgram  = "builtinProgram"
 	RequestUnknownDocument = "unknownDocument"
+	// RequestAITools asks the person for the folder a page's AI agent reads,
+	// or, when Program is not AIToolsProgram, the folder one of the page's own
+	// carried programs reads.
+	RequestAITools = "aiTools"
 )
 
-const AIEditProgram = "ai-edit" // the program name the built-in AI editing asks under
+const (
+	AIEditProgram        = "ai-edit"        // the program name the built-in AI editing asks under
+	AIToolsProgram       = "ai-tools"       // the program name an AI agent's folder question asks under
+	DocumentTrustProgram = "document-trust" // programID for program.askAgain clearing a stored Don't allow
+)
 
 // Request is one question waiting for the person. Attention counts how many
 // times somebody asked for it to be shown: the Mac app raises its window when

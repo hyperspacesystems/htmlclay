@@ -24,19 +24,25 @@ import (
 // program or AI edit behind them.
 type framesOnly struct{}
 
-func (framesOnly) CanAskProgram() bool                          { return false }
-func (framesOnly) AskProgram(file, name string) bool            { return false }
-func (framesOnly) ProgramGranted(file, name, id string) bool    { return false }
-func (framesOnly) AIEditOffered() bool                          { return false }
-func (framesOnly) AIEditFor(string) (bool, bool)                { return false, false }
-func (framesOnly) AskAIEdit(string)                             {}
-func (framesOnly) AIEditFiles(string) bool                      { return false }
-func (framesOnly) AIEditEngines() (string, map[string][]string) { return "", nil }
-func (framesOnly) AIEditModels() map[string]string              { return nil }
-func (framesOnly) AIEditEfforts() map[string]string             { return nil }
-func (framesOnly) BuiltinFor(string, string) builtin.Access     { return builtin.Access{} }
-func (framesOnly) AskBuiltin(string, string)                    {}
-func (framesOnly) RevealFile(string) error                      { return nil }
+func (framesOnly) CanAskProgram() bool                             { return false }
+func (framesOnly) AskProgram(file, name string) bool               { return false }
+func (framesOnly) ProgramGranted(file, name, id string) bool       { return false }
+func (framesOnly) AIEditOffered() bool                             { return false }
+func (framesOnly) AIEditFor(string) (bool, bool)                   { return false, false }
+func (framesOnly) AskAIEdit(string)                                {}
+func (framesOnly) AIEditFiles(string) bool                         { return false }
+func (framesOnly) AIEditEngines() (string, map[string][]string)    { return "", nil }
+func (framesOnly) AIEditModels() map[string]string                 { return nil }
+func (framesOnly) AIEditEfforts() map[string]string                { return nil }
+func (framesOnly) BuiltinFor(string, string) builtin.Access        { return builtin.Access{} }
+func (framesOnly) AskBuiltin(string, string)                       {}
+func (framesOnly) RevealFile(string) error                         { return nil }
+func (framesOnly) NoteAIEditResult(string, string, string, string) {}
+func (framesOnly) NoteDocumentSaved(string, []byte)                {}
+func (framesOnly) DocumentTrust(string) wire.Trust                 { return wire.Trust{Tier: "unknown"} }
+func (framesOnly) AskDocument(string, string)                      {}
+func (framesOnly) AITools() wire.AIToolsHost                       { return nil }
+func (framesOnly) Programs() wire.ProgramsHost                     { return nil }
 
 const (
 	wireRootID           = "wire-root"

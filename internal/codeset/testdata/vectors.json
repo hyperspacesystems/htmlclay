@@ -42,6 +42,12 @@
       "signature": "unsigned"
     },
     {
+      "file": "select-button-onclick.html",
+      "hash": "1396c4963b62d0f2f28cc9a63b76d0e2971d2d10e61332386413701e5c395f10",
+      "parts": 1,
+      "signature": "unsigned"
+    },
+    {
       "file": "signed-handler-added.html",
       "hash": "198790fcc05aeac03319d13d47209c57fd57382d90bf1adeafc475c97db8716c",
       "parts": 14,

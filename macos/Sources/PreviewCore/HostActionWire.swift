@@ -124,6 +124,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "program.removeAccess", args: ["programID": .string(programID), "documentID": .string(document)])
         case let .removeAllProgramAccess(programID):
             return WireActionRequest(type: "program.removeAllAccess", args: ["programID": .string(programID)])
+        case let .removeReadAccess(id):
+            return WireActionRequest(type: HostActionType.readAccessRemove, args: ["id": .string(id)])
         case let .setProgramAllTrusted(programID, on):
             return WireActionRequest(type: "program.setAllTrusted", args: ["programID": .string(programID), "on": .bool(on)])
         case let .addProgram(name, path, acknowledged):

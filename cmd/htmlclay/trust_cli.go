@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/panphora/htmlclay/internal/aitools"
 	"github.com/panphora/htmlclay/internal/codeset"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
@@ -84,6 +85,9 @@ func runTrust(storeDir, home string, args []string, stdout, stderr io.Writer) in
 		if err := store.Forget(path, code); err != nil {
 			fmt.Fprintf(stderr, "htmlclay untrust: %v\n", err)
 			return trustExitFailed
+		}
+		if tools, err := aitools.OpenStore(filepath.Join(filepath.Dir(storeDir), "aitools")); err == nil {
+			_ = tools.ForgetFolder(path)
 		}
 		fmt.Fprintf(stdout, "Cleared your saved choice for %s. HTML Clay will ask before it uses your files.\n", filepath.Base(path))
 		return trustExitOK

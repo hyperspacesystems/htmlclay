@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/pageadmission"
+	"github.com/panphora/htmlclay/internal/wire"
 )
 
 // Local's live-sync relay (spec §10): the editing tab's working state handed to
@@ -246,6 +247,10 @@ func (s *rootServer) serveRelay(w http.ResponseWriter, r *http.Request, urlPath 
 		relayError(w, r, status, err.Error())
 		return nil
 	}
+	if s.wire != nil && s.wire.RelayBlocked(realOrSame(filePath)) {
+		relayError(w, r, http.StatusForbidden, wire.RelayBlockedText)
+		return nil
+	}
 
 	// Doc 11 §6b: the relay hands whole documents between tabs and never writes,
 	// but a tab that cannot read a floor-raised document must not receive one.
@@ -264,35 +269,42 @@ func (s *rootServer) serveRelay(w http.ResponseWriter, r *http.Request, urlPath 
 	}
 
 	sender, _ := body.string("sender")
-	if lane == "document" {
-		// Viewers only, and nothing else happens: this artifact is not a
-		// snapshot, so it must not reach the platform-sync cache, which exists to
-		// upload the unstripped working state.
-		s.live.broadcast(name, livePayload{HTML: relayed, Sender: sender}, "saved")
-		relayAnswer(w, r, http.StatusOK, orderedObject{{Key: "success", Value: true}})
+	broadcast := func() {
+		if lane == "document" {
+			// Viewers only, and nothing else happens: this artifact is not a
+			// snapshot, so it must not reach the platform-sync cache, which exists to
+			// upload the unstripped working state.
+			s.live.broadcast(name, livePayload{HTML: relayed, Sender: sender}, "saved")
+			return
+		}
+
+		// Cache the snapshot for platform sync, preserving any userDriven bit a prior
+		// /save cached: the peer body does not carry it, and overwriting blindly
+		// would drop the human-gesture provenance and make a clean save read as
+		// ui-unknown.
+		previous, _ := s.commit.store.snapshot(name)
+		s.commit.store.setSnapshot(name, snapshotEntry{
+			HTML:          &relayed,
+			UserDriven:    previous.UserDriven,
+			UserDrivenSet: previous.UserDrivenSet,
+			Timestamp:     snapshotNow(),
+		})
+
+		// identityMap and etag ride this lane and only this one: an editor pairs
+		// elements across a morph by stable id, and a stamp tells a receiver the
+		// version its next save is answering. A viewer has neither.
+		payload := livePayload{HTML: relayed, Sender: sender, Etag: etag}
+		if len(identityMap) > 0 {
+			payload.IdentityMap = identityMap
+		}
+		s.live.broadcast(name, payload, "live")
+	}
+	if s.wire == nil {
+		broadcast()
+	} else if !s.wire.WhileRelayAllowed(realOrSame(filePath), broadcast) {
+		relayError(w, r, http.StatusForbidden, wire.RelayBlockedText)
 		return nil
 	}
-
-	// Cache the snapshot for platform sync, preserving any userDriven bit a prior
-	// /save cached: the peer body does not carry it, and overwriting blindly
-	// would drop the human-gesture provenance and make a clean save read as
-	// ui-unknown.
-	previous, _ := s.commit.store.snapshot(name)
-	s.commit.store.setSnapshot(name, snapshotEntry{
-		HTML:          &relayed,
-		UserDriven:    previous.UserDriven,
-		UserDrivenSet: previous.UserDrivenSet,
-		Timestamp:     snapshotNow(),
-	})
-
-	// identityMap and etag ride this lane and only this one: an editor pairs
-	// elements across a morph by stable id, and a stamp tells a receiver the
-	// version its next save is answering. A viewer has neither.
-	payload := livePayload{HTML: relayed, Sender: sender, Etag: etag}
-	if len(identityMap) > 0 {
-		payload.IdentityMap = identityMap
-	}
-	s.live.broadcast(name, payload, "live")
 
 	relayAnswer(w, r, http.StatusOK, orderedObject{{Key: "success", Value: true}})
 	return nil

@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/aiedit"
+	"github.com/panphora/htmlclay/internal/aitools"
 	"github.com/panphora/htmlclay/internal/builtin"
+	"github.com/panphora/htmlclay/internal/carried"
 	"github.com/panphora/htmlclay/internal/pathrel"
 )
 
@@ -21,6 +23,8 @@ import (
 var builtinHelpers = map[string]func(*Core, Document, Envelope){
 	aiedit.HelperName:         (*Core).startAIEdit,
 	aiedit.PageToolHelperName: (*Core).startPageTool,
+	aitools.HelperName:        (*Core).startAITools,
+	carried.HelperName:        (*Core).startPrograms,
 }
 
 // The wire is a per-file control channel between a page and a local process. A
@@ -211,7 +215,7 @@ func (s *Core) BoundFiles() []string {
 // binding of the same path. A renamed or removed document is forgotten under
 // its old path.
 func (s *Core) Forget(path string) {
-	s.CancelAIEditFor(path)
+	s.CancelAIFor(path)
 	s.DetachHelpers(path)
 	s.HelperBindings.mu.Lock()
 	if state, ok := s.HelperBindings.byFile[path]; ok && state.bound {
@@ -229,6 +233,7 @@ func (s *Core) Forget(path string) {
 // renamed or trashed is forgotten under its old path. A document the wire never
 // bound still loses its run files here.
 func (s *Core) ForgetUnder(dir string) {
+	s.CancelAIUnder(dir)
 	for _, path := range s.BoundFiles() {
 		if pathrel.SameOrBelow(path, dir) {
 			s.Forget(path)
@@ -983,7 +988,7 @@ func (s *Core) handleWireSend(w http.ResponseWriter, r *http.Request) {
 				json.NewEncoder(w).Encode(map[string]any{"ok": true, "delivered": 1, "observers": 0})
 				return
 			}
-			if tokenOK && s.cancelAIEdit(doc.Path, env.ID) {
+			if tokenOK && (s.cancelAIEdit(doc.Path, env.ID) || s.cancelAITools(doc.Path, env.ID) || s.cancelProgram(doc.Path, env.ID)) {
 				s.HelperBindings.mu.RUnlock()
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]any{"ok": true, "delivered": 1, "observers": 0})

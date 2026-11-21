@@ -84,6 +84,7 @@ var ActionClasses = map[string]Class{
 	"program.removeAccess":    ClassRevoke,
 	"program.removeAllAccess": ClassRevoke,
 	"program.remove":          ClassRevoke,
+	"readAccess.remove":       ClassRevoke,
 	"sync.disconnect":         ClassRevoke,
 
 	"folder.trust":        ClassGrant,
@@ -155,6 +156,7 @@ var requestAnswers = map[string][]string{
 	RequestFolderReadAgain: {"deny", "trust-folder"},
 	RequestBuiltinProgram:  {"deny", "allow-document"},
 	RequestUnknownDocument: {"deny-document", "allow-document", "trust-document"},
+	RequestAITools:         {"deny", "choose-folder"},
 }
 
 // AnswersFor is the answers a request of kind offers, in button order.
@@ -520,6 +522,14 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		// DocumentID is the document's path, which is what a decision is keyed
 		// by, so a document that is not open can be removed too.
 		return one(Effect{Type: a.Type, ProgramID: args.ProgramID, DocumentID: args.DocumentID})
+	case "readAccess.remove":
+		if args.ID == "" {
+			return bad("id")
+		}
+		if !slices.ContainsFunc(f.ReadAccess, func(r ReadAccess) bool { return r.ID == args.ID }) {
+			return nil, &Refusal{Code: RefuseNoSuchFolder, SubjectID: args.ID}
+		}
+		return one(Effect{Type: a.Type, IDs: []string{args.ID}})
 	case "program.removeAllAccess":
 		if _, ok := programByID(f, args.ProgramID); !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}
@@ -544,6 +554,15 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		}
 		return one(Effect{Type: a.Type, ProgramID: args.ProgramID})
 	case "program.askAgain":
+		if args.ProgramID == DocumentTrustProgram {
+			if args.DocumentID == "" {
+				return bad("documentID")
+			}
+			if !slices.ContainsFunc(f.DeniedDocuments, func(d string) bool { return d == args.DocumentID || strings.EqualFold(d, args.DocumentID) }) {
+				return nil, &Refusal{Code: RefuseNoSuchDocument, SubjectID: args.DocumentID}
+			}
+			return one(Effect{Type: a.Type, ProgramID: DocumentTrustProgram, DocumentID: args.DocumentID, Name: DocumentTrustProgram})
+		}
 		program, ok := programByID(f, args.ProgramID)
 		if !ok {
 			return nil, &Refusal{Code: RefuseNoSuchProgram, SubjectID: args.ProgramID}

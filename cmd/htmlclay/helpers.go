@@ -561,20 +561,21 @@ func (a *app) refreshHelperDispatchers() {
 	}
 }
 
-// cancelAIEdits stops every running AI edit on every site, after the AI Editing
-// switch is turned off.
+// cancelAIEdits stops every running AI edit and ai-tools request on every
+// site, after the AI Editing switch is turned off.
 func (a *app) cancelAIEdits() {
 	a.mu.Lock()
 	sites := append([]*site(nil), a.sites...)
 	a.mu.Unlock()
 	for _, s := range sites {
 		if s.srv != nil {
-			s.srv.CancelAIEdits()
+			s.srv.CancelAI()
 		}
 	}
 	for _, core := range a.servedWireCores() {
-		core.CancelAIEdits()
+		core.CancelAI()
 	}
+	a.closeAITools()
 }
 
 func (a *app) reportHelperSetupError(document string, err error) {

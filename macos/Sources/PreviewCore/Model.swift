@@ -244,6 +244,18 @@ public struct MoveBlockers: Codable, Equatable, Sendable {
     }
 }
 
+/// One folder a page may read because the person allowed it on the read prompt.
+/// place is the folder as a person reads it; pages are the documents sharing it.
+public struct ReadAccess: Codable, Equatable, Identifiable, Sendable {
+    public var id: String
+    public var place: String
+    public var pages: [String]
+
+    public init(id: String, place: String, pages: [String] = []) {
+        self.id = id; self.place = place; self.pages = pages
+    }
+}
+
 public struct Program: Codable, Equatable, Identifiable, Sendable {
     public var id: String
     public var name: String
@@ -265,7 +277,7 @@ public struct Program: Codable, Equatable, Identifiable, Sendable {
 
 public struct ProgramRequest: Codable, Equatable, Identifiable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
-        case found, noFile, teamDocument, riskyFile, folderRead, folderReadAgain, builtinProgram, unknownDocument
+        case found, noFile, teamDocument, riskyFile, folderRead, folderReadAgain, builtinProgram, unknownDocument, aiTools
     }
     public var id: String
     public var kind: Kind
@@ -457,14 +469,18 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public var isSample: Bool
     /// How many edits HTML Clay saved aside; the menu and the panel hide the row at 0.
     public var recoveredChanges: Int
+    /// Settings, Folders: the read permissions list, hidden when empty.
+    public var readAccess: [ReadAccess]
+    /// Documents with a stored Don't allow answer, offered Ask again on Programs.
+    public var deniedDocuments: [String]
 
     private enum CodingKeys: String, CodingKey {
         case documents, folders, programs, requests, waiting, sync, update, preferences,
              localMoveOffer, hostStopped, rev, epoch, host, hostCounts, moveFolders, moveBlockers,
-             recoveredChanges
+             recoveredChanges, readAccess, deniedDocuments
     }
 
-    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], moveBlockers: MoveBlockers = MoveBlockers(), isSample: Bool = false, recoveredChanges: Int = 0) {
+    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], moveBlockers: MoveBlockers = MoveBlockers(), isSample: Bool = false, recoveredChanges: Int = 0, readAccess: [ReadAccess] = [], deniedDocuments: [String] = []) {
         self.documents = documents; self.folders = folders; self.programs = programs; self.requests = requests
         self.waiting = waiting; self.sync = sync; self.update = update; self.preferences = preferences
         self.localMoveOffer = localMoveOffer
@@ -474,6 +490,8 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
         self.moveBlockers = moveBlockers
         self.isSample = isSample
         self.recoveredChanges = recoveredChanges
+        self.readAccess = readAccess
+        self.deniedDocuments = deniedDocuments
     }
 
     /// A decoded snapshot is never sample data: isSample stays out of the JSON.
@@ -496,6 +514,8 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
         moveFolders = try container.decode([MoveFolderInfo].self, forKey: .moveFolders)
         moveBlockers = try container.decodeIfPresent(MoveBlockers.self, forKey: .moveBlockers) ?? MoveBlockers()
         recoveredChanges = try container.decodeIfPresent(Int.self, forKey: .recoveredChanges) ?? 0
+        readAccess = try container.decodeIfPresent([ReadAccess].self, forKey: .readAccess) ?? []
+        deniedDocuments = try container.decodeIfPresent([String].self, forKey: .deniedDocuments) ?? []
         isSample = false
     }
 
@@ -525,6 +545,7 @@ public enum HostAction: Equatable, Sendable {
     case setYourName(String)
     case removeProgramAccess(programID: String, document: String)
     case removeAllProgramAccess(programID: String)
+    case removeReadAccess(id: String)
     case connectSample
     case disconnect
     /// Sets up an account or team folder at path. existing syncs into files

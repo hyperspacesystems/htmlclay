@@ -286,6 +286,9 @@ func (s *rootServer) serveSave(w http.ResponseWriter, r *http.Request) error {
 			{Key: "code", Value: result.Reason},
 		})
 	}
+	if s.wirePolicy != nil {
+		s.wirePolicy.NoteDocumentSaved(realOrSame(filePath), []byte(content))
+	}
 
 	// §6: a host advertising `conditional` returns the stamp with EVERY save, not
 	// only its refusals, or a client has nothing to send as its next If-Match.

@@ -92,7 +92,7 @@ func ReadDialogText(ask confirm.Ask) (string, string) {
 	}
 	return "HTML Clay", fmt.Sprintf(
 		"%s is trying to read files in:\n\n%s\n\n"+
-			"Allow once gives it read-only access to that folder until you quit.\n\n"+
+			"Allow once gives it read access to that folder while this page can save.\n\n"+
 			"Trust this folder is permanent: every HTML Clay file in it opens editable with no prompts, "+
 			"including files added later, and any file in it can change any other.",
 		who, ask.Path)

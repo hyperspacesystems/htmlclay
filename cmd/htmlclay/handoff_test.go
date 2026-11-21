@@ -111,17 +111,24 @@ func readKept(path string) (savedTokens, error) {
 }
 
 // waitKeptCurrent waits until the record on disk names exactly the live
-// registrations, each with its file's identity now: what a crash at this moment
-// leaves behind.
+// registrations, each with its file's identity now, and every live read grant:
+// what a crash at this moment leaves behind.
 func waitKeptCurrent(t *testing.T, a *app, path string) {
 	t.Helper()
 	want := map[string]string{}
+	wantGrants := map[string]bool{}
 	a.mu.Lock()
 	sites := append([]*site(nil), a.sites...)
 	a.mu.Unlock()
 	for _, s := range sites {
-		for _, r := range s.sessions.Snapshot().Registrations {
+		snap := s.sessions.Snapshot()
+		for _, r := range snap.Registrations {
 			want[r.Token] = r.Path
+		}
+		if len(snap.Registrations) > 0 {
+			for _, root := range snap.GrantedRoots {
+				wantGrants[s.key+"\x00"+root] = true
+			}
 		}
 	}
 	waitFor(t, "the kept record to match the live sessions", func() bool {
@@ -130,6 +137,7 @@ func waitKeptCurrent(t *testing.T, a *app, path string) {
 			return false
 		}
 		got := map[string]string{}
+		gotGrants := map[string]bool{}
 		for _, site := range rec.Sites {
 			for _, f := range site.Files {
 				if f.Identity != platform.DirIdentity(f.Path) {
@@ -137,8 +145,11 @@ func waitKeptCurrent(t *testing.T, a *app, path string) {
 				}
 				got[f.Token] = f.Path
 			}
+			for _, root := range site.GrantedRoots {
+				gotGrants[site.Key+"\x00"+root] = true
+			}
 		}
-		return maps.Equal(got, want)
+		return maps.Equal(got, want) && maps.Equal(gotGrants, wantGrants)
 	})
 }
 
@@ -255,9 +266,8 @@ func liveSiteWithHost(t *testing.T, a *app, host string) *site {
 // An ordinary restart keeps open tabs saving, whether the app quit or died:
 // the tokens kept in save-tokens.json come back with their checks, a trusted
 // folder's on its first request and an ad-hoc file's when a request reaches its
-// address. A read grant does not come back: "Allow once" lasts until the
-// person quits. Nothing is rebuilt before a request asks, so no
-// folder is held open for a tab nobody still has.
+// address. The page's read grant comes back with its tab. Nothing is rebuilt
+// before a request asks, so no folder is held open for a tab nobody still has.
 func TestOrdinaryRestartKeepsOpenTabsSaving(t *testing.T) {
 	for _, crash := range []bool{false, true} {
 		name := "quit"
@@ -302,8 +312,8 @@ func TestOrdinaryRestartKeepsOpenTabsSaving(t *testing.T) {
 				}
 			}
 			s := liveSiteWithHost(t, second, fx.looseHost)
-			if _, _, ok := s.sessions.AssetRoot(filepath.Join(fx.assets, "logo.txt")); ok {
-				t.Fatal("the read grant came back after a quit; Allow once lasts until the person quits")
+			if _, _, ok := s.sessions.AssetRoot(filepath.Join(fx.assets, "logo.txt")); !ok {
+				t.Fatal("the read grant did not come back with its tab after a restart")
 			}
 		})
 	}
@@ -738,15 +748,32 @@ func TestKeptTokenFollowsTrustInside(t *testing.T) {
 // A read grant given by the read prompt's "Trust this folder" button: the grant
 // and the trust come from one click, and Stop trusting takes both back from every
 // live site (closeSitesLocked). After a restart, it must not come back either.
-func keptGrantFixture(t *testing.T) (*app, keptRestart, string, string, string) {
+// The page is a loose file, or one in a trusted folder of its own, whose site
+// exists at startup but restores its kept grants only on its first request.
+// upper grants the folder spelled in capitals, as a page may ask for it, while
+// trust keeps the disk's spelling; the two name one folder only on a disk that
+// folds case.
+func keptGrantFixture(t *testing.T, inTrusted, upper bool) (*app, keptRestart, string, string, string) {
 	t.Helper()
 	first, r := newKeptRestart(t)
 	loose := filepath.Join(r.home, "notes", "loose.htmlclay")
 	assets := filepath.Join(r.home, "assets")
 	writeTestFile(t, loose, "<html><body>loose</body></html>")
+	if inTrusted {
+		if err := first.trustFolder(filepath.Join(r.home, "notes")); err != nil {
+			t.Fatal(err)
+		}
+	}
 	writeTestFile(t, filepath.Join(assets, "logo.txt"), "logo")
 	s, _ := first.openForTest(t, loose)
-	if err := s.sessions.GrantCanonicalRoot(assets); err != nil {
+	grantAs := assets
+	if upper {
+		grantAs = filepath.Join(r.home, "ASSETS")
+		if _, err := os.Stat(grantAs); err != nil {
+			t.Skip("this disk tells capitals apart, so the spellings name two folders")
+		}
+	}
+	if err := s.sessions.GrantCanonicalRoot(grantAs); err != nil {
 		t.Fatal(err)
 	}
 	if err := first.trustFolder(assets); err != nil {
@@ -756,26 +783,84 @@ func keptGrantFixture(t *testing.T) (*app, keptRestart, string, string, string) 
 }
 
 func TestStopTrustingEndsAKeptReadGrant(t *testing.T) {
-	first, r, loose, assets, host := keptGrantFixture(t)
-	tok := tokenFor(t, liveSiteWithHost(t, first, host), loose)
-	first.shutdown()
-	requirePortFree(t, r.port)
+	for _, c := range []struct {
+		name      string
+		inTrusted bool
+		upper     bool
+	}{
+		{"loose page", false, false},
+		{"page in a trusted folder", true, false},
+		{"grant spelled as the page asked", false, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			first, r, loose, assets, host := keptGrantFixture(t, c.inTrusted, c.upper)
+			tok := tokenFor(t, liveSiteWithHost(t, first, host), loose)
+			first.shutdown()
+			requirePortFree(t, r.port)
 
-	second := r.again(t)
-	if err := second.untrustFolder(assets); err != nil {
-		t.Fatal(err)
-	}
-	code, out := saveWith(t, host, tok, "<html><body>after</body></html>")
-	t.Logf("old tab save = %d %s", code, out)
-	s := liveSiteWithHost(t, second, host)
-	if _, _, ok := s.sessions.AssetRoot(filepath.Join(assets, "logo.txt")); ok {
-		t.Errorf("the read grant on %s came back after Stop trusting took it away", assets)
+			second := r.again(t)
+			if err := second.untrustFolder(assets); err != nil {
+				t.Fatal(err)
+			}
+			if code, out := saveWith(t, host, tok, "<html><body>after</body></html>"); code != 200 {
+				t.Fatalf("the old tab's save after the restart = %d: %s", code, out)
+			}
+			s := liveSiteWithHost(t, second, host)
+			if _, _, ok := s.sessions.AssetRoot(filepath.Join(assets, "logo.txt")); ok {
+				t.Errorf("the read grant on %s came back after Stop trusting took it away", assets)
+			}
+		})
 	}
 }
 
 // Trusting an ad-hoc document's own folder after a restart, before its tab's
 // first request, keeps the tab saving at the same address, as a running app
 // does when it adopts the site in place.
+// Stop trusting ends a live grant the page spelled differently from the disk.
+func TestStopTrustingEndsAGrantSpelledByThePage(t *testing.T) {
+	first, _, _, assets, host := keptGrantFixture(t, false, true)
+	s := liveSiteWithHost(t, first, host)
+	if _, _, ok := s.sessions.AssetRoot(filepath.Join(assets, "logo.txt")); !ok {
+		t.Fatal("the grant spelled ASSETS does not read assets to begin with")
+	}
+	if err := first.untrustFolder(assets); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok := s.sessions.AssetRoot(filepath.Join(assets, "logo.txt")); ok {
+		t.Error("the grant spelled ASSETS still reads assets after Stop trusting")
+	}
+}
+
+// A page that needs the warning after a restart (here HTML Clay now knows it
+// was downloaded) gets its tab back but not its read grant: a page nobody
+// vouches for never widens what it can read, so its next read asks again.
+func TestKeptReadGrantStaysBehindForAPageNobodyVouchesFor(t *testing.T) {
+	first, r := newKeptRestart(t)
+	loose := filepath.Join(r.home, "notes", "loose.htmlclay")
+	assets := filepath.Join(r.home, "assets")
+	writeTestFile(t, loose, "<html><body>loose</body></html>")
+	writeTestFile(t, filepath.Join(assets, "logo.txt"), "logo")
+	s, _ := first.openForTest(t, loose)
+	if err := s.sessions.GrantCanonicalRoot(assets); err != nil {
+		t.Fatal(err)
+	}
+	host, tok := s.host, tokenFor(t, s, loose)
+	first.shutdown()
+	requirePortFree(t, r.port)
+
+	second := r.again(t)
+	downloadedHere(t, second, loose)
+	code, out := saveWith(t, host, tok, "<html><body>after</body></html>")
+	t.Logf("the old tab's save = %d %s", code, out)
+	restored := liveSiteWithHost(t, second, host)
+	if _, found := restored.sessions.LookupByPath(loose); !found {
+		t.Fatal("the tab was not restored, so the grant check below would prove nothing")
+	}
+	if _, _, ok := restored.sessions.AssetRoot(filepath.Join(assets, "logo.txt")); ok {
+		t.Error("a page that needs the warning got its read grant back after a restart")
+	}
+}
+
 func TestKeptTokenSurvivesTrustingItsOwnFolder(t *testing.T) {
 	first, r := newKeptRestart(t)
 	proj := filepath.Join(r.home, "proj")

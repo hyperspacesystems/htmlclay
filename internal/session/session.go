@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -548,6 +549,16 @@ func ContainWithinHome(home, child string) (string, bool) {
 	return prefix + rest, true
 }
 
+// SamePath reports whether two paths name the same file, folding case where the
+// disk does: a page can spell a folder Assets while trust spells it assets.
+func SamePath(a, b string) bool {
+	x, y := filepath.Clean(a), filepath.Clean(b)
+	if caseInsensitiveFS() {
+		x, y = strings.ToLower(x), strings.ToLower(y)
+	}
+	return x == y
+}
+
 // EqualOrUnder reports whether child is parent or sits below it, folding case on
 // the platforms whose filesystem ignores it.
 //
@@ -799,6 +810,36 @@ func (m *Manager) Snapshot() Snapshot {
 	return snap
 }
 
+// ReadGrants lists the folders this site's pages may read only because the
+// person granted them. A folder also opened or trusted here, in any spelling,
+// stays readable without the grant, so it is left out: removing that grant
+// would end nothing. Spellings of one folder are listed once, since
+// RevokeReadRoot ends them together.
+func (m *Manager) ReadGrants() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.revoked {
+		return nil
+	}
+	var granted, held []string
+	for dir, rr := range m.readRoots {
+		if rr.opened || rr.trusted {
+			held = append(held, dir)
+		} else if rr.granted {
+			granted = append(granted, dir)
+		}
+	}
+	slices.Sort(granted)
+	var out []string
+	for _, dir := range granted {
+		same := func(other string) bool { return SamePath(dir, other) }
+		if !slices.ContainsFunc(held, same) && !slices.ContainsFunc(out, same) {
+			out = append(out, dir)
+		}
+	}
+	return out
+}
+
 // RegistrationInfo is a snapshot of one registration, for the tray and for
 // provenance-aware revocation sweeps.
 type RegistrationInfo struct {
@@ -1006,17 +1047,23 @@ func (m *Manager) installCanonicalRoot(canonical string, kind rootKind) error {
 func (m *Manager) RevokeReadRoot(dir string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	rr, ok := m.readRoots[dir]
-	if !ok {
-		return
-	}
-	defer m.changed(true)
-	rr.granted = false
-	if !rr.opened && !rr.trusted {
-		if rr.root != nil {
-			rr.root.Close()
+	revoked := false
+	for key, rr := range m.readRoots {
+		// The broker keys a grant by the page's spelling, trust by the disk's.
+		if !SamePath(key, dir) {
+			continue
 		}
-		delete(m.readRoots, dir)
+		revoked = true
+		rr.granted = false
+		if !rr.opened && !rr.trusted {
+			if rr.root != nil {
+				rr.root.Close()
+			}
+			delete(m.readRoots, key)
+		}
+	}
+	if revoked {
+		m.changed(true)
 	}
 }
 

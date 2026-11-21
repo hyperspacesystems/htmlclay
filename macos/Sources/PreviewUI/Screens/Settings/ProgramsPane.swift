@@ -26,6 +26,7 @@ struct ProgramsPane: View {
             waitingGroup
             builtinGroup
             programsGroup
+            deniedDocumentsGroup
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -95,6 +96,32 @@ struct ProgramsPane: View {
                         KilnRowDivider()
                     }
                     ProgramRow(program: program)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var deniedDocumentsGroup: some View {
+        let docs = model.snapshot.deniedDocuments
+        if !docs.isEmpty {
+            KilnGroupTitle(Strings.Programs.blockedDocuments)
+            KilnCard {
+                ForEach(Array(docs.enumerated()), id: \.element) { index, document in
+                    if index > 0 {
+                        KilnRowDivider()
+                    }
+                    KilnRow(title: ProgramControls.documentLabel(document), subtitle: document, leading: {
+                        Image(systemName: Symbols.doc)
+                            .font(.system(size: 14))
+                            .foregroundStyle(kiln.muted)
+                    }, trailing: {
+                        if model.isSample || model.can(HostActionType.programAskAgain) {
+                            Button(Strings.Programs.askAgain) {
+                                Task { _ = await ProgramFlow.askDocumentAgain(document, model: model) }
+                            }
+                            .buttonStyle(KilnButtonStyle(.plain))
+                        }
+                    })
                 }
             }
         }

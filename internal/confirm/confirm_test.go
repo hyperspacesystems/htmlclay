@@ -280,6 +280,25 @@ func TestM3RequestLifetime(t *testing.T) {
 		}
 	})
 
+	t.Run("choose-folder carries an absolute path and settles the request", func(t *testing.T) {
+		h := newHarness(t)
+		out := h.ask(context.Background(), Ask{Kind: "aiTools", Answers: []string{"deny", "choose-folder"}})
+		p := h.awaitOne()
+		if err := h.r.Answer(p.ID, p.Revision, "choose-folder", "app"); !errors.Is(err, ErrBadPath) {
+			t.Fatalf("choose-folder with a relative path = %v, want ErrBadPath", err)
+		}
+		folder := filepath.Dir(chosenFile)
+		if err := h.r.Answer(p.ID, p.Revision, "choose-folder", folder); err != nil {
+			t.Fatalf("Answer with an absolute folder: %v", err)
+		}
+		if res := h.awaitAsk(out); res.reply != (Reply{ID: p.ID, Choice: "choose-folder", Path: folder}) {
+			t.Fatalf("reply = %+v", res.reply)
+		}
+		if pending := h.r.Pending(); len(pending) != 0 {
+			t.Fatalf("pending after choose-folder = %d, want none", len(pending))
+		}
+	})
+
 	t.Run("choose-file keeps the request listed until asked again or closed", func(t *testing.T) {
 		h := newHarness(t)
 		out := h.ask(context.Background(), Ask{Kind: "no-file", Answers: []string{"deny", "choose-file"}})

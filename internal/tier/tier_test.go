@@ -170,6 +170,15 @@ func TestNoteRecordsDeveloperFiles(t *testing.T) {
 	if _, ok := s.PathTrust(tampered); ok {
 		t.Fatal("developer mode recorded a document whose signature does not count as the person's")
 	}
+	// A copy written without the signature tag keeps the doubt: dropping the
+	// tag must not turn a tampered document into the developer's own.
+	const copied = "/home/me/code/signed-new.html"
+	if err := s.NoteCopy(tampered, copied); err != nil {
+		t.Fatal(err)
+	}
+	if v := s.Of(Input{Path: copied, Data: []byte(page), Developer: true}); v.Tier != Unknown || v.Reason != ReasonBrokenSignature {
+		t.Fatalf("an unsigned copy of a tampered document is %s %s", v.Tier, v.Reason)
+	}
 }
 
 func TestNoteRecordsACopyOfTrustedCode(t *testing.T) {
@@ -378,5 +387,72 @@ func TestOpenTwice(t *testing.T) {
 	}
 	if _, created, _ := Open(dir); created {
 		t.Fatal("second Open must not report created")
+	}
+}
+
+func TestDeniedDocumentsPreservesDisplayCaseAndClearDenyRemovesIt(t *testing.T) {
+	s := openStore(t)
+	doc := filepath.Join(t.TempDir(), "MyStrangerApp.html")
+	if err := os.WriteFile(doc, []byte("<!doctype html><script>1</script>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Deny(doc); err != nil {
+		t.Fatal(err)
+	}
+	got := s.DeniedDocuments()
+	if len(got) != 1 || got[0] != doc {
+		t.Fatalf("DeniedDocuments = %v, want [%s]", got, doc)
+	}
+	if err := s.ClearDeny(doc); err != nil {
+		t.Fatal(err)
+	}
+	if after := s.DeniedDocuments(); len(after) != 0 {
+		t.Fatalf("DeniedDocuments after ClearDeny = %v, want empty", after)
+	}
+}
+
+func TestRebindByCaseKeepsRecordsAndRenamesTheDenial(t *testing.T) {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		s := openStore(t)
+		const before, after = "/home/me/Notes.html", "/home/me/notes.html"
+		if err := s.TrustPath(before, false, HowCreated); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.NoteSeen(before, false); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Deny(before); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Rebind(before, after); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := s.PathTrust(after); !ok {
+			t.Fatal("a rename that only changes case lost the path record")
+		}
+		if _, ok := s.Seen(after); !ok {
+			t.Fatal("a rename that only changes case lost the first sight")
+		}
+		if rec, ok := s.Answer(after); !ok || !rec.Denied {
+			t.Fatalf("a rename that only changes case lost the Don't allow: %+v, %v", rec, ok)
+		}
+	}
+
+	s := openStore(t)
+	if err := s.Deny("/home/me/old.html"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Rebind("/home/me/old.html", "/home/me/new.html"); err != nil {
+		t.Fatal(err)
+	}
+	denied := s.DeniedDocuments()
+	if len(denied) != 1 || filepath.Base(denied[0]) != "new.html" {
+		t.Fatalf("denied after rename = %v, want new.html", denied)
+	}
+	if err := s.ClearDeny("/home/me/new.html"); err != nil {
+		t.Fatal(err)
+	}
+	if denied := s.DeniedDocuments(); len(denied) != 0 {
+		t.Fatalf("denied after clearing = %v, want none", denied)
 	}
 }

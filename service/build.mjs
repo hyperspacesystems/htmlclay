@@ -115,7 +115,7 @@ const PATH_READERS = new Map([
   ['node_modules/@panphora/hyperclay-workspace/dist/server/index.cjs', { refs: 1, reads: 'anchors.js' }],
   ['node_modules/@panphora/hyperclay-workspace/dist/server/cheerio.cjs', { refs: 2, reads: 'nothing (stack traces only)' }],
   ['node_modules/undici/index.js', { refs: 3, reads: 'nothing (stack traces only)' }],
-  ['node_modules/tailwind-hyperclay/index.js', { refs: 3, reads: "tailwindcss's CSS and its plugins, shipped as packages" }],
+  ['node_modules/tailwind-hyperclay/index.js', { refs: 3, reads: 'nothing: only compileTailwind reads, and it refuses here (no-tailwind.cjs)' }],
 ]);
 
 // Files and folders the bundled code reads by path, copied at their original
@@ -134,16 +134,6 @@ const DATA_FILES = [
   'node_modules/@panphora/hyperclay-workspace/dist/local-app/manifest.json',
   'node_modules/@panphora/hyperclay-workspace/dist/server/anchors.js',
   'node_modules/@panphora/clayjs/dist/server/page-compaction-worker.cjs',
-  // tailwind-hyperclay resolves tailwindcss's CSS and loads its two plugins by
-  // computed name, so these stay real packages.
-  'node_modules/tailwind-hyperclay/package.json',
-  'node_modules/tailwindcss',
-  'node_modules/@tailwindcss/typography',
-  'node_modules/@tailwindcss/forms',
-  'node_modules/postcss-selector-parser',
-  'node_modules/cssesc',
-  'node_modules/util-deprecate',
-  'node_modules/mini-svg-data-uri',
 ];
 
 // The one warning left: shell-server.js resolves the workspace manifest as a
@@ -151,7 +141,7 @@ const DATA_FILES = [
 // file ships anyway, so the path stays valid.
 const ALLOWED_WARNING = '@panphora/hyperclay-workspace/local-app/manifest.json';
 const JSDOM_SYNC_XHR = 'require.resolve ? require.resolve("./xhr-sync-worker.js") : null';
-const MAX_PACKED_FILES = 300;
+const MAX_PACKED_FILES = 100;
 
 async function loadEsbuild() {
   try {
@@ -196,6 +186,20 @@ async function packApp(installed, packed) {
     },
   };
 
+  // tailwind-hyperclay requires tailwindcss as it loads, but this program uses
+  // only its link helpers: Go compiles every stylesheet. So the bundle gets a
+  // stand-in that refuses to compile, and neither tailwindcss nor its plugins ship.
+  const noTailwind = {
+    name: 'no-tailwind',
+    setup(build) {
+      build.onResolve({ filter: /^tailwindcss$/ }, (args) => {
+        const from = rel(args.importer);
+        if (!from.startsWith('node_modules/tailwind-hyperclay/')) fail(`${from} requires tailwindcss, which the packed program does not carry`);
+        return { path: path.join(app, 'no-tailwind.cjs') };
+      });
+    },
+  };
+
   const inputs = new Set();
   const bundle = async (entry, rootExpr) => {
     const result = await esbuild.build({
@@ -207,7 +211,7 @@ async function packApp(installed, packed) {
       format: 'cjs',
       external: ['electron'],
       banner: { js: `const __serviceRoot = ${rootExpr};` },
-      plugins: [ownDirname],
+      plugins: [noTailwind, ownDirname],
       logLevel: 'silent',
       metafile: true,
       legalComments: 'eof',

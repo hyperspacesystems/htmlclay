@@ -5,6 +5,8 @@ import (
 
 	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/confirm"
+	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/wire"
 )
 
 // Hooks are the decisions a site's server cannot make for itself. Each one
@@ -89,6 +91,23 @@ type Hooks struct {
 	// AIEditFiles answers whether document's AI requests may attach its sibling
 	// files. Nil means none may: a request attaches the page alone.
 	AIEditFiles func(document string) bool
+	// DocumentTrust is what the app knows of document's trust. Nil means no
+	// document is ready.
+	DocumentTrust func(document string) wire.Trust
+	// AskDocument raises the one question document's code needs. Nil asks
+	// nothing.
+	AskDocument func(document, program string)
+	// NoteAIEditResult hears an AI edit that finished on a document, so a save
+	// after Keep can trust exactly the code that edit produces. Nil ignores it.
+	NoteAIEditResult func(document, elementHTML, tag, resultHTML string)
+	// Saved hears the bytes a page saved into a document. Nil ignores them.
+	Saved func(absPath string, data []byte)
+	// AITools is the ai-tools host. Nil means this server offers no AI with
+	// tools.
+	AITools wire.AIToolsHost
+	// Programs is the carried programs host. Nil means this server runs no
+	// program a document carries.
+	Programs wire.ProgramsHost
 	// Stranger reports a page that may run only on an origin of its own. A site
 	// that reaches it as an asset serves it sandboxed: no scripts and an opaque
 	// origin, so it cannot act as this site. Nil means no page is one.
@@ -146,6 +165,12 @@ type Hooks struct {
 	// ExportDocument zips a document with its uploads into Downloads and shows it.
 	// Nil hides the action.
 	ExportDocument func(absPath string) error
+
+	// NewDocument writes html, a blank copy the page built of the document at
+	// source, to a new file beside it and returns the address the new file
+	// serves at. via is how source was registered, which the copy takes too.
+	// An ActionRefusal is shown to the page as written. Nil hides the action.
+	NewDocument func(source string, via session.Provenance, html []byte) (url string, err error)
 }
 
 // SetHooks wires the app behind this server. Call once, before Start.

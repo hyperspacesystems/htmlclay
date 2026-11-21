@@ -251,6 +251,50 @@ final class ProgramFlowTests: XCTestCase {
                        [RequestAnswer.denyDocument, RequestAnswer.allowDocument, RequestAnswer.trustDocument])
     }
 
+    func testAnAIToolsRequestOffersAFolderPickAndNoFile() {
+        let request = ProgramRequest(id: "r2", kind: .aiTools, document: "/Users/sam/Reviews/whatthefunc.htmlclay",
+                                     program: "ai-tools", folder: "Reviews", path: "/Users/sam/Reviews",
+                                     answers: [RequestAnswer.deny, RequestAnswer.chooseFolder])
+        XCTAssertEqual(RequestControls.choice(RequestAnswer.chooseFolder, in: request, isSample: false)?.title,
+                       Strings.Request.chooseAFolder)
+        XCTAssertEqual(RequestControls.choice(RequestAnswer.deny, in: request, isSample: false)?.title,
+                       Strings.Request.dontAllow)
+        XCTAssertNil(RequestControls.choice(RequestAnswer.chooseFile, in: request, isSample: false))
+        XCTAssertEqual(RequestControls.answers(SampleData.request(.aiTools).request, isSample: true),
+                       [RequestAnswer.deny, RequestAnswer.chooseFolder])
+        XCTAssertEqual(RequestFlow.action(RequestAnswer.chooseFolder, path: "/Users/sam/app", request: request),
+                       .answer(requestID: "r2", revision: request.revision, answer: "choose-folder", path: "/Users/sam/app"))
+    }
+
+    func testAskDocumentAgainClearsStoredDontAllow() async throws {
+        let denied = "/Users/sam/Downloads/stranger.html"
+        let initial = HostSnapshot(deniedDocuments: [denied])
+        let host = ProgramHost(initial)
+        host.outcome = .done(HostSnapshot())
+        let model = AppModel(host: host, initial: initial)
+
+        let cleared = await ProgramFlow.askDocumentAgain(denied, model: model)
+        XCTAssertTrue(cleared)
+        XCTAssertEqual(host.recorded, [.askProgramAgain(programID: ProgramControls.documentTrustID, documentID: denied)])
+        let wire = try XCTUnwrap(HostActionWire.wire(host.recorded[0]))
+        XCTAssertEqual(wire.type, "program.askAgain")
+        XCTAssertEqual(wire.args, [
+            "programID": .string("document-trust"),
+            "documentID": .string(denied),
+        ])
+        XCTAssertTrue(model.snapshot.deniedDocuments.isEmpty)
+
+        let sampleHost = SampleHost(persona: .trustedFolder)
+        let sampleOutcome = await sampleHost.perform(
+            .askProgramAgain(programID: ProgramControls.documentTrustID, documentID: denied)
+        )
+        if case let .done(next) = sampleOutcome {
+            XCTAssertFalse(next.deniedDocuments.contains(denied))
+        } else {
+            XCTFail("sample host refused askProgramAgain for document-trust")
+        }
+    }
+
     func testTheWideningSwitchShowsTheNewestValue() {
         XCTAssertFalse(ProgramControls.allTrusted(resize, pending: nil))
         XCTAssertTrue(ProgramControls.allTrusted(resize, pending: .setProgramAllTrusted(programID: "p1", on: true)))

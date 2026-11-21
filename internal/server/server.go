@@ -35,7 +35,11 @@ type Server struct {
 	// document served with public runtime URLs.
 	runtimeNoticeMu sync.Mutex
 	runtimeNotices  map[string]bool
-	internalDir     string
+	// newDocumentMu guards newDocumentAt, when this site last made a new
+	// document, so a page cannot fill a folder with them.
+	newDocumentMu sync.Mutex
+	newDocumentAt time.Time
+	internalDir   string
 	// uploadsDir is the per-computer uploads library, ~/htmlclay/uploads. Empty
 	// when the home directory could not be resolved, which refuses uploads and
 	// 404s the library route rather than writing anywhere else.
@@ -257,6 +261,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	mux.HandleFunc("POST /_/helper-setup/{token}", sameOrigin(s.handleHelperSetup))
 	mux.HandleFunc("POST /_/versions-folder/{token}", sameOrigin(s.handleVersionsFolder))
 	mux.HandleFunc("POST /_/export/{token}", sameOrigin(s.handleExport))
+	mux.HandleFunc("POST /_/new-document/{token}", sameOrigin(s.handleNewDocument))
 	// Registered ahead of the catch-all. The stream is a read, but it joins the
 	// gate: live-sync authorizes by registered path rather than by token, so
 	// without the gate it is reachable by any page the user's browser has open.
@@ -401,7 +406,7 @@ func (s *Server) CancelBuiltins(program, document string) {
 // an injected live-sync runtime leaves it running (the process shuts the shared
 // runtime down once, before the per-site HTTP servers).
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.CancelAIEdits()
+	s.CancelAI()
 	s.CancelBuiltins("", "")
 	s.guardQueue.Settle()
 	s.broker.shutdown()
@@ -417,7 +422,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) Close() error {
-	s.CancelAIEdits()
+	s.CancelAI()
 	s.CancelBuiltins("", "")
 	s.guardQueue.Settle()
 	s.broker.shutdown()
@@ -447,7 +452,7 @@ func redactPath(p string) string {
 	for _, prefix := range []string{
 		"/_/save/", "/_/unsaved/", "/_/read/", "/_/meta/", "/_/upload/",
 		"/_/versions/", "/_/version/", "/_/restore/",
-		"/_/reveal/", "/_/versions-folder/", "/_/export/",
+		"/_/reveal/", "/_/versions-folder/", "/_/export/", "/_/new-document/",
 		"/_/workspace-request/", "/_/helper-setup/",
 	} {
 		if strings.HasPrefix(p, prefix) {

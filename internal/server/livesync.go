@@ -20,6 +20,7 @@ import (
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/versions"
+	"github.com/panphora/htmlclay/internal/wire"
 )
 
 const (
@@ -1493,8 +1494,8 @@ func (s *Server) handleLiveSyncSave(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusNotFound, "unknown page")
 		return
 	}
-	if s.HelpersBound(f.AbsPath) {
-		s.writeError(w, http.StatusForbidden, "live sync disabled for helper-bound document")
+	if s.RelayBlocked(f.AbsPath) {
+		s.writeError(w, http.StatusForbidden, wire.RelayBlockedText)
 		return
 	}
 
@@ -1646,7 +1647,7 @@ func (s *Server) handleLiveSyncSave(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !s.WhileUnbound(f.AbsPath, func() {
+	if !s.WhileRelayAllowed(f.AbsPath, func() {
 
 		if lane == laneSaved {
 			// Viewers, on the same lane a save publishes to. Nothing is written: §10 is
@@ -1663,7 +1664,7 @@ func (s *Server) handleLiveSyncSave(w http.ResponseWriter, r *http.Request) {
 			s.coord.relay(f, relayHTML, payload.Sender, payload.Etag, identityMap)
 		}
 	}) {
-		s.writeError(w, http.StatusForbidden, "live sync disabled for helper-bound document")
+		s.writeError(w, http.StatusForbidden, wire.RelayBlockedText)
 		return
 	}
 

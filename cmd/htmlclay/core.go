@@ -84,6 +84,9 @@ type coreState struct {
 	// codeSets holds each document's code set with a hash of the bytes it was
 	// read from, so an unchanged document is parsed once (see codeSetOf).
 	codeSets map[string]cachedCodeSet
+	// pendingKeep holds the expected code-set hashes of recent AI edits on
+	// trusted documents so saving after Keep trusts the resulting code hash.
+	pendingKeep map[string]pendingKeepCode
 
 	// beforeEffect runs before each effect. Tests only.
 	beforeEffect func(appcore.Effect)
@@ -213,6 +216,7 @@ func (a *app) facts() appcore.Facts {
 	f.Folders = append(f.Folders, syncFolders...)
 	f.Documents = a.documentFacts()
 	f.Programs = a.programFacts()
+	f.ReadAccess = a.readAccessFacts()
 	f.Update = appcore.UpdateState{
 		Current:   version,
 		Automatic: !a.rt.cfg.SelfUpdateOff(),
@@ -232,6 +236,7 @@ func (a *app) facts() appcore.Facts {
 	f.FileTypes = a.fileTypeFacts()
 	f.Move = a.moveFacts()
 	f.RecoveredChanges = int(a.recovered.n.Load())
+	f.DeniedDocuments = a.deniedDocumentFacts()
 	return f
 }
 

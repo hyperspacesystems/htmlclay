@@ -15,6 +15,14 @@ func (s *Core) RunningWork() int {
 	n := len(s.AIEdit.Running)
 	s.AIEdit.Mu.Unlock()
 
+	s.AITools.Mu.Lock()
+	n += len(s.AITools.Running)
+	s.AITools.Mu.Unlock()
+
+	s.Programs.Mu.Lock()
+	n += len(s.Programs.Running)
+	s.Programs.Mu.Unlock()
+
 	s.Builtin.mu.Lock()
 	for key := range s.Builtin.running {
 		if !strings.HasPrefix(key, builtin.FolderWatch+"\x00") {

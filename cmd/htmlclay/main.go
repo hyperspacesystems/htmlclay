@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/aitools"
+	"github.com/panphora/htmlclay/internal/carried"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/folderlock"
@@ -310,6 +312,13 @@ type app struct {
 	// HTML Clay keeps, until when. Guarded by helperStateMu.
 	documentAsking map[string]bool
 	documentQuiet  map[string]time.Time
+	// toolsService is the ai-tools service, made on first use.
+	toolsOnce    sync.Once
+	toolsService *aitools.Service
+	// programStore keeps the copies carried programs run from, made on
+	// first use.
+	programsOnce sync.Once
+	programStore *carried.Store
 	// dialogAdvice is non-empty when this machine cannot raise a permission
 	// dialog at all. It is read once at startup and shown in two places, so it
 	// is held rather than asked for again: platform.MissingDialogAdvice runs
@@ -431,6 +440,12 @@ func openLogLine(logPath, prefix string) func(string) error {
 }
 
 func main() {
+	// A program worker is this binary started by HTML Clay to run one carried
+	// program. It returns before anything else: it takes no lock, reads no
+	// settings and opens nothing.
+	if len(os.Args) > 1 && os.Args[1] == carried.WorkerArg {
+		os.Exit(carried.RunWorker(os.Stdin, os.Stdout))
+	}
 	// The wire CLI is a client of a running app, so it must return before
 	// anything below: initConfig takes the single-instance lock, and flag.Parse
 	// stops at the first non-flag argument, which would leave a subcommand's own

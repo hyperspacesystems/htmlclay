@@ -339,7 +339,17 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite, from string)
 	if n == 0 {
 		return 0
 	}
-	for _, root := range entry.GrantedRoots {
+	// A page nobody vouches for never widens what it can read (strangerRead),
+	// so a grant from before its trust ended or its code changed stays behind:
+	// its next read asks again.
+	grants := entry.GrantedRoots
+	for _, document := range restored {
+		if len(grants) > 0 && a.tierOf(document).Warn() {
+			a.rt.logger.Printf("%s: %s needs the warning now; its site's read grants are not restored", from, document)
+			grants = nil
+		}
+	}
+	for _, root := range grants {
 		// GrantCanonicalRoot deliberately does not re-resolve, so the check that
 		// the folder is still the one the person approved happens here: a grant
 		// whose path now resolves somewhere else is dropped, never followed.

@@ -26,7 +26,9 @@ public enum HostSnapshotAdapter {
                 MoveFolderInfo(id: $0.id, name: $0.name, port: $0.port, address: $0.address, synced: $0.synced ?? false, skip: $0.skip ?? "")
             },
             moveBlockers: MoveBlockers(localRunning: wire.move?.localRunning ?? false, needsKey: wire.move?.needsKey ?? false),
-            recoveredChanges: wire.recoveredChanges ?? 0
+            recoveredChanges: wire.recoveredChanges ?? 0,
+            readAccess: (wire.readAccess ?? []).map { ReadAccess(id: $0.id, place: $0.place, pages: $0.pages) },
+            deniedDocuments: wire.deniedDocuments ?? []
         )
     }
 

@@ -244,31 +244,38 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 	srv.SetInternalDir(a.rt.configDir)
 	srv.SetSiteLabel(filepath.Base(anchor))
 	srv.SetHooks(server.Hooks{
-		Confirm:        a.readConfirmer().Ask,
-		MainFolder:     a.isMainFolder,
-		TrustedCovers:  a.trustedCovers,
-		TrustedLive:    a.trustedLive,
-		Route:          a.routeTrusted,
-		MayTrustFolder: a.mayTrustFromPrompt,
-		TrustFolder:    a.trustFromPrompt,
-		TrustRequest:   a.trustFromPage,
-		AIEditFor:      a.aiEditFor,
-		AskAIEdit:      a.askAIEdit,
-		AIEditFiles:    a.aiEditFiles,
-		Stranger:       a.stranger,
-		StrangerRead:   a.strangerRead,
-		AIEditEngines:  a.rt.cfg.AIEditEngines,
-		AIEditModels:   a.rt.cfg.AIEditModels,
-		AIEditEfforts:  a.rt.cfg.AIEditEfforts,
-		BuiltinFor:     a.builtinFor,
-		AskBuiltin:     a.askBuiltin,
-		Profile:        a.rt.cfg.SharedPerson,
-		AskHelper:      a.askHelperForUse,
-		HelperGranted:  a.helperGranted,
-		Reveal:         browser.Reveal,
-		OpenFolder:     browser.OpenURL,
-		ExportDocument: a.exportForPage,
-		UnsavedReport:  a.noteUnsavedReport,
+		Confirm:          a.readConfirmer().Ask,
+		MainFolder:       a.isMainFolder,
+		TrustedCovers:    a.trustedCovers,
+		TrustedLive:      a.trustedLive,
+		Route:            a.routeTrusted,
+		MayTrustFolder:   a.mayTrustFromPrompt,
+		TrustFolder:      a.trustFromPrompt,
+		TrustRequest:     a.trustFromPage,
+		AIEditFor:        a.aiEditFor,
+		AskAIEdit:        a.askAIEdit,
+		AIEditFiles:      a.aiEditFiles,
+		DocumentTrust:    a.documentTrust,
+		AskDocument:      a.askDocumentForWire,
+		AITools:          a.aiToolsHost(),
+		Programs:         a.programsHost(),
+		NoteAIEditResult: a.noteAIEditResult,
+		Saved:            a.noteDocumentSaved,
+		Stranger:         a.stranger,
+		StrangerRead:     a.strangerRead,
+		AIEditEngines:    a.rt.cfg.AIEditEngines,
+		AIEditModels:     a.rt.cfg.AIEditModels,
+		AIEditEfforts:    a.rt.cfg.AIEditEfforts,
+		BuiltinFor:       a.builtinFor,
+		AskBuiltin:       a.askBuiltin,
+		Profile:          a.rt.cfg.SharedPerson,
+		AskHelper:        a.askHelperForUse,
+		HelperGranted:    a.helperGranted,
+		Reveal:           browser.Reveal,
+		OpenFolder:       browser.OpenURL,
+		ExportDocument:   a.exportForPage,
+		NewDocument:      a.newDocumentForPage,
+		UnsavedReport:    a.noteUnsavedReport,
 	})
 	s.srv = srv
 	return s
@@ -609,6 +616,7 @@ func (a *app) shutdownNow() {
 	a.mu.Unlock()
 
 	a.stopRequests()
+	a.closeAITools()
 
 	for _, p := range parkedPorts {
 		p.close()

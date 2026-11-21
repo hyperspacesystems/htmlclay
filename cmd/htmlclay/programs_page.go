@@ -242,6 +242,7 @@ var programsDone = map[string]string{
 	"revoked":   "Access removed. Open documents stop using it right away.",
 	"relinked":  "The program now points at the new file.",
 	"widened":   "Allowed for documents in your trusted folders.",
+	"ask-again": "That document will ask again next time you use it.",
 	"removed":   "Removed from the list. No file on your Mac was deleted.",
 	"unchanged": "Nothing changed.",
 	"failed":    "That did not work. HTML Clay's log has the details.",
@@ -355,6 +356,11 @@ func (a *app) programsAction(action, programID, document, name string) string {
 			return "failed"
 		}
 		outcome, err = a.widenHelperProgram(program, a.systemHelperApprovalDialogs())
+	case "ask-again-document":
+		if document == "" {
+			return "failed"
+		}
+		outcome, err = a.askDocumentAgainFromPrograms(document, a.systemHelperApprovalDialogs())
 	default:
 		return "failed"
 	}
@@ -483,8 +489,15 @@ type programsView struct {
 	Done     string
 	Missing  []programsGroup
 	Groups   []programsGroup
+	Denied   []programsDeniedRow
 	Open     []programsOpenRow
 	SignedIn bool
+}
+
+type programsDeniedRow struct {
+	File     string
+	Path     string
+	Document string
 }
 
 type programsOpenRow struct {
@@ -536,6 +549,13 @@ func (a *app) programsViewModel() programsView {
 		} else {
 			view.Groups = append(view.Groups, *byPath[key])
 		}
+	}
+	for _, doc := range a.deniedDocumentFacts() {
+		view.Denied = append(view.Denied, programsDeniedRow{
+			File:     filepath.Base(doc),
+			Path:     a.tildePath(doc),
+			Document: doc,
+		})
 	}
 	for _, row := range a.helperDocumentRows() {
 		document, name, _ := strings.Cut(row.Path, "\x00")

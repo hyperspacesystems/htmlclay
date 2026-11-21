@@ -56,9 +56,13 @@ public struct WireSnapshot: Codable, Equatable, Sendable {
     public var recoveredChanges: Int?
     /// Who opens .htmlclay files on Windows and Linux. Nil on the Mac.
     public var fileTypes: WireFileTypes?
+    /// The folders pages may read because the person allowed it. Nil from a host older than this round.
+    public var readAccess: [WireReadAccess]?
+    /// Documents with a stored Don't allow answer. Nil or omitted when empty.
+    public var deniedDocuments: [String]?
 
     enum CodingKeys: String, CodingKey {
-        case v, rev, epoch, host, documents, folders, programs, requests, waiting, counts, sync, update, preferences, move, recoveredChanges, fileTypes
+        case v, rev, epoch, host, documents, folders, programs, requests, waiting, counts, sync, update, preferences, move, recoveredChanges, fileTypes, readAccess, deniedDocuments
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -79,7 +83,16 @@ public struct WireSnapshot: Codable, Equatable, Sendable {
         try container.encode(move, forKey: .move)
         try container.encodeIfPresent(recoveredChanges, forKey: .recoveredChanges)
         try container.encodeIfPresent(fileTypes, forKey: .fileTypes)
+        try container.encodeIfPresent(readAccess, forKey: .readAccess)
+        try container.encodeIfPresent(deniedDocuments, forKey: .deniedDocuments)
     }
+}
+
+public struct WireReadAccess: Codable, Equatable, Sendable {
+    public var id: String
+    public var folder: String
+    public var place: String
+    public var pages: [String]
 }
 
 public struct WireHostState: Codable, Equatable, Sendable {

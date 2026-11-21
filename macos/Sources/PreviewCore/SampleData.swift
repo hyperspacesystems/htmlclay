@@ -129,6 +129,9 @@ public enum SampleData {
         case .unknownDocument:
             request = ProgramRequest(id: "req-sample-unknownDocument", kind: kind, document: "invoice.html", program: "", folder: "Downloads", path: "~/Downloads", detail: "downloaded")
             title = "invoice.html wants to use the files in Downloads"
+        case .aiTools:
+            request = ProgramRequest(id: "req-sample-aiTools", kind: kind, document: "whatthefunc.htmlclay", program: "ai-tools", folder: "Reviews", path: "~/Documents/Reviews")
+            title = "whatthefunc.htmlclay wants your AI agent to read a folder"
         }
         let item = WaitingItem(id: "w-" + request.id, kind: .programRequest, title: title, detail: request.folder, subjectID: request.id)
         return (request, item)

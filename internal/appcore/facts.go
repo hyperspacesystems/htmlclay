@@ -16,6 +16,7 @@ type Facts struct {
 	Documents   []DocumentFact `json:"documents"`
 	Folders     []FolderFact   `json:"folders"`
 	Programs    []Program      `json:"programs"`
+	ReadAccess  []ReadAccess   `json:"readAccess"`
 	Requests    []RequestFact  `json:"requests"`
 	Events      []EventFact    `json:"events"`
 	Seen        []string       `json:"seen"`
@@ -26,6 +27,7 @@ type Facts struct {
 
 	RecoveredChanges int       `json:"recoveredChanges"`
 	FileTypes        FileTypes `json:"fileTypes"`
+	DeniedDocuments  []string  `json:"deniedDocuments,omitempty"`
 }
 
 type HostFacts struct {

@@ -64,6 +64,8 @@ public enum SampleReducer {
             }
             next.programs[p].allowedDocuments = []
             next.programs[p].allTrustedFolders = false
+        case let .removeReadAccess(id):
+            next.readAccess.removeAll { $0.id == id }
         case .connectSample, .connect:
             next.sync.connected = true
             next.sync.username = "panphora"
@@ -156,6 +158,10 @@ public enum SampleReducer {
             next.folders[i].path = path
             next.folders[i].missingOnDisk = false
         case let .askProgramAgain(programID, documentID):
+            if programID == ProgramControls.documentTrustID {
+                next.deniedDocuments.removeAll { $0 == documentID }
+                return next
+            }
             guard let p = next.programs.firstIndex(where: { $0.id == programID }) else { return snapshot }
             next.programs[p].removedDocuments.removeAll { $0 == documentID }
             if !next.programs[p].allowedDocuments.contains(documentID) {

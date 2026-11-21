@@ -33,13 +33,31 @@ func Log(ctx context.Context, dir, base, head string, max int) ([]Commit, error)
 	if err := checkRefs(base, head); err != nil {
 		return nil, err
 	}
+	return logCommits(ctx, dir, base, head, max)
+}
+
+// LogFrom is git log head: every commit head reaches, newest first, at most
+// max (MaxCommits when max is zero or larger).
+func LogFrom(ctx context.Context, dir, head string, max int) ([]Commit, error) {
+	if err := checkRefs(head); err != nil {
+		return nil, err
+	}
+	return logCommits(ctx, dir, "", head, max)
+}
+
+// logCommits walks head's history newest first, leaving out what base
+// reaches when base is not empty.
+func logCommits(ctx context.Context, dir, base, head string, max int) ([]Commit, error) {
 	if max <= 0 || max > MaxCommits {
 		max = MaxCommits
 	}
 	return within(ctx, dir, func(ctx context.Context, r *git.Repository) ([]Commit, error) {
-		b, err := commitAt(r, base)
-		if err != nil {
-			return nil, err
+		var b *object.Commit
+		if base != "" {
+			var err error
+			if b, err = commitAt(r, base); err != nil {
+				return nil, err
+			}
 		}
 		h, err := commitAt(r, head)
 		if err != nil {
@@ -66,7 +84,9 @@ func Log(ctx context.Context, dir, base, head string, max int) ([]Commit, error)
 			}
 			heap.Push(&queued, c)
 		}
-		push(b, uninteresting)
+		if b != nil {
+			push(b, uninteresting)
+		}
 		push(h, interesting)
 
 		var out []Commit

@@ -92,6 +92,8 @@ func TestPlan(t *testing.T) {
 	version := "2.0.4"
 	ready.Update.Ready = &version
 	builtins := fixtureFacts(t, "syncedWithTeams")
+	reading := synced
+	reading.ReadAccess = []ReadAccess{{ID: "a1b2", Folder: "/Users/x/Receipts", Pages: []string{"/Users/x/notes/receipts.htmlclay"}}}
 	builtins.Programs = append(builtins.Programs,
 		Program{ID: "file-search", Name: "file-search", Builtin: true},
 		Program{ID: AIEditProgram, Name: AIEditProgram, Builtin: true},
@@ -148,6 +150,9 @@ func TestPlan(t *testing.T) {
 		{"remove access with no document", synced, "program.removeAccess", `{"programID":"todo-search"}`, "", RefuseBadArguments},
 		{"remove access for every document", synced, "program.removeAllAccess", `{"programID":"todo-search"}`, "program.removeAllAccess", ""},
 		{"remove all access for an unknown program", synced, "program.removeAllAccess", `{"programID":"nope"}`, "", RefuseNoSuchProgram},
+		{"remove a read permission", reading, "readAccess.remove", `{"id":"a1b2"}`, "readAccess.remove", ""},
+		{"remove a read permission the list no longer has", reading, "readAccess.remove", `{"id":"gone"}`, "", RefuseNoSuchFolder},
+		{"remove a read permission with no id", reading, "readAccess.remove", `{}`, "", RefuseBadArguments},
 		{"turn off all trusted folders for a program", synced, "program.setAllTrusted", `{"programID":"todo-search","on":false}`, "program.setAllTrusted", ""},
 		{"set all trusted for an unknown program", synced, "program.setAllTrusted", `{"programID":"nope","on":true}`, "", RefuseNoSuchProgram},
 		{"remove a built-in program", builtins, "program.remove", `{"programID":"file-search"}`, "", RefuseNotAllowedNow},

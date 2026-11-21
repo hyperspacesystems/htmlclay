@@ -8,9 +8,15 @@ Releases before 1.9.0 are recorded in the ecosystem changelog at
 ### Added
 - A new optional `data-program-file` attribute on a helper declaration names the program's file when it differs from the name the document uses.
 - **Recovered changes…** in the HTML Clay menu opens a page listing every edit HTML Clay saved aside when a page could not save normally, with each one's date and size. Each one can be shown in Finder (or the file manager) or deleted, one at a time or all recovered changes of a document at once.
+- **New blank document** in a page's menu makes a copy of the document with its data emptied, beside it as `<name>-new.html`, and opens it. The page must name its starting values (a `clay-new-document` tag) and use a ClayJS that offers the item. A blank copy of a downloaded document is treated as a download too.
+- Pages using ClayJS `plugins=ai` can ask your AI agent (Claude Code, Codex, or Antigravity) to read a folder you choose and answer questions about its code and git history. HTML Clay runs a read-only self-test once for each agent version before letting it answer, and **Ask again** in Settings clears **Don't allow**.
+- Pages can carry small JavaScript programs in `<script type="text/x-clay-program">` tags that HTML Clay runs in a separate worker process with memory and time limits. Depending on its `can` attribute and the document's trust, a program can read files and git history in a folder you choose, edit and create files there, or reach public web addresses.
+- `htmlclay trust <file>`, `htmlclay untrust <file>`, `htmlclay developer-mode [on|off]`, and `htmlclay programs [enable|disable]` manage document trust, developer mode, and your programs folder from the command line.
 
 ### Changed
 - On Windows and Linux, turning off automatic updates (`updates: off`) now stops only automatic checks. Check now still checks for and downloads an update.
+- Document trust now follows a file's code and where it came from rather than its folder alone. Files you made and signed ecosystem apps run without warnings, while downloaded files, files with no origin record, and files whose signature does not match their code get their own browser origin and ask once per document until their code changes.
+- Attaching sibling `@file` context in AI editing now requires a document you made or trusted.
 
 ## [1.16.4] - 2026-11-14
 

@@ -46,7 +46,7 @@ func (a *app) createFromTemplate(templateID string) *appcore.Refusal {
 		a.rt.logger.Printf("Not creating a document in %s: it leads outside home to %s", dir, real)
 		return &appcore.Refusal{Code: appcore.RefuseFileOutsideHome}
 	}
-	path, err := createFreeDocument(dir, name, ".htmlclay", data)
+	path, err := createFreeDocument(dir, numberedName(name, " ", ".htmlclay"), data)
 	if err != nil {
 		a.rt.logger.Printf("Could not create a document from the %s template: %v", templateID, err)
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
@@ -58,15 +58,22 @@ func (a *app) createFromTemplate(templateID string) *appcore.Refusal {
 	return a.openPath(path)
 }
 
-// createFreeDocument writes data to dir/base+ext, or "base 2"+ext and so on,
-// with O_EXCL so it never replaces a file, and returns the path it wrote.
-func createFreeDocument(dir, base, ext string, data []byte) (string, error) {
-	for n := 1; n <= maxTemplateNameTries; n++ {
-		name := base + ext
-		if n > 1 {
-			name = fmt.Sprintf("%s %d%s", base, n, ext)
+// numberedName names the nth try at a free file name: base and ext, then base,
+// sep and the number from 2 on.
+func numberedName(base, sep, ext string) func(n int) string {
+	return func(n int) string {
+		if n == 1 {
+			return base + ext
 		}
-		path := filepath.Join(dir, name)
+		return fmt.Sprintf("%s%s%d%s", base, sep, n, ext)
+	}
+}
+
+// createFreeDocument writes data to the first name in dir that name gives for
+// 1, 2 and on, up to maxTemplateNameTries, and never replaces a file.
+func createFreeDocument(dir string, name func(n int) string, data []byte) (string, error) {
+	for n := 1; n <= maxTemplateNameTries; n++ {
+		path := filepath.Join(dir, name(n))
 		f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if errors.Is(err, fs.ErrExist) {
 			continue
@@ -81,5 +88,5 @@ func createFreeDocument(dir, base, ext string, data []byte) (string, error) {
 		}
 		return path, nil
 	}
-	return "", fmt.Errorf("every name from %s%s to %s %d%s is taken", base, ext, base, maxTemplateNameTries, ext)
+	return "", fmt.Errorf("every name from %s to %s is taken", name(1), name(maxTemplateNameTries))
 }

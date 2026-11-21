@@ -61,6 +61,7 @@ struct RequestBody: View {
         case .folderReadAgain: folderReadAgainContent
         case .builtinProgram: builtinProgramContent
         case .unknownDocument: unknownDocumentContent
+        case .aiTools: aiToolsContent
         }
     }
 
@@ -75,6 +76,20 @@ struct RequestBody: View {
                 if let allow = choice(RequestAnswer.allowDocument) { wideButton(allow) }
                 if let trust = choice(RequestAnswer.trustDocument) { wideButton(trust) }
                 if let deny = choice(RequestAnswer.denyDocument) { wideButton(deny) }
+            }
+        }
+    }
+
+    /// A page asks which folder the person's AI agent, or one of the page's
+    /// own programs, reads for it. The folder is picked here, never sent by the
+    /// page.
+    private var aiToolsContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            titleLine(Self.folderTitle(request))
+            leadLine(Self.folderLead(request))
+            buttonsRow {
+                if let deny = choice(RequestAnswer.deny) { button(deny) }
+                if let pick = choice(RequestAnswer.chooseFolder) { button(pick) }
             }
         }
     }
@@ -126,7 +141,7 @@ struct RequestBody: View {
         VStack(alignment: .leading, spacing: 0) {
             titleLine(Self.teamTitle(request))
             leadLine(Self.teamLead(request))
-            if !Self.isAIEditing(request) {
+            if Self.showsTeamFileCard(request) {
                 card(warn: false) {
                     RequestFileRow(color: .amber, symbol: Symbols.program, title: fileName, path: request.path, extra: nil, warn: false)
                 }
@@ -315,6 +330,8 @@ struct RequestBody: View {
         Button(choice.title) {
             if choice.answer == RequestAnswer.chooseFile {
                 chooseFile()
+            } else if choice.answer == RequestAnswer.chooseFolder {
+                chooseFolder()
             } else {
                 send(answer ?? choice.answer)
             }
@@ -340,6 +357,13 @@ struct RequestBody: View {
         actions.answer(item, request, answer, path)
     }
 
+    private func chooseFolder() {
+        Task {
+            guard let path = await model.folderChooser?.choose(after: nil, in: model.snapshot), !path.isEmpty else { return }
+            send(RequestAnswer.chooseFolder, path: path)
+        }
+    }
+
     private func chooseFile() {
         Task {
             guard let path = await model.folderChooser?.chooseProgram(), !path.isEmpty else { return }
@@ -353,14 +377,32 @@ struct RequestBody: View {
 
     static func isAIEditing(_ request: ProgramRequest) -> Bool { request.program == ProgramControls.aiEditID }
 
+    /// A team document shows the file row only when it names one: a page with
+    /// no binary behind it has no path to show.
+    static func showsTeamFileCard(_ request: ProgramRequest) -> Bool {
+        !isAIEditing(request) && !request.path.isEmpty
+    }
+
     static func teamTitle(_ request: ProgramRequest) -> String {
         isAIEditing(request)
             ? Strings.Request.useAIEditing(document: RequestControls.documentName(request))
-            : Strings.Request.runNamed(document: RequestControls.documentName(request), program: request.program)
+            : Strings.Request.runNamed(document: RequestControls.documentName(request), program: ProgramControls.programTitle(request.program))
     }
 
     static func teamLead(_ request: ProgramRequest) -> String {
         isAIEditing(request) ? Strings.Request.aiEditTeamLead(request.folder) : Strings.Request.fromTeam(request.folder)
+    }
+
+    static func folderTitle(_ request: ProgramRequest) -> String {
+        request.program == ProgramControls.aiToolsID
+            ? Strings.Request.aiToolsTitle(RequestControls.documentName(request), level: request.detail)
+            : Strings.Request.programFolderTitle(program: request.program, document: RequestControls.documentName(request), level: request.detail)
+    }
+
+    static func folderLead(_ request: ProgramRequest) -> String {
+        request.program == ProgramControls.aiToolsID
+            ? Strings.Request.aiToolsLead(level: request.detail)
+            : Strings.Request.programFolderLead(level: request.detail)
     }
 }
 

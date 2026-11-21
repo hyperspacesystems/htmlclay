@@ -36,18 +36,19 @@ func helperDiscoveryState(t *testing.T, s *site, document string) string {
 	if err := json.Unmarshal([]byte(body), &meta); err != nil {
 		t.Fatal(err)
 	}
-	// The declared helper, then the built-ins ai-edit and blockeditor-tool, both on by default
-	// (blockeditor-tool because the bundled runtime carries its tool-generation prompts), then
-	// the three built-in programs, none of which this document may run: it is
-	// loose, or the test switched them off.
-	if len(meta.Document.Helpers) != 6 || meta.Document.Helpers[1].Name != "ai-edit" || meta.Document.Helpers[1].State != "ready" ||
-		meta.Document.Helpers[2].Name != "blockeditor-tool" || meta.Document.Helpers[2].State != "ready" {
+	// The declared helper, then the built-ins ai-edit, ai-tools, programs and
+	// blockeditor-tool, then the three built-in programs, none of which this
+	// document may run: it is loose, or the test switched them off.
+	if len(meta.Document.Helpers) != 8 || meta.Document.Helpers[1].Name != "ai-edit" || meta.Document.Helpers[1].State != "ready" ||
+		meta.Document.Helpers[2].Name != "ai-tools" || meta.Document.Helpers[2].State != "ready" ||
+		meta.Document.Helpers[3].Name != "programs" || meta.Document.Helpers[3].State != "ready" ||
+		meta.Document.Helpers[4].Name != "blockeditor-tool" || meta.Document.Helpers[4].State != "ready" {
 		t.Fatalf("helpers: %+v", meta.Document.Helpers)
 	}
 	for i, name := range []string{"file-search", "file-convert", "folder-watch"} {
-		row := meta.Document.Helpers[i+3]
+		row := meta.Document.Helpers[i+5]
 		if row.Name != name || row.State != "unavailable" {
-			t.Fatalf("helpers[%d] = %+v, want %s unavailable", i+3, row, name)
+			t.Fatalf("helpers[%d] = %+v, want %s unavailable", i+5, row, name)
 		}
 	}
 	return meta.Document.Helpers[0].State

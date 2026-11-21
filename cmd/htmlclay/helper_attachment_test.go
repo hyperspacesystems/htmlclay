@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/carried"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 )
@@ -45,6 +46,9 @@ const (
 )
 
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == carried.WorkerArg {
+		os.Exit(carried.RunWorker(os.Stdin, os.Stdout))
+	}
 	if os.Getenv(attachmentHelperMode) != "" {
 		os.Exit(runAttachmentHelper())
 	}

@@ -1,6 +1,9 @@
 package main
 
-import "github.com/panphora/htmlclay/internal/builtin"
+import (
+	"github.com/panphora/htmlclay/internal/builtin"
+	"github.com/panphora/htmlclay/internal/wire"
+)
 
 // servedWirePolicy is what a served folder's wire may do: programs by the
 // person's decisions for each document, and AI editing by the switch and, in a
@@ -31,6 +34,26 @@ func (p servedWirePolicy) BuiltinFor(document, program string) builtin.Access {
 func (p servedWirePolicy) AskBuiltin(document, program string) { p.a.askBuiltin(document, program) }
 
 func (p servedWirePolicy) RevealFile(path string) error { return p.a.revealPath(path) }
+
+func (p servedWirePolicy) DocumentTrust(document string) wire.Trust {
+	return p.a.documentTrust(document)
+}
+
+func (p servedWirePolicy) AskDocument(document, program string) {
+	p.a.askDocumentForWire(document, program)
+}
+
+func (p servedWirePolicy) AITools() wire.AIToolsHost { return p.a.aiToolsHost() }
+
+func (p servedWirePolicy) Programs() wire.ProgramsHost { return p.a.programsHost() }
+
+func (p servedWirePolicy) NoteAIEditResult(document, elementHTML, tag, resultHTML string) {
+	p.a.noteAIEditResult(document, elementHTML, tag, resultHTML)
+}
+
+func (p servedWirePolicy) NoteDocumentSaved(document string, data []byte) {
+	p.a.noteDocumentSaved(document, data)
+}
 
 func (p servedWirePolicy) AIEditModels() map[string]string {
 	return p.a.rt.cfg.AIEditModels()

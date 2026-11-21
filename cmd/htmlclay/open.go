@@ -74,19 +74,26 @@ func (a *app) openPath(filePath string) *appcore.Refusal {
 		return nil
 	}
 
-	helpers := a.helpersForOpen(absPath, true)
-
-	s, rel, ok := a.route(absPath, session.ViaOsOpen)
+	target, ok := a.serveFile(absPath, session.ViaOsOpen, a.helpersForOpen(absPath, true))
 	if !ok {
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}
-	a.applyHelperPlan(s.srv.Core, absPath, helpers)
-	a.noteOpen(absPath, recents.HowFile, true)
-
-	target := s.url(rel)
 	a.rt.logger.Printf("Serving %s at %s", filepath.Base(absPath), target)
 	a.launchBrowser(target)
 	return nil
+}
+
+// serveFile registers absPath in its site with the provenance via, applies the
+// programs plan resolved for it, records the open, and returns the address it
+// serves at.
+func (a *app) serveFile(absPath string, via session.Provenance, helpers helperOpenPlan) (string, bool) {
+	s, rel, ok := a.route(absPath, via)
+	if !ok {
+		return "", false
+	}
+	a.applyHelperPlan(s.srv.Core, absPath, helpers)
+	a.noteOpen(absPath, recents.HowFile, true)
+	return s.url(rel), true
 }
 
 func ensureExampleFile(path string) error {

@@ -200,6 +200,12 @@ func (a *app) grantFlow(typ string, args grantArgs, raw map[string]any) func() {
 		// Turning access off needs no question.
 		return func() { a.runGrant(typ, raw) }
 	case "program.setAllTrusted", "program.askAgain", "program.relink":
+		if typ == "program.askAgain" && args.ProgramID == appcore.DocumentTrustProgram {
+			if args.DocumentID == "" || !slices.Contains(snap.DeniedDocuments, args.DocumentID) {
+				return nil
+			}
+			return a.confirmedGrant(typ, raw, fmt.Sprintf(appcore.TextGrantAskDocumentAgain, args.DocumentID), appcore.TextGrantAskAgainYes)
+		}
 		p, ok := program()
 		if !ok {
 			return nil

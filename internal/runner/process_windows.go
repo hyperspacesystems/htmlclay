@@ -29,7 +29,7 @@ type jobProcess struct {
 // job: a program it started in the meantime would escape the job.
 var resumeProcess = windows.NewLazySystemDLL("ntdll.dll").NewProc("NtResumeProcess")
 
-func startGroup(ctx context.Context, cmd *exec.Cmd, pipes []*pipe, in *stdinPipe) (Process, error) {
+func startGroup(ctx context.Context, cmd *exec.Cmd, pipes []*pipe, in *stdinPipe, memoryLimit uint64) (Process, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NO_WINDOW | windows.CREATE_SUSPENDED}
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
@@ -38,6 +38,10 @@ func startGroup(ctx context.Context, cmd *exec.Cmd, pipes []*pipe, in *stdinPipe
 	}
 	info := windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION{}
 	info.BasicLimitInformation.LimitFlags = windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+	if memoryLimit > 0 {
+		info.BasicLimitInformation.LimitFlags |= windows.JOB_OBJECT_LIMIT_PROCESS_MEMORY
+		info.ProcessMemoryLimit = uintptr(memoryLimit)
+	}
 	if _, err := windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info))); err != nil {
 		windows.CloseHandle(job)
 		closePipes(pipes)
@@ -102,6 +106,8 @@ func (p *jobProcess) Wait() error {
 	<-p.done
 	return p.err
 }
+
+func (p *jobProcess) Pid() int { return p.cmd.Process.Pid }
 
 func (p *jobProcess) Kill() error {
 	p.mu.Lock()
