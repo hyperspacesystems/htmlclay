@@ -405,9 +405,14 @@ func testAgentLaneSheetDelete(t *testing.T) {
 	}
 
 	appended := agentLaneDataWrite(t, fx.app, fx.sheet, "patch", `[{"sheet":"Notes","append":[[12]]}]`, "op-3", deleted.ETag)
-	wantAgentLaneWrite(t, appended, "op-3")
-	if !strings.Contains(appended.Body.String(), `"stale":true`) {
-		t.Fatalf("new cells answered %s, want stale true", appended.Body.String())
+	appendedRes := wantAgentLaneWrite(t, appended, "op-3")
+	if !strings.Contains(appended.Body.String(), `"stale":false`) {
+		t.Fatalf("plain cell append answered %s, want stale false", appended.Body.String())
+	}
+	formula := agentLaneDataWrite(t, fx.app, fx.sheet, "patch", `[{"sheet":"Notes","append":[["=A1*2"]]}]`, "op-4", appendedRes.ETag)
+	wantAgentLaneWrite(t, formula, "op-4")
+	if !strings.Contains(formula.Body.String(), `"stale":true`) {
+		t.Fatalf("formula cell append answered %s, want stale true", formula.Body.String())
 	}
 }
 
