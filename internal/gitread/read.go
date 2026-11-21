@@ -4,7 +4,6 @@ import (
 	"container/heap"
 	"context"
 	"errors"
-	"io"
 	"path"
 	"sort"
 	"strings"
@@ -246,12 +245,9 @@ func FileAt(ctx context.Context, dir, rev, name string) ([]byte, error) {
 			return nil, err
 		}
 		defer rd.Close()
-		b, err := io.ReadAll(io.LimitReader(rd, MaxBytes+1))
+		b, err := readBounded(rd, MaxBytes)
 		if err != nil {
 			return nil, err
-		}
-		if len(b) > MaxBytes {
-			return nil, ErrTooLarge
 		}
 		return b, nil
 	})

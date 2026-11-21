@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -197,7 +197,7 @@ func Diff(ctx context.Context, dir string, o DiffOptions) (*Patch, error) {
 				reason = SkipLimit
 			}
 			if reason == "" {
-				fp, f, err := patchFile(c)
+				fp, f, err := patchFile(ctx, c)
 				switch {
 				case errors.Is(err, errFileTooLarge):
 					reason = SkipTooLarge
@@ -227,7 +227,7 @@ func Diff(ctx context.Context, dir string, o DiffOptions) (*Patch, error) {
 	})
 }
 
-func patchFile(c *object.Change) (*textPatch, File, error) {
+func patchFile(ctx context.Context, c *object.Change) (*textPatch, File, error) {
 	from, to, err := c.Files()
 	if errors.Is(err, ErrTooLarge) {
 		return nil, File{}, errFileTooLarge
@@ -264,7 +264,20 @@ func patchFile(c *object.Change) (*textPatch, File, error) {
 		fp.binary, f.Binary = true, true
 		return fp, f, nil
 	}
-	for _, d := range diff.DoWithTimeout(fromText, toText, fileDiffTimeout) {
+	if err := ctx.Err(); err != nil {
+		return nil, File{}, err
+	}
+	timeout := fileDiffTimeout
+	if dl, ok := ctx.Deadline(); ok {
+		rem := time.Until(dl)
+		if rem <= 0 {
+			return nil, File{}, ctx.Err()
+		}
+		if rem < timeout {
+			timeout = rem
+		}
+	}
+	for _, d := range diff.DoWithTimeout(fromText, toText, timeout) {
 		op := fdiff.Equal
 		switch d.Type {
 		case dmp.DiffDelete:
@@ -317,12 +330,12 @@ func content(f *object.File) (string, bool, error) {
 		return "", false, err
 	}
 	defer rd.Close()
-	b, err := io.ReadAll(io.LimitReader(rd, MaxBytes+1))
+	b, err := readBounded(rd, MaxBytes)
+	if errors.Is(err, ErrTooLarge) {
+		return "", false, errFileTooLarge
+	}
 	if err != nil {
 		return "", false, err
-	}
-	if len(b) > MaxBytes {
-		return "", false, errFileTooLarge
 	}
 	return string(b), false, nil
 }

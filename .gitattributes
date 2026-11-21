@@ -5,6 +5,7 @@
 internal/dataapi/testdata/conformance/cases/** -text
 internal/dataapi/testdata/conformance/sheet/** -text
 internal/codeset/testdata/** -text
+internal/gridcodec/testdata/** -text
 
 # The embedded ClayJS release is served and verified byte for byte against its index
 internal/clayruntime/assets/** -text

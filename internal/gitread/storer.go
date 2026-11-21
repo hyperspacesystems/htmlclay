@@ -61,12 +61,9 @@ func (s *boundedStorage) looseObject(t plumbing.ObjectType, h plumbing.Hash) (pl
 	if size > MaxBytes {
 		return nil, true, ErrTooLarge
 	}
-	body, err := io.ReadAll(io.LimitReader(rd, MaxBytes+1))
+	body, err := readBounded(rd, MaxBytes)
 	if err != nil {
 		return nil, true, err
-	}
-	if len(body) > MaxBytes {
-		return nil, true, ErrTooLarge
 	}
 	obj := &plumbing.MemoryObject{}
 	obj.SetType(typ)
@@ -114,3 +111,33 @@ func (c *cappedReader) Read(p []byte) (int, error) {
 }
 
 func (c *cappedReader) Close() error { return c.r.Close() }
+
+// readBounded reads up to limit bytes from r, returning ErrTooLarge if r holds
+// more than limit bytes. Unlike io.ReadAll(io.LimitReader(r, limit+1)), it caps
+// buffer growth at limit+1 so a lying object never overshoots past 2*limit.
+func readBounded(r io.Reader, limit int) ([]byte, error) {
+	capCap := limit + 1
+	buf := make([]byte, 0, min(4096, capCap))
+	for {
+		if len(buf) == cap(buf) {
+			next := cap(buf) * 2
+			if next >= limit {
+				next = capCap
+			}
+			grown := make([]byte, len(buf), next)
+			copy(grown, buf)
+			buf = grown
+		}
+		n, err := r.Read(buf[len(buf):cap(buf)])
+		buf = buf[:len(buf)+n]
+		if len(buf) > limit {
+			return nil, ErrTooLarge
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return buf, nil
+			}
+			return nil, err
+		}
+	}
+}
