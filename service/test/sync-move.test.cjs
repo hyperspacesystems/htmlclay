@@ -114,7 +114,10 @@ test('import from Local: copy the bookkeeping, rewrite the folder id', { skip: S
   const beforeOld = fake.requests.length;
   await key(local);
   const again = await configure(local, OLD);
-  await wait(2500);
+  await until('the old owner pauses as folder-replaced', async () => {
+    const [cur] = await status(local);
+    return Boolean(cur && cur.paused && cur.paused.reason === 'folder-replaced');
+  });
   const [theirs] = await status(local);
   console.log('# old owner configure answer:', JSON.stringify(again.body), 'status:', JSON.stringify(theirs ? { status: theirs.status, paused: theirs.paused, running: theirs.running } : null));
   assert.ok(theirs && theirs.paused && theirs.paused.reason === 'folder-replaced', 'the old owner is paused as folder-replaced');

@@ -264,11 +264,10 @@ async function runCase(name, offset, { out, built, breakCase }) {
     const result = await races[name](world, offset, { breakCase });
     sampling = false;
     await sampler;
-    const { conflicts, differ } = await converge(world);
-    let after = differ;
+    let { conflicts, differ: after } = await converge(world);
     if (result.afterConverge) {
       await result.afterConverge();
-      after = (await converge(world)).differ;
+      ({ conflicts, differ: after } = await converge(world));
     }
     const problems = [];
     const present = presentMarkers(world.folder, world.server);
