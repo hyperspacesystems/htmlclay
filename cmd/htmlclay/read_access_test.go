@@ -41,8 +41,9 @@ func TestReadAccessRemovesALiveGrant(t *testing.T) {
 	if !ok {
 		t.Fatal("the read permissions list does not show the grant")
 	}
-	if row.Place != "~/assets" {
-		t.Errorf("the grant's place = %q, want ~/assets", row.Place)
+	wantPlace := filepath.FromSlash("~/assets")
+	if row.Place != wantPlace {
+		t.Errorf("the grant's place = %q, want %q", row.Place, wantPlace)
 	}
 	if len(row.Pages) != 1 || row.Pages[0] != loose {
 		t.Fatalf("the grant's pages = %v, want [%s]", row.Pages, loose)

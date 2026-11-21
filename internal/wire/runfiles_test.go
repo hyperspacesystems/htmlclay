@@ -191,7 +191,10 @@ func TestRunFilesKeepsTheRunThatJustWrote(t *testing.T) {
 func TestForgetUnderDropsTheFoldersRunFiles(t *testing.T) {
 	core, _, _, _ := newFakeCore(t)
 	runs := map[string]string{}
-	for _, doc := range []string{"a/x.html", "a/b/y.html", "ab/z.html"} {
+	ax := filepath.Join("a", "x.html")
+	aby := filepath.Join("a", "b", "y.html")
+	abz := filepath.Join("ab", "z.html")
+	for _, doc := range []string{ax, aby, abz} {
 		run := NewRunID()
 		runs[doc] = run
 		if _, err := core.RunFiles.Put(doc, run, "diff", []byte(doc)); err != nil {
@@ -199,16 +202,16 @@ func TestForgetUnderDropsTheFoldersRunFiles(t *testing.T) {
 		}
 	}
 	core.ForgetUnder("a")
-	for _, doc := range []string{"a/x.html", "a/b/y.html"} {
+	for _, doc := range []string{ax, aby} {
 		if body, ok := core.RunFiles.Get(doc, runs[doc], "diff"); ok {
 			t.Errorf("%s kept a run file: %q", doc, body)
 		}
 	}
-	if body, ok := core.RunFiles.Get("ab/z.html", runs["ab/z.html"], "diff"); !ok || string(body) != "ab/z.html" {
+	if body, ok := core.RunFiles.Get(abz, runs[abz], "diff"); !ok || string(body) != abz {
 		t.Error("ForgetUnder dropped a document of another folder")
 	}
 	core.Shutdown()
-	if _, ok := core.RunFiles.Get("ab/z.html", runs["ab/z.html"], "diff"); ok {
+	if _, ok := core.RunFiles.Get(abz, runs[abz], "diff"); ok {
 		t.Error("Shutdown kept a run file")
 	}
 }

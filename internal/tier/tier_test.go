@@ -245,6 +245,17 @@ func TestNoteUpgradeIgnoresAChangeTime(t *testing.T) {
 	if err := os.Chtimes(path, old, old); err != nil {
 		t.Fatal(err)
 	}
+	// On Windows, Chtimes moves modification time but leaves NTFS creation time
+	// at WriteFile's clock tick; let the wall clock advance past it before the
+	// upgrade timestamp is recorded.
+	beforeInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writtenBefore := platform.WrittenAt(beforeInfo)
+	for !time.Now().Round(0).After(writtenBefore) {
+		time.Sleep(5 * time.Millisecond)
+	}
 	if err := s.MarkUpgrade([]string{folder}); err != nil {
 		t.Fatal(err)
 	}
