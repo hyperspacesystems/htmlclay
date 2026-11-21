@@ -1093,6 +1093,44 @@ func (h *hub) broadcastStored(key, html, sender, etag string) []*subscriber {
 		return nil
 	}
 	_, evicted := h.enqueue(key, laneSaved, seq, f)
+	if etag != "" {
+		evicted = append(evicted, h.stampLive(key, etag)...)
+	}
+	return evicted
+}
+
+type stampPayload struct {
+	Etag string `json:"etag"`
+}
+
+// stampLive tells the live lane that a document with a commit record now has new stored bytes: a
+// frame with the stamp and no document. An edit tab holds only the live lane, and ClayJS's live-room
+// client reads the file again on any frame with a string etag; live-sync.js drops a stamp that comes
+// with no document (_applyEtagFrame), so a tab without the room changes nothing.
+//
+// The frame has no event id and is not kept for replay: a stream that opens again reads the file
+// anyway, so replaying stamps would only queue reads, push kept frames out of the replay window and
+// move a reconnecting tab's resume position past frames it still needs.
+func (h *hub) stampLive(key, etag string) []*subscriber {
+	data, err := json.Marshal(stampPayload{Etag: etag})
+	if err != nil {
+		return nil
+	}
+	f := append(append([]byte("data: "), data...), '\n', '\n')
+	set := h.subs[key]
+	var evicted []*subscriber
+	for sub := range set {
+		if sub.lane == laneLive && !offer(sub, [][]byte{f}) {
+			evicted = append(evicted, sub)
+		}
+	}
+	for _, sub := range evicted {
+		delete(set, sub)
+		sub.stop()
+	}
+	if len(set) == 0 {
+		delete(h.subs, key)
+	}
 	return evicted
 }
 

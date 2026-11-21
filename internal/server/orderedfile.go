@@ -10,6 +10,7 @@ import (
 	"github.com/panphora/htmlclay/internal/commitrecord"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/specwire"
+	"github.com/panphora/htmlclay/internal/versions"
 )
 
 // The file contract (plan 09 step H-r1, David's answer to question 10). A sheet that carries a
@@ -61,7 +62,7 @@ func orderedSaveRefusal(r *http.Request, current, body []byte) (int, string) {
 // their unsaved edits against it. A record that cannot be read leaves the incoming bytes as they
 // are, the weaker promise for a raw overwrite (contract rule 23).
 func (s *Server) foldRecord(f *session.File, incoming, current []byte) []byte {
-	if !commitrecord.Has(current) {
+	if !commitrecord.Ordered(current) {
 		return incoming
 	}
 	folded, err := commitrecord.OutsideFold(incoming, current, recordIDs)
@@ -72,10 +73,58 @@ func (s *Server) foldRecord(f *session.File, incoming, current []byte) []byte {
 	return folded
 }
 
+// foldDiskOverwrite runs the after-the-fact outside fold when an external program overwrites a
+// sheet on disk (plan 09 H-r6, section 2.5): reads the newest kept version carrying a commit
+// record, folds the incoming bytes (even if the external writer dropped the commit tag) over that
+// record, and writes the folded file back only if disk still holds the exact bytes the watcher
+// observed. Returns (bytes, hash, stillCurrent).
+func (wt *watcher) foldDiskOverwrite(f *session.File, key, hash string, data []byte) ([]byte, string, bool) {
+	if wt.versions == nil || key == "" {
+		return data, hash, true
+	}
+	entries, err := wt.versions.List(key, f.AbsPath)
+	if err != nil || len(entries) == 0 {
+		return data, hash, true
+	}
+	var prev []byte
+	for i := 0; i < len(entries) && i < 20; i++ {
+		candidate, rErr := wt.versions.Read(key, f.AbsPath, entries[i].Name)
+		if rErr != nil {
+			continue
+		}
+		if commitrecord.Ordered(candidate) {
+			prev = candidate
+			break
+		}
+	}
+	if prev == nil {
+		return data, hash, true
+	}
+	folded, err := commitrecord.OutsideFold(data, prev, recordIDs)
+	if err != nil {
+		wt.logger.Printf("Could not fold disk overwrite of %s: %v", f.RelPath, err)
+		return data, hash, true
+	}
+	if bytes.Equal(folded, data) {
+		return data, hash, true
+	}
+	// Re-verify disk still holds the observed bytes before writing back the folded record so a
+	// second concurrent external write is never clobbered.
+	check, err := os.ReadFile(f.AbsPath)
+	if err != nil || versions.Hash(check) != hash {
+		return data, hash, false
+	}
+	if err := atomicWriteFile(f.AbsPath, folded); err != nil {
+		wt.logger.Printf("Could not write folded disk overwrite of %s: %v", f.RelPath, err)
+		return data, hash, true
+	}
+	return folded, versions.Hash(folded), true
+}
+
 // storedEtagOf is the stamp an outside edit's saved-lane frame carries: the ETag its caller computed
 // from the stored bytes, for a document with a commit record.
 func storedEtagOf(html, etag string) string {
-	if !commitrecord.Has([]byte(html)) {
+	if !commitrecord.Ordered([]byte(html)) {
 		return ""
 	}
 	return etag
@@ -85,7 +134,7 @@ func storedEtagOf(html, etag string) string {
 // with a commit record, whose file-only client takes a push as the file plus its ETag. Other
 // documents' frames stay exactly as they were.
 func storedEtag(stored []byte) string {
-	if !commitrecord.Has(stored) {
+	if !commitrecord.Ordered(stored) {
 		return ""
 	}
 	return specwire.Etag(stored)
@@ -109,7 +158,7 @@ func (ls *LiveSync) FlushOpenSheets(wait time.Duration) {
 	deadline := time.Now().Add(wait)
 	reached := ls.hub.sendFlush(func(key string) bool {
 		data, err := os.ReadFile(key)
-		return err == nil && commitrecord.Has(data)
+		return err == nil && commitrecord.Ordered(data)
 	})
 	for len(reached) > 0 && time.Now().Before(deadline) {
 		if !ls.hub.anyOpen(reached) {
