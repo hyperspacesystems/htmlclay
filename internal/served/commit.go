@@ -30,7 +30,7 @@ const maxExternalHTML = 12 * 1024 * 1024
 // loopbackRuntime is Local's LOOPBACK_RUNTIME: the loopback origin a runtime URL
 // in the document is named against. Go's regexp has no lookahead, so the
 // `/_/clayjs/` the origin is matched against is part of the match and trimmed.
-var loopbackRuntime = regexp.MustCompile(`(?i)\bhttps?://(?:localhost|127\.0\.0\.1)(?::\d{1,5})?/_/clayjs/`)
+var loopbackRuntime = regexp.MustCompile(`(?i)\bhttps?://(?:(?:[a-z0-9.-]+\.)?localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[::1\])(?::\d{1,5})?/_/clayjs/`)
 
 // commitLane is one lane of Local's KINDS table.
 type commitLane struct {

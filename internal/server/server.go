@@ -462,6 +462,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 func redactPath(p string) string {
 	for _, prefix := range []string{
 		"/_/save/", "/_/unsaved/", "/_/recalc/", "/_/read/", "/_/meta/", "/_/upload/",
+		"/_/blockeditor-state/", "/_/data-loss/",
 		"/_/versions/", "/_/version/", "/_/restore/",
 		"/_/reveal/", "/_/versions-folder/", "/_/export/", "/_/new-document/",
 		"/_/workspace-request/", "/_/helper-setup/",

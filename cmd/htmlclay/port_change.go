@@ -79,6 +79,15 @@ func (a *app) setPort(ctx context.Context, port int, confirmed bool) *appcore.Re
 	if !a.updating.CompareAndSwap(false, true) {
 		return &appcore.Refusal{Code: appcore.RefuseStillRunning}
 	}
+	// Ask open sheets to save before closing writes, matching selfupdate.go:
+	// once writesClosedForPort is set, shutdown's own flush would be rejected.
+	if a.rt.ls != nil {
+		a.rt.ls.FlushOpenSheets(server.FlushWait)
+	}
+	if names, answered := a.unsavedDocuments(); !answered || len(names) > 0 {
+		a.updating.Store(false)
+		return &appcore.Refusal{Code: appcore.RefusePortUnsaved, Documents: names}
+	}
 	a.rt.writesMu.Lock()
 	a.rt.writesClosedForPort = true
 	a.rt.writesMu.Unlock()

@@ -2,6 +2,7 @@ package servicefiles
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"slices"
 	"testing"
@@ -52,5 +53,28 @@ func TestCatalogIsTheServiceTreesListedTemplates(t *testing.T) {
 		if _, ok := Template(id); ok {
 			t.Errorf("Template(%q) answered an id that is no listed template", id)
 		}
+	}
+}
+
+func TestOfflineRuntimeMatchesGoLock(t *testing.T) {
+	type lock struct {
+		Selected string   `json:"selected"`
+		Versions []string `json:"versions"`
+	}
+	read := func(path string) lock {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var out lock
+		if err := json.Unmarshal(raw, &out); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		return out
+	}
+	goLock := read("../offline-runtime.lock.json")
+	svcLock := read("local/src/main/offline-runtime/manifest.json")
+	if goLock.Selected != svcLock.Selected || !slices.Equal(goLock.Versions, svcLock.Versions) {
+		t.Fatalf("service offline-runtime (%+v) does not match offline-runtime.lock.json (%+v)", svcLock, goLock)
 	}
 }

@@ -358,6 +358,41 @@ func TestReadsASubmodulesOwnFolder(t *testing.T) {
 	if _, err := Branches(ctx, other); !errors.As(err, &u) {
 		t.Errorf("a .git file naming another folder's submodule storage = %v, want *Unsupported", err)
 	}
+
+	// A crafted submodule storage carrying a commondir or alternates escape must be refused.
+	victim := newRepo(t, filepath.Join(root, "private-victim"))
+	victim.write("secret.txt", "top-secret\n")
+	victim.commit("secret")
+
+	for _, mode := range []string{"commondir", "alternates"} {
+		evil := filepath.Join(root, "evil-"+mode)
+		modDir := filepath.Join(evil, "sub", ".git", "modules", "m")
+		if err := os.MkdirAll(filepath.Join(modDir, "objects", "info"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(evil, ".git"), []byte("gitdir: sub/.git/modules/m\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(modDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(modDir, "config"), []byte("[core]\n\trepositoryformatversion = 0\n\tworktree = ../../../..\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if mode == "commondir" {
+			if err := os.WriteFile(filepath.Join(modDir, "commondir"), []byte(filepath.Join(victim.dir, ".git")+"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			if err := os.WriteFile(filepath.Join(modDir, "objects", "info", "alternates"), []byte(filepath.Join(victim.dir, ".git", "objects")+"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var esc *Unsupported
+		if _, err := Branches(ctx, evil); !errors.As(err, &esc) {
+			t.Errorf("crafted submodule with %s = %v, want *Unsupported", mode, err)
+		}
+	}
 }
 
 // A linked worktree of a repository with an initialized submodule still

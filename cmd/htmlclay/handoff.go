@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -324,8 +325,10 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite, from string)
 			continue
 		}
 		// MatchDirIdentity, not equality: macOS renumbers a volume's device at each
-		// mount, and the same file must still pass after a reboot.
-		if f.Identity == "" || !matchesIdentity(f.Path, f.Identity, a.rt.home) {
+		// mount, and the same file must still pass after a reboot. If an atomic
+		// save replaced the inode right before a crash or rollback, matching the
+		// newest version HTML Clay itself saved proves it is still our file.
+		if !a.matchesFileIdentity(f.Path, f.Identity) {
 			a.rt.logger.Printf("%s: %s is not the file the tab opened (identity changed or not recorded); skipping it", from, f.Path)
 			continue
 		}
@@ -374,4 +377,34 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite, from string)
 func matchesIdentity(path, pinned, home string) bool {
 	_, same := platform.MatchDirIdentity(path, pinned, home)
 	return same
+}
+
+func (a *app) matchesFileIdentity(path, pinned string) bool {
+	if pinned == "" {
+		return false
+	}
+	if matchesIdentity(path, pinned, a.rt.home) {
+		return true
+	}
+	return a.matchesNewestVersion(path)
+}
+
+func (a *app) matchesNewestVersion(absPath string) bool {
+	if a.rt.versions == nil {
+		return false
+	}
+	fi, err := os.Lstat(absPath)
+	if err != nil || !fi.Mode().IsRegular() {
+		return false
+	}
+	resolved, err := resolveSymlinks(absPath)
+	if err != nil || resolved != absPath {
+		return false
+	}
+	disk, err := os.ReadFile(absPath)
+	if err != nil {
+		return false
+	}
+	_, _, newest, err := a.rt.versions.Newest(absPath)
+	return err == nil && len(newest) > 0 && bytes.Equal(disk, newest)
 }

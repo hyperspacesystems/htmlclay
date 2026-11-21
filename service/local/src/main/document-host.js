@@ -62,7 +62,7 @@ async function splitWrite(baseDir, name, html, { keepState = true } = {}) {
 // first. One pass, so the descriptor is read once: the document URL is the first loopback
 // origin the text names before `/_/clayjs/` (any port, since each root server listens on
 // its own), and a root-relative `/_/clayjs/` URL resolves under any origin.
-const LOOPBACK_RUNTIME = /\bhttps?:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?(?=\/_\/clayjs\/)/i;
+const LOOPBACK_RUNTIME = /\bhttps?:\/\/(?:(?:[a-z0-9.-]+\.)?localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[::1\])(?::\d{1,5})?(?=\/_\/clayjs\/)/i;
 
 function canonicalForWrite(html) {
   const runtimeAssets = require('./runtime-assets');

@@ -254,7 +254,12 @@ func checkSubmoduleWorktree(gitdir, dir string) error {
 	if err != nil || cerr != nil || !os.SameFile(back, chosen) {
 		return &Unsupported{Feature: "a submodule folder whose storage names another folder"}
 	}
-	return nil
+	if _, err := os.Lstat(filepath.Join(gitdir, "commondir")); err == nil {
+		return &Unsupported{Feature: "a submodule folder whose storage has a commondir"}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("gitread: %w", err)
+	}
+	return checkAlternates(gitdir)
 }
 
 // readRepoFile reads a small file the repository controls, refusing a named

@@ -31,3 +31,4 @@ cmd/htmlclay/testdata/shell/** -text
 
 # The single-file templates are embedded and checked against their manifest's sha256
 service/local/src/main/document-templates/** -text
+service/local/src/main/offline-runtime/** -text
