@@ -168,8 +168,9 @@ for (const [folder, label] of Object.entries(slugs)) {
 }
 
 const tabs = opts.files.map((file, index) => {
-  const real = realpathOrNull(path.dirname(file));
-  const label = real ? labelByRealFolder.get(real) : undefined;
+  const realFile = realpathOrNull(file);
+  const realDir = realpathOrNull(path.dirname(file));
+  const label = (realFile && labelByRealFolder.get(realFile)) || (realDir && labelByRealFolder.get(realDir));
   if (!label) fail(`no site for ${file}`);
   return { index, file, label, host: `${label}.localhost:${opts.port}` };
 });
