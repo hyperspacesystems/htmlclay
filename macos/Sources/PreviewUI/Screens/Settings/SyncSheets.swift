@@ -17,6 +17,13 @@ struct ConnectSheet: View {
     init(refused: Bool = false) {
         _username = State(initialValue: SampleData.snapshot(for: .syncedWithTeams).sync.username)
         _refused = State(initialValue: refused)
+        _form = State(initialValue: nil)
+    }
+
+    init(model: AppModel, refused: Bool = false) {
+        _username = State(initialValue: SampleData.snapshot(for: .syncedWithTeams).sync.username)
+        _refused = State(initialValue: refused)
+        _form = State(initialValue: model.isSample ? nil : ConnectSheetModel(model: model))
     }
 
     var body: some View {
@@ -144,6 +151,17 @@ struct AccountFolderSheet: View {
     @Environment(\.kiln) private var kiln
     let username: String
     @State private var form: SetUpSheetModel?
+
+    init(username: String, model: AppModel) {
+        self.username = username
+        if model.isSample {
+            _form = State(initialValue: nil)
+        } else if let id = model.snapshot.folders.first(where: { $0.origin == .account(username: username) && !$0.onThisMac })?.id {
+            _form = State(initialValue: SetUpSheetModel(folderID: id, path: AccountFolderSheet.path(username), model: model))
+        } else {
+            _form = State(initialValue: nil)
+        }
+    }
 
     static func path(_ username: String) -> String {
         TeamSetupRules.samplePaths(for: Folder(id: username, name: username, path: String())).first ?? String()
@@ -300,6 +318,15 @@ struct TeamSetupSheet: View {
     @State private var stage = 0
 
     @State private var form: SetUpSheetModel?
+
+    init(folderID: String, model: AppModel) {
+        self.folderID = folderID
+        if !model.isSample, let folder = model.snapshot.folder(folderID) {
+            _form = State(initialValue: SetUpSheetModel(folderID: folderID, path: TeamSetupRules.samplePaths(for: folder).first ?? String(), model: model))
+        } else {
+            _form = State(initialValue: nil)
+        }
+    }
 
     var body: some View {
         if let folder = model.snapshot.folder(folderID) {

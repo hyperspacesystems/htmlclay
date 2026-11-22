@@ -1,3 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Folder activity</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; padding: 40px 24px; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: Canvas; color: CanvasText; }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .sub { margin: 0 0 18px; opacity: 0.72; }
+    #status { margin: 10px 0; font-size: 13.5px; opacity: 0.8; }
+    #log { padding-left: 20px; }
+    #log li { margin: 6px 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  </style>
+</head>
+<body>
 <main>
   <h1>Folder activity</h1>
   <p class="sub">Add, edit or delete a file in this folder to see it show up below within a couple of seconds.</p>
@@ -26,3 +44,5 @@
   }
   watch();
 </script>
+</body>
+</html>

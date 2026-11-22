@@ -50,9 +50,7 @@ struct FoldersPane: View {
                 .foregroundStyle(kiln.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 12)
-            if model.snapshot.folders.isEmpty && !model.snapshot.localMoveOffer {
-                emptyCard
-            }
+            purposeCards
             if model.snapshot.localMoveOffer {
                 moveCard
             }
@@ -69,45 +67,30 @@ struct FoldersPane: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
             Spacer(minLength: 0)
-            Menu {
-                Button(Strings.Folders.serveMenu) {
-                    model.sheet = .serveFolder(folderID: nil)
-                }
-                Button(Strings.Folders.trustMenu) {
-                    chooseToTrust()
-                }
-                if !model.snapshot.sync.connected {
-                    Divider()
-                    Button(Strings.Folders.connectMenu) {
-                        model.sheet = .connect
-                    }
-                }
-            } label: {
-                Text(Strings.Folders.addFolder)
-                    .font(.system(size: 13.5, weight: .medium))
-                    .foregroundStyle(kiln.btnFg)
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 12)
-                    .background(LinearGradient(colors: kiln.btnBg, startPoint: .top, endPoint: .bottom), in: RoundedRectangle(cornerRadius: 7))
-                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(kiln.btnBorder, lineWidth: 1))
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 6)
     }
 
-    private var emptyCard: some View {
-        KilnCard {
-            KilnRow(title: Strings.Folders.emptyTitle, subtitle: Strings.Folders.emptySub) {
-                Button(Strings.Folders.serveMenu) {
-                    model.sheet = .serveFolder(folderID: nil)
+    private var purposeCards: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            KilnCard {
+                KilnRow(title: Strings.Folders.serveCardTitle, subtitle: Strings.Folders.serveCardSub) {
+                    Button(Strings.Folders.serveMenu) {
+                        model.sheet = .serveFolder(folderID: nil)
+                    }
+                    .buttonStyle(KilnButtonStyle(.primary))
                 }
-                .buttonStyle(KilnButtonStyle(.plain))
+            }
+            KilnCard {
+                KilnRow(title: Strings.Folders.trustCardTitle, subtitle: Strings.Folders.trustCardSub) {
+                    Button(Strings.Folders.trustMenu) {
+                        chooseToTrust()
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                }
             }
         }
-        .padding(.bottom, 4)
+        .padding(.bottom, 8)
     }
 
     private func chooseToTrust() {

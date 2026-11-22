@@ -7,9 +7,9 @@ var examples embed.FS
 
 // ExampleNames are the file names the example documents get on disk.
 var ExampleNames = map[string]string{
-	FileSearch:  "File Search.htmlclay",
-	FileConvert: "Image Converter.htmlclay",
-	FolderWatch: "Folder Activity.htmlclay",
+	FileSearch:  "filesearch.htmlclay",
+	FileConvert: "imageconverter.htmlclay",
+	FolderWatch: "folderactivity.htmlclay",
 }
 
 // Example is the example document that shows a built-in program at work, and

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"maps"
@@ -267,17 +268,34 @@ func (d *dashboardApp) open(w http.ResponseWriter, r *http.Request, id string) {
 		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
 		return
 	}
-	target := ""
 	if folder.served {
-		target = folder.address + "/" + dashboardFolderPath(rel)
-	} else {
-		target, ok = d.a.routeTrusted(filepath.Join(folder.path, filepath.FromSlash(rel)))
-		if !ok {
-			writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
-			return
-		}
+		http.Redirect(w, r, folder.address+"/"+dashboardFolderPath(rel), http.StatusSeeOther)
+		return
 	}
-	http.Redirect(w, r, target, http.StatusSeeOther)
+	target, ok := d.a.routeTrusted(filepath.Join(folder.path, filepath.FromSlash(rel)))
+	if !ok {
+		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+		return
+	}
+	// The dashboard page carries Referrer-Policy: no-referrer, so a 303 redirect to
+	// a loose-file subdomain arrives cross-site with no Referer and also leaves the
+	// tab's history entry without one on Cmd+R reload. Answering a tiny strict-origin
+	// trampoline page replaces itself in tab history and sends only this host's origin
+	// as Referer, which EligibleNavigation accepts on both initial load and reload.
+	urlJSON, err := json.Marshal(target)
+	if err != nil {
+		writeDashboardJSON(w, http.StatusInternalServerError, map[string]string{"error": http.StatusText(http.StatusInternalServerError), "reason": "failed"})
+		return
+	}
+	escaped := html.EscapeString(target)
+	h := w.Header()
+	h.Set("Cache-Control", "no-store")
+	h.Set("Referrer-Policy", "strict-origin")
+	h.Set("Content-Security-Policy", "frame-ancestors 'none'")
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="strict-origin"><meta http-equiv="refresh" content="0;url=%s"><script>window.location.replace(%s);</script></head><body></body></html>`, escaped, urlJSON)
 }
 
 // document resolves one path inside the folder to a document file through the

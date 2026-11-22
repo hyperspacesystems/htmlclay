@@ -135,7 +135,7 @@ type Config struct {
 	// missing reads as unknown -- nothing may be granted broadly -- rather than as a
 	// machine that never had a team folder. Written by MarkTeamFolder alone.
 	TeamRecord bool `json:"teamRecord,omitempty"`
-	// PlaygroundSeeded is true once the default ~/htmlclay/playground folder has
+	// PlaygroundSeeded is true once the default ~/htmlclay/workspace folder has
 	// been created and served on a fresh install, so deleting or untrusting it
 	// never recreates it on later launches.
 	PlaygroundSeeded bool `json:"playgroundSeeded,omitempty"`

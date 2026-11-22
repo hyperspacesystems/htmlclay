@@ -18,6 +18,7 @@ import (
 	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/tier"
 )
 
@@ -233,13 +234,49 @@ func (a *app) cancelBuiltins(program, document string) {
 	}
 }
 
-// examplesDir is ~/htmlclay/examples, where Open example writes.
-func examplesDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+// examplesDir is ~/htmlclay/examples, where Open example writes. The path is
+// canonical, so the file, its trust record and its allowlist entry all agree
+// with what the host later sees through any symlinked home.
+func (a *app) examplesDir() (string, *appcore.Refusal, error) {
+	home := a.rt.home
+	if home == "" {
+		resolved, err := os.UserHomeDir()
+		if err != nil {
+			return "", nil, err
+		}
+		home = resolved
 	}
-	return filepath.Join(home, "htmlclay", "examples"), nil
+	base := filepath.Join(home, "htmlclay")
+	if _, err := os.Lstat(base); err == nil {
+		realBase, err := resolveSymlinks(base)
+		if err != nil {
+			return "", nil, err
+		}
+		if _, ok := session.ContainWithinHome(home, realBase); !ok {
+			return "", &appcore.Refusal{Code: appcore.RefuseFileOutsideHome}, nil
+		}
+	}
+	dir := filepath.Join(base, "examples")
+	if _, err := os.Lstat(dir); err == nil {
+		realDir, err := resolveSymlinks(dir)
+		if err != nil {
+			return "", nil, err
+		}
+		if _, ok := session.ContainWithinHome(home, realDir); !ok {
+			return "", &appcore.Refusal{Code: appcore.RefuseFileOutsideHome}, nil
+		}
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", nil, err
+	}
+	realDir, err := resolveSymlinks(dir)
+	if err != nil {
+		return "", nil, err
+	}
+	if _, ok := session.ContainWithinHome(home, realDir); !ok {
+		return "", &appcore.Refusal{Code: appcore.RefuseFileOutsideHome}, nil
+	}
+	return realDir, nil, nil
 }
 
 // openBuiltinExample writes the program's example document (and, for the
@@ -251,7 +288,10 @@ func (a *app) openBuiltinExample(id string) *appcore.Refusal {
 	if !ok {
 		return &appcore.Refusal{Code: appcore.RefuseNoSuchProgram, SubjectID: id}
 	}
-	dir, err := examplesDir()
+	dir, refusal, err := a.examplesDir()
+	if refusal != nil {
+		return refusal
+	}
 	if err != nil {
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
 	}

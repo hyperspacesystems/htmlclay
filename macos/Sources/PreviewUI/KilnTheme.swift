@@ -53,14 +53,25 @@ public extension EnvironmentValues {
 
 public struct KilnRoot<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    private let fillsWindow: Bool
     private let content: Content
-    public init(@ViewBuilder content: () -> Content) { self.content = content() }
+    public init(fillsWindow: Bool = true, @ViewBuilder content: () -> Content) {
+        self.fillsWindow = fillsWindow
+        self.content = content()
+    }
     public var body: some View {
         let palette = scheme == .dark ? KilnPalette.dark : KilnPalette.light
-        content
-            .environment(\.kiln, palette)
-            .foregroundStyle(palette.ink)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(palette.win.ignoresSafeArea())
+        if fillsWindow {
+            content
+                .environment(\.kiln, palette)
+                .foregroundStyle(palette.ink)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(palette.win.ignoresSafeArea())
+        } else {
+            content
+                .environment(\.kiln, palette)
+                .foregroundStyle(palette.ink)
+                .background(palette.win)
+        }
     }
 }

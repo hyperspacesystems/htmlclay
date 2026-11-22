@@ -245,7 +245,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     private func showCard(_ card: NotificationCard) {
-        let hosting = NSHostingView(rootView: KilnRoot { card }
+        let hosting = NSHostingView(rootView: KilnRoot(fillsWindow: false) { card }
             .environment(model)
             .clipShape(RoundedRectangle(cornerRadius: 13)))
         let size = hosting.fittingSize

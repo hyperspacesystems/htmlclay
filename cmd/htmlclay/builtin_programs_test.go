@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/appcore"
@@ -216,7 +219,7 @@ func TestOpenBuiltinExampleAllowsIt(t *testing.T) {
 		t.Fatalf("openExample = %+v, want none", refusal)
 	}
 	dir := filepath.Join(home, "htmlclay", "examples")
-	for _, name := range []string{"Image Converter.htmlclay", sampleImageName} {
+	for _, name := range []string{"imageconverter.htmlclay", sampleImageName} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -224,10 +227,41 @@ func TestOpenBuiltinExampleAllowsIt(t *testing.T) {
 	if opened == "" {
 		t.Fatal("the example was not opened")
 	}
-	if got := s.app.builtinFor(filepath.Join(dir, "Image Converter.htmlclay"), builtin.FileConvert).State; got != builtin.Ready {
+	if !strings.Contains(opened, "/imageconverter.htmlclay") || strings.Contains(opened, "%20") || strings.Contains(opened, "Image") {
+		t.Fatalf("opened %q, want the lowercase imageconverter.htmlclay", opened)
+	}
+	if got := s.app.builtinFor(filepath.Join(dir, "imageconverter.htmlclay"), builtin.FileConvert).State; got != builtin.Ready {
 		t.Fatalf("the example's state = %q, want ready", got)
 	}
-	if v := s.app.tierOf(filepath.Join(dir, "Image Converter.htmlclay")); v.Tier != tier.Mine {
+	if v := s.app.tierOf(filepath.Join(dir, "imageconverter.htmlclay")); v.Tier != tier.Mine {
 		t.Fatalf("the example HTML Clay wrote is %s %s, want the person's own", v.Tier, v.Reason)
+	}
+
+	s.app.rt.cfg.SetBuiltinOn(builtin.FileSearch, true)
+	if refusal := s.app.runEffect(context.Background(), appcore.Effect{Type: "program.openExample", ProgramID: builtin.FileSearch}); refusal != nil {
+		t.Fatalf("openExample(file-search) = %+v, want none", refusal)
+	}
+	page := filepath.Join(dir, "filesearch.htmlclay")
+	site, rel := s.app.openForTest(t, page)
+	loaded := servedRequest(t, s.app, http.MethodGet, site.host, "/"+rel, "", map[string]string{
+		"Sec-Fetch-Site": "same-origin",
+		"Sec-Fetch-Mode": "navigate",
+		"Sec-Fetch-Dest": "document",
+	})
+	if loaded.Code != http.StatusOK {
+		t.Fatalf("GET %s = %d, want 200", rel, loaded.Code)
+	}
+	token := tokenAttrRe.FindStringSubmatch(loaded.Body.String())
+	if len(token) != 2 {
+		t.Fatalf("the served filesearch.htmlclay carries no savetoken, so the wire would refuse it: %s", loaded.Body.String())
+	}
+	sent := servedRequest(t, s.app, http.MethodPost, site.host, "/_/wire/send",
+		fmt.Sprintf(`{"v":1,"type":"wire/request","id":"req-1","file":%q,"helper":"file-search","payload":{"query":"File search"}}`, real(t, page)),
+		map[string]string{
+			"Content-Type": "application/json",
+			"Save-Token":   token[1],
+		})
+	if sent.Code != http.StatusOK {
+		t.Fatalf("POST /_/wire/send for the file-search example = %d, want 200: %s", sent.Code, sent.Body.String())
 	}
 }

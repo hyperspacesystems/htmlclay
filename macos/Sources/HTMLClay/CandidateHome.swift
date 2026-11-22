@@ -23,14 +23,18 @@ enum CandidateHome {
         return try real(URL(fileURLWithPath: path))
     }
 
-    /// Writes <config base>/htmlclay/config.json = {"startOnLogin": false, "port": <free loopback port>, "updates": "off"} unless it exists.
-    static func prepare(_ home: URL) throws {
+    /// Writes <config base>/htmlclay/config.json = {"startOnLogin": <true without a persona>, "port": <free loopback port>, "updates": "off"} unless it exists.
+    /// Returns true when this is a fresh home with no persona, so the host should seed the default workspace.
+    @discardableResult
+    static func prepare(_ home: URL, hasProfile: Bool = false) throws -> Bool {
         let directory = configBase(home).appendingPathComponent("htmlclay", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let file = directory.appendingPathComponent("config.json")
-        guard !FileManager.default.fileExists(atPath: file.path) else { return }
-        let body = "{\"startOnLogin\": false, \"port\": \(try freeLoopbackPort()), \"updates\": \"off\"}\n"
+        guard !FileManager.default.fileExists(atPath: file.path) else { return false }
+        let login = hasProfile ? "false" : "true"
+        let body = "{\"startOnLogin\": \(login), \"port\": \(try freeLoopbackPort()), \"updates\": \"off\"}\n"
         try body.write(to: file, atomically: true, encoding: .utf8)
+        return !hasProfile
     }
 
     /// The persona --profile names, or nil when the app was launched without one.
@@ -89,8 +93,12 @@ enum CandidateHome {
         return found
     }
 
-    static func environment(_ home: URL) -> [String: String] {
-        ["HOME": home.path, "HTMLCLAY_CONFIG_BASE": configBase(home).path]
+    static func environment(_ home: URL, fresh: Bool = false) -> [String: String] {
+        var env = ["HOME": home.path, "HTMLCLAY_CONFIG_BASE": configBase(home).path]
+        if fresh {
+            env["HTMLCLAY_CANDIDATE_FRESH"] = "1"
+        }
+        return env
     }
 
     /// HTMLCLAY_CONFIG_BASE when set and absolute, so an update rehearsal can put the host on the config folder the old app uses; else <home>/c.

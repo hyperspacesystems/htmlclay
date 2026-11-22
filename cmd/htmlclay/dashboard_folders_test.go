@@ -68,7 +68,8 @@ func listed(list dashboardFolderListView, name string) bool {
 	return false
 }
 
-// folderOpen asks the open route without following its answer.
+// folderOpen asks the open route without following its answer, extracting the
+// destination URL from the strict-origin HTML trampoline when admitted.
 func folderOpen(t *testing.T, c *dashboardNoService, id, rel string) (int, string, string) {
 	t.Helper()
 	target := c.server.URL + "/api/app/folders/" + url.PathEscape(id) + "/open?path=" + url.QueryEscape(rel)
@@ -86,11 +87,28 @@ func folderOpen(t *testing.T, c *dashboardNoService, id, rel string) (int, strin
 		t.Fatal(err)
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
+	bodyBytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return res.StatusCode, res.Header.Get("Location"), string(body)
+	body := string(bodyBytes)
+	location := res.Header.Get("Location")
+	if res.StatusCode == http.StatusOK {
+		if got := res.Header.Get("Referrer-Policy"); got != "strict-origin" {
+			t.Fatalf("open trampoline Referrer-Policy = %q, want strict-origin", got)
+		}
+		const prefix = "window.location.replace("
+		if i := strings.Index(body, prefix); i >= 0 {
+			rest := body[i+len(prefix):]
+			if j := strings.Index(rest, ");</script>"); j >= 0 {
+				var parsed string
+				if err := json.Unmarshal([]byte(rest[:j]), &parsed); err == nil {
+					location = parsed
+				}
+			}
+		}
+	}
+	return res.StatusCode, location, body
 }
 
 // serviceRoute calls a route that belongs to the live-room service, as the entry
@@ -218,7 +236,7 @@ func TestM3DashboardFolders(t *testing.T) {
 		}
 
 		status, location, body := folderOpen(t, c, id, "index.html")
-		if status != http.StatusSeeOther || !strings.HasPrefix(location, "http://") || !strings.HasSuffix(location, "/index.html") {
+		if status != http.StatusOK || !strings.HasPrefix(location, "http://") || !strings.HasSuffix(location, "/index.html") {
 			t.Fatalf("opening index.html = %d to %q: %s", status, location, body)
 		}
 		registered := false
@@ -229,6 +247,59 @@ func TestM3DashboardFolders(t *testing.T) {
 		}
 		if !registered {
 			t.Fatalf("opening index.html registered no document at %q: %+v", location, a.snapshot().Documents)
+		}
+	})
+
+	t.Run("an unserved trusted file opens from the dashboard with a strict-origin referrer and survives reload", func(t *testing.T) {
+		home := evalTempHome(t)
+		dir := filepath.Join(home, "notes")
+		writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+		_, c, id := trustedDashboard(t, home, dir)
+
+		status, location, body := folderOpen(t, c, id, "index.html")
+		if status != http.StatusOK || location == "" || !strings.Contains(body, `name="referrer" content="strict-origin"`) {
+			t.Fatalf("opening index.html = %d to %q: %s", status, location, body)
+		}
+
+		// The trampoline page replaces itself under Referrer-Policy: strict-origin,
+		// so the browser sends the dashboard origin as Referer on initial load and
+		// on Cmd+R reload, while cross-site fetches and referrer-less navigations fail.
+		originReferer := "http://" + c.host + "/"
+		request := func(mode, dest, referer string) (int, string) {
+			t.Helper()
+			req, err := http.NewRequest(http.MethodGet, location, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Sec-Fetch-Site", "cross-site")
+			req.Header.Set("Sec-Fetch-Mode", mode)
+			req.Header.Set("Sec-Fetch-Dest", dest)
+			if referer != "" {
+				req.Header.Set("Referer", referer)
+			}
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer res.Body.Close()
+			out, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return res.StatusCode, string(out)
+		}
+
+		if status, body := request("cors", "empty", originReferer); status != http.StatusForbidden {
+			t.Fatalf("a cross-site fetch of the opened file = %d %s, want 403", status, body)
+		}
+		if status, body := request("navigate", "document", ""); status != http.StatusForbidden {
+			t.Fatalf("a cross-site navigation with no referer = %d %s, want 403", status, body)
+		}
+		if status, body := request("navigate", "document", originReferer); status != http.StatusOK {
+			t.Fatalf("the trampoline's initial navigation = %d %s, want 200", status, body)
+		}
+		if status, body := request("navigate", "document", originReferer); status != http.StatusOK {
+			t.Fatalf("reloading (Cmd+R) the opened tab = %d %s, want 200", status, body)
 		}
 	})
 

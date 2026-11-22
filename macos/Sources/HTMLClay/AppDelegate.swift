@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Files AppKit asks us to open before there is an opener (a cold launch to open a file).
     private var pendingOpens: [String] = []
     private var profile: Persona?
+    private var candidateFresh = false
     private var seedStarted = false
     private var seeded = false
     private var seedError: String?
@@ -37,7 +38,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let home: URL
             do {
                 home = try CandidateHome.resolve()
-                try CandidateHome.prepare(home)
             } catch {
                 FileHandle.standardError.write(Data("HTML Clay Candidate: \(error)\n".utf8))
                 exit(1)
@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             do {
                 profile = try CandidateHome.profile(CommandLine.arguments)
+                candidateFresh = try CandidateHome.prepare(home, hasProfile: profile != nil)
                 if profile != nil { try CandidateHome.requireFresh(home) }
             } catch {
                 FileHandle.standardError.write(Data("HTML Clay Candidate: \(error)\n".utf8))
@@ -75,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                         version: version)
         updateAllowed = allowed
         updates = UpdateCoordinator(driver: allowed ? SparkleDriver.make() : nil,
-                                    host: HostCLI(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: home.map(CandidateHome.environment) ?? [:])),
+                                    host: HostCLI(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: home.map { CandidateHome.environment($0) } ?? [:])),
                                     presenter: alerts, appPID: getpid(), version: version)
         statusItem.updates = updates
         model.updater = updates
@@ -135,7 +136,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func startHost() {
         if Self.identity.usesCandidateHome, home == nil { return }
         guard HostRestartPolicy.shouldStart(current: process?.state) else { return }
-        let candidateEnvironment = home.map(CandidateHome.environment) ?? [:]
+        let candidateEnvironment = home.map { CandidateHome.environment($0, fresh: candidateFresh) } ?? [:]
+        candidateFresh = false
         let launch = HostLaunch(binary: Self.hostBinary(), environment: Self.identity.hostEnvironment(candidateHome: candidateEnvironment))
         let process = HostProcess(launch: launch)
         self.process = process

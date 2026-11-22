@@ -63,7 +63,7 @@ struct GeneralPane: View {
                 .padding(.top, 8)
                 .padding(.bottom, 16)
             KilnCard {
-                KilnRow(title: Strings.General.appearanceTitle, subtitle: Strings.General.appearanceSub) {
+                KilnRow(title: Strings.General.appearanceTitle) {
                     KilnSegmented(selection: Binding(
                         get: { model.snapshot.preferences.appearance },
                         set: { model.send(.setAppearance($0)) }

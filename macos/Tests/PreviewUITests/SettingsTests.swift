@@ -242,7 +242,7 @@ final class SettingsTests: XCTestCase {
         }
     }
 
-    func testSyncSheetsLayOut() {
+    func testSyncSheetsLayOut() throws {
         _ = NSApplication.shared
         for persona in [Persona.newPerson, Persona.syncedWithTeams] {
             let host = SampleHost(persona: persona)
@@ -260,6 +260,21 @@ final class SettingsTests: XCTestCase {
             }
         }
         XCTAssertEqual(AccountFolderSheet.path("panphora"), "~/hyperclay/panphora")
+
+        let fixture = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("PreviewCoreTests/Fixtures/v1/servedFolder.snapshot.json")
+        let wire = try HostWireCoding.decoder().decode(WireSnapshot.self, from: Data(contentsOf: fixture))
+        let liveModel = AppModel(host: SampleHost(persona: .servedFolder), initial: HostSnapshotAdapter.snapshot(from: wire))
+        XCTAssertFalse(liveModel.isSample)
+        let liveSheets: [PreviewSheet] = [.connect, .serveFolder(folderID: nil), .addProgram, .customCommand, .changePort]
+        for sheet in liveSheets {
+            let hosting = NSHostingView(rootView: KilnRoot(fillsWindow: false) { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(liveModel))
+            hosting.layoutSubtreeIfNeeded()
+            XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 410, sheet.id)
+            XCTAssertGreaterThanOrEqual(hosting.fittingSize.height, 120, sheet.id)
+        }
     }
 
     func testMoveSheetsAndNotificationCardLayOut() {

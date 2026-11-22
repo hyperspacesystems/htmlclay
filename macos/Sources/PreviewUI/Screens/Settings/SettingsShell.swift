@@ -43,7 +43,7 @@ public struct SettingsView: View {
         }
         .frame(minWidth: 840, maxWidth: .infinity, minHeight: 490, maxHeight: .infinity)
         .sheet(item: Binding(get: { pinned == nil ? model.sheet : nil }, set: { model.sheet = $0 })) { sheet in
-            KilnRoot { SettingsSheetView(sheet: sheet, actions: actions) }.environment(model)
+            KilnRoot(fillsWindow: false) { SettingsSheetView(sheet: sheet, actions: actions) }.environment(model)
         }
         .overlay(alignment: .bottom) {
             if pinned == nil, let note = model.note {

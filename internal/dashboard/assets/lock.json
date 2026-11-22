@@ -3,8 +3,8 @@
     "name": "@panphora/hyperclay-workspace",
     "version": "0.14.0",
     "ref": "main",
-    "commit": "0f1e44e780be3b8634b18afa3925d02fe42b4b00",
-    "committedAt": "2026-11-21T20:21:30-05:00"
+    "commit": "92053549902ad4e7deba17cac1d670bdf3405e02",
+    "committedAt": "2026-11-21T23:07:40-05:00"
   },
   "files": {
     "assets/ibm-plex-mono-latin-400-normal-A2WATXFY.woff2": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7",
@@ -16,8 +16,8 @@
     "assets/ibm-plex-sans-latin-600-normal-DTNZULF4.woff2": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
     "assets/newsreader-latin-opsz-italic-ZC4QAWU3.woff2": "5dfcd10d24af8c82927ba57f7983dd997f7b200594c09c35a1b1ed9fc4597506",
     "assets/newsreader-latin-opsz-normal-J4KAOEDO.woff2": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101",
-    "main-EMBZVR67.js": "31b3b2ff29ef89ebd5f115dc61a628b7d4b48156009e8948deac7f1d2efc8e61",
-    "main-HI3CKHWN.css": "39eb098409d09fb6612f7dd7521f6e3a971fa45c2b37b0d97c4e82fa05ae79f0",
-    "manifest.json": "2b0469a6adc9dce15cc7f40893fd55325aa7c27c011fb1113fd757882811dcf6"
+    "main-CYVMUVNV.css": "9bc199d4f634f9fdd38cf11c33da16990d48a1c1c63b5cae96d9938b654bde4b",
+    "main-R6MAFRUM.js": "642e8e7469f884dba0e46cf86b202078ef90f79b91544af53f3b8e2ef5ff6a01",
+    "manifest.json": "b03792519bdbed067482a49b7431400fa786a54cc057d853b55bd649efd26e3e"
   }
 }

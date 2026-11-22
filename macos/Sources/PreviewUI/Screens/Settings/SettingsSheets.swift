@@ -11,9 +11,9 @@ struct SettingsSheetView: View {
             switch sheet {
             case let .serveFolder(folderID): ServeSheet(folderID: folderID, model: model)
             case let .trustFolder(name, path): TrustSheet(name: name, path: path, model: model)
-            case .connect: ConnectSheet()
-            case let .accountFolder(username): AccountFolderSheet(username: username)
-            case let .teamSetup(folderID): TeamSetupSheet(folderID: folderID)
+            case .connect: ConnectSheet(model: model)
+            case let .accountFolder(username): AccountFolderSheet(username: username, model: model)
+            case let .teamSetup(folderID): TeamSetupSheet(folderID: folderID, model: model)
             case .addProgram: AddProgramSheet(kind: .add, model: model)
             case .customCommand: CustomCommandSheet(model: model)
             case .changePort: ChangePortSheet(model: model)
