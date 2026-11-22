@@ -319,10 +319,10 @@ else
     warn "changelog-section could not draft the v${NEW_VERSION} section; releasing without one"
   fi
   if ! node scripts/build-changelog.mjs; then
-    error "The changelog page cannot read CHANGELOG.md (the line is above). Fix it and run node scripts/build-changelog.mjs, or undo this run's edits with: git checkout -- cmd/htmlclay/main.go website/index.html CHANGELOG.md"
+    error "The changelog page cannot read CHANGELOG.md (the line is above). Fix it and run node scripts/build-changelog.mjs, or undo this run's edits with: git checkout -- cmd/htmlclay/main.go website/index.html website/download/index.html CHANGELOG.md"
     exit 1
   fi
-  git add cmd/htmlclay/main.go website/index.html website/changelog.html
+  git add cmd/htmlclay/main.go website/index.html website/download/index.html website/changelog.html website/changelog/index.html
   if [ -f CHANGELOG.md ]; then git add CHANGELOG.md; fi
   git commit -m "chore: release v${NEW_VERSION}"
   success "Committed version bump"
@@ -440,7 +440,7 @@ trap - EXIT
 # Keep this list in step with PAGES in scripts/stamp-website.js: a page stamped
 # and not staged ships stale and leaves the tree dirty, which fails the next
 # release's clean-tree check.
-git add website/index.html
+git add website/index.html website/download/index.html
 if git diff --cached --quiet; then
   info "Website already current, nothing to push"
 else

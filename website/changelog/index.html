@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Changelog: HTML Clay</title>
+  <meta name="description" content="What changed in each release of the HTML Clay desktop app.">
+  <link rel="canonical" href="https://htmlclay.com/changelog">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Changelog: HTML Clay">
+  <meta property="og:description" content="What changed in each release of the HTML Clay desktop app.">
+  <meta property="og:url" content="https://htmlclay.com/changelog">
+  <meta property="og:image" content="https://htmlclay.com/og.png?v=2">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="HTML Clay: software you can keep and modify in self-saving HTML files on your computer.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://htmlclay.com/og.png?v=2">
+  <meta name="twitter:domain" content="htmlclay.com">
+  <meta name="twitter:url" content="https://htmlclay.com/changelog">
+  <meta name="twitter:title" content="Changelog: HTML Clay">
+  <meta name="twitter:description" content="What changed in each release of the HTML Clay desktop app.">
+
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://signal.hyperclay.com/v1.js" defer></script>
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="sitenav" aria-label="Primary">
+      <a class="brand" href="/" aria-label="HTML Clay home">
+        <img src="/assets/htmlclay-mark.svg" alt="" width="27" height="30">
+        <span>HTML Clay</span>
+      </a>
+      <div class="navlinks">
+        <a href="/features/">Features</a>
+        <a href="/apps/">Apps</a>
+        <a href="/security/">Security</a>
+        <a href="/docs/">Docs</a>
+        <a href="/changelog" aria-current="page">Changelog</a>
+        <a class="github-clay" href="https://github.com/hyperspacesystems/htmlclay" target="_blank" rel="noopener" aria-label="View HTML Clay source on GitHub"><span class="github-bracket" aria-hidden="true">&lt;</span><span class="github-mascot" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></span><span class="github-word" aria-hidden="true">source</span><span class="github-bracket github-close" aria-hidden="true">/&gt;</span></a>
+      </div>
+      <a class="nav-cta" href="/download/">Download</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <header class="page-header">
+      <div class="container">
+        <h1>Changelog</h1>
+        <p class="lede">What changed in each release of the HTML Clay desktop app.</p>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="timeline-wrap">
+        <div class="timeline">
+
+      <article class="release" id="v1.16.4">
+        <time class="release-date" datetime="2026-11-14">November 14, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.16.4">1.16.4</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li>The <strong>Kept Copies</strong> page lists the copies HTML Clay kept when an outside change removed data from a document, with actions to show a copy in Finder or delete one copy or all copies for a document. <strong>Delete All</strong> removes only the copies listed on the confirmation page.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li>The bundled ClayJS runtime is now 1.26.0.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.16.3">
+        <time class="release-date" datetime="2026-11-14">November 14, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.16.3">1.16.3</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li>Host metadata announces <code>data-guard-v2</code>: the data loss guard now tracks typed values and canonical sheet grids across saves and opens, and offers <strong>Put it back</strong> when data is lost.</li>
+            <li>The data API reads canonical sheet grids, and sheet patches can delete a tab with <code>{ sheet, delete: true }</code>.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li>A program writing through the data API with a matching <code>If-Match</code> header can remove data without raising a loss notice unless 90 percent or more of the values are removed.</li>
+            <li>A program write through the data API that would remove data without <code>If-Match</code> is refused with <code>428</code> (<code>read-required</code>) and the current <code>etag</code>.</li>
+            <li>Silent data removal from an outside edit keeps a pinned copy of the replaced version, and a program write answers <code>503</code> when that copy cannot be kept.</li>
+            <li>The bundled ClayJS runtime is now 1.25.0.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li>Rows cloned by the data API from a hidden <code>cms-template</code> seed element are now visible.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.16.2">
+        <time class="release-date" datetime="2026-11-12">November 12, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.16.2">1.16.2</a></h2>
+          <p>Nothing changed in the app in this release.</p>
+        </div>
+      </article>
+
+      <article class="release" id="v1.16.1">
+        <time class="release-date" datetime="2026-11-11">November 11, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.16.1">1.16.1</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li>HTML Clay checks saves, data API writes and outside edits for data loss, announces <code>data-guard-v1</code> in <code>/_/meta</code>, and shows a notice bar inside <code>&lt;body&gt;</code> that survives restarts. The notice offers <strong>Restore</strong> when restoring is possible, and <strong>Restore</strong> and <strong>Revert</strong> keep a copy of what they replace, recheck that the folder is trusted, warn about new items added after the loss that restoring would remove, and send the result to every open tab.</li>
+            <li>The data API supports <code>[*]</code> rules to match all elements for a selector.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li>Saves strip the <code>sitevisibility</code> attribute from <code>&lt;html&gt;</code>.</li>
+            <li>The bundled ClayJS runtime is now 1.24.0.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li>Hidden tabs receive live sync updates immediately rather than waiting to be shown, avoiding stale version conflicts on their next save, and silent hidden tabs stay connected for five minutes.</li>
+            <li>Relinking a program whose folder was moved or deleted opens the file picker at the nearest existing parent folder instead of failing on macOS.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.16.0">
+        <time class="release-date" datetime="2026-11-08">November 8, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.16.0">1.16.0</a></h2>
+          <h3>Changed</h3>
+          <ul>
+            <li>The bundled ClayJS runtime is now 1.23.0.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.15.1">
+        <time class="release-date" datetime="2026-11-03">November 3, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.15.1">1.15.1</a></h2>
+          <h3>Fixed</h3>
+          <ul>
+            <li>Offline copy exports strip <code>no-copy</code> sections.</li>
+            <li>Configured local programs are restored after HTML Clay restarts for an update.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.15.0">
+        <time class="release-date" datetime="2026-11-01">November 1, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.15.0">1.15.0</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li>Setting up a document's program uses one native dialog that shows the file that would run, suggests a match from programs already set up or from folders where you keep programs (matching <code>.exe</code>, <code>.bat</code> or <code>.cmd</code> extensions regardless of case on Windows), and records the file's identity before opening so a file replaced during approval is refused. It never suggests a file from the document's folder, Downloads, a temporary folder, the internet, a file changed in the last ten minutes, or a shell or script interpreter, and choosing one of those by hand asks for confirmation first.</li>
+            <li>Documents with unset programs show a setup bar that starts program setup, which can also be started from a click on the page or from the tray.</li>
+            <li>A <strong>Programs</strong> page at <code>127.0.0.1/programs</code>, opened from <strong>Manage Programs</strong> in the tray, lets you remove a document's access, relink a program whose file moved, or widen a grant through native dialogs.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li>Opening a document no longer prompts about its programs. Requests for a program that is not set up wait up to two minutes for setup and then fail with <code>helper_setup_expired</code>.</li>
+            <li>The program setup dialog has no default button, so pressing Return does not approve a program.</li>
+            <li>Program grants for any document apply only inside trusted folders, and removing access is remembered and overrides a grant for any document.</li>
+            <li><strong>Manage Programs</strong>, <strong>Open Documents</strong> and relink items for missing program files replace <strong>Add a Program</strong> and the individual program management dialog in the tray.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li>On Windows, the program file picker opens in front of the browser instead of behind it.</li>
+            <li>On macOS, clicking <strong>Cancel</strong> in a dialog counts as a refusal rather than an error.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.14.1">
+        <time class="release-date" datetime="2026-10-30">October 30, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.14.1">1.14.1</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li>A page's first request to a declared helper program that nobody has answered now opens the permission dialog and waits, instead of failing until the file is reopened.</li>
+            <li>Requests for the same program name share one dialog, and answering a dialog no longer cancels another helper's running request.</li>
+            <li>A new optional <code>data-program-folder</code> attribute on a helper declaration sets where the program picker opens. A value starting with <code>~/</code> opens that folder under your home folder from any document, and other values stay relative to the document.</li>
+            <li>The <code>/_/meta/{token}</code> endpoint takes <code>reveal</code>, <code>versions-folder</code> and <code>export</code> actions, so a page can ask HTML Clay to show its file in the file manager, open its versions folder, or zip it into Downloads.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li>A dialog that grants nothing spaces the next page-raised dialog by a minute per document, and Deny stops page-raised dialogs until the page is opened directly again.</li>
+            <li>HTML Clay no longer advertises live-data or page-room capability to pages.</li>
+            <li>The project is now released under the Competing Service license.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li>Assets in a folder that was deleted and recreated under the same name now serve from the new folder instead of answering 404 until the app restarts.</li>
+            <li>A page saved with a compacted v1 page tag reopens byte-identical.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.14.0">
+        <time class="release-date" datetime="2026-10-27">October 27, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.14.0">1.14.0</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><code>@--name</code> rules in the data API read and write a single custom property in the style attribute, with the same value checks as the reference; raw <code>@style</code> writes are still refused.</li>
+            <li>Host metadata reports the document save limit the host enforces, and that the host keeps version history, as <code>document.versions</code>.</li>
+            <li>Documents that name a clayjs.com runtime URL are served with those URLs pointing at the bundled ClayJS 1.17.0 runtime at <code>/_/clayjs/</code>.</li>
+            <li>Saves, data writes, restore, export and Clay-Source reads never write a <code>/_/clayjs/</code> URL, and the disk ETag stays the same.</li>
+            <li>A document that cannot be projected says why in the <code>Clay-Runtime-Unavailable</code> header.</li>
+            <li>Host metadata advertises same-browser presence: <code>page-awareness-v1</code> and <code>record-awareness-v1</code>, with awareness carried over a broadcast channel scoped to the browser. There is no HTTP presence endpoint.</li>
+            <li><code>GET /_/page-state/{token}</code>, named in <code>/_/meta/{token}</code>, returns the page state stored with the exact bytes on disk, and <code>page-recovery-v1</code> tells a client it may retire journaled page work against it.</li>
+            <li><code>GET /_/page-state/{token}</code> answers <code>428</code> without <code>If-Match</code>, <code>412</code> for a different ETag, and <code>404</code> when no state is stored.</li>
+            <li>Saves carry a <code>clay-page-format</code> marker and an <code>X-Clay-Page-Format</code> capability header, and host metadata advertises <code>page-format-v1</code>.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li>A page save that would write exactly the bytes already on disk is refused with <code>409 page-nothing-to-write</code> when the client sends <code>Page-Write: v1</code>; nothing is written.</li>
+            <li>A save that would lower a document's page format floor is refused with <code>409 page-format-upgrade-required</code> before anything is written, and a relay from a host with a lower capability is refused.</li>
+            <li>A page's Yjs tag survives save and reopen. Serving puts back only the state stored for the exact bytes on disk, and the disk ETag does not change.</li>
+            <li>The bundled runtime keeps an author's own <code>&lt;title&gt;</code> in the head.</li>
+            <li>Documents that name no runtime URL and hold no local runtime address skip projection and canonicalization, so large saves and serves are not parsed for nothing.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li>The shipped Journal 1.0.0 and 1.1.0 documents and the current template open, late-load their libraries, languages and fonts, and save and reopen with every outside request refused; old CDN URLs answer with the exact classic builds.</li>
+            <li>Opening a Document, Kanban or blank page for editing works offline: every file the edit boot loads comes from the bundled runtime, and the first edit saves canonical bytes and reopens.</li>
+            <li>A stray <code>&lt;/noscript&gt;</code> or <code>&lt;/template&gt;</code> inside a template no longer exposes the content that was inside it.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.8">
+        <time class="release-date" datetime="2026-10-23">October 23, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.8">1.13.8</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li>A document can link <code>/tailwindcss/&lt;name&gt;.css</code> to get a stylesheet built from the classes that document uses, with Tailwind v4.1.17, typography, forms in class mode and the ClayJS ephemeral variant.</li>
+            <li>The Tailwind compiler ships inside the binary and is unpacked on first use, so stylesheets build with no network and the one-file self-update keeps working on Linux and Windows.</li>
+            <li>The stylesheet is built from the page that asked for it, then <code>&lt;name&gt;.html</code>, then <code>&lt;name&gt;.htmlclay</code>, and only from a registered document or one inside an opened folder. The document itself is never modified.</li>
+            <li>Built stylesheets are cached under the config directory by a fingerprint of the compiler and the document's class list. Builds run one at a time per process and finish even if the request that started them drops.</li>
+            <li>A build that fails answers an empty <code>no-store</code> stylesheet and logs the failure once.</li>
+            <li>Paths under <code>/tailwindcss/</code> that are not <code>.css</code> fall through to the ordinary file handler, so a real <code>~/tailwindcss/</code> folder keeps working.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.7">
+        <time class="release-date" datetime="2026-10-22">October 22, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.7">1.13.7</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li>HTML Clay advertises the page extension, so editors mount a writable Yjs page on this host.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li>Saving a document that holds a converted page with a hybrid, mixed or missing page capture is refused with the same error codes as hosted Hyperclay, and nothing is written.</li>
+            <li>A hybrid page converts only with a valid <code>source=file</code> Page-Conversion header and one current <code>If-Match</code> stamp.</li>
+            <li>Saves and data writes no longer store the editor's <code>merge=&quot;page&quot;</code> tag. Open tabs keep sharing the page through their tab-hosted room, and a fresh open rebuilds the page from its article.</li>
+            <li>A save without the <code>merge=&quot;page&quot;</code> tag counts as an outside edit, and a stored page document saved with its tag is an ordinary save rather than a first conversion.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.6">
+        <time class="release-date" datetime="2026-10-17">October 17, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.6">1.13.6</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>The data API reads rules that start with <code>:scope</code>.</strong> A nested rule such as <code>:scope &gt; section.checklist</code> now matches the rows directly inside its context, as ClayJS reads it, so the Kanban template's data opens in HTML Clay instead of failing with &quot;Invalid selector&quot;.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li><strong>An empty attribute reads as <code>&quot;&quot;</code>, and writing <code>null</code> removes it.</strong> The data API matches ClayJS again: a present but empty attribute such as Kanban's <code>data-done=&quot;&quot;</code> used to read as <code>null</code> and could not be written back.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.5">
+        <time class="release-date" datetime="2026-10-15">October 15, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.5">1.13.5</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong><code>htmlclay update-now</code> asks the running copy of HTML Clay to update now.</strong> It answers only the app that is the same install, on macOS it starts a Sparkle check and install, and the app advertises the command with <code>HCUpdateNowCommand</code>.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li><strong>A running app is never replaced by an update it refused, after a rollback, or by an older version.</strong> An install interrupted halfway leaves the next run able to finish the swap.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.4">
+        <time class="release-date" datetime="2026-10-15">October 15, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.4">1.13.4</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>HTML Clay updates itself on Windows and Linux.</strong> A background check verifies a signed update feed, downloads and stages the new version, and the tray row becomes Restart to Update.</li>
+            <li><strong>On macOS, HTML Clay updates itself through Sparkle.</strong> The tray offers Restart to Update once the update is ready, and falls back to the download link when Sparkle is missing or cannot update this copy.</li>
+            <li><strong>An update restart keeps saves and open tabs.</strong> Every open document comes back at the address it had, with its save token and grants, and a write that arrives during the restart is answered with a retry.</li>
+            <li><strong>An update that fails to start puts the previous version back.</strong> That version is skipped from then on, and the open sessions move back with it.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.3">
+        <time class="release-date" datetime="2026-10-14">October 14, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.3">1.13.3</a></h2>
+          <h3>Changed</h3>
+          <ul>
+            <li><strong>Folder addresses are htmlclay, htmlclay1, htmlclay2, and the default port is 1212.</strong> The 1.13.1 addresses, such as <code>notes-3f2a.localhost:24190</code>, become <code>htmlclay.localhost:1212</code>, <code>htmlclay1.localhost:1212</code> and so on, in the order folders are first served. The move happens once, on the first launch of this version; bookmarks to the 1.13.1 addresses stop working and page data stored in the browser under them starts over.</li>
+            <li><strong>If every default port is taken, HTML Clay picks a random free port</strong> between 10000 and 32767 and keeps it, instead of quitting. The defaults are 1212, 4545, 9797, 3434 and 1111.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.2">
+        <time class="release-date" datetime="2026-10-12">October 12, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.2">1.13.2</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>A program that is not a browser reaches a folder's data API at <code>127.0.0.1:&lt;port&gt;</code> without knowing the folder's hostname.</strong> It names the file by the home-relative path the address bar shows, and a path no open folder serves answers <code>404</code> with a message saying no folder is open.</li>
+            <li><strong><code>htmlclay wire --port</code> finds the folder when it is given HTML Clay's own port</strong>, instead of asking for the folder's hostname.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.1">
+        <time class="release-date" datetime="2026-10-12">October 12, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.1">1.13.1</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>One port, an address per folder.</strong> HTML Clay serves every folder from one port, 1212 unless it is taken, at an address such as <code>http://htmlclay.localhost:1212/</code>. The address is chosen once per folder and never changes, so bookmarks survive restarts and opening a file again lands on the same page data. If another program holds the port at launch, a dialog names it and offers to quit it, move HTML Clay to a new port, or quit.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li><strong>Old <code>127.0.0.1:&lt;port&gt;</code> bookmarks redirect to the new address while their port is free.</strong> Browser storage written under an old address does not carry over; the first launch says so once.</li>
+            <li><strong><code>htmlclay wire</code> takes <code>--origin</code> for an HTML Clay address</strong>; <code>--port</code> is for Hyperclay Local.</li>
+            <li><strong>Links between folders work under the default referrer policy</strong>; a page that sets <code>no-referrer</code> cannot link to another folder.</li>
+            <li><strong>The format is called a malleable document</strong> in HTML Clay's own copy, with the old name left in addresses, identifiers and history.</li>
+          </ul>
+          <h3>Note</h3>
+          <ul>
+            <li><strong>Downgrading to 1.13 drops <code>port</code>, <code>siteSlugs</code> and <code>retiredSlugs</code> from <code>config.json</code></strong> on its next save (unknown fields are discarded), so the addresses are chosen afresh on the next upgrade.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li><strong>A double-clicked file or a Start on Login launch no longer opens a terminal window on Windows.</strong> <code>htmlclay wire</code> still prints in a terminal.</li>
+            <li><strong>PowerShell dialogs, the browser launch and an AI editing agent no longer open console windows of their own on Windows.</strong></li>
+            <li><strong>Dialogs and prompts come to the front on Windows</strong>, including the error a forwarded open shows and the Trust this folder prompt, which now uses the real button labels.</li>
+            <li><strong>Trust a Folder on Windows opens the modern Explorer-style picker</strong>, a browser navigation to a path outside the folder gets a plain <code>403</code> page instead of a read prompt naming the page, and Stop Trusting labels its refusing button Cancel.</li>
+            <li><strong>A save on Windows replaces a file another program has open.</strong></li>
+            <li><strong>Exporting a file confirms the zip with an ordinary notice</strong>, and says something only when the Downloads folder cannot be opened.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.13.0">
+        <time class="release-date" datetime="2026-10-08">October 8, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.13.0">1.13.0</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>Export an open file and its attachments as a zip.</strong> A tray submenu lists every open document; choosing one writes <code>&lt;name&gt;.zip</code> to Downloads, holding the document and its <code>assets-&lt;name&gt;</code> folder under one folder, and opens Downloads.</li>
+            <li><strong>Uploads live in <code>~/htmlclay/uploads</code> and every site serves them at <code>/_/uploads/</code>.</strong> A document links its files by host path, so they stay with it when it moves, and a zip export carries them along.</li>
+            <li><strong>A profile name that travels with your files.</strong> Profile in the tray turns on Use My Profile in Files and sets the name a document reports under <code>document.people.me</code> in <code>/_/meta</code>, and the id it mints survives renames and toggles.</li>
+            <li><strong>The Programs menu lists every open document's helpers with their state</strong>, such as allowed, approval needed, denied for this open, or a program file that has gone missing.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li><strong>A bookmark to a remembered port now lands on the folder's current address.</strong> A navigation to a port that no longer serves the folder redirects to where it is served now, and a folder that is no longer trusted keeps its old address on the recovery page.</li>
+            <li><strong>An uploaded file is never served back as a page.</strong> Uploads refuse web-page and script types, an attachment is sent with <code>nosniff</code> and an explicit type, and a page type found inside an <code>assets-</code> folder is handed over as a download.</li>
+            <li><strong>The uploads library is never served as a page</strong>, its names are keyed per folder so a name learned in one folder says nothing about another's, and a symlinked <code>~/htmlclay</code> no longer exposes it.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li><strong>Start on Login works on macOS.</strong> The LaunchAgent is written as plain text, so launchd accepts it and the app starts at login.</li>
+            <li><strong>A file of exactly the advertised 25 MiB is accepted on upload</strong>, and an upload never lands half written: bytes go to a hidden temporary file and are published in one step inside the document's folder.</li>
+            <li><strong>An upload's token stays out of the access log.</strong></li>
+            <li><strong>Configure an Open File picks the registration whose name matches</strong> when several share the chosen program.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.12.0">
+        <time class="release-date" datetime="2026-10-04">October 4, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.12.0">1.12.0</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>AI editing names the agent it runs and falls back when the default program is missing.</strong> The first status names Claude Code, Fable or Codex, and requests that name no agent use the other built in program if the built in default is unavailable; explicit agents never fall back.</li>
+            <li><strong>A served document names the version it was served from</strong> in a <code>documentetag</code> attribute on <code>&lt;html&gt;</code>, so a tab can tell the version it opened from the one on disk now. The attribute is response metadata and is never written to the file.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.11.0">
+        <time class="release-date" datetime="2026-10-03">October 3, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.11.0">1.11.0</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>A write can carry its own rules.</strong> Sending JSON to a document's page address with a <code>data</code> parameter writes through those rules instead of the document's <code>api</code> rules tag, and sending <code>data</code> twice is refused with a message asking for one.</li>
+            <li><strong><code>/_/meta</code> announces <code>data-read</code> and <code>data-write</code></strong>, so a caller can see the JSON API is available before trying it.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.10.1">
+        <time class="release-date" datetime="2026-10-01">October 1, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.10.1">1.10.1</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>AI editing is built in.</strong> Select text in any HTML file that loads ClayJS, press ⌘J, and say what you want: HTML Clay runs Claude Code, Fable or Codex on your computer with no tools, and the rewrite appears in place until you keep or revert it. It is on by default, needs no declaration or approval prompt, and never takes the document's handler slot. Turn it off with <strong>AI Editing</strong> in the tray. A request needs the document's <code>Save-Token</code>, one runs per document at a time, and <code>@name.ext</code> context stays inside the document's folder. agy is refused, because it can read files without asking.</li>
+            <li><strong>AI editing keeps <code>@file</code> context to ordinary files in the document's folder</strong>, refusing dotfiles, dot folders and HTML Clay's own state, by name and after symlinks.</li>
+            <li><strong>An AI editing reply stops at 4 MiB.</strong></li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.10.0">
+        <time class="release-date" datetime="2026-09-28">September 28, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.10.0">1.10.0</a></h2>
+          <h3>Added</h3>
+          <ul>
+            <li><strong><code>POST /_/api/&lt;file&gt;</code> writes JSON into a document.</strong> The body is applied through the page's own <code>api</code> rules tag, the same map <code>GET /_/api</code> reads with, and only content is written: text as text, and attributes that cannot run script. Only the changed elements are rewritten, so every other byte of the file stays as it was. The write is versioned and reaches open tabs like a save. A local program needs nothing extra, and a browser page must send the file's <code>Save-Token</code>.</li>
+            <li><strong>The data API sends an <code>ETag</code></strong>, and a write carrying <code>If-Match</code> is refused with <code>412</code> when the file changed since it was read.</li>
+            <li><strong>Trusted folders stay trusted across a macOS reboot.</strong> Folders are pinned by volume and inode rather than by the device number macOS renumbers on mount, and a trusted folder whose folder is gone answers with a page saying it needs approving again.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li><strong>The document-programs prompt no longer remembers a refusal.</strong> Deny, Return, Escape, closing it or letting it time out applies to that open only, and the next double click asks again. Refusals stored by earlier versions are dropped. If exactly one program with that name is allowed for any document, a document that refused it now uses it without asking. The prompt shows the program path behind each name and asks which one when several share a name.</li>
+            <li><strong><code>no-data</code> and <code>editor-ui</code> regions are invisible to the data API</strong>, on reads as well as writes, matching hyper-html-api.</li>
+            <li><strong>A browser page proves it holds the file's <code>Save-Token</code> before the data API looks the file up</strong>, and every failure answers the same way, so a page cannot tell a missing file from one it may not write. A write against a read-only rule answers <code>400</code>.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li><strong>Data API writes land in documents that start with a byte order mark, and in SVG or MathML markup</strong>, whose camelCase names now pair case-insensitively.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.9.1">
+        <time class="release-date" datetime="2026-09-24">September 24, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.9.1">1.9.1</a></h2>
+          <h3>Changed</h3>
+          <ul>
+            <li><strong><code>htmlclay wire</code> reads the folders Hyperclay Local serves from where that app actually publishes them</strong>, and looks past a remembered folder that does not serve the file, so a file still reaches the app that serves it.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="release" id="v1.9.0">
+        <time class="release-date" datetime="2026-08-30">August 30, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v1.9.0">1.9.0</a></h2>
+          <p>This release makes HTML Clay speak the Malleable HTML File protocol: it announces what it can do, stamps what it stores, and refuses a save that would land on top of someone else's. It is also the compatibility half of a change in the client libraries, so read the first entry below before upgrading either side.</p>
+          <h3>Changed</h3>
+          <ul>
+            <li><strong>The save token is injected under both names, <code>savetoken</code> and <code>htmlclaytoken</code>.</strong> <code>savetoken</code> is the name spec §9 gives it and the only name ClayJS 1.2.0 and HyperclayJS 1.38.0 read. 1.8.0 and earlier injected only <code>htmlclaytoken</code>, so a document served by an older HTML Clay looks editable to a current client and every save fails. <strong>Upgrading to 1.9.0 is the fix for every document at once</strong>, and serving both names means a document opened in an older client keeps working too.</li>
+            <li><strong>A document's durable identity is written as <code>documentid</code>.</strong> <code>htmlclayid</code> was a product name in a file format that outlives the product. The old spelling is still recognised and removed on save, so a document written by an earlier version is not left carrying two identities.</li>
+            <li><strong>The 415 on a save that is not a document answers <code>unsupported-type</code>.</strong> It was <code>unsupported-media-type</code>, which is in the spec's registry nowhere; the upload route already answered the registered name.</li>
+            <li><strong>The six-tab limit is gone.</strong> It was a browser limit the host documented as unfixable; the shared stream under Added and the matching ClayJS client integration are the fix.</li>
+          </ul>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>One live-sync stream for every tab.</strong> The <code>/_/sync</code> stream now carries any number of documents and lanes at once, listed as <code>s=lane:since:document-url</code>, each resuming from its own position, and the host serves a small worker at <code>/_/sync/worker.js</code> through which every tab on the origin shares that one stream. A browser allows six connections per origin and each tab used to hold one for the life of the page, so the seventh tab of one project never loaded. With ClayJS shared-worker support, tabs share one connection. The one-document spelling still works for documents that vendor an older runtime.</li>
+            <li>The <code>sync-worker</code> compatibility marker identifies workers that preserve separate peer and disk updates across notifications and invalidate cached content after a replay gap. Clients can keep the direct transport on older hosts.</li>
+            <li><strong>The wire stream opens with a cursor for pages</strong>, so a page whose stream drops before any frame arrives can still resume from a position rather than from nothing. Processes tailing the wire receive no cursor.</li>
+            <li><strong><code>/_/meta</code> discovery.</strong> A page can ask what the host supports rather than probing for it: the protocol version, the two scopes, and the capability list, which on this host is <code>conditional</code>, <code>receipts</code>, <code>sync</code> and <code>upload</code>. <code>format</code> is deliberately absent: this host stores the bytes it was sent, so it ignores <code>formathtml</code> entirely, and §4 says a host that does not declare <code>format</code> is telling every client exactly that. The <code>document</code> block is withheld by omission rather than by an error, per §5.</li>
+            <li><p><strong>Save receipts.</strong> A save may carry a <code>Save-ID</code>, an opaque id a client mints for that one attempt, and this host remembers which id belongs to the bytes it currently stores. It reports that id as <code>saveId</code> in <code>/_/meta</code>, on every accepted save, and on every 412. A client whose save timed out can then ask the one question it cannot answer alone, whether its own write is what landed, instead of guessing and either overwriting somebody else's work or showing a conflict notice over a few seconds of bad wifi.</p><p>The id is remembered beside the stamp of the bytes that save wrote and is reported only while that stamp still matches what is on disk. So a write from anywhere else, a text editor, a git checkout, an agent on the filesystem, invalidates it by moving the bytes, with nothing having to notice. An id is never minted here and never accepted as authorization for anything; the host only ever echoes what a client sent.</p></li>
+            <li><strong>Conditional saves.</strong> Every save answer carries an <code>etag</code>, and a save sent with <code>If-Match</code> is refused with 412 and a <code>conflict</code> code, nothing written, when the document changed underneath it. The stamp is computed over the bytes on disk rather than over the bytes the host was sent, since those differ whenever a host normalises and stamping what was sent would tell a client its disk holds something it does not.</li>
+            <li><strong><code>changedBy</code> on the conflict refusal</strong>, naming what moved the file when the host actually knows (<code>another-tab</code>, <code>another-person</code>, <code>an-agent</code>) and omitted when it does not. A host must not guess: a plain filesystem write has no author.</li>
+            <li><strong>The live-sync relay forwards <code>etag</code> on the editor lane.</strong> The saving browser sends the stamp along with the bytes it just saved, so a receiving tab adopts a stamp only as part of applying the content that stamp describes. The viewer lane drops it, since a viewer holds a whole document rather than a pre-strip snapshot and has no save to condition.</li>
+            <li><strong>A disk change carries the stamp of the bytes it delivers.</strong> When the watcher sees a file edited outside the browser, the notification it sends the editors now carries that version's <code>etag</code> alongside the content. A tab used to apply the change and then ask <code>/_/meta</code> for a replacement stamp, which answers about whatever is stored at that later moment: if a second write landed in between, the tab adopted a stamp for bytes it had never seen and overwrote them on its next save. The stamp is taken from the bytes on disk rather than from the rendering sent to the browser, so it matches what a later <code>If-Match</code> is compared against. The viewer lane still carries no stamp.</li>
+            <li><strong>A favicon</strong>, so an opened document is identifiable in a row of tabs.</li>
+            <li><strong>The protocol conformance page ships with the host</strong> (<code>testdata/conformance/</code>) and runs in CI on every push, so a release cannot quietly stop conforming.</li>
+            <li><strong><code>website/llms.txt</code></strong>, a full reference for agents reading the site.</li>
+          </ul>
+          <h3>Fixed</h3>
+          <ul>
+            <li>A refusal the host answers itself carries a readable <code>msg</code>, and invents no <code>code</code> outside the spec's registry. The 409 on a truncated write used to answer a <code>conflict</code> code, which reads to a client as a stale-stamp conflict it can retry past, rather than as a write it must not repeat.</li>
+          </ul>
+        </div>
+      </article>
+
+        </div>
+
+        <p class="older-releases">Releases before 1.9.0 are recorded in the ecosystem changelog at <a href="https://changelog.hyperclay.com">changelog.hyperclay.com</a>.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <a class="footer-brand" href="/">
+          <img src="/assets/htmlclay-mark.svg" alt="" width="27" height="30">
+          <span>HTML Clay</span>
+        </a>
+        <p class="footer-tagline">Software in a single HTML file, yours to keep and modify.</p>
+      </div>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/apps/">Starter Apps</a></li>
+            <li><a href="/download/">Download</a></li>
+            <li><a href="/changelog">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Documentation</h3>
+          <ul>
+            <li><a href="/docs/guide/quick-start/">Quick Start</a></li>
+            <li><a href="/docs/features/">Features Reference</a></li>
+            <li><a href="/docs/live-sync/">Live Sync</a></li>
+            <li><a href="/docs/json-http/">JSON over HTTP</a></li>
+            <li><a href="/docs/llms.txt">llms.txt</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Trust &amp; Source</h3>
+          <ul>
+            <li><a href="/security/">Security &amp; Trust</a></li>
+            <li><a href="https://github.com/hyperspacesystems/htmlclay">GitHub Source</a></li>
+            <li><a href="https://download.htmlclay.com/SHA256SUMS">SHA256SUMS</a></li>
+            <li><a href="https://onehtmlfile.com/">Free MIT-0 Apps</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Ecosystem</h3>
+          <ul>
+            <li><a href="https://hyperclay.com">Hyperclay</a></li>
+            <li><a href="https://clayjs.com">ClayJS</a></li>
+            <li><a href="https://hyperclaylocal.com">Hyperclay Local</a></li>
+            <li><a href="https://onehtmlfile.com/">One HTML File</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <footer data-hyper-footer="htmlclay"></footer>
+
+  <script src="/js/site.js"></script>
+  <script src="https://hyperclay.com/public/js/hyper-footer.js" defer></script>
+  <script src="https://hyperclay.com/public/js/polite-pop.js" defer></script>
+</body>
+</html>

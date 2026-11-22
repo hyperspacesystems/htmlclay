@@ -1,0 +1,10 @@
+/*.htmlclay
+  Content-Type: text/html; charset=utf-8
+  Content-Disposition: attachment
+  X-Content-Type-Options: nosniff
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/images/v2/*
+  Cache-Control: public, max-age=31536000, immutable

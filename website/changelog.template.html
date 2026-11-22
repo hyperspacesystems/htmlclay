@@ -3,479 +3,126 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HTML Clay: changelog</title>
+  <title>Changelog: HTML Clay</title>
   <meta name="description" content="What changed in each release of the HTML Clay desktop app.">
   <link rel="canonical" href="https://htmlclay.com/changelog">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
   <meta property="og:type" content="website">
-  <meta property="og:title" content="HTML Clay: changelog">
+  <meta property="og:title" content="Changelog: HTML Clay">
   <meta property="og:description" content="What changed in each release of the HTML Clay desktop app.">
   <meta property="og:url" content="https://htmlclay.com/changelog">
   <meta property="og:image" content="https://htmlclay.com/og.png?v=2">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="HTML Clay: HTML files that save themselves. One file, double-click to open, edits save back.">
+  <meta property="og:image:alt" content="HTML Clay: software you can keep and modify in self-saving HTML files on your computer.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://htmlclay.com/og.png?v=2">
-  <meta property="twitter:domain" content="htmlclay.com">
-  <meta property="twitter:url" content="https://htmlclay.com/changelog">
-  <meta name="twitter:title" content="HTML Clay: changelog">
+  <meta name="twitter:domain" content="htmlclay.com">
+  <meta name="twitter:url" content="https://htmlclay.com/changelog">
+  <meta name="twitter:title" content="Changelog: HTML Clay">
   <meta name="twitter:description" content="What changed in each release of the HTML Clay desktop app.">
 
-  <style>
-    @font-face {
-      font-family: "IBM Plex Sans";
-      font-style: normal;
-      font-weight: 600;
-      font-display: swap;
-      src: url("fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
-    }
-    :root {
-      --bg: #faf8f3;
-      --ink: #1b1a17;
-      --body-ink: #2c2924;
-      --muted: #6f6b62;
-      --line: #e7e3d8;
-      --bullet: #b8b1a3;
-      --code-bg: #f1ede2;
-      --accent: #c2410c;
-      --btn: #161512;
-      --btn-ink: #faf8f3;
-      --timeline-dot: #6856ba;
-      --timeline-line: #e4def4;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      --rounded: ui-rounded, "SF Pro Rounded", system-ui, "Segoe UI", sans-serif;
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      font-size: 17px;
-      -webkit-font-smoothing: antialiased;
-    }
-    .wrap {
-      max-width: 820px;
-      margin: 0 auto;
-      padding: 0 22px;
-    }
-
-    .sitenav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 22px 0 0;
-      font-size: 14px;
-    }
-    .sitenav a {
-      color: var(--muted);
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .sitenav a:hover { color: var(--ink); }
-    .sitenav .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      flex: none;
-      color: var(--ink);
-      font: 700 17px/1 "IBM Plex Sans", system-ui, sans-serif;
-      letter-spacing: -0.01em;
-    }
-    .sitenav .brand img {
-      display: block;
-      width: 31px;
-      height: 28px;
-      flex: none;
-    }
-    .sitenav .navlinks {
-      display: flex;
-      flex: 1;
-      flex-wrap: wrap;
-      align-items: baseline;
-      justify-content: flex-end;
-      min-width: 0;
-      gap: 6px 18px;
-    }
-    .sitenav .github-clay {
-      display: inline-block;
-      position: relative;
-      color: var(--ink);
-      font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.6;
-    }
-    .github-clay:hover { color: var(--ink); }
-    .github-clay:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 4px;
-      border-radius: 3px;
-    }
-    .github-bracket { color: var(--accent); }
-    .github-mascot {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 22px;
-      margin: 0 4px;
-      color: var(--btn-ink);
-      background: var(--btn);
-      border-radius: 52% 48% 43% 57% / 46% 42% 58% 54%;
-      box-shadow: 0 2px 0 var(--line);
-      transform: rotate(-3deg);
-      transform-origin: center bottom;
-      vertical-align: middle;
-    }
-    .github-mascot svg {
-      display: block;
-      width: 15px;
-      height: 15px;
-      fill: currentColor;
-    }
-    .github-word { position: relative; margin-right: 3px; }
-    .github-word::after {
-      content: "";
-      position: absolute;
-      right: 0;
-      bottom: -2px;
-      left: 0;
-      height: 2px;
-      background: var(--accent);
-      border-radius: 999px;
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.28s ease;
-    }
-    .github-clay:hover .github-mascot { animation: knead-clay 0.55s ease-in-out; }
-    .github-clay:hover .github-word::after,
-    .github-clay:focus-visible .github-word::after { transform: scaleX(1); }
-    .github-clay:hover .github-close { transform: translateX(1px); }
-    .github-close { display: inline-block; transition: transform 0.2s ease; }
-
-    @keyframes knead-clay {
-      0%, 100% {
-        border-radius: 52% 48% 43% 57% / 46% 42% 58% 54%;
-        transform: rotate(-3deg) scale(1);
-      }
-      38% {
-        border-radius: 42% 58% 55% 45% / 56% 48% 52% 44%;
-        transform: rotate(4deg) scale(1.12, 0.88);
-      }
-      70% {
-        border-radius: 58% 42% 48% 52% / 43% 55% 45% 57%;
-        transform: rotate(-1deg) scale(0.94, 1.08);
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .github-clay:hover .github-mascot { animation: none; }
-      .github-word::after, .github-close { transition: none; }
-    }
-
-    .navlinks a { white-space: nowrap; }
-    .sitenav a[aria-current="page"] { color: var(--accent); }
-    a { color: var(--accent); text-underline-offset: 2px; }
-    a:hover { text-decoration: none; }
-
-    .filechip {
-      display: inline-block;
-      font-family: var(--mono);
-      font-size: 13px;
-      color: var(--muted);
-      background: var(--code-bg);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 1px 7px;
-      white-space: nowrap;
-    }
-
-    .page-head {
-      padding: 50px 0 34px;
-      border-bottom: 1px solid var(--line);
-      margin-bottom: 46px;
-    }
-    .page-head h1 {
-      font-family: var(--rounded);
-      font-size: 38px;
-      line-height: 1.15;
-      letter-spacing: -0.015em;
-      margin: 0 0 10px;
-      color: var(--ink);
-    }
-    .page-head .lede {
-      margin: 0;
-      font-size: 18px;
-      line-height: 1.55;
-      color: var(--muted);
-      max-width: 38em;
-    }
-
-    .timeline {
-      margin: 0;
-      padding: 0;
-    }
-    .release {
-      --rail-x: 174px;
-      position: relative;
-      display: grid;
-      grid-template-columns: 148px minmax(0, 1fr);
-      column-gap: 60px;
-      padding-bottom: 48px;
-      scroll-margin-top: 24px;
-    }
-    .release:last-child {
-      padding-bottom: 8px;
-    }
-    .release::before {
-      content: "";
-      position: absolute;
-      left: calc(var(--rail-x) - 1px);
-      top: 14px;
-      bottom: -14px;
-      width: 2px;
-      background: var(--timeline-line);
-    }
-    .release:last-child::before {
-      bottom: 0;
-    }
-    .release::after {
-      content: "";
-      position: absolute;
-      left: calc(var(--rail-x) - 10px);
-      top: 4px;
-      width: 20px;
-      height: 20px;
-      border: 2px solid var(--timeline-dot);
-      border-radius: 50%;
-      padding: 4px;
-      background-color: var(--timeline-dot);
-      background-clip: content-box;
-      box-shadow: inset 0 0 0 4px var(--bg), 0 0 0 3px var(--bg);
-    }
-
-    .release-date {
-      font-size: 14px;
-      font-weight: 500;
-      line-height: 28px;
-      color: var(--muted);
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .release-notes {
-      min-width: 0;
-      font-size: 16px;
-      line-height: 1.62;
-      color: var(--body-ink);
-      overflow-wrap: break-word;
-    }
-    .release-notes h2 {
-      font-family: var(--rounded);
-      font-size: 22px;
-      font-weight: 700;
-      line-height: 28px;
-      letter-spacing: -0.01em;
-      color: var(--ink);
-      margin: 0;
-      font-variant-numeric: tabular-nums;
-    }
-    .release-notes h2 a {
-      color: inherit;
-      text-decoration: none;
-    }
-    .release-notes h2 a:hover {
-      color: var(--accent);
-    }
-    .release-notes h2 a:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 3px;
-      border-radius: 4px;
-    }
-    .release-notes > p {
-      margin: 12px 0 0;
-    }
-    .release-notes h3 {
-      font-family: var(--rounded);
-      font-size: 12.5px;
-      font-weight: 700;
-      line-height: 1.3;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin: 22px 0 10px;
-    }
-    .release-notes h2 + h3 {
-      margin-top: 14px;
-    }
-    .release-notes ul {
-      margin: 0;
-      padding-left: 20px;
-    }
-    .release-notes li {
-      padding-left: 2px;
-    }
-    .release-notes li::marker {
-      color: var(--bullet);
-    }
-    .release-notes li + li {
-      margin-top: 10px;
-    }
-    .release-notes li p {
-      margin: 0;
-    }
-    .release-notes li p + p {
-      margin-top: 10px;
-    }
-    .release-notes strong,
-    .release-notes b {
-      color: var(--ink);
-      font-weight: 600;
-    }
-    .release-notes code {
-      font-family: var(--mono);
-      font-size: 0.84em;
-      color: var(--ink);
-      background: var(--code-bg);
-      border: 1px solid var(--line);
-      border-radius: 5px;
-      padding: 1px 5px;
-      overflow-wrap: break-word;
-      -webkit-box-decoration-break: clone;
-      box-decoration-break: clone;
-    }
-    .release-notes strong code,
-    .release-notes b code {
-      font-weight: 600;
-    }
-
-    .older-releases {
-      margin: 36px 0 0;
-      padding-top: 28px;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 15px;
-      overflow-wrap: break-word;
-    }
-
-    footer {
-      padding: 40px 0 64px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 14px;
-      overflow-wrap: break-word;
-    }
-    footer p { margin: 0 0 8px; }
-
-    @media (max-width: 640px) {
-      .page-head {
-        padding: 36px 0 26px;
-        margin-bottom: 34px;
-      }
-      .page-head h1 {
-        font-size: 31px;
-      }
-      .page-head .lede {
-        font-size: 16.5px;
-      }
-      .release {
-        --rail-x: 8px;
-        display: block;
-        padding-left: 30px;
-        padding-bottom: 38px;
-      }
-      .release::before {
-        top: 11px;
-        bottom: -11px;
-      }
-      .release::after {
-        left: 0;
-        top: 3px;
-        width: 16px;
-        height: 16px;
-        padding: 3px;
-        box-shadow: inset 0 0 0 3px var(--bg), 0 0 0 3px var(--bg);
-      }
-      .release-date {
-        display: block;
-        font-size: 13.5px;
-        line-height: 22px;
-        margin-bottom: 3px;
-      }
-      .release-notes {
-        font-size: 15.5px;
-      }
-      .release-notes h2 {
-        font-size: 20px;
-        line-height: 25px;
-      }
-      .release-notes ul {
-        padding-left: 18px;
-      }
-    }
-
-    @media (max-width: 560px) {
-      .wrap {
-        padding: 0 16px;
-      }
-      .sitenav {
-        flex-wrap: wrap;
-        gap: 10px 16px;
-      }
-      .sitenav .navlinks {
-        flex-basis: 100%;
-        justify-content: flex-start;
-        gap: 6px 14px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/css/site.css">
   <script src="https://signal.hyperclay.com/v1.js" defer></script>
 </head>
 <body>
-  <main class="wrap">
 
-    <nav class="sitenav">
-      <a class="brand" href="/" aria-label="HTML Clay home"><img src="assets/htmlclay-mark.svg" alt="" width="31" height="28"><span>HTML Clay</span></a>
+  <header class="site-header">
+    <nav class="sitenav" aria-label="Primary">
+      <a class="brand" href="/" aria-label="HTML Clay home">
+        <img src="/assets/htmlclay-mark.svg" alt="" width="27" height="30">
+        <span>HTML Clay</span>
+      </a>
       <div class="navlinks">
-        <a class="github-clay" href="https://github.com/hyperspacesystems/htmlclay" target="_blank" rel="noopener" aria-label="View HTML Clay source on GitHub"><span class="github-bracket" aria-hidden="true">&lt;</span><span class="github-mascot" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></span><span class="github-word" aria-hidden="true">source</span><span class="github-bracket github-close" aria-hidden="true">/&gt;</span></a>
-        <a href="/">Home</a>
-        <a href="/docs/guide/quick-start/">Get started</a>
-        <a href="/docs/features/">Features</a>
+        <a href="/features/">Features</a>
+        <a href="/apps/">Apps</a>
+        <a href="/security/">Security</a>
         <a href="/docs/">Docs</a>
         <a href="/changelog" aria-current="page">Changelog</a>
-        <a href="https://onehtmlfile.com/">Starter apps</a>
+        <a class="github-clay" href="https://github.com/hyperspacesystems/htmlclay" target="_blank" rel="noopener" aria-label="View HTML Clay source on GitHub"><span class="github-bracket" aria-hidden="true">&lt;</span><span class="github-mascot" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></span><span class="github-word" aria-hidden="true">source</span><span class="github-bracket github-close" aria-hidden="true">/&gt;</span></a>
       </div>
+      <a class="nav-cta" href="/download/">Download</a>
     </nav>
+  </header>
 
-    <header class="page-head">
-      <h1>Changelog</h1>
-      <p class="lede">What changed in each release of the HTML Clay desktop app.</p>
+  <main>
+
+    <header class="page-header">
+      <div class="container">
+        <h1>Changelog</h1>
+        <p class="lede">What changed in each release of the HTML Clay desktop app.</p>
+      </div>
     </header>
 
-    <div class="timeline">
+    <div class="container">
+      <div class="timeline-wrap">
+        <div class="timeline">
 
 <!-- changelog:entries -->
 
+        </div>
+
+        <p class="older-releases">Releases before 1.9.0 are recorded in the ecosystem changelog at <a href="https://changelog.hyperclay.com">changelog.hyperclay.com</a>.</p>
+      </div>
     </div>
 
-    <p class="older-releases">Releases before 1.9.0 are recorded in the ecosystem changelog at <a href="https://changelog.hyperclay.com">changelog.hyperclay.com</a>.</p>
-
-    <footer>
-      <p>Building your own <span class="filechip">.htmlclay</span> files? Check out <a href="https://hyperclay.com">Hyperclay</a></p>
-      <p><a href="https://try.htmlclay.com/">Software you can pass around</a></p>
-      <p>Source code: <a href="https://github.com/hyperspacesystems/htmlclay">github.com/hyperspacesystems/htmlclay</a></p>
-      <p>Docs: <a href="/docs/">all HTML Clay docs</a></p>
-      <p>For agents: <a href="/llms.txt">llms.txt</a></p>
-    </footer>
-
-    <footer data-hyper-footer="htmlclay"></footer>
-
   </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <a class="footer-brand" href="/">
+          <img src="/assets/htmlclay-mark.svg" alt="" width="27" height="30">
+          <span>HTML Clay</span>
+        </a>
+        <p class="footer-tagline">Software in a single HTML file, yours to keep and modify.</p>
+      </div>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/apps/">Starter Apps</a></li>
+            <li><a href="/download/">Download</a></li>
+            <li><a href="/changelog">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Documentation</h3>
+          <ul>
+            <li><a href="/docs/guide/quick-start/">Quick Start</a></li>
+            <li><a href="/docs/features/">Features Reference</a></li>
+            <li><a href="/docs/live-sync/">Live Sync</a></li>
+            <li><a href="/docs/json-http/">JSON over HTTP</a></li>
+            <li><a href="/docs/llms.txt">llms.txt</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Trust &amp; Source</h3>
+          <ul>
+            <li><a href="/security/">Security &amp; Trust</a></li>
+            <li><a href="https://github.com/hyperspacesystems/htmlclay">GitHub Source</a></li>
+            <li><a href="https://download.htmlclay.com/SHA256SUMS">SHA256SUMS</a></li>
+            <li><a href="https://onehtmlfile.com/">Free MIT-0 Apps</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Ecosystem</h3>
+          <ul>
+            <li><a href="https://hyperclay.com">Hyperclay</a></li>
+            <li><a href="https://clayjs.com">ClayJS</a></li>
+            <li><a href="https://hyperclaylocal.com">Hyperclay Local</a></li>
+            <li><a href="https://onehtmlfile.com/">One HTML File</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <footer data-hyper-footer="htmlclay"></footer>
+
+  <script src="/js/site.js"></script>
   <script src="https://hyperclay.com/public/js/hyper-footer.js" defer></script>
   <script src="https://hyperclay.com/public/js/polite-pop.js" defer></script>
 </body>

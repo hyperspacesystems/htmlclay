@@ -11,14 +11,14 @@
 // whatever is currently on the page, so it is self-correcting after drift.
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Only pages that actually carry a version or a download link. A page listed here
 // with neither is a hard error, which is what catches a stamp slot that quietly
-// disappeared; features.html is deliberately absent because it carries no version.
-const PAGES = ['index.html'].map((name) => join(ROOT, 'website', name));
+// disappeared; features/apps/security/changelog carry no version or dmg link.
+const PAGES = ['index.html', 'download/index.html'].map((name) => join(ROOT, 'website', name));
 const DOWNLOAD_BASE = 'https://download.htmlclay.com/';
 
 const version =
@@ -97,7 +97,7 @@ for (const page of PAGES) {
   changed ||= html !== original;
   if (!check) {
     writeFileSync(page, html);
-    console.log(`Stamped ${stamped} element(s) in ${page.split('/').pop()} with v${version}`);
+    console.log(`Stamped ${stamped} element(s) in ${relative(join(ROOT, 'website'), page)} with v${version}`);
   }
 }
 

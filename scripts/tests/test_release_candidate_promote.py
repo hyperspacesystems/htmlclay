@@ -301,9 +301,14 @@ class PromotionTests(unittest.TestCase):
         git('config', 'user.email', 'fixture@example.invalid')
         git('config', 'commit.gpgsign', 'false')
         (self.root / 'website').mkdir(exist_ok=True)
+        (self.root / 'website/download').mkdir(exist_ok=True)
         (self.root / 'website/index.html').write_text(
             '<span data-version>v1.2.2</span>'
             '<span data-sha256="htmlclay-linux-amd64.tar.gz">old</span>')
+        (self.root / 'website/download/index.html').write_text(
+            '<span data-version>v1.2.2</span>'
+            '<a data-mac-dmg href="https://download.htmlclay.com/HTMLClay-1.2.2-universal.dmg">HTMLClay-1.2.2-universal.dmg</a>'
+            '<span data-sha256="HTMLClay-1.2.2-universal.dmg">old</span>')
         (self.root / 'scripts').mkdir()
         (self.root / 'scripts/stamp-website.js').write_text((ROOT / 'scripts/stamp-website.js').read_text())
         git('add', '.')
@@ -353,6 +358,8 @@ class PromotionTests(unittest.TestCase):
                 self.assertFalse(any(c[0] == 'node' and c[-1] != '--check' for c in commands))
             self.assertFalse(any(c[:2] == ('git', 'push') for c in repeated))
             self.assertEqual(self.git('rev-parse', 'v1.2.3'), self.record['release_sha'])
+            self.assertIn('HTMLClay-1.2.3-universal.dmg', (self.root / 'website/download/index.html').read_text())
+            self.assertEqual(self.git('status', '--porcelain'), '')
 
     def test_non_release_owned_descendant_refuses(self):
         command = self.real_checkout()

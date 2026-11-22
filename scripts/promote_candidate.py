@@ -248,7 +248,7 @@ def promote(record, directory, no_install=False):
         except subprocess.CalledProcessError as error:
             raise ValueError('checkout differs from promotion release commit; requalify') from error
         changed = run('git', 'log', '-m', '--format=', '--name-only', release + '..' + head).splitlines()
-        site = ('website/index.html', 'website/changelog.html', 'CHANGELOG.md')
+        site = ('website/index.html', 'website/download/index.html', 'website/changelog.html', 'website/changelog/index.html', 'CHANGELOG.md')
         if any(path and path not in site for path in changed):
             raise ValueError('checkout differs from promotion release commit; requalify')
     run('git', 'fetch', '--tags', '--quiet', 'origin')
@@ -298,9 +298,9 @@ def promote(record, directory, no_install=False):
         if error.returncode != 2:
             raise
         run('node', 'scripts/stamp-website.js', version, str(directory / 'SHA256SUMS'))
-        run('git', 'add', 'website/index.html')
+        run('git', 'add', 'website/index.html', 'website/download/index.html')
         if run('git', 'diff', '--cached', '--name-only'):
-            run('git', 'commit', '-m', 'chore: point downloads at v' + version, '--', 'website/index.html')
+            run('git', 'commit', '-m', 'chore: point downloads at v' + version, '--', 'website/index.html', 'website/download/index.html')
     head = run('git', 'rev-parse', 'HEAD')
     remote_head = run('git', 'ls-remote', 'origin', 'refs/heads/' + branch)
     if not remote_head or remote_head.split()[0] != head:

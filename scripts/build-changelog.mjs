@@ -9,7 +9,7 @@
 // groups, "- " items continued by indented lines, an indented paragraph after a
 // blank line inside an item, and inline **bold**, `code` and [links](url).
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -158,22 +158,30 @@ export function build(markdown, template) {
 
 function main() {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const page = join(root, 'website', 'changelog.html');
+  const pages = [
+    join(root, 'website', 'changelog.html'),
+    join(root, 'website', 'changelog', 'index.html'),
+  ];
   const fresh = build(readFileSync(join(root, 'CHANGELOG.md'), 'utf8'), readFileSync(join(root, 'website', 'changelog.template.html'), 'utf8'));
   if (process.argv.includes('--check')) {
-    let current = '';
-    try {
-      current = readFileSync(page, 'utf8');
-    } catch {}
-    if (current !== fresh) {
-      console.error('website/changelog.html is stale: run node scripts/build-changelog.mjs');
-      process.exit(1);
+    for (const page of pages) {
+      let current = '';
+      try {
+        current = readFileSync(page, 'utf8');
+      } catch {}
+      if (current !== fresh) {
+        console.error(`${page} is stale: run node scripts/build-changelog.mjs`);
+        process.exit(1);
+      }
     }
-    console.log('website/changelog.html matches CHANGELOG.md');
+    console.log('website/changelog.html and website/changelog/index.html match CHANGELOG.md');
     return;
   }
-  writeFileSync(page, fresh);
-  console.log('wrote website/changelog.html');
+  for (const page of pages) {
+    mkdirSync(dirname(page), { recursive: true });
+    writeFileSync(page, fresh);
+  }
+  console.log('wrote website/changelog.html and website/changelog/index.html');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
