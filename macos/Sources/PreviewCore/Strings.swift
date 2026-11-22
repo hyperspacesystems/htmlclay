@@ -125,7 +125,8 @@ public enum Strings {
         public static let onlyOnThisMac = "Only on this Mac"
         public static let setUp = "Set up…"
         public static let openHyperclay = "Open Hyperclay ↗"
-        public static func rootRoute(_ id: String) -> String { "/roots/\(id)" }
+        public static func rootRoute(_ id: String) -> String { "/roots/\(id)/files" }
+        public static func trustedRoute(_ id: String) -> String { "/trusted/\(id)/files" }
         public static func pathAndAddress(path: String, address: String) -> String { "\(path) · \(address)" }
         public static func copied(_ address: String) -> String { "Copied \(address) to the clipboard." }
         public static func accountGroup(username: String) -> String { "Hyperclay · @\(username)" }

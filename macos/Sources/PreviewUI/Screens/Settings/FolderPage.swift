@@ -138,7 +138,7 @@ struct FolderPage: View {
                 } else if folder.served {
                     model.send(.openDashboard(route: Strings.Folders.rootRoute(folder.id)))
                 } else {
-                    model.send(.revealFolder(id: folder.id))
+                    model.send(.openDashboard(route: Strings.Folders.trustedRoute(folder.id)))
                 }
             }
             .buttonStyle(KilnButtonStyle(.plain))

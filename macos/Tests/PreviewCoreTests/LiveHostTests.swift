@@ -311,6 +311,11 @@ final class LiveHostTests: XCTestCase {
         await waitUntil("the open log never got the dashboard") {
             openLog(log).contains { $0.contains("//htmlclay.localhost:") }
         }
+        if let folder = model.snapshot.folders.first(where: { $0.onThisMac }) {
+            let folderRoute = folder.served ? Strings.Folders.rootRoute(folder.id) : Strings.Folders.trustedRoute(folder.id)
+            _ = try done(await host.client.perform(.openDashboard(route: folderRoute)),
+                         "opening folder route \(folderRoute) was refused")
+        }
 
         XCTAssertTrue(model.can(HostActionType.documentForget))
         let forgotten = try done(await host.client.perform(.forgetDocument(id: document.id)),
