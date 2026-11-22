@@ -18,6 +18,7 @@ import (
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/shellapi"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/versions"
 )
@@ -29,6 +30,7 @@ var implementedActions = []string{
 	"aiEdit.setEffort",
 	"aiEdit.setModel",
 	"app.openRecoveredChanges",
+	"app.openSettings",
 	"app.revealLog",
 	"dashboard.open",
 	"document.export",
@@ -95,6 +97,9 @@ func (a *app) implemented() []string {
 		if typ == "document.recover" && !a.shell {
 			continue
 		}
+		if typ == "app.openSettings" && !a.shell {
+			continue
+		}
 		// The Mac app checks for updates through Sparkle; only it reports what
 		// Sparkle downloaded, and the host passes Update on to it.
 		if (typ == "update.check" && a.shell) || (typ == "update.prepared" && !a.shell) {
@@ -129,15 +134,7 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 	case "folder.merge":
 		return a.mergeFolder(e)
 	case "folder.stopTrusting":
-		path := a.folderPath(e.FolderID)
-		if path == "" {
-			return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
-		}
-		if err := a.untrustFolder(path); err != nil {
-			a.rt.logger.Printf("Could not stop trusting folder %s: %v", path, err)
-			return &appcore.Refusal{Code: appcore.RefuseFailed}
-		}
-		return nil
+		return a.stopTrustingFolder(e)
 	case "folder.serve":
 		_, refusal, err := a.serveFolderNamed(e.Path, e.Name)
 		if refusal != nil {
@@ -158,7 +155,7 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		if err := a.stopServing(e.FolderID); err != nil {
 			var unsaved errUnsavedEdits
 			if errors.As(err, &unsaved) {
-				return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: e.FolderID}
+				return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: e.FolderID, Documents: unsaved.Names}
 			}
 			a.rt.logger.Printf("Could not stop serving folder %s: %v", e.FolderID, err)
 			return &appcore.Refusal{Code: appcore.RefuseFailed}
@@ -266,6 +263,14 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return nil
 	case "app.openRecoveredChanges":
 		a.openKeptPage()
+		return nil
+	case "app.openSettings":
+		if !a.shell {
+			return &appcore.Refusal{Code: appcore.RefuseNotOnThisSystem}
+		}
+		if !a.rt.notices.deliver(shellapi.Notice{Type: shellapi.FrameOpenSettings, Detail: e.Pane}) {
+			return &appcore.Refusal{Code: appcore.RefuseFailed}
+		}
 		return nil
 	case "aiEdit.setModel":
 		return a.setAIEditModel(e)
@@ -802,12 +807,99 @@ func (a *app) revealProgram(e appcore.Effect) *appcore.Refusal {
 
 // folderPath answers the path the facts give a folder id, or "".
 func (a *app) folderPath(id string) string {
-	for _, ff := range a.facts().Folders {
-		if ff.ID == id {
-			return ff.Path
-		}
+	if ff, ok := a.folderFactByID(id); ok {
+		return ff.Path
 	}
 	return ""
+}
+
+// folderFactByID returns the current FolderFact for id, if present.
+func (a *app) folderFactByID(id string) (appcore.FolderFact, bool) {
+	for _, ff := range a.facts().Folders {
+		if ff.ID == id {
+			return ff, true
+		}
+	}
+	return appcore.FolderFact{}, false
+}
+
+// stopTrustingFolder cascades trust removal across synced, served, and trusted
+// state: synced folders require Confirmed; served folders check open-tab and
+// live-room unsaved edits before mutating anything unless Force is set; and the
+// served config entry is removed (not merely set Serving=false) so LoadFrom's
+// sanitizeServedFolders cannot silently re-trust it on the next launch.
+func (a *app) stopTrustingFolder(e appcore.Effect) *appcore.Refusal {
+	ff, ok := a.folderFactByID(e.FolderID)
+	if !ok || ff.Path == "" {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+	if ff.Synced && !e.Confirmed {
+		return &appcore.Refusal{Code: appcore.RefuseConfirmSyncStop, SubjectID: e.FolderID}
+	}
+	sf, hasServed := a.rt.cfg.ServedFolderByID(e.FolderID)
+	syncStopped := false
+	if hasServed && sf.Serving {
+		if !e.Force {
+			if names := a.unsavedTabsUnder(sf.Path); len(names) > 0 {
+				return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: e.FolderID, Documents: names}
+			}
+			kept, err := a.service.removeRoot(e.FolderID)
+			if err != nil {
+				a.rt.logger.Printf("The live-room service did not answer while stopping %s: %v", sf.Name, err)
+			}
+			if len(kept) > 0 {
+				names := make([]string, 0, len(kept))
+				for _, doc := range kept {
+					names = append(names, doc.Name)
+				}
+				return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: e.FolderID, Documents: names}
+			}
+			if ff.Synced {
+				if refusal := a.setFolderSynced(e.FolderID, false); refusal != nil && refusal.Code == appcore.RefuseFailed {
+					return refusal
+				}
+				syncStopped = true
+			}
+			a.teardownServedMount(e.FolderID, sf.Name)
+			a.rt.cfg.RemoveServedFolder(e.FolderID)
+			a.saveConfig("remove served folder " + sf.Name)
+			a.service.want()
+		} else {
+			if ff.Synced {
+				if refusal := a.setFolderSynced(e.FolderID, false); refusal != nil && refusal.Code == appcore.RefuseFailed {
+					return refusal
+				}
+				syncStopped = true
+			}
+			a.teardownServedMount(e.FolderID, sf.Name)
+			a.unsaved.forgetUnder(sf.Path)
+			a.rt.cfg.RemoveServedFolder(e.FolderID)
+			a.saveConfig("remove served folder " + sf.Name)
+			kept, err := a.service.removeRoot(e.FolderID)
+			if err != nil {
+				a.rt.logger.Printf("The live-room service did not answer while force-stopping %s: %v", sf.Name, err)
+			}
+			if len(kept) > 0 {
+				a.service.restart()
+			} else {
+				a.service.want()
+			}
+		}
+	}
+	if ff.Synced && !syncStopped {
+		if refusal := a.setFolderSynced(e.FolderID, false); refusal != nil && refusal.Code == appcore.RefuseFailed {
+			return refusal
+		}
+	}
+	if _, stillServed := a.rt.cfg.ServedFolderByID(e.FolderID); stillServed {
+		a.rt.cfg.RemoveServedFolder(e.FolderID)
+		a.saveConfig("remove served folder " + sf.Name)
+	}
+	if err := a.untrustFolder(ff.Path); err != nil {
+		a.rt.logger.Printf("Could not stop trusting folder %s: %v", ff.Path, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	return nil
 }
 
 // setPreference applies a prefs.set effect.

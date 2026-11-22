@@ -89,8 +89,6 @@ func waiting(f Facts) []WaitingItem {
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingFileNotText, e.Detail, e.Name), e.Detail, e.SubjectID)
 		case WaitingNameClash:
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingNameClash, e.Detail, e.Name), e.Detail, e.SubjectID)
-		case WaitingTeamToSetUp:
-			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingTeamToSetUp, e.Name), e.Detail, e.SubjectID)
 		case WaitingRemovalHeld:
 			add(e.ID, e.Kind, fmt.Sprintf(TextWaitingRemovalHeld, e.Detail, e.Name), e.Detail, e.SubjectID)
 		}

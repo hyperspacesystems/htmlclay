@@ -5,7 +5,7 @@ public enum SquircleColor: CaseIterable {
 }
 
 public enum SquircleSize {
-    case regular, large, extraLarge
+    case regular, medium, large, extraLarge
 }
 
 public struct Squircle: View {
@@ -27,6 +27,7 @@ public struct Squircle: View {
     private var side: CGFloat {
         switch size {
         case .regular: return 24
+        case .medium: return 28
         case .large: return 32
         case .extraLarge: return 52
         }
@@ -34,6 +35,7 @@ public struct Squircle: View {
     private var cornerRadius: CGFloat {
         switch size {
         case .regular: return 6
+        case .medium: return 7
         case .large: return 8
         case .extraLarge: return 13
         }
@@ -41,6 +43,7 @@ public struct Squircle: View {
     private var symbolSize: CGFloat {
         switch size {
         case .regular: return 12
+        case .medium: return 13.5
         case .large: return 15
         case .extraLarge: return 24
         }

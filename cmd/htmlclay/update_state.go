@@ -168,14 +168,12 @@ func (a *app) setSparklePrepared(version string) {
 
 // setAutoUpdate is prefs.set autoUpdate. On Windows and Linux off stops the
 // timed checks and Check now still works; on turns them on and checks at once.
-// The Mac app keeps this setting with Sparkle.
+// On macOS the host persists the preference so the Settings switch always works
+// (even on Candidate/unsigned builds) and the Mac app mirrors it to Sparkle.
 func (a *app) setAutoUpdate(on bool) *appcore.Refusal {
-	if a.shell || updateNowOS == "darwin" {
-		return &appcore.Refusal{Code: appcore.RefuseNotYet}
-	}
 	a.rt.cfg.SetSelfUpdateOff(!on)
 	a.saveConfig("preference autoUpdate")
-	if !on {
+	if a.shell || updateNowOS == "darwin" || !on {
 		return nil
 	}
 	a.updates.mu.Lock()

@@ -59,22 +59,23 @@ public struct SettingsView: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
                 switch activePane {
-                case .general: GeneralPane(actions: actions)
+                case .general: GeneralPane(model: model, actions: actions)
+                case .aiEditing: AIEditingPane()
                 case .folders:
                     switch activeRoute {
                     case let .folder(id):
                         if model.snapshot.folder(id) != nil {
                             FolderPage(folderID: id, actions: actions)
                         } else {
-                            FoldersPane()
+                            FoldersPane(actions: actions)
                         }
                     case let .folderHistory(id):
                         if model.snapshot.folder(id) != nil {
                             FolderHistoryPage(folderID: id)
                         } else {
-                            FoldersPane()
+                            FoldersPane(actions: actions)
                         }
-                    default: FoldersPane()
+                    default: FoldersPane(actions: actions)
                     }
                 case .programs:
                     switch activeRoute {
@@ -86,7 +87,6 @@ public struct SettingsView: View {
                         }
                     default: ProgramsPane(actions: actions)
                     }
-                case .htmlclayFiles: FilesPane(model: model)
                 case .sync: SyncPane(actions: actions)
                 case .updates: UpdatesPane()
                 case .advanced: AdvancedPane()

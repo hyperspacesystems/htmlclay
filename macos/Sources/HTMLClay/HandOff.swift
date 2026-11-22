@@ -9,12 +9,15 @@ enum HandOff {
             .first { $0.processIdentifier != me }
     }
 
-    /// Opens the paths in that copy and brings it forward, waiting up to 5 s for Launch Services.
     static func give(_ paths: [String], to other: NSRunningApplication) {
-        if !paths.isEmpty, let bundle = other.bundleURL {
+        if let bundle = other.bundleURL {
             let done = DispatchSemaphore(value: 0)
-            NSWorkspace.shared.open(paths.map { URL(fileURLWithPath: $0) }, withApplicationAt: bundle,
-                                    configuration: NSWorkspace.OpenConfiguration()) { _, _ in done.signal() }
+            if !paths.isEmpty {
+                NSWorkspace.shared.open(paths.map { URL(fileURLWithPath: $0) }, withApplicationAt: bundle,
+                                        configuration: NSWorkspace.OpenConfiguration()) { _, _ in done.signal() }
+            } else {
+                NSWorkspace.shared.openApplication(at: bundle, configuration: NSWorkspace.OpenConfiguration()) { _, _ in done.signal() }
+            }
             _ = done.wait(timeout: .now() + 5)
         }
         _ = other.activate()

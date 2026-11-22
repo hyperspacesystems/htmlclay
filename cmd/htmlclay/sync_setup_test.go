@@ -90,8 +90,8 @@ func TestM4SetUpFolder(t *testing.T) {
 			offered++
 		}
 	}
-	if offered != 1 {
-		t.Fatalf("set-up items for a team that syncs = %d, want 1", offered)
+	if offered != 0 {
+		t.Fatalf("un-set-up teams must not emit WaitingTeamToSetUp events, got %d", offered)
 	}
 
 	t.Run("a team folder with files is refused and unchanged", func(t *testing.T) {

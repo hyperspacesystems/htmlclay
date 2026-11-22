@@ -60,7 +60,7 @@ public struct SettingsSidebar: View {
     private static func color(for pane: SettingsPane) -> SquircleColor {
         switch pane {
         case .general: return .slate
-        case .htmlclayFiles: return .teal
+        case .aiEditing: return .plum
         case .folders: return .sky
         case .programs: return .amber
         case .sync: return .cobalt
@@ -72,7 +72,7 @@ public struct SettingsSidebar: View {
     private static func symbol(for pane: SettingsPane) -> String {
         switch pane {
         case .general: return Symbols.gear
-        case .htmlclayFiles: return Symbols.doc
+        case .aiEditing: return Symbols.sparkles
         case .folders: return Symbols.folder
         case .programs: return Symbols.program
         case .sync: return Symbols.sync

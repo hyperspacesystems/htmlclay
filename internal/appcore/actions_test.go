@@ -116,6 +116,9 @@ func TestPlan(t *testing.T) {
 		{"reveal a document", synced, "document.reveal", `{"id":"todo"}`, "document.reveal", ""},
 		{"forget a document", synced, "document.forget", `{"id":"todo"}`, "document.forget", ""},
 		{"open the dashboard", synced, "dashboard.open", `{"route":"/folders"}`, "dashboard.open", ""},
+		{"open settings default pane", synced, "app.openSettings", `{}`, "app.openSettings", ""},
+		{"open settings ai pane", synced, "app.openSettings", `{"pane":"ai"}`, "app.openSettings", ""},
+		{"open settings unknown pane", synced, "app.openSettings", `{"pane":"bogus"}`, "", RefuseBadArguments},
 		{"reveal a folder", synced, "folder.reveal", `{"id":"notes"}`, "folder.reveal", ""},
 		{"reveal an unknown folder", synced, "folder.reveal", `{"id":"nope"}`, "", RefuseNoSuchFolder},
 		{"copy a served folder's address", synced, "folder.copyAddress", `{"id":"prototypes"}`, "folder.copyAddress", ""},
@@ -138,7 +141,7 @@ func TestPlan(t *testing.T) {
 		{"stop serving a served folder", synced, "folder.stopServing", `{"id":"prototypes"}`, "folder.stopServing", ""},
 		{"stop serving a folder not served", synced, "folder.stopServing", `{"id":"notes"}`, "", RefuseNotAllowedNow},
 		{"stop trusting a trusted folder", synced, "folder.stopTrusting", `{"id":"notes"}`, "folder.stopTrusting", ""},
-		{"stop trusting a served folder", synced, "folder.stopTrusting", `{"id":"prototypes"}`, "", WhyStopServingFirst},
+		{"stop trusting a served folder cascades", synced, "folder.stopTrusting", `{"id":"prototypes","confirmed":true,"force":true}`, "folder.stopTrusting", ""},
 		{"merge a folder into its parent", trusted, "folder.merge", `{"id":"journal"}`, "folder.merge", ""},
 		{"merge a folder with no parent", trusted, "folder.merge", `{"id":"notes"}`, "", RefuseNotAllowedNow},
 		{"stop syncing a synced folder", synced, "folder.setSynced", `{"id":"panphora","on":false}`, "folder.setSynced", ""},
@@ -254,5 +257,54 @@ func TestPlanRefusalFromAFolderReasonCarriesItsText(t *testing.T) {
 	msg := RefusalMessage(refusal)
 	if !strings.Contains(msg, "work") || strings.Contains(msg, "overlaps ,") {
 		t.Errorf("RefusalMessage = %q, want the reason's sentence naming work", msg)
+	}
+}
+
+func TestPlanStopTrustingForwardsConfirmedAndForce(t *testing.T) {
+	synced := fixtureFacts(t, "syncedWithTeams")
+	effects, refusal := Plan(synced, Action{
+		ID:   "st-1",
+		Type: "folder.stopTrusting",
+		Args: json.RawMessage(`{"id":"panphora","confirmed":true,"force":true}`),
+	})
+	if refusal != nil {
+		t.Fatalf("Plan refused: %+v", refusal)
+	}
+	if len(effects) != 1 || !effects[0].Confirmed || !effects[0].Force || effects[0].FolderID != "panphora" {
+		t.Fatalf("effects = %+v, want Confirmed=true Force=true FolderID=panphora", effects)
+	}
+}
+
+func TestPlanAIEditSetEffortResolvesEmptyModelToDefaultModel(t *testing.T) {
+	f := Facts{
+		Preferences: Preferences{
+			AIEditTools: []AIEditTool{
+				{
+					ID:            "agy",
+					Found:         true,
+					Model:         "",
+					DefaultModel:  "gemini-4-carbon",
+					Models:        []string{"gemini-4-carbon", "gemini-4-neon"},
+					DefaultEffort: "high",
+					Efforts:       []string{"low", "medium", "high", "xhigh"},
+					ModelEfforts: map[string][]string{
+						"gemini-4-carbon": {"low", "medium", "high"},
+						"gemini-4-neon":   {"low", "medium", "high", "xhigh"},
+					},
+				},
+			},
+		},
+	}
+	// Fresh install has Model == "", so effectiveModel is DefaultModel ("gemini-4-carbon"), which does not support xhigh.
+	if _, refusal := Plan(f, Action{ID: "e1", Type: "aiEdit.setEffort", Args: json.RawMessage(`{"tool":"agy","effort":"xhigh"}`)}); refusal == nil || refusal.Code != RefuseBadArguments {
+		t.Fatalf("xhigh on default gemini-4-carbon = %+v, want bad-arguments", refusal)
+	}
+	if _, refusal := Plan(f, Action{ID: "e2", Type: "aiEdit.setEffort", Args: json.RawMessage(`{"tool":"agy","effort":"high"}`)}); refusal != nil {
+		t.Fatalf("high on default gemini-4-carbon refused: %+v", refusal)
+	}
+	// Switching saved Model to gemini-4-neon allows xhigh.
+	f.Preferences.AIEditTools[0].Model = "gemini-4-neon"
+	if _, refusal := Plan(f, Action{ID: "e3", Type: "aiEdit.setEffort", Args: json.RawMessage(`{"tool":"agy","effort":"xhigh"}`)}); refusal != nil {
+		t.Fatalf("xhigh on gemini-4-neon refused: %+v", refusal)
 	}
 }

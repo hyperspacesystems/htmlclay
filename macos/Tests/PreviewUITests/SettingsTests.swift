@@ -168,12 +168,12 @@ final class SettingsTests: XCTestCase {
 
     func testUtilityPanes() async throws {
         _ = NSApplication.shared
-        XCTAssertEqual(FilesPane.mode(SampleData.snapshot(for: .newPerson)), .off)
-        XCTAssertEqual(FilesPane.mode(SampleData.snapshot(for: .syncedWithTeams)), .account)
+        XCTAssertEqual(GeneralPane.mode(SampleData.snapshot(for: .newPerson)), .off)
+        XCTAssertEqual(GeneralPane.mode(SampleData.snapshot(for: .syncedWithTeams)), .account)
 
         let localHost = SampleHost(persona: .newPerson)
         _ = try await localHost.perform(.setUseName(true))
-        XCTAssertEqual(FilesPane.mode(localHost.current), .local)
+        XCTAssertEqual(GeneralPane.mode(localHost.current), .local)
 
         XCTAssertEqual(UpdatesPane.short("2.1.0"), "2.1")
         XCTAssertEqual(UpdatesPane.short("2.0.3"), "2.0.3")
@@ -186,12 +186,18 @@ final class SettingsTests: XCTestCase {
         for persona in [Persona.newPerson, .syncedWithTeams] {
             let host = SampleHost(persona: persona)
             let model = AppModel(host: host, initial: host.current)
-            for pane in [SettingsPane.htmlclayFiles, .updates, .advanced] {
+            for pane in [SettingsPane.aiEditing, .updates, .advanced] {
                 let hosting = NSHostingView(rootView: KilnRoot { SettingsView(pane: pane) }.environment(model))
                 hosting.layoutSubtreeIfNeeded()
                 XCTAssertGreaterThanOrEqual(hosting.fittingSize.width, 840, persona.rawValue + " " + pane.rawValue)
             }
         }
+
+        let welcomeHost = SampleHost(persona: .newPerson)
+        let welcomeModel = AppModel(host: welcomeHost, initial: welcomeHost.current)
+        let welcomeHosting = NSHostingView(rootView: KilnRoot { WelcomeView(film: nil, menuBarIcon: nil) }.environment(welcomeModel))
+        welcomeHosting.layoutSubtreeIfNeeded()
+        XCTAssertEqual(welcomeHosting.fittingSize.width, 600, accuracy: 1)
     }
 
     func testSettingsRendersTheRealHostsSnapshot() throws {

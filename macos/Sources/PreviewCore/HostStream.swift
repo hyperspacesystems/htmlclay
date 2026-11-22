@@ -47,6 +47,7 @@ public enum HostStreamChange: Equatable, Sendable {
     case notice(HostNotice)
     /// Update was pressed on a browser page: restart into the downloaded update.
     case restartToUpdate
+    case openSettings(SettingsPane)
 }
 
 /// A conflict, a key the server stopped accepting, or a team the person was
@@ -112,6 +113,9 @@ public struct HostStreamState: Equatable, Sendable {
             return [.notice(HostNotice(id: id, kind: kind, folderID: event.folderID, name: event.name ?? "", detail: event.detail ?? ""))]
         case "restartToUpdate":
             return [.restartToUpdate]
+        case "openSettings":
+            let pane = event.detail.flatMap(SettingsPane.init(rawValue:)) ?? .general
+            return [.openSettings(pane)]
         case "bye":
             ended = true
             return [.ended(reason: event.reason ?? "")]

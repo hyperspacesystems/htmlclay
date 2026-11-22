@@ -109,6 +109,17 @@ func (u *unsavedReports) forget(path string) {
 	delete(u.docs, path)
 }
 
+// forgetUnder drops every report about documents inside dir.
+func (u *unsavedReports) forgetUnder(dir string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	for p := range u.docs {
+		if session.EqualOrUnder(p, dir) {
+			delete(u.docs, p)
+		}
+	}
+}
+
 // unsavedTabsUnder names, for a person, the documents in dir an open tab says
 // hold unsaved edits.
 func (a *app) unsavedTabsUnder(dir string) []string {

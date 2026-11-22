@@ -79,11 +79,7 @@ func folderRules(f Facts, ff FolderFact, state string) (FolderCan, FolderWhy) {
 	}
 
 	if ff.Trusted {
-		if ff.Served {
-			why.StopTrusting = reason(WhyStopServingFirst, TextWhyStopTrustingServed)
-		} else {
-			can.StopTrusting = true
-		}
+		can.StopTrusting = true
 	}
 
 	can.Merge, why.Merge = mergeRule(f, ff)

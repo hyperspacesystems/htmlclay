@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/session"
@@ -14,8 +15,19 @@ import (
 )
 
 // maxTemplateNameTries is how many free names template.create tries:
-// Kanban.htmlclay, then Kanban 2.htmlclay up to Kanban 99.htmlclay.
+// kanban.htmlclay, then kanban-2.htmlclay up to kanban-99.htmlclay.
 const maxTemplateNameTries = 99
+
+func templateSlug(templateID string) string {
+	switch strings.ToLower(templateID) {
+	case "blank":
+		return "untitled"
+	case "blockeditor":
+		return "block-editor"
+	default:
+		return strings.ToLower(templateID)
+	}
+}
 
 // createFromTemplate is template.create: it writes one of the app's own
 // single-file templates to a free name in ~/htmlclay and opens it. The page
@@ -26,12 +38,7 @@ func (a *app) createFromTemplate(templateID string) *appcore.Refusal {
 	if !ok {
 		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "templateID"}
 	}
-	name := templateID
-	for _, card := range servicefiles.Cards() {
-		if card.ID == templateID {
-			name = card.Name
-		}
-	}
+	slug := templateSlug(templateID)
 	dir := filepath.Join(a.rt.home, "htmlclay")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		a.rt.logger.Printf("Could not make %s for a new document: %v", dir, err)
@@ -46,7 +53,7 @@ func (a *app) createFromTemplate(templateID string) *appcore.Refusal {
 		a.rt.logger.Printf("Not creating a document in %s: it leads outside home to %s", dir, real)
 		return &appcore.Refusal{Code: appcore.RefuseFileOutsideHome}
 	}
-	path, err := createFreeDocument(dir, numberedName(name, " ", ".htmlclay"), data)
+	path, err := createFreeDocument(dir, numberedName(slug, "-", ".htmlclay"), data)
 	if err != nil {
 		a.rt.logger.Printf("Could not create a document from the %s template: %v", templateID, err)
 		return &appcore.Refusal{Code: appcore.RefuseFailed}

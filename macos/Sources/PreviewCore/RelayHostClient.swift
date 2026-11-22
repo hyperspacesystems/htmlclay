@@ -25,6 +25,7 @@ public final class RelayHostClient: HostClient {
     public var onNotice: (@MainActor (HostNotice) -> Void)?
     /// Called when a browser page's Update asks the app to restart into its update.
     public var onRestartToUpdate: (@MainActor () -> Void)?
+    public var onOpenSettings: (@MainActor (SettingsPane) -> Void)?
     /// The latest snapshot listeners saw.
     public private(set) var last = HostSnapshot()
 
@@ -40,6 +41,7 @@ public final class RelayHostClient: HostClient {
     public func attach(_ client: LoopbackHostClient) async {
         client.onNotice = { [weak self] notice in self?.onNotice?(notice) }
         client.onRestartToUpdate = { [weak self] in self?.onRestartToUpdate?() }
+        client.onOpenSettings = { [weak self] pane in self?.onOpenSettings?(pane) }
         await attach(client) { hook in
             client.onNewEpoch = { _, _ in hook.call() }
         }

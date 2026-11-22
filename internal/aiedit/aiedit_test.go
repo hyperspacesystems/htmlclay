@@ -206,22 +206,135 @@ func TestCodexEngine(t *testing.T) {
 	}
 }
 
-func TestAgyIsRefused(t *testing.T) {
+func TestClaudeArgsEmitsValidEffort(t *testing.T) {
+	argv := claudeArgs("claude-opus-5-5", "max")
+	if got := argAfter(t, argv, "--effort"); got != "max" {
+		t.Fatalf("--effort = %q, want max", got)
+	}
+	if hasArg(claudeArgs("claude-opus-5-5", "bogus"), "--effort") {
+		t.Fatal("invalid effort must not emit --effort")
+	}
+}
+
+func TestResolveAgyModelClampsEffort(t *testing.T) {
+	cases := []struct {
+		model, effort, want string
+	}{
+		{"gemini-4-carbon", "xhigh", "gemini-4-carbon-high"},
+		{"gemini-4-argon", "xhigh", "gemini-4-argon-high"},
+		{"gemini-3.8-flash", "xhigh", "gemini-3.8-flash-high"},
+		{"gemini-4-neon", "xhigh", "gemini-4-neon-xhigh"},
+		{"gemini-4-carbon", "", "gemini-4-carbon-high"},
+		{"gemini-4-carbon", "low", "gemini-4-carbon-low"},
+		{"gemini-4-carbon-medium", "xhigh", "gemini-4-carbon-medium"},
+	}
+	for _, tc := range cases {
+		if got := resolveAgyModel(tc.model, tc.effort); got != tc.want {
+			t.Errorf("resolveAgyModel(%q, %q) = %q, want %q", tc.model, tc.effort, got, tc.want)
+		}
+	}
+}
+
+func TestAgyEngineLockdownStreamingAndCleanup(t *testing.T) {
 	requireUnix(t)
 	binDir := t.TempDir()
-	marker := filepath.Join(t.TempDir(), "marker")
-	writeAgent(t, binDir, "agy", "#!/bin/sh\ntouch \"$FAKE_MARKER\"\n")
+	argvFile := filepath.Join(t.TempDir(), "argv")
+	cwdFile := filepath.Join(t.TempDir(), "cwd")
+	settingsCopy := filepath.Join(t.TempDir(), "settings.json")
+	settingsPathFile := filepath.Join(t.TempDir(), "settings.path")
+	fakeAgy := `#!/bin/sh
+printf '%s\n' "$@" > "$FAKE_ARGV"
+pwd -P > "$FAKE_CWD"
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--settings" ]; then
+    printf '%s' "$arg" > "$FAKE_SETTINGS_PATH"
+    cp "$arg" "$FAKE_SETTINGS_COPY"
+  fi
+  prev="$arg"
+done
+printf '%s\n' '{"event":"init","init":{"model":"gemini-4-carbon-high"}}'
+printf '%s\n' '{"event":"step_update","step_update":{"text_delta":"<p>Hel"}}'
+printf '%s\n' '{"event":"step_update","step_update":{"text_delta":"lo</p>"}}'
+printf '%s\n' '{"event":"result","result":{"status":"SUCCESS","response":"\u0060\u0060\u0060html\n<p>Hello</p>\n\u0060\u0060\u0060"}}'
+`
+	writeAgent(t, binDir, "agy", fakeAgy)
 
+	var streamed strings.Builder
+	result, err := Run(context.Background(), Payload{
+		Tag:         "p",
+		ElementHTML: "<p>old</p>",
+		Comment:     "@agy tighten",
+	}, Options{
+		Env: testEnv(binDir,
+			"FAKE_ARGV="+argvFile,
+			"FAKE_CWD="+cwdFile,
+			"FAKE_SETTINGS_COPY="+settingsCopy,
+			"FAKE_SETTINGS_PATH="+settingsPathFile,
+		),
+		Models:  map[string]string{"agy": "gemini-4-carbon"},
+		Efforts: map[string]string{"agy": "xhigh"},
+	}, func(text string) {
+		streamed.WriteString(text)
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if result.HTML != "<p>Hello</p>" {
+		t.Fatalf("html = %q, want <p>Hello</p>", result.HTML)
+	}
+	if streamed.String() != "<p>Hello</p>" {
+		t.Fatalf("streamed = %q, want <p>Hello</p>", streamed.String())
+	}
+	argv := argvOf(t, argvFile)
+	if got := argAfter(t, argv, "--model"); got != "gemini-4-carbon-high" {
+		t.Fatalf("--model = %q, want gemini-4-carbon-high (clamped from xhigh)", got)
+	}
+	if !hasArg(argv, "--sandbox") || !hasArg(argv, "--disable-slash-commands") {
+		t.Fatalf("argv = %q, want --sandbox and --disable-slash-commands", argv)
+	}
+	// Verify prompt combines systemPrompt + userPrompt in -p=...
+	argvRaw := readText(t, argvFile)
+	if !strings.Contains(argvRaw, "-p="+systemPrompt) || !strings.Contains(argvRaw, "Request: tighten") {
+		t.Fatalf("argvRaw = %q, want -p= containing systemPrompt and Request: tighten", argvRaw)
+	}
+	// Verify lockdown.json is outside cmd.Dir (child work dir) and cleaned up after exit.
+	settingsPath := readText(t, settingsPathFile)
+	cwd := strings.TrimSpace(readText(t, cwdFile))
+	if filepath.Dir(settingsPath) == cwd {
+		t.Fatalf("lockdown.json (%s) must sit outside empty child workDir (%s)", settingsPath, cwd)
+	}
+	if _, err := os.Stat(settingsPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("lockdown.json (%s) was not removed after exit", settingsPath)
+	}
+	settingsText := readText(t, settingsCopy)
+	for _, want := range []string{`"allowNonWorkspaceAccess":false`, `"enableTerminalSandbox":true`, `"read_file(*)"`, `"run_command(*)"`, `"command(*)"`} {
+		if !strings.Contains(settingsText, want) {
+			t.Fatalf("lockdown.json missing %s: %s", want, settingsText)
+		}
+	}
+}
+
+func TestAgyErrorAndOversizedPrompt(t *testing.T) {
+	requireUnix(t)
+	binDir := t.TempDir()
+	writeAgent(t, binDir, "agy", "#!/bin/sh\nprintf '%s\\n' '{\"event\":\"result\",\"result\":{\"status\":\"ERROR\",\"error\":\"quota exceeded\"}}'\n")
 	_, err := Run(context.Background(), Payload{
 		Tag:         "p",
 		ElementHTML: "<p>old</p>",
-		Comment:     "@agy x",
-	}, Options{Env: testEnv(binDir, "FAKE_MARKER="+marker)}, nil)
-	if code := errorCode(t, err); code != "engine_unsupported" {
-		t.Fatalf("code = %q", code)
+		Comment:     "@agy tighten",
+	}, Options{Env: testEnv(binDir)}, nil)
+	if code := errorCode(t, err); code != "engine_failed" || !strings.Contains(err.Error(), "quota exceeded") {
+		t.Fatalf("err = %v, want engine_failed mentioning quota exceeded", err)
 	}
-	if _, statErr := os.Stat(marker); statErr == nil {
-		t.Fatal("the agy agent was started")
+
+	_, err = Run(context.Background(), Payload{
+		Tag:         "p",
+		ElementHTML: "<p>" + strings.Repeat("a", agyMaxPromptBytes()+100) + "</p>",
+		Comment:     "@agy tighten",
+	}, Options{Env: testEnv(binDir)}, nil)
+	if code := errorCode(t, err); code != "engine_unsupported" {
+		t.Fatalf("oversized prompt code = %q, want engine_unsupported", code)
 	}
 }
 
@@ -674,7 +787,7 @@ func TestBothAgentsMissing(t *testing.T) {
 	if code := errorCode(t, err); code != "engine_unavailable" {
 		t.Fatalf("code = %q", code)
 	}
-	want := "Neither Claude Code nor Codex is installed. Install one and sign in."
+	want := "None of Claude Code, Codex, or Gemini (agy) is installed. Install one and sign in."
 	if err.Error() != want {
 		t.Fatalf("message = %q, want %q", err.Error(), want)
 	}

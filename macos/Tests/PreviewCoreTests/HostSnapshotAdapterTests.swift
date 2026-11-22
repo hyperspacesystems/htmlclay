@@ -180,6 +180,33 @@ final class HostSnapshotAdapterTests: XCTestCase {
         XCTAssertFalse(checked(older).contains(" at "), checked(older))
     }
 
+    func testModelEffortsMapFromWireAndResolvePerModel() throws {
+        var wire = try wire("syncedWithTeams")
+        wire.preferences.aiEditTools = [
+            WireAIEditTool(
+                id: "agy",
+                custom: false,
+                found: true,
+                model: "",
+                defaultModel: "gemini-4-carbon",
+                models: ["gemini-4-carbon", "gemini-4-neon"],
+                effort: "high",
+                defaultEffort: "high",
+                efforts: ["low", "medium", "high", "xhigh"],
+                modelEfforts: [
+                    "gemini-4-neon": ["low", "medium", "high", "xhigh"],
+                    "gemini-4-carbon": ["low", "medium", "high"],
+                ],
+                command: ""
+            ),
+        ]
+        let snapshot = HostSnapshotAdapter.snapshot(from: wire)
+        let agy = try XCTUnwrap(snapshot.preferences.aiEditTools.first { $0.id == "agy" })
+        XCTAssertEqual(agy.efforts(for: ""), ["low", "medium", "high"])
+        XCTAssertEqual(agy.efforts(for: "gemini-4-carbon"), ["low", "medium", "high"])
+        XCTAssertEqual(agy.efforts(for: "gemini-4-neon"), ["low", "medium", "high", "xhigh"])
+    }
+
     func testSampleSnapshotsUnchanged() {
         let expected: [Persona: (total: Int, folders: Int, programs: Int)] = [
             .newPerson: (0, 0, 0),

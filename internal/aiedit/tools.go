@@ -22,33 +22,77 @@ type Tool struct {
 	DefaultModel string
 	Models       []string
 	// DefaultEffort and Efforts are the tool's reasoning effort setting; Efforts
-	// is empty for a tool that has none.
+	// is empty for a tool that has none. ModelEfforts overrides Efforts for
+	// specific models whose supported effort set differs (e.g., gemini-4-carbon
+	// tops out at high while gemini-4-neon supports xhigh).
 	DefaultEffort string
 	Efforts       []string
+	ModelEfforts  map[string][]string
 	Command       []string
 }
 
+var builtinListOrder = []string{"claude", "codex", "agy"}
+
 var toolModels = map[string][]string{
-	"claude": {"claude-opus-5-5", "claude-fable-5-2"},
-	"codex":  {"gpt-5.6-sol"},
+	"claude": {"claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2"},
+	"codex":  {"gpt-5.6-sol", "gpt-6-astra"},
+	"agy":    {"gemini-4-carbon", "gemini-4-neon", "gemini-4-argon", "gemini-3.8-flash"},
 }
 
 var toolEfforts = map[string][]string{
-	"codex": {"low", "medium", "high", "xhigh"},
+	"claude": {"low", "medium", "high", "xhigh", "max"},
+	"codex":  {"low", "medium", "high", "xhigh"},
+	"agy":    {"low", "medium", "high", "xhigh"},
 }
 
-// Tools lists Claude and Codex, each marked found when its program is on the
-// login PATH, then every user engine in name order. env nil means helper.LoginEnv().
+var toolModelEfforts = map[string]map[string][]string{
+	"agy": {
+		"gemini-4-neon":    {"low", "medium", "high", "xhigh"},
+		"gemini-4-carbon":  {"low", "medium", "high"},
+		"gemini-4-argon":   {"low", "medium", "high"},
+		"gemini-3.8-flash": {"low", "medium", "high"},
+	},
+}
+
+// EffortsForModel returns the valid reasoning efforts for toolID when running
+// model ("" uses the built-in default model), or nil for tools with no effort
+// setting.
+func EffortsForModel(toolID, model string) []string {
+	if model == "" {
+		if b, ok := builtinEngines()[toolID]; ok {
+			model = b.model
+		}
+	}
+	if perModel, ok := toolModelEfforts[toolID]; ok {
+		if me, ok := perModel[model]; ok && len(me) > 0 {
+			return slices.Clone(me)
+		}
+	}
+	if eff, ok := toolEfforts[toolID]; ok && len(eff) > 0 {
+		return slices.Clone(eff)
+	}
+	return nil
+}
+
+// Tools lists Claude, Codex and Gemini (agy), each marked found when its program
+// is on the login PATH, then every user engine in name order. env nil means helper.LoginEnv().
 func Tools(engines map[string][]string, env []string) []Tool {
 	if env == nil {
 		env = helper.LoginEnv()
 	}
 	builtins := builtinEngines()
-	tools := make([]Tool, 0, 2+len(engines))
-	for _, name := range []string{"claude", "codex"} {
+	tools := make([]Tool, 0, len(builtinListOrder)+len(engines))
+	for _, name := range builtinListOrder {
 		e := builtins[name]
 		program, _ := engineProgram(e)
 		_, err := lookPath(program, env)
+		var modelEfforts map[string][]string
+		if perModel := toolModelEfforts[name]; len(perModel) > 0 {
+			modelEfforts = make(map[string][]string, len(perModel))
+			for m, effs := range perModel {
+				modelEfforts[m] = slices.Clone(effs)
+			}
+		}
 		tools = append(tools, Tool{
 			ID:            name,
 			Found:         err == nil,
@@ -56,6 +100,7 @@ func Tools(engines map[string][]string, env []string) []Tool {
 			Models:        append([]string(nil), toolModels[name]...),
 			DefaultEffort: e.effort,
 			Efforts:       append([]string{}, toolEfforts[name]...),
+			ModelEfforts:  modelEfforts,
 		})
 	}
 	resolved := resolveEngines(engines)

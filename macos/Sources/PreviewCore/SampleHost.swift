@@ -23,7 +23,7 @@ public enum SampleReducer {
                 guard !(next.folders[i].becameViewer || next.folders[i].missingOnDisk) else { return snapshot }
             }
             next.folders[i].synced = on
-        case let .stopTrusting(folderID):
+        case let .stopTrusting(folderID, _, _):
             guard next.folder(folderID) != nil else { return snapshot }
             next.folders.removeAll { $0.id == folderID }
             for i in next.folders.indices where next.folders[i].parentID == folderID { next.folders[i].parentID = nil }
@@ -178,6 +178,11 @@ public enum SampleReducer {
         case let .setAIEditModel(tool, model):
             guard let t = next.preferences.aiEditTools.firstIndex(where: { $0.id == tool }) else { return snapshot }
             next.preferences.aiEditTools[t].model = model
+            let allowed = next.preferences.aiEditTools[t].efforts(for: model)
+            let current = next.preferences.aiEditTools[t].effort
+            if !current.isEmpty && !allowed.isEmpty && !allowed.contains(current) {
+                next.preferences.aiEditTools[t].effort = ""
+            }
         case let .setAIEditEffort(tool, effort):
             guard let t = next.preferences.aiEditTools.firstIndex(where: { $0.id == tool }) else { return snapshot }
             next.preferences.aiEditTools[t].effort = effort
@@ -188,7 +193,7 @@ public enum SampleReducer {
         case let .forgetDocument(id):
             guard next.documents.contains(where: { $0.id == id }) else { return snapshot }
             next.documents.removeAll { $0.id == id }
-        case .openDocument, .revealDocument, .openFile, .createFromTemplate, .openDashboard,
+        case .openDocument, .revealDocument, .openFile, .createFromTemplate, .openDashboard, .openSettings,
              .revealFolder, .copyAddress, .connect, .quit, .revealProgram,
              .exportDocument, .recoverDocument, .openVersions, .openRecoveredChanges, .showRequest, .revealSyncLog,
              .revealLog, .setPort, .openProgramExample, .checkForUpdates, .makeDefaultFileType,

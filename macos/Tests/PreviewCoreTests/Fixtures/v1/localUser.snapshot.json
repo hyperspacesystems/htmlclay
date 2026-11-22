@@ -14,6 +14,7 @@
       "aiEdit.setEffort": false,
       "aiEdit.setModel": false,
       "app.openRecoveredChanges": false,
+      "app.openSettings": false,
       "app.revealLog": false,
       "conflict.resolve": false,
       "dashboard.open": true,

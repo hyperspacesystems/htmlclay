@@ -8,6 +8,40 @@
     <string>HTML Clay Candidate</string>
     <key>CFBundleDisplayName</key>
     <string>HTML Clay Candidate</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>htmlclay</string>
+            </array>
+            <key>CFBundleTypeIconFile</key>
+            <string>doc</string>
+            <key>CFBundleTypeName</key>
+            <string>Clay HTML File</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.htmlclay.document</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>html</string>
+                <string>htm</string>
+            </array>
+            <key>CFBundleTypeName</key>
+            <string>HTML Document</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+        </dict>
+    </array>
     <key>CFBundleExecutable</key>
     <string>htmlclay</string>
     <key>CFBundleIconFile</key>
@@ -29,5 +63,25 @@
         <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.htmlclay.document</string>
+            <key>UTTypeDescription</key>
+            <string>HTML Clay document</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.html</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>htmlclay</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
 </dict>
 </plist>

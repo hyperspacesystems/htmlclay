@@ -697,9 +697,17 @@ func (a *app) stopServing(id string) error {
 	a.rt.cfg.SetServing(id, false)
 	a.saveConfig("stop serving " + f.Name)
 
+	a.teardownServedMount(id, f.Name)
+	a.service.want()
+	return nil
+}
+
+// teardownServedMount removes the in-memory served route, closes its handler
+// root, cancels its context, and releases its folder lock.
+func (a *app) teardownServedMount(id, name string) {
 	a.servedMu.Lock()
-	mount := a.servedByName[f.Name]
-	delete(a.servedByName, f.Name)
+	mount := a.servedByName[name]
+	delete(a.servedByName, name)
 	a.servedMu.Unlock()
 
 	if mount != nil {
@@ -711,8 +719,6 @@ func (a *app) stopServing(id string) error {
 			mount.lock.Release()
 		}
 	}
-	a.service.want()
-	return nil
 }
 
 // serveServed answers a request naming <name>.htmlclay.localhost. A name that is

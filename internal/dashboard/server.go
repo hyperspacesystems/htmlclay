@@ -45,7 +45,7 @@ const TextHowToOpen = "To open the workspace, choose Open Workspace in the HTML 
 // request, or a trusted folder's files, plus the settings pages (the app's
 // settings on Windows and Linux, where no native settings window exists), plus
 // the Windows panel's page.
-var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new)|recent|needs-you|panel|recent/[^/]+/versions|trusted/[^/]+/files|synced/[^/]+/history|settings(/(general|files|folders|programs|updates|advanced|sync))?|settings/(folders|programs)/[^/]+)?$`)
+var pagePath = regexp.MustCompile(`^/(roots/[^/]+/(files|document|new)|recent|needs-you|panel|recent/[^/]+/versions|trusted/[^/]+/files|synced/[^/]+/history|settings(/(general|ai|files|folders|programs|updates|advanced|sync))?|settings/(folders|programs)/[^/]+)?$`)
 
 // appAPIPrefix is the API the app answers in Go rather than through the service.
 // It is let in by the session the entry page set together with the entry page's

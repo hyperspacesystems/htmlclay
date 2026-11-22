@@ -183,8 +183,12 @@ public final class UpdateCoordinator {
         driver?.checkNow()
     }
 
-    /// Settings › Updates › Update automatically. Sparkle owns it on the Mac.
     public var automatic: Bool { driver?.automatic ?? true }
+
+    public var isTranslocatedOrReadOnly: Bool {
+        let lower = gate.lowercased()
+        return lower.contains("translocated") || lower.contains("read-only")
+    }
 
     public func setAutomatic(_ on: Bool) {
         driver?.automatic = on

@@ -258,6 +258,15 @@ func (a *app) handleInstanceCommand(cmd string) string {
 		answer := a.abortShellUpdate(fields[1])
 		a.rt.logger.Printf("update-abort %s: %s", fields[1], answer)
 		return answer
+	case "open-dashboard":
+		if len(fields) != 1 {
+			return "refused unknown command"
+		}
+		if a.dashboard == nil {
+			return "refused dashboard unavailable"
+		}
+		go a.trayDo("dashboard.open", map[string]any{"route": "/"})
+		return "ok"
 	case "update-status":
 		if len(fields) != 1 {
 			return "refused unknown command"

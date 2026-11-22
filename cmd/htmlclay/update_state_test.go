@@ -223,8 +223,23 @@ func TestAutoUpdateSwitchOnWindowsAndLinux(t *testing.T) {
 	}
 
 	updateNowOS = "darwin"
-	if refusal := set("p3", false); refusal == nil || refusal.Code != appcore.RefuseNotYet {
-		t.Fatalf("on macOS the switch belongs to the app, got %+v", refusal)
+	a.shell = true
+	if refusal := set("p3", false); refusal != nil {
+		t.Fatalf("on macOS prefs.set autoUpdate = %+v, want nil", refusal)
+	}
+	if !a.rt.cfg.SelfUpdateOff() || a.snapshot().Update.Automatic {
+		t.Fatal("on macOS turning autoUpdate off did not persist")
+	}
+	if refusal := set("p4", true); refusal != nil {
+		t.Fatalf("on macOS prefs.set autoUpdate on = %+v, want nil", refusal)
+	}
+	if a.rt.cfg.SelfUpdateOff() || !a.snapshot().Update.Automatic {
+		t.Fatal("on macOS turning autoUpdate on did not persist")
+	}
+	select {
+	case <-a.updates.checkNow:
+		t.Fatal("on macOS turning autoUpdate on must not wake the non-Mac updater")
+	default:
 	}
 }
 

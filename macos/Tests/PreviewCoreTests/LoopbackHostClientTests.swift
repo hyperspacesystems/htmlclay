@@ -432,6 +432,20 @@ final class LoopbackHostClientTests: XCTestCase {
 
 // 08-sync.md 8.44 and 8.45: the history route and the notice frame, against the stubbed host.
 extension LoopbackHostClientTests {
+    func testOpenSettingsFrameReachesOnOpenSettings() async throws {
+        let frame = Data(#"{"type":"openSettings","detail":"ai"}"#.utf8) + Data([0x0A])
+        let fallback = Data(#"{"type":"openSettings"}"#.utf8) + Data([0x0A])
+        StubHost.script("GET", "/shell/v1/events", [.stream([try eventLine(rev: 0), frame, fallback, byeLine()])])
+        let client = makeClient()
+        var panes: [SettingsPane] = []
+        var endings: [String] = []
+        client.onOpenSettings = { panes.append($0) }
+        client.onEnded = { endings.append($0) }
+        _ = client.subscribe { _ in }
+        await waitUntil("the stream never finished") { !endings.isEmpty }
+        XCTAssertEqual(panes, [.aiEditing, .general])
+    }
+
     func testNoticesANoticeFrameReachesOnNotice() async throws {
         let notice = Data(#"{"type":"notice","id":"c-1","kind":"conflict","folderID":"0dd3adfe2b553e75","name":"board.html","detail":"both-edited"}"#.utf8) + Data([0x0A])
         let unknown = Data(#"{"type":"notice","id":"x-1","kind":"someday","folderID":null,"name":"","detail":""}"#.utf8) + Data([0x0A])

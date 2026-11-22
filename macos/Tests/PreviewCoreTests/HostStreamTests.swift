@@ -209,6 +209,18 @@ final class HostStreamTests: XCTestCase {
         XCTAssertNil(buffer.finish())
     }
 
+    func testOpenSettingsFrameParsesPaneAndDefaultsToGeneral() throws {
+        var state = HostStreamState()
+        XCTAssertEqual(try state.receive(line: Data(#"{"type":"openSettings","detail":"ai"}"#.utf8)),
+                       [.openSettings(.aiEditing)])
+        XCTAssertEqual(try state.receive(line: Data(#"{"type":"openSettings","detail":"folders"}"#.utf8)),
+                       [.openSettings(.folders)])
+        XCTAssertEqual(try state.receive(line: Data(#"{"type":"openSettings","detail":"unknown-pane"}"#.utf8)),
+                       [.openSettings(.general)])
+        XCTAssertEqual(try state.receive(line: Data(#"{"type":"openSettings"}"#.utf8)),
+                       [.openSettings(.general)])
+    }
+
     func testBadLineThrows() throws {
         var state = HostStreamState()
         XCTAssertThrowsError(try state.receive(line: Data("not json".utf8)))

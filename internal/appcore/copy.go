@@ -201,6 +201,7 @@ var RefusalText = map[string]string{
 	RefuseSyncDownloading:   "This folder's first sync is still running. Try Find it again once it finishes.",
 	RefuseRemovalGone:       "Those attachments aren't waiting for you anymore. Nothing was changed.",
 	RefuseConfirmNeeded:     "This folder already has files. Check what will sync, then confirm.",
+	RefuseConfirmSyncStop:   "Syncing with Hyperclay and local serving will stop. Your HTML files stay on this computer.",
 	RefuseNothingReady:      "No update is ready yet. Try again later.",                                                                                      // copy: refusal, max 140 chars
 	RefuseNeedsConfirmation: "This action needs your approval. Approve it in HTML Clay first.",                                                               // copy: refusal, max 140 chars
 	RefusePending:           "Answer the HTML Clay dialog to finish.",                                                                                        // copy: COPY:refusal.pending, shown on a dashboard button while the system dialog is open, max 140 chars

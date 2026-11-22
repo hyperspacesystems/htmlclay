@@ -19,6 +19,8 @@ public struct HostRefusal: Error, Equatable, Sendable {
     }
 
     public static let restartStopsWork = "restart-stops-work"
+    public static let confirmSyncStop = "confirm-sync-stop"
+    public static let unsavedEdits = "unsaved-edits"
 }
 
 /// The files a first sync into a folder already there would move (08-sync.md 8.21).

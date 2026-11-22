@@ -48,6 +48,10 @@ type Notice struct {
 // FrameRestartToUpdate is the shell stream frame for Update on a browser page.
 const FrameRestartToUpdate = "restartToUpdate"
 
+// FrameOpenSettings is the shell stream frame asking the Mac app to bring its
+// Settings window to the front, optionally selecting the pane named in Detail.
+const FrameOpenSettings = "openSettings"
+
 // NoticeSource is the backend's notices, for a stream to pass on (08-sync.md
 // 8.40). A backend counts a notice delivered when a stream is subscribed.
 type NoticeSource interface {

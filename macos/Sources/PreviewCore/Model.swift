@@ -25,7 +25,13 @@ public enum Persona: String, CaseIterable, Codable, Sendable {
 }
 
 public enum SettingsPane: String, CaseIterable, Codable, Sendable {
-    case general, htmlclayFiles, folders, programs, updates, advanced, sync
+    case general
+    case aiEditing = "ai"
+    case folders
+    case programs
+    case sync
+    case updates
+    case advanced
 }
 
 public enum SettingsRoute: Equatable, Codable, Sendable {
@@ -385,7 +391,6 @@ public struct UpdateState: Codable, Equatable, Sendable {
     }
 }
 
-/// One AI tool AI editing can use on this Mac, as the host finds it.
 public struct AIEditTool: Codable, Equatable, Identifiable, Sendable {
     public var id: String
     public var custom: Bool
@@ -393,17 +398,23 @@ public struct AIEditTool: Codable, Equatable, Identifiable, Sendable {
     public var model: String
     public var defaultModel: String
     public var models: [String]
-    /// The reasoning effort chosen, "" for HTML Clay's default; efforts is empty
-    /// for a tool with no effort setting.
     public var effort: String
     public var defaultEffort: String
     public var efforts: [String]
+    public var modelEfforts: [String: [String]]?
     public var command: String
     public init(id: String, custom: Bool = false, found: Bool = false, model: String = "", defaultModel: String = "", models: [String] = [],
-                effort: String = "", defaultEffort: String = "", efforts: [String] = [], command: String = "") {
+                effort: String = "", defaultEffort: String = "", efforts: [String] = [], modelEfforts: [String: [String]]? = nil, command: String = "") {
         self.id = id; self.custom = custom; self.found = found
         self.model = model; self.defaultModel = defaultModel; self.models = models
-        self.effort = effort; self.defaultEffort = defaultEffort; self.efforts = efforts; self.command = command
+        self.effort = effort; self.defaultEffort = defaultEffort; self.efforts = efforts
+        self.modelEfforts = modelEfforts; self.command = command
+    }
+
+    public func efforts(for model: String) -> [String] {
+        let key = model.isEmpty ? defaultModel : model
+        if let specific = modelEfforts?[key], !specific.isEmpty { return specific }
+        return efforts
     }
 }
 
@@ -536,7 +547,7 @@ public enum HostAction: Equatable, Sendable {
     case setServed(folderID: String, on: Bool)
     case setSynced(folderID: String, on: Bool)
     case setFraming(folderID: String, on: Bool)
-    case stopTrusting(folderID: String)
+    case stopTrusting(folderID: String, confirmed: Bool = false, force: Bool = false)
     case mergeIntoParent(folderID: String)
     case setSyncPaused(Bool)
     case setOpenAtLogin(Bool)
@@ -591,6 +602,7 @@ public enum HostAction: Equatable, Sendable {
     /// ~/htmlclay under a free name and opens it.
     case createFromTemplate(templateID: String)
     case openDashboard(route: String)
+    case openSettings(pane: SettingsPane? = nil)
     case revealFolder(id: String)
     case copyAddress(folderID: String)
     case answer(requestID: String, revision: Int, answer: String, path: String = String())

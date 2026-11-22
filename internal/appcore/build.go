@@ -54,6 +54,13 @@ func Build(f Facts) Snapshot {
 		if t.Efforts == nil {
 			t.Efforts = []string{}
 		}
+		if len(t.ModelEfforts) > 0 {
+			me := make(map[string][]string, len(t.ModelEfforts))
+			for k, v := range t.ModelEfforts {
+				me[k] = slices.Clone(v)
+			}
+			t.ModelEfforts = me
+		}
 		tools = append(tools, t)
 	}
 	s.Preferences.AIEditTools = tools

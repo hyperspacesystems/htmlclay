@@ -6,80 +6,169 @@ public enum StatusDotKind: CaseIterable {
     case green, amber, blue, red, muted
 }
 
-/// One row of the AI editing tool picker: a tool found on this Mac, or the
-/// custom command the person set up.
 public struct AIToolRow: Equatable, Sendable {
     public var id: String
     public var title: String
     public var subtitle: String
     public var selected: Bool
+    public var found: Bool
     public var model: String
+    public var selectedModel: String
+    public var models: [String]
     public var placeholder: String
-    /// True for the custom command row, which has no model field.
     public var custom: Bool
-    /// False for the custom command row before a command is set: there is nothing to pick yet.
     public var selectable: Bool
-    /// The reasoning effort chosen ("" for the default) and the ones to pick
-    /// from; empty for a tool with no effort setting.
     public var effort: String
+    public var selectedEffort: String
     public var efforts: [String]
     public var effortTitle: String
 
-    public init(id: String, title: String, subtitle: String, selected: Bool = false,
-                model: String = "", placeholder: String = "", custom: Bool = false, selectable: Bool = true,
-                effort: String = "", efforts: [String] = [], effortTitle: String = "") {
-        self.id = id; self.title = title; self.subtitle = subtitle; self.selected = selected
-        self.model = model; self.placeholder = placeholder; self.custom = custom; self.selectable = selectable
-        self.effort = effort; self.efforts = efforts; self.effortTitle = effortTitle
+    public init(id: String, title: String, subtitle: String, selected: Bool = false, found: Bool = true,
+                model: String = "", selectedModel: String = "", models: [String] = [], placeholder: String = "",
+                custom: Bool = false, selectable: Bool = true,
+                effort: String = "", selectedEffort: String = "", efforts: [String] = [], effortTitle: String = "") {
+        self.id = id; self.title = title; self.subtitle = subtitle; self.selected = selected; self.found = found
+        self.model = model; self.selectedModel = selectedModel.isEmpty ? (model.isEmpty ? placeholder : model) : selectedModel
+        self.models = models; self.placeholder = placeholder; self.custom = custom; self.selectable = selectable
+        self.effort = effort; self.selectedEffort = selectedEffort.isEmpty ? effort : selectedEffort
+        self.efforts = efforts; self.effortTitle = effortTitle
     }
 }
 
-/// The settings window's decisions, away from the views: sample data shows every
-/// pane and control, and the real host shows the ones it says it can run.
 public enum SettingsControls {
-    /// The AI editing tool picker: every built-in tool found on this Mac, then
-    /// the custom command, selected from the host's aiEditTool preference.
+    private static let builtinOrder = ["claude", "codex", "agy"]
+
+    private static let builtinDefaults: [String: AIEditTool] = [
+        "claude": AIEditTool(
+            id: "claude",
+            defaultModel: "claude-opus-5-5",
+            models: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2"],
+            defaultEffort: "high",
+            efforts: ["low", "medium", "high", "xhigh", "max"]
+        ),
+        "codex": AIEditTool(
+            id: "codex",
+            defaultModel: "gpt-5.6-sol",
+            models: ["gpt-5.6-sol", "gpt-6-astra"],
+            defaultEffort: "high",
+            efforts: ["low", "medium", "high", "xhigh"]
+        ),
+        "agy": AIEditTool(
+            id: "agy",
+            defaultModel: "gemini-4-carbon",
+            models: ["gemini-4-carbon", "gemini-4-neon", "gemini-4-argon", "gemini-3.8-flash"],
+            defaultEffort: "high",
+            efforts: ["low", "medium", "high", "xhigh"],
+            modelEfforts: [
+                "gemini-4-neon": ["low", "medium", "high", "xhigh"],
+                "gemini-4-carbon": ["low", "medium", "high"],
+                "gemini-4-argon": ["low", "medium", "high"],
+                "gemini-3.8-flash": ["low", "medium", "high"],
+            ]
+        ),
+    ]
+
     public static func aiToolRows(_ prefs: PreferenceState) -> [AIToolRow] {
         var rows: [AIToolRow] = []
-        for tool in prefs.aiEditTools where !tool.custom && tool.found {
-            rows.append(AIToolRow(id: tool.id,
-                                  title: aiToolTitle(tool.id),
-                                  subtitle: Strings.General.aiFoundHere,
-                                  selected: prefs.aiEditTool == tool.id,
-                                  model: tool.model,
-                                  placeholder: aiToolPlaceholder(tool),
-                                  effort: tool.effort,
-                                  efforts: tool.efforts,
-                                  effortTitle: Strings.General.aiEffortName(tool.effort.isEmpty ? tool.defaultEffort : tool.effort)))
+        var seen: Set<String> = []
+        for id in builtinOrder {
+            seen.insert(id)
+            let fallback = builtinDefaults[id]!
+            let incoming = prefs.aiEditTools.first(where: { !$0.custom && $0.id == id })
+            rows.append(makeBuiltinRow(incoming: incoming, fallback: fallback, selectedID: prefs.aiEditTool))
         }
-        for tool in prefs.aiEditTools where tool.custom {
-            rows.append(AIToolRow(id: tool.id,
+        for tool in prefs.aiEditTools where !tool.custom && !seen.contains(tool.id) {
+            rows.append(makeBuiltinRow(incoming: tool, fallback: tool, selectedID: prefs.aiEditTool))
+        }
+        if let custom = prefs.aiEditTools.first(where: { $0.custom }) {
+            rows.append(AIToolRow(id: custom.id,
                                   title: Strings.General.aiCustomTitle,
-                                  subtitle: tool.command.isEmpty ? Strings.General.aiCustomSub : tool.command,
-                                  selected: prefs.aiEditTool == tool.id,
-                                  custom: true))
-        }
-        if !prefs.aiEditTools.contains(where: { $0.custom }) {
+                                  subtitle: custom.command.isEmpty ? Strings.General.aiCustomSub : custom.command,
+                                  selected: prefs.aiEditTool == custom.id,
+                                  found: !custom.command.isEmpty,
+                                  custom: true,
+                                  selectable: !custom.command.isEmpty))
+        } else {
             rows.append(AIToolRow(id: "custom", title: Strings.General.aiCustomTitle,
-                                  subtitle: Strings.General.aiCustomSub, custom: true, selectable: false))
+                                  subtitle: Strings.General.aiCustomSub, found: false, custom: true, selectable: false))
         }
         return rows
     }
 
-    /// The note under the picker, shown only when neither Claude nor Codex is installed.
+    private static func makeBuiltinRow(incoming: AIEditTool?, fallback: AIEditTool, selectedID: String) -> AIToolRow {
+        let id = incoming?.id ?? fallback.id
+        let found = incoming?.found ?? false
+        let defaultModel = (incoming?.defaultModel.isEmpty == false) ? incoming!.defaultModel : fallback.defaultModel
+        let model = incoming?.model ?? ""
+        let selectedModel = model.isEmpty ? defaultModel : model
+        var models = (incoming?.models.isEmpty == false) ? incoming!.models : fallback.models
+        if !selectedModel.isEmpty && !models.contains(selectedModel) {
+            models.append(selectedModel)
+        }
+        let defaultEffort = (incoming?.defaultEffort.isEmpty == false) ? incoming!.defaultEffort : fallback.defaultEffort
+        let mergedTool = AIEditTool(
+            id: id,
+            found: found,
+            model: model,
+            defaultModel: defaultModel,
+            models: models,
+            effort: incoming?.effort ?? "",
+            defaultEffort: defaultEffort,
+            efforts: (incoming?.efforts.isEmpty == false) ? incoming!.efforts : fallback.efforts,
+            modelEfforts: incoming?.modelEfforts ?? fallback.modelEfforts
+        )
+        let allowedEfforts = mergedTool.efforts(for: selectedModel)
+        let rawEffort = mergedTool.effort.isEmpty ? defaultEffort : mergedTool.effort
+        let selectedEffort: String
+        if allowedEfforts.isEmpty {
+            selectedEffort = rawEffort
+        } else if allowedEfforts.contains(rawEffort) {
+            selectedEffort = rawEffort
+        } else if allowedEfforts.contains(defaultEffort) {
+            selectedEffort = defaultEffort
+        } else {
+            selectedEffort = allowedEfforts.last ?? rawEffort
+        }
+        let subtitle = aiToolSubtitle(id: id, found: found)
+        return AIToolRow(
+            id: id,
+            title: aiToolTitle(id),
+            subtitle: subtitle,
+            selected: selectedID == id,
+            found: found,
+            model: model,
+            selectedModel: selectedModel,
+            models: models,
+            placeholder: aiToolPlaceholder(mergedTool),
+            custom: false,
+            selectable: found,
+            effort: mergedTool.effort,
+            selectedEffort: selectedEffort,
+            efforts: allowedEfforts,
+            effortTitle: Strings.General.aiEffortName(selectedEffort)
+        )
+    }
+
     public static func showsNoToolsNote(_ prefs: PreferenceState) -> Bool {
         !prefs.aiEditTools.contains { !$0.custom && $0.found }
     }
 
-    private static func aiToolTitle(_ id: String) -> String {
+    public static func aiToolTitle(_ id: String) -> String {
         switch id {
         case "claude": return Strings.General.aiToolClaude
         case "codex": return Strings.General.aiToolCodex
+        case "agy": return Strings.General.aiToolGemini
         default: return id
         }
     }
 
-    /// The model field is empty with the tool's own default as its placeholder.
+    private static func aiToolSubtitle(id: String, found: Bool) -> String {
+        if id == "agy" {
+            return found ? Strings.General.aiAgyFound : Strings.General.aiAgyNotFound
+        }
+        return found ? Strings.General.aiFoundHere : Strings.General.aiNotFound
+    }
+
     private static func aiToolPlaceholder(_ tool: AIEditTool) -> String {
         if !tool.defaultModel.isEmpty { return tool.defaultModel }
         return tool.id == "codex" ? Strings.General.aiCodexDefault : Strings.General.aiModel

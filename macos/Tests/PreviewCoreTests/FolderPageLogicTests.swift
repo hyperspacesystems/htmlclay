@@ -92,4 +92,10 @@ final class FolderPageLogicTests: XCTestCase {
         XCTAssertFalse(FolderControls.showsMerge(child: folder(can: FolderCan(merge: true)), hostCan: false))
         XCTAssertTrue(FolderControls.showsMerge(child: folder(can: FolderCan(merge: true)), hostCan: true))
     }
+
+    func testCascadingStopTrustingRequiresConfirmOnlyWhenSynced() {
+        XCTAssertEqual(FolderControls.stopTrustingDecision(for: folder(served: false, synced: false)), .immediate)
+        XCTAssertEqual(FolderControls.stopTrustingDecision(for: folder(served: true, synced: false)), .immediate)
+        XCTAssertEqual(FolderControls.stopTrustingDecision(for: folder(served: true, synced: true)), .confirmSync)
+    }
 }

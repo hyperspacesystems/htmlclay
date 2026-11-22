@@ -12,6 +12,8 @@ import (
 // strictVersion is X.Y.Z, the only version form an updater reports.
 var strictVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 
+var validSettingsPanes = []string{"general", "ai", "folders", "programs", "sync", "updates", "advanced"}
+
 // Class is how an action changes what documents and programs may do. It decides
 // who may send it: the Mac app and the tray may send every class; the dashboard,
 // a browser page, sends safe and revoke actions directly, and a grant only goes
@@ -48,6 +50,7 @@ type Action struct {
 // TestPlanEveryTypeHasAClass fails when Plan knows a type this table does not.
 var ActionClasses = map[string]Class{
 	"app.openRecoveredChanges":  ClassSafe,
+	"app.openSettings":          ClassSafe,
 	"document.open":             ClassSafe,
 	"document.reveal":           ClassSafe,
 	"document.forget":           ClassSafe,
@@ -180,6 +183,7 @@ type Effect struct {
 	On         bool            `json:"on,omitempty"`
 	IDs        []string        `json:"ids,omitempty"`
 	Route      string          `json:"route,omitempty"`
+	Pane       string          `json:"pane,omitempty"`
 	Username   string          `json:"username,omitempty"`
 	Force      bool            `json:"force,omitempty"`
 	// Existing is folder.setUpTeam syncing into a folder that already has files;
@@ -214,6 +218,7 @@ type actionArgs struct {
 	Path        string          `json:"path"`
 	Name        string          `json:"name"`
 	Route       string          `json:"route"`
+	Pane        string          `json:"pane"`
 	Key         string          `json:"key"`
 	Value       json.RawMessage `json:"value"`
 	On          *bool           `json:"on"`
@@ -306,6 +311,11 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		return one(Effect{Type: a.Type, DocumentID: args.ID, Path: args.Destination})
 	case "dashboard.open":
 		return one(Effect{Type: a.Type, Route: args.Route})
+	case "app.openSettings":
+		if args.Pane != "" && !slices.Contains(validSettingsPanes, args.Pane) {
+			return bad("pane")
+		}
+		return one(Effect{Type: a.Type, Pane: args.Pane})
 	case "sync.revealLog":
 		return one(Effect{Type: a.Type})
 	case "app.openRecoveredChanges", "app.revealLog", "update.check", "fileTypes.makeDefault", "fileTypes.stopOpening":
@@ -352,10 +362,18 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if !ok {
 			return nil, &Refusal{Code: RefuseNoSuchTool, Field: "tool"}
 		}
-		if len(tool.Efforts) == 0 {
+		effectiveModel := tool.Model
+		if effectiveModel == "" {
+			effectiveModel = tool.DefaultModel
+		}
+		allowed := tool.Efforts
+		if me, ok := tool.ModelEfforts[effectiveModel]; ok && len(me) > 0 {
+			allowed = me
+		}
+		if len(allowed) == 0 {
 			return nil, &Refusal{Code: RefuseNotAllowedNow, Field: "tool"}
 		}
-		if args.Effort != "" && !slices.Contains(tool.Efforts, args.Effort) {
+		if args.Effort != "" && !slices.Contains(allowed, args.Effort) {
 			return bad("effort")
 		}
 		return one(Effect{Type: a.Type, Tool: tool.ID, Effort: args.Effort})
@@ -472,7 +490,12 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		if !allowed {
 			return nil, refusedBecause(because, ff.ID)
 		}
-		return one(Effect{Type: a.Type, FolderID: ff.ID})
+		eff := Effect{Type: a.Type, FolderID: ff.ID}
+		if a.Type == "folder.stopTrusting" {
+			eff.Confirmed = args.Confirmed
+			eff.Force = args.Force
+		}
+		return one(eff)
 	case "folder.merge":
 		ff, refusal := folderArg(f, args.ID)
 		if refusal != nil {

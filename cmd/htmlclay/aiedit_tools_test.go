@@ -76,8 +76,11 @@ func TestAIEditEffortIsCheckedSavedAndListed(t *testing.T) {
 	if refusal := set("codex", "ultra"); refusal == nil || refusal.Code != appcore.RefuseBadArguments {
 		t.Fatalf("an effort codex does not list = %+v, want bad-arguments", refusal)
 	}
-	if refusal := set("claude", "high"); refusal == nil || refusal.Code != appcore.RefuseNotAllowedNow {
-		t.Fatalf("an effort for a tool with no effort setting = %+v, want not-allowed-now", refusal)
+	if refusal := set("claude", "max"); refusal != nil {
+		t.Fatalf("claude effort max = %+v, want none", refusal)
+	}
+	if refusal := set("agy", "xhigh"); refusal == nil || refusal.Code != appcore.RefuseBadArguments {
+		t.Fatalf("agy default model (gemini-4-carbon) with xhigh = %+v, want bad-arguments", refusal)
 	}
 	if refusal := set("codex", "xhigh"); refusal != nil {
 		t.Fatalf("aiEdit.setEffort = %+v, want none", refusal)
@@ -89,9 +92,46 @@ func TestAIEditEffortIsCheckedSavedAndListed(t *testing.T) {
 	if got := fresh.AIEditEfforts()["codex"]; got != "xhigh" {
 		t.Fatalf("saved codex effort = %q, want xhigh", got)
 	}
+	if got := fresh.AIEditEfforts()["claude"]; got != "max" {
+		t.Fatalf("saved claude effort = %q, want max", got)
+	}
 	for _, tool := range a.aiEditTools() {
 		if tool.ID == "codex" && (tool.Effort != "xhigh" || tool.DefaultEffort != "high" || tool.DefaultModel != "gpt-5.6-sol") {
 			t.Fatalf("listed codex = %+v, want effort xhigh, default effort high, default model gpt-5.6-sol", tool)
+		}
+		if tool.ID == "agy" && len(tool.ModelEfforts["gemini-4-neon"]) != 4 {
+			t.Fatalf("listed agy ModelEfforts = %+v, want gemini-4-neon with 4 efforts", tool.ModelEfforts)
+		}
+	}
+}
+
+func TestAIEditSetModelClampsUnsupportedSavedEffort(t *testing.T) {
+	cfgBase := t.TempDir()
+	a := newTestAppWithConfigDir(t, t.TempDir(), cfgBase)
+	do := func(typ string, args any) *appcore.Refusal {
+		raw, _ := json.Marshal(args)
+		_, refusal := a.do(context.Background(), appcore.Action{Type: typ, Args: raw}, ChannelShell)
+		return refusal
+	}
+	if r := do("aiEdit.setModel", map[string]string{"tool": "agy", "model": "gemini-4-neon"}); r != nil {
+		t.Fatalf("setModel neon: %+v", r)
+	}
+	if r := do("aiEdit.setEffort", map[string]string{"tool": "agy", "effort": "xhigh"}); r != nil {
+		t.Fatalf("setEffort xhigh on neon: %+v", r)
+	}
+	if r := do("aiEdit.setModel", map[string]string{"tool": "agy", "model": "gemini-4-carbon"}); r != nil {
+		t.Fatalf("setModel carbon: %+v", r)
+	}
+	fresh, _, err := config.LoadFrom(cfgBase, nil)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got := fresh.AIEditEfforts()["agy"]; got != "" {
+		t.Fatalf("stale xhigh effort survived switch to gemini-4-carbon: got %q, want empty", got)
+	}
+	for _, tool := range a.aiEditTools() {
+		if tool.ID == "agy" && tool.Effort != "" {
+			t.Fatalf("snapshot agy tool still has stale effort %q after switching to gemini-4-carbon", tool.Effort)
 		}
 	}
 }

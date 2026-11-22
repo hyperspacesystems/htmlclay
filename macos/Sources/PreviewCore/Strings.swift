@@ -57,27 +57,29 @@ public enum Strings {
         public static func restartToUpdate(_ version: String) -> String { "Restart to update to \(version)" }
     }
     public enum Welcome {
-        public static let title = "HTML Clay is ready"
-        public static let lead = "Now you can open .htmlclay files on this Mac. Double-click one: it opens in your browser, and your changes save back into the file."
-        public static let filesTitle = "Files that save themselves"
+        public static let appName = "HTML Clay"
+        public static let title = "Build software in a single HTML file"
+        public static let lead = "Open or create any HTML file with whatever interface you want. It saves changes straight back into itself, talks to local tools on your Mac, and syncs live with Hyperclay."
+        public static let filesTitle = "Any interface, saved in the file"
         public static let filesSub = "Edit in the browser. The file on your Mac updates as you go."
-        public static let versionsTitle = "Versions you can go back to"
+        public static let versionsTitle = "Built-in AI & version history"
         public static let versionsSub = "HTML Clay keeps earlier versions of each document."
-        public static let localTitle = "Stays on your Mac"
+        public static let localTitle = "Runs local scripts & programs"
         public static let localSub = "No account needed. It works offline."
-        public static let moreTitle = "When you want more"
-        public static let moreSub = "Serve a folder as a local site, or sync with hyperclay.com. Both are in Settings."
+        public static let moreTitle = "Live-syncs with Hyperclay"
+        public static let moreSub = "Serve a folder as a local site, or sync with Hyperclay. Both are in Settings."
+        public static let openDashboard = "Open Dashboard"
         public static let allSet = "I'm all set"
         public static let openSettings = "Open Settings"
-        public static let menuBarHint = "HTML Clay lives in your menu bar:"
+        public static let menuBarHint = "HTML Clay stays in your menu bar:"
     }
     public enum Settings {
         public static func title(_ pane: SettingsPane) -> String {
             switch pane {
             case .general: return "General"
+            case .aiEditing: return "AI Editing"
             case .folders: return "Folders"
             case .programs: return "Programs"
-            case .htmlclayFiles: return Files.title
             case .sync: return "Sync"
             case .updates: return "Updates"
             case .advanced: return "Advanced"
@@ -86,19 +88,32 @@ public enum Strings {
     }
     public enum Folders {
         public static let title = "Folders"
+        public static let intro = "Add folders whose HTML files you want to open in your Dashboard, run as local sites, or keep in sync with Hyperclay."
+        public static let addFolder = "Add Folder…"
+        public static let open = "Open"
+        public static let finder = "Finder"
+        public static let more = "More"
+        public static let less = "Less"
+        public static let advanced = "Advanced"
+        public static let serveLocally = "Serve on this Mac"
+        public static let copy = "Copy"
+        public static let stopSyncing = "Stop Syncing"
+        public static let syncNotConnected = "Not connected"
+        public static let connectHyperclay = "Connect Hyperclay…"
+        public static let discardAndStopTrusting = "Discard & Stop Trusting"
+        public static let framingOnPill = "Embedding on"
         public static let elbow = "└"
         public static let trustMenu = "Trust a folder…"
         public static let serveMenu = "Serve a folder…"
-        public static let connectMenu = "Connect hyperclay.com…"
-        public static let openHyperclayNote = "Build 1: this would open your folders on hyperclay.com."
-        public static let emptyTitle = "Trust a folder when its documents belong together"
-        public static let emptySub = "Documents in a trusted folder open without asking and can link to each other."
+        public static let connectMenu = "Connect Hyperclay…"
+        public static let openHyperclayNote = "Build 1: this would open your folders on Hyperclay."
+        public static let emptyTitle = "Add a folder to open and save HTML files"
+        public static let emptySub = "HTML files in an added folder save changes to disk and can link to each other."
         public static let serveLink = "Building a site or an app? Serve a folder…"
         public static let readAccessTitle = "Read access"
         public static let readAccessHelp = "Folders you allowed a page to read. Removing one makes the page ask again."
         public static let readAccessRemove = "Remove access"
         public static func readAccessRemoveLabel(_ folder: String) -> String { "Remove access to \(folder)" }
-        /// The line under a read access row: the documents that share it.
         public static func readAccessPages(_ pages: [String]) -> String {
             guard let first = pages.first.map(ProgramControls.documentLabel) else { return "No documents open right now" }
             return pages.count == 1 ? "Readable by \(first)" : "Readable by \(first) and \(pages.count - 1) more"
@@ -107,29 +122,29 @@ public enum Strings {
         public static let moveSub = "Your Hyperclay Local folders were found. Bring them into HTML Clay."
         public static let move = "Move…"
         public static let onThisMac = "On this Mac"
-        public static let onlyOnThisMac = "only on this Mac"
+        public static let onlyOnThisMac = "Only on this Mac"
         public static let setUp = "Set up…"
-        public static let openHyperclay = "Open hyperclay.com ↗"
+        public static let openHyperclay = "Open Hyperclay ↗"
+        public static func rootRoute(_ id: String) -> String { "/roots/\(id)" }
+        public static func pathAndAddress(path: String, address: String) -> String { "\(path) · \(address)" }
         public static func copied(_ address: String) -> String { "Copied \(address) to the clipboard." }
-        public static func accountGroup(username: String) -> String { "hyperclay.com · @\(username)" }
+        public static func accountGroup(username: String) -> String { "Hyperclay · @\(username)" }
         public static func inside(parent: String, path: String) -> String { "Inside \(parent) · \(path)" }
         public static func viewOnlyTeams(_ count: Int) -> String {
             count == 1 ? "1 team you can only view" : "\(count) teams you can only view"
         }
     }
     public enum Sync {
-        public static let title = "Sync with hyperclay.com"
-        public static let invite = "Keep a folder in step with your hyperclay.com account or your team. Nothing syncs until you choose a folder."
-        public static let connect = "Connect hyperclay.com…"
+        public static let title = "Sync with Hyperclay"
+        public static let invite = "Keep a folder in step with your Hyperclay account or your team. Nothing syncs until you choose a folder."
+        public static let connect = "Connect Hyperclay…"
         public static let replaceKey = "Replace key…"
         public static let disconnect = "Disconnect…"
-        // copy: beside a team folder the server will not sync on this Mac (a viewer, a lapsed plan), instead of Set up, max 16 chars
         public static let viewOnly = "Can't sync here"
-        // copy: the Disconnect confirmation on the Sync pane: title max 50 chars, message max 160, button max 20
-        public static let disconnectTitle = "Disconnect from hyperclay.com?"
+        public static let disconnectTitle = "Disconnect from Hyperclay?"
         public static let disconnectMessage = "Syncing stops and HTML Clay removes your sync key from this Mac. Your files stay here. Connect the same account again to sync the same folders."
         public static let disconnectConfirm = "Disconnect"
-        public static let syncing = "Syncing"
+        public static let syncing = "Syncing to Hyperclay"
         public static let folders = "Folders"
         public static let syncingWord = "syncing"
         public static let setUp = "Set up…"
@@ -137,9 +152,8 @@ public enum Strings {
         public static let keyRefusedSub = "All folders stopped syncing. Your files are safe on this Mac."
         public static let reconnect = "Reconnect…"
         public static let wouldReplaceKey = "Build 1: this would ask for a new sync key."
-        // copy: Sync pane, when the key is kept in a file because there is no system keychain, max 90 chars
         public static let keyInFile = "Your sync key stays in a file only you can read because this computer has no keychain."
-        public static let wouldOpenSite = "Build 1: this would open hyperclay.com in your browser."
+        public static let wouldOpenSite = "Build 1: this would open Hyperclay in your browser."
         public static func account(_ username: String) -> String { "@\(username)" }
         public static func connected(keySuffix: String) -> String { "Connected · sync key ending \(keySuffix)" }
         public static func syncingFiles(_ n: Int, lastFinished: String) -> String {
@@ -150,38 +164,37 @@ public enum Strings {
             lastFinished.isEmpty ? "Up to date" : "Up to date · last finished \(lastFinished)"
         }
         public static func folderLine(path: String, state: String) -> String { "\(path) · \(state)" }
-        // copy: a synced folder's state after its path on the Sync pane, max 30 chars each
         public static let stateUpToDate = "up to date"
         public static let statePaused = "paused"
         public static let stateOff = "not syncing"
         public static let stateConflicts = "needs you"
-        // copy: a first download's progress after the folder's path, max 30 chars
         public static func downloading(done: Int, total: Int) -> String { "downloading \(done) of \(total)" }
         public static func review(_ n: Int) -> String { "Review \(n) in dashboard" }
     }
     public enum FolderPage {
         public static let trusted = "Trusted"
-        public static let trustedSubNotServed = ".htmlclay files here save, link to each other, and keep one address. They can also change each other."
-        public static let trustedSubServed = "Documents here save, link to each other, and can change each other. Turning off asks first and removes this folder."
+        public static let trustedSub = "Lets HTML files in this folder save changes to disk and link to each other. Turning this off also stops serving and syncing."
+        public static let trustedSubNotServed = trustedSub
+        public static let trustedSubServed = trustedSub
         public static let serve = "Serve on this Mac"
         public static let serveSubOff = "Gives a web address on this Mac, and lets .html files save too"
         public static let serveSubOn = "Local web address and .html saving enabled."
         public static let serveSubOnlyOnThisMac = " · Only on this Mac"
         public static let address = "Address"
-        public static let framing = "Let other sites embed pages"
+        public static let framing = "Allow other sites to embed pages"
         public static let framingSub = "Other websites can show these pages inside their own pages."
         public static let framingNote = "Turn this on only for pages you mean to share with another site. You can turn it back off only in the Mac app."
         public static let copy = "Copy address"
         public static let versions = "Versions and uploads"
         public static let show = "Show"
-        public static let sync = "Sync with hyperclay.com"
+        public static let sync = "Sync with Hyperclay"
         public static let syncSub = "Turning off disconnects sync while keeping files served on this Mac."
         public static let onlyOnThisMac = "Only on this Mac"
-        public static let onlyOnThisMacSub = "Connect your hyperclay.com account to sync folders."
+        public static let onlyOnThisMacSub = "Connect your Hyperclay account to sync folders."
         public static let connect = "Connect…"
         public static let folderHistory = "Folder history"
         public static let cancel = "Cancel"
-        public static let stopTrusting = "Stop trusting"
+        public static let stopTrusting = "Stop Trusting"
         public static let stopServing = "Stop serving"
         public static let disconnect = "Disconnect"
         public static func pathLine(path: String, documents: Int) -> String { "\(path) · \(documents) documents" }
@@ -193,6 +206,12 @@ public enum Strings {
         public static func accountTitle(username: String) -> String { "@\(username)" }
         public static func stopTrustingTitle(_ name: String) -> String { "Stop trusting \(name)?" }
         public static func stopTrustingMessage(_ name: String) -> String { "Documents open from \(name) stop saving now, and \(name) leaves your Folders list. Files there save again only when you open them yourself." }
+        public static let stopTrustingSyncMessage = "Syncing with Hyperclay and local serving will stop. Your HTML files stay safely on this Mac."
+        public static let unsavedStopTrustingTitle = "Unsaved edits in open files"
+        public static func unsavedStopTrustingMessage(_ documents: [String]) -> String {
+            let names = documents.isEmpty ? "An open file" : documents.joined(separator: ", ")
+            return "\(names) has unsaved edits in your browser. Stop trusting anyway and discard unsaved changes, or Cancel to save first."
+        }
         public static func stopServingTitle(_ name: String) -> String { "Stop serving \(name)?" }
         public static func stopServingMessage(_ name: String) -> String { "Its address stops working and .html files there stop saving. The folder stays trusted and keeps its name for later." }
         public static func disconnectTitle(_ name: String) -> String { "Disconnect \(name)?" }
@@ -210,7 +229,7 @@ public enum Strings {
     }
     public enum Programs {
         public static let addProgram = "Add program…"
-        public static let intro = "A document can ask HTML Clay to run a program on this Mac. You answer each request in HTML Clay."
+        public static let intro = "Allow trusted HTML files to run scripts and tools on this Mac."
         public static let waitingForYou = "Waiting for you"
         public static let builtin = "Built-in programs"
         public static let programs = "Your programs"
@@ -259,7 +278,7 @@ public enum Strings {
     public enum ProgramPage {
         public static let runsAsYou = "This program runs as you. It can read and change any file you can."
         public static let whoMayRun = "Who may run it"
-        public static let aiEditNote = "An AI tool on this Mac rewrites selected text when you press ⌘J. Turn AI editing on or off in Settings › General."
+        public static let aiEditNote = "An AI tool on this Mac rewrites selected text when you press ⌘J. Turn AI editing on or off in Settings › AI Editing."
         public static let allTrustedTitle = "All documents in my trusted folders"
         public static let allTrustedSub = "Documents in your own trusted folders run it without asking, after the one warning for a document nobody vouches for. Team folders still ask one document at a time."
         public static let removeAccess = "Remove access"
@@ -279,28 +298,50 @@ public enum Strings {
         public static let title = "General"
         public static let openAtLogin = "Open HTML Clay at login"
         public static let aiTitle = "AI editing"
-        public static let aiSub = "Rewrites text you select, using an AI tool on this Mac. The selection goes to that tool's provider."
+        public static let aiEnableTitle = "Enable AI editing"
+        public static let aiSub = "Press ⌘J in an HTML file to rewrite selected elements using an AI CLI on this Mac. Only the selected HTML and your prompt are sent."
+        public static let aiColTool = "TOOL"
+        public static let aiColModel = "MODEL"
+        public static let aiColEffort = "EFFORT"
         public static let aiFoundHere = "Found on this Mac"
+        public static let aiNotFound = "Not found on PATH"
+        public static let aiAgyFound = "Antigravity CLI (agy)"
+        public static let aiAgyNotFound = "Install Antigravity CLI (agy)"
         public static let aiModel = "Model"
         public static func aiModelLabel(_ tool: String) -> String { "\(tool) model" }
         public static let aiToolClaude = "Claude"
         public static let aiToolCodex = "Codex"
+        public static let aiToolGemini = "Gemini"
         public static let aiCodexDefault = "Codex default"
         public static let aiEffort = "Effort"
-        /// The name shown for a reasoning effort value: low, medium, high, xhigh.
-        public static func aiEffortName(_ effort: String) -> String {
-            switch effort {
-            case "low": "Low"
-            case "medium": "Medium"
-            case "high": "High"
-            case "xhigh": "Extra high"
-            default: effort
+        public static func aiModelDisplayName(_ id: String) -> String {
+            switch id {
+            case "claude-opus-5-5": return "Claude Opus 5.5"
+            case "claude-sonnet-5-5": return "Claude Sonnet 5.5"
+            case "claude-fable-5-2": return "Claude Fable 5.2"
+            case "gpt-5.6-sol": return "GPT-5.6 Sol"
+            case "gpt-6-astra": return "GPT-6 Astra"
+            case "gemini-4-carbon": return "Gemini 4 Carbon"
+            case "gemini-4-neon": return "Gemini 4 Neon"
+            case "gemini-4-argon": return "Gemini 4 Argon"
+            case "gemini-3.8-flash": return "Gemini 3.8 Flash"
+            default: return id
             }
         }
-        public static let aiNoTools = "Claude and Codex were not found on this Mac. Install either tool, or set up a custom command below."
+        public static func aiEffortName(_ effort: String) -> String {
+            switch effort {
+            case "low": return "Low"
+            case "medium": return "Medium"
+            case "high": return "High"
+            case "xhigh": return "Extra high"
+            case "max": return "Max"
+            default: return effort
+            }
+        }
+        public static let aiNoTools = "Claude, Codex, and Gemini (agy) were not found on this Mac. Install any of them, or set up a custom command below."
         public static let aiCustomTitle = "Custom command"
         public static let aiCustomSub = "Use any other command line tool on this Mac"
-        public static let aiCustomButton = "Custom command…"
+        public static let aiCustomButton = "Configure…"
         public static let aiCustomSheetTitle = "Custom AI command"
         public static let aiCustomLead = "Enter the command HTML Clay should run when you rewrite selected text. HTML Clay sends your selection and request to this command and puts its reply into the page."
         public static let aiCommand = "Command"
@@ -326,24 +367,26 @@ public enum Strings {
         public static let offSub = "Documents may show your name in a welcome message and beside changes or comments you make."
         public static let name = "Name"
         public static let placeholder = "Your name"
-        public static let accountSub = "Your hyperclay.com name"
-        public static let change = "Change on hyperclay.com ↗"
+        public static let accountSub = "Your Hyperclay name"
+        public static let change = "Change on Hyperclay ↗"
         public static let note = "Documents may show your name in a welcome message and beside changes or comments you make. Files can save your name, so anyone you send them to can read it."
-        public static let wouldChange = "Build 1: this would open your hyperclay.com profile."
+        public static let wouldChange = "Build 1: this would open your Hyperclay profile."
     }
     public enum Files {
         public static let title = ".htmlclay files"
+        public static let switchTitle = "Open .htmlclay files in HTML Clay"
         public static let headline = "Single files that save their own changes"
         public static let lead = "Double-click any .htmlclay file in Finder. It opens in your default browser, and every edit saves right back into that same file on your Mac."
         public static let opensTitle = "HTML Clay opens .htmlclay files"
-        public static let opensSub = "Double-clicking a .htmlclay file in Finder opens it in your browser through HTML Clay."
+        public static let opensSub = "Double-click any .htmlclay file to open it in your browser and save changes back to disk."
         public static let defaultPill = "Default"
         public static let otherTitle = "Another app opens .htmlclay files"
-        public static let otherUnknownSub = "HTML Clay is not currently the default app for .htmlclay files."
+        public static let otherUnknownSub = "HTML Clay is not currently the default app for .htmlclay files. Turn on to make HTML Clay the default."
         public static let makeDefault = "Make HTML Clay the default"
         public static let openWithTitle = "Show HTML Clay in Open With for .html files"
         public static let openWithSub = "Right-click any regular .html file in Finder and choose Open With to edit and save it in HTML Clay. Your default app for .html files stays the same."
         public static let openWithMac = "macOS always includes HTML Clay in Open With for .html files while HTML Clay is installed on your Mac."
+        public static let openWithTip = "Tip: Right-click any regular .html file in Finder and choose Open With › HTML Clay."
         public static let stopTitle = "Stop opening .htmlclay files"
         public static let stopSubOn = "Turns off double-click opening in Finder so macOS hands .htmlclay files to another app."
         public static let stopSubOff = "HTML Clay is not currently set to open .htmlclay files."
@@ -353,11 +396,18 @@ public enum Strings {
         public static let stopConfirm = "Stop opening"
         public static let cancel = "Cancel"
         public static func otherSub(_ app: String) -> String {
-            "\(app) currently opens .htmlclay files when you double-click them in Finder."
+            "Currently opens in \(app). Turn on to make HTML Clay the default."
         }
     }
     public enum Updates {
         public static let youAreOnLatest = "You're on the latest version"
+        public static let unavailableTitle = "Automatic updates are off for this build"
+        public static func unavailableBuildSub(_ version: String) -> String {
+            "HTML Clay \(version) · Test and development builds don't auto-update"
+        }
+        public static func unavailableMoveSub(_ version: String) -> String {
+            "HTML Clay \(version) · Move HTML Clay to Applications to enable updates"
+        }
         public static func latest(_ version: String) -> String { "HTML Clay \(version)" }
         public static func latest(_ version: String, checked: String) -> String { "HTML Clay \(version) · Checked \(checked)" }
         public static let justNow = "just now"
@@ -421,13 +471,13 @@ public enum Strings {
         public static let appLog = "App log"
         public static let appLogSub = "Errors from trusting folders, running programs, and opening or saving files."
         public static let syncLog = "Sync log"
-        public static let syncLogSub = "Uploads, downloads, and connection details for hyperclay.com."
+        public static let syncLogSub = "Uploads, downloads, and connection details for Hyperclay."
         public static func portCurrent(_ port: Int) -> String { "Currently \(port)" }
         public static func portMoveBody(_ port: Int) -> String {
             "Every HTML Clay address on this Mac will use the new port, so you will need to update your bookmarks. Anything a page saved in your browser stays with the old address and starts fresh at the new one. Visits to port \(port) will keep forwarding to the new port."
         }
         public static func openDocuments(_ documents: [String]) -> String { documents.joined(separator: ", ") }
-        public static let liveService = "Live service"
+        public static let liveService = "Serving folders"
         public static let liveServiceSub = "Runs served and synced folders"
         public static let running = "Running"
         public static let starting = "Starting"
@@ -666,19 +716,17 @@ public enum Strings {
         }
     }
     public enum Connect {
-        public static let title = "Connect hyperclay.com"
+        public static let title = "Connect Hyperclay"
         public static let username = "Username"
         public static let syncKey = "Sync key"
         public static let keyPlaceholder = "hcsk_…"
         public static let paste = "Paste"
-        public static let refused = "That sync key wasn't accepted. Get a new one on hyperclay.com."
+        public static let refused = "That sync key wasn't accepted. Get a new one on Hyperclay."
         public static let getKey = "Get a sync key ↗"
-        public static let nothingSent = "Nothing is sent to hyperclay.com until you press Connect."
+        public static let nothingSent = "Nothing is sent to Hyperclay until you press Connect."
         public static let connect = "Connect"
-        public static let wouldOpenKeys = "Build 1: this would open the sync key page on hyperclay.com."
-        /// Where a person makes a sync key: the account menu of hyperclay.com's dashboard.
+        public static let wouldOpenKeys = "Build 1: this would open the sync key page on Hyperclay."
         public static let keyPageURL = "https://hyperclay.com/dashboard"
-        // copy: Connect sheet, while the key is being checked, max 20 chars
         public static let connecting = "Connecting…"
     }
     public enum AccountFolder {
@@ -687,7 +735,7 @@ public enum Strings {
         public static let existing = "A folder I already have…"
         public static func willDownload(documents: Int, size: String) -> String { "\(documents) documents, \(size) will download." }
         public static let willStart = "It will be trusted, served at "
-        public static let willEnd = ", and kept in step with hyperclay.com."
+        public static let willEnd = ", and kept in step with Hyperclay."
         public static let back = "Back"
         public static let setUpAndSync = "Set up and sync"
         public static let wouldChooseExisting = "Build 1: this would ask you to choose a folder you already have."
@@ -711,7 +759,7 @@ public enum Strings {
         // copy: the same note when the Mac lacks room for the team's files, max 100 chars
         public static let firstDownloadDiskFull = "There isn't enough free space on this Mac. Free up space, then try Set up again."
         // copy: the same note when hyperclay.com could not be reached, max 100 chars
-        public static let firstDownloadOffline = "HTML Clay couldn't reach hyperclay.com. Check your connection, then try Set up again."
+        public static let firstDownloadOffline = "HTML Clay couldn't reach Hyperclay. Check your connection, then try Set up again."
         public static func firstDownloadFailed(_ reason: String?) -> String {
             switch reason {
             case "disk-full": return firstDownloadDiskFull
@@ -790,7 +838,7 @@ public enum Strings {
     }
     public enum Quit {
         public static let finishingTitle = "Finishing up…"
-        public static func uploading(_ files: Int) -> String { "Uploading \(files) files to hyperclay.com. Your files are already saved on this Mac." }
+        public static func uploading(_ files: Int) -> String { "Uploading \(files) files to Hyperclay. Your files are already saved on this Mac." }
         public static let quitNow = "Quit now"
         public static func cantSaveTitle(_ document: String) -> String { "\(document) can't save" }
         public static let cantSaveMessage = "The file is no longer writable. Quitting now loses the last change."
@@ -879,7 +927,7 @@ extension Strings.Preview {
 
 extension Strings.Panel {
     public static let keyRefused = "Your sync key no longer works. Syncing stopped."
-    public static func offline(_ changes: Int) -> String { "Can't reach hyperclay.com. \(changes) changes will sync when you're back online." }
+    public static func offline(_ changes: Int) -> String { "Can't reach Hyperclay. \(changes) changes will sync when you're back online." }
     public static func updateReady(_ version: String) -> String { "HTML Clay \(version) is ready" }
     public static let restart = "Restart"
     public static let finishing = "Finishing saves and sync…"
@@ -895,7 +943,7 @@ extension Strings.FolderPage {
     public static let askOwner = "Ask a team owner to make you an editor."
     public static let open = "Open ↗"
     public static func missingTitle(_ path: String) -> String { "\(path) isn't there any more" }
-    public static let missingSub = "Syncing stopped. Nothing was deleted on hyperclay.com."
+    public static let missingSub = "Syncing stopped. Nothing was deleted on Hyperclay."
     public static let setUpAgain = "Set up again…"
     public static func wasTeam(_ team: String) -> String { "Was \(team)" }
     public static let wasTeamSub = "Served on this Mac only. Programs still ask one document at a time, as for team folders."

@@ -108,9 +108,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notifier = HostNotifier(windows: windows, model: model)
         relay.onNotice = { [notifier] notice in notifier?.show(notice) }
         relay.onRestartToUpdate = { [weak self] in self?.updates?.restartToUpdate() }
+        relay.onOpenSettings = { [weak self] pane in self?.windows.showSettings(pane) }
 
         let welcomeDone = UserDefaults.standard.bool(forKey: WindowManager.welcomeDoneKey)
-        if profile == nil, !welcomeDone, !CommandLine.arguments.contains("--no-welcome") { windows.showWelcome() }
+        let isLoginLaunch = LaunchArguments.isLoginItemLaunch(NSAppleEventManager.shared().currentAppleEvent)
+        if LaunchArguments.shouldShowWelcome(welcomeDone: welcomeDone,
+                                             isLoginItem: isLoginLaunch,
+                                             hasPendingOpens: !opens.isEmpty,
+                                             arguments: CommandLine.arguments,
+                                             hasProfile: profile != nil) {
+            windows.showWelcome()
+        }
 
         startHost()
     }
@@ -140,6 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.loginItems?.update(wanted: self.relay.last.preferences.openAtLogin)
                 await self.confirmUpdate(environment: launch.environment)
                 await self.updates?.start(allowed: self.updateAllowed)
+                self.updates?.setAutomatic(self.relay.last.update.automatic)
                 self.reportedPrepared = nil
                 self.reportPrepared()
                 self.opener?.hostReady()
@@ -213,6 +222,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         opener.open(paths)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        windows.handleReopen()
+        return true
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

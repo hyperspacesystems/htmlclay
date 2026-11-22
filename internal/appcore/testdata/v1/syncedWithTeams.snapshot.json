@@ -14,6 +14,7 @@
       "aiEdit.setEffort": false,
       "aiEdit.setModel": false,
       "app.openRecoveredChanges": false,
+      "app.openSettings": false,
       "app.revealLog": false,
       "conflict.resolve": false,
       "dashboard.open": true,
@@ -180,7 +181,7 @@
         "setFraming": true,
         "sync": false,
         "stopSyncing": false,
-        "stopTrusting": false,
+        "stopTrusting": true,
         "merge": false,
         "openWorkspace": true
       },
@@ -188,10 +189,6 @@
         "sync": {
           "code": "not-from-account",
           "text": "Only folders from your Hyperclay account can sync."
-        },
-        "stopTrusting": {
-          "code": "stop-serving-first",
-          "text": "Stop serving this folder first."
         }
       }
     },
@@ -228,16 +225,11 @@
         "setFraming": true,
         "sync": false,
         "stopSyncing": true,
-        "stopTrusting": false,
+        "stopTrusting": true,
         "merge": false,
         "openWorkspace": true
       },
-      "why": {
-        "stopTrusting": {
-          "code": "stop-serving-first",
-          "text": "Stop serving this folder first."
-        }
-      }
+      "why": {}
     },
     {
       "id": "design-team",
@@ -273,16 +265,11 @@
         "setFraming": false,
         "sync": false,
         "stopSyncing": true,
-        "stopTrusting": false,
+        "stopTrusting": true,
         "merge": false,
         "openWorkspace": true
       },
-      "why": {
-        "stopTrusting": {
-          "code": "stop-serving-first",
-          "text": "Stop serving this folder first."
-        }
-      }
+      "why": {}
     },
     {
       "id": "marketing",

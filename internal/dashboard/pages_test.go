@@ -21,6 +21,7 @@ func TestM3PagePath(t *testing.T) {
 			"/trusted/d0123456789abcd/files",
 			"/settings",
 			"/settings/general",
+			"/settings/ai",
 			"/settings/files",
 			"/settings/folders",
 			"/settings/folders/d0123456789abcd",

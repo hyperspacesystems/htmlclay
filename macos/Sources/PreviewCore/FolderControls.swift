@@ -54,8 +54,16 @@ public enum HostActionType {
 /// The folder page's decisions, away from the views: what each switch shows and
 /// whether the host allows the move. A folder with no `can` is sample data, and
 /// every move is allowed there.
+public enum StopTrustingDecision: Equatable, Sendable {
+    case immediate
+    case confirmSync
+}
+
 public enum FolderControls {
-    /// Find it… on a missing folder, only where the host can relink one.
+    public static func stopTrustingDecision(for folder: Folder) -> StopTrustingDecision {
+        folder.synced ? .confirmSync : .immediate
+    }
+
     public static func canRelink(_ snapshot: HostSnapshot) -> Bool {
         snapshot.hostCan(HostActionType.relinkFolder)
     }

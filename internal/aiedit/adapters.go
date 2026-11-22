@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -27,15 +28,21 @@ type adapterFunc func(ctx context.Context, e engine, bin, userPrompt string, o O
 var adapters = map[string]adapterFunc{
 	"claude":  claudeAdapter,
 	"codex":   codexAdapter,
+	"agy":     agyAdapter,
 	"generic": genericAdapter,
 }
 
 // claudeArgs is the headless Claude Code invocation: no tools, no MCP servers
 // from the person's config, one turn, streaming output.
-func claudeArgs(model string) []string {
-	return []string{
+func claudeArgs(model, effort string) []string {
+	argv := []string{
 		"-p",
 		"--model", model,
+	}
+	if slices.Contains(toolEfforts["claude"], effort) {
+		argv = append(argv, "--effort", effort)
+	}
+	return append(argv,
 		"--append-system-prompt", systemPrompt,
 		"--tools", "",
 		"--strict-mcp-config",
@@ -44,7 +51,7 @@ func claudeArgs(model string) []string {
 		"--output-format", "stream-json",
 		"--include-partial-messages",
 		"--verbose",
-	}
+	)
 }
 
 // A read-only sandbox still lets codex run shell commands; these features are
@@ -89,7 +96,7 @@ type claudeEvent struct {
 }
 
 func claudeAdapter(ctx context.Context, e engine, bin, userPrompt string, _ Options, env []string, report func(string)) (Result, error) {
-	return runClaude(ctx, e, append([]string{bin}, claudeArgs(e.model)...), userPrompt, env, report)
+	return runClaude(ctx, e, append([]string{bin}, claudeArgs(e.model, e.effort)...), userPrompt, env, report)
 }
 
 // runClaude runs one Claude Code child and reads its stream-json output. argv
@@ -179,6 +186,198 @@ func runClaude(ctx context.Context, e engine, argv []string, userPrompt string, 
 
 func codexAdapter(ctx context.Context, e engine, bin, userPrompt string, _ Options, env []string, _ func(string)) (Result, error) {
 	return runCodex(ctx, e, bin, systemPrompt+"\n\n"+userPrompt, env)
+}
+
+var agyDeniedTools = []string{
+	"read_file(*)", "write_file(*)", "edit_file(*)",
+	"list_dir(*)", "find_by_name(*)", "grep_search(*)",
+	"run_command(*)", "command(*)",
+	"search_web(*)", "read_url_content(*)", "open_browser_url(*)",
+	"browser(*)", "execute_browser_javascript(*)",
+	"call_mcp_tool(*)", "invoke_subagent(*)", "define_subagent(*)",
+	"manage_subagents(*)", "swarm(*)", "schedule(*)",
+	"send_message(*)", "run_workflow(*)", "manage_task(*)",
+	"generate_image(*)",
+}
+
+func agyMaxPromptBytes() int {
+	if runtime.GOOS == "windows" {
+		return 30000
+	}
+	return 120000
+}
+
+// resolveAgyModel maps a base Gemini model + reasoning effort into agy's
+// combined model flag (e.g. "gemini-4-carbon-high", "gemini-4-neon-xhigh"),
+// clamping unsupported efforts (like xhigh on gemini-4-carbon) to high.
+func resolveAgyModel(model, effort string) string {
+	if model == "" {
+		model = "gemini-4-carbon"
+	}
+	for _, suffix := range []string{"-low", "-medium", "-high", "-xhigh"} {
+		if strings.HasSuffix(model, suffix) {
+			return model
+		}
+	}
+	allowed := EffortsForModel("agy", model)
+	if len(allowed) == 0 {
+		allowed = []string{"low", "medium", "high"}
+	}
+	if effort == "" {
+		effort = "high"
+	}
+	if !slices.Contains(allowed, effort) {
+		if slices.Contains(allowed, "high") {
+			effort = "high"
+		} else {
+			effort = allowed[len(allowed)-1]
+		}
+	}
+	return model + "-" + effort
+}
+
+type agyStreamEvent struct {
+	Event string `json:"event"`
+	Init  *struct {
+		Model string `json:"model"`
+	} `json:"init"`
+	StepUpdate *struct {
+		TextDelta string `json:"text_delta"`
+	} `json:"step_update"`
+	Result *struct {
+		Status   string `json:"status"`
+		Response string `json:"response"`
+		Error    string `json:"error"`
+	} `json:"result"`
+}
+
+func agyAdapter(ctx context.Context, e engine, bin, userPrompt string, _ Options, env []string, report func(string)) (Result, error) {
+	return runAgy(ctx, e, bin, systemPrompt+"\n\n"+userPrompt, env, report)
+}
+
+// runAgy runs one zero-tool Gemini (agy) child in an empty child work directory
+// with a lockdown settings JSON file denying every tool.
+func runAgy(ctx context.Context, e engine, bin, prompt string, env []string, report func(string)) (Result, error) {
+	if len(prompt) > agyMaxPromptBytes() {
+		return Result{}, &Error{Code: "engine_unsupported", Message: "selection is too large for Gemini (agy) CLI"}
+	}
+	scratch, err := os.MkdirTemp("", "ai-edit-agy-")
+	if err != nil {
+		return Result{}, engineFailure(err)
+	}
+	defer os.RemoveAll(scratch)
+
+	workDir := filepath.Join(scratch, "work")
+	if err := os.Mkdir(workDir, 0o700); err != nil {
+		return Result{}, engineFailure(err)
+	}
+	settingsJSON, err := json.Marshal(map[string]any{
+		"allowNonWorkspaceAccess": false,
+		"enableTerminalSandbox":   true,
+		"trustedWorkspaces":       []string{},
+		"permissions": map[string]any{
+			"allow": []string{},
+			"deny":  agyDeniedTools,
+		},
+	})
+	if err != nil {
+		return Result{}, engineFailure(err)
+	}
+	settingsPath := filepath.Join(scratch, "lockdown.json")
+	if err := os.WriteFile(settingsPath, settingsJSON, 0o600); err != nil {
+		return Result{}, engineFailure(err)
+	}
+
+	resolvedModel := resolveAgyModel(e.model, e.effort)
+	argv := []string{
+		bin,
+		"-p=" + prompt,
+		"--model", resolvedModel,
+		"--output-format", "stream-json",
+		"--sandbox",
+		"--disable-slash-commands",
+		"--settings", settingsPath,
+	}
+	cmd := childCommand(ctx, argv, workDir, env)
+	cmd.Stdin = nil
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return Result{}, engineFailure(err)
+	}
+	stderr := &tailBuffer{limit: stderrTail}
+	cmd.Stderr = stderr
+	if err := cmd.Start(); err != nil {
+		return Result{}, engineFailure(err)
+	}
+
+	var (
+		resStatus   string
+		resResponse string
+		resError    string
+		hasResult   bool
+		modelSeen   = resolvedModel
+		reader      = bufio.NewReaderSize(io.LimitReader(stdout, maxStdout+1), 64<<10)
+		read        int
+	)
+	for {
+		line, readErr := reader.ReadString('\n')
+		read += len(line)
+		if read > maxStdout {
+			killChild(cmd)
+			cmd.Wait()
+			return Result{}, &Error{Code: "engine_failed", Message: "reply too large"}
+		}
+		if text := strings.TrimSpace(line); text != "" {
+			var ev agyStreamEvent
+			if json.Unmarshal([]byte(text), &ev) == nil {
+				switch ev.Event {
+				case "init":
+					if ev.Init != nil && ev.Init.Model != "" {
+						modelSeen = ev.Init.Model
+					}
+				case "step_update":
+					if ev.StepUpdate != nil && ev.StepUpdate.TextDelta != "" {
+						report(ev.StepUpdate.TextDelta)
+					}
+				case "result":
+					if ev.Result != nil {
+						hasResult = true
+						resStatus = ev.Result.Status
+						resResponse = ev.Result.Response
+						resError = ev.Result.Error
+					}
+				}
+			}
+		}
+		if readErr != nil {
+			break
+		}
+	}
+	cmd.Wait()
+	if ctx.Err() != nil {
+		return Result{}, ctx.Err()
+	}
+	if !hasResult {
+		message := fmt.Sprintf("agy exited (%d) without a result", exitCode(cmd))
+		if tail := stderr.String(); tail != "" {
+			message += ": " + tail
+		}
+		return Result{}, &Error{Code: "engine_failed", Message: message}
+	}
+	if resStatus != "SUCCESS" {
+		message := strings.TrimSpace(resError)
+		if message == "" {
+			message = strings.ToLower(resStatus)
+		}
+		if message == "" {
+			message = fmt.Sprintf("agy exited (%d)", exitCode(cmd))
+		}
+		return Result{}, &Error{Code: "engine_failed", Message: message}
+	}
+	if strings.TrimSpace(resResponse) == "" {
+		return Result{}, &Error{Code: "engine_failed", Message: "agy produced no reply"}
+	}
+	return Result{HTML: stripFences(resResponse), Model: modelSeen, StopReason: "end_turn"}, nil
 }
 
 // runCodex runs one codex child and reads the reply file it writes. prompt is

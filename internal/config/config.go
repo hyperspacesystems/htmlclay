@@ -135,8 +135,12 @@ type Config struct {
 	// missing reads as unknown -- nothing may be granted broadly -- rather than as a
 	// machine that never had a team folder. Written by MarkTeamFolder alone.
 	TeamRecord bool `json:"teamRecord,omitempty"`
-	baseDir    string
-	writes     int
+	// PlaygroundSeeded is true once the default ~/htmlclay/playground folder has
+	// been created and served on a fresh install, so deleting or untrusting it
+	// never recreates it on later launches.
+	PlaygroundSeeded bool `json:"playgroundSeeded,omitempty"`
+	baseDir          string
+	writes           int
 }
 
 // TrustedFolder is one declared folder. Identity is the folder's device+inode
@@ -1414,9 +1418,27 @@ func EnsureDir() error {
 	return os.MkdirAll(dir, 0755)
 }
 
+// PlaygroundSeededDone reports whether the default Playground folder was already
+// seeded on a fresh install.
+func (c *Config) PlaygroundSeededDone() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.PlaygroundSeeded
+}
+
+// SetPlaygroundSeeded records whether the default Playground folder has been seeded.
+func (c *Config) SetPlaygroundSeeded(v bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.PlaygroundSeeded = v
+}
+
 // Result reports what Load had to do to the file, so startup can act on a
 // one-time migration without a live field for a setting that no longer exists.
 type Result struct {
+	// FreshInstall is true only when config.json did not exist on disk. It is
+	// false on every existing config and when a corrupt config is quarantined.
+	FreshInstall bool
 	// HadAppMode is true when the loaded file still carried App Mode. Startup
 	// uses it to delete the Chromium profile directory that mode created.
 	HadAppMode bool
@@ -1461,6 +1483,8 @@ func LoadFrom(baseDir string, identity func(string) string) (*Config, Result, er
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
+		cfg.StartOnLogin = true
+		res.FreshInstall = true
 		return cfg, res, nil
 	}
 	if err != nil {

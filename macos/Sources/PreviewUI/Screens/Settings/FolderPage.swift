@@ -14,6 +14,7 @@ struct FolderPage: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
     @State private var alert: FolderAlert?
+    @State private var showAdvanced = false
     private let folderID: String
     private let actions: SettingsActions
 
@@ -59,7 +60,7 @@ struct FolderPage: View {
                 problemCard(folder)
                     .padding(.bottom, 12)
             }
-            outerCard(folder)
+            settingsCard(folder)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .folderConfirmations(folder: folder, alert: $alert)
@@ -131,12 +132,18 @@ struct FolderPage: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
             Spacer(minLength: 0)
-            Button(Strings.Panel.openDashboard) {
-                actions.openDashboard()
+            Button(Strings.Folders.open) {
+                if model.isSample {
+                    actions.openDashboard()
+                } else if folder.served {
+                    model.send(.openDashboard(route: Strings.Folders.rootRoute(folder.id)))
+                } else {
+                    model.send(.revealFolder(id: folder.id))
+                }
             }
             .buttonStyle(KilnButtonStyle(.plain))
             if model.isSample || model.can(HostActionType.reveal) {
-                Button(Strings.Menu.showInFinder) {
+                Button(Strings.Folders.finder) {
                     if model.isSample {
                         model.say(Strings.Preview.wouldShowInFinder(folder.path))
                     } else {
@@ -149,29 +156,43 @@ struct FolderPage: View {
         .padding(.bottom, 16)
     }
 
-    private func outerCard(_ folder: Folder) -> some View {
-        NestCard(level: .outer) {
-            VStack(alignment: .leading, spacing: 0) {
-                let trusted = FolderControls.trusted(folder: folder)
-                FolderPageCardHeader(title: Strings.FolderPage.trusted,
-                                     subtitle: trusted.note ?? trustedSub(folder)) {
-                    Toggle(isOn: trustedBinding) {
-                        Text(Strings.FolderPage.trusted)
-                    }
-                    .toggleStyle(KilnSwitchStyle())
-                    .disabled(!trusted.enabled)
+    private func settingsCard(_ folder: Folder) -> some View {
+        let trusted = FolderControls.trusted(folder: folder)
+        let served = FolderControls.served(folder: folder, pending: model.pendingServed(folder.id))
+        let children = model.snapshot.children(of: folder.id)
+        return KilnCard {
+            KilnRow(title: Strings.FolderPage.trusted, subtitle: trusted.note ?? Strings.FolderPage.trustedSub) {
+                Toggle(isOn: trustedBinding(folder)) {
+                    Text(Strings.FolderPage.trusted)
                 }
-                let children = model.snapshot.children(of: folder.id)
-                if !children.isEmpty {
-                    childRows(folder, children: children)
+                .toggleStyle(KilnSwitchStyle())
+                .disabled(!trusted.enabled)
+            }
+            if !children.isEmpty {
+                KilnRowDivider()
+                childRows(folder, children: children)
+            }
+            KilnRowDivider()
+            KilnRow(title: Strings.FolderPage.serve, subtitle: served.note ?? serveSub(folder)) {
+                Toggle(isOn: servedBinding) {
+                    Text(Strings.FolderPage.serve)
                 }
-                midCard(folder)
+                .toggleStyle(KilnSwitchStyle())
+                .disabled(!served.enabled)
+            }
+            if folder.served {
+                KilnRowDivider()
+                addressRow(folder)
+                KilnRowDivider()
+                syncSection(folder)
+                KilnRowDivider()
+                advancedSection(folder)
             }
         }
     }
 
     private func childRows(_ folder: Folder, children: [Folder]) -> some View {
-        NestRows(inOuter: true) {
+        VStack(alignment: .leading, spacing: 0) {
             FolderPageRow(title: Strings.FolderPage.childrenTitle(count: children.count, parent: folder.name),
                           subtitle: Strings.FolderPage.childrenSub(parent: folder.name))
             ForEach(children) { child in
@@ -192,46 +213,6 @@ struct FolderPage: View {
                         }
                         .buttonStyle(KilnButtonStyle(.plain))
                     }
-                }
-            }
-        }
-    }
-
-    private func midCard(_ folder: Folder) -> some View {
-        let served = FolderControls.served(folder: folder, pending: model.pendingServed(folder.id))
-        return NestCard(level: .mid, on: served.value) {
-            VStack(alignment: .leading, spacing: 0) {
-                FolderPageCardHeader(title: Strings.FolderPage.serve, subtitle: serveSub(folder)) {
-                    Toggle(isOn: servedBinding) {
-                        Text(Strings.FolderPage.serve)
-                    }
-                    .toggleStyle(KilnSwitchStyle())
-                    .disabled(!served.enabled)
-                }
-                if let note = served.note {
-                    KilnNoteRow(note)
-                }
-                if folder.served {
-                    detailRows(folder)
-                    innerCard(folder)
-                }
-            }
-        }
-    }
-
-    private func detailRows(_ folder: Folder) -> some View {
-        NestRows {
-            addressRow(folder)
-            KilnRowDivider()
-            framingRow(folder)
-            KilnRowDivider()
-            KilnRow(title: Strings.FolderPage.versions,
-                    subtitle: Strings.FolderPage.versionsSub(size: folder.versionsSize)) {
-                if model.isSample {
-                    Button(Strings.FolderPage.show) {
-                        model.say(Strings.FolderPage.versionsNote(folder: folder.name))
-                    }
-                    .buttonStyle(KilnButtonStyle(.plain))
                 }
             }
         }
@@ -264,96 +245,102 @@ struct FolderPage: View {
         .padding(.vertical, 10)
     }
 
-    private func framingRow(_ folder: Folder) -> some View {
-        let framing = FolderControls.framing(folder: folder,
-                                            pending: model.pendingFraming(folder.id),
-                                            hostCan: model.can(HostActionType.setFraming))
-        return VStack(alignment: .leading, spacing: 0) {
-            KilnRow(title: Strings.FolderPage.framing, subtitle: Strings.FolderPage.framingSub) {
-                Toggle(isOn: framingBinding) {
-                    Text(Strings.FolderPage.framing)
+    @ViewBuilder private func syncSection(_ folder: Folder) -> some View {
+        switch Self.levels(for: folder).innerKind {
+        case .sync:
+            let synced = FolderControls.synced(folder: folder,
+                                               pending: model.pendingSynced(folder.id),
+                                               hostCan: model.can(HostActionType.setSynced))
+            KilnRow(title: Strings.FolderPage.sync, subtitle: synced.note ?? Strings.FolderPage.syncSub) {
+                Toggle(isOn: syncedBinding) {
+                    Text(Strings.FolderPage.sync)
                 }
                 .toggleStyle(KilnSwitchStyle())
-                .disabled(!framing.enabled)
+                .disabled(!synced.enabled)
             }
-            KilnNoteRow(Strings.FolderPage.framingNote)
-        }
-    }
-
-    @ViewBuilder private func innerCard(_ folder: Folder) -> some View {
-        switch Self.levels(for: folder).innerKind {
-        case .sync: syncCard(folder)
-        case .onlyOnThisMac: onlyOnThisMacCard
-        case .none: EmptyView()
-        }
-    }
-
-    private func syncCard(_ folder: Folder) -> some View {
-        let synced = FolderControls.synced(folder: folder,
-                                           pending: model.pendingSynced(folder.id),
-                                           hostCan: model.can(HostActionType.setSynced))
-        return NestCard(level: .inner, on: synced.value) {
-            VStack(alignment: .leading, spacing: 0) {
-                FolderPageCardHeader(title: Strings.FolderPage.sync, subtitle: Strings.FolderPage.syncSub) {
-                    Toggle(isOn: syncedBinding) {
-                        Text(Strings.FolderPage.sync)
-                    }
-                    .toggleStyle(KilnSwitchStyle())
-                    .disabled(!synced.enabled)
+            if folder.synced {
+                let status = Self.syncStatus(folder, snapshot: model.snapshot)
+                KilnRowDivider()
+                KilnRow(title: syncTitle(folder), subtitle: status.line) {
+                    StatusDot(status.dot)
+                } trailing: {
+                    EmptyView()
                 }
-                if let note = synced.note {
-                    KilnNoteRow(note)
+                KilnRowDivider()
+                KilnRow(title: Strings.FolderPage.folderHistory, subtitle: folder.historySummary) {
+                    Button {
+                        model.route = .folderHistory(folder.id)
+                    } label: {
+                        Image(systemName: Symbols.chevronRight)
+                            .font(.system(size: 11))
+                            .foregroundStyle(kiln.faint)
+                    }
+                    .buttonStyle(.plain)
                 }
-                if folder.synced {
-                    let status = Self.syncStatus(folder, snapshot: model.snapshot)
-                    NestRows {
-                        KilnRow(title: syncTitle(folder), subtitle: status.line) {
-                            StatusDot(status.dot)
-                        } trailing: {
-                            EmptyView()
-                        }
-                        KilnRowDivider()
-                        KilnRow(title: Strings.FolderPage.folderHistory, subtitle: folder.historySummary) {
-                            Button {
-                                model.route = .folderHistory(folder.id)
-                            } label: {
-                                Image(systemName: Symbols.chevronRight)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(kiln.faint)
-                            }
-                            .buttonStyle(.plain)
+            } else if case let .team(name) = folder.origin,
+                      Self.problem(for: folder) == .none,
+                      model.can(HostActionType.setSynced) {
+                KilnRowDivider()
+                KilnRow(title: Strings.FolderPage.wasTeam(name), subtitle: Strings.FolderPage.wasTeamSub) {
+                    StatusDot(.muted)
+                } trailing: {
+                    Button(Strings.FolderPage.reconnect) {
+                        if model.snapshot.sync.connected {
+                            model.send(.setSynced(folderID: folder.id, on: true))
+                        } else {
+                            model.sheet = .connect
                         }
                     }
-                } else if case let .team(name) = folder.origin,
-                          Self.problem(for: folder) == .none,
-                          model.can(HostActionType.setSynced) {
-                    NestRows {
-                        KilnRow(title: Strings.FolderPage.wasTeam(name), subtitle: Strings.FolderPage.wasTeamSub) {
-                            StatusDot(.muted)
-                        } trailing: {
-                            Button(Strings.FolderPage.reconnect) {
-                                if model.snapshot.sync.connected {
-                                    model.send(.setSynced(folderID: folder.id, on: true))
-                                } else {
-                                    model.sheet = .connect
-                                }
-                            }
-                            .buttonStyle(KilnButtonStyle(.plain))
-                        }
-                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
                 }
             }
-        }
-    }
-
-    private var onlyOnThisMacCard: some View {
-        NestCard(level: .inner) {
-            FolderPageCardHeader(title: Strings.FolderPage.onlyOnThisMac,
-                                 subtitle: Strings.FolderPage.onlyOnThisMacSub) {
+        case .onlyOnThisMac:
+            KilnRow(title: Strings.FolderPage.onlyOnThisMac, subtitle: Strings.FolderPage.onlyOnThisMacSub) {
                 Button(Strings.FolderPage.connect) {
                     model.route = .pane(.sync)
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
+            }
+        case .none:
+            EmptyView()
+        }
+    }
+
+    private func advancedSection(_ folder: Folder) -> some View {
+        let framing = FolderControls.framing(folder: folder,
+                                             pending: model.pendingFraming(folder.id),
+                                             hostCan: model.can(HostActionType.setFraming))
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                showAdvanced.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: showAdvanced ? Symbols.chevronDown : Symbols.chevronRight)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(kiln.muted)
+                    Text(Strings.Folders.advanced)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(kiln.ink2)
+                    if framing.value {
+                        KilnPill(.warn, text: Strings.Folders.framingOnPill)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if showAdvanced {
+                KilnRowDivider()
+                KilnRow(title: Strings.FolderPage.framing, subtitle: Strings.FolderPage.framingSub) {
+                    Toggle(isOn: framingBinding) {
+                        Text(Strings.FolderPage.framing)
+                    }
+                    .toggleStyle(KilnSwitchStyle())
+                    .disabled(!framing.enabled)
+                }
+                KilnNoteRow(Strings.FolderPage.framingNote)
             }
         }
     }
@@ -366,10 +353,6 @@ struct FolderPage: View {
         }
     }
 
-    private func trustedSub(_ folder: Folder) -> String {
-        folder.served ? Strings.FolderPage.trustedSubServed : Strings.FolderPage.trustedSubNotServed
-    }
-
     private func serveSub(_ folder: Folder) -> String {
         if folder.served { return Strings.FolderPage.serveSubOn }
         let base = Strings.FolderPage.serveSubOff
@@ -377,11 +360,28 @@ struct FolderPage: View {
         return base
     }
 
-    private var trustedBinding: Binding<Bool> {
+    private func trustedBinding(_ folder: Folder) -> Binding<Bool> {
         Binding(
             get: { model.snapshot.folder(folderID)?.onThisMac ?? false },
             set: { on in
-                if !on { alert = FolderAlert(kind: .stopTrusting) }
+                guard !on else { return }
+                switch FolderControls.stopTrustingDecision(for: folder) {
+                case .confirmSync:
+                    alert = FolderAlert(kind: .stopTrustingSync)
+                case .immediate:
+                    Task {
+                        let outcome = await model.submit(.stopTrusting(folderID: folder.id))
+                        if case let .refused(refusal) = outcome {
+                            if refusal.code == HostRefusal.confirmSyncStop {
+                                alert = FolderAlert(kind: .stopTrustingSync)
+                            } else if refusal.code == HostRefusal.unsavedEdits {
+                                alert = FolderAlert(kind: .stopTrustingUnsaved(refusal.documents))
+                            } else if !refusal.text.isEmpty {
+                                model.say(refusal.text)
+                            }
+                        }
+                    }
+                }
             }
         )
     }
@@ -436,35 +436,6 @@ struct FolderPage: View {
                 }
             }
         )
-    }
-}
-
-struct FolderPageCardHeader<Trailing: View>: View {
-    @Environment(\.kiln) private var kiln
-    private let title: String
-    private let subtitle: String
-    private let trailing: Trailing
-
-    init(title: String, subtitle: String, @ViewBuilder trailing: () -> Trailing) {
-        self.title = title
-        self.subtitle = subtitle
-        self.trailing = trailing()
-    }
-
-    var body: some View {
-        HStack(spacing: 11) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(kiln.ink)
-                Text(subtitle)
-                    .font(.system(size: 13))
-                    .foregroundStyle(kiln.muted)
-                    .padding(.top, 2)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            trailing
-        }
     }
 }
 

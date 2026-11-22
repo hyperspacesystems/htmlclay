@@ -20,6 +20,7 @@ func TestEveryRefusalCodeHasText(t *testing.T) {
 		RefuseNameRetired,
 		RefuseServedElsewhere,
 		RefuseFinishInSettings,
+		RefuseConfirmSyncStop,
 	}
 	for _, code := range codes {
 		text, ok := RefusalText[code]

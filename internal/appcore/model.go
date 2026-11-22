@@ -392,10 +392,11 @@ type AIEditTool struct {
 	Models       []string `json:"models"`
 	// Effort is the reasoning effort chosen for the tool, "" for HTML Clay's
 	// default; Efforts is empty for a tool with no effort setting.
-	Effort        string   `json:"effort"`
-	DefaultEffort string   `json:"defaultEffort"`
-	Efforts       []string `json:"efforts"`
-	Command       string   `json:"command"`
+	Effort        string              `json:"effort"`
+	DefaultEffort string              `json:"defaultEffort"`
+	Efforts       []string            `json:"efforts"`
+	ModelEfforts  map[string][]string `json:"modelEfforts,omitempty"`
+	Command       string              `json:"command"`
 }
 
 // FileTypes is what HTML Clay knows about the system's file types. Managed is

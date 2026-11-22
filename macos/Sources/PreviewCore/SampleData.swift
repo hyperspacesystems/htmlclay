@@ -97,7 +97,50 @@ public enum SampleData {
         ],
         sync: SyncState(connected: true, username: "panphora", keySuffix: "7f3a", syncingFiles: 5, viewOnlyTeams: 1, lastFinished: "2 minutes ago", fullName: "David Miranda"),
         update: UpdateState(current: "2.0.3"),
-        preferences: PreferenceState(yourName: "David", useName: true))
+        preferences: PreferenceState(
+            yourName: "David",
+            useName: true,
+            aiEditTool: "claude",
+            aiEditTools: [
+                AIEditTool(
+                    id: "claude",
+                    found: true,
+                    model: "claude-opus-5-5",
+                    defaultModel: "claude-opus-5-5",
+                    models: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2"],
+                    effort: "high",
+                    defaultEffort: "high",
+                    efforts: ["low", "medium", "high", "xhigh", "max"]
+                ),
+                AIEditTool(
+                    id: "codex",
+                    found: true,
+                    model: "gpt-5.6-sol",
+                    defaultModel: "gpt-5.6-sol",
+                    models: ["gpt-5.6-sol", "gpt-6-astra"],
+                    effort: "high",
+                    defaultEffort: "high",
+                    efforts: ["low", "medium", "high", "xhigh"]
+                ),
+                AIEditTool(
+                    id: "agy",
+                    found: true,
+                    model: "gemini-4-carbon",
+                    defaultModel: "gemini-4-carbon",
+                    models: ["gemini-4-carbon", "gemini-4-neon", "gemini-4-argon", "gemini-3.8-flash"],
+                    effort: "high",
+                    defaultEffort: "high",
+                    efforts: ["low", "medium", "high", "xhigh"],
+                    modelEfforts: [
+                        "gemini-4-neon": ["low", "medium", "high", "xhigh"],
+                        "gemini-4-carbon": ["low", "medium", "high"],
+                        "gemini-4-argon": ["low", "medium", "high"],
+                        "gemini-3.8-flash": ["low", "medium", "high"],
+                    ]
+                ),
+                AIEditTool(id: "custom", custom: true, found: false, command: ""),
+            ]
+        ))
 
     static let localUser = HostSnapshot(localMoveOffer: true, moveFolders: localMoveFolders, moveBlockers: MoveBlockers(localRunning: true))
 

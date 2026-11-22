@@ -18,6 +18,10 @@
       "class": "safe"
     },
     {
+      "type": "app.openSettings",
+      "class": "safe"
+    },
+    {
       "type": "app.revealLog",
       "class": "safe"
     },

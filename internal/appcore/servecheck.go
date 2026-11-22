@@ -94,6 +94,9 @@ const (
 	// RefuseConfirmNeeded is syncing into a folder that has files, before the
 	// person has seen what it will do (its Counts).
 	RefuseConfirmNeeded = "confirm-needed"
+	// RefuseConfirmSyncStop is stopping trust on a synced folder without the
+	// person confirming that syncing and local serving will stop.
+	RefuseConfirmSyncStop = "confirm-sync-stop"
 	// RefuseServiceNeeded is a sync action with no live-room service running:
 	// sync runs inside it, and it runs while a folder is served.
 	RefuseServiceNeeded = "service-needed"

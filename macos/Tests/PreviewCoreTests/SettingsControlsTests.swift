@@ -33,9 +33,9 @@ final class SettingsControlsTests: XCTestCase {
         for pane in SettingsPane.allCases {
             XCTAssertTrue(SettingsControls.showsPane(pane, in: model.snapshot), pane.rawValue)
         }
-        let routes: [SettingsRoute] = [.pane(.general), .pane(.htmlclayFiles), .pane(.folders),
-                                       .pane(.programs), .pane(.updates), .pane(.advanced),
-                                       .pane(.sync), .folder("notes"), .folderHistory("notes"),
+        let routes: [SettingsRoute] = [.pane(.general), .pane(.aiEditing), .pane(.folders),
+                                       .pane(.programs), .pane(.sync), .pane(.updates),
+                                       .pane(.advanced), .folder("notes"), .folderHistory("notes"),
                                        .program("search-sh")]
         for route in routes {
             XCTAssertEqual(SettingsControls.visibleRoute(route, in: model.snapshot), route)
@@ -52,7 +52,7 @@ final class SettingsControlsTests: XCTestCase {
 
         XCTAssertFalse(SettingsControls.showsPane(.programs, in: model.snapshot))
         XCTAssertFalse(SettingsControls.showsPane(.sync, in: model.snapshot))
-        for pane in [SettingsPane.general, .htmlclayFiles, .folders, .updates, .advanced] {
+        for pane in [SettingsPane.general, .aiEditing, .folders, .updates, .advanced] {
             XCTAssertTrue(SettingsControls.showsPane(pane, in: model.snapshot), pane.rawValue)
         }
         XCTAssertEqual(SettingsControls.visibleRoute(.pane(.programs), in: model.snapshot), .pane(.general))
@@ -75,13 +75,13 @@ final class SettingsControlsTests: XCTestCase {
         XCTAssertFalse(SettingsControls.showsAccountChange(isSample: model.isSample))
     }
 
-    /// copy.md section 2: the seven tabs, in this order, and no Your name tab.
     func testTheSidebarListsTheSevenTabsInOrder() {
         XCTAssertEqual(SettingsPane.allCases.map(\.rawValue),
-                       ["general", "htmlclayFiles", "folders", "programs", "updates", "advanced", "sync"])
+                       ["general", "ai", "folders", "programs", "sync", "updates", "advanced"])
         XCTAssertEqual(SettingsPane.allCases.map(Strings.Settings.title),
-                       ["General", ".htmlclay files", "Folders", "Programs", "Updates", "Advanced", "Sync"])
+                       ["General", "AI Editing", "Folders", "Programs", "Sync", "Updates", "Advanced"])
         XCTAssertNil(SettingsPane(rawValue: "yourName"))
+        XCTAssertNil(SettingsPane(rawValue: "htmlclayFiles"))
     }
 
     func testAPaneShowsWhenTheHostRunsAnyOfItsActions() {
@@ -140,10 +140,7 @@ final class SettingsControlsTests: XCTestCase {
         XCTAssertEqual(SettingsControls.port(isSample: false, port: 4040), "4040")
     }
 
-    /// copy.md section 6, from the syncedWithTeams fixture: Claude was found and
-    /// is selected, Codex was not found so it is absent, and the custom command
-    /// comes last.
-    func testTheToolPickerListsFoundToolsThenTheCustomCommand() throws {
+    func testTheToolPickerListsAllThreeBuiltinsAndClampsModelEfforts() throws {
         let fixtures = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .appendingPathComponent("Fixtures/v1")
@@ -152,32 +149,71 @@ final class SettingsControlsTests: XCTestCase {
         let prefs = HostSnapshotAdapter.snapshot(from: wire).preferences
 
         let rows = SettingsControls.aiToolRows(prefs)
-        XCTAssertEqual(rows.map(\.id), ["claude", "custom"])
-        XCTAssertEqual(rows.map(\.title), [Strings.General.aiToolClaude, Strings.General.aiCustomTitle])
-        XCTAssertEqual(rows.map(\.selected), [true, false])
-        XCTAssertTrue(rows[0].subtitle == Strings.General.aiFoundHere)
+        XCTAssertEqual(rows.map(\.id), ["claude", "codex", "agy", "custom"])
+        XCTAssertEqual(rows.map(\.title), [
+            Strings.General.aiToolClaude,
+            Strings.General.aiToolCodex,
+            Strings.General.aiToolGemini,
+            Strings.General.aiCustomTitle,
+        ])
+        XCTAssertEqual(rows.map(\.selected), [true, false, false, false])
+        XCTAssertEqual(rows.map(\.selectable), [true, false, false, true])
+        XCTAssertEqual(rows[0].subtitle, Strings.General.aiFoundHere)
         XCTAssertEqual(rows[0].model, "claude-opus-5-5")
         XCTAssertEqual(rows[0].placeholder, "claude-opus-5-5")
-        XCTAssertEqual(rows[1].subtitle, "my-agent {prompt}")
-        XCTAssertTrue(rows[1].custom)
+        XCTAssertEqual(rows[1].subtitle, Strings.General.aiNotFound)
+        XCTAssertEqual(rows[2].subtitle, Strings.General.aiAgyNotFound)
+        XCTAssertEqual(rows[3].subtitle, "my-agent {prompt}")
+        XCTAssertTrue(rows[3].custom)
         XCTAssertFalse(SettingsControls.showsNoToolsNote(prefs))
 
         var noneFound = prefs
         noneFound.aiEditTools = prefs.aiEditTools.filter { $0.custom || !$0.found }
         XCTAssertTrue(SettingsControls.showsNoToolsNote(noneFound))
-        XCTAssertEqual(SettingsControls.aiToolRows(noneFound).map(\.id), ["custom"])
+        let noneRows = SettingsControls.aiToolRows(noneFound)
+        XCTAssertEqual(noneRows.map(\.id), ["claude", "codex", "agy", "custom"])
+        XCTAssertEqual(noneRows.prefix(3).map(\.selectable), [false, false, false])
 
-        var codexOnly = prefs
-        codexOnly.aiEditTool = "codex"
-        codexOnly.aiEditTools = [AIEditTool(id: "codex", found: true)]
-        let codex = SettingsControls.aiToolRows(codexOnly)
-        XCTAssertEqual(codex.map(\.id), ["codex", "custom"])
-        XCTAssertTrue(codex[1].custom)
-        XCTAssertFalse(codex[1].selectable, "the custom row cannot be picked before a command is set")
-        XCTAssertEqual(codex[1].subtitle, Strings.General.aiCustomSub)
-        XCTAssertEqual(codex[0].title, Strings.General.aiToolCodex)
-        XCTAssertTrue(codex[0].selected)
-        XCTAssertEqual(codex[0].placeholder, Strings.General.aiCodexDefault)
+        var agyPrefs = PreferenceState(
+            aiEditTool: "agy",
+            aiEditTools: [
+                AIEditTool(
+                    id: "agy",
+                    found: true,
+                    model: "gemini-4-carbon",
+                    defaultModel: "gemini-4-carbon",
+                    models: ["gemini-4-carbon", "gemini-4-neon", "gemini-4-argon", "gemini-3.8-flash"],
+                    effort: "xhigh",
+                    defaultEffort: "high",
+                    efforts: ["low", "medium", "high", "xhigh"],
+                    modelEfforts: [
+                        "gemini-4-neon": ["low", "medium", "high", "xhigh"],
+                        "gemini-4-carbon": ["low", "medium", "high"],
+                    ]
+                ),
+            ]
+        )
+        let carbonRow = try XCTUnwrap(SettingsControls.aiToolRows(agyPrefs).first { $0.id == "agy" })
+        XCTAssertEqual(carbonRow.title, "Gemini")
+        XCTAssertTrue(carbonRow.selected)
+        XCTAssertTrue(carbonRow.selectable)
+        XCTAssertEqual(carbonRow.efforts, ["low", "medium", "high"])
+        XCTAssertEqual(carbonRow.selectedEffort, "high")
+        XCTAssertEqual(carbonRow.effortTitle, "High")
+
+        agyPrefs.aiEditTools[0].model = "gemini-4-neon"
+        let neonRow = try XCTUnwrap(SettingsControls.aiToolRows(agyPrefs).first { $0.id == "agy" })
+        XCTAssertEqual(neonRow.efforts, ["low", "medium", "high", "xhigh"])
+        XCTAssertEqual(neonRow.selectedEffort, "xhigh")
+        XCTAssertEqual(neonRow.effortTitle, "Extra high")
+
+        XCTAssertEqual(Strings.General.aiEffortName("max"), "Max")
+        XCTAssertEqual(Strings.Advanced.liveService, "Serving folders")
+        XCTAssertEqual(Strings.Sync.syncing, "Syncing to Hyperclay")
+
+        let customRow = try XCTUnwrap(SettingsControls.aiToolRows(agyPrefs).first { $0.custom })
+        XCTAssertFalse(customRow.selectable)
+        XCTAssertEqual(customRow.subtitle, Strings.General.aiCustomSub)
     }
 
     func testTheSyncLogRowShowsOnceSyncHasBeenOn() {

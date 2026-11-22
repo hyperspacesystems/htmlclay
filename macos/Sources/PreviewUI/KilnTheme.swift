@@ -60,6 +60,7 @@ public struct KilnRoot<Content: View>: View {
         content
             .environment(\.kiln, palette)
             .foregroundStyle(palette.ink)
-            .background(palette.win)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(palette.win.ignoresSafeArea())
     }
 }

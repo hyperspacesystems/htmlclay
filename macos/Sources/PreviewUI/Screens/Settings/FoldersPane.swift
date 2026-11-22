@@ -5,6 +5,11 @@ struct FoldersPane: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
     @Environment(\.kiln) private var kiln
+    private let actions: SettingsActions
+
+    init(actions: SettingsActions = SettingsActions()) {
+        self.actions = actions
+    }
 
     static func orderedLocalFolders(_ snapshot: HostSnapshot) -> [String] {
         func walk(_ folder: Folder) -> [String] {
@@ -40,10 +45,11 @@ struct FoldersPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            KilnLink(Strings.Folders.serveLink) {
-                model.sheet = .serveFolder(folderID: nil)
-            }
-            .padding(.bottom, 10)
+            Text(Strings.Folders.intro)
+                .font(.system(size: 13))
+                .foregroundStyle(kiln.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 12)
             if model.snapshot.folders.isEmpty && !model.snapshot.localMoveOffer {
                 emptyCard
             }
@@ -58,17 +64,17 @@ struct FoldersPane: View {
     }
 
     private var header: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 10) {
             Text(Strings.Folders.title)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
             Spacer(minLength: 0)
             Menu {
-                Button(Strings.Folders.trustMenu) {
-                    chooseToTrust()
-                }
                 Button(Strings.Folders.serveMenu) {
                     model.sheet = .serveFolder(folderID: nil)
+                }
+                Button(Strings.Folders.trustMenu) {
+                    chooseToTrust()
                 }
                 if !model.snapshot.sync.connected {
                     Divider()
@@ -77,19 +83,26 @@ struct FoldersPane: View {
                     }
                 }
             } label: {
-                Image(systemName: Symbols.plus)
+                Text(Strings.Folders.addFolder)
+                    .font(.system(size: 13.5, weight: .medium))
+                    .foregroundStyle(kiln.btnFg)
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 12)
+                    .background(LinearGradient(colors: kiln.btnBg, startPoint: .top, endPoint: .bottom), in: RoundedRectangle(cornerRadius: 7))
+                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(kiln.btnBorder, lineWidth: 1))
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
         }
-        .padding(.bottom, 12)
+        .padding(.bottom, 8)
     }
 
     private var emptyCard: some View {
         KilnCard {
             KilnRow(title: Strings.Folders.emptyTitle, subtitle: Strings.Folders.emptySub) {
-                Button(Strings.Folders.trustMenu) {
-                    chooseToTrust()
+                Button(Strings.Folders.serveMenu) {
+                    model.sheet = .serveFolder(folderID: nil)
                 }
                 .buttonStyle(KilnButtonStyle(.plain))
             }
@@ -131,15 +144,14 @@ struct FoldersPane: View {
                     if let folder = model.snapshot.folder(id) {
                         FolderRow(folder: folder,
                                   parent: parent(of: folder),
-                                  waiting: Self.waitingCount(model.snapshot, folderID: id))
+                                  waiting: Self.waitingCount(model.snapshot, folderID: id),
+                                  actions: actions)
                     }
                 }
             }
         }
     }
 
-    /// The folders a page may read because the person allowed it on the read
-    /// prompt. Remove ends one at once; the page asks again on its next read.
     @ViewBuilder private var readAccessGroup: some View {
         if !model.snapshot.readAccess.isEmpty {
             KilnGroupTitle(Strings.Folders.readAccessTitle)
@@ -177,7 +189,8 @@ struct FoldersPane: View {
                     if let folder = model.snapshot.folder(id) {
                         FolderRow(folder: folder,
                                   parent: parent(of: folder),
-                                  waiting: Self.waitingCount(model.snapshot, folderID: id))
+                                  waiting: Self.waitingCount(model.snapshot, folderID: id),
+                                  actions: actions)
                     }
                 }
                 if model.snapshot.sync.viewOnlyTeams > 0 {

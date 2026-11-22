@@ -201,6 +201,7 @@ public enum HostSnapshotAdapter {
                            model: $0.model ?? "", defaultModel: $0.defaultModel ?? "",
                            models: $0.models ?? [], effort: $0.effort ?? "",
                            defaultEffort: $0.defaultEffort ?? "", efforts: $0.efforts ?? [],
+                           modelEfforts: $0.modelEfforts,
                            command: $0.command ?? "")
             }
         )

@@ -30,8 +30,11 @@ public enum HostActionWire {
             return WireActionRequest(type: "folder.setSynced", args: ["id": .string(folderID), "on": .bool(on)])
         case let .setFraming(folderID, on):
             return WireActionRequest(type: "folder.setFraming", args: ["id": .string(folderID), "allow": .bool(on)])
-        case let .stopTrusting(folderID):
-            return WireActionRequest(type: "folder.stopTrusting", args: ["id": .string(folderID)])
+        case let .stopTrusting(folderID, confirmed, force):
+            var args: [String: WireValue] = ["id": .string(folderID)]
+            if confirmed { args["confirmed"] = .bool(true) }
+            if force { args["force"] = .bool(true) }
+            return WireActionRequest(type: "folder.stopTrusting", args: args)
         case let .mergeIntoParent(folderID):
             return WireActionRequest(type: "folder.merge", args: ["id": .string(folderID)])
         case let .trustFolder(_, path, acknowledged):
@@ -94,6 +97,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "template.create", args: ["templateID": .string(templateID)])
         case let .openDashboard(route):
             return WireActionRequest(type: "dashboard.open", args: route.isEmpty ? [:] : ["route": .string(route)])
+        case let .openSettings(pane):
+            return WireActionRequest(type: "app.openSettings", args: pane.map { ["pane": .string($0.rawValue)] } ?? [:])
         case let .showRequest(requestID):
             return WireActionRequest(type: "request.show", args: ["id": .string(requestID)])
         case let .answer(requestID, revision, answer, path):

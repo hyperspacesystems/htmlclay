@@ -308,17 +308,17 @@ func TestM3DashboardWithoutService(t *testing.T) {
 		if status, body := c.act("create-1", "template.create", map[string]any{"templateID": "kanban"}); status != http.StatusOK {
 			t.Fatalf("template.create = %d %s", status, body)
 		}
-		first := filepath.Join(dir, "Kanban.htmlclay")
+		first := filepath.Join(dir, "kanban.htmlclay")
 		if got, err := os.ReadFile(first); err != nil || !bytes.Equal(got, kanban) {
 			t.Fatalf("%s holds %d bytes (%v), want the kanban template", first, len(got), err)
 		}
-		if len(opened) != 1 || !strings.Contains(opened[0], "Kanban.htmlclay") {
+		if len(opened) != 1 || !strings.Contains(opened[0], "kanban.htmlclay") {
 			t.Fatalf("opened %v, want the new document", opened)
 		}
 		if v := c.app.tierOf(first); v.Tier != tier.Mine {
 			t.Fatalf("a document HTML Clay made is %s %s, want the person's own", v.Tier, v.Reason)
 		}
-		copied := filepath.Join(t.TempDir(), "Kanban.htmlclay")
+		copied := filepath.Join(t.TempDir(), "kanban.htmlclay")
 		writeTestFile(t, copied, string(kanban))
 		downloadedHere(t, c.app, copied)
 		if v := c.app.tierOf(copied); v.Tier != tier.Unknown {
@@ -331,8 +331,8 @@ func TestM3DashboardWithoutService(t *testing.T) {
 		if got, _ := os.ReadFile(first); string(got) != "the person's own edits" {
 			t.Fatal("a second card click replaced the first document")
 		}
-		if got, err := os.ReadFile(filepath.Join(dir, "Kanban 2.htmlclay")); err != nil || !bytes.Equal(got, kanban) {
-			t.Fatalf("the second document = %d bytes (%v), want the template at Kanban 2.htmlclay", len(got), err)
+		if got, err := os.ReadFile(filepath.Join(dir, "kanban-2.htmlclay")); err != nil || !bytes.Equal(got, kanban) {
+			t.Fatalf("the second document = %d bytes (%v), want the template at kanban-2.htmlclay", len(got), err)
 		}
 		status, body := c.act("create-3", "template.create", map[string]any{"templateID": "blockeditor"})
 		if code := refusalOf(t, status, body); code != appcore.RefuseBadArguments {

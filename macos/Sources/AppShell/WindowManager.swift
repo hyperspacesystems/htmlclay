@@ -15,6 +15,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     private var welcome: NSWindow?
     private var request: RequestPanel?
     private var notice: NSPanel?
+    private var pendingOpenDashboard = false
 
     public init(model: AppModel) {
         self.model = model
@@ -22,9 +23,17 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         applyAppearance(model.snapshot.preferences.appearance)
         observeAppearance()
         observeRequests()
+        observeHostReady()
     }
 
     public static let welcomeDoneKey = "welcomeDone"
+
+    private static let windowBackgroundColor = NSColor(name: nil) { appearance in
+        if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+            return NSColor(srgbRed: 0x1F / 255.0, green: 0x21 / 255.0, blue: 0x28 / 255.0, alpha: 1)
+        }
+        return NSColor(srgbRed: 0xF4 / 255.0, green: 0xF2 / 255.0, blue: 0xEC / 255.0, alpha: 1)
+    }
 
     static func menuBarIcon() -> NSImage? {
         guard let url = Bundle.main.url(forResource: "tray-icon@2x", withExtension: "png"),
@@ -42,11 +51,41 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     func openBundledDashboard() {
         if model.isSample {
             if !Browser.openBundledPage("dashboard-preview") { model.say(Strings.Preview.dashboardMissing) }
+        } else if model.snapshot.hostStopped {
+            pendingOpenDashboard = false
+            model.say(Strings.Panel.hostStopped)
         } else if model.snapshot.host.can.isEmpty {
-            model.say(model.snapshot.hostStopped ? Strings.Panel.hostStopped : Strings.Panel.notReady)
+            pendingOpenDashboard = true
+            model.say(Strings.Panel.notReady)
         } else {
+            pendingOpenDashboard = false
             model.send(.openDashboard(route: String()))
         }
+    }
+
+    private func observeHostReady() {
+        withObservationTracking {
+            _ = model.snapshot.host.can
+            _ = model.snapshot.hostStopped
+        } onChange: { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.flushPendingOpenDashboard()
+                self.observeHostReady()
+            }
+        }
+    }
+
+    private func flushPendingOpenDashboard() {
+        guard pendingOpenDashboard else { return }
+        if model.snapshot.hostStopped {
+            pendingOpenDashboard = false
+            model.say(Strings.Panel.hostStopped)
+            return
+        }
+        guard !model.snapshot.host.can.isEmpty else { return }
+        pendingOpenDashboard = false
+        model.send(.openDashboard(route: String()))
     }
 
     func applyAppearance(_ appearance: Appearance) {
@@ -55,6 +94,8 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         case .light: NSApp.appearance = NSAppearance(named: .aqua)
         case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
         }
+        settings?.backgroundColor = Self.windowBackgroundColor
+        welcome?.backgroundColor = Self.windowBackgroundColor
     }
 
     private func observeAppearance() {
@@ -113,16 +154,24 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         present(settings)
     }
 
+    public func handleReopen() {
+        if let settings, settings.isVisible {
+            present(settings)
+        } else {
+            showWelcome()
+        }
+    }
+
     public func showWelcome() {
         welcome?.close()
         welcome = makeWindow(KilnRoot {
             WelcomeView(film: Self.film(),
                         menuBarIcon: Self.menuBarIcon(),
-                        done: { [weak self] in
+                        openDashboard: { [weak self] in
                             UserDefaults.standard.set(true, forKey: Self.welcomeDoneKey)
                             self?.welcome?.close()
-                        },
-                        openSettings: { [weak self] in self?.welcome?.close(); self?.showSettings(.general) })
+                            self?.openBundledDashboard()
+                        })
         }.environment(model))
         present(welcome)
     }
@@ -226,6 +275,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = false
+        window.backgroundColor = Self.windowBackgroundColor
         if settingsStyle {
             window.toolbar = NSToolbar(identifier: "settings")
             window.toolbarStyle = .unified
@@ -235,6 +285,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
         let hosting = NSHostingView(rootView: root.ignoresSafeArea())
+        hosting.sizingOptions = [.minSize, .intrinsicContentSize, .maxSize]
         window.contentView = hosting
         window.setContentSize(hosting.fittingSize)
         window.center()
@@ -249,6 +300,9 @@ public final class WindowManager: NSObject, NSWindowDelegate {
 
     public func windowWillClose(_ notification: Notification) {
         let closing = notification.object as? NSWindow
+        if closing === welcome {
+            UserDefaults.standard.set(true, forKey: Self.welcomeDoneKey)
+        }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             if closing === self.welcome { self.welcome = nil }

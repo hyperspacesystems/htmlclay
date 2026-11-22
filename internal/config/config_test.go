@@ -22,14 +22,55 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.StartOnLogin != false {
-		t.Error("expected StartOnLogin false")
+	if cfg.StartOnLogin != true {
+		t.Error("expected StartOnLogin true on a fresh install")
+	}
+	if !res.FreshInstall {
+		t.Error("expected FreshInstall true when config.json does not exist")
 	}
 	if got := cfg.TrustedFolderList(); len(got) != 0 {
 		t.Errorf("expected no trusted folders, got %v", got)
 	}
 	if res.HadAppMode || res.PromotedLegacy {
 		t.Errorf("a fresh config should need no migration, got %+v", res)
+	}
+}
+
+func TestExistingConfigKeepsStartOnLoginFalseAndRoundTripsPlaygroundSeeded(t *testing.T) {
+	baseDir := t.TempDir()
+	dir := DirFrom(baseDir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"startOnLogin":false}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, res, err := LoadFrom(baseDir, noIdentity)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.StartOnLogin != false {
+		t.Error("existing config with startOnLogin:false must stay false")
+	}
+	if res.FreshInstall {
+		t.Error("existing config must not report FreshInstall")
+	}
+	if cfg.PlaygroundSeededDone() {
+		t.Error("expected PlaygroundSeededDone false initially")
+	}
+	cfg.SetPlaygroundSeeded(true)
+	if err := cfg.Save(); err != nil {
+		t.Fatalf("save error: %v", err)
+	}
+	reloaded, res2, err := LoadFrom(baseDir, noIdentity)
+	if err != nil {
+		t.Fatalf("reload error: %v", err)
+	}
+	if !reloaded.PlaygroundSeededDone() {
+		t.Error("expected PlaygroundSeededDone true after round-trip")
+	}
+	if reloaded.StartOnLogin != false || res2.FreshInstall {
+		t.Errorf("reloaded config = startOnLogin:%v freshInstall:%v, want false/false", reloaded.StartOnLogin, res2.FreshInstall)
 	}
 }
 
@@ -64,12 +105,15 @@ func TestLoadCorruptRecoversToDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg, _, err := LoadFrom(baseDir, noIdentity)
+	cfg, res, err := LoadFrom(baseDir, noIdentity)
 	if err != nil {
 		t.Fatalf("a corrupt config should not error, got: %v", err)
 	}
 	if cfg.StartOnLogin != false {
 		t.Error("expected the default StartOnLogin false")
+	}
+	if res.FreshInstall {
+		t.Error("a quarantined corrupt config must not report FreshInstall")
 	}
 	if got := cfg.TrustedFolderList(); len(got) != 0 {
 		t.Errorf("expected the default empty trusted list, got %v", got)

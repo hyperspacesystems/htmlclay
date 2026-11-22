@@ -398,17 +398,32 @@ func RunTool(ctx context.Context, p ToolRequest, o ToolOptions) (ToolReply, erro
 		bin, lookErr = lookPath(program, env)
 	}
 	if lookErr != nil {
-		other, found := engines[fallbackName(defaultName)]
-		if !found {
+		candidates := fallbackNames(defaultName)
+		if len(candidates) == 0 {
 			return ToolReply{}, unavailableError(chosen)
 		}
-		otherProgram, otherProgramErr := engineProgram(other)
-		if otherProgramErr != nil {
-			return ToolReply{}, otherProgramErr
+		var (
+			foundOther   bool
+			other        engine
+			otherProgram string
+			otherBin     string
+		)
+		for _, otherName := range candidates {
+			cand, ok := engines[otherName]
+			if !ok {
+				continue
+			}
+			prog, progErr := engineProgram(cand)
+			if progErr != nil {
+				continue
+			}
+			if foundBin, err := lookPath(prog, env); err == nil {
+				other, otherProgram, otherBin, foundOther = cand, prog, foundBin, true
+				break
+			}
 		}
-		otherBin, otherErr := lookPath(otherProgram, env)
-		if otherErr != nil {
-			return ToolReply{}, &Error{Code: "engine_unavailable", Message: "Neither Claude Code nor Codex is installed. Install one and sign in."}
+		if !foundOther {
+			return ToolReply{}, &Error{Code: "engine_unavailable", Message: "None of Claude Code, Codex, or Gemini (agy) is installed. Install one and sign in."}
 		}
 		status(fmt.Sprintf("%s isn't installed, making your tool with %s", programLabel(chosen), statusLabel(other)))
 		chosen, program, bin = other, otherProgram, otherBin
@@ -423,6 +438,8 @@ func RunTool(ctx context.Context, p ToolRequest, o ToolOptions) (ToolReply, erro
 		result, err = runToolClaude(ctx, chosen, bin, o.SystemPrompt, turn, env)
 	case "codex":
 		result, err = runCodex(ctx, chosen, bin, o.SystemPrompt+"\n\n"+turn, env)
+	case "agy":
+		result, err = runAgy(ctx, chosen, bin, o.SystemPrompt+"\n\n"+turn, env, func(string) {})
 	default:
 		result, err = runGeneric(ctx, chosen, bin, o.SystemPrompt+"\n\n"+turn, o.BaseDir, env, func(string) {})
 	}

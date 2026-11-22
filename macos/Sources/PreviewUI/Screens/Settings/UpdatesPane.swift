@@ -10,7 +10,6 @@ struct UpdatesPane: View {
         UpdateState.short(version)
     }
 
-    /// When Sparkle last answered, in words: just now, 5 minutes ago, or the date.
     static func when(_ date: Date, now: Date = Date()) -> String {
         if now.timeIntervalSince(date) < 60 { return Strings.Updates.justNow }
         let formatter = RelativeDateTimeFormatter()
@@ -35,15 +34,15 @@ struct UpdatesPane: View {
                 KilnRowDivider()
                 KilnRow(title: Strings.Updates.automatic) {
                     Toggle(isOn: Binding(
-                        get: { model.isSample ? model.snapshot.update.automatic : (updater?.automatic ?? true) },
+                        get: { model.snapshot.update.automatic },
                         set: { on in
-                            if model.isSample { model.send(.setAutoUpdate(on)) } else { updater?.setAutomatic(on) }
+                            model.send(.setAutoUpdate(on))
+                            if updater?.started == true { updater?.setAutomatic(on) }
                         }
                     )) {
                         Text(Strings.Updates.automatic)
                     }
                     .toggleStyle(KilnSwitchStyle())
-                    .disabled(!model.isSample && updater?.started != true)
                 }
             }
             HStack(spacing: 4) {
@@ -99,6 +98,12 @@ struct UpdatesPane: View {
                 .buttonStyle(KilnButtonStyle(.plain))
                 .disabled(updater?.started != true)
             }
+        } else if !model.isSample && updater?.started != true {
+            KilnRow(title: Strings.Updates.unavailableTitle,
+                    subtitle: unavailableSubtitle,
+                    leading: { Squircle(.slate, symbol: Symbols.update) }) {
+                EmptyView()
+            }
         } else {
             KilnRow(title: Strings.Updates.youAreOnLatest,
                     subtitle: subtitle,
@@ -110,6 +115,13 @@ struct UpdatesPane: View {
                 .disabled(updater?.started != true)
             }
         }
+    }
+
+    private var unavailableSubtitle: String {
+        if updater?.isTranslocatedOrReadOnly == true {
+            return Strings.Updates.unavailableMoveSub(version)
+        }
+        return Strings.Updates.unavailableBuildSub(version)
     }
 
     private var subtitle: String {

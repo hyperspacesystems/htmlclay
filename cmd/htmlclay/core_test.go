@@ -20,6 +20,7 @@ import (
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/shellapi"
 )
 
 // coreAction builds an action the way a door sends one.
@@ -162,18 +163,137 @@ func TestCoreServeThroughDo(t *testing.T) {
 }
 
 func TestCoreRefusals(t *testing.T) {
-	t.Run("stop trusting a served folder", func(t *testing.T) {
+	t.Run("stop trusting a served folder cascades and stays untrusted after reload", func(t *testing.T) {
 		home := evalTempHome(t)
+		cfgBase := t.TempDir()
 		dir := filepath.Join(home, "notes")
 		writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
-		a := newServedTestApp(t, home, t.TempDir())
+		a := newServedTestApp(t, home, cfgBase)
 		entry, refusal, err := a.serveFolder(dir, "notes")
 		if err != nil || refusal != nil {
 			t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
 		}
-		_, refused := a.do(context.Background(), coreAction(t, "stop-trust", "folder.stopTrusting", map[string]string{"id": entry.ID}), ChannelTray)
-		if refused == nil || refused.Code != "stop-serving-first" {
-			t.Fatalf("folder.stopTrusting = %+v, want stop-serving-first", refused)
+		snapshot, refused := a.do(context.Background(), coreAction(t, "stop-trust", "folder.stopTrusting", map[string]any{"id": entry.ID}), ChannelTray)
+		if refused != nil {
+			t.Fatalf("folder.stopTrusting refused: %+v", refused)
+		}
+		if len(snapshot.Folders) != 0 {
+			t.Fatalf("folders after stopTrusting = %+v, want empty", snapshot.Folders)
+		}
+		// Guard Spike 3 trap: reload config from disk and confirm sanitizeServedFolders does NOT resurrect it.
+		reloaded, _, err := config.LoadFrom(cfgBase, platform.DirIdentity)
+		if err != nil {
+			t.Fatalf("config.LoadFrom: %v", err)
+		}
+		if len(reloaded.TrustedFolderList()) != 0 || len(reloaded.ServedFolderList()) != 0 {
+			t.Fatalf("after reload: trusted=%+v served=%+v, want both empty", reloaded.TrustedFolderList(), reloaded.ServedFolderList())
+		}
+	})
+
+	t.Run("stop trusting a served folder with unsaved edits refuses until forced", func(t *testing.T) {
+		home := evalTempHome(t)
+		cfgBase := t.TempDir()
+		dir := filepath.Join(home, "notes")
+		docPath := filepath.Join(dir, "index.html")
+		writeTestFile(t, docPath, servedTestDocument)
+		a := newServedTestApp(t, home, cfgBase)
+		entry, refusal, err := a.serveFolder(dir, "notes")
+		if err != nil || refusal != nil {
+			t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+		}
+		a.noteUnsavedReport(docPath, "tab-1", 1, true, false)
+
+		_, refused := a.do(context.Background(), coreAction(t, "stop-trust-dirty", "folder.stopTrusting", map[string]any{"id": entry.ID}), ChannelTray)
+		if refused == nil || refused.Code != appcore.RefuseUnsavedEdits {
+			t.Fatalf("stopTrusting dirty = %+v, want %q", refused, appcore.RefuseUnsavedEdits)
+		}
+		if len(refused.Documents) == 0 {
+			t.Fatalf("stopTrusting dirty refusal missing Documents: %+v", refused)
+		}
+		if sf, ok := a.rt.cfg.ServedFolderByID(entry.ID); !ok || !sf.Serving {
+			t.Fatalf("refused stopTrusting mutated served state: ok=%v sf=%+v", ok, sf)
+		}
+		if len(a.rt.cfg.TrustedFolderList()) != 1 {
+			t.Fatalf("refused stopTrusting mutated trusted state: %+v", a.rt.cfg.TrustedFolderList())
+		}
+
+		// Retry with force: true succeeds cleanly and tears down mount + served entry + trust.
+		_, refused = a.do(context.Background(), coreAction(t, "stop-trust-force", "folder.stopTrusting", map[string]any{"id": entry.ID, "force": true}), ChannelTray)
+		if refused != nil {
+			t.Fatalf("forced stopTrusting refused: %+v", refused)
+		}
+		if len(a.rt.cfg.TrustedFolderList()) != 0 || len(a.rt.cfg.ServedFolderList()) != 0 {
+			t.Fatalf("after forced stopTrusting: trusted=%+v served=%+v, want both empty", a.rt.cfg.TrustedFolderList(), a.rt.cfg.ServedFolderList())
+		}
+	})
+
+	t.Run("stop trusting a synced folder requires confirmation", func(t *testing.T) {
+		home := evalTempHome(t)
+		cfgBase := t.TempDir()
+		dir := filepath.Join(home, "synced")
+		writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+		a := newServedTestApp(t, home, cfgBase)
+		entry, refusal, err := a.serveFolder(dir, "synced")
+		if err != nil || refusal != nil {
+			t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+		}
+		syncCfg, err := config.LoadSync(a.rt.configDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		syncCfg.Account = &config.SyncAccount{ActorID: 1, Username: "sam"}
+		syncCfg.Accounts = []config.SyncAccountRow{{AccountID: 1, Kind: "personal", Username: "sam", FolderID: entry.ID}}
+		syncCfg.SyncSessions = []config.SyncSession{{ID: "sess-1", RootID: entry.ID, AccountID: 1, Enabled: true}}
+		if err := syncCfg.Save(); err != nil {
+			t.Fatal(err)
+		}
+		a.rt.syncMu.Lock()
+		a.rt.syncRecord = syncCfg
+		a.rt.syncMu.Unlock()
+
+		_, refused := a.do(context.Background(), coreAction(t, "stop-trust-sync-unconfirmed", "folder.stopTrusting", map[string]any{"id": entry.ID}), ChannelTray)
+		if refused == nil || refused.Code != appcore.RefuseConfirmSyncStop {
+			t.Fatalf("unconfirmed stopTrusting on synced folder = %+v, want %q", refused, appcore.RefuseConfirmSyncStop)
+		}
+		reloadedSync, err := config.LoadSync(a.rt.configDir)
+		if err != nil || len(reloadedSync.SyncSessions) != 1 || !reloadedSync.SyncSessions[0].Enabled {
+			t.Fatalf("unconfirmed stopTrusting disabled sync: %+v %v", reloadedSync, err)
+		}
+
+		_, refused = a.do(context.Background(), coreAction(t, "stop-trust-sync-confirmed", "folder.stopTrusting", map[string]any{"id": entry.ID, "confirmed": true}), ChannelTray)
+		if refused != nil {
+			t.Fatalf("confirmed stopTrusting on synced folder refused: %+v", refused)
+		}
+		reloadedSync, err = config.LoadSync(a.rt.configDir)
+		if err != nil || len(reloadedSync.SyncSessions) != 1 || reloadedSync.SyncSessions[0].Enabled {
+			t.Fatalf("confirmed stopTrusting did not stop sync: %+v %v", reloadedSync, err)
+		}
+		if len(a.rt.cfg.TrustedFolderList()) != 0 || len(a.rt.cfg.ServedFolderList()) != 0 {
+			t.Fatalf("after confirmed stopTrusting: trusted=%+v served=%+v, want both empty", a.rt.cfg.TrustedFolderList(), a.rt.cfg.ServedFolderList())
+		}
+	})
+
+	t.Run("app.openSettings is offered only on macOS shell and delivers FrameOpenSettings", func(t *testing.T) {
+		own := newTestAppAs(t, t.TempDir(), t.TempDir(), false)
+		if own.snapshot().Host.Can["app.openSettings"] {
+			t.Fatal("non-shell host must not advertise app.openSettings")
+		}
+		shell := newTestAppAs(t, t.TempDir(), t.TempDir(), true)
+		if !shell.snapshot().Host.Can["app.openSettings"] {
+			t.Fatal("shell host must advertise app.openSettings")
+		}
+		frames, stop := shell.rt.notices.subscribe()
+		defer stop()
+		if _, refusal := shell.do(context.Background(), coreAction(t, "open-settings", "app.openSettings", map[string]string{"pane": "ai"}), ChannelDashboard); refusal != nil {
+			t.Fatalf("app.openSettings refused: %+v", refusal)
+		}
+		select {
+		case frame := <-frames:
+			if frame.Type != shellapi.FrameOpenSettings || frame.Detail != "ai" {
+				t.Fatalf("frame = %+v, want type=%q detail=ai", frame, shellapi.FrameOpenSettings)
+			}
+		default:
+			t.Fatal("app.openSettings did not deliver a notice frame")
 		}
 	})
 

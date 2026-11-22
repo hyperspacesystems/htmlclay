@@ -6,79 +6,55 @@ public struct WelcomeView: View {
     @Environment(\.kiln) private var kiln
     private let film: String?
     private let menuBarIcon: NSImage?
-    private let done: () -> Void
-    private let openSettings: () -> Void
+    private let openDashboard: () -> Void
 
-    public init(film: String?, menuBarIcon: NSImage?, done: @escaping () -> Void = {}, openSettings: @escaping () -> Void = {}) {
+    private let columns = [
+        GridItem(.flexible(), spacing: 14, alignment: .leading),
+        GridItem(.flexible(), spacing: 14, alignment: .leading),
+    ]
+
+    public init(film: String?, menuBarIcon: NSImage?, openDashboard: @escaping () -> Void = {}) {
         self.film = film
         self.menuBarIcon = menuBarIcon
-        self.done = done
-        self.openSettings = openSettings
+        self.openDashboard = openDashboard
     }
 
     public var body: some View {
         VStack(spacing: 0) {
-            inner
-                .padding(.top, 8)
-                .padding(.horizontal, 34)
-        }
-        .padding(.top, 14)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 26)
-        .frame(width: 760)
-    }
-
-    private var inner: some View {
-        VStack(spacing: 0) {
             icon
-                .frame(width: 104, height: 104)
-                .padding(.bottom, 14)
+                .frame(width: 88, height: 88)
+                .padding(.bottom, 12)
+            Text(Strings.Welcome.appName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(kiln.muted)
+                .padding(.bottom, 4)
             Text(Strings.Welcome.title)
-                .font(.system(size: 23, weight: .bold))
-                .padding(.bottom, 6)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(kiln.ink)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 8)
             Text(Strings.Welcome.lead)
                 .font(.system(size: 14.5))
                 .foregroundStyle(kiln.ink2)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 500)
+                .lineSpacing(2)
+                .frame(maxWidth: 480)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 18)
-            KilnCard {
-                KilnRow(title: Strings.Welcome.filesTitle, subtitle: Strings.Welcome.filesSub) {
-                    Squircle(.cobalt, symbol: Symbols.doc, size: .large)
-                } trailing: {
-                    EmptyView()
-                }
-                KilnRowDivider()
-                KilnRow(title: Strings.Welcome.versionsTitle, subtitle: Strings.Welcome.versionsSub) {
-                    Squircle(.teal, symbol: Symbols.versions, size: .large)
-                } trailing: {
-                    EmptyView()
-                }
-                KilnRowDivider()
-                KilnRow(title: Strings.Welcome.localTitle, subtitle: Strings.Welcome.localSub) {
-                    Squircle(.jade, symbol: Symbols.mac, size: .large)
-                } trailing: {
-                    EmptyView()
-                }
-                KilnRowDivider()
-                KilnRow(title: Strings.Welcome.moreTitle, subtitle: Strings.Welcome.moreSub) {
-                    Squircle(.sky, symbol: Symbols.sparkles, size: .large)
-                } trailing: {
-                    EmptyView()
-                }
+                .padding(.bottom, 22)
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                capabilityCell(.cobalt, symbol: Symbols.doc, title: Strings.Welcome.filesTitle)
+                capabilityCell(.plum, symbol: Symbols.sparkles, title: Strings.Welcome.versionsTitle)
+                capabilityCell(.amber, symbol: Symbols.program, title: Strings.Welcome.localTitle)
+                capabilityCell(.sky, symbol: Symbols.sync, title: Strings.Welcome.moreTitle)
             }
-            .padding(.bottom, 18)
-            HStack(spacing: 10) {
-                Button(action: openSettings) {
-                    Text(Strings.Welcome.openSettings).frame(maxWidth: .infinity)
-                }
-                .buttonStyle(KilnButtonStyle(.large))
-                Button(action: done) {
-                    Text(Strings.Welcome.allSet).frame(maxWidth: .infinity)
-                }
-                .buttonStyle(KilnButtonStyle(.primary))
+            .frame(maxWidth: 480)
+            .padding(.bottom, 24)
+            Button(action: openDashboard) {
+                Text(Strings.Welcome.openDashboard)
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(KilnButtonStyle(.primary))
+            .frame(maxWidth: 260)
             HStack(spacing: 6) {
                 Text(Strings.Welcome.menuBarHint)
                     .font(.system(size: 12.5))
@@ -92,6 +68,20 @@ public struct WelcomeView: View {
                 }
             }
             .padding(.top, 16)
+        }
+        .padding(.top, 32)
+        .padding(.horizontal, 40)
+        .padding(.bottom, 26)
+        .frame(width: 600)
+    }
+
+    private func capabilityCell(_ color: SquircleColor, symbol: String, title: String) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Squircle(color, symbol: symbol, size: .medium)
+            Text(title)
+                .font(.system(size: 13.5, weight: .medium))
+                .foregroundStyle(kiln.ink)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

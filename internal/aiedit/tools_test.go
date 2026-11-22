@@ -30,7 +30,7 @@ func TestToolsMarksWhatIsInstalled(t *testing.T) {
 	for _, tool := range tools {
 		ids = append(ids, tool.ID)
 	}
-	if want := []string{"claude", "codex", "mine"}; !slices.Equal(ids, want) {
+	if want := []string{"claude", "codex", "agy", "mine"}; !slices.Equal(ids, want) {
 		t.Fatalf("ids = %v, want %v", ids, want)
 	}
 	found := map[string]bool{}
@@ -43,16 +43,34 @@ func TestToolsMarksWhatIsInstalled(t *testing.T) {
 	if found["codex"] {
 		t.Error("codex is not in the temp PATH and must read as missing")
 	}
+	if found["agy"] {
+		t.Error("agy is not in the temp PATH and must read as missing")
+	}
 	if !found["mine"] {
 		t.Error("a user engine must read as found")
 	}
 	if got := tools[0].DefaultModel; got != "claude-opus-5-5" {
 		t.Fatalf("claude DefaultModel = %q", got)
 	}
-	if tools[2].Custom != true {
+	if got := tools[0].DefaultEffort; got != "high" {
+		t.Fatalf("claude DefaultEffort = %q, want high", got)
+	}
+	if !slices.Contains(tools[0].Efforts, "max") {
+		t.Fatalf("claude Efforts = %v, want max included", tools[0].Efforts)
+	}
+	if got := tools[2].DefaultModel; got != "gemini-4-carbon" {
+		t.Fatalf("agy DefaultModel = %q, want gemini-4-carbon", got)
+	}
+	if got := tools[2].ModelEfforts["gemini-4-neon"]; !slices.Contains(got, "xhigh") {
+		t.Fatalf("agy neon ModelEfforts = %v, want xhigh", got)
+	}
+	if got := tools[2].ModelEfforts["gemini-4-carbon"]; slices.Contains(got, "xhigh") {
+		t.Fatalf("agy carbon ModelEfforts = %v, must not include xhigh", got)
+	}
+	if tools[3].Custom != true {
 		t.Error("a user engine must read as custom")
 	}
-	if got, want := tools[2].Command, []string{"echo", "{prompt}"}; !slices.Equal(got, want) {
+	if got, want := tools[3].Command, []string{"echo", "{prompt}"}; !slices.Equal(got, want) {
 		t.Fatalf("mine command = %v, want %v", got, want)
 	}
 }

@@ -561,9 +561,6 @@ func (a *app) syncFacts() (appcore.SyncFacts, []appcore.FolderFact, []appcore.Ev
 		}
 		ff.Sync.SetUpFailed = a.rt.syncBindFailed[row.FolderID]
 		folders = append(folders, ff)
-		if team && row.Sync.Enabled {
-			events = append(events, appcore.EventFact{ID: "teamToSetUp:" + row.FolderID, Kind: appcore.WaitingTeamToSetUp, SubjectID: row.FolderID, Name: name})
-		}
 	}
 	if record.KeyRefused != nil {
 		events = append(events, appcore.EventFact{ID: "syncKeyRefused:" + record.KeyRefused.Since, Kind: appcore.WaitingSyncKeyRefused})

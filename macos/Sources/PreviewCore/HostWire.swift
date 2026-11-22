@@ -413,6 +413,7 @@ public struct WireAIEditTool: Codable, Equatable, Sendable {
     public var effort: String?
     public var defaultEffort: String?
     public var efforts: [String]?
+    public var modelEfforts: [String: [String]]?
     public var command: String?
 }
 

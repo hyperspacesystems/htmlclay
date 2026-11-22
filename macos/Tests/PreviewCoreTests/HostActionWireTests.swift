@@ -10,7 +10,7 @@ final class HostActionWireTests: XCTestCase {
         "id", "ids", "path", "name", "route", "key", "value", "on", "allow", "paused", "force",
         "programID", "documentID", "revision", "answer", "username", "folderIDs", "acknowledged",
         "destination", "keep", "choice", "port", "tool", "model", "command", "confirmed", "effort",
-        "templateID", "version",
+        "templateID", "version", "pane",
     ]
 
     private static let everyAction: [HostAction] = [
@@ -76,6 +76,7 @@ final class HostActionWireTests: XCTestCase {
         .openFile(path: "/tmp/file.html"),
         .createFromTemplate(templateID: "kanban"),
         .openDashboard(route: "/folders"),
+        .openSettings(pane: .aiEditing),
         .revealFolder(id: "f1"),
         .copyAddress(folderID: "f1"),
         .answer(requestID: "r1", revision: 3, answer: "allow"),
@@ -120,6 +121,15 @@ final class HostActionWireTests: XCTestCase {
         let update = try XCTUnwrap(HostActionWire.wire(.startUpdate))
         XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", update), as: UTF8.self),
                        #"{"id":"a1","type":"update.start"}"#)
+        let stopPlain = try XCTUnwrap(HostActionWire.wire(.stopTrusting(folderID: "f1")))
+        XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", stopPlain), as: UTF8.self),
+                       #"{"args":{"id":"f1"},"id":"a1","type":"folder.stopTrusting"}"#)
+        let stopConfirmed = try XCTUnwrap(HostActionWire.wire(.stopTrusting(folderID: "f1", confirmed: true)))
+        XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", stopConfirmed), as: UTF8.self),
+                       #"{"args":{"confirmed":true,"id":"f1"},"id":"a1","type":"folder.stopTrusting"}"#)
+        let stopForce = try XCTUnwrap(HostActionWire.wire(.stopTrusting(folderID: "f1", confirmed: true, force: true)))
+        XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", stopForce), as: UTF8.self),
+                       #"{"args":{"confirmed":true,"force":true,"id":"f1"},"id":"a1","type":"folder.stopTrusting"}"#)
     }
 
     func testSampleOnlyActionsDoNotMap() {

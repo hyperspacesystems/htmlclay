@@ -109,6 +109,7 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
     public var onUnsupported: (@MainActor (_ version: Int) -> Void)?
     public var onNotice: (@MainActor (HostNotice) -> Void)?
     public var onRestartToUpdate: (@MainActor () -> Void)?
+    public var onOpenSettings: (@MainActor (SettingsPane) -> Void)?
 
     public init(port: Int, secret: String,
                 configuration: URLSessionConfiguration = .ephemeral,
@@ -349,6 +350,8 @@ public final class LoopbackHostClient: HostClient, CustomStringConvertible, Cust
                 onNotice?(notice)
             case .restartToUpdate:
                 onRestartToUpdate?()
+            case let .openSettings(pane):
+                onOpenSettings?(pane)
             }
         }
     }

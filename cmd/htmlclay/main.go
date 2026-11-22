@@ -268,7 +268,8 @@ type app struct {
 	// where a left click shows the menu (panel.go).
 	trayPanel *panel.Supervisor
 	// shell: started by the Mac app (--shell-stdin)
-	shell bool
+	shell     bool
+	autostart bool
 	// shellServer is the private listener the Mac app talks to, and shellDone closes
 	// when shutdown starts so every event stream ends with its bye line. Both are
 	// zero on a launch without --shell-stdin; the two Once fields let a signal and
@@ -478,6 +479,7 @@ func main() {
 	finishUpdate := flag.Bool("finish-update", false, "Internal: finish an update this binary's previous version started")
 	afterPID := flag.Int("after-pid", 0, "Internal: wait for this process to exit first (a port change restart)")
 	openDashboard := flag.String("open-dashboard", "", "Internal: open this dashboard page once running (after a port change)")
+	autostart := flag.Bool("autostart", false, "Internal: started automatically at login (stays quiet in tray)")
 	panelChild := flag.Bool("panel", false, "Internal: run the Windows panel's window for the running app")
 	flag.Parse()
 
@@ -532,7 +534,7 @@ func main() {
 
 	fmt.Fprintln(os.Stderr, "[htmlclay] Starting up...")
 
-	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin, shell: *shellStdin}
+	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin, shell: *shellStdin, autostart: *autostart}
 	a.nativeGrants = !a.noTray
 	if logPath, ok := openLogPath(*shellStdin, os.Getenv("HTMLCLAY_OPEN_LOG")); ok {
 		a.rt.launchBrowser = openLogLine(logPath, "")
@@ -592,6 +594,7 @@ func main() {
 	}
 	a.startSites()
 	a.startServed()
+	a.seedDefaultPlayground()
 	a.startFormerPorts()
 	if *shellStdin {
 		a.startShell(shellSecret, shellIn)
@@ -609,6 +612,8 @@ func main() {
 	a.releaseRequests()
 	if *openDashboard != "" {
 		go a.trayDo("dashboard.open", map[string]any{"route": *openDashboard})
+	} else if !a.shell && !a.noTray && a.loaded.FreshInstall && len(flag.Args()) == 0 && !*autostart {
+		go a.trayDo("dashboard.open", map[string]any{"route": "/"})
 	}
 	a.stopRecovered = make(chan struct{})
 	go a.watchRecovered(a.stopRecovered)
@@ -675,15 +680,20 @@ func (a *app) initConfig() {
 			_ = shellapi.WriteFailed(os.Stdout, shellapi.Failure{Code: shellapi.FailAlreadyRunning})
 			os.Exit(3)
 		}
-		fmt.Fprintln(os.Stderr, "[htmlclay] Another instance running, forwarding file...")
 		args := flag.Args()
 		if len(args) > 0 {
+			fmt.Fprintln(os.Stderr, "[htmlclay] Another instance running, forwarding file...")
 			filePath, err := filepath.Abs(args[0])
 			if err != nil {
 				fatal("Error resolving path: %v", err)
 			}
 			if err := a.rt.si.SendFilePath(filePath); err != nil {
 				fatal("Error sending file to running instance: %v", err)
+			}
+		} else if !a.autostart {
+			fmt.Fprintln(os.Stderr, "[htmlclay] Another instance running, opening dashboard...")
+			if _, err := a.rt.si.SendCommand("open-dashboard"); err != nil {
+				fmt.Fprintf(os.Stderr, "[htmlclay] Could not ask running instance to open dashboard: %v\n", err)
 			}
 		}
 		os.Exit(0)

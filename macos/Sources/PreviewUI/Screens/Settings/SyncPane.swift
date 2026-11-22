@@ -7,6 +7,7 @@ struct SyncPane: View {
     @Environment(\.kiln) private var kiln
     @Environment(\.openURL) private var openURL
     @State private var confirmDisconnect = false
+    @State private var stopSyncingFolder: Folder?
 
     static func orderedFolders(_ snapshot: HostSnapshot) -> [Folder] {
         snapshot.accountFolders.filter(\.onThisMac) + snapshot.accountFolders.filter { !$0.onThisMac }
@@ -98,6 +99,36 @@ struct SyncPane: View {
             foldersGroup
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .alert(stopSyncingTitle, isPresented: presentingStopSyncing) {
+            Button(Strings.FolderPage.cancel, role: .cancel) {}
+            Button(Strings.Folders.stopSyncing, role: .destructive) {
+                if let folder = stopSyncingFolder {
+                    model.send(.setSynced(folderID: folder.id, on: false))
+                }
+            }
+        } message: {
+            Text(stopSyncingMessage)
+        }
+    }
+
+    private var presentingStopSyncing: Binding<Bool> {
+        Binding(
+            get: { stopSyncingFolder != nil },
+            set: { shown in
+                if !shown { stopSyncingFolder = nil }
+            }
+        )
+    }
+
+    private var stopSyncingTitle: String {
+        Strings.FolderPage.disconnectTitle(stopSyncingFolder?.name ?? String())
+    }
+
+    private var stopSyncingMessage: String {
+        guard let folder = stopSyncingFolder else { return String() }
+        let isTeam: Bool
+        if case .team = folder.origin { isTeam = true } else { isTeam = false }
+        return Strings.FolderPage.disconnectMessage(folder.name, team: isTeam)
     }
 
     private var keyRefused: Bool {
@@ -204,11 +235,41 @@ struct SyncPane: View {
                 model.sheet = .teamSetup(folderID: folder.id)
             }
             .buttonStyle(KilnButtonStyle(.plain))
-        } else if count > 0 {
-            Button(Strings.Sync.review(count)) {
-                actions.openDashboard()
+        } else {
+            HStack(spacing: 6) {
+                if count > 0 {
+                    Button(Strings.Sync.review(count)) {
+                        actions.openDashboard()
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                }
+                Button(Strings.Folders.open) {
+                    if model.isSample {
+                        actions.openDashboard()
+                    } else if folder.served {
+                        model.send(.openDashboard(route: Strings.Folders.rootRoute(folder.id)))
+                    } else {
+                        model.send(.revealFolder(id: folder.id))
+                    }
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
+                if model.isSample || model.can(HostActionType.reveal) {
+                    Button(Strings.Folders.finder) {
+                        if model.isSample {
+                            model.say(Strings.Preview.wouldShowInFinder(folder.path))
+                        } else {
+                            model.send(.revealFolder(id: folder.id))
+                        }
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                }
+                if folder.synced && (model.isSample || model.can(HostActionType.setSynced)) {
+                    Button(Strings.Folders.stopSyncing) {
+                        stopSyncingFolder = folder
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
+                }
             }
-            .buttonStyle(KilnButtonStyle(.plain))
         }
     }
 }

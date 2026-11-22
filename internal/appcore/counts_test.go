@@ -36,7 +36,7 @@ func TestCountsEachKind(t *testing.T) {
 		}
 	}
 	want := map[string]int{
-		WaitingConflict: 1, WaitingSyncKeyRefused: 1, WaitingFileTooBig: 1, WaitingTeamToSetUp: 1,
+		WaitingConflict: 1, WaitingSyncKeyRefused: 1, WaitingFileTooBig: 1, WaitingTeamToSetUp: 0,
 		WaitingProgramRequest: 1, WaitingProgramFileMissing: 1, WaitingFolderMissing: 1, WaitingServiceFailed: 1,
 	}
 	for kind, n := range want {
@@ -44,7 +44,7 @@ func TestCountsEachKind(t *testing.T) {
 			t.Errorf("%d %s items, want %d", kinds[kind], kind, n)
 		}
 	}
-	// Six of the eight are counted: a file too big and a team to set up are listed only.
+	// Six of the seven are counted: a file too big is listed only; un-set-up teams do not appear in Waiting.
 	if s.Counts.Total != 6 {
 		t.Errorf("total = %d, want 6 (a refused key counts once)", s.Counts.Total)
 	}
@@ -80,8 +80,8 @@ func TestCountsDotClearsWhenSeen(t *testing.T) {
 	if s.Counts.Total != 1 {
 		t.Errorf("seeing an item changed the count to %d; seen clears the dot, not the count", s.Counts.Total)
 	}
-	if !s.Waiting[1].Seen {
-		t.Error("the seen request is not marked seen")
+	if len(s.Waiting) != 1 || !s.Waiting[0].Seen {
+		t.Errorf("waiting = %+v, want only the seen request (no teamToSetUp item)", s.Waiting)
 	}
 }
 

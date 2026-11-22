@@ -17,7 +17,7 @@ func SetLoginItem(enabled bool, executablePath string) error {
 			return err
 		}
 		defer key.Close()
-		return key.SetStringValue("HTMLClay", `"`+executablePath+`"`)
+		return key.SetStringValue("HTMLClay", `"`+executablePath+`" --autostart`)
 	}
 	key, err := registry.OpenKey(registry.CURRENT_USER, loginItemKey, registry.SET_VALUE)
 	if errors.Is(err, registry.ErrNotExist) {

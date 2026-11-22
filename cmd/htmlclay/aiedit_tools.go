@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"slices"
 	"sync"
 	"time"
 
@@ -39,6 +40,7 @@ func (a *app) aiEditTools() []appcore.AIEditTool {
 				Effort:        efforts[t.ID],
 				DefaultEffort: t.DefaultEffort,
 				Efforts:       t.Efforts,
+				ModelEfforts:  t.ModelEfforts,
 				Command:       aiedit.JoinCommand(t.Command),
 			})
 		}
@@ -65,6 +67,15 @@ func (a *app) aiEditTool() string {
 func (a *app) setAIEditModel(e appcore.Effect) *appcore.Refusal {
 	if err := a.rt.cfg.SetAIEditModel(e.Tool, e.Model); err != nil {
 		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "model"}
+	}
+	// If the newly selected model does not support the currently saved effort
+	// (e.g., switching agy from gemini-4-neon at xhigh to gemini-4-carbon),
+	// clear the stale effort back to the default in the same save.
+	if curEffort := a.rt.cfg.AIEditEfforts()[e.Tool]; curEffort != "" {
+		allowed := aiedit.EffortsForModel(e.Tool, e.Model)
+		if len(allowed) > 0 && !slices.Contains(allowed, curEffort) {
+			a.rt.cfg.SetAIEditEffort(e.Tool, "")
+		}
 	}
 	a.saveConfig("AI editing model")
 	a.forgetAITools()
