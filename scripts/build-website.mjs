@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Builds htmlclay.com's shared header/footer chrome, syncs starter apps from
-// One HTML File (`../onehtmlfile/copy.json`, or `--from-api <url>` once
-// `https://onehtmlfile.com/apps.json` is live), and rebuilds both
+// One HTML File (`../onehtmlfile/copy.json`), and rebuilds both
 // `website/changelog.html` and `website/changelog/index.html`.
 //
 // Pass `--check` to exit 1 if any committed website file is out of sync.
@@ -113,13 +112,6 @@ function renderFooter(isHome) {
 }
 
 async function loadOneHtmlFileApps() {
-  const apiFlagIdx = process.argv.indexOf('--from-api');
-  if (apiFlagIdx >= 0 && process.argv[apiFlagIdx + 1]) {
-    const res = await fetch(process.argv[apiFlagIdx + 1]);
-    if (!res.ok) throw new Error(`Failed to fetch ${process.argv[apiFlagIdx + 1]}: ${res.status}`);
-    return normalizeAppsPayload(await res.json());
-  }
-
   const jsonFlagIdx = process.argv.indexOf('--apps-json');
   const jsonPath = jsonFlagIdx >= 0 && process.argv[jsonFlagIdx + 1]
     ? process.argv[jsonFlagIdx + 1]
@@ -130,7 +122,7 @@ async function loadOneHtmlFileApps() {
 }
 
 function normalizeAppsPayload(raw) {
-  // Accepts either `onehtmlfile/copy.json` or a future `https://onehtmlfile.com/apps.json` array/object
+  // Reads `onehtmlfile/copy.json` (ordered by tabs, keeping `whatthefunc` last)
   const entries = [];
   if (Array.isArray(raw?.apps)) {
     for (const item of raw.apps) {
