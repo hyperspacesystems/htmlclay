@@ -93,7 +93,10 @@ final class ConnectSheetTests: XCTestCase {
         XCTAssertEqual(AppModel.slot(of: .connect(username: "maya", key: key)), "sync.connect")
     }
 
-    func testTheKeyLinkGoesToHyperclay() {
+    func testTheKeyAndSignUpLinksGoToHyperclay() {
         XCTAssertEqual(URL(string: Strings.Connect.keyPageURL)?.host, "hyperclay.com")
+        XCTAssertEqual(Strings.Connect.signUpURL, "https://hyperclay.com")
+        XCTAssertEqual(Strings.Connect.introLead + Strings.Connect.signUpLink,
+                       "Hyperclay syncs folders online so you can open HTML files anywhere, share edit links, and edit live with teammates. New to Hyperclay? Sign up ↗")
     }
 }

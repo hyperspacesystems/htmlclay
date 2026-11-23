@@ -730,6 +730,10 @@ public enum Strings {
     }
     public enum Connect {
         public static let title = "Connect Hyperclay"
+        public static let introLead = "Hyperclay syncs folders online so you can open HTML files anywhere, share edit links, and edit live with teammates. New to Hyperclay? "
+        public static let signUpLink = "Sign up ↗"
+        public static let signUpURL = "https://hyperclay.com"
+        public static let wouldOpenSignUp = "Build 1: this would open Hyperclay to sign up."
         public static let username = "Username"
         public static let syncKey = "Sync key"
         public static let keyPlaceholder = "hcsk_…"

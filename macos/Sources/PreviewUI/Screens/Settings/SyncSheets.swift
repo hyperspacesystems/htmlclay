@@ -44,10 +44,11 @@ struct ConnectSheet: View {
         @Bindable var form = form
         let wasConnected = model.snapshot.sync.connected
         return KilnDialog(Strings.Connect.title) {
+            intro
             KilnField(Strings.Connect.username) {
                 KilnInput(text: $form.username, placeholder: Strings.Connect.username)
             }
-            .padding(.top, 12)
+            .padding(.top, 14)
             KilnField(Strings.Connect.syncKey) {
                 KilnInput(text: $form.key, placeholder: Strings.Connect.keyPlaceholder, mono: true, secure: true)
                 Button(Strings.Connect.paste) {
@@ -91,12 +92,37 @@ struct ConnectSheet: View {
         !username.isEmpty && !key.isEmpty
     }
 
+    private var intro: some View {
+        KilnLead(introText)
+            .tint(kiln.link)
+            .environment(\.openURL, OpenURLAction { url in
+                if model.isSample {
+                    model.say(Strings.Connect.wouldOpenSignUp)
+                    return .handled
+                }
+                openURL(url)
+                return .handled
+            })
+            .padding(.top, 6)
+    }
+
+    private var introText: Text {
+        var link = AttributedString(Strings.Connect.signUpLink)
+        link.foregroundColor = kiln.link
+        link.font = .system(size: 13.5, weight: .medium)
+        if let url = URL(string: Strings.Connect.signUpURL) {
+            link.link = url
+        }
+        return Text(Strings.Connect.introLead) + Text(link)
+    }
+
     private var sample: some View {
         KilnDialog(Strings.Connect.title) {
+            intro
             KilnField(Strings.Connect.username) {
                 KilnInput(text: $username, placeholder: Strings.Connect.username)
             }
-            .padding(.top, 12)
+            .padding(.top, 14)
             KilnField(Strings.Connect.syncKey) {
                 KilnInput(text: $key, placeholder: Strings.Connect.keyPlaceholder, mono: true)
                 Button(Strings.Connect.paste) {
