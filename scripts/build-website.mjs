@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Builds htmlclay.com's shared header/footer chrome, syncs starter apps from
-// One HTML File (`../onehtmlfile/copy.json`), and rebuilds both
-// `website/changelog.html` and `website/changelog/index.html`.
+// One HTML File (`../onehtmlfile/copy.json`), stamps content-hash `?v=<hash>`
+// query strings onto local CSS, JS, SVG, and WebP assets so browsers never
+// serve stale files from cache, and rebuilds both `website/changelog.html` and
+// `website/changelog/index.html`.
 //
 // Pass `--check` to exit 1 if any committed website file is out of sync.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as buildChangelog, escapeHTML } from './build-changelog.mjs';
@@ -36,12 +39,52 @@ const DISPLAY_NAME_OVERRIDES = {
   whatthefunc: 'What The Func',
 };
 
+const hashCache = new Map();
+function assetHash(webPath) {
+  const clean = webPath.split('?')[0];
+  if (hashCache.has(clean)) return hashCache.get(clean);
+  const diskPath = join(WEBSITE_DIR, clean);
+  if (!existsSync(diskPath) || !statSync(diskPath).isFile()) return null;
+  const h = createHash('sha256').update(readFileSync(diskPath)).digest('hex').slice(0, 8);
+  hashCache.set(clean, h);
+  return h;
+}
+
+function versionedUrl(webPath) {
+  const clean = webPath.split('?')[0];
+  const h = assetHash(clean);
+  return h ? `${clean}?v=${h}` : clean;
+}
+
+function computeSettingsImagesHash() {
+  const v2Dir = join(WEBSITE_DIR, 'images', 'v2');
+  if (!existsSync(v2Dir)) return '1';
+  const h = createHash('sha256');
+  const names = readdirSync(v2Dir).filter((n) => n.startsWith('settings-') && n.endsWith('.webp')).sort();
+  for (const name of names) {
+    h.update(name);
+    h.update(readFileSync(join(v2Dir, name)));
+  }
+  return h.digest('hex').slice(0, 8);
+}
+
+function stampAssetVersions(html) {
+  return html.replace(
+    /\b(href|src|data-light-src|data-dark-src)="(\/(?:css|js|assets|images)\/[^"?#]+|\/favicon\.svg|\/sap\.min\.js)(?:\?v=[0-9a-f]+)?"/g,
+    (whole, attr, cleanPath) => {
+      const h = assetHash(cleanPath);
+      return h ? `${attr}="${cleanPath}?v=${h}"` : whole;
+    }
+  );
+}
+
 function renderHeader(activePath) {
   const cur = (href) => (activePath === href ? ' aria-current="page"' : '');
+  const markUrl = versionedUrl('/assets/htmlclay-mark.svg');
   return `  <header class="site-header">
     <nav class="sitenav" aria-label="Primary">
       <a class="brand" href="/"${cur('/')} aria-label="HTML Clay home">
-        <img src="/assets/htmlclay-mark.svg" alt="" width="27" height="30">
+        <img src="${markUrl}" alt="" width="27" height="30">
         <span>HTML Clay</span>
       </a>
       <div class="navlinks">
@@ -59,11 +102,12 @@ function renderHeader(activePath) {
 
 function renderFooter(isHome) {
   const shaAttrs = isHome ? ' data-hv-goal="download" data-hv-where="index" data-hv-os="unknown"' : '';
+  const markUrl = versionedUrl('/assets/htmlclay-mark.svg');
   return `  <footer class="site-footer">
     <div class="container">
       <div class="footer-top">
         <a class="footer-brand" href="/">
-          <img src="/assets/htmlclay-mark.svg" alt="" width="27" height="30">
+          <img src="${markUrl}" alt="" width="27" height="30">
           <span>HTML Clay</span>
         </a>
         <p class="footer-tagline">Software in a single HTML file, yours to keep and modify.</p>
@@ -162,7 +206,7 @@ function normalizeAppsPayload(raw) {
       title: DISPLAY_NAME_OVERRIDES[app.slug] || app.name,
       url: cleanUrl,
       downloadUrl: dlUrl,
-      shotSrc: `/images/v2/apps/${shotFile}`,
+      shotSrc: versionedUrl(`/images/v2/apps/${shotFile}`),
       shotAlt: app.ogImageAlt || `${app.name} running as a single HTML file.`,
       cardBody: app.cardBody || app.metaDescription || '',
       whatItIs: app.whatItIs || app.cardBody || '',
@@ -239,8 +283,31 @@ function replaceMarked(html, startTag, endTag, replacement, fileLabel) {
 
 async function main() {
   const check = process.argv.includes('--check');
-  const apps = await loadOneHtmlFileApps();
   let stale = false;
+
+  // 1. Stamp dynamic Settings WebP cache-buster inside website/js/site.js first
+  // so site.js's own hash reflects any Settings image updates.
+  const siteJsPath = join(WEBSITE_DIR, 'js', 'site.js');
+  if (existsSync(siteJsPath)) {
+    const curJs = readFileSync(siteJsPath, 'utf8');
+    const settingsVer = computeSettingsImagesHash();
+    const nextJs = curJs.replace(
+      /var SETTINGS_IMG_VER = "[^"]*";/,
+      `var SETTINGS_IMG_VER = "${settingsVer}";`
+    );
+    if (nextJs !== curJs) {
+      stale = true;
+      if (!check) {
+        writeFileSync(siteJsPath, nextJs, 'utf8');
+        console.log('updated website/js/site.js (SETTINGS_IMG_VER)');
+      } else {
+        console.error('website/js/site.js SETTINGS_IMG_VER is stale: run node scripts/build-website.mjs');
+      }
+    }
+  }
+
+  hashCache.clear();
+  const apps = await loadOneHtmlFileApps();
 
   for (const page of PAGES) {
     const fullPath = join(WEBSITE_DIR, page.file);
@@ -263,6 +330,8 @@ async function main() {
     if (apps && page.file === 'apps/index.html') {
       next = replaceMarked(next, '<!-- onehtmlfile:apps-page:start -->', '<!-- onehtmlfile:apps-page:end -->', renderAppsPageBlock(apps), page.file);
     }
+
+    next = stampAssetVersions(next);
 
     if (next !== current) {
       stale = true;
@@ -299,7 +368,7 @@ async function main() {
   }
 
   if (check && stale) process.exit(1);
-  if (check) console.log('website pages, One HTML File cards, and changelog are in sync');
+  if (check) console.log('website pages, asset hashes, One HTML File cards, and changelog are in sync');
 }
 
 main().catch((err) => {

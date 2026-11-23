@@ -201,6 +201,7 @@
   ];
 
   var preloadedUrls = {};
+  var SETTINGS_IMG_VER = "ce7e4f0e";
   function preloadImage(url) {
     if (!url || preloadedUrls[url]) return;
     preloadedUrls[url] = true;
@@ -209,7 +210,7 @@
   }
 
   function paneImageUrl(pane, theme) {
-    return "/images/v2/settings-" + pane + "-" + theme + ".webp";
+    return "/images/v2/settings-" + pane + "-" + theme + ".webp?v=" + SETTINGS_IMG_VER;
   }
 
   function initSettingsExplorers() {
@@ -1104,6 +1105,90 @@
     if (isVisible() && !document.hidden && !isReducedMotion()) start();
   }
 
+  /* 8. Ownership 4x3 Visual Concept Switcher + Live Theme Swatches */
+  function initOwnershipSwitchers() {
+    var cards = document.querySelectorAll("[data-own-card]");
+    for (var i = 0; i < cards.length; i++) {
+      (function (card) {
+        var slides = [].slice.call(card.querySelectorAll("[data-own-slide]"));
+        var picks = [].slice.call(card.querySelectorAll("[data-own-pick]"));
+        var prev = card.querySelector("[data-own-prev]");
+        var next = card.querySelector("[data-own-next]");
+        var caption = card.querySelector("[data-own-caption]");
+        var tablist = card.querySelector('[role="tablist"]');
+        if (!slides.length) return;
+        var current = 0;
+
+        function select(idx) {
+          current = (idx + slides.length) % slides.length;
+          slides.forEach(function (s, k) {
+            s.hidden = k !== current;
+          });
+          picks.forEach(function (b, k) {
+            var active = k === current;
+            b.setAttribute("aria-selected", String(active));
+            b.setAttribute("tabindex", active ? "0" : "-1");
+          });
+          if (caption && slides[current]) {
+            caption.textContent = slides[current].getAttribute("data-label") || "";
+          }
+        }
+
+        picks.forEach(function (b) {
+          b.addEventListener("click", function () {
+            select(Number(b.getAttribute("data-own-pick")) || 0);
+          });
+        });
+        if (prev) {
+          prev.addEventListener("click", function () {
+            select(current - 1);
+          });
+        }
+        if (next) {
+          next.addEventListener("click", function () {
+            select(current + 1);
+          });
+        }
+        attachRovingTabindex(tablist, picks, function (btn) {
+          select(Number(btn.getAttribute("data-own-pick")) || 0);
+        });
+      })(cards[i]);
+    }
+
+    var swatchRoot = document.querySelector("[data-swatch-demo]");
+    if (swatchRoot) {
+      var btns = [].slice.call(swatchRoot.querySelectorAll("[data-skin-pick]"));
+      var skins = ["cozy", "ink", "botanical", "blueprint"];
+      var skinIdx = 0;
+      var userPinned = false;
+
+      function applySkin(name) {
+        var clean = (name || "cozy").trim();
+        swatchRoot.setAttribute("data-skin", clean);
+        skinIdx = Math.max(0, skins.indexOf(clean));
+        btns.forEach(function (b) {
+          var val = (b.getAttribute("data-skin-pick") || "").trim();
+          b.setAttribute("aria-pressed", String(val === clean));
+        });
+      }
+
+      btns.forEach(function (b) {
+        b.addEventListener("click", function () {
+          userPinned = true;
+          applySkin(b.getAttribute("data-skin-pick"));
+        });
+      });
+
+      if (!(reducedMotionQuery && reducedMotionQuery.matches)) {
+        setInterval(function () {
+          if (userPinned || swatchRoot.closest("[hidden]")) return;
+          skinIdx = (skinIdx + 1) % skins.length;
+          applySkin(skins[skinIdx]);
+        }, 2400);
+      }
+    }
+  }
+
   function boot() {
     initOSDownloads();
     initSettingsExplorers();
@@ -1111,6 +1196,7 @@
     initCopyHashButtons();
     initPlayground();
     initBreakout();
+    initOwnershipSwitchers();
   }
 
   if (document.readyState === "loading") {
