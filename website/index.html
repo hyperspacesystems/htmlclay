@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>HTML Clay: Software you can keep and modify, in one HTML file</title>
-  <meta name="description" content="Real software in a single HTML file on your computer. Double-click an .htmlclay file to use it in your browser, every change saves straight back into that file; you can modify it or transport whenever you want.">
+  <meta name="description" content="Real software in a single HTML file on your computer. Double-click any .htmlclay file to use it in your browser, every change saves straight back into that file; you can modify it or transport it wherever you want.">
   <link rel="canonical" href="https://htmlclay.com/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
@@ -52,7 +52,7 @@
     <section class="hero">
       <div class="container">
         <h1>Software you can keep</h1>
-        <p class="lede">Real software in a single HTML file on your computer. Double-click an <span class="filechip">.htmlclay</span> file to use it in your browser, every change saves straight back into that file; you can modify it or transport whenever you want.</p>
+        <p class="lede">Real software in a single HTML file on your computer. Double-click any <span class="filechip">.htmlclay</span> file to use it in your browser, every change saves straight back into that file; you can modify it or transport it wherever you want.</p>
         <div class="hero-actions">
           <a id="download-btn" class="btn btn-amber" href="#downloads" data-fallback-href="#downloads" download data-hv-goal="download" data-hv-where="hero" data-hv-os="unknown">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -97,13 +97,16 @@
             </div>
 
             <div class="popover-showcase">
-              <div class="popover-frame">
-                <img src="/images/v2/panel-light.webp" data-light-src="/images/v2/panel-light.webp" data-dark-src="/images/v2/panel-dark.webp" alt="HTML Clay native macOS menu-bar popover showing open documents, program approval prompt, and sync controls." width="382" height="474">
+              <div class="popover-unit">
+                <span class="popover-label">Menu bar app</span>
+                <div class="popover-frame">
+                  <img src="/images/v2/panel-light.webp" data-light-src="/images/v2/panel-light.webp" data-dark-src="/images/v2/panel-dark.webp" alt="HTML Clay native macOS menu-bar popover showing open documents, program approval prompt, and sync controls." width="382" height="474">
+                </div>
               </div>
             </div>
           </div>
 
-          <p class="stage-caption">Your document opens in your regular browser at a stable local address, while HTML Clay stays tucked in the menu bar to handle atomic disk saves, version history, folder trust, and local tools.</p>
+          <p class="stage-caption">Your document opens in your regular browser at a stable local address.</p>
         </div>
       </div>
     </section>
@@ -130,7 +133,7 @@
 
           <article class="card">
             <div class="card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 12.86a10 10 0 0 1 5.17-2.89"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
             </div>
             <h2>Nonintrusive, fast, and offline</h2>
             <p>No sign-up, no telemetry, and no Electron wrapper around your tabs. HTML Clay bundles the ClayJS runtime and Tailwind v4 compiler inside the app so your documents build and save even when you're offline.</p>
@@ -139,62 +142,34 @@
       </div>
     </section>
 
-    <!-- Spotlight 1: Interactive 7-Pane Settings Explorer -->
-    <section class="section section-warm" id="settings-tour">
+    <!-- Spotlight 1: Software Ownership & Freedom to Reshape -->
+    <section class="section section-warm" id="ownership">
       <div class="container">
         <div class="section-head-split">
           <div>
-            <h2>A native desktop companion you can inspect in seconds</h2>
-            <p>Click any tab or click directly on the sidebar inside the macOS Settings window. Start with a single local file and step up to AI editing, served project folders, local scripts, or Hyperclay sync whenever you want them.</p>
+            <h2>Download it once. Own it completely. Reshape any part of it.</h2>
+            <p>Owning software shouldn't mean living inside the opinionated rules its author picked for you, or waiting on forced upgrades. Because an <span class="filechip">.htmlclay</span> app is a single HTML file on your hard drive, every layout, workflow, and theme belongs completely to you.</p>
           </div>
-          <a class="btn btn-secondary btn-sm" href="/features/">Full features tour &rarr;</a>
+          <a class="btn btn-secondary btn-sm" href="/features/">Explore features &rarr;</a>
         </div>
 
-        <div class="settings-explorer" data-settings-explorer data-default-pane="folders" data-theme="light">
-          <div class="explorer-toolbar">
-            <div class="explorer-tabs" role="tablist" aria-label="HTML Clay Settings panes">
-              <button type="button" class="explorer-tab" role="tab" id="home-tab-general" aria-controls="home-settings-panel" aria-selected="false" tabindex="-1" data-pane="general">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10.7 2.2L13.3 2.2L13.7 4.3A7.9 7.9 0 0 1 16.24 5.35L18.01 4.15L19.85 5.99L18.65 7.76A7.9 7.9 0 0 1 19.7 10.3L21.8 10.7L21.8 13.3L19.7 13.7A7.9 7.9 0 0 1 18.65 16.24L19.85 18.01L18.01 19.85L16.24 18.65A7.9 7.9 0 0 1 13.7 19.7L13.3 21.8L10.7 21.8L10.3 19.7A7.9 7.9 0 0 1 7.76 18.65L5.99 19.85L4.15 18.01L5.35 16.24A7.9 7.9 0 0 1 4.3 13.7L2.2 13.3L2.2 10.7L4.3 10.3A7.9 7.9 0 0 1 5.35 7.76L4.15 5.99L5.99 4.15L7.76 5.35A7.9 7.9 0 0 1 10.3 4.3Z"/><circle cx="12" cy="12" r="3.2"/></svg>
-                <span>General</span>
-              </button>
-              <button type="button" class="explorer-tab" role="tab" id="home-tab-ai" aria-controls="home-settings-panel" aria-selected="false" tabindex="-1" data-pane="ai">AI Editing</button>
-              <button type="button" class="explorer-tab" role="tab" id="home-tab-folders" aria-controls="home-settings-panel" aria-selected="true" tabindex="0" data-pane="folders">Folders</button>
-              <button type="button" class="explorer-tab" role="tab" id="home-tab-programs" aria-controls="home-settings-panel" aria-selected="false" tabindex="-1" data-pane="programs">Programs</button>
-              <button type="button" class="explorer-tab" role="tab" id="home-tab-sync" aria-controls="home-settings-panel" aria-selected="false" tabindex="-1" data-pane="sync">Sync</button>
-              <button type="button" class="explorer-tab" role="tab" id="home-tab-updates" aria-controls="home-settings-panel" aria-selected="false" tabindex="-1" data-pane="updates">Updates</button>
-              <button type="button" class="explorer-tab" role="tab" id="home-tab-advanced" aria-controls="home-settings-panel" aria-selected="false" tabindex="-1" data-pane="advanced">Advanced</button>
-            </div>
-
-            <div class="theme-switch" role="group" aria-label="Settings window appearance" data-explorer-theme>
-              <button type="button" class="theme-btn" data-theme-val="light" aria-pressed="true">Light</button>
-              <button type="button" class="theme-btn" data-theme-val="dark" aria-pressed="false">Dark</button>
-            </div>
-          </div>
-
-          <div class="settings-viewport">
-            <div class="settings-canvas">
-              <img class="settings-img" data-settings-img src="/images/v2/settings-folders-light.webp" alt="HTML Clay Folders settings pane showing local Notes and prototypes folders alongside synced Hyperclay team folders with Trusted, Served, and Synced pills." width="870" height="830">
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="general" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="ai" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="folders" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="programs" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="sync" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="updates" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="advanced" tabindex="-1" aria-hidden="true"></button>
-            </div>
-          </div>
-
-          <div class="explorer-caption" role="tabpanel" id="home-settings-panel" aria-labelledby="home-tab-folders" data-settings-panel>
-            <div class="explorer-caption-body">
-              <h3 data-pane-title>Folders: Three clear levels of trust, local serving, and live sync</h3>
-              <p data-pane-desc>Start with a single folder on your computer and step up only when a project needs more: Trusted lets files save without prompts, Served gives a project folder its own .localhost web address so pages share assets and link together, and Synced mirrors chosen folders live with Hyperclay.</p>
-            </div>
-            <div class="explorer-caption-meta" data-pane-badges>
-              <span class="kiln-pill kiln-pill-trusted">Trusted</span>
-              <span class="kiln-pill kiln-pill-served">Served</span>
-              <span class="kiln-pill kiln-pill-synced">Synced</span>
-            </div>
-          </div>
+        <div class="ownership-ledger">
+          <article class="ownership-cell">
+            <h3>Yours once and for all</h3>
+            <p>Download an app to your computer and own it outright, with no account, no subscription gate, and no upgrade prompts changing how your software works over time.</p>
+          </article>
+          <article class="ownership-cell">
+            <h3>Break out of the author's defaults</h3>
+            <p>Open browser DevTools to delete an element you don't like, rewrite a section in your code editor, or ask a local AI tool to build a new workflow around how you work.</p>
+          </article>
+          <article class="ownership-cell">
+            <h3>Give it the look you want</h3>
+            <p>Change the fonts, rearrange the layout, or add a cozy new theme and color palette using the tools already on your computer.</p>
+          </article>
+          <article class="ownership-cell">
+            <h3>Share a copy or publish anywhere</h3>
+            <p>Email the file to a friend or share a link so they can download their own copy, or drag it onto any static web host as a regular <span class="filechip">.html</span> file that opens in every browser.</p>
+          </article>
         </div>
       </div>
     </section>
@@ -282,7 +257,7 @@
                       <h3 class="app-h">What I did today</h3>
                       <input type="date" data-default-today aria-label="Entry date">
                     </div>
-                    <textarea bind="entry" placeholder="Today I…"></textarea>
+                    <textarea bind="entry" placeholder="Today I…">Mapped out the spring garden beds before the frost hits. Moved the rosemary pot onto the porch, fixed the sticky kitchen drawer, and put a pot of lentil soup on the stove.</textarea>
                   </main>
                 </div>
               </div>
@@ -392,6 +367,10 @@
                 <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">reading-list.htmlclay</span></div></div>
                 <div class="window-body">
                   <main sap>
+                    <div class="reading-head">
+                      <h3 class="app-h">Reading list</h3>
+                      <p class="app-note" text="count(state.books, b => b.status === 'Read') + ' of ' + count(state.books) + ' read'">2 of 4 read</p>
+                    </div>
                     <ul class="reading-list" items="books">
                       <li item template><span class="btitle" bind="title"></span><input type="hidden" bind="status" value="Want to read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')"></button></li>
                       <li item><span class="btitle" bind="title">Dune</span><input type="hidden" bind="status" value="Read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')">Read</button></li>
@@ -403,7 +382,6 @@
                       <span class="add-row-plus" aria-hidden="true">+</span>
                       <input bind="title" placeholder="Add a book" required aria-label="New book">
                     </form>
-                    <p class="app-note" text="count(state.books, b => b.status === 'Read') + ' of ' + count(state.books) + ' read'">2 of 4 read</p>
                   </main>
                 </div>
               </div>
@@ -483,10 +461,10 @@
             <h3>Press &#8984;J to modify any part of a page</h3>
             <p>Select any element in a document and press <span class="filechip">&#8984;J</span> (<span class="filechip">Ctrl+J</span> on Windows and Linux) to add a feature or restyle how it works using <strong>Claude</strong>, <strong>Codex</strong>, <strong>Gemini</strong>, or any custom command on your computer.</p>
             <div class="ui-shot" style="margin-top: 18px;">
-              <img src="/images/v2/settings-ai-light.webp" alt="HTML Clay AI Editing settings pane showing Claude, Codex, Gemini (agy), and Custom command model and effort pickers." width="870" height="830" decoding="async">
+              <img src="/images/v2/settings-ai-light.webp" alt="HTML Clay AI Editing settings pane showing Claude, Codex, Gemini (agy), and Custom command model and effort pickers." width="870" height="794" decoding="async">
             </div>
             <div class="spotlight-links">
-              <a href="/features/#programs-ai">AI &amp; local tools tour &rarr;</a>
+              <a href="/features/#ai-editing">AI editing tour &rarr;</a>
               <a href="/docs/guide/ai-editing/">AI editing guide</a>
             </div>
           </article>
@@ -592,12 +570,13 @@
       </div>
     </section>
 
-    <!-- Security & Trust Band -->
+    <!-- Security & Program Execution Band -->
     <section class="section section-warm" id="safe">
       <div class="container">
         <div class="split-spotlight">
           <div class="spotlight-copy">
-            <h2>Sandboxed by default. Explicit when a file asks for more.</h2>
+            <h2>Run local programs from your HTML files</h2>
+            <p class="spotlight-subhead">Sandboxed by default. Explicit when a file asks for more.</p>
             <p>Every <span class="filechip">.htmlclay</span> page runs inside your regular browser's sandbox on <span class="filechip">127.0.0.1</span>. An unknown download opens read-only on its own isolated origin and cannot touch other files or run local programs behind your back.</p>
             <ul class="spotlight-list">
               <li>

@@ -218,40 +218,48 @@ include_apps = sys.argv[3] == "1"
 
 settings_keys = ["general", "ai", "folders", "programs", "sync", "updates", "advanced"]
 settings_imgs = {}
-max_w, max_h = 1740, 1292
+# Borderless offscreen renders have no macOS traffic-light titlebar buttons, so trim
+# 36pt (72px at 2x) of blank titlebar headroom while preserving the 20px top sidebar cap.
+TOP_TRIM = 72
+SIDEBAR_CAP_TOP_H = 36
+SIDEBAR_END_X = 460
+BOTTOM_CAP_H = 44
+
+max_w, max_h = 1740, 1292 - TOP_TRIM
 for key in settings_keys:
     for theme in ("light", "dark"):
         p = raw_dir / f"settings-{key}-{theme}.png"
         im = Image.open(p).convert("RGBA")
         settings_imgs[(key, theme)] = im
         max_w = max(max_w, im.size[0])
-        max_h = max(max_h, im.size[1])
+        max_h = max(max_h, im.size[1] - TOP_TRIM)
 
 # Round height to an even integer for clean 2x scaling
 if max_h % 2 == 1:
     max_h += 1
 
-SIDEBAR_END_X = 460
-BOTTOM_CAP_H = 44
-
 for (key, theme), im in settings_imgs.items():
-    w, h = im.size
-    pane_bg = im.getpixel((w - 12, h - 12))
+    w, raw_h = im.size
+    h = raw_h - TOP_TRIM
+    pane_bg = im.getpixel((w - 12, raw_h - 12))
     out = Image.new("RGBA", (max_w, max_h), pane_bg)
 
-    detail = im.crop((SIDEBAR_END_X, 0, w, h))
+    detail = im.crop((SIDEBAR_END_X, TOP_TRIM, w, raw_h))
     out.paste(detail, (SIDEBAR_END_X, 0))
 
-    sidebar_top = im.crop((0, 0, SIDEBAR_END_X, h - BOTTOM_CAP_H))
-    out.paste(sidebar_top, (0, 0))
+    sidebar_cap = im.crop((0, 0, SIDEBAR_END_X, SIDEBAR_CAP_TOP_H))
+    out.paste(sidebar_cap, (0, 0))
+
+    sidebar_body = im.crop((0, SIDEBAR_CAP_TOP_H + TOP_TRIM, SIDEBAR_END_X, raw_h - BOTTOM_CAP_H))
+    out.paste(sidebar_body, (0, SIDEBAR_CAP_TOP_H))
 
     if h < max_h:
-        slice_y = h - BOTTOM_CAP_H - 10
+        slice_y = raw_h - BOTTOM_CAP_H - 10
         sidebar_slice = im.crop((0, slice_y, SIDEBAR_END_X, slice_y + 1))
         for y in range(h - BOTTOM_CAP_H, max_h - BOTTOM_CAP_H):
             out.paste(sidebar_slice, (0, y))
 
-    sidebar_bottom = im.crop((0, h - BOTTOM_CAP_H, SIDEBAR_END_X, h))
+    sidebar_bottom = im.crop((0, raw_h - BOTTOM_CAP_H, SIDEBAR_END_X, raw_h))
     out.paste(sidebar_bottom, (0, max_h - BOTTOM_CAP_H))
 
     rgb = Image.new("RGB", out.size, pane_bg[:3])

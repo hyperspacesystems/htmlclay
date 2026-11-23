@@ -773,13 +773,29 @@ a.trust-badge:hover {
   min-width: 0;
 }
 
+.popover-unit {
+  max-width: 340px;
+  width: 100%;
+}
+
+.popover-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 8px 2px;
+}
+
+.hero-stage[data-theme="dark"] .popover-label {
+  color: var(--stage-dark-muted);
+}
+
 .popover-frame {
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-popover);
   background: var(--surface);
-  max-width: 340px;
   width: 100%;
 }
 
@@ -895,6 +911,35 @@ a.trust-badge:hover {
   margin-bottom: 16px;
 }
 
+/* Software Ownership Unified Hairline Ledger */
+.ownership-ledger {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.ownership-cell {
+  background: var(--surface);
+  padding: 26px 28px;
+  min-width: 0;
+}
+
+.ownership-cell h3 {
+  font-size: 19.5px;
+  margin-bottom: 9px;
+}
+
+.ownership-cell p {
+  color: var(--ink-2);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
 /* Interactive 7-Pane Settings Explorer */
 .settings-explorer {
   background: var(--stage-warm);
@@ -909,73 +954,95 @@ a.trust-badge:hover {
   border-color: rgba(241, 242, 246, 0.14);
 }
 
-.explorer-toolbar {
+.explorer-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   max-width: 920px;
-  margin: 0 auto 18px;
+  margin: 0 auto 12px;
   flex-wrap: wrap;
 }
 
-.explorer-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
+.explorer-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 2px rgba(26, 28, 35, 0.05);
 }
 
-.explorer-tab {
+.settings-explorer[data-theme="dark"] .explorer-stepper {
+  background: var(--stage-dark-card);
+  border-color: rgba(241, 242, 246, 0.16);
+}
+
+.stepper-btn {
   appearance: none;
   -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 13px;
-  min-height: 36px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-warm);
   color: var(--ink-2);
-  font-family: var(--sans);
-  font-size: 13.5px;
-  font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
 }
 
-.explorer-tab:hover {
+.stepper-btn:hover {
+  background: var(--surface-sunk);
   color: var(--ink);
-  border-color: var(--border-strong);
 }
 
-.explorer-tab[aria-selected="true"] {
-  background: var(--btn);
-  color: var(--btn-ink);
-  border-color: var(--btn);
-}
-
-.settings-explorer[data-theme="dark"] .explorer-tab {
-  background: var(--stage-dark-card);
+.settings-explorer[data-theme="dark"] .stepper-btn {
+  background: rgba(241, 242, 246, 0.08);
   color: var(--stage-dark-muted);
-  border-color: rgba(241, 242, 246, 0.14);
 }
 
-.settings-explorer[data-theme="dark"] .explorer-tab:hover {
+.settings-explorer[data-theme="dark"] .stepper-btn:hover {
+  background: rgba(241, 242, 246, 0.16);
   color: var(--stage-dark-ink);
 }
 
-.settings-explorer[data-theme="dark"] .explorer-tab[aria-selected="true"] {
-  background: var(--kiln-amber);
-  color: var(--kiln-amber-ink);
-  border-color: var(--kiln-amber);
+.stepper-current {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 136px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
-.explorer-tab svg {
-  width: 15px;
-  height: 15px;
+.settings-explorer[data-theme="dark"] .stepper-current {
+  color: var(--stage-dark-ink);
+}
+
+.stepper-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
   flex: none;
+}
+
+.settings-explorer[data-theme="dark"] .stepper-icon {
+  color: var(--kiln-amber);
+}
+
+.stepper-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .settings-viewport {
@@ -996,7 +1063,7 @@ a.trust-badge:hover {
 .settings-canvas {
   position: relative;
   width: 100%;
-  aspect-ratio: 1740 / 1660;
+  aspect-ratio: 1740 / 1588;
 }
 
 .settings-img {
@@ -1006,12 +1073,12 @@ a.trust-badge:hover {
   object-fit: cover;
 }
 
-/* Transparent clickable hotspots over the 7 macOS Settings sidebar rows (1740x1660) */
+/* Transparent clickable hotspots over the 7 macOS Settings sidebar rows (1740x1588) */
 .sidebar-hotspot {
   position: absolute;
   left: 2.07%;
   width: 22.30%;
-  height: 4.34%;
+  height: 4.53%;
   padding: 0;
   margin: 0;
   border: 0;
@@ -1028,17 +1095,17 @@ a.trust-badge:hover {
   background: rgba(241, 242, 246, 0.08);
 }
 
-.sidebar-hotspot[data-pane-hotspot="general"]  { top: 6.51%; }
-.sidebar-hotspot[data-pane-hotspot="ai"]       { top: 11.08%; }
-.sidebar-hotspot[data-pane-hotspot="folders"]  { top: 15.66%; }
-.sidebar-hotspot[data-pane-hotspot="programs"] { top: 20.24%; }
-.sidebar-hotspot[data-pane-hotspot="sync"]     { top: 24.82%; }
-.sidebar-hotspot[data-pane-hotspot="updates"]  { top: 29.40%; }
-.sidebar-hotspot[data-pane-hotspot="advanced"] { top: 33.98%; }
+.sidebar-hotspot[data-pane-hotspot="general"]  { top: 2.27%; }
+.sidebar-hotspot[data-pane-hotspot="ai"]       { top: 7.05%; }
+.sidebar-hotspot[data-pane-hotspot="folders"]  { top: 11.84%; }
+.sidebar-hotspot[data-pane-hotspot="programs"] { top: 16.62%; }
+.sidebar-hotspot[data-pane-hotspot="sync"]     { top: 21.41%; }
+.sidebar-hotspot[data-pane-hotspot="updates"]  { top: 26.20%; }
+.sidebar-hotspot[data-pane-hotspot="advanced"] { top: 30.98%; }
 
 .explorer-caption {
   max-width: 920px;
-  margin: 18px auto 0;
+  margin: 0 auto 18px;
   padding: 18px 20px;
   border-radius: 13px;
   background: var(--surface);
@@ -1277,8 +1344,9 @@ button.chip:hover {
   text-decoration: line-through;
 }
 
-/* Journal panel */
-.journal-head {
+/* Journal & Reading head rows */
+.journal-head,
+.reading-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1287,7 +1355,9 @@ button.chip:hover {
   flex-wrap: wrap;
 }
 
-.journal-head .app-h {
+.journal-head .app-h,
+.reading-head .app-h,
+.reading-head .app-note {
   margin: 0;
 }
 
@@ -1444,8 +1514,9 @@ button.chip:hover {
 /* Habit tracker */
 .habit-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(7, 26px) 42px;
-  gap: 9px 7px;
+  grid-template-columns: max-content repeat(7, 26px) auto;
+  justify-content: start;
+  gap: 9px 10px;
   align-items: center;
 }
 
@@ -1457,14 +1528,15 @@ button.chip:hover {
 
 .habit-grid .hname {
   font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: right;
+  padding-right: 6px;
 }
 
 .habit-grid .cnt {
   font-size: 13px;
   color: var(--muted);
-  text-align: right;
+  text-align: left;
+  padding-left: 6px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1711,6 +1783,17 @@ button.chip:hover {
   margin-bottom: 14px;
 }
 
+.spotlight-copy .spotlight-subhead {
+  font-size: 17.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+
+.spotlight-copy .spotlight-subhead + p {
+  margin-top: 0;
+}
+
 .spotlight-copy h3 {
   font-size: 22px;
   margin-bottom: 10px;
@@ -1766,6 +1849,12 @@ button.chip:hover {
 
 .ui-stage-compact {
   padding: 14px;
+}
+
+.ui-stage-popover {
+  max-width: 420px;
+  width: 100%;
+  justify-self: center;
 }
 
 .ui-stage[data-theme="dark"] {
@@ -2456,7 +2545,7 @@ footer[data-hyper-footer] {
   .popover-showcase {
     align-items: center;
   }
-  .popover-frame {
+  .popover-unit {
     max-width: 360px;
   }
   .pillars-grid,
@@ -2525,10 +2614,11 @@ footer[data-hyper-footer] {
   .two-col,
   .guarantees-grid,
   .os-highlight-grid,
-  .dl-notes-grid {
+  .dl-notes-grid,
+  .ownership-ledger {
     grid-template-columns: minmax(0, 1fr);
   }
-  /* Shift the 1740x1660 Settings screenshot left so the redundant sidebar hides
+  /* Shift the 1740x1588 Settings screenshot left so the redundant sidebar hides
      off-left and the right detail pane renders +35% larger on 390px phones. */
   .settings-viewport {
     overflow: hidden;
@@ -2536,7 +2626,7 @@ footer[data-hyper-footer] {
   .settings-canvas {
     width: 136%;
     margin-left: -35.8%;
-    aspect-ratio: 1740 / 1660;
+    aspect-ratio: 1740 / 1588;
   }
   .settings-img {
     width: 100%;
@@ -2593,7 +2683,8 @@ footer[data-hyper-footer] {
     text-align: center;
   }
   .habit-grid {
-    grid-template-columns: minmax(0, 1fr) repeat(7, 1fr) 34px;
+    grid-template-columns: max-content repeat(7, 1fr) auto;
+    justify-content: stretch;
   }
   .window-body {
     padding: 16px;

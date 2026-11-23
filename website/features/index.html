@@ -50,7 +50,8 @@
           <li><a href="#menu-bar">Menu Bar</a></li>
           <li><a href="#settings">Settings</a></li>
           <li><a href="#folders">Folders &amp; Live Sync</a></li>
-          <li><a href="#programs-ai">AI &amp; Programs</a></li>
+          <li><a href="#ai-editing">AI Editing</a></li>
+          <li><a href="#local-scripts">Local Scripts</a></li>
           <li><a href="#calculator-api">Calculator API</a></li>
           <li><a href="#guarantees">Guarantees</a></li>
         </ul>
@@ -62,7 +63,7 @@
       <div class="container">
         <div class="split-spotlight">
           <div class="spotlight-copy">
-            <h2>Everything active at a glance in the menu bar</h2>
+            <h2>A quiet menu bar app that stays out of your way</h2>
             <p>HTML Clay stays out of your Dock and your Cmd-Tab switcher. Click its menu-bar icon whenever you want to reopen a recent file, jump into your local browser dashboard, review two-way sync edits, answer a pending helper program request, or pause syncing.</p>
             <ul class="spotlight-list">
               <li>
@@ -80,22 +81,16 @@
             </ul>
           </div>
 
-          <div class="two-col popover-pair">
-            <div class="ui-stage ui-stage-compact">
-              <div class="ui-stage-bar">
-                <span class="ui-stage-title">Light appearance</span>
-              </div>
-              <div class="ui-shot">
-                <img src="/images/v2/panel-light.webp" alt="HTML Clay macOS menu-bar popover in Light mode showing Open dashboard, conflict review banner, program request banner, and Recent documents." width="382" height="474">
+          <div class="ui-stage ui-stage-popover" data-theme-stage data-theme="light">
+            <div class="ui-stage-bar">
+              <span class="ui-stage-title">Menu bar app</span>
+              <div class="theme-switch" role="group" aria-label="Menu bar popover appearance">
+                <button type="button" class="theme-btn" data-stage-theme-btn="light" aria-pressed="true">Light</button>
+                <button type="button" class="theme-btn" data-stage-theme-btn="dark" aria-pressed="false">Dark</button>
               </div>
             </div>
-            <div class="ui-stage ui-stage-compact" data-theme="dark">
-              <div class="ui-stage-bar">
-                <span class="ui-stage-title">Dark appearance</span>
-              </div>
-              <div class="ui-shot">
-                <img src="/images/v2/panel-dark.webp" alt="HTML Clay macOS menu-bar popover in Dark mode showing Open dashboard, active sync count, and Recent documents." width="382" height="474">
-              </div>
+            <div class="ui-shot">
+              <img src="/images/v2/panel-light.webp" data-light-src="/images/v2/panel-light.webp" data-dark-src="/images/v2/panel-dark.webp" alt="HTML Clay macOS menu-bar popover showing Open dashboard, conflict review banner, program request banner, and Recent documents." width="382" height="474">
             </div>
           </div>
         </div>
@@ -106,23 +101,25 @@
     <section class="section section-warm" id="settings">
       <div class="container">
         <div class="section-head">
-          <h2>Interactive 7-pane Settings tour</h2>
-          <p>Explore every pane of the native macOS Settings window in Light or Dark mode. Click the pill tabs above the window, use your arrow keys, or click the sidebar rows directly inside the screenshot.</p>
+          <h2>Everything HTML Clay manages, in one native Settings window</h2>
+          <p>Use the arrows to step through all seven panes in Light or Dark mode, or click any row directly inside the macOS sidebar.</p>
         </div>
 
         <div class="settings-explorer" data-settings-explorer data-default-pane="general" data-theme="light">
-          <div class="explorer-toolbar">
-            <div class="explorer-tabs" role="tablist" aria-label="HTML Clay Settings panes">
-              <button type="button" class="explorer-tab" role="tab" id="feat-tab-general" aria-controls="feat-settings-panel" aria-selected="true" tabindex="0" data-pane="general">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10.7 2.2L13.3 2.2L13.7 4.3A7.9 7.9 0 0 1 16.24 5.35L18.01 4.15L19.85 5.99L18.65 7.76A7.9 7.9 0 0 1 19.7 10.3L21.8 10.7L21.8 13.3L19.7 13.7A7.9 7.9 0 0 1 18.65 16.24L19.85 18.01L18.01 19.85L16.24 18.65A7.9 7.9 0 0 1 13.7 19.7L13.3 21.8L10.7 21.8L10.3 19.7A7.9 7.9 0 0 1 7.76 18.65L5.99 19.85L4.15 18.01L5.35 16.24A7.9 7.9 0 0 1 4.3 13.7L2.2 13.3L2.2 10.7L4.3 10.3A7.9 7.9 0 0 1 5.35 7.76L4.15 5.99L5.99 4.15L7.76 5.35A7.9 7.9 0 0 1 10.3 4.3Z"/><circle cx="12" cy="12" r="3.2"/></svg>
-                <span>General</span>
+          <div class="explorer-topbar">
+            <div class="explorer-stepper" role="group" aria-label="Settings pane navigation">
+              <button type="button" class="stepper-btn" data-pane-prev aria-label="Previous settings pane">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
               </button>
-              <button type="button" class="explorer-tab" role="tab" id="feat-tab-ai" aria-controls="feat-settings-panel" aria-selected="false" tabindex="-1" data-pane="ai">AI Editing</button>
-              <button type="button" class="explorer-tab" role="tab" id="feat-tab-folders" aria-controls="feat-settings-panel" aria-selected="false" tabindex="-1" data-pane="folders">Folders</button>
-              <button type="button" class="explorer-tab" role="tab" id="feat-tab-programs" aria-controls="feat-settings-panel" aria-selected="false" tabindex="-1" data-pane="programs">Programs</button>
-              <button type="button" class="explorer-tab" role="tab" id="feat-tab-sync" aria-controls="feat-settings-panel" aria-selected="false" tabindex="-1" data-pane="sync">Sync</button>
-              <button type="button" class="explorer-tab" role="tab" id="feat-tab-updates" aria-controls="feat-settings-panel" aria-selected="false" tabindex="-1" data-pane="updates">Updates</button>
-              <button type="button" class="explorer-tab" role="tab" id="feat-tab-advanced" aria-controls="feat-settings-panel" aria-selected="false" tabindex="-1" data-pane="advanced">Advanced</button>
+              <span class="stepper-current" aria-live="polite">
+                <span class="stepper-icon" data-pane-icon aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.7 2.2L13.3 2.2L13.7 4.3A7.9 7.9 0 0 1 16.24 5.35L18.01 4.15L19.85 5.99L18.65 7.76A7.9 7.9 0 0 1 19.7 10.3L21.8 10.7L21.8 13.3L19.7 13.7A7.9 7.9 0 0 1 18.65 16.24L19.85 18.01L18.01 19.85L16.24 18.65A7.9 7.9 0 0 1 13.7 19.7L13.3 21.8L10.7 21.8L10.3 19.7A7.9 7.9 0 0 1 7.76 18.65L5.99 19.85L4.15 18.01L5.35 16.24A7.9 7.9 0 0 1 4.3 13.7L2.2 13.3L2.2 10.7L4.3 10.3A7.9 7.9 0 0 1 5.35 7.76L4.15 5.99L5.99 4.15L7.76 5.35A7.9 7.9 0 0 1 10.3 4.3Z"/><circle cx="12" cy="12" r="3.2"/></svg>
+                </span>
+                <span class="stepper-name" data-pane-name>General</span>
+              </span>
+              <button type="button" class="stepper-btn" data-pane-next aria-label="Next settings pane">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
             </div>
 
             <div class="theme-switch" role="group" aria-label="Settings window appearance" data-explorer-theme>
@@ -131,20 +128,7 @@
             </div>
           </div>
 
-          <div class="settings-viewport">
-            <div class="settings-canvas">
-              <img class="settings-img" data-settings-img src="/images/v2/settings-general-light.webp" alt="HTML Clay General settings pane showing local dashboard link, Open at login toggle, .htmlclay file association toggle, optional author name, and System/Light/Dark appearance." width="870" height="830">
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="general" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="ai" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="folders" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="programs" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="sync" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="updates" tabindex="-1" aria-hidden="true"></button>
-              <button type="button" class="sidebar-hotspot" data-pane-hotspot="advanced" tabindex="-1" aria-hidden="true"></button>
-            </div>
-          </div>
-
-          <div class="explorer-caption" role="tabpanel" id="feat-settings-panel" aria-labelledby="feat-tab-general" data-settings-panel>
+          <div class="explorer-caption" id="feat-settings-panel" data-settings-panel>
             <div class="explorer-caption-body">
               <h3 data-pane-title>General: Startup, .htmlclay file opening &amp; appearance</h3>
               <p data-pane-desc>Open the local dashboard at htmlclay.localhost:1212, choose whether HTML Clay starts at login, and manage double-click opening for .htmlclay files while keeping your regular .html browser untouched (with HTML Clay ready in Open With). Set your optional document author name and System, Light, or Dark appearance.</p>
@@ -154,34 +138,19 @@
               <span class="filechip">.htmlclay &amp; Open With .html</span>
             </div>
           </div>
-        </div>
 
-        <!-- Deep-dive summary of all 7 panes -->
-        <div class="guarantees-grid" style="margin-top: 24px;">
-          <article class="guarantee-card">
-            <h3>General</h3>
-            <p>Open the dashboard at <span class="filechip">htmlclay.localhost:1212</span>, launch at login, handle <span class="filechip">.htmlclay</span> double-click opening (while keeping <span class="filechip">.html</span> files in your default browser with Open With support), set an optional author name, and choose System, Light, or Dark appearance.</p>
-          </article>
-          <article class="guarantee-card">
-            <h3>AI Editing</h3>
-            <p>Press <span class="filechip">&#8984;J</span> on any selected element to modify your software inline using detected local CLIs (<span class="filechip">Claude</span>, <span class="filechip">Codex</span>, or <span class="filechip">Gemini</span> via <span class="filechip">agy</span>) with per-tool model and effort pickers, or configure any custom command.</p>
-          </article>
-          <article class="guarantee-card">
-            <h3>Folders</h3>
-            <p>Manage local folders on your computer alongside synced personal and team spaces, showing each folder's <span class="filechip">Trusted</span>, <span class="filechip">Served</span>, and <span class="filechip">Synced</span> status with inline Open and Finder actions.</p>
-          </article>
-          <article class="guarantee-card">
-            <h3>Programs</h3>
-            <p>Answer waiting helper requests, enable built-in tools like file search or image conversion, add local scripts, inspect which documents may run each program, or revoke access immediately.</p>
-          </article>
-          <article class="guarantee-card">
-            <h3>Sync &amp; Updates</h3>
-            <p>Connect an optional Hyperclay sync key to mirror chosen folders live, and stay current with signed background updates that finish active saves before restarting and preserve your open tabs.</p>
-          </article>
-          <article class="guarantee-card">
-            <h3>Advanced</h3>
-            <p>Inspect or change your local port (<span class="filechip">1212</span>), check the live folder service, reveal version history and uploads directly in Finder, and open plain-text app and sync logs.</p>
-          </article>
+          <div class="settings-viewport">
+            <div class="settings-canvas">
+              <img class="settings-img" data-settings-img src="/images/v2/settings-general-light.webp" alt="HTML Clay General settings pane showing local dashboard link, Open at login toggle, .htmlclay file association toggle, optional author name, and System/Light/Dark appearance." width="870" height="794">
+              <button type="button" class="sidebar-hotspot" data-pane-hotspot="general" tabindex="-1" aria-hidden="true"></button>
+              <button type="button" class="sidebar-hotspot" data-pane-hotspot="ai" tabindex="-1" aria-hidden="true"></button>
+              <button type="button" class="sidebar-hotspot" data-pane-hotspot="folders" tabindex="-1" aria-hidden="true"></button>
+              <button type="button" class="sidebar-hotspot" data-pane-hotspot="programs" tabindex="-1" aria-hidden="true"></button>
+              <button type="button" class="sidebar-hotspot" data-pane-hotspot="sync" tabindex="-1" aria-hidden="true"></button>
+              <button type="button" class="sidebar-hotspot" data-pane-hotspot="updates" tabindex="-1" aria-hidden="true"></button>
+              <button type="button" class="sidebar-hotspot" data-pane-hotspot="advanced" tabindex="-1" aria-hidden="true"></button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -197,16 +166,15 @@
         <div class="pillars-grid">
           <article class="card">
             <h3>Trusted</h3>
-            <p>Every <span class="filechip">.htmlclay</span> file inside the folder opens editable right away with no confirmation dialog, pinned across macOS reboots by volume and inode while watching the disk for live outside edits.</p>
+            <p>Every <span class="filechip">.htmlclay</span> file inside the folder opens ready to edit and save right away, with no confirmation prompt.</p>
             <div class="pill-row" style="margin-top: 16px;">
               <span class="kiln-pill kiln-pill-trusted">Trusted</span>
-              <span class="filechip">~/Documents/Notes</span>
             </div>
           </article>
 
           <article class="card">
             <h3>Served</h3>
-            <p>Gives the folder a permanent local hostname like <span class="filechip">prototypes.htmlclay.localhost:1212</span> so <span class="filechip">.html</span> and <span class="filechip">.htmlclay</span> files save changes, share assets, link to each other, and compile local Tailwind v4 stylesheets.</p>
+            <p>Gives the folder its own stable local web address so <span class="filechip">.html</span> and <span class="filechip">.htmlclay</span> files can save changes, share images and scripts, and link to each other.</p>
             <div class="pill-row" style="margin-top: 16px;">
               <span class="kiln-pill kiln-pill-trusted">Trusted</span>
               <span class="kiln-pill kiln-pill-served">Served</span>
@@ -226,37 +194,65 @@
       </div>
     </section>
 
-    <!-- 4. AI Editing & Local Programs Consent -->
-    <section class="section section-warm" id="programs-ai">
+    <!-- 4. Modify Pages With AI -->
+    <section class="section section-warm" id="ai-editing">
       <div class="container">
-        <div class="split-spotlight split-spotlight-reverse">
-          <div class="ui-stage">
+        <div class="split-spotlight split-spotlight-reverse" id="programs-ai">
+          <div class="ui-stage" data-theme-stage data-theme="light">
             <div class="ui-stage-bar">
-              <span class="ui-stage-title">AI Editing &amp; Native Program Consent</span>
-            </div>
-            <div class="ui-shot" style="margin-bottom: 14px;">
-              <img src="/images/v2/settings-ai-light.webp" alt="HTML Clay AI Editing pane listing Claude, Codex, Gemini (agy), and Custom command." width="870" height="830" decoding="async">
+              <span class="ui-stage-title">AI Editing settings</span>
+              <div class="theme-switch" role="group" aria-label="AI Editing window appearance">
+                <button type="button" class="theme-btn" data-stage-theme-btn="light" aria-pressed="true">Light</button>
+                <button type="button" class="theme-btn" data-stage-theme-btn="dark" aria-pressed="false">Dark</button>
+              </div>
             </div>
             <div class="ui-shot">
-              <img src="/images/v2/request-found-light.webp" alt="macOS approval dialog showing ~/Documents/todo/tools/search.sh with Don't allow and Allow search.sh buttons." width="460" height="304" decoding="async">
+              <img src="/images/v2/settings-ai-light.webp" data-light-src="/images/v2/settings-ai-light.webp" data-dark-src="/images/v2/settings-ai-dark.webp" alt="HTML Clay AI Editing pane listing Claude, Codex, Gemini (agy), and Custom command." width="870" height="794" decoding="async">
             </div>
           </div>
 
           <div class="spotlight-copy">
-            <h2>Modify pages with AI &amp; run local scripts, always with consent</h2>
-            <p>Press <span class="filechip">&#8984;J</span> (<span class="filechip">Ctrl+J</span> on Windows and Linux) on any selected element to reshape how your page works: HTML Clay pipes only the selected HTML and your instruction to Claude, Codex, Gemini, or your custom command with tool execution locked off, letting you keep or revert the change inline.</p>
-            <p>When a document asks to run a local helper script or inspect a folder's Git history, opening the file never nags you upfront. Native approval dialogs wait until you trigger the feature, name the exact binary path, and pin its identity so a swapped file is refused.</p>
+            <h2>Modify pages with AI</h2>
+            <p>Press <span class="filechip">&#8984;J</span> (<span class="filechip">Ctrl+J</span> on Windows and Linux) on any selected element to reshape how your page works. HTML Clay sends only the selected HTML and your instruction to <strong>Claude</strong>, <strong>Codex</strong>, <strong>Gemini</strong>, or any custom CLI command on your computer with tool execution locked off, letting you keep or revert the change inline.</p>
             <div class="spotlight-links">
-              <a class="btn btn-secondary btn-sm" href="/security/">Security &amp; trust model &rarr;</a>
-              <a href="/docs/guide/ai-editing/">AI editing guide &rarr;</a>
+              <a class="btn btn-secondary btn-sm" href="/docs/guide/ai-editing/">AI editing guide &rarr;</a>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 5. Calculator Documents & JSON over HTTP (Positioned Lower on Features Page) -->
-    <section class="section" id="calculator-api">
+    <!-- 5. Run Local Scripts, Always With Consent -->
+    <section class="section" id="local-scripts">
+      <div class="container">
+        <div class="split-spotlight">
+          <div class="spotlight-copy">
+            <h2>Run local scripts, always with consent</h2>
+            <p>When a document asks to run a local helper script or search a project folder, opening the file never nags you upfront. Native approval dialogs wait until you trigger the feature, show the exact binary path on your disk, and pin its identity so a swapped file is refused.</p>
+            <div class="spotlight-links">
+              <a class="btn btn-secondary btn-sm" href="/security/">Security &amp; trust model &rarr;</a>
+              <a href="/docs/programs/">Programs reference &rarr;</a>
+            </div>
+          </div>
+
+          <div class="ui-stage" data-theme-stage data-theme="light">
+            <div class="ui-stage-bar">
+              <span class="ui-stage-title">Native macOS Program Consent</span>
+              <div class="theme-switch" role="group" aria-label="Approval dialog appearance">
+                <button type="button" class="theme-btn" data-stage-theme-btn="light" aria-pressed="true">Light</button>
+                <button type="button" class="theme-btn" data-stage-theme-btn="dark" aria-pressed="false">Dark</button>
+              </div>
+            </div>
+            <div class="ui-shot">
+              <img src="/images/v2/request-found-light.webp" data-light-src="/images/v2/request-found-light.webp" data-dark-src="/images/v2/request-found-dark.webp" alt="macOS approval dialog showing ~/Documents/todo/tools/search.sh with Don't allow and Allow search.sh buttons." width="460" height="304" decoding="async">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Calculator Documents & JSON over HTTP (Positioned Lower on Features Page) -->
+    <section class="section section-warm" id="calculator-api">
       <div class="container">
         <div class="split-spotlight">
           <div class="spotlight-copy">
@@ -310,8 +306,8 @@ curl -X POST \
       </div>
     </section>
 
-    <!-- 6. Tiny Things You Might Notice (10 Engineering Guarantees) -->
-    <section class="section section-warm" id="guarantees">
+    <!-- 7. Tiny Things You Might Notice (10 Engineering Guarantees) -->
+    <section class="section" id="guarantees">
       <div class="container">
         <div class="section-head">
           <h2>Tiny things you might notice</h2>
@@ -372,7 +368,7 @@ curl -X POST \
       </div>
     </section>
 
-    <section class="section">
+    <section class="section section-tight">
       <div class="container">
         <div class="banner-card">
           <div>
