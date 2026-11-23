@@ -149,7 +149,7 @@
     }
     .ing-list li:first-of-type { border-top: 0; }
     .amt {
-      width: 58px;
+      width: 54px;
       flex: none;
       font: 600 13.5px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
       color: #1A1C23;
@@ -158,6 +158,16 @@
       border-radius: 7px;
       padding: 5px 7px;
       text-align: right;
+    }
+    .unit, .add-unit {
+      flex: none;
+      font: 600 13px/1.2 system-ui, -apple-system, sans-serif;
+      color: #434654;
+      background: #F4F2EC;
+      border: 1px solid #DFD9CB;
+      border-radius: 7px;
+      padding: 5px 8px;
+      cursor: pointer;
     }
     .scaled {
       flex: none;
@@ -181,7 +191,7 @@
       padding: 4px 7px;
     }
     .ing-item:hover { border-color: #E6E1D5; background: #FAF8F3; }
-    .ing-item:focus, .amt:focus, .scale-select:focus, .scale-in:focus, .add-ing input:focus {
+    .ing-item:focus, .amt:focus, .unit:focus, .scale-select:focus, .scale-in:focus, .add-ing input:focus, .add-unit:focus {
       outline: none;
       border-color: #B8420E;
       background: #FAF8F3;
@@ -201,6 +211,7 @@
 
     .add-ing {
       display: flex;
+      flex-wrap: wrap;
       gap: 7px;
       margin-top: 10px;
       padding-top: 10px;
@@ -208,7 +219,7 @@
       font-family: system-ui, -apple-system, sans-serif;
     }
     .add-amt {
-      width: 58px;
+      width: 54px;
       font: 600 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
       color: #1A1C23;
       background: #FAF8F3;
@@ -217,9 +228,14 @@
       padding: 6px 7px;
       text-align: right;
     }
+    .add-unit {
+      border-color: #D8D1C1;
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
     .add-text {
       flex: 1;
-      min-width: 0;
+      min-width: 140px;
       font: 14px/1.3 system-ui, -apple-system, sans-serif;
       color: #1A1C23;
       background: #FAF8F3;
@@ -289,58 +305,157 @@
 
       <ul class="ing-list" items="ingredients">
         <li item template data-id="">
-          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
+          <input class="amt" type="text" inputmode="decimal" autocomplete="off" bind="amount" persist value="1" aria-label="Base amount">
+          <select class="unit" bind="unit" persist aria-label="Unit">
+            <option value="">whole</option>
+            <option value="cup" selected>cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp">tsp</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="pinch">pinch</option>
+          </select>
+          <output class="scaled" text="fmtScaled(item.amount, item.unit, root.scalemode, root.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-bananas">
-          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="3" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
+          <input class="amt" type="text" inputmode="decimal" autocomplete="off" bind="amount" persist value="3" aria-label="Base amount">
+          <select class="unit" bind="unit" persist aria-label="Unit">
+            <option value="" selected>whole</option>
+            <option value="cup">cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp">tsp</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="pinch">pinch</option>
+          </select>
+          <output class="scaled" text="fmtScaled(item.amount, item.unit, root.scalemode, root.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="very ripe bananas, mashed" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-butter">
-          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="0.33" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
-          <input class="ing-item" type="text" bind="item" persist value="cup melted salted butter" aria-label="Ingredient">
+          <input class="amt" type="text" inputmode="decimal" autocomplete="off" bind="amount" persist value="0.5" aria-label="Base amount">
+          <select class="unit" bind="unit" persist aria-label="Unit">
+            <option value="">whole</option>
+            <option value="cup" selected>cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp">tsp</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="pinch">pinch</option>
+          </select>
+          <output class="scaled" text="fmtScaled(item.amount, item.unit, root.scalemode, root.customscale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="melted salted butter" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-sugar">
-          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="0.75" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
-          <input class="ing-item" type="text" bind="item" persist value="cup dark brown sugar" aria-label="Ingredient">
+          <input class="amt" type="text" inputmode="decimal" autocomplete="off" bind="amount" persist value="0.75" aria-label="Base amount">
+          <select class="unit" bind="unit" persist aria-label="Unit">
+            <option value="">whole</option>
+            <option value="cup" selected>cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp">tsp</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="pinch">pinch</option>
+          </select>
+          <output class="scaled" text="fmtScaled(item.amount, item.unit, root.scalemode, root.customscale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="dark brown sugar" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-egg">
-          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
+          <input class="amt" type="text" inputmode="decimal" autocomplete="off" bind="amount" persist value="1" aria-label="Base amount">
+          <select class="unit" bind="unit" persist aria-label="Unit">
+            <option value="" selected>whole</option>
+            <option value="cup">cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp">tsp</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="pinch">pinch</option>
+          </select>
+          <output class="scaled" text="fmtScaled(item.amount, item.unit, root.scalemode, root.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="large egg, beaten" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-vanilla">
-          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
-          <input class="ing-item" type="text" bind="item" persist value="tsp vanilla extract" aria-label="Ingredient">
+          <input class="amt" type="text" inputmode="decimal" autocomplete="off" bind="amount" persist value="1" aria-label="Base amount">
+          <select class="unit" bind="unit" persist aria-label="Unit">
+            <option value="">whole</option>
+            <option value="cup">cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp" selected>tsp</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="pinch">pinch</option>
+          </select>
+          <output class="scaled" text="fmtScaled(item.amount, item.unit, root.scalemode, root.customscale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="vanilla extract" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-soda">
-          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
-          <input class="ing-item" type="text" bind="item" persist value="tsp baking soda &amp; pinch of salt" aria-label="Ingredient">
+          <input class="amt" type="text" inputmode="decimal" autocomplete="off" bind="amount" persist value="1" aria-label="Base amount">
+          <select class="unit" bind="unit" persist aria-label="Unit">
+            <option value="">whole</option>
+            <option value="cup">cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp" selected>tsp</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="pinch">pinch</option>
+          </select>
+          <output class="scaled" text="fmtScaled(item.amount, item.unit, root.scalemode, root.customscale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="baking soda &amp; pinch of salt" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-flour">
-          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1.5" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
-          <input class="ing-item" type="text" bind="item" persist value="cups all-purpose flour" aria-label="Ingredient">
+          <input class="amt" type="text" inputmode="decimal" autocomplete="off" bind="amount" persist value="1.5" aria-label="Base amount">
+          <select class="unit" bind="unit" persist aria-label="Unit">
+            <option value="">whole</option>
+            <option value="cup" selected>cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp">tsp</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="pinch">pinch</option>
+          </select>
+          <output class="scaled" text="fmtScaled(item.amount, item.unit, root.scalemode, root.customscale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="all-purpose flour" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
       </ul>
 
       <form class="add-ing" trigger-add="ingredients">
-        <input class="add-amt" type="number" min="0" step="any" bind="amount" placeholder="1" required aria-label="New amount">
-        <input class="add-text" type="text" bind="item" placeholder="Add an ingredient (e.g. cup toasted walnuts)" required aria-label="New ingredient">
+        <input class="add-amt" type="text" inputmode="decimal" autocomplete="off" pattern="^(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$" bind="amount" placeholder="0.5" required aria-label="New amount">
+        <select class="add-unit" bind="unit" default="cup" aria-label="New unit">
+          <option value="">whole</option>
+          <option value="cup" selected>cup</option>
+          <option value="tbsp">tbsp</option>
+          <option value="tsp">tsp</option>
+          <option value="oz">oz</option>
+          <option value="lb">lb</option>
+          <option value="g">g</option>
+          <option value="ml">ml</option>
+          <option value="pinch">pinch</option>
+        </select>
+        <input class="add-text" type="text" bind="item" placeholder="Add an ingredient (e.g. toasted walnuts)" required aria-label="New ingredient">
         <button type="submit">Add</button>
       </form>
     </section>
@@ -358,12 +473,20 @@
   </article>
 
   <script>
-    function fmtScaled(amount, mode, custom) {
+    function fmtUnit(unit, val) {
+      if (!unit) return "";
+      if (val === 1) return " " + unit;
+      if (unit === "cup") return " cups";
+      if (unit === "lb") return " lbs";
+      if (unit === "pinch") return " pinches";
+      return " " + unit;
+    }
+    function fmtScaled(amount, unit, mode, custom) {
       const m = mode === "custom" ? parseFloat(custom) : Number(mode);
-      const a = Number(amount);
+      const a = parseFloat(amount);
       if (!Number.isFinite(m) || m <= 0 || m === 1 || !Number.isFinite(a)) return "";
       const v = Math.round(a * m * 100) / 100;
-      return "= " + v;
+      return "= " + v + fmtUnit(unit, v);
     }
   </script>
   <script src="https://clayjs.com/v1/clay.js?plugins=sync,wire,menu,undo,indicator"></script>
@@ -373,6 +496,10 @@
     const app = document.getElementById("ingredients");
     const scaleSelect = document.getElementById("scale-select");
     const customIn = document.getElementById("scale-custom-in");
+
+    function isDecimalInput(el) {
+      return Boolean(el?.matches?.(".amt, .add-amt, #scale-custom-in"));
+    }
 
     function sanitizeDecimal(raw) {
       let clean = String(raw || "").replace(/[^0-9.]/g, "");
@@ -392,25 +519,41 @@
       }
     });
 
-    customIn.addEventListener("beforeinput", (e) => {
-      if (!e.data || e.data.length !== 1) return;
+    app.addEventListener("beforeinput", (e) => {
+      const el = e.target;
+      if (!isDecimalInput(el) || !e.data || e.data.length !== 1) return;
       if (!/[0-9.]/.test(e.data)) {
         e.preventDefault();
         return;
       }
       if (e.data === ".") {
-        const start = customIn.selectionStart ?? 0;
-        const end = customIn.selectionEnd ?? 0;
-        const rest = customIn.value.slice(0, start) + customIn.value.slice(end);
+        const start = el.selectionStart ?? 0;
+        const end = el.selectionEnd ?? 0;
+        const rest = el.value.slice(0, start) + el.value.slice(end);
         if (rest.includes(".")) e.preventDefault();
       }
     });
 
     window.addEventListener("input", (e) => {
-      if (e.target !== customIn) return;
-      const clean = sanitizeDecimal(customIn.value);
-      if (customIn.value !== clean) customIn.value = clean;
+      const el = e.target;
+      if (!isDecimalInput(el)) return;
+      const clean = sanitizeDecimal(el.value);
+      if (el.value !== clean) el.value = clean;
     }, true);
+
+    app.addEventListener("keydown", (e) => {
+      const el = e.target;
+      if (!isDecimalInput(el)) return;
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      e.preventDefault();
+      const cur = parseFloat(el.value);
+      const base = Number.isFinite(cur) ? cur : 0;
+      const min = el.id === "scale-custom-in" ? 0.25 : 0;
+      const next = Math.max(min, Math.round((base + (e.key === "ArrowUp" ? 0.25 : -0.25)) * 10000) / 10000);
+      el.value = String(next);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    });
 
     function syncControls() {
       for (const el of app.querySelectorAll("input[persist], textarea[persist], select[persist]")) {
