@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" autosave>
+<html lang="en" autosave opens-in="edit">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -116,7 +116,7 @@
     <div class="topbar">
       <div>
         <h1 editable="single-line">Weekend Camping Trip</h1>
-        <p class="sub" editable="single-line">Two nights in the pines &middot; click to check off or switch to Edit mode in the menu</p>
+        <p class="sub" editable="single-line">Two nights in the pines &middot; click any box to check off or type to edit</p>
       </div>
       <div class="ai-anchor" clay="editor-ui">
         <button type="button" class="ai-btn" id="ai-btn" aria-expanded="false" aria-controls="ai-pop">

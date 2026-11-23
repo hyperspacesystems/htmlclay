@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" autosave>
+<html lang="en" autosave opens-in="edit">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -100,41 +100,41 @@
     .scale-bar {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      background: #F4F2EC;
-      border: 1px solid #E2DDD1;
-      border-radius: 999px;
-      padding: 3px 6px 3px 4px;
-      font-size: 12px;
+      gap: 6px;
+      font-size: 13px;
     }
-    .scale-pill {
-      appearance: none;
-      border: 0;
-      background: transparent;
+    .scale-label {
+      font-size: 12.5px;
+      font-weight: 600;
       color: #5F6373;
-      font: 600 12px/1 system-ui, -apple-system, sans-serif;
-      padding: 5px 8px;
-      border-radius: 999px;
+    }
+    .scale-select {
+      font: 600 13px/1.2 system-ui, -apple-system, sans-serif;
+      color: #1A1C23;
+      background: #F4F2EC;
+      border: 1px solid #D5CEBE;
+      border-radius: 8px;
+      padding: 5px 10px;
       cursor: pointer;
     }
-    .scale-pill.active { background: #1B1A17; color: #FAF8F3; }
+    .scale-bar:not([data-mode="custom"]) .scale-custom {
+      display: none;
+    }
     .scale-custom {
       display: inline-flex;
       align-items: center;
-      gap: 3px;
-      padding-left: 5px;
-      border-left: 1px solid #DDD7C8;
+      gap: 4px;
       color: #5F6373;
       font-weight: 600;
     }
     .scale-in {
-      width: 46px;
-      font: 600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      width: 56px;
+      font: 600 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
       color: #1A1C23;
-      background: #FCFBF7;
+      background: #FAF8F3;
       border: 1px solid #D5CEBE;
-      border-radius: 6px;
-      padding: 3px 5px;
+      border-radius: 8px;
+      padding: 5px 7px;
       text-align: center;
     }
 
@@ -181,7 +181,7 @@
       padding: 4px 7px;
     }
     .ing-item:hover { border-color: #E6E1D5; background: #FAF8F3; }
-    .ing-item:focus, .amt:focus, .scale-in:focus, .add-ing input:focus {
+    .ing-item:focus, .amt:focus, .scale-select:focus, .scale-in:focus, .add-ing input:focus {
       outline: none;
       border-color: #B8420E;
       background: #FAF8F3;
@@ -271,61 +271,68 @@
     <section id="ingredients" sap>
       <div class="sec-head">
         <h2>Ingredients</h2>
-        <div class="scale-bar" role="group" aria-label="Multiply ingredients">
-          <button type="button" class="scale-pill" set:scale="0.5" class:active="Number(state.scale) === 0.5">0.5&times;</button>
-          <button type="button" class="scale-pill active" set:scale="1" class:active="Number(state.scale) === 1">1&times;</button>
-          <button type="button" class="scale-pill" set:scale="2" class:active="Number(state.scale) === 2">2&times;</button>
-          <button type="button" class="scale-pill" set:scale="3" class:active="Number(state.scale) === 3">3&times;</button>
-          <label class="scale-custom">&times;<input class="scale-in" type="number" min="0.25" step="0.25" bind="scale" persist value="1" aria-label="Multiplier"></label>
+        <div class="scale-bar" data-mode="1" attr:data-mode="state.scalemode">
+          <label class="scale-label" for="scale-select">Batch</label>
+          <select id="scale-select" class="scale-select" bind="scalemode" persist>
+            <option value="0.5">0.5&times;</option>
+            <option value="1" selected>1&times;</option>
+            <option value="2">2&times;</option>
+            <option value="3">3&times;</option>
+            <option value="custom">Custom&hellip;</option>
+          </select>
+          <label class="scale-custom" for="scale-custom-in">
+            <span aria-hidden="true">&times;</span>
+            <input id="scale-custom-in" class="scale-in" type="text" inputmode="decimal" autocomplete="off" bind="customscale" persist value="1.5" aria-label="Custom multiplier">
+          </label>
         </div>
       </div>
 
       <ul class="ing-list" items="ingredients">
         <li item template data-id="">
           <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-bananas">
           <input class="amt" type="number" min="0" step="any" bind="amount" persist value="3" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="very ripe bananas, mashed" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-butter">
           <input class="amt" type="number" min="0" step="any" bind="amount" persist value="0.33" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="cup melted salted butter" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-sugar">
           <input class="amt" type="number" min="0" step="any" bind="amount" persist value="0.75" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="cup dark brown sugar" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-egg">
           <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="large egg, beaten" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-vanilla">
           <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="tsp vanilla extract" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-soda">
           <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="tsp baking soda &amp; pinch of salt" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
         <li item data-id="i-flour">
           <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1.5" aria-label="Base amount">
-          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <output class="scaled" text="fmtScaled(item.amount, state.scalemode, state.customscale)"></output>
           <input class="ing-item" type="text" bind="item" persist value="cups all-purpose flour" aria-label="Ingredient">
           <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
         </li>
@@ -351,10 +358,10 @@
   </article>
 
   <script>
-    function fmtScaled(amount, scale) {
-      const m = Number(scale);
+    function fmtScaled(amount, mode, custom) {
+      const m = mode === "custom" ? parseFloat(custom) : Number(mode);
       const a = Number(amount);
-      if (!Number.isFinite(m) || m === 1 || !Number.isFinite(a)) return "";
+      if (!Number.isFinite(m) || m <= 0 || m === 1 || !Number.isFinite(a)) return "";
       const v = Math.round(a * m * 100) / 100;
       return "= " + v;
     }
@@ -364,9 +371,51 @@
   <script src="https://clayjs.com/v1/sap.js"></script>
   <script>
     const app = document.getElementById("ingredients");
+    const scaleSelect = document.getElementById("scale-select");
+    const customIn = document.getElementById("scale-custom-in");
+
+    function sanitizeDecimal(raw) {
+      let clean = String(raw || "").replace(/[^0-9.]/g, "");
+      const dot = clean.indexOf(".");
+      if (dot !== -1) {
+        clean = clean.slice(0, dot + 1) + clean.slice(dot + 1).replace(/\./g, "");
+      }
+      return clean;
+    }
+
+    scaleSelect.addEventListener("change", () => {
+      if (scaleSelect.value === "custom") {
+        setTimeout(() => {
+          customIn.focus();
+          customIn.select();
+        }, 0);
+      }
+    });
+
+    customIn.addEventListener("beforeinput", (e) => {
+      if (!e.data || e.data.length !== 1) return;
+      if (!/[0-9.]/.test(e.data)) {
+        e.preventDefault();
+        return;
+      }
+      if (e.data === ".") {
+        const start = customIn.selectionStart ?? 0;
+        const end = customIn.selectionEnd ?? 0;
+        const rest = customIn.value.slice(0, start) + customIn.value.slice(end);
+        if (rest.includes(".")) e.preventDefault();
+      }
+    });
+
+    window.addEventListener("input", (e) => {
+      if (e.target !== customIn) return;
+      const clean = sanitizeDecimal(customIn.value);
+      if (customIn.value !== clean) customIn.value = clean;
+    }, true);
+
     function syncControls() {
       for (const el of app.querySelectorAll("input[persist], textarea[persist], select[persist]")) {
         if (el.type === "checkbox" || el.type === "radio") { el.checked = el.hasAttribute("checked"); continue; }
+        if (el.tagName === "SELECT") { for (const o of el.options) o.selected = o.hasAttribute("selected"); continue; }
         const saved = el.getAttribute("value") ?? "";
         if (el.value !== saved) el.value = saved;
       }
