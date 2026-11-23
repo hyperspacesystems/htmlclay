@@ -9,6 +9,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/server"
 )
 
 func TestSeedDefaultPlaygroundOnFreshInstallOnly(t *testing.T) {
@@ -164,6 +165,46 @@ func TestSeedDefaultPlaygroundOnFreshInstallOnly(t *testing.T) {
 			t.Fatalf("workspace was re-seeded after PlaygroundSeeded was set (stat err=%v)", err)
 		}
 	})
+}
+
+func TestSeedDefaultPlaygroundUsesAppDataDir(t *testing.T) {
+	realHome := evalTempHome(t)
+	dataDir := filepath.Join(realHome, "scratch", "cand", "htmlclay")
+	t.Setenv("HOME", realHome)
+	t.Setenv("HTMLCLAY_APP_DATA_DIR", dataDir)
+	t.Setenv("HTMLCLAY_CANDIDATE_FRESH", "1")
+
+	a := newServedTestApp(t, realHome, t.TempDir())
+	a.seedDefaultPlayground()
+	uploadsDir, err := server.ResolvedUploadsLibraryDir()
+	if err != nil {
+		t.Fatalf("ResolvedUploadsLibraryDir: %v", err)
+	}
+	if uploadsDir != filepath.Join(dataDir, "uploads") {
+		t.Fatalf("uploads library = %s, want %s", uploadsDir, filepath.Join(dataDir, "uploads"))
+	}
+
+	dir := filepath.Join(dataDir, "workspace")
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		t.Fatalf("expected the seeded workspace at %s, err=%v", dir, err)
+	}
+	if _, err := os.Stat(filepath.Join(realHome, "htmlclay")); !os.IsNotExist(err) {
+		t.Fatalf("seeding or uploads library touched the real ~/htmlclay (stat err=%v)", err)
+	}
+	servedList := a.rt.cfg.ServedFolderList()
+	if len(servedList) != 1 || servedList[0].Path != dir {
+		t.Fatalf("served folders = %+v, want only %s", servedList, dir)
+	}
+
+	documents := filepath.Join(realHome, "Documents", "Default Project")
+	if err := os.MkdirAll(documents, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, refusal, err := a.serveFolderNamed(documents, "default-project"); err != nil {
+		t.Fatalf("serving %s: %v", documents, err)
+	} else if refusal != nil {
+		t.Fatalf("serving %s refused: %+v", documents, refusal)
+	}
 }
 
 func TestHandleInstanceCommandOpenDashboard(t *testing.T) {

@@ -36,7 +36,7 @@ const (
 
 // helperTeamDocumentSentence is the app's team copy, shown beside a document a
 // team shares so the person knows why it asks one at a time.
-const helperTeamDocumentSentence = "A team shares this document's folder, and its editors can change it later. You can allow a program for this document only."
+const helperTeamDocumentSentence = "A team shares this HTML file's folder, and its editors can change it later. You can allow a program for this HTML file only."
 
 // helperSetupPresenter is the one setup flow's view of who answers: the
 // request window under the Mac app, today's dialogs otherwise. widePick is the
@@ -432,7 +432,7 @@ func (a *app) helperSetupMessage(document, name string, suggestion helperSuggest
 	var b strings.Builder
 	base := filepath.Base(document)
 	if suggestion.path != "" {
-		fmt.Fprintf(&b, "%s wants to run this program:\n\n    %s\n    %s\n\nThe document calls it “%s”.", base, filepath.Base(suggestion.path), a.tildePath(suggestion.path), name)
+		fmt.Fprintf(&b, "%s wants to run this program:\n\n    %s\n    %s\n\nThe HTML file calls it “%s”.", base, filepath.Base(suggestion.path), a.tildePath(suggestion.path), name)
 		if suggestion.program.ID != "" && suggestion.program.Name != name {
 			fmt.Fprintf(&b, " You allowed this file before as “%s”, which is why “%s” was not connected.", suggestion.program.Name, name)
 		}
@@ -442,7 +442,7 @@ func (a *app) helperSetupMessage(document, name string, suggestion helperSuggest
 	for _, line := range suggestion.withheld {
 		b.WriteString("\n\n" + line)
 	}
-	b.WriteString("\n\nThe program runs as you and can read or change any file your account can access. Deny lasts until you open the document again.")
+	b.WriteString("\n\nThe program runs as you and can read or change any file your account can access. Deny lasts until you open the HTML file again.")
 	return b.String()
 }
 
@@ -451,8 +451,8 @@ func (a *app) helperTrustedFoldersMessage(name string, suggestion helperSuggesti
 	if suggestion.path != "" {
 		target = a.tildePath(suggestion.path)
 	}
-	return fmt.Sprintf("Allow %s for every document in your trusted folders that asks for “%s”?\n\n"+
-		"Those documents will run it with their own input, without asking you. Documents outside your trusted folders still ask, one at a time.\n\n"+
+	return fmt.Sprintf("Allow %s for every HTML file in your trusted folders that asks for “%s”?\n\n"+
+		"Those HTML files will run it with their own input, without asking you. HTML files outside your trusted folders still ask, one at a time.\n\n"+
 		"Choose another file allows a different file for this document only.", target, name)
 }
 

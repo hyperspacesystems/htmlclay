@@ -7,6 +7,23 @@ import (
 	"github.com/panphora/htmlclay/internal/session"
 )
 
+// appDataDir is where starter workspace, built-in examples, and unserved template
+// creations live: HTMLCLAY_APP_DATA_DIR when set to an absolute path inside home
+// (used by Candidate builds so ~/htmlclay on the real Mac stays untouched while
+// real ~/Documents folders remain inside a.rt.home), else ~/htmlclay.
+func (a *app) appDataDir() string {
+	if given := os.Getenv("HTMLCLAY_APP_DATA_DIR"); given != "" && filepath.IsAbs(given) {
+		return filepath.Clean(given)
+	}
+	home := a.rt.home
+	if home == "" {
+		if resolved, err := os.UserHomeDir(); err == nil {
+			home = resolved
+		}
+	}
+	return filepath.Join(home, "htmlclay")
+}
+
 // seedDefaultPlayground creates and serves an empty ~/htmlclay/workspace
 // strictly once on a fresh install (when config.json did not exist, or on the
 // first Candidate launch, when PlaygroundSeeded is false, and no folders are
@@ -26,7 +43,7 @@ func (a *app) seedDefaultPlayground() {
 		return
 	}
 
-	dir := filepath.Join(a.rt.home, "htmlclay", "workspace")
+	dir := filepath.Join(a.appDataDir(), "workspace")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		a.rt.logger.Printf("Could not create default workspace folder %s: %v", dir, err)
 		return

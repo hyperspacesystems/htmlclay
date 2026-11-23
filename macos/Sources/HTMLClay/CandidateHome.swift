@@ -10,7 +10,7 @@ struct CandidateHomeFailure: Error, CustomStringConvertible {
 }
 
 enum CandidateHome {
-    /// HTMLCLAY_CANDIDATE_HOME when set and absolute, else a new /tmp/hc-<8 hex>. Resolved with realpath.
+    /// HTMLCLAY_CANDIDATE_HOME when set and absolute, else a new ~/Library/Caches/com.htmlclay.HTMLClayCandidate/hc-<8 hex>. Resolved with realpath.
     static func resolve() throws -> URL {
         let manager = FileManager.default
         if let given = ProcessInfo.processInfo.environment["HTMLCLAY_CANDIDATE_HOME"],
@@ -18,9 +18,17 @@ enum CandidateHome {
             try manager.createDirectory(atPath: given, withIntermediateDirectories: true)
             return try real(URL(fileURLWithPath: given))
         }
-        let path = "/tmp/hc-" + hexadecimal(4)
-        try manager.createDirectory(atPath: path, withIntermediateDirectories: true)
-        return try real(URL(fileURLWithPath: path))
+        let directory = manager.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Caches/com.htmlclay.HTMLClayCandidate/hc-" + hexadecimal(4), isDirectory: true)
+        try manager.createDirectory(at: directory, withIntermediateDirectories: true)
+        return try real(directory)
+    }
+
+    /// True when an automated harness gave HTMLCLAY_CANDIDATE_HOME without asking to keep the user's real HOME.
+    static var isolatesUserHome: Bool {
+        let env = ProcessInfo.processInfo.environment
+        guard let given = env["HTMLCLAY_CANDIDATE_HOME"], given.hasPrefix("/") else { return false }
+        return env["HTMLCLAY_CANDIDATE_REAL_HOME"] != "1"
     }
 
     /// Writes <config base>/htmlclay/config.json = {"startOnLogin": <true without a persona>, "port": <free loopback port>, "updates": "off"} unless it exists.
@@ -94,7 +102,17 @@ enum CandidateHome {
     }
 
     static func environment(_ home: URL, fresh: Bool = false) -> [String: String] {
-        var env = ["HOME": home.path, "HTMLCLAY_CONFIG_BASE": configBase(home).path]
+        var env: [String: String]
+        if isolatesUserHome {
+            env = ["HOME": home.path, "HTMLCLAY_CONFIG_BASE": configBase(home).path]
+        } else {
+            let realHome = FileManager.default.homeDirectoryForCurrentUser.path
+            env = [
+                "HOME": realHome,
+                "HTMLCLAY_CONFIG_BASE": configBase(home).path,
+                "HTMLCLAY_APP_DATA_DIR": home.appendingPathComponent("htmlclay", isDirectory: true).path,
+            ]
+        }
         if fresh {
             env["HTMLCLAY_CANDIDATE_FRESH"] = "1"
         }

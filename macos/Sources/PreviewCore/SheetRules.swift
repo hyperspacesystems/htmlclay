@@ -5,7 +5,26 @@ public enum ServeRules {
         address.components(separatedBy: ".").first ?? ""
     }
     public static func defaultName(for path: String) -> String {
-        (path as NSString).lastPathComponent.lowercased().replacingOccurrences(of: " ", with: "-")
+        let base = (path as NSString).lastPathComponent.lowercased()
+        var out = ""
+        var pendingHyphen = false
+        for scalar in base.unicodeScalars {
+            let isLower = scalar.value >= 0x61 && scalar.value <= 0x7A
+            let isDigit = scalar.value >= 0x30 && scalar.value <= 0x39
+            if isLower || isDigit {
+                if pendingHyphen && !out.isEmpty {
+                    if out.count >= 39 { break }
+                    out.append("-")
+                }
+                pendingHyphen = false
+                out.append(Character(scalar))
+                if out.count >= 40 { break }
+            } else if !out.isEmpty {
+                pendingHyphen = true
+            }
+        }
+        while out.last == "-" { out.removeLast() }
+        return out.isEmpty ? "folder" : out
     }
     public static func address(for name: String) -> String {
         name.lowercased() + SampleReducer.addressSuffix

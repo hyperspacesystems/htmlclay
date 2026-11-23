@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"maps"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -51,9 +52,9 @@ const (
 	dashboardRefuseEtagRequired  = "etag-required"
 	dashboardRefuseNotRestorable = "not-restorable"
 
-	textVersionStale         = "This document changed since you looked, so HTML Clay didn't restore it."
-	textVersionEtagRequired  = "This restore didn't include which version of the document you saw, so HTML Clay didn't restore it. Try again."
-	textVersionNotRestorable = "This document isn't open or in a trusted folder, so its versions aren't available here. Open the document or trust its folder."
+	textVersionStale         = "This HTML file changed since you looked, so HTML Clay didn't restore it."
+	textVersionEtagRequired  = "This restore didn't include which version of the HTML file you saw, so HTML Clay didn't restore it. Try again."
+	textVersionNotRestorable = "This HTML file isn't open or in a trusted folder, so its versions aren't available here. Open the HTML file or trust its folder."
 
 	// dashboardPingEvery is how often the event stream sends a comment line, so a
 	// quiet stream is not closed for looking idle.
@@ -150,6 +151,14 @@ func (d *dashboardApp) folder(w http.ResponseWriter, r *http.Request) {
 	id, what, ok := strings.Cut(strings.TrimPrefix(r.URL.Path, dashboardFolderPrefix), "/")
 	if !ok || id == "" || what == "" || strings.Contains(what, "/") {
 		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+		return
+	}
+	if what == "upload" {
+		if r.Method != http.MethodPost {
+			writeDashboardJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": http.StatusText(http.StatusMethodNotAllowed), "reason": "unsupported"})
+			return
+		}
+		d.upload(w, r, id)
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -296,6 +305,150 @@ func (d *dashboardApp) open(w http.ResponseWriter, r *http.Request, id string) {
 	h.Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="strict-origin"><meta http-equiv="refresh" content="0;url=%s"><script>window.location.replace(%s);</script></head><body></body></html>`, escaped, urlJSON)
+}
+
+// upload answers a multipart post of files into the folder, written through the
+// root so a name can only ever land inside it. A name already there is numbered,
+// never replaced, and an uploaded document is noted as seen from outside the OS
+// file browser so unknown code still asks before running programs or reading
+// sibling files while already-trusted or Ecosystem-signed code keeps working.
+func (d *dashboardApp) upload(w http.ResponseWriter, r *http.Request, id string) {
+	folder, ok := d.a.dashboardFolder(id)
+	if !ok {
+		writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+		return
+	}
+	defer folder.close()
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<20)
+	if err := r.ParseMultipartForm(16 << 20); err != nil {
+		writeDashboardJSON(w, http.StatusBadRequest, map[string]string{"error": "Could not read the uploaded files.", "reason": "bad-upload"})
+		return
+	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
+	parentRel := ""
+	if parent := r.URL.Query().Get("parent"); parent != "" {
+		rel, ok := dashboardFolderRel(parent)
+		if !ok {
+			writeDashboardJSON(w, http.StatusBadRequest, map[string]string{"error": "That folder cannot take uploads.", "reason": "bad-parent"})
+			return
+		}
+		parentRel = rel
+		if err := folder.root.MkdirAll(rel, 0o755); err != nil {
+			writeDashboardJSON(w, http.StatusNotFound, map[string]string{"error": http.StatusText(http.StatusNotFound), "reason": "missing"})
+			return
+		}
+	}
+	files := r.MultipartForm.File["files"]
+	if len(files) == 0 {
+		writeDashboardJSON(w, http.StatusBadRequest, map[string]string{"error": "Choose at least one file to upload.", "reason": "no-files"})
+		return
+	}
+	for _, fh := range files {
+		if _, ok := validUploadLeaf(fh.Filename); !ok {
+			writeDashboardJSON(w, http.StatusBadRequest, map[string]string{"error": "One of the files has a name HTML Clay cannot use.", "reason": "bad-name"})
+			return
+		}
+	}
+	uploaded := make([]dashboardFolderItem, 0, len(files))
+	for _, fh := range files {
+		relPath, info, err := folder.writeUpload(parentRel, fh)
+		if err == errBadUploadName {
+			writeDashboardJSON(w, http.StatusBadRequest, map[string]string{"error": "One of the files has a name HTML Clay cannot use.", "reason": "bad-name"})
+			return
+		}
+		if err != nil {
+			d.a.rt.logger.Printf("Could not save an uploaded file in %s: %v", folder.path, err)
+			writeDashboardJSON(w, http.StatusInternalServerError, map[string]string{"error": http.StatusText(http.StatusInternalServerError), "reason": "failed"})
+			return
+		}
+		item := dashboardFolderItem{
+			Name:     path.Base(relPath),
+			Path:     relPath,
+			Kind:     dashboardFolderKind(relPath, info),
+			Size:     info.Size(),
+			Modified: info.ModTime().UTC().Format(time.RFC3339),
+		}
+		if item.Kind == "document" {
+			if folder.served {
+				item.Open = folder.address + "/" + dashboardFolderPath(relPath)
+			} else {
+				item.Open = dashboardFolderPrefix + url.PathEscape(folder.id) + "/open?path=" + url.QueryEscape(relPath)
+			}
+		}
+		if dashboardFolderDocument(relPath) {
+			if store := d.a.tierStore(); store != nil {
+				if _, err := store.NoteSeen(closedPath(filepath.Join(folder.path, filepath.FromSlash(relPath))), true); err != nil {
+					d.a.rt.logger.Printf("Could not record uploaded file %s: %v", relPath, err)
+				}
+			}
+		}
+		uploaded = append(uploaded, item)
+	}
+	writeDashboardJSON(w, http.StatusOK, map[string]any{"uploaded": uploaded})
+}
+
+// errBadUploadName is the answer to an upload whose file name is one the
+// dashboard cannot use.
+var errBadUploadName = errors.New("bad upload name")
+
+func validUploadLeaf(raw string) (string, bool) {
+	leaf := path.Base(strings.ReplaceAll(raw, "\\", "/"))
+	if leaf == "" || leaf == "." || leaf == ".." || strings.HasPrefix(leaf, ".") || strings.ContainsAny(leaf, "/\\\x00") {
+		return "", false
+	}
+	return leaf, true
+}
+
+// writeUpload copies one uploaded file into the folder under parentRel, at the
+// first free numbered name. It never replaces a file and never lands outside the
+// root.
+func (f *dashboardFolder) writeUpload(parentRel string, fh *multipart.FileHeader) (string, fs.FileInfo, error) {
+	leaf, ok := validUploadLeaf(fh.Filename)
+	if !ok {
+		return "", nil, errBadUploadName
+	}
+	ext := path.Ext(leaf)
+	stem := strings.TrimSuffix(leaf, ext)
+	var relPath string
+	var out *os.File
+	var err error
+	for n := 1; n <= maxTemplateNameTries; n++ {
+		candidateLeaf := numberedName(stem, "-", ext)(n)
+		relPath = candidateLeaf
+		if parentRel != "" {
+			relPath = parentRel + "/" + candidateLeaf
+		}
+		out, err = f.root.OpenFile(relPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if errors.Is(err, fs.ErrExist) {
+			continue
+		}
+		break
+	}
+	if err != nil {
+		return "", nil, err
+	}
+	src, err := fh.Open()
+	if err != nil {
+		_ = out.Close()
+		_ = f.root.Remove(relPath)
+		return "", nil, err
+	}
+	_, copyErr := io.Copy(out, src)
+	_ = src.Close()
+	if err := errors.Join(copyErr, out.Close()); err != nil {
+		_ = f.root.Remove(relPath)
+		return "", nil, err
+	}
+	info, err := f.root.Stat(relPath)
+	if err != nil {
+		_ = f.root.Remove(relPath)
+		return "", nil, err
+	}
+	return relPath, info, nil
 }
 
 // document resolves one path inside the folder to a document file through the

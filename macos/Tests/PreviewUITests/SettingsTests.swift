@@ -68,9 +68,9 @@ final class SettingsTests: XCTestCase {
               let bluesky = served.program("bluesky-studio"),
               let claySearch = served.program("clay-search") else { return XCTFail("missing sample programs") }
         XCTAssertEqual(ProgramRow.subtitle(search), "notes.htmlclay may run it")
-        XCTAssertEqual(ProgramRow.subtitle(bluesky), "All documents in trusted folders")
+        XCTAssertEqual(ProgramRow.subtitle(bluesky), "All HTML files in trusted folders")
         XCTAssertEqual(ProgramRow.fileName(claySearch), "clay-search")
-        XCTAssertEqual(Strings.Programs.fileMissing(1), "file missing · 1 document uses it")
+        XCTAssertEqual(Strings.Programs.fileMissing(1), "file missing · 1 HTML file uses it")
 
         let trusted = SampleData.snapshot(for: .trustedFolder)
         let waiting = ProgramsPane.waitingRequests(trusted)
@@ -79,7 +79,7 @@ final class SettingsTests: XCTestCase {
             XCTAssertEqual(ProgramsPane.waitingTitle(item, snapshot: trusted), "todo.htmlclay wants “todo-search”")
         }
         guard let todoSearch = trusted.program("todo-search") else { return XCTFail("missing todo-search") }
-        XCTAssertEqual(ProgramRow.subtitle(todoSearch), "No document may run it until you allow one.")
+        XCTAssertEqual(ProgramRow.subtitle(todoSearch), "No HTML file may run it until you allow one.")
 
         XCTAssertTrue(ProgramsPane.waitingRequests(SampleData.snapshot(for: .newPerson)).isEmpty)
 

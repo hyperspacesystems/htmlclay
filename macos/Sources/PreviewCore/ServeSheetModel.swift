@@ -39,8 +39,9 @@ public final class ServeSheetModel {
             name = current.isEmpty ? ServeRules.defaultName(for: known) : current
             nameEditable = false
         } else {
-            path = model.folderChooser?.first(in: snapshot) ?? ""
-            name = ""
+            let initialPath = model.folderChooser?.first(in: snapshot) ?? ""
+            path = initialPath
+            name = initialPath.isEmpty ? "" : ServeRules.defaultName(for: initialPath)
             nameEditable = true
         }
     }
@@ -80,7 +81,7 @@ public final class ServeSheetModel {
     public func choose() async {
         guard let next = await model.folderChooser?.choose(after: path.isEmpty ? nil : path, in: model.snapshot) else { return }
         path = next
-        name = ""
+        name = ServeRules.defaultName(for: next)
         nameEdited = false
         address = ""
         pathProblem = nil
@@ -111,7 +112,7 @@ public final class ServeSheetModel {
 
     private var action: HostAction {
         if let folderID { return .setServed(folderID: folderID, on: true) }
-        return .serveFolder(path: path, name: name.lowercased())
+        return .serveFolder(path: path, name: nameEdited ? name.lowercased() : "")
     }
 
     private func note(_ refusal: HostRefusal) {

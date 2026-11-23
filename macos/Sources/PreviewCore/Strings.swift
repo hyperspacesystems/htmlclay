@@ -6,8 +6,8 @@ public enum Strings {
     }
     public enum Panel {
         public static let openDashboard = "Open dashboard"
-        public static let recentDocuments = "Recent documents"
-        public static let noDocumentsTitle = "No documents yet"
+        public static let recentDocuments = "Recent HTML files"
+        public static let noDocumentsTitle = "No HTML files yet"
         public static let noDocumentsSub = "Double-click any .htmlclay file in Finder."
         public static let openAFile = "Open a file…"
         public static let startFromTemplate = "Start from a template"
@@ -19,7 +19,7 @@ public enum Strings {
         public static let wantsSuffix = " wants"
         private static let homePrefix = "~/"
         public static func conflicts(folder: String, count: Int) -> String {
-            count == 1 ? "\(folder): 1 document changed in both places" : "\(folder): \(count) documents changed in both places"
+            count == 1 ? "\(folder): 1 HTML file changed in both places" : "\(folder): \(count) HTML files changed in both places"
         }
         public static func wantsProgram(document: String) -> String { "\(document) wants to run a program" }
         public static func fileMissing(versions: Int) -> String { "File moved or deleted · \(versions) versions kept" }
@@ -50,7 +50,7 @@ public enum Strings {
         public static let recoverMissing = "Recover missing file…"
         public static let removeFromRecent = "Remove from Recent"
         public static let recoveredChanges = "Recovered changes…"
-        public static let noRecent = "No recent documents"
+        public static let noRecent = "No recent HTML files"
         public static let gear = "HTML Clay menu"
         public static func needsYou(_ count: Int) -> String { "Needs you (\(count))" }
         public static func version(_ version: String) -> String { "HTML Clay \(version)" }
@@ -60,13 +60,13 @@ public enum Strings {
         public static let appName = "HTML Clay"
         public static let title = "Build software in a single HTML file"
         public static let lead = "Open or create any HTML file with whatever interface you want. It saves changes straight back into itself, talks to local tools on your Mac, and syncs live with Hyperclay."
-        public static let filesTitle = "Any interface, saved in the file"
+        public static let filesTitle = "Any interface you can imagine"
         public static let filesSub = "Edit in the browser. The file on your Mac updates as you go."
-        public static let versionsTitle = "Built-in AI & version history"
-        public static let versionsSub = "HTML Clay keeps earlier versions of each document."
-        public static let localTitle = "Runs local scripts & programs"
+        public static let versionsTitle = "Single portable HTML file"
+        public static let versionsSub = "HTML Clay keeps earlier versions of each HTML file."
+        public static let localTitle = "Reshape files with your local AI agent"
         public static let localSub = "No account needed. It works offline."
-        public static let moreTitle = "Live-syncs with Hyperclay"
+        public static let moreTitle = "Runs local programs with permission"
         public static let moreSub = "Serve a folder as a local site, or sync with Hyperclay. Both are in Settings."
         public static let openDashboard = "Open Dashboard"
         public static let allSet = "I'm all set"
@@ -91,8 +91,8 @@ public enum Strings {
         public static let intro = "Choose folders on this Mac to run as local sites or trust for standalone files."
         public static let serveCardTitle = "Run a project folder as a local site"
         public static let serveCardSub = "Gives the folder its own .localhost web address so .html and .htmlclay files save changes, share assets, and link to each other."
-        public static let trustCardTitle = "Let standalone .htmlclay files save and use tools"
-        public static let trustCardSub = "For a folder of loose .htmlclay tools or notes that don't need a web address, so files save to disk and can run allowed programs."
+        public static let trustCardTitle = "Let standalone .htmlclay files save and run programs"
+        public static let trustCardSub = "For a folder of loose .htmlclay tools or notes on this Mac, so files save changes to disk and can run allowed programs."
         public static let addFolder = "Add Folder…"
         public static let open = "Open"
         public static let finder = "Finder"
@@ -119,7 +119,7 @@ public enum Strings {
         public static let readAccessRemove = "Remove access"
         public static func readAccessRemoveLabel(_ folder: String) -> String { "Remove access to \(folder)" }
         public static func readAccessPages(_ pages: [String]) -> String {
-            guard let first = pages.first.map(ProgramControls.documentLabel) else { return "No documents open right now" }
+            guard let first = pages.first.map(ProgramControls.documentLabel) else { return "No HTML files open right now" }
             return pages.count == 1 ? "Readable by \(first)" : "Readable by \(first) and \(pages.count - 1) more"
         }
         public static let moveTitle = "Move from Hyperclay Local"
@@ -141,8 +141,14 @@ public enum Strings {
     }
     public enum Sync {
         public static let title = "Sync with Hyperclay"
-        public static let invite = "Keep a folder in step with your Hyperclay account or your team. Nothing syncs until you choose a folder."
+        public static let invite = "Keep chosen folders in step with your Hyperclay account or team. Nothing syncs until you pick a folder."
         public static let connect = "Connect Hyperclay…"
+        public static let benefit1Title = "Cloud backup & sync"
+        public static let benefit1Sub = "Everything in a synced folder stays backed up online, so you can access and edit your HTML files from anywhere."
+        public static let benefit2Title = "Collaborate with your team"
+        public static let benefit2Sub = "Edit the same HTML file together over live sync. Anyone with edit access can work in it at once, and you can send share links anytime."
+        public static let benefit3Title = "Publish to the web"
+        public static let benefit3Sub = "Give any HTML file or folder its own web address when you want to share your personal website, tool, or software with someone else."
         public static let replaceKey = "Replace key…"
         public static let disconnect = "Disconnect…"
         public static let viewOnly = "Can't sync here"
@@ -202,15 +208,15 @@ public enum Strings {
         public static let stopTrusting = "Stop Trusting"
         public static let stopServing = "Stop serving"
         public static let disconnect = "Disconnect"
-        public static func pathLine(path: String, documents: Int) -> String { "\(path) · \(documents) documents" }
+        public static func pathLine(path: String, documents: Int) -> String { "\(path) · \(documents) HTML files" }
         public static func childrenTitle(count: Int, parent: String) -> String { "\(count) trusted folders inside \(parent) keep their own address" }
-        public static func childrenSub(parent: String) -> String { "Documents in them stay separate from \(parent) and keep their own browser data." }
+        public static func childrenSub(parent: String) -> String { "HTML files in them stay separate from \(parent) and keep their own browser data." }
         public static func mergeButton(parent: String) -> String { "Merge into \(parent)…" }
         public static func versionsSub(size: String) -> String { "Kept in this folder · \(size)" }
         public static func versionsNote(folder: String) -> String { "Build 1: this would list the versions and uploads kept in \(folder)." }
         public static func accountTitle(username: String) -> String { "@\(username)" }
         public static func stopTrustingTitle(_ name: String) -> String { "Stop trusting \(name)?" }
-        public static func stopTrustingMessage(_ name: String) -> String { "Documents open from \(name) stop saving now, and \(name) leaves your Folders list. Files there save again only when you open them yourself." }
+        public static func stopTrustingMessage(_ name: String) -> String { "HTML files open from \(name) stop saving now, and \(name) leaves your Folders list. Files there save again only when you open them yourself." }
         public static let stopTrustingSyncMessage = "Syncing with Hyperclay and local serving will stop. Your HTML files stay safely on this Mac."
         public static let unsavedStopTrustingTitle = "Unsaved edits in open files"
         public static func unsavedStopTrustingMessage(_ documents: [String]) -> String {
@@ -226,7 +232,7 @@ public enum Strings {
         }
         public static func mergeTitle(child: String, parent: String) -> String { "Merge \(child) into \(parent)?" }
         public static func mergeMessage(child: String, parent: String, documents: Int) -> String {
-            "\(child)'s \(documents) documents will move to \(parent)'s address, where documents in \(parent) can link to and change each other. Anything those documents saved in the browser stays behind at \(child)'s old address. Your files on disk stay right where they are."
+            "\(child)'s \(documents) HTML files will move to \(parent)'s address, where HTML files in \(parent) can link to and change each other. Anything those HTML files saved in the browser stays behind at \(child)'s old address. Your files on disk stay right where they are."
         }
         public static func mergeAction(parent: String) -> String { "Merge into \(parent)" }
         public static func relinkTitle(_ name: String) -> String { "Find \(name)?" }
@@ -234,49 +240,49 @@ public enum Strings {
     }
     public enum Programs {
         public static let addProgram = "Add program…"
-        public static let intro = "Allow trusted HTML files to run scripts and tools on this Mac."
+        public static let intro = "Allow trusted HTML files to run programs and scripts on this Mac."
         public static let waitingForYou = "Waiting for you"
         public static let builtin = "Built-in programs"
         public static let programs = "Your programs"
         public static let openExample = "Open example"
-        public static let noPermissionYet = "No document has permission yet. Open the example above to try it."
+        public static let noPermissionYet = "No HTML file has permission yet. Open the example above to try it."
         public static func enableBuiltin(_ title: String) -> String { "Enable \(title)" }
         public static let fileSearch = "File search"
         public static let fileConverter = "File converter"
         public static let folderWatcher = "Folder watcher"
         public static let builtinDot = " · "
-        public static let noneYetOn = "No document may run it yet"
+        public static let noneYetOn = "No HTML file may run it yet"
         public static let searchDoes = "Searches file names and text inside files"
         public static let searchOffSub = "Searches file names and text inside files in a folder you allow."
-        public static let searchEnableSub = "Lets allowed documents search file names and text inside files in a folder you choose. Documents ask for it as “file-search”."
+        public static let searchEnableSub = "Lets allowed HTML files search file names and text inside files in a folder you choose. HTML files ask for it as “file-search”."
         public static let searchExample = "filesearch.htmlclay"
         public static let searchExampleSub = "Search a folder by word or file type and reveal matches in Finder."
         public static let convertDoes = "Converts and resizes images"
         public static let convertOffSub = "Converts and resizes PNG, JPEG, GIF, BMP, TIFF and WebP images, and converts HEIC photos to those formats."
-        public static let convertEnableSub = "Lets allowed documents convert and resize PNG, JPEG, GIF, BMP, TIFF and WebP images, and save HEIC photos in those formats. Documents ask for it as “file-convert”."
+        public static let convertEnableSub = "Lets allowed HTML files convert and resize PNG, JPEG, GIF, BMP, TIFF and WebP images, and save HEIC photos in those formats. HTML files ask for it as “file-convert”."
         public static let convertExample = "imageconverter.htmlclay"
         public static let convertExampleSub = "Convert images between formats and sizes right inside a page."
-        public static let watchDoes = "Tells a document when files in a folder change"
-        public static let watchOffSub = "Tells a document when files in an allowed folder are added, changed or removed."
-        public static let watchEnableSub = "Lets allowed documents watch an allowed folder and hear when files are added, changed or removed. Documents ask for it as “folder-watch”."
+        public static let watchDoes = "Tells an HTML file when files in a folder change"
+        public static let watchOffSub = "Tells an HTML file when files in an allowed folder are added, changed or removed."
+        public static let watchEnableSub = "Lets allowed HTML files watch an allowed folder and hear when files are added, changed or removed. HTML files ask for it as “folder-watch”."
         public static let watchExample = "folderactivity.htmlclay"
         public static let watchExampleSub = "Watch a folder live as files arrive, change or get deleted."
         public static func example(_ name: String) -> String { "Example: \(name)" }
         public static let answer = "Answer…"
         public static let findIt = "Find it…"
-        public static let allTrusted = "All documents in trusted folders"
-        public static let blockedDocuments = "Blocked documents"
+        public static let allTrusted = "All HTML files in trusted folders"
+        public static let blockedDocuments = "Blocked HTML files"
         public static let askAgain = "Ask again"
-        public static let noneYet = "No document may run it until you allow one."
+        public static let noneYet = "No HTML file may run it until you allow one."
         public static func wants(document: String, program: String) -> String { "\(document) wants “\(program)”" }
         public static func mayRun(_ document: String) -> String { "\(document) may run it" }
-        public static func mayRunCount(_ count: Int) -> String { "\(count) documents may run it" }
+        public static func mayRunCount(_ count: Int) -> String { "\(count) HTML files may run it" }
         public static func fileMissing(_ count: Int) -> String {
-            count == 1 ? "file missing · 1 document uses it" : "file missing · \(count) documents use it"
+            count == 1 ? "file missing · 1 HTML file uses it" : "file missing · \(count) HTML files use it"
         }
         public static func wouldFind(_ name: String) -> String { "Build 1: this would ask you where \(name) went." }
         public static func aiEditAllowedFor(_ document: String) -> String { "Allowed for \(document)" }
-        public static func aiEditAllowedCount(_ count: Int) -> String { "Allowed for \(count) documents" }
+        public static func aiEditAllowedCount(_ count: Int) -> String { "Allowed for \(count) HTML files" }
         public static func aiEditWaiting(document: String) -> String { "Allow AI editing for \(document)?" }
         public static let aiAgent = "AI agent"
     }
@@ -284,19 +290,19 @@ public enum Strings {
         public static let runsAsYou = "This program runs as you. It can read and change any file you can."
         public static let whoMayRun = "Who may run it"
         public static let aiEditNote = "An AI tool on this Mac rewrites selected text when you press ⌘J. Turn AI editing on or off in Settings › AI Editing."
-        public static let allTrustedTitle = "All documents in my trusted folders"
-        public static let allTrustedSub = "Documents in your own trusted folders run it without asking, after the one warning for a document nobody vouches for. Team folders still ask one document at a time."
+        public static let allTrustedTitle = "All HTML files in my trusted folders"
+        public static let allTrustedSub = "HTML files in your own trusted folders run it without asking, after the one warning for an HTML file nobody vouches for. Team folders still ask one HTML file at a time."
         public static let removeAccess = "Remove access"
         public static let accessRemoved = "Access removed"
         public static let allowAgain = "Allow again…"
         public static let chooseAnotherFile = "Choose another file…"
         public static let removeAllAccess = "Remove all access"
         public static func removeAllTitle(_ title: String) -> String { "Remove all access to \(title)?" }
-        public static let removeAllBody = "No document can use it until you allow it again."
+        public static let removeAllBody = "No HTML file can use it until you allow it again."
         public static let cancel = "Cancel"
         public static let showInFinder = Menu.showInFinder
         public static func pathLine(path: String, ready: Bool, name: String) -> String {
-            "\(path) · \(ready ? "ready" : "file missing") · documents ask for it as “\(name)”"
+            "\(path) · \(ready ? "ready" : "file missing") · HTML files ask for it as “\(name)”"
         }
     }
     public enum General {
@@ -368,13 +374,13 @@ public enum Strings {
     }
     public enum YourName {
         public static let heading = "Your name"
-        public static let useName = "Use my name in documents"
-        public static let offSub = "Shown in documents beside your edits and comments."
+        public static let useName = "Use my name in HTML files"
+        public static let offSub = "Shown in HTML files that support showing your name beside your edits and comments."
         public static let name = "Name"
         public static let placeholder = "Your name"
         public static let accountSub = "Your Hyperclay name"
         public static let change = "Change on Hyperclay ↗"
-        public static let note = "Saved in files beside your edits and comments, visible when shared."
+        public static let note = "Saved in supported HTML files beside your edits and comments, and visible when shared."
         public static let wouldChange = "Build 1: this would open your Hyperclay profile."
     }
     public enum Files {
@@ -430,6 +436,8 @@ public enum Strings {
         public static let automatic = "Update automatically"
         public static let restartNote = "HTML Clay finishes saves and sync before it restarts."
         public static let whatsNew = "What's new"
+        public static let changelogRowTitle = "See our latest updates"
+        public static let viewChangelog = "View changelog"
         public static let versionDot = "."
         public static func wouldRestart(_ version: String) -> String { "Build 1: this would restart HTML Clay into \(version)." }
         public static let wouldCheck = "Build 1: this would check for a new version."
@@ -442,7 +450,7 @@ public enum Strings {
         // copy: dialog title when an AI edit or a document's program is still running at Restart to update, max 50 chars
         public static let runningWorkTitle = "Something is still running"
         // copy: dialog body for the same, says restarting stops it, max 140 chars
-        public static let runningWorkBody = "An AI edit or a program started by a document is still running. Restarting now stops it."
+        public static let runningWorkBody = "An AI edit or a program started by an HTML file is still running. Restarting now stops it."
         // copy: the destructive button in that dialog, max 20 chars
         public static let restartAnyway = "Restart anyway"
         // copy: notice title when Restart to update was chosen but HTML Clay has not restarted after 40 seconds, max 50 chars
@@ -489,7 +497,7 @@ public enum Strings {
         public static let stopped = "Stopped"
         public static let off = "Not running"
         public static let storage = "Storage"
-        public static let versions = "Versions of documents outside served folders"
+        public static let versions = "Versions of HTML files outside served folders"
         public static let versionsSize = "240 MB"
         public static let uploads = "Uploads"
         public static let uploadsSize = "1.2 GB"
@@ -513,7 +521,7 @@ public enum Strings {
         public static let windowTitle = "HTML Clay"
         public static func counter(_ position: Int, _ total: Int) -> String { "\(position) of \(total)" }
         public static let ended = "This request ended"
-        public static func callsIt(_ program: String) -> String { "The document calls it “\(program)”." }
+        public static func callsIt(_ program: String) -> String { "The HTML file calls it “\(program)”." }
         public static let foundHere = "Found in a folder where you keep programs."
         public static let runsAsYou = "A program runs as you. It can read, change or delete any file you can, and use the internet. Allow only a program you trust."
         public static let moreOptions = "More options"
@@ -521,18 +529,18 @@ public enum Strings {
         public static func allowFile(_ name: String) -> String { "Allow \(name)" }
         public static func runNamed(document: String, program: String) -> String { "Let \(document) run “\(program)”?" }
         public static func useAIEditing(document: String) -> String { "Let \(document) use AI editing?" }
-        public static func aiEditTeamLead(_ folder: String) -> String { "This document is in \(folder), a team folder where others can edit documents later." }
-        public static let noFileLead = "HTML Clay didn't find this program on your Mac. The document should come with instructions. If you're not sure, choose Don't allow: the document still opens and saves."
+        public static func aiEditTeamLead(_ folder: String) -> String { "This HTML file is in \(folder), a team folder where others can edit HTML files later." }
+        public static let noFileLead = "HTML Clay didn't find this program on your Mac. The HTML file should come with instructions. If you're not sure, choose Don't allow: the HTML file still opens and saves."
         public static let chooseAFile = "Choose a file…"
-        public static func fromTeam(_ folder: String) -> String { "From \(folder). Its editors can change this document later." }
-        public static let teamAsksEachTime = "Team documents always ask one at a time."
+        public static func fromTeam(_ folder: String) -> String { "From \(folder). Its editors can change this HTML file later." }
+        public static let teamAsksEachTime = "Team HTML files always ask one at a time."
         public static let teamCodeChanged = "This page's code changed since you last allowed it."
-        public static let allowForThisDocument = "Allow for this document"
+        public static let allowForThisDocument = "Allow for this HTML file"
         public static func builtinTitle(document: String, program: String) -> String {
             "Let \(document) use \(program)?"
         }
         public static func builtinLead(program: String, folder: String) -> String {
-            "\(program) will work only for this document and only inside \(folder). After allowing, go back to the page and try again."
+            "\(program) will work only for this HTML file and only inside \(folder). After allowing, go back to the page and try again."
         }
         public static func aiToolsTitle(_ document: String, level: String = "") -> String {
             level == "change"
@@ -555,7 +563,7 @@ public enum Strings {
         public static let chooseAFolder = "Choose a folder…"
         public static func unknownTitle(_ document: String) -> String { "Make sure you trust \(document) before allowing it" }
         public static func unknownLead(_ folder: String) -> String {
-            "Once allowed, this page can read and change the files in \(folder), and send anything it sees anywhere on the internet. Allowing this document holds until the page's code changes."
+            "Once allowed, this page can read and change the files in \(folder), and send anything it sees anywhere on the internet. Allowing this HTML file holds until the page's code changes."
         }
         public static let unknownDownloaded = "This file was downloaded from the internet."
         public static let unknownUnrecorded = "HTML Clay has no record of where this file came from."
@@ -566,11 +574,11 @@ public enum Strings {
         public static let chooseAnother = "Choose another"
         public static let allowAnyway = "Allow anyway"
         public static func readFolder(_ document: String) -> String { "Let \(document) read a folder?" }
-        public static func readNote(_ folder: String) -> String { "Allow once lasts as long as this document can save. Trust lets every document in \(folder) save and link." }
+        public static func readNote(_ folder: String) -> String { "Allow once lasts as long as this HTML file can save. Trust lets every HTML file in \(folder) save and link." }
         public static let allowOnce = "Allow once"
         public static let trustThisFolder = "Trust this folder"
         public static func trustOwnFolder(_ document: String) -> String { "Trust the folder \(document) is in?" }
-        public static let ownFolderNote = "Documents there will save, link to each other and keep one address."
+        public static let ownFolderNote = "HTML files there will save, link to each other and keep one address."
         public static func trustNamed(_ folder: String) -> String { "Trust \(folder)" }
         public static func folderLine(path: String, detail: String) -> String {
             guard let sentence = detailText(detail) else { return path }
@@ -630,12 +638,12 @@ public enum Strings {
         public static func title(_ name: String) -> String { "Trust \(name)?" }
         public static let every = "Every "
         public static let fileIn = " file in "
-        public static let willSave = " will save as you edit, link to the others, and share one address. Documents in "
+        public static let willSave = " will save as you edit, link to the others, and share one address. HTML files in "
         public static let canChange = " can also change each other."
         public static func inside(_ name: String, count: Int) -> String {
             count == 1 ? "\(name) already has 1 trusted folder inside. It keeps its own address." : "\(name) already has \(count) trusted folders inside. They keep their own address."
         }
-        public static func insideTrusted(_ name: String, around: String) -> String { "\(name) is inside \(around). Its documents get a new address, and nothing they stored in your browser moves with them." }
+        public static func insideTrusted(_ name: String, around: String) -> String { "\(name) is inside \(around). Its HTML files get a new address, and nothing they stored in your browser moves with them." }
         public static let trustNewAddress = "Trust with new address"
     }
     public enum Levels {
@@ -655,12 +663,12 @@ public enum Strings {
             switch kind {
             case .found: return "A program was found"
             case .noFile: return "No file found"
-            case .teamDocument: return "A team document"
+            case .teamDocument: return "A team HTML file"
             case .riskyFile: return "A risky file"
             case .folderRead: return "Reading outside the folder"
             case .folderReadAgain: return "A page asks to trust its own folder"
             case .builtinProgram: return "A page asks to use a built-in program"
-            case .unknownDocument: return "A document nobody vouches for"
+            case .unknownDocument: return "An HTML file nobody vouches for"
             case .aiTools: return "A page asks your AI agent to read a folder"
             }
         }
@@ -671,7 +679,7 @@ public enum Strings {
         public static func persona(_ persona: Persona) -> String {
             switch persona {
             case .newPerson: return "A new person"
-            case .fiveDocuments: return "Five documents, one file gone"
+            case .fiveDocuments: return "Five HTML files, one file gone"
             case .trustedFolder: return "A trusted folder and a waiting program"
             case .servedFolder: return "A served folder, not synced"
             case .syncedWithTeams: return "Synced, with teams and two conflicts"
@@ -687,7 +695,7 @@ public enum Strings {
             public static let plainRowSubtitle = "The subtitle sits under the title, and pills sit between them."
             public static let warnCardTitle = "This folder is not synced"
             public static let warnCardSubtitle = "Changes stay on this Mac until sync finishes."
-            public static let errCardTitle = "Five documents are waiting"
+            public static let errCardTitle = "Five HTML files are waiting"
             public static let errCardSubtitle = "Open the dashboard to see what needs you."
             public static let buttons = "Buttons"
             public static let plainButton = "Plain"
@@ -703,7 +711,7 @@ public enum Strings {
             public static let segmentAll = "All"
             public static let segmentNeedsYou = "Needs you"
             public static let segmentSynced = "Synced"
-            public static let input = "Search documents"
+            public static let input = "Search HTML files"
             public static let inputValue = "todo.htmlclay"
             public static let nesting = "Nested frames"
             public static let outerFrame = "Notes"
@@ -738,7 +746,7 @@ public enum Strings {
         public static func title(_ username: String) -> String { "Where should @\(username) live on this Mac?" }
         public static let newFolder = "A new folder "
         public static let existing = "A folder I already have…"
-        public static func willDownload(documents: Int, size: String) -> String { "\(documents) documents, \(size) will download." }
+        public static func willDownload(documents: Int, size: String) -> String { "\(documents) HTML files, \(size) will download." }
         public static let willStart = "It will be trusted, served at "
         public static let willEnd = ", and kept in step with Hyperclay."
         public static let back = "Back"
@@ -774,7 +782,7 @@ public enum Strings {
         }
         public static func title(_ name: String) -> String { "Set up \(name)" }
         public static let opensAt = "Opens at "
-        public static let trustCheck = "Trust the documents in this folder. They can change each other."
+        public static let trustCheck = "Trust the HTML files in this folder. They can change each other."
         public static func downloading(files: Int, total: Int, size: String, totalSize: String) -> String { "Downloading \(files) of \(total) files · \(size) of \(totalSize) MB" }
         public static func downloading(_ download: FirstDownload) -> String {
             downloading(files: download.done, total: download.total, size: megabytes(download.bytesDone), totalSize: megabytes(download.bytesTotal))
@@ -786,9 +794,9 @@ public enum Strings {
     }
     public enum AddProgram {
         public static let title = "Add a program"
-        public static let lead = "No document may run it until you allow one. The first document that asks still gets a request."
+        public static let lead = "No HTML file may run it until you allow one. The first HTML file that asks still gets a request."
         public static let file = "File"
-        public static let nameHint = "The name documents ask for. Lowercase letters, numbers and hyphens."
+        public static let nameHint = "The name HTML files ask for. Lowercase letters, numbers and hyphens."
         public static let add = "Add"
         public static let relinkTitle = "Find the program file"
         public static let relinkLead = "HTML Clay will run the file you choose instead. Nothing else about the program changes."
@@ -847,12 +855,12 @@ public enum Strings {
         public static let quitNow = "Quit now"
         public static func cantSaveTitle(_ document: String) -> String { "\(document) can't save" }
         public static let cantSaveMessage = "The file is no longer writable. Quitting now loses the last change."
-        public static let showDocument = "Show document"
+        public static let showDocument = "Show HTML file"
         public static let retry = "Retry"
         public static let quitAnyway = "Quit anyway"
         public static let unsavedTitle = "You have unsaved edits"
         public static func unsavedBody(_ lines: [String]) -> String {
-            "Edits in these documents aren't saved yet:\n\n\(lines.joined(separator: "\n"))\n\nSave any open page in its browser tab (Ctrl+S or Cmd+S), then check again. Quitting anyway loses unsaved edits."
+            "Edits in these HTML files aren't saved yet:\n\n\(lines.joined(separator: "\n"))\n\nSave any open page in its browser tab (Ctrl+S or Cmd+S), then check again. Quitting anyway loses unsaved edits."
         }
         public static let cancel = "Cancel"
         public static let noAnswer = "Pages edited live that HTML Clay could not check"
@@ -938,7 +946,7 @@ extension Strings.Panel {
     public static let finishing = "Finishing saves and sync…"
     public static let restartsSoon = "HTML Clay restarts in a moment"
     public static let hostStopped = "HTML Clay stopped working."
-    public static let hostStoppedSub = "Your files are safe. Open documents can't save until it restarts."
+    public static let hostStoppedSub = "Your files are safe. Open HTML files can't save until it restarts."
     public static let notReady = "HTML Clay is still starting. Try again in a moment."
 }
 extension Strings.FolderPage {
@@ -951,7 +959,7 @@ extension Strings.FolderPage {
     public static let missingSub = "Syncing stopped. Nothing was deleted on Hyperclay."
     public static let setUpAgain = "Set up again…"
     public static func wasTeam(_ team: String) -> String { "Was \(team)" }
-    public static let wasTeamSub = "Served on this Mac only. Programs still ask one document at a time, as for team folders."
+    public static let wasTeamSub = "Served on this Mac only. Programs still ask one HTML file at a time, as for team folders."
     public static let reconnect = "Reconnect…"
     public static func wouldSetUpAgain(_ name: String) -> String { "Build 1: this would set up \(name) again in a new folder." }
 }

@@ -22,6 +22,21 @@ private final class InterruptedHost: HostClient {
 }
 
 @MainActor
+private final class FixedFolderChooser: FolderChooser {
+    private let picked: String
+
+    init(_ picked: String) { self.picked = picked }
+
+    func first(in snapshot: HostSnapshot) -> String? { picked }
+
+    func choose(after current: String?, in snapshot: HostSnapshot) async -> String? { picked }
+
+    func chooseToTrust(after current: String?, in snapshot: HostSnapshot) async -> String? { picked }
+
+    func chooseFile() async -> String? { nil }
+}
+
+@MainActor
 final class ServeSheetModelTests: XCTestCase {
     private func sample() -> (host: SampleHost, model: AppModel) {
         let host = SampleHost(persona: .servedFolder)
@@ -37,7 +52,7 @@ final class ServeSheetModelTests: XCTestCase {
         let expected = ServeRules.path(folderID: nil, pick: ServeRules.firstPick(in: host.current), in: host.current)
         XCTAssertEqual(sheet.path, expected)
         XCTAssertEqual(sheet.path, SampleData.servePaths[1])
-        XCTAssertEqual(sheet.name, "")
+        XCTAssertEqual(sheet.name, "apps")
         XCTAssertFalse(sheet.nameEdited)
         XCTAssertTrue(sheet.nameEditable)
         XCTAssertNil(sheet.pathProblem)
@@ -76,7 +91,7 @@ final class ServeSheetModelTests: XCTestCase {
         XCTAssertFalse(sheet.ready)
     }
 
-    func testChooseMovesToTheNextSamplePathAndClearsTheName() async {
+    func testChooseMovesToTheNextSamplePathAndFillsItsSluggedName() async {
         let (_, model) = sample()
         let sheet = ServeSheetModel(folderID: nil, model: model)
         sheet.setName("something-else")
@@ -84,7 +99,7 @@ final class ServeSheetModelTests: XCTestCase {
         await sheet.choose()
 
         XCTAssertEqual(sheet.path, SampleData.servePaths[2])
-        XCTAssertEqual(sheet.name, "")
+        XCTAssertEqual(sheet.name, "blog")
         XCTAssertFalse(sheet.nameEdited)
 
         await sheet.check()
@@ -129,6 +144,31 @@ final class ServeSheetModelTests: XCTestCase {
         XCTAssertFalse(served)
         XCTAssertEqual(sheet.otherProblem, InterruptedHost.refusal.text)
         XCTAssertTrue(sheet.ready)
+    }
+
+    func testChooseFillsTheSluggedNameOfAHomeFolderRightAway() async {
+        let (_, model) = sample()
+        model.folderChooser = FixedFolderChooser("/Users/me/Documents/Default Project")
+        let sheet = ServeSheetModel(folderID: nil, model: model)
+        XCTAssertEqual(sheet.name, "default-project")
+
+        await sheet.choose()
+
+        XCTAssertEqual(sheet.path, "/Users/me/Documents/Default Project")
+        XCTAssertEqual(sheet.name, "default-project")
+        XCTAssertFalse(sheet.nameEdited)
+    }
+
+    func testAFailedCheckKeepsTheSluggedNameFromChoose() async {
+        let model = AppModel(host: InterruptedHost(), initial: HostSnapshot())
+        model.folderChooser = FixedFolderChooser("/Users/me/Documents/Client Notes (2024)")
+        let sheet = ServeSheetModel(folderID: nil, model: model)
+
+        await sheet.choose()
+        await sheet.check()
+
+        XCTAssertEqual(sheet.name, "client-notes-2024")
+        XCTAssertNil(sheet.nameProblem)
     }
 
     func testAKnownFolderKeepsItsNameReadOnly() {

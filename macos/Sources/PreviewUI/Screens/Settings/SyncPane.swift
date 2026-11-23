@@ -64,26 +64,47 @@ struct SyncPane: View {
     }
 
     private var notConnected: some View {
-        VStack(spacing: 10) {
-            Squircle(.cobalt, symbol: Symbols.sync, size: .extraLarge)
+        VStack(alignment: .leading, spacing: 0) {
             Text(Strings.Sync.title)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(kiln.ink)
-                .padding(.top, 4)
-            Text(Strings.Sync.invite)
-                .font(.system(size: 13.5))
-                .foregroundStyle(kiln.ink2)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 400)
-                .fixedSize(horizontal: false, vertical: true)
-            Button(Strings.Sync.connect) {
-                model.sheet = .connect
+                .padding(.bottom, 12)
+            HStack(alignment: .top, spacing: 10) {
+                benefitCard(.sky, symbol: Symbols.sync, title: Strings.Sync.benefit1Title, sub: Strings.Sync.benefit1Sub)
+                benefitCard(.amber, symbol: Symbols.people, title: Strings.Sync.benefit2Title, sub: Strings.Sync.benefit2Sub)
+                benefitCard(.jade, symbol: Symbols.globe, title: Strings.Sync.benefit3Title, sub: Strings.Sync.benefit3Sub)
             }
-            .buttonStyle(KilnButtonStyle(.primary))
-            .padding(.top, 8)
+            KilnCard {
+                KilnRow(title: Strings.Sync.invite) {
+                    Button(Strings.Sync.connect) {
+                        model.sheet = .connect
+                    }
+                    .buttonStyle(KilnButtonStyle(.primary))
+                }
+            }
+            .padding(.top, 12)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 56)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func benefitCard(_ color: SquircleColor, symbol: String, title: String, sub: String) -> some View {
+        KilnCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Squircle(color, symbol: symbol)
+                    Text(title)
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(kiln.ink)
+                }
+                Text(sub)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(kiln.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var connected: some View {

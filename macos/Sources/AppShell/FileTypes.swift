@@ -20,6 +20,10 @@ public enum FileTypes {
     public static func owner() -> Owner {
         guard let url = NSWorkspace.shared.urlForApplication(toOpen: htmlclay) else { return .other(name: nil) }
         if url.standardizedFileURL == Bundle.main.bundleURL.standardizedFileURL { return .htmlclay }
+        if let bundleID = Bundle(url: url)?.bundleIdentifier,
+           bundleID == AppIdentity.productBundleID || bundleID == AppIdentity.candidateBundleID {
+            return .htmlclay
+        }
         return .other(name: FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: ""))
     }
 

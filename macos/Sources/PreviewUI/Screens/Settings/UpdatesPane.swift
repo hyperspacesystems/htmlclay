@@ -45,20 +45,21 @@ struct UpdatesPane: View {
                     .toggleStyle(KilnSwitchStyle())
                 }
             }
-            HStack(spacing: 4) {
-                if ready != nil {
-                    Text(Strings.Updates.restartNote)
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(kiln.muted)
-                    Text(Strings.Updates.versionDot)
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(kiln.muted)
-                }
-                KilnLink(Strings.Updates.whatsNew) {
-                    if let url = Strings.Updates.whatsNewLink(model.snapshot.update.current) { openURL(url) }
+            if ready != nil {
+                Text(Strings.Updates.restartNote)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(kiln.muted)
+                    .padding(.top, 8)
+            }
+            KilnCard {
+                KilnRow(title: Strings.Updates.changelogRowTitle) {
+                    Button(Strings.Updates.viewChangelog) {
+                        if let url = Strings.Updates.whatsNewLink(model.snapshot.update.current) { openURL(url) }
+                    }
+                    .buttonStyle(KilnButtonStyle(.plain))
                 }
             }
-            .padding(.top, 10)
+            .padding(.top, 12)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

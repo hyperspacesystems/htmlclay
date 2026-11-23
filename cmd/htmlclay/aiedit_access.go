@@ -21,7 +21,7 @@ const aiEditProgramID = appcore.AIEditProgram
 
 const (
 	aiEditDialogTitle   = "Let %s use AI editing?"
-	aiEditDialogMessage = "Other people can edit documents in this team folder later. Allowing applies to this document only, never the whole folder. After allowing, go back to the page and send your request again."
+	aiEditDialogMessage = "Other people can edit HTML files in this team folder later. Allowing applies to this HTML file only, never the whole folder. After allowing, go back to the page and send your request again."
 )
 
 // aiEditFor is both hosts' answer to whether document may use AI editing now.

@@ -24,7 +24,7 @@ import (
 
 const (
 	builtinDialogTitle   = "Let %s use %s?"
-	builtinDialogMessage = "Allowing applies to this document only, and it can only work with files inside its own folder. After allowing, go back to the page and send your request again."
+	builtinDialogMessage = "Allowing applies to this HTML file only, and it can only work with files inside its own folder. After allowing, go back to the page and send your request again."
 	sampleImageName      = "sample-photo.png"
 )
 
@@ -246,7 +246,7 @@ func (a *app) examplesDir() (string, *appcore.Refusal, error) {
 		}
 		home = resolved
 	}
-	base := filepath.Join(home, "htmlclay")
+	base := a.appDataDir()
 	if _, err := os.Lstat(base); err == nil {
 		realBase, err := resolveSymlinks(base)
 		if err != nil {

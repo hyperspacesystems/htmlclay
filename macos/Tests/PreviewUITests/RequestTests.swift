@@ -109,7 +109,7 @@ final class RequestTests: XCTestCase {
         let ai = aiEditProgram(["roadmap.htmlclay"])
         let aiTeam = aiEditProgram(["roadmap.htmlclay", "budget.htmlclay", "notes.htmlclay"])
         XCTAssertEqual(ProgramRow.subtitle(ai), "Allowed for roadmap.htmlclay")
-        XCTAssertEqual(ProgramRow.subtitle(aiTeam), "Allowed for 3 documents")
+        XCTAssertEqual(ProgramRow.subtitle(aiTeam), "Allowed for 3 HTML files")
         XCTAssertEqual(ProgramControls.fileName(ai), "AI editing")
         XCTAssertFalse(ProgramPage.showsFileControls(ai))
         XCTAssertTrue(ProgramPage.showsFileControls(Program(id: "todo-search", name: "todo-search", path: "~/bin/todo-search")))

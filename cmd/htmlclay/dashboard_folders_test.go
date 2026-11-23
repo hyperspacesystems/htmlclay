@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/service"
+	"github.com/panphora/htmlclay/internal/tier"
 )
 
 // folderListView is one entry of a folder list answer.
@@ -145,6 +148,64 @@ func serviceRoute(t *testing.T, c *dashboardNoService, method, target string, bo
 		t.Fatal(err)
 	}
 	return res.StatusCode, string(text)
+}
+
+// uploadBody builds a multipart body holding one part named files per name.
+func uploadBody(t *testing.T, content string, names ...string) (string, []byte) {
+	t.Helper()
+	var buf bytes.Buffer
+	form := multipart.NewWriter(&buf)
+	for _, name := range names {
+		part, err := form.CreateFormFile("files", name)
+		if err != nil {
+			t.Fatalf("form part %s: %v", name, err)
+		}
+		if _, err := part.Write([]byte(content)); err != nil {
+			t.Fatalf("form part %s: %v", name, err)
+		}
+	}
+	if err := form.Close(); err != nil {
+		t.Fatalf("form close: %v", err)
+	}
+	return form.FormDataContentType(), buf.Bytes()
+}
+
+// folderUpload posts files to the folder\'s upload route the way the entry page
+// does, or without the page\'s token when withToken is false.
+func folderUpload(t *testing.T, c *dashboardNoService, id, parent, content string, withToken bool, names ...string) (int, string) {
+	t.Helper()
+	contentType, body := uploadBody(t, content, names...)
+	target := "/api/app/folders/" + url.PathEscape(id) + "/upload"
+	if parent != "" {
+		target += "?parent=" + url.QueryEscape(parent)
+	}
+	r, err := http.NewRequest(http.MethodPost, c.server.URL+target, bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Host = c.host
+	r.Header.Set("Content-Type", contentType)
+	r.Header.Set("Cookie", c.cookie)
+	r.Header.Set("Origin", "http://"+c.host)
+	r.Header.Set("Sec-Fetch-Site", "same-origin")
+	if withToken {
+		r.Header.Set("X-Workspace-Token", c.token)
+	}
+	res, err := http.DefaultClient.Do(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	text, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res.StatusCode, string(text)
+}
+
+// uploadedView is one file an upload answer names.
+type uploadedView struct {
+	Uploaded []folderListView `json:"uploaded"`
 }
 
 // trustedDashboard trusts dir in an app whose sites are up, with no live-room
@@ -358,6 +419,76 @@ func TestM3DashboardFolders(t *testing.T) {
 		status, body = serviceRoute(t, c, http.MethodPost, "/api/roots/"+url.PathEscape(served.ID)+"/commands", map[string]any{})
 		if status != http.StatusServiceUnavailable || !strings.Contains(body, "service-unavailable") {
 			t.Fatalf("a write route for the folder = %d %s, want the service's own unavailable error", status, body)
+		}
+	})
+
+	t.Run("an upload lands in a trusted folder, keeps unknown provenance doubt, and never replaces a file", func(t *testing.T) {
+		home := evalTempHome(t)
+		dir := filepath.Join(home, "notes")
+		writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+		a, c, id := trustedDashboard(t, home, dir)
+
+		status, body := folderUpload(t, c, id, "", "<!doctype html><script>1</script><p>first</p>", true, "hello.htmlclay")
+		if status != http.StatusOK {
+			t.Fatalf("uploading hello.htmlclay = %d %s", status, body)
+		}
+		var answer uploadedView
+		if err := json.Unmarshal([]byte(body), &answer); err != nil {
+			t.Fatalf("upload answer %s: %v", body, err)
+		}
+		if len(answer.Uploaded) != 1 || answer.Uploaded[0].Name != "hello.htmlclay" || answer.Uploaded[0].Kind != "document" {
+			t.Fatalf("uploaded = %+v", answer.Uploaded)
+		}
+		path := filepath.Join(dir, "hello.htmlclay")
+		if data, err := os.ReadFile(path); err != nil || string(data) != "<!doctype html><script>1</script><p>first</p>" {
+			t.Fatalf("the uploaded file = %q, %v", data, err)
+		}
+		if record, ok := a.tierStore().PathTrust(path); ok {
+			t.Fatalf("an uploaded unknown file was stamped as trusted path: %+v", record)
+		}
+		if verdict := a.tierOf(path); verdict.Tier != tier.Unknown || verdict.Reason != tier.ReasonDownloaded || !verdict.Warn() || !a.stranger(path) {
+			t.Fatalf("tierOf(uploaded unknown file) = %+v, stranger=%v, want Unknown/ReasonDownloaded with warn and stranger=true", verdict, a.stranger(path))
+		}
+
+		status, body = folderUpload(t, c, id, "", "<!doctype html><p>second</p>", true, "hello.htmlclay")
+		if status != http.StatusOK {
+			t.Fatalf("uploading hello.htmlclay again = %d %s", status, body)
+		}
+		answer = uploadedView{}
+		if err := json.Unmarshal([]byte(body), &answer); err != nil {
+			t.Fatalf("upload answer %s: %v", body, err)
+		}
+		if len(answer.Uploaded) != 1 || answer.Uploaded[0].Name != "hello-2.htmlclay" {
+			t.Fatalf("the second upload = %+v, want hello-2.htmlclay", answer.Uploaded)
+		}
+		if data, err := os.ReadFile(path); err != nil || string(data) != "<!doctype html><script>1</script><p>first</p>" {
+			t.Fatalf("the first upload was replaced: %q, %v", data, err)
+		}
+		if data, err := os.ReadFile(filepath.Join(dir, "hello-2.htmlclay")); err != nil || string(data) != "<!doctype html><p>second</p>" {
+			t.Fatalf("the second upload = %q, %v", data, err)
+		}
+	})
+
+	t.Run("an upload with a hidden name or no token is refused", func(t *testing.T) {
+		home := evalTempHome(t)
+		dir := filepath.Join(home, "notes")
+		writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+		_, c, id := trustedDashboard(t, home, dir)
+
+		status, body := folderUpload(t, c, id, "", servedTestDocument, true, ".hidden.html")
+		if status != http.StatusBadRequest {
+			t.Fatalf("uploading .hidden.html = %d %s, want 400", status, body)
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".hidden.html")); !os.IsNotExist(err) {
+			t.Fatalf(".hidden.html was written (stat err=%v)", err)
+		}
+
+		status, body = folderUpload(t, c, id, "", servedTestDocument, false, "hello.html")
+		if status != http.StatusForbidden {
+			t.Fatalf("uploading without the page's token = %d %s, want 403", status, body)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "hello.html")); !os.IsNotExist(err) {
+			t.Fatalf("hello.html was written without the token (stat err=%v)", err)
 		}
 	})
 }

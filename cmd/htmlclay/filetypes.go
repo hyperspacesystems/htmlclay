@@ -101,11 +101,7 @@ const welcomeExampleName = "welcome.htmlclay"
 // welcomeExamplePath writes the welcome example if it is missing and returns
 // its path. A welcome example HTML Clay wrote is the person's own.
 func (a *app) welcomeExamplePath() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(home, "htmlclay", "examples", welcomeExampleName)
+	path := filepath.Join(a.appDataDir(), "examples", welcomeExampleName)
 	_, statErr := os.Stat(path)
 	missing := errors.Is(statErr, os.ErrNotExist)
 	if err := ensureExampleFile(path); err != nil {

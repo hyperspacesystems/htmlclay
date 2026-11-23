@@ -30,9 +30,9 @@ const (
 	documentAnswerDeny    = "deny-document"
 	documentAnswerTrust   = "trust-document"
 	documentDialogTitle   = "Make sure you trust %s before allowing it"
-	documentDialogDetail  = "Once allowed, this page can read and change the files in %s, and send anything it sees anywhere on the internet. Allowing this document holds until the page's code changes."
+	documentDialogDetail  = "Once allowed, this page can read and change the files in %s, and send anything it sees anywhere on the internet. Allowing this HTML file holds until the page's code changes."
 	teamCodeDialogTitle   = "Let %s run its new code?"
-	teamCodeDialogMessage = "This document is in %s, a team folder, and its code changed since you last allowed it. Allowing holds until its code changes again."
+	teamCodeDialogMessage = "This HTML file is in %s, a team folder, and its code changed since you last allowed it. Allowing holds until its code changes again."
 )
 
 // openTiers opens the trust store in the config folder. The first launch that

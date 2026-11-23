@@ -165,7 +165,7 @@ final class LiveHostTests: XCTestCase {
 
         let first = ServeSheetModel(folderID: nil, model: model)
         XCTAssertEqual(first.path, notes.path)
-        XCTAssertEqual(first.name, "")
+        XCTAssertEqual(first.name, "notes")
         await first.check()
         XCTAssertEqual(first.name, "notes")
         XCTAssertTrue(first.address.contains("notes.htmlclay.localhost"), "address = \(first.address)")
@@ -632,7 +632,7 @@ final class LiveHostTests: XCTestCase {
         model.folderChooser = FixedFolderChooser(notes.path)
         let sheet = ServeSheetModel(folderID: nil, model: model)
         XCTAssertEqual(sheet.path, notes.path)
-        XCTAssertEqual(sheet.name, "")
+        XCTAssertEqual(sheet.name, ServeRules.defaultName(for: notes.path))
 
         await sheet.check()
 

@@ -18,11 +18,11 @@ const (
 )
 
 const (
-	TextQuitUnsavedTitle   = "You have unsaved edits"                                                                                                                                              // copy: quit dialog title, max 40 chars
-	TextQuitUnsavedBody    = "Edits in these documents aren't saved yet:\n\n%s\n\nSave any open page in its browser tab (Ctrl+S or Cmd+S), then check again. Quitting anyway loses unsaved edits." // copy: quit dialog body, %s is the documents one per line, max 200 chars without the list
-	TextQuitRetry          = "Check and quit"                                                                                                                                                      // copy: quit dialog button that tries to save again, max 16 chars
-	TextQuitAnyway         = "Discard and quit"                                                                                                                                                    // copy: quit dialog button that quits and loses the edits, max 16 chars
-	TextQuitCancel         = "Keep open"                                                                                                                                                           // copy: quit dialog button that keeps the app open, max 16 chars
+	TextQuitUnsavedTitle   = "You have unsaved edits"                                                                                                                                               // copy: quit dialog title, max 40 chars
+	TextQuitUnsavedBody    = "Edits in these HTML files aren't saved yet:\n\n%s\n\nSave any open page in its browser tab (Ctrl+S or Cmd+S), then check again. Quitting anyway loses unsaved edits." // copy: quit dialog body, %s is the documents one per line, max 200 chars without the list
+	TextQuitRetry          = "Check and quit"                                                                                                                                                       // copy: quit dialog button that tries to save again, max 16 chars
+	TextQuitAnyway         = "Discard and quit"                                                                                                                                                     // copy: quit dialog button that quits and loses the edits, max 16 chars
+	TextQuitCancel         = "Keep open"                                                                                                                                                            // copy: quit dialog button that keeps the app open, max 16 chars
 	TextQuitNotQuitting    = "HTML Clay is still open because edits aren't saved yet: %s. Save any open browser tabs (Ctrl+S), then try quitting again."
 	TextQuitNoAnswer       = "Pages edited live that HTML Clay could not check"                   // copy: quit dialog list line when the service could not be asked, max 60 chars
 	TextServeAFolder       = "Serve a folder…"                                                    // copy: tray row that opens the folder picker, max 24 chars
@@ -54,11 +54,11 @@ const (
 	TextSyncSetupAsk         = "Set up sync? [y/N] "
 	TextSyncSetupStarted     = "Sync is set up. HTML Clay is syncing this folder now."
 	TextSyncSetupNoAccount   = "No account or team is named %s. Run htmlclay sync status to see yours."
-	TextWarnPersonalFolder   = "This is one of your main folders. HTML Clay will be able to save every document in it."
+	TextWarnPersonalFolder   = "This is one of your main folders. HTML Clay will be able to save every HTML file in it."
 	TextWarnContainsTrusted  = "HTML Clay already trusts these folders inside it, so they will become part of this folder: %s."
 	// TextWarnInsideTrusted is the Trust sheet's warning for a folder inside one
 	// already trusted, the one trust warning a person has to acknowledge.
-	TextWarnInsideTrusted = "This folder is inside %s. Its documents get a new address, and what they stored in your browser stays at the old address."
+	TextWarnInsideTrusted = "This folder is inside %s. Its HTML files get a new address, and what they stored in your browser stays at the old address."
 	// TextWarnDifferentFolder is the Find it sheet's warning when the folder at the
 	// new path is not the one that moved.
 	TextWarnDifferentFolder = "This is a different folder from the one that moved. HTML Clay would trust this folder in place of the old one."
@@ -126,8 +126,8 @@ const (
 	TextMenuNeedsYou             = "Needs you (%d)"                                                                                                       // copy: one menu, submenu title
 	TextMenuOpenDashboard        = "Open dashboard"                                                                                                       // copy: one menu
 	TextMenuOpenFile             = "Open a file…"                                                                                                         // copy: one menu
-	TextMenuRecent               = "Recent documents"                                                                                                     // copy: one menu, submenu title
-	TextMenuNoRecent             = "No recent documents"                                                                                                  // copy: one menu, the disabled row inside an empty Recent documents
+	TextMenuRecent               = "Recent HTML files"                                                                                                    // copy: one menu, submenu title
+	TextMenuNoRecent             = "No recent HTML files"                                                                                                 // copy: one menu, the disabled row inside an empty Recent HTML files
 	TextMenuRecovered            = "Recovered changes…"                                                                                                   // copy: one menu, shown only when there is at least one
 	TextMenuSettings             = "Settings…"                                                                                                            // copy: one menu
 	TextMenuCheckForUpdates      = "Check for updates…"                                                                                                   // copy: one menu
@@ -170,7 +170,7 @@ var RefusalText = map[string]string{
 	RefuseBadArguments:       "Something was missing from that request. Try again.",                                                                       // copy: refusal, max 140 chars
 	RefuseNoSuchFolder:       "That folder is no longer listed. Add it again if you still want to use it.",                                                // copy: refusal, max 140 chars
 	RefuseNoSuchProgram:      "That program is no longer listed. Look at the list again.",                                                                 // copy: refusal, max 140 chars
-	RefuseNoSuchDocument:     "That document is no longer listed. Open it again if you still need it.",                                                    // copy: refusal, max 140 chars
+	RefuseNoSuchDocument:     "That HTML file is no longer listed. Open it again if you still need it.",                                                   // copy: refusal, max 140 chars
 	RefuseFileMissing:        "That file isn't there anymore. It may have moved, or you may have deleted it.",                                             // copy: refusal, max 140 chars
 	RefuseFileOutsideHome:    "HTML Clay only opens files inside your home folder. Move the file there and open it again.",                                // copy: refusal, max 140 chars
 	RefuseDestinationExists:  "A file with that name is already there. Choose another name.",                                                              // copy: refusal, max 140 chars
@@ -229,7 +229,7 @@ var RefusalText = map[string]string{
 	RefusePortInvalid:     "Enter a port number between 1024 and 65535.",
 	RefusePortSame:        "HTML Clay is already using that port. Enter a different port number.",
 	RefusePortTaken:       "Port %s is already being used by another app on this Mac. Try another number.",
-	RefusePortUnsaved:     "Save your open documents before changing the port, then try again.",
+	RefusePortUnsaved:     "Save your open HTML files before changing the port, then try again.",
 	RefuseNoSuchTool:      "That AI tool was not found on this Mac. Choose an installed tool instead.",
 	RefuseCommandInvalid:  "Enter a command to run, and make sure every quotation mark is closed.",
 	RefuseCommandNotFound: "Could not find “%s” on this Mac. Enter a full file path or a command installed on your system.",
@@ -279,14 +279,14 @@ const (
 	TextGrantServeYes         = "Serve"
 	TextGrantSync             = "Sync this folder with hyperclay.com?\n\n%s\n\nIts files will stay in step with your hyperclay.com account."
 	TextGrantSyncYes          = "Sync"
-	TextGrantMerge            = "Merge this folder into the trusted folder around it?\n\n%s\n\nIts documents move to the outer folder's address, and anything they saved in your browser stays at the old address. Your files on disk do not move."
+	TextGrantMerge            = "Merge this folder into the trusted folder around it?\n\n%s\n\nIts HTML files move to the outer folder's address, and anything they saved in your browser stays at the old address. Your files on disk do not move."
 	TextGrantMergeYes         = "Merge"
 	TextGrantFraming          = "Let other websites show this folder's pages inside their own pages?\n\n%s\n\nTurn this on only for pages you mean to share with another site."
 	TextGrantFramingYes       = "Allow"
-	TextGrantAllTrusted       = "Let all documents in your trusted folders use %s? Team folders still ask one document at a time."
+	TextGrantAllTrusted       = "Let all HTML files in your trusted folders use %s? Team folders still ask one HTML file at a time."
 	TextGrantAllTrustedYes    = "Allow"
-	TextGrantAskAgain         = "Let this document ask to use %s again?\n\n%s"
-	TextGrantAskDocumentAgain = "Let this document ask for permission again?\n\n%s"
+	TextGrantAskAgain         = "Let this HTML file ask to use %s again?\n\n%s"
+	TextGrantAskDocumentAgain = "Let this HTML file ask for permission again?\n\n%s"
 	TextGrantAskAgainYes      = "Allow again"
 	TextGrantMove             = "Move your folders from Hyperclay Local into HTML Clay?"
 	TextGrantMoveYes          = "Move folders"
@@ -298,11 +298,11 @@ const (
 	TextGrantOpenPick         = "Choose a file to open in HTML Clay"
 	TextGrantConnectTitle     = "Connect hyperclay.com"
 	TextGrantConnectMessage   = "Paste your sync key from your account settings on hyperclay.com."
-	TextGrantProgramPick      = "Choose the program file that documents may run."
-	TextGrantAddProgram       = "Add this program as \u201c%s\u201d?\n\n%s\n\nNo document can run it until you allow one. When allowed, it runs as you and can read or change your files."
+	TextGrantProgramPick      = "Choose the program file that HTML files may run."
+	TextGrantAddProgram       = "Add this program as \u201c%s\u201d?\n\n%s\n\nNo HTML file can run it until you allow one. When allowed, it runs as you and can read or change your files."
 	TextGrantAddProgramRisk   = "Be careful with this file: it came from the internet, sits in a download or temporary folder, changed just now, or is not marked to run yet."
 	TextGrantAddProgramYes    = "Add program"
-	TextGrantBuiltinOn        = "Turn on %s? Documents you made or trusted can use it right away, and other documents ask first."
+	TextGrantBuiltinOn        = "Turn on %s? HTML files you made or trusted can use it right away, and other HTML files ask first."
 	TextGrantBuiltinOnYes     = "Turn on"
 	TextGrantExample          = "Open the %s example? HTML Clay saves it in an examples folder inside htmlclay in your home folder, trusts that folder, and lets the example run."
 	TextGrantExampleYes       = "Open example"

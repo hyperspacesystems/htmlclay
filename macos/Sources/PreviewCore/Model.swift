@@ -26,10 +26,10 @@ public enum Persona: String, CaseIterable, Codable, Sendable {
 
 public enum SettingsPane: String, CaseIterable, Codable, Sendable {
     case general
-    case aiEditing = "ai"
     case folders
     case programs
     case sync
+    case aiEditing = "ai"
     case updates
     case advanced
 }

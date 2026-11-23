@@ -39,7 +39,7 @@ func (a *app) createFromTemplate(templateID string) *appcore.Refusal {
 		return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "templateID"}
 	}
 	slug := templateSlug(templateID)
-	dir := filepath.Join(a.rt.home, "htmlclay")
+	dir := a.appDataDir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		a.rt.logger.Printf("Could not make %s for a new document: %v", dir, err)
 		return &appcore.Refusal{Code: appcore.RefuseFailed}

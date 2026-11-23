@@ -30,6 +30,8 @@ public enum Symbols {
     public static let search = "magnifyingglass"
     public static let convert = "photo.on.rectangle"
     public static let watch = "eye"
+    public static let globe = "globe"
+    public static let people = "person.2"
 }
 
 public enum WebKeys {

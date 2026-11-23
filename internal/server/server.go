@@ -114,6 +114,9 @@ type Server struct {
 // A document links its files as /_/uploads/<folder>/<name>, which every site
 // server answers from here, so the document can move anywhere and keep them.
 func UploadsLibraryDir() (string, error) {
+	if given := os.Getenv("HTMLCLAY_APP_DATA_DIR"); given != "" && filepath.IsAbs(given) {
+		return filepath.Join(filepath.Clean(given), "uploads"), nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

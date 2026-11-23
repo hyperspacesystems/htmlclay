@@ -40,7 +40,7 @@ func (a *app) folderProgram(name string, v tier.Verdict) (program config.HelperP
 	if store == nil || !store.Programs() || !config.ValidHelperName(name) {
 		return config.HelperProgram{}, false, false
 	}
-	path, found := findFolderProgram(programsFolder(a.rt.home), name)
+	path, found := findFolderProgram(filepath.Join(a.appDataDir(), "programs"), name)
 	if !found {
 		return config.HelperProgram{}, false, false
 	}

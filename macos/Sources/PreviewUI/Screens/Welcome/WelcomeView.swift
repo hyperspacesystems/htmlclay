@@ -31,12 +31,12 @@ public struct WelcomeView: View {
                 .padding(.bottom, 22)
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 capabilityCell(.cobalt, symbol: Symbols.doc, title: Strings.Welcome.filesTitle)
-                capabilityCell(.plum, symbol: Symbols.sparkles, title: Strings.Welcome.versionsTitle)
-                capabilityCell(.amber, symbol: Symbols.program, title: Strings.Welcome.localTitle)
-                capabilityCell(.sky, symbol: Symbols.sync, title: Strings.Welcome.moreTitle)
+                capabilityCell(.sky, symbol: Symbols.copy, title: Strings.Welcome.versionsTitle)
+                capabilityCell(.plum, symbol: Symbols.sparkles, title: Strings.Welcome.localTitle)
+                capabilityCell(.amber, symbol: Symbols.program, title: Strings.Welcome.moreTitle)
             }
             .frame(maxWidth: 516)
-            .padding(.bottom, 24)
+            .padding(.bottom, 34)
             Button(action: openDashboard) {
                 Text(Strings.Welcome.openDashboard)
                     .frame(maxWidth: .infinity)

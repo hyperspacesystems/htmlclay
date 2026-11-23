@@ -77,9 +77,9 @@ final class SettingsControlsTests: XCTestCase {
 
     func testTheSidebarListsTheSevenTabsInOrder() {
         XCTAssertEqual(SettingsPane.allCases.map(\.rawValue),
-                       ["general", "ai", "folders", "programs", "sync", "updates", "advanced"])
+                       ["general", "folders", "programs", "sync", "ai", "updates", "advanced"])
         XCTAssertEqual(SettingsPane.allCases.map(Strings.Settings.title),
-                       ["General", "AI Editing", "Folders", "Programs", "Sync", "Updates", "Advanced"])
+                       ["General", "Folders", "Programs", "Sync", "AI Editing", "Updates", "Advanced"])
         XCTAssertNil(SettingsPane(rawValue: "yourName"))
         XCTAssertNil(SettingsPane(rawValue: "htmlclayFiles"))
     }

@@ -94,13 +94,14 @@ public enum SampleReducer {
             next.folders.append(Folder(id: id, name: name, path: path, parentID: nearestParent(of: path, in: next), documentCount: documents, status: path))
             adopt(id, path: path, in: &next)
         case let .serveFolder(path, name):
+            let wanted = name.isEmpty ? ServeRules.defaultName(for: path) : name
             if let i = next.folders.firstIndex(where: { $0.path == path }) {
                 next.folders[i].served = true
-                next.folders[i].address = name + addressSuffix
+                next.folders[i].address = wanted + addressSuffix
             } else {
                 let folderName = (path as NSString).lastPathComponent
                 let id = newFolderID(folderName, in: next)
-                next.folders.append(Folder(id: id, name: folderName, path: path, parentID: nearestParent(of: path, in: next), served: true, address: name + addressSuffix, status: Strings.Folders.onlyOnThisMac, versionsSize: "0 MB"))
+                next.folders.append(Folder(id: id, name: folderName, path: path, parentID: nearestParent(of: path, in: next), served: true, address: wanted + addressSuffix, status: Strings.Folders.onlyOnThisMac, versionsSize: "0 MB"))
                 adopt(id, path: path, in: &next)
             }
         case .resolveConflict, .resolveRemoval:

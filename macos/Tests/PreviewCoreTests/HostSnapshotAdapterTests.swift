@@ -49,7 +49,7 @@ final class HostSnapshotAdapterTests: XCTestCase {
         XCTAssertEqual(access, ReadAccess(id: "a1", place: "~/Receipts", pages: ["/Users/x/a.htmlclay", "/Users/x/b.htmlclay"]))
         XCTAssertEqual(Strings.Folders.readAccessPages(access.pages), "Readable by a.htmlclay and 1 more")
         XCTAssertEqual(Strings.Folders.readAccessPages(["/Users/x/a.htmlclay"]), "Readable by a.htmlclay")
-        XCTAssertEqual(Strings.Folders.readAccessPages([]), "No documents open right now")
+        XCTAssertEqual(Strings.Folders.readAccessPages([]), "No HTML files open right now")
     }
 
     func testServedFolderFixture() throws {
