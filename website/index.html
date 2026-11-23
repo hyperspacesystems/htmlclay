@@ -23,7 +23,7 @@
   <meta name="twitter:title" content="HTML Clay: Software you can keep">
   <meta name="twitter:description" content="Real software in a single HTML file on your computer. Every edit saves straight back into the file, and you can reshape how it works anytime.">
 
-  <link rel="stylesheet" href="/css/site.css?v=17d3d6ca">
+  <link rel="stylesheet" href="/css/site.css?v=c8bd58a0">
   <script src="https://signal.hyperclay.com/v1.js" defer></script>
 </head>
 <body>
@@ -142,7 +142,7 @@
       </div>
     </section>
 
-    <!-- Spotlight 1: Software Ownership & Freedom to Reshape (12 Interactive Visuals: 3 Per Block) -->
+    <!-- Spotlight 1: Software Ownership & Freedom to Reshape -->
     <section class="section section-warm" id="ownership">
       <div class="container">
         <div class="section-head">
@@ -153,86 +153,30 @@
         <div class="ownership-ledger">
 
           <!-- BLOCK 1: Download once, keep forever -->
-          <article class="ownership-cell" data-own-card="keep">
+          <article class="ownership-cell">
             <div class="own-stage">
-              <div class="own-stage-bar">
-                <span class="own-stage-caption" data-own-caption>10-year offline timeline</span>
-                <div class="own-switcher" role="tablist" aria-label="Visual ideas for Download once, keep forever">
-                  <button type="button" class="own-step-arrow" data-own-prev aria-label="Previous visual">&lsaquo;</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="true" data-own-pick="0">1</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-own-pick="1">2</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-own-pick="2">3</button>
-                  <button type="button" class="own-step-arrow" data-own-next aria-label="Next visual">&rsaquo;</button>
-                </div>
-              </div>
-
               <div class="own-viewport">
-                <!-- 1.1: 10-Year Offline Time Capsule -->
-                <div class="own-slide" data-own-slide="0" data-label="10-year offline timeline">
-                  <div class="v-capsule">
-                    <div class="v-filebar">
-                      <span class="v-filename">budget.htmlclay</span>
-                      <span class="v-status-offline">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2" y1="2" x2="22" y2="22"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
-                        Offline &middot; $0/mo
-                      </span>
+                <div class="v-compare">
+                  <div class="v-compare-col v-compare-rent">
+                    <div class="v-compare-head">Rented cloud app</div>
+                    <div class="v-nag-row">
+                      <svg class="v-nag-cloud" viewBox="40 330 1100 530" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M428.28 350.52c-67.297 0.070313-127.22 39.613-149.44 98.617-3.0234-0.22656-6.0469-0.38281-9.0859-0.49219-116.73 0-211.36 87.875-211.36 196.27 0 108.39 94.633 196.28 211.36 196.28h686.89c102.14 0 184.93-76.895 184.93-171.74 0-94.848-82.789-171.74-184.93-171.74-42.266 0.023437-83.23 13.488-116.1 38.148-28.031-81.109-109.21-136.15-200.93-136.29-27.707 0.085937-55.141 5.2305-80.699 15.145-29.469-40.105-78.359-64.129-130.64-64.203zm92.457 208.55c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0.015625-13.559 11.836-24.539 26.426-24.539zm158.52 0c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0-13.559 11.832-24.539 26.426-24.539zm-133.33 94.309 54.07 28.082 54.07-28.078 59.746 43.223-16.309 19.355-45.906-33.156-51.602 26.734-51.602-26.734-45.926 33.156-16.309-19.355z"/></svg>
+                      <span>Session expired: log in</span>
                     </div>
-                    <div class="v-years-track" aria-hidden="true">
-                      <span class="v-year v-y1"><b>2026</b><small>Downloaded</small></span>
-                      <span class="v-year v-y2"><b>2029</b><small>Still works</small></span>
-                      <span class="v-year v-y3"><b>2032</b><small>Zero fees</small></span>
-                      <span class="v-year v-y4"><b>2036</b><small>Same UI</small></span>
+                    <div class="v-nag-row">
+                      <svg class="v-nag-cloud" viewBox="40 330 1100 530" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M428.28 350.52c-67.297 0.070313-127.22 39.613-149.44 98.617-3.0234-0.22656-6.0469-0.38281-9.0859-0.49219-116.73 0-211.36 87.875-211.36 196.27 0 108.39 94.633 196.28 211.36 196.28h686.89c102.14 0 184.93-76.895 184.93-171.74 0-94.848-82.789-171.74-184.93-171.74-42.266 0.023437-83.23 13.488-116.1 38.148-28.031-81.109-109.21-136.15-200.93-136.29-27.707 0.085937-55.141 5.2305-80.699 15.145-29.469-40.105-78.359-64.129-130.64-64.203zm92.457 208.55c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0.015625-13.559 11.836-24.539 26.426-24.539zm158.52 0c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0-13.559 11.832-24.539 26.426-24.539zm-133.33 94.309 54.07 28.082 54.07-28.078 59.746 43.223-16.309 19.355-45.906-33.156-51.602 26.734-51.602-26.734-45.926 33.156-16.309-19.355z"/></svg>
+                      <span>Upgrade to Pro ($14/mo)</span>
                     </div>
-                    <div class="v-capsule-foot">
-                      <span class="v-check-pill">&#10003; Opens in 40ms</span>
-                      <span class="v-check-pill">&#10003; No login wall</span>
-                      <span class="v-check-pill">&#10003; No forced updates</span>
+                    <div class="v-nag-row">
+                      <svg class="v-nag-cloud" viewBox="40 330 1100 530" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M428.28 350.52c-67.297 0.070313-127.22 39.613-149.44 98.617-3.0234-0.22656-6.0469-0.38281-9.0859-0.49219-116.73 0-211.36 87.875-211.36 196.27 0 108.39 94.633 196.28 211.36 196.28h686.89c102.14 0 184.93-76.895 184.93-171.74 0-94.848-82.789-171.74-184.93-171.74-42.266 0.023437-83.23 13.488-116.1 38.148-28.031-81.109-109.21-136.15-200.93-136.29-27.707 0.085937-55.141 5.2305-80.699 15.145-29.469-40.105-78.359-64.129-130.64-64.203zm92.457 208.55c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0.015625-13.559 11.836-24.539 26.426-24.539zm158.52 0c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0-13.559 11.832-24.539 26.426-24.539zm-133.33 94.309 54.07 28.082 54.07-28.078 59.746 43.223-16.309 19.355-45.906-33.156-51.602 26.734-51.602-26.734-45.926 33.156-16.309-19.355z"/></svg>
+                      <span>New UI forced overnight</span>
                     </div>
                   </div>
-                </div>
-
-                <!-- 1.2: Rented Cloud App vs. Your Local File -->
-                <div class="own-slide" data-own-slide="1" data-label="Cloud rent vs. your file" hidden>
-                  <div class="v-compare">
-                    <div class="v-compare-col v-compare-rent">
-                      <div class="v-compare-head">Rented cloud app</div>
-                      <div class="v-nag-row">Session expired: log in</div>
-                      <div class="v-nag-row">Upgrade to Pro ($14/mo)</div>
-                      <div class="v-nag-row">New UI forced overnight</div>
-                    </div>
-                    <div class="v-compare-col v-compare-own">
-                      <div class="v-compare-head">budget.htmlclay</div>
-                      <div class="v-own-row"><span>&#10003;</span> Opens offline right away</div>
-                      <div class="v-own-row"><span>&#10003;</span> $0 forever on your disk</div>
-                      <div class="v-own-row"><span>&#10003;</span> Stays how you set it</div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 1.3: Lives in ~/Documents Alongside Your Own Files -->
-                <div class="own-slide" data-own-slide="2" data-label="Lives in ~/Documents" hidden>
-                  <div class="v-finder">
-                    <div class="v-finder-bar">
-                      <span>~/Documents/Personal</span>
-                      <span>On My Mac</span>
-                    </div>
-                    <div class="v-finder-rows">
-                      <div class="v-finder-row v-finder-highlight">
-                        <span class="v-ficon v-ficon-clay">HTML</span>
-                        <span class="v-fname">habit-tracker.htmlclay</span>
-                        <span class="v-fmeta">38 KB &middot; App + Data</span>
-                      </div>
-                      <div class="v-finder-row">
-                        <span class="v-ficon">PDF</span>
-                        <span class="v-fname">tax-return-2026.pdf</span>
-                        <span class="v-fmeta">210 KB &middot; Document</span>
-                      </div>
-                      <div class="v-finder-row">
-                        <span class="v-ficon">JPG</span>
-                        <span class="v-fname">garden-plan.jpg</span>
-                        <span class="v-fmeta">1.4 MB &middot; Image</span>
-                      </div>
-                    </div>
+                  <div class="v-compare-col v-compare-own">
+                    <div class="v-compare-head">budget.htmlclay</div>
+                    <div class="v-own-row"><span>&#10003;</span> Opens offline right away</div>
+                    <div class="v-own-row"><span>&#10003;</span> $0 forever on your disk</div>
+                    <div class="v-own-row"><span>&#10003;</span> Stays how you set it</div>
                   </div>
                 </div>
               </div>
@@ -245,85 +189,24 @@
           </article>
 
           <!-- BLOCK 2: Change how any app works -->
-          <article class="ownership-cell" data-own-card="reshape">
+          <article class="ownership-cell">
             <div class="own-stage">
-              <div class="own-stage-bar">
-                <span class="own-stage-caption" data-own-caption>Press &#8984;J right on the page</span>
-                <div class="own-switcher" role="tablist" aria-label="Visual ideas for Change how any app works">
-                  <button type="button" class="own-step-arrow" data-own-prev aria-label="Previous visual">&lsaquo;</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="true" data-own-pick="0">1</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-own-pick="1">2</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-own-pick="2">3</button>
-                  <button type="button" class="own-step-arrow" data-own-next aria-label="Next visual">&rsaquo;</button>
-                </div>
-              </div>
-
               <div class="own-viewport">
-                <!-- 2.1: Press Cmd+J Right Inside the App Interface -->
-                <div class="own-slide" data-own-slide="0" data-label="Press &#8984;J right on the page">
-                  <div class="v-cmdj">
-                    <div class="v-cmdj-bar">
-                      <kbd>&#8984;J</kbd>
-                      <span class="v-cmdj-prompt">Add priority tags &amp; a filter toggle</span>
-                      <span class="v-cmdj-apply">Applied</span>
-                    </div>
-                    <div class="v-cmdj-app">
-                      <div class="v-cmdj-row">
-                        <span class="v-box-checked">&#10003;</span>
-                        <span class="v-task-txt">Send studio invoice</span>
-                        <span class="v-added-chip v-chip-urgent">High</span>
-                      </div>
-                      <div class="v-cmdj-row">
-                        <span class="v-box-open"></span>
-                        <span class="v-task-txt">Order espresso beans</span>
-                        <span class="v-added-chip v-chip-calm">Soon</span>
-                      </div>
-                      <div class="v-cmdj-added-bar">
-                        <span>+ Priority filter</span>
-                        <span>Saved into tasks.htmlclay</span>
-                      </div>
-                    </div>
+                <div class="v-split-code">
+                  <div class="v-code-pane">
+                    <div class="v-pane-tag">Code editor</div>
+                    <code>&lt;h3&gt;Daily note&lt;/h3&gt;</code>
+                    <code class="v-code-hl">+ &lt;input type="date"&gt;</code>
+                    <code>&lt;textarea bind="note"&gt;</code>
                   </div>
-                </div>
-
-                <!-- 2.2: Delete Clutter & Add Your Own Custom Field -->
-                <div class="own-slide" data-own-slide="1" data-label="Delete clutter, add your field" hidden>
-                  <div class="v-surgery">
-                    <div class="v-clutter-zapped">
-                      <span class="v-zap-strike">Upgrade Team Workspace &middot; Invite 5 seats</span>
-                      <span class="v-zap-badge">&times; Removed</span>
+                  <div class="v-live-pane">
+                    <div class="v-pane-tag">Live in browser</div>
+                    <div class="v-mini-note-head">
+                      <strong>Daily note</strong>
+                      <span class="v-live-date-pill">Nov 23</span>
                     </div>
-                    <div class="v-clean-form">
-                      <div class="v-form-line">
-                        <span>Client project</span>
-                        <strong>Packaging redesign</strong>
-                      </div>
-                      <div class="v-form-line v-form-custom">
-                        <span>+ Custom rate field</span>
-                        <strong>$145 / hr</strong>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 2.3: Edit 1 HTML Line <-> Live App Updates Immediately -->
-                <div class="own-slide" data-own-slide="2" data-label="One HTML line &rarr; live UI" hidden>
-                  <div class="v-split-code">
-                    <div class="v-code-pane">
-                      <div class="v-pane-tag">Code editor</div>
-                      <code>&lt;h3&gt;Daily note&lt;/h3&gt;</code>
-                      <code class="v-code-hl">+ &lt;input type="date"&gt;</code>
-                      <code>&lt;textarea bind="note"&gt;</code>
-                    </div>
-                    <div class="v-live-pane">
-                      <div class="v-pane-tag">Live in browser</div>
-                      <div class="v-mini-note-head">
-                        <strong>Daily note</strong>
-                        <span class="v-live-date-pill">Nov 23</span>
-                      </div>
-                      <div class="v-mini-note-lines">
-                        <span></span><span></span>
-                      </div>
+                    <div class="v-mini-note-lines">
+                      <span></span><span></span>
                     </div>
                   </div>
                 </div>
@@ -337,80 +220,35 @@
           </article>
 
           <!-- BLOCK 3: Give it the look you want -->
-          <article class="ownership-cell" data-own-card="look">
+          <article class="ownership-cell">
             <div class="own-stage">
-              <div class="own-stage-bar">
-                <span class="own-stage-caption" data-own-caption>3 themes side by side</span>
-                <div class="own-switcher" role="tablist" aria-label="Visual ideas for Give it the look you want">
-                  <button type="button" class="own-step-arrow" data-own-prev aria-label="Previous visual">&lsaquo;</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="true" data-own-pick="0">1</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-own-pick="1">2</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-own-pick="2">3</button>
-                  <button type="button" class="own-step-arrow" data-own-next aria-label="Next visual">&rsaquo;</button>
-                </div>
-              </div>
-
               <div class="own-viewport">
-                <!-- 3.1: 3 Themes Side by Side (Paper, Night Mono, Cozy Sage) -->
-                <div class="own-slide" data-own-slide="0" data-label="3 themes side by side">
-                  <div class="v-triptych">
-                    <div class="v-skin v-skin-paper">
-                      <span class="v-skin-tag">Warm Paper</span>
-                      <strong>Sunday Menu</strong>
-                      <p>Roast chicken, lemon potatoes, sourdough.</p>
-                      <span class="v-skin-rule"></span>
-                      <small>3 items ready</small>
-                    </div>
-                    <div class="v-skin v-skin-night">
-                      <span class="v-skin-tag">Night Mono</span>
-                      <strong>Sunday Menu</strong>
-                      <p>Roast chicken, lemon potatoes, sourdough.</p>
-                      <span class="v-skin-rule"></span>
-                      <small>3 items ready</small>
-                    </div>
-                    <div class="v-skin v-skin-sage">
-                      <span class="v-skin-tag">Cozy Sage</span>
-                      <strong>Sunday Menu</strong>
-                      <p>Roast chicken, lemon potatoes, sourdough.</p>
-                      <span class="v-skin-rule"></span>
-                      <small>3 items ready</small>
+                <div class="v-triptych">
+                  <div class="v-skin v-skin-paper">
+                    <strong>Sunday Menu</strong>
+                    <p>Roast chicken, lemon potatoes, sourdough.</p>
+                    <span class="v-skin-rule"></span>
+                    <div class="v-skin-actions">
+                      <span class="v-skin-btn v-skin-btn-sec">More details</span>
+                      <span class="v-skin-btn v-skin-btn-pri">Order</span>
                     </div>
                   </div>
-                </div>
-
-                <!-- 3.2: Interactive + Auto-Cycling Live Theme Swatches -->
-                <div class="own-slide" data-own-slide="1" data-label="Live theme swatches" hidden>
-                  <div class="v-swatch-demo" data-swatch-demo data-skin="cozy">
-                    <div class="v-swatch-row" role="group" aria-label="Preview app theme">
-                      <button type="button" class="v-swatch-btn" data-skin-pick="cozy" aria-pressed="true"><i class="sw-cozy"></i>Cozy</button>
-                      <button type="button" class="v-swatch-btn" data-skin-pick="ink" aria-pressed="false"><i class="sw-ink"></i>Midnight</button>
-                      <button type="button" class="v-swatch-btn" data-skin-pick="botanical" aria-pressed="false"><i class="sw-sage"></i>Sage</button>
-                      <button type="button" class="v-swatch-btn" data-skin-pick="blueprint" aria-pressed="false"><i class="sw-blue"></i>Blueprint</button>
-                    </div>
-                    <div class="v-swatch-card">
-                      <div class="v-swatch-card-top">
-                        <strong>Morning Pages</strong>
-                        <span>Nov 23</span>
-                      </div>
-                      <p>Quiet coffee on the porch before the street wakes up.</p>
+                  <div class="v-skin v-skin-night">
+                    <strong>Sunday Menu</strong>
+                    <p>Roast chicken, lemon potatoes, sourdough.</p>
+                    <span class="v-skin-rule"></span>
+                    <div class="v-skin-actions">
+                      <span class="v-skin-btn v-skin-btn-sec">More details</span>
+                      <span class="v-skin-btn v-skin-btn-pri">Order</span>
                     </div>
                   </div>
-                </div>
-
-                <!-- 3.3: Cramped Default Table -> Cozy Restyled Cards -->
-                <div class="own-slide" data-own-slide="2" data-label="Default table &rarr; cozy cards" hidden>
-                  <div class="v-makeover">
-                    <div class="v-makeover-before">
-                      <span class="v-mk-label">Plain table</span>
-                      <div class="v-mk-row">Dune | Read</div>
-                      <div class="v-mk-row">Hobbit | Reading</div>
-                      <div class="v-mk-row">Sapiens | Queue</div>
-                    </div>
-                    <span class="v-mk-arrow" aria-hidden="true">&rarr;</span>
-                    <div class="v-makeover-after">
-                      <span class="v-mk-label">Your cozy restyle</span>
-                      <div class="v-cozy-book"><i class="bk-spine-1"></i><b>Dune</b><span>Read</span></div>
-                      <div class="v-cozy-book"><i class="bk-spine-2"></i><b>The Hobbit</b><span>Reading</span></div>
+                  <div class="v-skin v-skin-sage">
+                    <strong>Sunday Menu</strong>
+                    <p>Roast chicken, lemon potatoes, sourdough.</p>
+                    <span class="v-skin-rule"></span>
+                    <div class="v-skin-actions">
+                      <span class="v-skin-btn v-skin-btn-sec">More details</span>
+                      <span class="v-skin-btn v-skin-btn-pri">Order</span>
                     </div>
                   </div>
                 </div>
@@ -424,68 +262,27 @@
           </article>
 
           <!-- BLOCK 4: Portable anywhere HTML runs -->
-          <article class="ownership-cell" data-own-card="portable">
+          <article class="ownership-cell">
             <div class="own-stage">
-              <div class="own-stage-bar">
-                <span class="own-stage-caption" data-own-caption>One file, every destination</span>
-                <div class="own-switcher" role="tablist" aria-label="Visual ideas for Portable anywhere HTML runs">
-                  <button type="button" class="own-step-arrow" data-own-prev aria-label="Previous visual">&lsaquo;</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="true" data-own-pick="0">1</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-own-pick="1">2</button>
-                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-own-pick="2">3</button>
-                  <button type="button" class="own-step-arrow" data-own-next aria-label="Next visual">&rsaquo;</button>
-                </div>
-              </div>
-
-              <div class="own-viewport">
-                <!-- 4.1: One File Hub -> Email, Static Host, Git/Dropbox, Any OS -->
-                <div class="own-slide" data-own-slide="0" data-label="One file, every destination">
-                  <div class="v-hub">
-                    <div class="v-hub-source">
-                      <span class="v-hub-ext">.htmlclay</span>
-                      <strong>roadmap</strong>
-                      <small>App + Data &middot; 44 KB</small>
-                    </div>
-                    <span class="v-hub-arrow" aria-hidden="true">&rarr;</span>
-                    <div class="v-hub-targets">
-                      <div class="v-hub-dest"><b>Email a friend</b><span>Opens with data intact</span></div>
-                      <div class="v-hub-dest"><b>Any static host</b><span>Rename .html &amp; publish</span></div>
-                      <div class="v-hub-dest"><b>Git or Dropbox</b><span>Plain-text backups</span></div>
-                      <div class="v-hub-dest"><b>Every browser</b><span>Mac &middot; Win &middot; Linux</span></div>
-                    </div>
+              <div class="own-viewport own-viewport-hub">
+                <div class="v-hub">
+                  <div class="v-hub-source">
+                    <span class="v-hub-ext">.htmlclay</span>
+                    <strong>roadmap</strong>
+                    <small>App + Data &middot; 44 KB</small>
                   </div>
-                </div>
-
-                <!-- 4.2: Drag .html Onto Any Static Web Host -> Live URL -->
-                <div class="own-slide" data-own-slide="1" data-label="Drag onto any static host" hidden>
-                  <div class="v-drop-host">
-                    <div class="v-drop-zone">
-                      <span class="v-drop-chip">recipe-box.html</span>
-                      <span class="v-drop-hint">Dropped onto static web host</span>
-                    </div>
-                    <div class="v-live-browser">
-                      <div class="v-live-urlbar">
-                        <span class="v-live-dot"></span>
-                        <span>https://yoursite.com/recipe-box.html</span>
-                      </div>
-                      <div class="v-live-body">
-                        <strong>Live in Safari, Chrome &amp; Firefox</strong>
-                        <span>Zero backend server or build step needed</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 4.3: Send Software to a Friend Like a Photo -->
-                <div class="own-slide" data-own-slide="2" data-label="Send to a friend in chat" hidden>
-                  <div class="v-chat">
-                    <div class="v-bubble v-bubble-out">
-                      <span class="v-bubble-text">Here is the Kyoto trip planner I customized for us:</span>
-                      <span class="v-bubble-file">kyoto-trip.htmlclay &middot; 34 KB</span>
-                    </div>
-                    <div class="v-bubble v-bubble-in">
-                      <span class="v-bubble-text">Opened right in my browser and saved my train pass &#10003;</span>
-                    </div>
+                  <svg class="v-hub-branch" viewBox="0 0 112 188" fill="none" aria-hidden="true">
+                    <path d="M 3 94 L 24 94 M 24 94 C 39 94, 40 44.5, 55 44.5 M 24 94 C 39 94, 40 143.5, 55 143.5 M 55 44.5 C 73 44.5, 76 20, 105 20 M 55 44.5 C 73 44.5, 76 69, 105 69 M 55 143.5 C 73 143.5, 76 119, 105 119 M 55 143.5 C 73 143.5, 76 168, 105 168" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+                    <path d="M 99.5 15.5 L 106.5 20 L 99.5 24.5 M 99.5 64.5 L 106.5 69 L 99.5 73.5 M 99.5 114.5 L 106.5 119 L 99.5 123.5 M 99.5 163.5 L 106.5 168 L 99.5 172.5" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="24" cy="94" r="2.5" fill="currentColor"/>
+                    <circle cx="55" cy="44.5" r="2.3" fill="currentColor"/>
+                    <circle cx="55" cy="143.5" r="2.3" fill="currentColor"/>
+                  </svg>
+                  <div class="v-hub-targets">
+                    <div class="v-hub-dest"><b>Email a friend</b><span>Opens with data intact</span></div>
+                    <div class="v-hub-dest"><b>Any static host</b><span>Rename .html &amp; publish</span></div>
+                    <div class="v-hub-dest"><b>Git or Dropbox</b><span>Plain-text backups</span></div>
+                    <div class="v-hub-dest"><b>Every browser</b><span>Mac &middot; Win &middot; Linux</span></div>
                   </div>
                 </div>
               </div>
@@ -746,50 +543,268 @@
           <p>Because an <span class="filechip">.htmlclay</span> app is a plain file on your disk, your browser, your text editor, and your AI tools can all work on the same living document at once.</p>
         </div>
 
-        <div class="two-col">
-          <article class="card spotlight-card">
-            <h3>Live sync across tabs, editors &amp; Hyperclay</h3>
-            <p>Edit an open <span class="filechip">.htmlclay</span> file in a text editor or CLI agent and watch your open browser tab morph the change in place without losing scroll position or unsaved typing. Connect a folder to Hyperclay whenever you want to host it, with live cloud sync and team sharing.</p>
-            <div class="sync-diagram" aria-label="Live sync flow across editor, disk file, open browser tab, and optional Hyperclay sync">
-              <div class="sync-row">
-                <div class="sync-node">
-                  <span class="sync-node-title">Code editor or CLI agent</span>
-                  <span class="sync-node-sub">Saves plain HTML to disk</span>
-                </div>
-                <span class="sync-arrow" aria-hidden="true">&harr;</span>
-                <div class="sync-node sync-node-file">
-                  <span class="sync-node-title">sunday-dinner.htmlclay</span>
-                  <span class="sync-node-sub">Single file on your computer</span>
+        <div class="two-col spotlight-pair-compact">
+          <article class="card spotlight-card" data-spot-card="sync">
+            <h3>Live sync across browsers &amp; editors</h3>
+            <p>Edit an open <span class="filechip">.htmlclay</span> file in a text editor or CLI agent and watch your open browser tab morph the change in place without losing scroll position or unsaved typing.</p>
+
+            <div class="spot-stage">
+              <div class="spot-stage-bar">
+                <span class="spot-stage-caption" data-spot-caption>Two open browsers, instant morph</span>
+                <div class="own-switcher" role="tablist" aria-label="Visual options for Live sync">
+                  <button type="button" class="own-step-arrow" data-spot-prev aria-label="Previous visual">&lsaquo;</button>
+                  <button type="button" class="own-step-num" role="tab" aria-selected="true" data-spot-pick="0">1</button>
+                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-spot-pick="1">2</button>
+                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-spot-pick="2">3</button>
+                  <button type="button" class="own-step-arrow" data-spot-next aria-label="Next visual">&rsaquo;</button>
                 </div>
               </div>
-              <div class="sync-bridge" aria-hidden="true">
-                <span class="kiln-pill kiln-pill-served">Live DOM morph</span>
-                <span class="kiln-pill kiln-pill-synced">Optional Hyperclay sync</span>
-              </div>
-              <div class="sync-row">
-                <div class="sync-node">
-                  <span class="sync-node-title">Open browser tabs</span>
-                  <span class="sync-node-sub">Updates live with no reload</span>
+
+              <div class="spot-viewport">
+                <!-- Sync Option 1: Two Side-by-Side Browser Windows Morphing a New Row -->
+                <div class="spot-slide" data-spot-slide="0" data-label="Two open browsers, instant morph">
+                  <div class="sv-browsers">
+                    <div class="sv-win">
+                      <div class="sv-win-bar">
+                        <span class="sv-dots"><i></i><i></i><i></i></span>
+                        <span class="sv-url">dinner.htmlclay</span>
+                        <span class="sv-win-tag">Browser A</span>
+                      </div>
+                      <div class="sv-win-body">
+                        <div class="sv-item"><span class="sv-chk">&#10003;</span>Roast chicken</div>
+                        <div class="sv-item sv-item-typed"><span class="sv-plus">+</span><b>Sourdough loaf</b><i class="sv-caret"></i></div>
+                        <div class="sv-draft-line">Note: Preheat 425&deg;F</div>
+                      </div>
+                    </div>
+
+                    <div class="sv-sync-bolt" aria-hidden="true">
+                      <svg width="26" height="20" viewBox="0 0 26 20" fill="none"><path d="M2 10H22M17 5L22.5 10L17 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <span>Instant</span>
+                    </div>
+
+                    <div class="sv-win">
+                      <div class="sv-win-bar">
+                        <span class="sv-dots"><i></i><i></i><i></i></span>
+                        <span class="sv-url">dinner.htmlclay</span>
+                        <span class="sv-win-tag sv-tag-green">Browser B</span>
+                      </div>
+                      <div class="sv-win-body">
+                        <div class="sv-item"><span class="sv-chk">&#10003;</span>Roast chicken</div>
+                        <div class="sv-item sv-item-morphed"><span class="sv-chk-new">&#10003;</span><b>Sourdough loaf</b><small>New</small></div>
+                        <div class="sv-draft-kept">Typing kept: 425&deg;F<i class="sv-caret"></i></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <span class="sync-arrow" aria-hidden="true">&harr;</span>
-                <div class="sync-node">
-                  <span class="sync-node-title">Hyperclay folders</span>
-                  <span class="sync-node-sub">Mirrors across devices &amp; teams</span>
+
+                <!-- Sync Option 2: Card Moved/Checked in Safari -> Appears Live in Chrome -->
+                <div class="spot-slide" data-spot-slide="1" data-label="Board change mirrored across windows" hidden>
+                  <div class="sv-beam-pair">
+                    <div class="sv-mini-browser">
+                      <div class="sv-mb-top"><b>Safari</b><span>roadmap.htmlclay</span></div>
+                      <div class="sv-mb-card sv-mb-muted">Design review</div>
+                      <div class="sv-mb-card sv-mb-edited">
+                        <span>Ship v2.0 beta</span>
+                        <em>Just added</em>
+                      </div>
+                    </div>
+                    <div class="sv-beam-mid" aria-hidden="true">
+                      <span class="sv-beam-pill">0ms sync</span>
+                      <svg width="44" height="16" viewBox="0 0 44 16" fill="none"><path d="M2 8H40M34 3L40.5 8L34 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <small>No reload</small>
+                    </div>
+                    <div class="sv-mini-browser">
+                      <div class="sv-mb-top"><b>Chrome</b><span>roadmap.htmlclay</span></div>
+                      <div class="sv-mb-card sv-mb-muted">Design review</div>
+                      <div class="sv-mb-card sv-mb-arrived">
+                        <span>Ship v2.0 beta</span>
+                        <em>Live</em>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sync Option 3: Live Calculation & Edit Mirrored Across Two Open Tabs -->
+                <div class="spot-slide" data-spot-slide="2" data-label="Live budget edit across two tabs" hidden>
+                  <div class="sv-browsers">
+                    <div class="sv-win">
+                      <div class="sv-win-bar">
+                        <span class="sv-dots"><i></i><i></i><i></i></span>
+                        <span class="sv-url">budget.htmlclay</span>
+                        <span class="sv-win-tag">Tab 1</span>
+                      </div>
+                      <div class="sv-win-body">
+                        <div class="sv-kv"><span>Rent</span><b>$1,200</b></div>
+                        <div class="sv-kv sv-kv-edit"><span>Groceries</span><b>$345</b></div>
+                        <div class="sv-kv sv-kv-tot"><span>Total</span><b>$1,545</b></div>
+                      </div>
+                    </div>
+
+                    <div class="sv-sync-bolt" aria-hidden="true">
+                      <svg width="26" height="20" viewBox="0 0 26 20" fill="none"><path d="M2 10H22M17 5L22.5 10L17 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <span>Mirrored</span>
+                    </div>
+
+                    <div class="sv-win">
+                      <div class="sv-win-bar">
+                        <span class="sv-dots"><i></i><i></i><i></i></span>
+                        <span class="sv-url">budget.htmlclay</span>
+                        <span class="sv-win-tag sv-tag-green">Tab 2</span>
+                      </div>
+                      <div class="sv-win-body">
+                        <div class="sv-kv"><span>Rent</span><b>$1,200</b></div>
+                        <div class="sv-kv sv-kv-live"><span>Groceries</span><b>$345</b></div>
+                        <div class="sv-kv sv-kv-tot"><span>Total</span><b>$1,545</b></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+
             <div class="spotlight-links">
               <a href="/docs/live-sync/">Read Live Sync docs &rarr;</a>
               <a href="/features/#folders">Folders &amp; Hyperclay sync</a>
             </div>
           </article>
 
-          <article class="card spotlight-card">
+          <article class="card spotlight-card" data-spot-card="ai">
             <h3>Press &#8984;J to modify any part of a page</h3>
-            <p>Select any element in a document and press <span class="filechip">&#8984;J</span> (<span class="filechip">Ctrl+J</span> on Windows and Linux) to add a feature or restyle how it works using <strong>Claude</strong>, <strong>Codex</strong>, <strong>Gemini</strong>, or any custom command on your computer.</p>
-            <div class="ui-shot" style="margin-top: 18px;">
-              <img src="/images/v2/settings-ai-light.webp?v=c48d0799" alt="HTML Clay AI Editing settings pane showing Claude, Codex, Gemini (agy), and Custom command model and effort pickers." width="870" height="794" decoding="async">
+            <p>Select any element in a document and press <span class="filechip">&#8984;J</span> (<span class="filechip">Ctrl+J</span> on Windows and Linux) to add a feature or restyle how it works using your agent.</p>
+
+            <div class="spot-stage">
+              <div class="spot-stage-bar">
+                <span class="spot-stage-caption" data-spot-caption>Plain note &rarr; Botanical daily journal</span>
+                <div class="own-switcher" role="tablist" aria-label="Visual options for AI page modification">
+                  <button type="button" class="own-step-arrow" data-spot-prev aria-label="Previous visual">&lsaquo;</button>
+                  <button type="button" class="own-step-num" role="tab" aria-selected="true" data-spot-pick="0">1</button>
+                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-spot-pick="1">2</button>
+                  <button type="button" class="own-step-num" role="tab" aria-selected="false" tabindex="-1" data-spot-pick="2">3</button>
+                  <button type="button" class="own-step-arrow" data-spot-next aria-label="Next visual">&rsaquo;</button>
+                </div>
+              </div>
+
+              <div class="spot-viewport">
+                <!-- AI Option 1: Plain Note -> Rich Botanical Daily Journal (Dates, Tags, Header Image, Flower & Vine Sidebar) -->
+                <div class="spot-slide" data-spot-slide="0" data-label="Plain note &rarr; Botanical daily journal">
+                  <div class="av-transform">
+                    <div class="av-orig">
+                      <span class="av-badge-plain">Original</span>
+                      <strong class="av-orig-title">Daily journal</strong>
+                      <div class="av-orig-lines"><i></i><i></i><i></i></div>
+                    </div>
+
+                    <div class="av-cmdj-bridge" aria-hidden="true">
+                      <kbd>&#8984;J</kbd>
+                      <svg width="22" height="14" viewBox="0 0 22 14" fill="none"><path d="M1 7H19M14.5 2.5L19.5 7L14.5 11.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+
+                    <div class="av-journal-custom">
+                      <div class="av-vine-rail" aria-hidden="true">
+                        <svg viewBox="0 0 36 144" fill="none">
+                          <path d="M18 138 C12 114, 24 92, 17 68 C11 46, 23 30, 18 14" stroke="#4D7A58" stroke-width="1.6" stroke-linecap="round"/>
+                          <path d="M16 108 C8 104, 6 95, 13 93 C17 92, 18 101, 16 108 Z" fill="#6D9B76"/>
+                          <path d="M19 82 C27 78, 29 69, 22 67 C18 66, 17 75, 19 82 Z" fill="#6D9B76"/>
+                          <path d="M15 52 C7 48, 6 39, 13 38 C17 37, 17 46, 15 52 Z" fill="#6D9B76"/>
+                          <circle cx="18" cy="14" r="6" fill="#E58B52"/>
+                          <circle cx="13" cy="10" r="4" fill="#ECA86B"/>
+                          <circle cx="23" cy="10" r="4" fill="#ECA86B"/>
+                          <circle cx="13" cy="18" r="4" fill="#ECA86B"/>
+                          <circle cx="23" cy="18" r="4" fill="#ECA86B"/>
+                          <circle cx="18" cy="14" r="2.3" fill="#4A2C14"/>
+                        </svg>
+                      </div>
+                      <div class="av-journal-main">
+                        <div class="av-journal-banner" aria-hidden="true">
+                          <svg viewBox="0 0 210 38" preserveAspectRatio="none">
+                            <rect width="210" height="38" fill="#F4DFC0"/>
+                            <circle cx="168" cy="14" r="9" fill="#EC9F2E"/>
+                            <path d="M0 38 L0 24 Q42 12 88 26 T176 22 L210 27 L210 38 Z" fill="#D99B66"/>
+                            <path d="M0 38 L0 30 Q65 20 124 31 T210 26 L210 38 Z" fill="#6D8C6E"/>
+                          </svg>
+                        </div>
+                        <div class="av-journal-meta">
+                          <span class="av-j-date">Mon, Nov 23</span>
+                          <span class="av-j-tag">#garden</span>
+                          <span class="av-j-tag">#ideas</span>
+                        </div>
+                        <strong class="av-j-head">Morning in the greenhouse</strong>
+                        <div class="av-j-ruled"><i></i><i></i></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- AI Option 2: Bare Expense List -> Visual Budget Studio -->
+                <div class="spot-slide" data-spot-slide="1" data-label="Simple list &rarr; Visual budget studio" hidden>
+                  <div class="av-transform">
+                    <div class="av-orig">
+                      <span class="av-badge-plain">Original</span>
+                      <strong class="av-orig-title">Expenses</strong>
+                      <div class="av-orig-list">
+                        <span>Rent 1200</span>
+                        <span>Food 320</span>
+                        <span>Cafe 60</span>
+                      </div>
+                    </div>
+
+                    <div class="av-cmdj-bridge" aria-hidden="true">
+                      <kbd>&#8984;J</kbd>
+                      <svg width="22" height="14" viewBox="0 0 22 14" fill="none"><path d="M1 7H19M14.5 2.5L19.5 7L14.5 11.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+
+                    <div class="av-budget-custom">
+                      <div class="av-b-top">
+                        <strong>November Cap</strong>
+                        <span class="av-b-csv">Export CSV</span>
+                      </div>
+                      <div class="av-b-meter"><i style="width:72%"></i></div>
+                      <div class="av-b-bars">
+                        <div class="av-b-row"><span>Housing</span><i class="b-c1" style="width:68%"></i><b>$1,200</b></div>
+                        <div class="av-b-row"><span>Groceries</span><i class="b-c2" style="width:36%"></i><b>$320</b></div>
+                        <div class="av-b-row"><span>Coffee</span><i class="b-c3" style="width:18%"></i><b>$60</b></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- AI Option 3: Plain Text Recipe -> Interactive Kitchen Prep Card -->
+                <div class="spot-slide" data-spot-slide="2" data-label="Plain recipe &rarr; Kitchen prep deck" hidden>
+                  <div class="av-transform">
+                    <div class="av-orig">
+                      <span class="av-badge-plain">Original</span>
+                      <strong class="av-orig-title">Banana bread</strong>
+                      <div class="av-orig-lines"><i></i><i></i><i></i></div>
+                    </div>
+
+                    <div class="av-cmdj-bridge" aria-hidden="true">
+                      <kbd>&#8984;J</kbd>
+                      <svg width="22" height="14" viewBox="0 0 22 14" fill="none"><path d="M1 7H19M14.5 2.5L19.5 7L14.5 11.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+
+                    <div class="av-recipe-custom">
+                      <div class="av-r-top">
+                        <strong>Banana Bread</strong>
+                        <div class="av-r-scale"><span>1&times;</span><b>2&times;</b><span>3&times;</span></div>
+                      </div>
+                      <div class="av-r-cols">
+                        <div class="av-r-ing">
+                          <div><i>&#10003;</i>6 bananas</div>
+                          <div><i>&#10003;</i>3 cups flour</div>
+                          <div><i class="av-open"></i>2 eggs</div>
+                        </div>
+                        <div class="av-r-timer">
+                          <span>Bake timer</span>
+                          <b>55:00</b>
+                          <em>Start</em>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+
             <div class="spotlight-links">
               <a href="/features/#ai-editing">AI editing tour &rarr;</a>
               <a href="/docs/guide/ai-editing/">AI editing guide</a>
@@ -804,7 +819,7 @@
       <div class="container">
         <div class="section-head-split">
           <div>
-            <h2>Start with a finished single-file app</h2>
+            <h2>Start with a finished HTML file app</h2>
             <p>Download any of these free MIT-0 <span class="filechip">.htmlclay</span> apps from One HTML File, double-click it on your computer, and customize how it works. Signed offline with <span class="filechip">ecosystem-2026-11</span> so they open ready to use.</p>
           </div>
           <a class="btn btn-secondary btn-sm" href="/apps/">View all apps &amp; samples &rarr;</a>
@@ -885,7 +900,7 @@
           <article class="card app-catalog-card">
             <div>
               <h3>Browse the full catalog</h3>
-              <p>Explore more free, single-file MIT-0 apps on One HTML File, or grab a tiny 3 KB starter file to inspect and customize in your text editor.</p>
+              <p>Explore more free, single-file MIT-0 apps on One HTML File, or grab a lightweight starter file to inspect and customize in your text editor.</p>
             </div>
             <div class="app-card-actions">
               <a class="btn btn-dark btn-sm" href="/apps/">Starter apps &amp; samples</a>
@@ -1066,7 +1081,7 @@
   <footer data-hyper-footer="htmlclay"></footer>
 
   <script src="/sap.min.js?v=db4cb200"></script>
-  <script src="/js/site.js?v=8f1942b7"></script>
+  <script src="/js/site.js?v=d6c5d4b4"></script>
   <script src="https://hyperclay.com/public/js/hyper-footer.js" defer></script>
   <script src="https://hyperclay.com/public/js/polite-pop.js" defer></script>
 </body>

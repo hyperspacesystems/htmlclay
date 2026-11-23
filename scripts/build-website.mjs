@@ -233,7 +233,7 @@ function renderHomeAppsBlock(apps) {
   cards.push(`          <article class="card app-catalog-card">
             <div>
               <h3>Browse the full catalog</h3>
-              <p>Explore more free, single-file MIT-0 apps on One HTML File, or grab a tiny 3 KB starter file to inspect and customize in your text editor.</p>
+              <p>Explore more free, single-file MIT-0 apps on One HTML File, or grab a lightweight starter file to inspect and customize in your text editor.</p>
             </div>
             <div class="app-card-actions">
               <a class="btn btn-dark btn-sm" href="/apps/">Starter apps &amp; samples</a>

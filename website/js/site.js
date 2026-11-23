@@ -133,7 +133,11 @@
     general: {
       label: "General",
       title: "General: Startup, .htmlclay file opening & appearance",
-      desc: "Open the local dashboard at htmlclay.localhost:1212, choose whether HTML Clay starts at login, and manage double-click opening for .htmlclay files while keeping your regular .html browser untouched (with HTML Clay ready in Open With). Set your optional document author name and System, Light, or Dark appearance.",
+      bullets: [
+        "Open your local browser dashboard at <code>htmlclay.localhost:1212</code> or revisit the Welcome guide anytime.",
+        "Start HTML Clay automatically at login and double-click <code>.htmlclay</code> files to open them, leaving your default <code>.html</code> browser untouched (with HTML Clay ready in Open With).",
+        "Set an optional document author name and choose System, Light, or Dark appearance."
+      ],
       alt: "HTML Clay General settings pane showing local dashboard link, Welcome window button, Open at login toggle, .htmlclay file association toggle, optional author name, and System/Light/Dark appearance.",
       badgesHtml:
         '<span class="filechip">htmlclay.localhost:1212</span><span class="filechip">.htmlclay &amp; Open With .html</span>'
@@ -141,7 +145,11 @@
     ai: {
       label: "AI Editing",
       title: "AI Editing: Modify any element in place with Claude, Codex, or Gemini",
-      desc: "Press \u2318J inside an HTML file to reshape selected text or layout using an AI CLI installed on your computer. Pick your preferred tool, model, and reasoning effort across Claude, Codex, or Gemini (agy), or wire up any custom command. Only your selected HTML and prompt are sent.",
+      bullets: [
+        "Press <code>\u2318J</code> inside any open HTML file to reshape selected text, layout, or behavior in place.",
+        "Choose your preferred CLI tool, model, and reasoning effort across Claude, Codex, Gemini (<code>agy</code>), or any custom command.",
+        "Sends only the selected HTML and your instruction with tool execution locked off, so you can keep or revert inline."
+      ],
       alt: "HTML Clay AI Editing settings pane showing Enable AI editing toggle and model plus effort pickers for Claude, Codex, Gemini (agy), and a custom CLI command.",
       badgesHtml:
         '<span class="kiln-pill kiln-pill-amber">\u2318J inline AI</span><span class="filechip">Claude \u00b7 Codex \u00b7 Gemini</span>'
@@ -149,7 +157,11 @@
     folders: {
       label: "Folders",
       title: "Folders: Three clear levels of trust, local serving, and live sync",
-      desc: "Start with a single folder on your computer and step up only when a project needs more: Trusted lets files save without prompts, Served gives a project folder its own local web address so pages share assets and link together, and Synced mirrors chosen folders live with Hyperclay.",
+      bullets: [
+        "<strong>Trusted:</strong> files inside the folder open ready to edit and save right away without confirmation prompts.",
+        "<strong>Served:</strong> gives a project folder its own local web address so pages can share images, scripts, and links.",
+        "<strong>Synced:</strong> mirrors chosen served folders live with your personal or team Hyperclay workspace."
+      ],
       alt: "HTML Clay Folders settings pane showing local Notes and prototypes folders alongside synced Hyperclay team folders with Trusted, Served, and Synced pills plus Open, Finder, and More controls.",
       badgesHtml:
         '<span class="kiln-pill kiln-pill-trusted">Trusted</span>' +
@@ -159,7 +171,11 @@
     programs: {
       label: "Programs",
       title: "Programs: Explicit approval for local helper scripts",
-      desc: "Documents can ask HTML Clay to run a local script or binary on your computer, and every request waits for your answer. Review pending requests in one place, try built-in file search or image conversion examples, see which documents may run each program, or revoke access anytime.",
+      bullets: [
+        "Every document request to run a local script or binary waits for your explicit approval before executing.",
+        "Inspect the exact file path on disk, try built-in search or image helper examples, and pin binary identity against swaps.",
+        "Review which documents have permission for each program and revoke access in one click anytime."
+      ],
       alt: "HTML Clay Programs settings pane showing a waiting request from todo.htmlclay for todo-search and per-document access rules.",
       badgesHtml:
         '<span class="kiln-pill kiln-pill-amber">Per-document consent</span><span class="filechip">Pinned binary identity</span>'
@@ -167,7 +183,11 @@
     sync: {
       label: "Sync",
       title: "Sync: Optional live two-way folder sync with Hyperclay",
-      desc: "Local .htmlclay files never require an account. Whenever you want cloud backups, live web hosting, or team folders, connect your Hyperclay sync key, choose which folders mirror, pause syncing in one click, or settle two-way edits in the dashboard.",
+      bullets: [
+        "Local <code>.htmlclay</code> files work offline forever with no account required.",
+        "Connect a Hyperclay sync key whenever you want cloud backups, live web hosting, or shared team folders.",
+        "Pause or resume syncing in one click and settle two-way edit conflicts cleanly in the dashboard."
+      ],
       alt: "HTML Clay Sync settings pane showing connected Hyperclay account, pause syncing control, and per-folder sync status.",
       badgesHtml:
         '<span class="kiln-pill kiln-pill-synced">Live Hyperclay sync</span>'
@@ -175,7 +195,11 @@
     updates: {
       label: "Updates",
       title: "Updates: Signed background updates that keep your tabs open",
-      desc: "HTML Clay checks a cryptographically signed feed and installs updates automatically through Sparkle on macOS (and verified self-updates on Windows and Linux), or lets you check by hand whenever you prefer. Restarting finishes active saves first and reopens your tabs right where you left off.",
+      bullets: [
+        "Checks a cryptographically signed feed via Sparkle on macOS and verified self-updates on Windows and Linux.",
+        "Choose automatic background updates or check manually whenever you prefer.",
+        "Finishes active saves before restarting and reopens every open document right where you left off."
+      ],
       alt: "HTML Clay Updates settings pane showing current version status, Check now button, and Update automatically toggle.",
       badgesHtml:
         '<span class="kiln-pill kiln-pill-synced">Signed update feed</span>'
@@ -183,7 +207,11 @@
     advanced: {
       label: "Advanced",
       title: "Advanced: Local port, version storage & plain-text logs",
-      desc: "See or change the single local port behind your htmlclay.localhost addresses (1212 by default), inspect the folder service status, reveal stored document versions and uploads directly in Finder, or open the app and sync logs when troubleshooting.",
+      bullets: [
+        "View or customize the single localhost port behind your <code>htmlclay.localhost</code> addresses (<code>1212</code> by default).",
+        "Check folder service health and reveal stored version history or uploaded assets directly in Finder.",
+        "Open plain-text app and sync logs in one click whenever you want to inspect what ran."
+      ],
       alt: "HTML Clay Advanced settings pane showing port 1212, running folder service, Finder buttons for versions and uploads storage, and log viewers.",
       badgesHtml:
         '<span class="filechip">Port 1212</span><span class="filechip">Show in Finder</span>'
@@ -237,7 +265,7 @@
     var img = root.querySelector("[data-settings-img]");
     var panel = root.querySelector("[data-settings-panel]");
     var titleEl = root.querySelector("[data-pane-title]");
-    var descEl = root.querySelector("[data-pane-desc]");
+    var bulletsEl = root.querySelector("[data-pane-bullets]");
     var badgesEl = root.querySelector("[data-pane-badges]");
 
     function stepBy(delta) {
@@ -289,7 +317,13 @@
       }
 
       if (titleEl) titleEl.textContent = info.title;
-      if (descEl) descEl.textContent = info.desc;
+      if (bulletsEl && info.bullets) {
+        bulletsEl.innerHTML = info.bullets
+          .map(function (item) {
+            return "<li>" + item + "</li>";
+          })
+          .join("");
+      }
       if (badgesEl) badgesEl.innerHTML = info.badgesHtml;
 
       preloadNeighbors(currentPane, currentTheme);
@@ -1105,16 +1139,16 @@
     if (isVisible() && !document.hidden && !isReducedMotion()) start();
   }
 
-  /* 8. Ownership 4x3 Visual Concept Switcher + Live Theme Swatches */
-  function initOwnershipSwitchers() {
-    var cards = document.querySelectorAll("[data-own-card]");
+  /* 8. Spotlight 3 Visual Option Switchers (3 Static Options Each for Live Sync & Cmd+J AI) */
+  function initSpotlightSwitchers() {
+    var cards = document.querySelectorAll("[data-spot-card]");
     for (var i = 0; i < cards.length; i++) {
       (function (card) {
-        var slides = [].slice.call(card.querySelectorAll("[data-own-slide]"));
-        var picks = [].slice.call(card.querySelectorAll("[data-own-pick]"));
-        var prev = card.querySelector("[data-own-prev]");
-        var next = card.querySelector("[data-own-next]");
-        var caption = card.querySelector("[data-own-caption]");
+        var slides = [].slice.call(card.querySelectorAll("[data-spot-slide]"));
+        var picks = [].slice.call(card.querySelectorAll("[data-spot-pick]"));
+        var prev = card.querySelector("[data-spot-prev]");
+        var next = card.querySelector("[data-spot-next]");
+        var caption = card.querySelector("[data-spot-caption]");
         var tablist = card.querySelector('[role="tablist"]');
         if (!slides.length) return;
         var current = 0;
@@ -1136,7 +1170,7 @@
 
         picks.forEach(function (b) {
           b.addEventListener("click", function () {
-            select(Number(b.getAttribute("data-own-pick")) || 0);
+            select(Number(b.getAttribute("data-spot-pick")) || 0);
           });
         });
         if (prev) {
@@ -1150,42 +1184,9 @@
           });
         }
         attachRovingTabindex(tablist, picks, function (btn) {
-          select(Number(btn.getAttribute("data-own-pick")) || 0);
+          select(Number(btn.getAttribute("data-spot-pick")) || 0);
         });
       })(cards[i]);
-    }
-
-    var swatchRoot = document.querySelector("[data-swatch-demo]");
-    if (swatchRoot) {
-      var btns = [].slice.call(swatchRoot.querySelectorAll("[data-skin-pick]"));
-      var skins = ["cozy", "ink", "botanical", "blueprint"];
-      var skinIdx = 0;
-      var userPinned = false;
-
-      function applySkin(name) {
-        var clean = (name || "cozy").trim();
-        swatchRoot.setAttribute("data-skin", clean);
-        skinIdx = Math.max(0, skins.indexOf(clean));
-        btns.forEach(function (b) {
-          var val = (b.getAttribute("data-skin-pick") || "").trim();
-          b.setAttribute("aria-pressed", String(val === clean));
-        });
-      }
-
-      btns.forEach(function (b) {
-        b.addEventListener("click", function () {
-          userPinned = true;
-          applySkin(b.getAttribute("data-skin-pick"));
-        });
-      });
-
-      if (!(reducedMotionQuery && reducedMotionQuery.matches)) {
-        setInterval(function () {
-          if (userPinned || swatchRoot.closest("[hidden]")) return;
-          skinIdx = (skinIdx + 1) % skins.length;
-          applySkin(skins[skinIdx]);
-        }, 2400);
-      }
     }
   }
 
@@ -1196,7 +1197,7 @@
     initCopyHashButtons();
     initPlayground();
     initBreakout();
-    initOwnershipSwitchers();
+    initSpotlightSwitchers();
   }
 
   if (document.readyState === "loading") {

@@ -3,134 +3,410 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Banana bread</title>
+  <title>One-Bowl Banana Bread</title>
   <style>
-    body {
-      max-width: 32rem;
-      margin: 3rem auto;
-      padding: 0 1.25rem;
-      background: #faf8f3;
-      color: #1b1a17;
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 17px;
-      line-height: 1.6;
+    * { box-sizing: border-box; }
+    [item][template] { display: none; }
+    html:not([editmode="true"]) .ing-del { display: none; }
+    html {
+      font: 17px/1.6 Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+      color: #1A1C23;
+      background: #FAF8F3;
     }
-
-    h1 { margin: 0 0 1rem; font-size: 1.5rem; letter-spacing: -0.01em; }
-
-    h2 {
-      margin: 1.3rem 0 0.35rem;
-      color: #c2410c;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+    body { max-width: 580px; margin: 52px auto 64px; padding: 0 20px; }
+    .sheet {
+      background: #FCFBF7;
+      border: 1px solid #DFD9CB;
+      border-radius: 16px;
+      padding: 26px 28px 30px;
+      box-shadow: 0 2px 6px rgba(26, 28, 35, 0.05), 0 16px 36px -16px rgba(26, 28, 35, 0.12);
     }
-
-    ul { margin: 0; padding: 0; list-style: none; }
-
-    li { position: relative; padding: 0.3rem 0 0.3rem 1.2rem; }
-
-    li::before {
-      content: "";
-      position: absolute;
-      left: 0.35rem;
-      top: 0.9rem;
-      width: 0.3rem;
-      height: 0.3rem;
-      border-radius: 50%;
-      background: #d3ccbc;
-    }
-
-    .serves, .bake { color: #6f6b62; font-size: 0.9rem; }
-    .serves { margin: 0 0 0.5rem; }
-    .bake { margin: 0.7rem 0 0; }
-
-    form {
+    .topbar {
       display: flex;
-      gap: 0.5rem;
-      margin-top: 1.6rem;
-      padding-top: 1.1rem;
-      border-top: 1px solid #e7e3d8;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
     }
-
-    input {
-      flex: 1;
-      min-width: 0;
-      padding: 0.5rem 0.7rem;
-      border: 1px solid #e7e3d8;
-      border-radius: 0.55rem;
-      background: #fff;
-      font: inherit;
-      font-size: 1rem;
-    }
-
-    button {
-      padding: 0.5rem 1.1rem;
-      border: 0;
-      border-radius: 0.55rem;
-      background: #161512;
-      color: #faf8f3;
-      font: inherit;
-      font-weight: 650;
+    h1 { font-size: 29px; line-height: 1.18; margin: 0 0 6px; letter-spacing: -0.015em; }
+    .sub { color: #5F6373; font-size: 15px; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    .ai-anchor { position: relative; flex: none; }
+    .ai-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font: 600 12.5px/1 system-ui, -apple-system, sans-serif;
+      color: #1A140B;
+      background: #F4E3C1;
+      border: 1px solid #DEC089;
+      border-radius: 999px;
+      padding: 6px 11px;
       cursor: pointer;
     }
-
-    #ask + p {
-      margin: 0.7rem 0 0;
-      color: #6f6b62;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.8rem;
+    .ai-btn:hover { background: #EDD4A3; }
+    .ai-pop {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 30;
+      width: min(320px, calc(100vw - 48px));
+      background: #FCFBF7;
+      border: 1px solid #CFC7B4;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 12px 30px -8px rgba(26, 28, 35, 0.22);
+      font-family: system-ui, -apple-system, sans-serif;
     }
+    .ai-pop[hidden] { display: none; }
+    .ai-pop label { display: block; font-size: 12px; font-weight: 600; color: #434654; margin-bottom: 6px; }
+    .ai-row { display: flex; gap: 6px; }
+    .ai-row input {
+      flex: 1;
+      min-width: 0;
+      font: 13.5px/1.3 system-ui, -apple-system, sans-serif;
+      color: #1A1C23;
+      background: #FAF8F3;
+      border: 1px solid #CFC7B4;
+      border-radius: 8px;
+      padding: 7px 9px;
+    }
+    .ai-row button {
+      font: 600 13px/1 system-ui, -apple-system, sans-serif;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 0;
+      background: #B8420E;
+      color: #FAF8F3;
+      cursor: pointer;
+    }
+    .ai-status { font-size: 12px; color: #5F6373; margin: 7px 0 0; }
+    .ai-status:empty { display: none; }
+
+    .sec-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 24px 0 10px;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    h2 {
+      font: 700 12px/1.2 system-ui, -apple-system, sans-serif;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #7A542E;
+      margin: 0;
+    }
+    .scale-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #F4F2EC;
+      border: 1px solid #E2DDD1;
+      border-radius: 999px;
+      padding: 3px 6px 3px 4px;
+      font-size: 12px;
+    }
+    .scale-pill {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: #5F6373;
+      font: 600 12px/1 system-ui, -apple-system, sans-serif;
+      padding: 5px 8px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .scale-pill.active { background: #1B1A17; color: #FAF8F3; }
+    .scale-custom {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding-left: 5px;
+      border-left: 1px solid #DDD7C8;
+      color: #5F6373;
+      font-weight: 600;
+    }
+    .scale-in {
+      width: 46px;
+      font: 600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #1A1C23;
+      background: #FCFBF7;
+      border: 1px solid #D5CEBE;
+      border-radius: 6px;
+      padding: 3px 5px;
+      text-align: center;
+    }
+
+    .ing-list { list-style: none; margin: 0; padding: 0; }
+    .ing-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-top: 1px solid #EFECE3;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .ing-list li:first-of-type { border-top: 0; }
+    .amt {
+      width: 58px;
+      flex: none;
+      font: 600 13.5px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #1A1C23;
+      background: #FAF8F3;
+      border: 1px solid #DFD9CB;
+      border-radius: 7px;
+      padding: 5px 7px;
+      text-align: right;
+    }
+    .scaled {
+      flex: none;
+      font: 700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #8F4F06;
+      background: #FBF1DC;
+      border: 1px solid #EBD09B;
+      border-radius: 6px;
+      padding: 3px 7px;
+      white-space: nowrap;
+    }
+    .scaled:empty { display: none; }
+    .ing-item {
+      flex: 1;
+      min-width: 0;
+      font: 15px/1.35 Georgia, serif;
+      color: #1A1C23;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 4px 7px;
+    }
+    .ing-item:hover { border-color: #E6E1D5; background: #FAF8F3; }
+    .ing-item:focus, .amt:focus, .scale-in:focus, .add-ing input:focus {
+      outline: none;
+      border-color: #B8420E;
+      background: #FAF8F3;
+    }
+    .ing-del {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: #8A8E9E;
+      font-size: 16px;
+      line-height: 1;
+      padding: 4px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .ing-del:hover { color: #B8420E; background: #F4EFE6; }
+
+    .add-ing {
+      display: flex;
+      gap: 7px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #DFD9CB;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .add-amt {
+      width: 58px;
+      font: 600 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #1A1C23;
+      background: #FAF8F3;
+      border: 1px solid #D8D1C1;
+      border-radius: 8px;
+      padding: 6px 7px;
+      text-align: right;
+    }
+    .add-text {
+      flex: 1;
+      min-width: 0;
+      font: 14px/1.3 system-ui, -apple-system, sans-serif;
+      color: #1A1C23;
+      background: #FAF8F3;
+      border: 1px solid #D8D1C1;
+      border-radius: 8px;
+      padding: 6px 10px;
+    }
+    .add-ing button {
+      font: 600 13px/1 system-ui, -apple-system, sans-serif;
+      color: #1A1C23;
+      background: #EFECE3;
+      border: 1px solid #D5CEBE;
+      border-radius: 8px;
+      padding: 6px 13px;
+      cursor: pointer;
+    }
+    .add-ing button:hover { background: #E5E0D3; }
+
+    .steps-head { margin: 26px 0 10px; }
+    .steps ol { margin: 0; padding-left: 22px; }
+    .steps li { padding: 4px 0; }
   </style>
 </head>
 <body>
-  <h1 editable>Banana bread</h1>
+  <article class="sheet">
+    <div class="topbar">
+      <div>
+        <h1 editable="single-line">One-Bowl Banana Bread</h1>
+        <p class="sub" editable="single-line">1 loaf &middot; 10 min prep &middot; 55 min at 350&deg;F</p>
+      </div>
+      <div class="ai-anchor" clay="editor-ui">
+        <button type="button" class="ai-btn" id="ai-btn" aria-expanded="false" aria-controls="ai-pop">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 3.2 12 8.5l5.3 2.1L12 12.7 9.9 18l-2.1-5.3L2.5 10.6l5.3-2.1Z"/><path d="m18.5 14.5.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9Z"/></svg>
+          <span>AI</span>
+        </button>
+        <div class="ai-pop" id="ai-pop" hidden>
+          <form id="ai-form">
+            <label for="ai-input">Ask AI for a recipe change</label>
+            <div class="ai-row">
+              <input id="ai-input" type="text" placeholder="e.g. Brown the butter &amp; add walnuts">
+              <button type="submit">Ask</button>
+            </div>
+            <p class="ai-status" id="ai-status" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
+    </div>
 
-  <div id="list" editable>
-    <p class="serves">Serves 4</p>
-    <ul>
-      <li>3 ripe bananas</li>
-      <li>1 stick butter, melted</li>
-      <li>&#190; cup sugar</li>
-      <li>2 eggs</li>
-      <li>1&#189; cups flour</li>
-      <li>1 tsp baking soda</li>
-    </ul>
-    <p class="bake">Bake at 350&deg;F for 55 minutes.</p>
-  </div>
+    <section id="ingredients" sap>
+      <div class="sec-head">
+        <h2>Ingredients</h2>
+        <div class="scale-bar" role="group" aria-label="Multiply ingredients">
+          <button type="button" class="scale-pill" set:scale="0.5" class:active="Number(state.scale) === 0.5">0.5&times;</button>
+          <button type="button" class="scale-pill active" set:scale="1" class:active="Number(state.scale) === 1">1&times;</button>
+          <button type="button" class="scale-pill" set:scale="2" class:active="Number(state.scale) === 2">2&times;</button>
+          <button type="button" class="scale-pill" set:scale="3" class:active="Number(state.scale) === 3">3&times;</button>
+          <label class="scale-custom">&times;<input class="scale-in" type="number" min="0.25" step="0.25" bind="scale" persist value="1" aria-label="Multiplier"></label>
+        </div>
+      </div>
 
-  <form id="ask">
-    <input id="said" placeholder="Ask for a change" autocomplete="off">
-    <button>Send</button>
-  </form>
+      <ul class="ing-list" items="ingredients">
+        <li item template data-id="">
+          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
+          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="" aria-label="Ingredient">
+          <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
+        </li>
+        <li item data-id="i-bananas">
+          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="3" aria-label="Base amount">
+          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="very ripe bananas, mashed" aria-label="Ingredient">
+          <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
+        </li>
+        <li item data-id="i-butter">
+          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="0.33" aria-label="Base amount">
+          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="cup melted salted butter" aria-label="Ingredient">
+          <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
+        </li>
+        <li item data-id="i-sugar">
+          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="0.75" aria-label="Base amount">
+          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="cup dark brown sugar" aria-label="Ingredient">
+          <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
+        </li>
+        <li item data-id="i-egg">
+          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
+          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="large egg, beaten" aria-label="Ingredient">
+          <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
+        </li>
+        <li item data-id="i-vanilla">
+          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
+          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="tsp vanilla extract" aria-label="Ingredient">
+          <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
+        </li>
+        <li item data-id="i-soda">
+          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1" aria-label="Base amount">
+          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="tsp baking soda &amp; pinch of salt" aria-label="Ingredient">
+          <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
+        </li>
+        <li item data-id="i-flour">
+          <input class="amt" type="number" min="0" step="any" bind="amount" persist value="1.5" aria-label="Base amount">
+          <output class="scaled" text="fmtScaled(item.amount, state.scale)"></output>
+          <input class="ing-item" type="text" bind="item" persist value="cups all-purpose flour" aria-label="Ingredient">
+          <button type="button" class="ing-del" trigger-remove aria-label="Remove ingredient">&times;</button>
+        </li>
+      </ul>
 
-  <script src="https://clayjs.com/v1/clay.js?plugins=sync,wire"></script>
+      <form class="add-ing" trigger-add="ingredients">
+        <input class="add-amt" type="number" min="0" step="any" bind="amount" placeholder="1" required aria-label="New amount">
+        <input class="add-text" type="text" bind="item" placeholder="Add an ingredient (e.g. cup toasted walnuts)" required aria-label="New ingredient">
+        <button type="submit">Add</button>
+      </form>
+    </section>
+
+    <h2 class="steps-head">Steps</h2>
+    <div class="steps" editable>
+      <ol>
+        <li>Heat the oven to 350&deg;F and butter an 8&times;4-inch loaf pan.</li>
+        <li>Mash the bananas in a large bowl until mostly smooth, then whisk in the melted butter.</li>
+        <li>Stir in the brown sugar, beaten egg, vanilla, baking soda, and salt.</li>
+        <li>Fold in the flour just until no dry streaks remain.</li>
+        <li>Bake 55 minutes until deep golden and a toothpick comes out clean. Cool 15 minutes before slicing.</li>
+      </ol>
+    </div>
+  </article>
+
   <script>
-    clay.ready.then(function () {
-      var ask = document.getElementById("ask");
-      var box = document.getElementById("said");
+    function fmtScaled(amount, scale) {
+      const m = Number(scale);
+      const a = Number(amount);
+      if (!Number.isFinite(m) || m === 1 || !Number.isFinite(a)) return "";
+      const v = Math.round(a * m * 100) / 100;
+      return "= " + v;
+    }
+  </script>
+  <script src="https://clayjs.com/v1/clay.js?plugins=sync,wire,menu,undo,indicator"></script>
+  <script src="https://clayjs.com/v1/clay-options.js"></script>
+  <script src="https://clayjs.com/v1/sap.js"></script>
+  <script>
+    const app = document.getElementById("ingredients");
+    function syncControls() {
+      for (const el of app.querySelectorAll("input[persist], textarea[persist], select[persist]")) {
+        if (el.type === "checkbox" || el.type === "radio") { el.checked = el.hasAttribute("checked"); continue; }
+        const saved = el.getAttribute("value") ?? "";
+        if (el.value !== saved) el.value = saved;
+      }
+      Sap.refresh();
+    }
+    clay.ready.then(() => {
+      clay.undo?.on("undo", syncControls);
+      clay.undo?.on("redo", syncControls);
+    });
 
-      // Built here, never typed into the file: everything you can see
-      // in the page is what gets saved.
-      var status = document.createElement("p");
-      status.setAttribute("clay", "no-save no-snapshot no-watch");
-      ask.after(status);
+    const aiBtn = document.getElementById("ai-btn");
+    const aiPop = document.getElementById("ai-pop");
+    const aiForm = document.getElementById("ai-form");
+    const aiInput = document.getElementById("ai-input");
+    const aiStatus = document.getElementById("ai-status");
 
-      clay.wire.on(function (request) {
-        status.textContent = request.error
-          || request.text
-          || request.state;
-      });
-
-      ask.addEventListener("submit", function (event) {
-        event.preventDefault();
-        var words = box.value.trim();
-        if (!words) return;
-        box.value = "";
-        status.textContent = "sent";
-        clay.wire.send({ said: words }, { text: words });
-      });
+    function setAiOpen(open) {
+      aiPop.hidden = !open;
+      aiBtn.setAttribute("aria-expanded", String(open));
+      if (open) aiInput.focus();
+    }
+    aiBtn.addEventListener("click", () => setAiOpen(aiPop.hidden));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !aiPop.hidden) setAiOpen(false);
+    });
+    document.addEventListener("pointerdown", (e) => {
+      if (!aiPop.hidden && !e.target.closest(".ai-anchor")) setAiOpen(false);
+    });
+    aiForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const said = aiInput.value.trim();
+      if (!said) return;
+      aiStatus.textContent = "Sending to your agent...";
+      const res = await clay.wire.send({ said }, { text: said });
+      if (res.ok) {
+        aiInput.value = "";
+        aiStatus.textContent = "Sent to agent.";
+      } else {
+        aiStatus.textContent = "Run clay-wire listen banana-bread.htmlclay in a terminal to connect an agent.";
+      }
     });
   </script>
 </body>
