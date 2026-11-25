@@ -522,6 +522,15 @@ Three things about this repo are easy to trip over.
 
 **Signing, tagging and CI gates.** Run `./scripts/release.sh` detached and poll it: Apple signing and notarization plus Azure Trusted Signing run inside GitHub Actions from repository secrets with no local credentials, and `release.sh` watches the exact version-bump SHA and creates the git tag only after macOS, Ubuntu and Windows `go test ./...` pass. Watch two cross-platform traps macOS misses: Linux folder-name checks are case-sensitive, and `platform.DirIdentity` returns `""` on Windows so tests must assert `platform.DirIdentity(dir)` rather than a non-empty string. Check live shipped state by comparing `cmd/htmlclay/main.go` against `https://download.htmlclay.com/htmlclay-release-info.json` (GitHub releases stay empty, and `git status -sb` requires `git fetch --tags` first).
 
+**Mac jobs run on GitHub's own Macs, with WarpBuild as the fallback.** Every Mac job in `ci.yml`, `release.yml` and `platform-candidate.yml` runs on `${{ vars.MAC_RUNNER || 'macos-15' }}`: GitHub's `macos-15`, free for this public repo, unless the repository variable `MAC_RUNNER` names another runner. GitHub sometimes has no Mac free: the job fails with "The job was not acquired by Runner of type hosted even after multiple attempts" (2.0.1's first try, 2026-11-25). Retry once. If it happens again, switch to the organization's paid WarpBuild Macs, rerun with `./scripts/release.sh --resume`, and switch back once the release is out:
+
+```bash
+gh variable set MAC_RUNNER --body warp-macos-15-arm64-6x -R hyperspacesystems/htmlclay   # use WarpBuild
+gh variable delete MAC_RUNNER -R hyperspacesystems/htmlclay                             # back to GitHub
+```
+
+WarpBuild was the default from 2026-11-03 to 2026-11-14 and was faster when it had a Mac free, but it left Mac jobs queued for 28 to 92 minutes on 2026-11-14. `scripts/release_candidate.py` repeats the same `runs-on` expression, and `scripts/tests/test_platform_candidate_workflow.py` fails if the two drift apart.
+
 To reinstall the current release locally without cutting a new one:
 
 ```bash

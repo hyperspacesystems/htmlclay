@@ -11,7 +11,7 @@ IDENTITY_FIELDS = ("workflow_sha", "candidate_sha256", "attempt", "manifest_iden
 LINUX_CHECKS = ("install-uninstall", "serve-save", "tray-nobus", "login-item", "prompts")
 
 
-MAC_RUNNER = "${{ vars.MAC_RUNNER || 'warp-macos-15-arm64-6x' }}"
+MAC_RUNNER = "${{ vars.MAC_RUNNER || 'macos-15' }}"
 
 
 def job_graph():
