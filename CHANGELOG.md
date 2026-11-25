@@ -3,6 +3,16 @@
 Releases before 1.9.0 are recorded in the ecosystem changelog at
 [changelog.hyperclay.com](https://changelog.hyperclay.com).
 
+## [2.0.1] - 2026-11-25
+
+### Added
+- Pressing Set Up on a page HTML Clay does not trust yet brings the question window to the front and asks about the file first, naming the program that comes next. Allowing the file goes straight on to the program question, which is skipped when the program is already allowed.
+- While a question is open, the setup bar says it is waiting and its button reads "Show question window", which raises the window again.
+
+### Fixed
+- On Mac, Quit in the menu bar responds to clicks.
+- On Mac, opening Settings or a program question closes the welcome window.
+
 ## [2.0.0] - 2026-11-25
 
 HTML Clay 2.0 is a new app. On a Mac it is a native app, and on Windows and Linux it keeps its tray. On every platform it has one Dashboard for your folders and documents, serves whole folders at their own local addresses, can sync folders with Hyperclay, and lets an AI agent on your computer edit any page. It takes over from Hyperclay Local.
