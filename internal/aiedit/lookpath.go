@@ -81,17 +81,18 @@ func isWindowsScript(path string) bool {
 func windowsBinaryExtensions(env []string) []string {
 	raw := envValue(env, "PATHEXT")
 	if raw == "" {
-		return []string{".EXE", ".COM"}
+		return []string{".exe", ".com"}
 	}
 	extensions := make([]string, 0, 2)
 	for _, ext := range strings.Split(raw, ";") {
-		switch strings.ToUpper(strings.TrimSpace(ext)) {
-		case ".EXE", ".COM":
-			extensions = append(extensions, ext)
+		lower := strings.ToLower(strings.TrimSpace(ext))
+		switch lower {
+		case ".exe", ".com":
+			extensions = append(extensions, lower)
 		}
 	}
 	if len(extensions) == 0 {
-		return []string{".EXE", ".COM"}
+		return []string{".exe", ".com"}
 	}
 	return extensions
 }
