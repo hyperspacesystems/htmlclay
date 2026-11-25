@@ -82,6 +82,25 @@ func (s tierStand) awaitWarning(t *testing.T, document string) confirm.Pending {
 	return found[0]
 }
 
+// askForUse runs the setup bar's ask in the background: it waits for the person's
+// answers, so the test answers them and then reads what it granted.
+func (s tierStand) askForUse(document, name string) <-chan bool {
+	granted := make(chan bool, 1)
+	go func() { granted <- s.app.askHelperForUse(document, name) }()
+	return granted
+}
+
+func received(t *testing.T, granted <-chan bool) bool {
+	t.Helper()
+	select {
+	case ok := <-granted:
+		return ok
+	case <-time.After(5 * time.Second):
+		t.Fatal("the setup ask did not return after its question was answered")
+		return false
+	}
+}
+
 func (s tierStand) answer(t *testing.T, document, choice string) {
 	t.Helper()
 	p := s.awaitWarning(t, document)
@@ -236,10 +255,17 @@ func TestRegisteredProgramsWaitForTheWarning(t *testing.T) {
 	if s.app.helperGranted(doc, "search", program.ID) {
 		t.Fatal("a download may start a granted program before the warning")
 	}
-	if s.app.askHelperForUse(doc, "search") {
-		t.Fatal("asking for the program allowed it at once")
+	granted := s.askForUse(doc, "search")
+	s.awaitWarning(t, real(t, doc))
+	select {
+	case <-granted:
+		t.Fatal("asking for the program finished before the warning was answered")
+	default:
 	}
 	s.answer(t, real(t, doc), helperAnswerAllowDocument)
+	if !received(t, granted) {
+		t.Fatal("Allow for this document did not carry on to the program allowed for trusted documents")
+	}
 	if !s.app.helperGranted(doc, "search", program.ID) {
 		t.Fatal("the granted program still refuses after Allow for this document")
 	}

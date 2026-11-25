@@ -12,6 +12,7 @@ type servedWirePolicy struct{ a *app }
 
 func (servedWirePolicy) CanAskProgram() bool                 { return true }
 func (p servedWirePolicy) AskProgram(file, name string) bool { return p.a.askHelperForUse(file, name) }
+func (p servedWirePolicy) RaiseSetup(file, name string)      { p.a.raiseOpenQuestions(file) }
 func (p servedWirePolicy) ProgramGranted(file, name, id string) bool {
 	return p.a.helperGranted(file, name, id)
 }

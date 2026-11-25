@@ -499,4 +499,20 @@ func TestM3RequestLifetime(t *testing.T) {
 			t.Fatal("Ask did not return")
 		}
 	})
+
+	t.Run("a raised ask starts raised and raises again when asked again", func(t *testing.T) {
+		h := newHarness(t)
+		h.ask(context.Background(), Ask{Kind: "found", Document: "note.html", Program: "search", Answers: []string{"deny", "allow-document"}, Raise: true})
+		first := h.awaitOne()
+		if first.Attention != 1 {
+			t.Fatalf("attention = %d, want 1 for a raised ask", first.Attention)
+		}
+		h.ask(context.Background(), Ask{Kind: "found", Document: "note.html", Program: "search", Answers: []string{"deny", "allow-document"}, Raise: true})
+		h.awaitPending(func(p []Pending) bool { return len(p) == 1 && p[0].Attention == 2 })
+		h.ask(context.Background(), Ask{Kind: "found", Document: "other.html", Program: "search", Answers: []string{"deny", "allow-document"}})
+		quiet := h.awaitPending(func(p []Pending) bool { return len(p) == 2 })
+		if quiet[1].Attention != 0 {
+			t.Fatalf("attention = %d, want 0 for an ask that did not ask to be raised", quiet[1].Attention)
+		}
+	})
 }

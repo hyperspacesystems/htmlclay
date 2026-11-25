@@ -524,12 +524,26 @@ func TestDontAllowRefusesAWaitingServedProgramCall(t *testing.T) {
 	}
 	page.waitFor(t, "wire/ack", "r1")
 
-	if stand.a.askHelperForUse(stand.document(t), "search") {
-		t.Fatal("the program was granted before the warning was answered")
-	}
+	document := stand.document(t)
+	granted := make(chan bool, 1)
+	go func() { granted <- stand.a.askHelperForUse(document, "search") }()
 	request := waitForSetupRequest(t, stand.a, appcore.RequestUnknownDocument)
+	if request.Attention == 0 {
+		t.Fatal("the warning Set Up raised did not bring the request window to the front")
+	}
+	if request.Program != "search" {
+		t.Fatalf("the warning names program %q, want %q", request.Program, "search")
+	}
 	if err := answerSetup(t, stand.a, "a18", request, documentAnswerDeny, ""); err != nil {
 		t.Fatal(err)
+	}
+	select {
+	case ok := <-granted:
+		if ok {
+			t.Fatal("the program was granted after Don't allow")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Set Up did not return after Don't allow")
 	}
 
 	deadline := time.After(time.Second)
@@ -546,4 +560,87 @@ func TestDontAllowRefusesAWaitingServedProgramCall(t *testing.T) {
 			t.Fatal("the parked program call was not refused within a second of Don't allow")
 		}
 	}
+}
+
+// TestSetUpTrustsTheDocumentThenFinishesItsProgram: one Set Up on a document
+// nobody vouches for asks about the document first and, once the person trusts
+// it, carries on without a second press: a program allowed for trusted
+// documents is granted at once, and otherwise the program's own question follows.
+func TestSetUpTrustsTheDocumentThenFinishesItsProgram(t *testing.T) {
+	t.Run("a program allowed for trusted documents needs no second question", func(t *testing.T) {
+		stand := servedProgramsOpenAs(t, true)
+		stand.shellApp(t)
+		stand.allowForAnyDocument(t)
+		downloadedHere(t, stand.a, stand.document(t))
+		stand.loadPage(t)
+		document := stand.document(t)
+		granted := make(chan bool, 1)
+		go func() { granted <- stand.a.askHelperForUse(document, "search") }()
+		request := waitForSetupRequest(t, stand.a, appcore.RequestUnknownDocument)
+		if err := answerSetup(t, stand.a, "a30", request, documentAnswerTrust, ""); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case ok := <-granted:
+			if !ok {
+				t.Fatal("trusting the document did not carry on to the program allowed for trusted documents")
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("Set Up did not return after the document was trusted")
+		}
+	})
+
+	t.Run("otherwise the program question follows, raised", func(t *testing.T) {
+		stand := servedProgramsOpenAs(t, true)
+		stand.shellApp(t)
+		downloadedHere(t, stand.a, stand.document(t))
+		stand.loadPage(t)
+		document := stand.document(t)
+		granted := make(chan bool, 1)
+		go func() { granted <- stand.a.askHelperForUse(document, "search") }()
+		request := waitForSetupRequest(t, stand.a, appcore.RequestUnknownDocument)
+		if err := answerSetup(t, stand.a, "a31", request, documentAnswerTrust, ""); err != nil {
+			t.Fatal(err)
+		}
+		var program appcore.Request
+		waitFor(t, "the program question after the document was trusted", func() bool {
+			for _, r := range stand.a.snapshot().Requests {
+				if r.Kind != appcore.RequestUnknownDocument && r.Program == "search" {
+					program = r
+					return true
+				}
+			}
+			return false
+		})
+		if program.Attention == 0 {
+			t.Fatal("the program question did not bring the request window to the front")
+		}
+	})
+}
+
+// TestSecondSetUpPressRaisesTheOpenQuestion: while Set Up waits on the person,
+// pressing it again brings the waiting question back to the front.
+func TestSecondSetUpPressRaisesTheOpenQuestion(t *testing.T) {
+	stand := servedProgramsOpenAs(t, true)
+	stand.shellApp(t)
+	downloadedHere(t, stand.a, stand.document(t))
+	stand.loadPage(t)
+	first := stand.setupAsync()
+	request := waitForSetupRequest(t, stand.a, appcore.RequestUnknownDocument)
+	response, body := stand.setup(t, "search")
+	if response.StatusCode != http.StatusOK || !strings.Contains(body, `"busy"`) {
+		t.Fatalf("second press = %d %s, want 200 busy", response.StatusCode, body)
+	}
+	waitFor(t, "the second press to raise the waiting question", func() bool {
+		for _, r := range stand.a.snapshot().Requests {
+			if r.ID == request.ID {
+				return r.Attention > request.Attention
+			}
+		}
+		return false
+	})
+	if err := answerSetup(t, stand.a, "a32", request, documentAnswerDeny, ""); err != nil {
+		t.Fatal(err)
+	}
+	<-first
 }

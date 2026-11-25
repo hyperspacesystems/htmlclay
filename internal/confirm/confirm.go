@@ -63,6 +63,9 @@ type Ask struct {
 	Scope    string
 	Detail   string
 	Answers  []string
+	// Raise brings the request window to the front for this question: a new
+	// request starts raised, and asking an open one again raises it again.
+	Raise bool
 }
 
 // Reply is the person's answer to one Ask.
@@ -179,6 +182,7 @@ func (r *Registry) Ask(ctx context.Context, ask Ask) (Reply, error) {
 	if req == nil {
 		req = r.byKey[key]
 	}
+	existed := req != nil
 	switch {
 	case req == nil && len(r.requests) >= maxPending:
 		id := ask.ID
@@ -194,11 +198,17 @@ func (r *Registry) Ask(ctx context.Context, ask Ask) (Reply, error) {
 		}
 		ask.ID = id
 		req = &request{ask: ask, revision: 1, waiters: map[*waiter]struct{}{}}
+		if ask.Raise {
+			req.attention = 1
+		}
 		r.requests[id] = req
 		r.byKey[key] = req
 		r.order = append(r.order, req)
 	case same:
 		r.replace(req, ask, key)
+	}
+	if existed && ask.Raise {
+		req.attention++
 	}
 	w := r.wait(req)
 	r.mu.Unlock()

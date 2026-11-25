@@ -273,6 +273,7 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		AskBuiltin:       a.askBuiltin,
 		Profile:          a.rt.cfg.SharedPerson,
 		AskHelper:        a.askHelperForUse,
+		RaiseSetup:       func(file, _ string) { a.raiseOpenQuestions(file) },
 		HelperGranted:    a.helperGranted,
 		Reveal:           browser.Reveal,
 		OpenFolder:       browser.OpenURL,

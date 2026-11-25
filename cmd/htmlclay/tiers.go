@@ -244,24 +244,50 @@ func (a *app) askDocument(document, program string) {
 		return
 	}
 	v := a.tierOf(path)
-	if !v.Warn() || v.Denied {
+	if !a.beginDocumentAsk(path, v) {
 		return
 	}
+	go a.runDocumentAsk(path, program, v, false)
+}
+
+// beginDocumentAsk marks path as being asked about, unless it needs no warning,
+// was refused, is already being asked about, or was asked about a moment ago.
+func (a *app) beginDocumentAsk(path string, v tier.Verdict) bool {
+	if !v.Warn() || v.Denied {
+		return false
+	}
 	a.helperStateMu.Lock()
+	defer a.helperStateMu.Unlock()
 	if a.documentAsking[path] || time.Now().Before(a.documentQuiet[path]) {
-		a.helperStateMu.Unlock()
-		return
+		return false
 	}
 	if a.documentAsking == nil {
 		a.documentAsking = make(map[string]bool)
 	}
 	a.documentAsking[path] = true
-	a.helperStateMu.Unlock()
-	go a.runDocumentAsk(path, program, v)
+	return true
 }
 
-func (a *app) runDocumentAsk(path, program string, v tier.Verdict) {
-	kept := false
+// raiseOpenQuestions brings every open question about document to the front of
+// the request window. It reports whether there was one.
+func (a *app) raiseOpenQuestions(document string) bool {
+	if !a.shell {
+		return false
+	}
+	path := document
+	if real, err := resolveSymlinks(document); err == nil {
+		path = real
+	}
+	raised := false
+	for _, p := range a.registry().Pending() {
+		if (p.Ask.Document == document || p.Ask.Document == path) && a.registry().Show(p.ID) == nil {
+			raised = true
+		}
+	}
+	return raised
+}
+
+func (a *app) runDocumentAsk(path, program string, v tier.Verdict, setup bool) (kept bool) {
 	defer func() {
 		a.helperStateMu.Lock()
 		delete(a.documentAsking, path)
@@ -276,7 +302,12 @@ func (a *app) runDocumentAsk(path, program string, v tier.Verdict) {
 		a.helperStateMu.Unlock()
 	}()
 	presenter := a.presenter(documentDialog{app: a})
-	reply, err := presenter.Ask(context.Background(), a.documentAsk(path, program, v))
+	ask := a.documentAsk(path, program, v)
+	if setup {
+		ask.Program = program
+		ask.Raise = true
+	}
+	reply, err := presenter.Ask(context.Background(), ask)
 	if err != nil {
 		a.rt.logger.Printf("Could not ask about %s: %v", path, err)
 		return
@@ -306,6 +337,7 @@ func (a *app) runDocumentAsk(path, program string, v tier.Verdict) {
 	a.rt.logger.Printf("Document %s: %s", reply.Choice, path)
 	a.refreshHelperDispatchers()
 	a.changed()
+	return
 }
 
 // strangerRead is the server's answer to a page nobody vouches for asking to

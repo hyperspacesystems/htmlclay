@@ -14,6 +14,10 @@ import (
 // dialog gives up after two minutes and the file picker after five.
 const helperSetupWait = 8 * time.Minute
 
+// setupBarShowLabel is the bar's button while a question waits in HTML Clay:
+// pressing it brings the question window to the front again.
+const setupBarShowLabel = "Show question window"
+
 func (s *Core) HandleSetup(w http.ResponseWriter, r *http.Request, doc Document) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
 	var payload struct {
@@ -47,6 +51,7 @@ func (s *Core) HandleSetup(w http.ResponseWriter, r *http.Request, doc Document)
 	granted, ran := s.SetUpHelper(doc.Path, payload.Name)
 	switch {
 	case !ran:
+		s.policy.RaiseSetup(doc.Path, payload.Name)
 		writeHelperSetupState(w, "busy")
 	case granted:
 		writeHelperSetupState(w, "ready")
@@ -131,12 +136,12 @@ func SetupBarHTML(names []string, withToken bool) []byte {
 	}
 	b.WriteString(`<script>(function(){` +
 		`var bar=document.currentScript.parentNode,busy={};` +
-		`function setUp(row){var name=row.getAttribute('data-name');if(busy[name])return;busy[name]=1;var label=row.firstChild;label.textContent='Waiting for you in HTML Clay…';` +
-		post +
-		`.then(function(r){return r.json()}).then(function(d){busy[name]=0;var s=d&&d.state;` +
+		`function post(name){return ` + post + `}` +
+		`function setUp(row){var name=row.getAttribute('data-name'),btn=row.querySelector('[data-setup]');if(busy[name]){post(name).catch(function(){});return}busy[name]=1;var label=row.firstChild,was=btn.textContent;label.textContent='Waiting for you in HTML Clay…';btn.textContent='` + setupBarShowLabel + `';` +
+		`post(name).then(function(r){return r.json()}).then(function(d){busy[name]=0;var s=d&&d.state;btn.textContent=s==='busy'?'` + setupBarShowLabel + `':was;` +
 		`if(s==='ready'){row.remove();if(!bar.querySelector('[data-name]'))bar.remove();return}` +
-		`label.textContent=s==='retry'?'Try again in a minute.':s==='busy'?'HTML Clay is already asking about “'+name+'”.':'“'+name+'” is not set up.'})` +
-		`.catch(function(){busy[name]=0;label.textContent='Could not reach HTML Clay.'})}` +
+		`label.textContent=s==='retry'?'Try again in a minute.':s==='busy'?'Waiting for you in HTML Clay…':'“'+name+'” is not set up.'})` +
+		`.catch(function(){busy[name]=0;btn.textContent=was;label.textContent='Could not reach HTML Clay.'})}` +
 		`bar.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var row=b.closest('[data-name]');if(b.hasAttribute('data-dismiss')){row.remove();if(!bar.querySelector('[data-name]'))bar.remove()}else setUp(row)});` +
 		`document.addEventListener('clay:wire-state',function(e){var d=e.detail||{};if(!d.helper||!(navigator.userActivation&&navigator.userActivation.isActive))return;var row=bar.querySelector('[data-name="'+d.helper+'"]');if(row)setUp(row)});` +
 		`})();</script>`)

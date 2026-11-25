@@ -210,6 +210,7 @@ type fakePolicy struct {
 
 func (p *fakePolicy) CanAskProgram() bool               { return false }
 func (p *fakePolicy) AskProgram(file, name string) bool { return false }
+func (p *fakePolicy) RaiseSetup(string, string)         {}
 func (p *fakePolicy) ProgramGranted(file, name, id string) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()

@@ -216,6 +216,12 @@ func (l looseWire) CanAskProgram() bool { return l.s.hooks.AskHelper != nil }
 
 func (l looseWire) AskProgram(file, name string) bool { return l.s.hooks.AskHelper(file, name) }
 
+func (l looseWire) RaiseSetup(file, name string) {
+	if l.s.hooks.RaiseSetup != nil {
+		l.s.hooks.RaiseSetup(file, name)
+	}
+}
+
 func (l looseWire) ProgramGranted(file, name, programID string) bool {
 	granted := l.s.hooks.HelperGranted
 	return granted == nil || granted(file, name, programID)

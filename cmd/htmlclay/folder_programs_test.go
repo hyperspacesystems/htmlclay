@@ -51,8 +51,12 @@ func TestFolderProgramsAnswerOwnPagesAndStrangersOnlyByOptIn(t *testing.T) {
 		t.Fatal("a stranger's page may start a program that did not opt in")
 	}
 
-	if s.app.askHelperForUse(stranger, "search") {
-		t.Fatal("asking for the program allowed it at once")
+	asked := s.askForUse(stranger, "search")
+	s.awaitWarning(t, real(t, stranger))
+	select {
+	case <-asked:
+		t.Fatal("asking for the program finished before the warning was answered")
+	default:
 	}
 	s.answer(t, real(t, stranger), helperAnswerAllowDocument)
 	if allowed, _ := s.app.resolvedHelpers(stranger, []string{"search"}); len(allowed) != 0 {
@@ -73,7 +77,7 @@ func TestFolderProgramsAnswerOwnPagesAndStrangersOnlyByOptIn(t *testing.T) {
 	if s.app.helperGranted(other, "search", folderProgramPrefix+"search") {
 		t.Fatal("an opted-in program may start for a stranger before the warning")
 	}
-	s.app.askHelperForUse(other, "search")
+	s.askForUse(other, "search")
 	s.awaitWarning(t, real(t, other))
 
 	writeFolderProgram(t, home, "search.sh", "#!/bin/sh\necho two\n")

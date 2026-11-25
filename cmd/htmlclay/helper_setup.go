@@ -59,8 +59,15 @@ var helperSuggestNow = time.Now
 // helperMu; it is released while the person decides.
 func (a *app) askHelperSetup(document string, names []string, plan helperOpenPlan, name string, dialogs helperApprovalDialogs, notify bool) helperOpenPlan {
 	v := a.tierOf(document)
-	if a.askDocumentFirst(document, name, v) {
-		return plan
+	if a.documentComesFirst(document, name, v) {
+		if !a.settleDocumentForSetup(document, name) {
+			return plan
+		}
+		plan.allowed, plan.denied = a.resolvedHelpers(document, names)
+		if _, ok := plan.allowed[name]; ok {
+			return plan
+		}
+		v = a.tierOf(document)
 	}
 	before := plan.allowed
 	defer func() {
@@ -216,13 +223,9 @@ func (a *app) askHelperSetup(document string, names []string, plan helperOpenPla
 	return plan
 }
 
-// askDocumentFirst raises the question a document needs before the setup
-// question for name can mean anything, and reports whether it did: the warning
-// for a document nobody vouches for, and the team question for a team document
-// whose code changed since the person allowed name, or whose folder program
-// waits for it. A team document that never had name allowed goes straight to
-// the setup question, which records its code.
-func (a *app) askDocumentFirst(document, name string, v tier.Verdict) bool {
+// documentComesFirst reports whether the person must answer the warning about
+// document before its program can be set up.
+func (a *app) documentComesFirst(document, name string, v tier.Verdict) bool {
 	if !v.Warn() {
 		return false
 	}
@@ -233,8 +236,27 @@ func (a *app) askDocumentFirst(document, name string, v tier.Verdict) bool {
 			return false
 		}
 	}
-	a.askDocument(document, name)
 	return true
+}
+
+// settleDocumentForSetup asks the warning about document in the request window,
+// raised and naming the program, and waits for the answer, so one Set Up covers
+// the document and then its program. It reports whether the document may run
+// programs now. Caller holds helperMu; it is released while the person decides.
+func (a *app) settleDocumentForSetup(document, name string) bool {
+	path, err := resolveSymlinks(document)
+	if err != nil {
+		return false
+	}
+	v := a.tierOf(path)
+	if !a.beginDocumentAsk(path, v) {
+		a.raiseOpenQuestions(path)
+		return false
+	}
+	a.helperMu.Unlock()
+	kept := a.runDocumentAsk(path, name, v, true)
+	a.helperMu.Lock()
+	return kept && !a.tierOf(path).Warn()
 }
 
 // helperSetupAsk is the question the flow puts to the person: the file HTML Clay
@@ -244,6 +266,7 @@ func (a *app) helperSetupAsk(document, name string, suggestion helperSuggestion,
 		Document: document,
 		Program:  name,
 		Identity: platform.DirIdentity(document),
+		Raise:    true,
 	}
 	if suggestion.path == "" {
 		ask.Kind = appcore.RequestNoFile

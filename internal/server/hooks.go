@@ -146,6 +146,9 @@ type Hooks struct {
 	// which is what a standalone server (every server test) wants.
 	AskHelper func(file, name string) bool
 
+	// RaiseSetup brings the open setup question for file to the front.
+	RaiseSetup func(file, name string)
+
 	// HelperGranted reports whether name may run the registered program programID
 	// for file at this moment. The server asks it immediately before a program's
 	// process starts, because the grant a dispatcher holds was resolved earlier:

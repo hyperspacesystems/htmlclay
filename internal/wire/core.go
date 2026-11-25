@@ -30,6 +30,9 @@ type Documents interface {
 type Policy interface {
 	CanAskProgram() bool
 	AskProgram(file, name string) bool
+	// RaiseSetup brings the open question that stands between file and its
+	// program name to the front of HTML Clay's request window. It answers at once.
+	RaiseSetup(file, name string)
 	ProgramGranted(file, name, programID string) bool
 	AIEditOffered() bool
 	// AIEditFor answers whether document may use AI editing now (on), and when

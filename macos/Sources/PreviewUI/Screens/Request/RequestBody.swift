@@ -71,6 +71,7 @@ struct RequestBody: View {
         VStack(alignment: .leading, spacing: 0) {
             titleLine(Strings.Request.unknownTitle(RequestControls.documentName(request)))
             leadLine(Strings.Request.unknownLead(request.folder))
+            if !request.program.isEmpty { leadLine(Strings.Request.unknownProgram(request.program)) }
             noteLine(RequestControls.unknownReason(request))
             stackedButtons {
                 if let allow = choice(RequestAnswer.allowDocument) { wideButton(allow) }

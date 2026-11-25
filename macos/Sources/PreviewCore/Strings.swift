@@ -579,6 +579,7 @@ public enum Strings {
         public static func unknownLead(_ folder: String) -> String {
             "Once allowed, this page can read and change the files in \(folder), and send anything it sees anywhere on the internet. Allowing this HTML file holds until the page's code changes."
         }
+        public static func unknownProgram(_ name: String) -> String { "If you allow this page, the question about running “\(name)” comes next." }
         public static let unknownDownloaded = "This file was downloaded from the internet."
         public static let unknownUnrecorded = "HTML Clay has no record of where this file came from."
         public static let unknownBrokenSignature = "This file's signature does not match its code."

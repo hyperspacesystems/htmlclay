@@ -26,6 +26,7 @@ type framesOnly struct{}
 
 func (framesOnly) CanAskProgram() bool                             { return false }
 func (framesOnly) AskProgram(file, name string) bool               { return false }
+func (framesOnly) RaiseSetup(string, string)                       {}
 func (framesOnly) ProgramGranted(file, name, id string) bool       { return false }
 func (framesOnly) AIEditOffered() bool                             { return false }
 func (framesOnly) AIEditFor(string) (bool, bool)                   { return false, false }
