@@ -3,9 +3,9 @@
   "protocol": 1,
   "package": "0.14.0",
   "entry": {
-    "javascript": "main-23TFRDHI.js",
+    "javascript": "main-DSZA2KD2.js",
     "css": [
-      "main-RKCDZOP4.css"
+      "main-F5FKDJWT.css"
     ]
   },
   "assets": [
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
-      "path": "main-23TFRDHI.js",
-      "bytes": 1858236,
-      "sha256": "8ac24ca4cdbf49c91ef01c95e55167996e011ab64bdc7351628f1f7c28680265"
+      "path": "main-DSZA2KD2.js",
+      "bytes": 1860091,
+      "sha256": "933c71ead7d52656f0264e0f3c13a0af96affbc95c99dd6eadde19ad7936cc9a"
     },
     {
-      "path": "main-RKCDZOP4.css",
-      "bytes": 399134,
-      "sha256": "9d8d6b319efbd2108478a7ede9c13f9f9fef5c006358ac7a7447a8bfcb9d4f28"
+      "path": "main-F5FKDJWT.css",
+      "bytes": 400302,
+      "sha256": "de0a523bc4c09d3fce9a94caa18a20bccbddb7e50b8f2a6f27c0a88c4d2ba207"
     }
   ]
 }
