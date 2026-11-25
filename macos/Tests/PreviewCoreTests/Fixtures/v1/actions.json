@@ -1,0 +1,237 @@
+{
+  "v": 1,
+  "actions": [
+    {
+      "type": "aiEdit.setCustom",
+      "class": "grant"
+    },
+    {
+      "type": "aiEdit.setEffort",
+      "class": "safe"
+    },
+    {
+      "type": "aiEdit.setModel",
+      "class": "safe"
+    },
+    {
+      "type": "app.openRecoveredChanges",
+      "class": "safe"
+    },
+    {
+      "type": "app.openSettings",
+      "class": "safe"
+    },
+    {
+      "type": "app.revealLog",
+      "class": "safe"
+    },
+    {
+      "type": "conflict.resolve",
+      "class": "safe"
+    },
+    {
+      "type": "dashboard.open",
+      "class": "safe"
+    },
+    {
+      "type": "document.export",
+      "class": "safe"
+    },
+    {
+      "type": "document.forget",
+      "class": "safe"
+    },
+    {
+      "type": "document.open",
+      "class": "safe"
+    },
+    {
+      "type": "document.recover",
+      "class": "grant"
+    },
+    {
+      "type": "document.reveal",
+      "class": "safe"
+    },
+    {
+      "type": "document.versions",
+      "class": "safe"
+    },
+    {
+      "type": "file.open",
+      "class": "grant"
+    },
+    {
+      "type": "fileTypes.makeDefault",
+      "class": "safe"
+    },
+    {
+      "type": "fileTypes.setHTMLOpenWith",
+      "class": "safe"
+    },
+    {
+      "type": "fileTypes.stopOpening",
+      "class": "safe"
+    },
+    {
+      "type": "folder.copyAddress",
+      "class": "safe"
+    },
+    {
+      "type": "folder.merge",
+      "class": "grant"
+    },
+    {
+      "type": "folder.relink",
+      "class": "grant"
+    },
+    {
+      "type": "folder.resolveRemoval",
+      "class": "safe"
+    },
+    {
+      "type": "folder.reveal",
+      "class": "safe"
+    },
+    {
+      "type": "folder.serve",
+      "class": "grant"
+    },
+    {
+      "type": "folder.setFraming",
+      "class": "grant"
+    },
+    {
+      "type": "folder.setSynced",
+      "class": "grant"
+    },
+    {
+      "type": "folder.setUpTeam",
+      "class": "grant"
+    },
+    {
+      "type": "folder.stopServing",
+      "class": "revoke"
+    },
+    {
+      "type": "folder.stopTrusting",
+      "class": "revoke"
+    },
+    {
+      "type": "folder.trust",
+      "class": "grant"
+    },
+    {
+      "type": "host.quit",
+      "class": "safe"
+    },
+    {
+      "type": "host.setPort",
+      "class": "safe"
+    },
+    {
+      "type": "move.quitLocal",
+      "class": "safe"
+    },
+    {
+      "type": "move.start",
+      "class": "grant"
+    },
+    {
+      "type": "prefs.set",
+      "class": "safe"
+    },
+    {
+      "type": "program.add",
+      "class": "grant"
+    },
+    {
+      "type": "program.askAgain",
+      "class": "grant"
+    },
+    {
+      "type": "program.openExample",
+      "class": "grant"
+    },
+    {
+      "type": "program.relink",
+      "class": "grant"
+    },
+    {
+      "type": "program.remove",
+      "class": "revoke"
+    },
+    {
+      "type": "program.removeAccess",
+      "class": "revoke"
+    },
+    {
+      "type": "program.removeAllAccess",
+      "class": "revoke"
+    },
+    {
+      "type": "program.reveal",
+      "class": "safe"
+    },
+    {
+      "type": "program.setAllTrusted",
+      "class": "grant"
+    },
+    {
+      "type": "program.setOn",
+      "class": "grant"
+    },
+    {
+      "type": "readAccess.remove",
+      "class": "revoke"
+    },
+    {
+      "type": "request.answer",
+      "class": "grant"
+    },
+    {
+      "type": "request.show",
+      "class": "safe"
+    },
+    {
+      "type": "service.restart",
+      "class": "safe"
+    },
+    {
+      "type": "sync.connect",
+      "class": "grant"
+    },
+    {
+      "type": "sync.disconnect",
+      "class": "revoke"
+    },
+    {
+      "type": "sync.revealLog",
+      "class": "safe"
+    },
+    {
+      "type": "sync.setPaused",
+      "class": "safe"
+    },
+    {
+      "type": "template.create",
+      "class": "safe"
+    },
+    {
+      "type": "update.check",
+      "class": "safe"
+    },
+    {
+      "type": "update.prepared",
+      "class": "safe"
+    },
+    {
+      "type": "update.start",
+      "class": "safe"
+    },
+    {
+      "type": "waiting.markSeen",
+      "class": "safe"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/panphora/htmlclay/internal/sse"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/versions"
+	"github.com/panphora/htmlclay/internal/wire"
 )
 
 const (
@@ -51,10 +53,10 @@ const (
 	// stays strictly under ShutdownBudget: at 10s against a 3s graceful shutdown a
 	// blocked write necessarily outlived the budget, so shutdown always timed out
 	// into a forced close.
-	sseWriteDeadline = 2 * time.Second
+	sseWriteDeadline = sse.WriteDeadline
 	// keepaliveInterval keeps intermediaries and idle-timeout logic from closing
 	// an otherwise silent stream.
-	keepaliveInterval = 25 * time.Second
+	keepaliveInterval = sse.KeepaliveInterval
 
 	// Replay is a bounded, incarnation-aware cache. A frame lives at most
 	// replayFrameTTL; each (path incarnation, lane) bucket holds at most
@@ -970,18 +972,7 @@ type notifyPayload struct {
 // these payloads are whole HTML documents, and escaping every angle bracket would
 // inflate them for no benefit. An SSE frame is never embedded in an HTML context.
 func frame(seq int64, v interface{}) []byte {
-	var buf bytes.Buffer
-	buf.WriteString("id: ")
-	buf.WriteString(strconv.FormatInt(seq, 10))
-	buf.WriteString("\ndata: ")
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return nil
-	}
-	// Encode appends one newline; an SSE frame ends with a blank line.
-	buf.WriteByte('\n')
-	return buf.Bytes()
+	return sse.Frame(seq, v)
 }
 
 // encodeExternalChangeData builds the notification data payload that carries
@@ -1024,16 +1015,7 @@ func encodeExternalChangeData(html, etag string, recalc *recalcFrame) json.RawMe
 // already runs when a change arrives too large to send, so the flag needs no
 // machinery beyond noticing it.
 func cursorFrame(seq int64, resync bool) []byte {
-	var buf bytes.Buffer
-	buf.WriteString("event: cursor\nid: ")
-	buf.WriteString(strconv.FormatInt(seq, 10))
-	buf.WriteString("\ndata: {\"seq\":")
-	buf.WriteString(strconv.FormatInt(seq, 10))
-	if resync {
-		buf.WriteString(",\"resync\":true")
-	}
-	buf.WriteString("}\n\n")
-	return buf.Bytes()
+	return sse.CursorFrame(seq, resync)
 }
 
 // sharedCursorFrame is the cursor of one subscription on a shared stream. It
@@ -1338,14 +1320,14 @@ func (s *Server) handleLiveSyncStream(w http.ResponseWriter, r *http.Request) {
 
 	resumeID := parseResumeID(r)
 	if resumeID == "" {
-		s.logger.Printf("live-sync stream for %s has no resume-id; Last-Event-ID recovery only", f.RelPath)
+		s.Logger.Printf("live-sync stream for %s has no resume-id; Last-Event-ID recovery only", f.RelPath)
 	}
 
 	rc := http.NewResponseController(w)
 	// Clear the write deadline for this connection only. Zeroing the server-wide
 	// WriteTimeout would remove the bound from every other request.
 	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
-		s.logger.Printf("live-sync: cannot clear write deadline: %v", err)
+		s.Logger.Printf("live-sync: cannot clear write deadline: %v", err)
 		http.Error(w, "Not Implemented", http.StatusNotImplemented)
 		return
 	}
@@ -1375,7 +1357,7 @@ func (s *Server) handleLiveSyncStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	if err := rc.Flush(); err != nil {
-		s.logger.Printf("live-sync: cannot flush stream: %v", err)
+		s.Logger.Printf("live-sync: cannot flush stream: %v", err)
 		return
 	}
 
@@ -1460,7 +1442,7 @@ func (s *Server) handleSharedSyncStream(w http.ResponseWriter, r *http.Request, 
 
 	rc := http.NewResponseController(w)
 	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
-		s.logger.Printf("live-sync: cannot clear write deadline: %v", err)
+		s.Logger.Printf("live-sync: cannot clear write deadline: %v", err)
 		http.Error(w, "Not Implemented", http.StatusNotImplemented)
 		return
 	}
@@ -1506,7 +1488,7 @@ func (s *Server) handleSharedSyncStream(w http.ResponseWriter, r *http.Request, 
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	if err := rc.Flush(); err != nil {
-		s.logger.Printf("live-sync: cannot flush stream: %v", err)
+		s.Logger.Printf("live-sync: cannot flush stream: %v", err)
 		return
 	}
 
@@ -1552,15 +1534,7 @@ func (s *Server) handleSharedSyncStream(w http.ResponseWriter, r *http.Request, 
 // parseLastEventID reads the client's resume point. EventSource sends the header
 // automatically on reconnect, and both clients also accept the query form.
 func parseLastEventID(r *http.Request) int64 {
-	raw := r.Header.Get("Last-Event-ID")
-	if raw == "" {
-		raw = r.URL.Query().Get("lastEventId")
-	}
-	v, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
-	if err != nil || v < 0 {
-		return 0
-	}
-	return v
+	return sse.ParseLastEventID(r)
 }
 
 // parseResumeID reads and validates the client's resume-id query parameter: 1 to
@@ -1620,8 +1594,8 @@ func (s *Server) handleLiveSyncSave(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusNotFound, "unknown page")
 		return
 	}
-	if s.HelpersBound(f.AbsPath) {
-		s.writeError(w, http.StatusForbidden, "live sync disabled for helper-bound document")
+	if s.RelayBlocked(f.AbsPath) {
+		s.writeError(w, http.StatusForbidden, wire.RelayBlockedText)
 		return
 	}
 
@@ -1773,28 +1747,26 @@ func (s *Server) handleLiveSyncSave(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.helperBindings.mu.RLock()
-	if s.helperBindings.byFile[f.AbsPath].bound {
-		s.helperBindings.mu.RUnlock()
-		s.writeError(w, http.StatusForbidden, "live sync disabled for helper-bound document")
+	if !s.WhileRelayAllowed(f.AbsPath, func() {
+
+		if lane == laneSaved {
+			// Viewers, on the same lane a save publishes to. Nothing is written: §10 is
+			// flat about it, and the usual flow needs no client relay here at all, since
+			// a save already pushes the new document out. This exists for the case §10
+			// names, a client wanting viewers updated without a save behind it.
+			//
+			// identityMap is deliberately not carried: it pairs elements across a morph
+			// between two EDITORS, and a viewer has no working state to preserve. The etag
+			// is dropped here for the matching reason: it tells a tab which version its next
+			// save is answering, and a viewer makes no saves.
+			s.coord.broadcastSaved(f, relayHTML, payload.Sender)
+		} else {
+			s.coord.relay(f, relayHTML, payload.Sender, payload.Etag, identityMap)
+		}
+	}) {
+		s.writeError(w, http.StatusForbidden, wire.RelayBlockedText)
 		return
 	}
-
-	if lane == laneSaved {
-		// Viewers, on the same lane a save publishes to. Nothing is written: §10 is
-		// flat about it, and the usual flow needs no client relay here at all, since
-		// a save already pushes the new document out. This exists for the case §10
-		// names, a client wanting viewers updated without a save behind it.
-		//
-		// identityMap is deliberately not carried: it pairs elements across a morph
-		// between two EDITORS, and a viewer has no working state to preserve. The etag
-		// is dropped here for the matching reason: it tells a tab which version its next
-		// save is answering, and a viewer makes no saves.
-		s.coord.broadcastSaved(f, relayHTML, payload.Sender)
-	} else {
-		s.coord.relay(f, relayHTML, payload.Sender, payload.Etag, identityMap)
-	}
-	s.helperBindings.mu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")

@@ -11,7 +11,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -202,5 +204,134 @@ func TestUpdaterRunRetriesThenReportsReady(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("Run never reported the staged update")
+	}
+}
+
+func TestRunChecksNowAndSaysWhatItFound(t *testing.T) {
+	priv, keys := testKeys(t)
+	fs := newFeedServer(t)
+	current, _ := SignPayload(payloadJSON(t, fs.release("1.13.3")), "test-a", priv)
+	newer, _ := SignPayload(payloadJSON(t, fs.release("1.14.0")), "test-a", priv)
+	fs.setFeed(current)
+	u := newTestUpdater(t, fs, keys)
+	u.FirstCheck = time.Hour
+
+	checkNow := make(chan struct{}, 1)
+	u.CheckNow = checkNow
+	var mu sync.Mutex
+	var calls []bool
+	var heard []string
+	u.Checking = func(on bool) {
+		mu.Lock()
+		calls = append(calls, on)
+		mu.Unlock()
+	}
+	u.Found = func(version string) {
+		mu.Lock()
+		heard = append(heard, "found "+version)
+		mu.Unlock()
+	}
+	results := make(chan CheckResult, 3)
+	u.Checked = func(r CheckResult) { results <- r }
+	ready := make(chan Ready, 1)
+
+	stop := make(chan struct{})
+	defer close(stop)
+	go u.Run(stop, func(r Ready) {
+		mu.Lock()
+		heard = append(heard, "ready "+r.Version)
+		mu.Unlock()
+		ready <- r
+	})
+	next := func() CheckResult {
+		t.Helper()
+		checkNow <- struct{}{}
+		select {
+		case r := <-results:
+			return r
+		case <-time.After(10 * time.Second):
+			t.Fatal("a check started by Check now never said how it ended")
+		}
+		return CheckResult{}
+	}
+
+	if r := next(); r.Found != "" || r.Err != nil {
+		t.Fatalf("a check with nothing newer = %+v, want the newest", r)
+	}
+	fs.setFeed([]byte("not a feed"))
+	if r := next(); r.Err == nil {
+		t.Fatalf("a check of a broken feed = %+v, want a failure", r)
+	}
+	fs.setFeed(newer)
+	if r := next(); r.Found != "1.14.0" || r.Err != nil {
+		t.Fatalf("a check of a newer feed = %+v, want 1.14.0 found", r)
+	}
+	<-ready
+	mu.Lock()
+	defer mu.Unlock()
+	if want := []string{"found 1.14.0", "ready 1.14.0"}; !slices.Equal(heard, want) {
+		t.Fatalf("heard %v, want %v: the download is announced before it is staged", heard, want)
+	}
+	if want := []bool{true, false, true, false, true, false}; !slices.Equal(calls, want) {
+		t.Fatalf("Checking calls %v, want %v", calls, want)
+	}
+}
+
+func TestTimedChecksStopWhenUpdatesAreOff(t *testing.T) {
+	priv, keys := testKeys(t)
+	fs := newFeedServer(t)
+	feed, _ := SignPayload(payloadJSON(t, fs.release("1.14.0")), "test-a", priv)
+	fs.setFeed(feed)
+	u := newTestUpdater(t, fs, keys)
+	u.FirstCheck = time.Millisecond
+	var automatic atomic.Bool
+	u.Automatic = automatic.Load
+	now := make(chan struct{}, 1)
+	u.CheckNow = now
+
+	ready := make(chan Ready, 1)
+	stop := make(chan struct{})
+	defer close(stop)
+	go u.Run(stop, func(r Ready) { ready <- r })
+	select {
+	case r := <-ready:
+		t.Fatalf("Run checked on its timer with updates off: %+v", r)
+	case <-time.After(300 * time.Millisecond):
+	}
+	now <- struct{}{}
+	select {
+	case r := <-ready:
+		if r.Version != "1.14.0" {
+			t.Fatalf("Ready %+v", r)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Check now did not check with updates off")
+	}
+}
+
+// A staged update is waiting for the next start only while the staged file is
+// the one the check recorded and its version is still newer.
+func TestAWaitingUpdateNeedsItsStagedFileAndANewerVersion(t *testing.T) {
+	priv, keys := testKeys(t)
+	fs := newFeedServer(t)
+	feed, _ := SignPayload(payloadJSON(t, fs.release("1.14.0")), "test-a", priv)
+	fs.setFeed(feed)
+	u := newTestUpdater(t, fs, keys)
+	if _, err := u.CheckOnce(); err != nil {
+		t.Fatalf("CheckOnce: %v", err)
+	}
+
+	if r := Waiting(u.Dir, "1.14.0", u.InstallPath); r != nil {
+		t.Fatalf("a version no newer than the running one waits: %+v", r)
+	}
+	if _, err := u.CheckOnce(); err != nil {
+		t.Fatalf("CheckOnce: %v", err)
+	}
+	if r := Waiting(u.Dir, u.Current, u.InstallPath); r == nil || r.Version != "1.14.0" || r.StagedPath != stagedPathFor(u.InstallPath) {
+		t.Fatalf("Waiting = %+v, want 1.14.0 at the staged path", r)
+	}
+	os.WriteFile(stagedPathFor(u.InstallPath), []byte("something else"), 0o755)
+	if r := Waiting(u.Dir, u.Current, u.InstallPath); r != nil {
+		t.Fatalf("a changed staged file still waits: %+v", r)
 	}
 }

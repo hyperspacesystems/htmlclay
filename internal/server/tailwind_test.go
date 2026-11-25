@@ -258,7 +258,7 @@ func TestTailwindCompileFailureIsEmptyAndLoggedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { logger.Close() })
-	fx.srv.logger = logger
+	fx.srv.Logger = logger
 
 	fake := &fakeTailwind{fail: true, err: fmt.Errorf("compiler exploded")}
 	fx.srv.setTailwindCompiler(fake.compile)
@@ -441,7 +441,7 @@ func TestTailwindUnavailableLoggedOnceAndCancelledQuiet(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { logger.Close() })
-	fx.srv.logger = logger
+	fx.srv.Logger = logger
 
 	fake := &fakeTailwind{fail: true, err: tailwind.ErrUnavailable}
 	fx.srv.setTailwindCompiler(fake.compile)

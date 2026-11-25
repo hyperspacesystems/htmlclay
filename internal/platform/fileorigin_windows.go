@@ -32,6 +32,15 @@ func downloaded(path string) bool {
 	return false
 }
 
+// createTime is when the file was created, which a copy or an unpack keeps.
+func createTime(info os.FileInfo) (time.Time, bool) {
+	data, ok := info.Sys().(*syscall.Win32FileAttributeData)
+	if !ok {
+		return time.Time{}, false
+	}
+	return time.Unix(0, data.CreationTime.Nanoseconds()), true
+}
+
 func changeTime(info os.FileInfo) (time.Time, bool) {
 	data, ok := info.Sys().(*syscall.Win32FileAttributeData)
 	if !ok {

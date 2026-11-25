@@ -1,0 +1,252 @@
+/**
+ * Local file operations for the sync engine
+ */
+
+const fs = require('fs').promises;
+const fsSync = require('fs');
+const path = require('upath'); // Use upath for cross-platform compatibility
+const crypto = require('crypto');
+
+/**
+ * Check if a directory entry should be skipped during scanning
+ */
+function shouldSkipEntry(name) {
+  return name.startsWith('.') ||
+         name === 'node_modules' ||
+         name === 'sites-versions' ||
+         name === 'tailwindcss';
+}
+
+/**
+ * A folder inside a synced folder that holds its own root marker is another synced folder (or a
+ * copy of one): it belongs to its own session, so this one never scans, creates or uploads it.
+ */
+function isNestedSyncRoot(dirPath) {
+  return fsSync.existsSync(path.join(dirPath, '.hyperclay', 'sync-root.json'));
+}
+
+/**
+ * Get all local HTML files recursively with relative paths
+ */
+// One entry that vanished or cannot be read is left out on its own, so the
+// scan still sees every other file in its folder.
+async function statOrSkip(fullPath, logger) {
+  try {
+    return await fs.stat(fullPath);
+  } catch (error) {
+    if (logger) logger.warn('SYNC', 'Skipped a file the scan could not read', { path: fullPath, code: error.code });
+    return null;
+  }
+}
+
+async function getLocalFiles(syncFolder, logger = null) {
+  const files = new Map();
+
+  async function scanDirectory(dirPath, relativePath = '') {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        const relPath = relativePath
+          ? path.join(relativePath, entry.name)
+          : entry.name;
+
+        if (entry.isDirectory()) {
+          if (!shouldSkipEntry(entry.name) && !isNestedSyncRoot(fullPath)) {
+            await scanDirectory(fullPath, relPath);
+          }
+        } else if (entry.isFile() && (entry.name.endsWith('.html') || entry.name.endsWith('.htmlclay'))) {
+          const stats = await statOrSkip(fullPath, logger);
+          if (!stats) continue;
+
+          // relPath is already normalized by upath.join() to forward slashes
+          files.set(relPath, {
+            path: fullPath,
+            relativePath: relPath,
+            mtime: stats.mtime,
+            size: stats.size
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Error scanning directory ${dirPath}:`, error);
+      if (logger) {
+        logger.warn('SYNC', 'Directory scan failed — some local files may be missed', {
+          dir: dirPath,
+          error: error.message,
+          code: error.code
+        });
+      }
+    }
+  }
+
+  await scanDirectory(syncFolder);
+  return files;
+}
+
+/**
+ * Read file content
+ */
+async function readFile(filePath) {
+  return fs.readFile(filePath, 'utf8');
+}
+
+/**
+ * Check if file exists
+ */
+function fileExists(filePath) {
+  return fsSync.existsSync(filePath);
+}
+
+/**
+ * Get file stats
+ */
+async function getFileStats(filePath) {
+  return fs.stat(filePath);
+}
+
+/**
+ * Ensure directory exists
+ */
+async function ensureDirectory(dirPath) {
+  return fs.mkdir(dirPath, { recursive: true });
+}
+
+/**
+ * Read directory contents
+ */
+async function readDirectory(dirPath) {
+  try {
+    return await fs.readdir(dirPath);
+  } catch (error) {
+    // Directory doesn't exist
+    return [];
+  }
+}
+
+// =============================================================================
+// UPLOAD-SPECIFIC FILE OPERATIONS
+// =============================================================================
+
+/**
+ * Get all local uploads recursively
+ * Scans <syncFolder>/uploads/ and returns all files
+ * @returns {Map<string, {path: string, relativePath: string, mtime: Date, size: number}>}
+ */
+async function getLocalUploads(syncFolder, logger = null) {
+  const files = new Map();
+
+  async function scanDirectory(dirPath, relativePath = '') {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (shouldSkipEntry(entry.name)) {
+          continue;
+        }
+
+        const fullPath = path.join(dirPath, entry.name);
+        const relPath = relativePath
+          ? path.join(relativePath, entry.name)
+          : entry.name;
+
+        if (entry.isDirectory()) {
+          if (!isNestedSyncRoot(fullPath)) await scanDirectory(fullPath, relPath);
+        } else if (entry.isFile() && !entry.name.endsWith('.html') && !entry.name.endsWith('.htmlclay')) {
+          const stats = await statOrSkip(fullPath, logger);
+          if (!stats) continue;
+          files.set(relPath, {
+            path: fullPath,
+            relativePath: relPath,
+            mtime: stats.mtime,
+            size: stats.size
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Error scanning uploads directory ${dirPath}:`, error);
+      if (logger) {
+        logger.warn('SYNC', 'Uploads directory scan failed — some local uploads may be missed', {
+          dir: dirPath,
+          error: error.message,
+          code: error.code
+        });
+      }
+    }
+  }
+
+  await scanDirectory(syncFolder);
+  return files;
+}
+
+/**
+ * Read file as Buffer (for binary files)
+ */
+async function readFileBuffer(filePath) {
+  return fs.readFile(filePath); // No encoding = returns Buffer
+}
+
+/**
+ * Calculate checksum from Buffer
+ */
+function calculateBufferChecksum(buffer) {
+  return crypto.createHash('sha256')
+    .update(buffer)
+    .digest('hex')
+    .substring(0, 16);
+}
+
+/**
+ * Get all local folders recursively with relative paths.
+ * Used by detectLocalFolderChanges to find where folders moved while offline.
+ * @returns {Map<string, { fullPath: string }>}
+ */
+async function getLocalFolders(syncFolder, logger = null) {
+  const folders = new Map();
+
+  async function scanDirectory(dirPath, relativePath = '') {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (shouldSkipEntry(entry.name)) continue;
+
+        const fullPath = path.join(dirPath, entry.name);
+        const relPath = relativePath ? path.join(relativePath, entry.name) : entry.name;
+        if (isNestedSyncRoot(fullPath)) continue;
+
+        folders.set(relPath, { fullPath });
+        await scanDirectory(fullPath, relPath);
+      }
+    } catch (error) {
+      console.error(`Error scanning directories ${dirPath}:`, error);
+      if (logger) {
+        logger.warn('SYNC', 'Folders directory scan failed — some local folders may be missed', {
+          dir: dirPath,
+          error: error.message,
+          code: error.code
+        });
+      }
+    }
+  }
+
+  await scanDirectory(syncFolder);
+  return folders;
+}
+
+module.exports = {
+  shouldSkipEntry,
+  isNestedSyncRoot,
+  getLocalFolders,
+  getLocalFiles,
+  readFile,
+  fileExists,
+  getFileStats,
+  ensureDirectory,
+  readDirectory,
+  // Upload-specific
+  getLocalUploads,
+  readFileBuffer,
+  calculateBufferChecksum
+};

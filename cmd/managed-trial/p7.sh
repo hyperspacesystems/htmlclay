@@ -44,7 +44,7 @@ for target in $targets; do
 done
 
 import_c_rc=0
-rg -l '^import "C"|^\s+"C"$' internal/managedtrial cmd/managed-trial >"$tmp/import-c.txt" 2>&1 || import_c_rc=$?
+rg -l '^import "C"|^\s+"C"$' internal/served cmd/managed-trial >"$tmp/import-c.txt" 2>&1 || import_c_rc=$?
 if [ "$import_c_rc" -eq 0 ]; then
 	echo "P7 import-C: found"
 	cat "$tmp/import-c.txt"

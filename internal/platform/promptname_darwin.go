@@ -30,3 +30,23 @@ func promptNameScript(title, message, initial string) string {
 		" default answer " + appleScriptString(initial) +
 		` buttons {"Cancel", "OK"} default button "OK" cancel button "Cancel")`
 }
+
+func promptSecret(title, message string) (string, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), promptNameTimeout)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, "osascript", "-e", "activate me", "-e", promptSecretScript(title, message)).CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(out), "-128") {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return strings.Trim(string(out), "\n"), true, nil
+}
+
+func promptSecretScript(title, message string) string {
+	return "text returned of (display dialog " + appleScriptString(message) +
+		" with title " + appleScriptString(title) +
+		` default answer "" with hidden answer buttons {"Cancel", "OK"} default button "OK" cancel button "Cancel")`
+}

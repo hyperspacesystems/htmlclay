@@ -331,11 +331,14 @@ jobs:
       run: go run ./cmd/fetchtailwind -goos linux -goarch amd64
     - name: Test the Tailwind bundle
       run: go test -tags tailwind_bundle ./internal/tailwind/ -count=1
+    - name: Build the service bundle
+      run: node service/build.mjs --goos linux --goarch amd64
     - name: Build
       run: |
         GOOS=linux GOARCH=amd64 \
-          go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
-        go version -m htmlclay | grep -q -- '-tags=tailwind_bundle'
+          go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
+        go version -m htmlclay | grep -q -- '-tags=tailwind_bundle,service_bundle'
+        ./htmlclay update-info | grep -q '"service":true'
       env:
         CGO_ENABLED: '0'
     - name: Package
@@ -409,13 +412,21 @@ jobs:
       with:
         go-version: '1.26'
         cache-dependency-path: candidate/go.sum
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Fetch Tailwind
       run: go run ./cmd/fetchtailwind -goos linux -goarch arm64
+    - name: Build the service bundle
+      run: node service/build.mjs --goos linux --goarch arm64
     - name: Build
       run: |
         GOOS=linux GOARCH=arm64 \
-          go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
-        go version -m htmlclay | grep -q -- '-tags=tailwind_bundle'
+          go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
+        go version -m htmlclay | grep -q -- '-tags=tailwind_bundle,service_bundle'
+        ./htmlclay update-info | grep -q '"service":true'
       env:
         CGO_ENABLED: '0'
     - name: Package
@@ -511,13 +522,19 @@ jobs:
     - name: Test the Tailwind bundle
       run: go test -tags tailwind_bundle ./internal/tailwind/ -count=1
       shell: pwsh
+    - name: Build the service bundle
+      run: |
+        node service/build.mjs --goos windows --goarch amd64
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      shell: pwsh
     - name: Build
       run: |
         $env:CGO_ENABLED = "0"
         $env:GOARCH = "amd64"
-        go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
+        go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle')) { Write-Error "built without the Tailwind bundle"; exit 1 }
+        if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle,service_bundle')) { Write-Error "built without the Tailwind and service bundles"; exit 1 }
+        if (-not (./htmlclay.exe update-info | Select-String -SimpleMatch -- '"service":true')) { Write-Error "htmlclay.exe does not carry the service"; exit 1 }
       shell: pwsh
     - name: Install TrustedSigning module
       run: Install-Module -Name TrustedSigning -Force -Scope CurrentUser -AcceptLicense
@@ -625,18 +642,28 @@ jobs:
           --file-version "${{ needs.verify.outputs.version }}" --product-version "${{ needs.verify.outputs.version }}"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       shell: pwsh
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Install the locked packages
+      run: npm ci
     - name: Fetch Tailwind
       run: |
         go run ./cmd/fetchtailwind -goos windows -goarch arm64
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      shell: pwsh
+    - name: Build the service bundle
+      run: |
+        node service/build.mjs --goos windows --goarch arm64
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       shell: pwsh
     - name: Build
       run: |
         $env:CGO_ENABLED = "0"
         $env:GOARCH = "arm64"
-        go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
+        go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="-s -w -X main.version=${{ needs.verify.outputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle')) { Write-Error "built without the Tailwind bundle"; exit 1 }
+        if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle,service_bundle')) { Write-Error "built without the Tailwind and service bundles"; exit 1 }
       shell: pwsh
     - name: Install TrustedSigning module
       run: Install-Module -Name TrustedSigning -Force -Scope CurrentUser -AcceptLicense
@@ -772,7 +799,13 @@ jobs:
         APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         UPDATE_CHANNEL: stable
         SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        HTMLCLAY_RELEASE_BUILD: "1"
       run: bash packaging/macos/build.sh --universal
+    - name: Verify the signed bundle
+      env:
+        VERSION: ${{ needs.verify.outputs.version }}
+        HTMLCLAY_RELEASE_BUILD: "1"
+      run: bash packaging/macos/verify-bundle.sh --universal --hardened HTMLClay.app "$VERSION" com.htmlclay.HTMLClay
     - name: Require signed update archive
       run: test -s "HTMLClay-${VERSION}-universal.app.zip"
       env:
@@ -845,6 +878,13 @@ jobs:
         fi
         if [ -z "$SPARKLE_ED_PRIVATE_KEY" ] || [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
           echo "::error::Set both the SPARKLE_ED_PRIVATE_KEY secret and the SPARKLE_PUBLIC_ED_KEY repository variable, or neither."
+          exit 1
+        fi
+        LEGACY=packaging/macos/appcast-legacy-item.xml
+        if [ -f "$LEGACY" ]; then
+          export SPARKLE_LEGACY_ITEM="$LEGACY"
+        elif [ "${VERSION%%.*}" -ge 2 ]; then
+          echo "::error::$LEGACY is missing. Run packaging/macos/capture-legacy-item.sh at the release candidate and commit it, so Macs below macOS 14 keep the last 1.x."
           exit 1
         fi
         bash packaging/macos/sparkle-appcast.sh "$VERSION" "HTMLClay-${VERSION}-universal.app.zip" sparkle-out

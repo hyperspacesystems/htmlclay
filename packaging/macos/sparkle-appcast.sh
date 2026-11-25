@@ -1,9 +1,13 @@
 #!/bin/bash
 # Usage: sparkle-appcast.sh VERSION ZIP OUT_DIR
 #
-# Writes OUT_DIR/appcast.xml, a signed one-item Sparkle feed for ZIP, and a copy
-# of ZIP beside it. The EdDSA private key comes from SPARKLE_ED_PRIVATE_KEY (the
-# base64 seed `generate_keys -x` exports) and must be the private half of
+# Writes OUT_DIR/appcast.xml, a signed Sparkle feed for ZIP, and a copy of ZIP
+# beside it. The feed holds one item, or two when SPARKLE_LEGACY_ITEM names a
+# file holding the last 1.x <item> (written by capture-legacy-item.sh): Macs
+# below the new item's floor skip it and keep updating within 1.x.
+#
+# The EdDSA private key comes from SPARKLE_ED_PRIVATE_KEY (the base64 seed
+# `generate_keys -x` exports) and must be the private half of
 # SPARKLE_PUBLIC_ED_KEY, the key build.sh put in the app. The enclosure names
 # $SPARKLE_BASE_URL/VERSION/<zip>?sha256=<hex>: the query is only a cache key,
 # so a rebuilt archive is never served from a cached copy of the old bytes.
@@ -41,27 +45,37 @@ NAME="$(basename "$ZIP")"
 SHA256="$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
 LENGTH="$(stat -f%z "$ZIP")"
 SIGNATURE="$(printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$SIGN_UPDATE" --ed-key-file - -p "$ZIP")"
-MIN_OS="$(plutil -extract LSMinimumSystemVersion raw "$SCRIPT_DIR/Info.plist")"
+PRODUCT_INFO="$(cd "$SCRIPT_DIR/../.." && pwd)/macos/Resources/Product/Info.plist"
+if [ ! -f "$PRODUCT_INFO" ]; then
+  echo "missing product Info.plist: $PRODUCT_INFO" >&2
+  exit 1
+fi
+MIN_OS="$(plutil -extract LSMinimumSystemVersion raw "$PRODUCT_INFO")"
+# The floor rehearsal (scripts/upgrade-rehearsal.sh floor) raises the floor
+# above this Mac's macOS. It can only raise it: a lower value is refused.
+if [ -n "${SPARKLE_FLOOR_RAISE:-}" ]; then
+  if [ "$(printf '%s\n%s\n' "$MIN_OS" "$SPARKLE_FLOOR_RAISE" | sort -V | tail -n 1)" != "$SPARKLE_FLOOR_RAISE" ]; then
+    echo "SPARKLE_FLOOR_RAISE=$SPARKLE_FLOOR_RAISE is below the product floor $MIN_OS" >&2
+    exit 1
+  fi
+  MIN_OS="$SPARKLE_FLOOR_RAISE"
+fi
 PUB_DATE="$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')"
 
 mkdir -p "$OUT"
 cp "$ZIP" "$OUT/$NAME"
-cat > "$OUT/appcast.xml" <<XML
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-  <channel>
-    <title>HTML Clay</title>
-    <item>
-      <title>HTML Clay ${VERSION}</title>
-      <pubDate>${PUB_DATE}</pubDate>
-      <sparkle:version>${VERSION}</sparkle:version>
-      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
-      <enclosure url="${BASE_URL}/${VERSION}/${NAME}?sha256=${SHA256}" length="${LENGTH}" type="application/octet-stream" sparkle:edSignature="${SIGNATURE}"/>
-    </item>
-  </channel>
-</rss>
-XML
+APPCAST_TMP="$(mktemp "$OUT/.appcast.xml.XXXXXX")"
+APPCAST_ARGS=(--version "$VERSION" --zip-name "$NAME" --sha256 "$SHA256" --length "$LENGTH"
+                 --signature "$SIGNATURE" --floor "$MIN_OS" --base-url "$BASE_URL"
+                 --pub-date "$PUB_DATE")
+if [ -n "${SPARKLE_LEGACY_ITEM:-}" ]; then
+  APPCAST_ARGS+=(--legacy-item "$SPARKLE_LEGACY_ITEM")
+fi
+if ! python3 "$SCRIPT_DIR/appcast_xml.py" "${APPCAST_ARGS[@]}" > "$APPCAST_TMP"; then
+  rm -f "$APPCAST_TMP"
+  exit 1
+fi
+mv "$APPCAST_TMP" "$OUT/appcast.xml"
 
 # sign_update embeds the feed's own signature as a trailing comment, which
 # SURequireSignedFeed makes every installed app check before reading the feed.

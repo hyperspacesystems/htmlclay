@@ -16,16 +16,15 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/update"
 )
 
 // The wire CLI is a client of a RUNNING HTML Clay, never a second instance of
@@ -316,9 +315,17 @@ const wireExitAmbiguous = 8
 
 // wireConfig is the tolerant decode of the config fields the CLI reads.
 type wireConfig struct {
-	Port      int               `json:"port"`
-	SiteSlugs map[string]string `json:"siteSlugs"`
-	SitePorts map[string]int    `json:"sitePorts"`
+	Port          int                `json:"port"`
+	SiteSlugs     map[string]string  `json:"siteSlugs"`
+	SitePorts     map[string]int     `json:"sitePorts"`
+	ServedFolders []wireServedFolder `json:"servedFolders"`
+}
+
+// wireServedFolder is the part of a served folder the CLI needs.
+type wireServedFolder struct {
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Serving bool   `json:"serving"`
 }
 
 // wireReadConfig reads the remembered origins WITHOUT going through config.Load.
@@ -346,11 +353,11 @@ func wireReadConfig(configPath string) wireConfig {
 // The dev build appends -dev to that folder and is deliberately not read: a dev
 // build is reached with --port instead.
 func wireLocalRootsPath() string {
-	base, err := os.UserConfigDir()
-	if err != nil {
+	dir := localUserData()
+	if dir == "" {
 		return ""
 	}
-	return filepath.Join(base, "Hyperclay Local", "served-roots.json")
+	return filepath.Join(dir, "served-roots.json")
 }
 
 type wireLocalRoot struct {
@@ -374,26 +381,14 @@ func wireLocalRoots(path string) []wireLocalRoot {
 		PID   int             `json:"pid"`
 		Roots []wireLocalRoot `json:"roots"`
 	}
-	if json.Unmarshal(data, &doc) != nil || doc.V != 1 || !wirePIDAlive(doc.PID) {
+	if json.Unmarshal(data, &doc) != nil || doc.V != 1 || !localProcessAlive(doc.PID) {
 		return nil
 	}
 	return doc.Roots
 }
 
 func wirePIDAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	if runtime.GOOS == "windows" {
-		p.Release()
-		return true
-	}
-	err = p.Signal(syscall.Signal(0))
-	return err == nil || errors.Is(err, syscall.EPERM)
+	return update.ProcessAlive(pid)
 }
 
 // wireCandidates orders the remembered origins by how likely each is to serve file.
@@ -418,6 +413,12 @@ func wireCandidates(cfg wireConfig, file string) []wireCandidate {
 				continue
 			}
 			add(wireCandidate{anchor: key, port: cfg.Port, host: slug + ".localhost:" + strconv.Itoa(cfg.Port), source: "htmlclay"})
+		}
+		for _, f := range cfg.ServedFolders {
+			if !f.Serving || f.Name == "" || f.Path == "" {
+				continue
+			}
+			add(wireCandidate{anchor: f.Path, port: cfg.Port, host: servedHostName(f.Name, cfg.Port), source: "htmlclay"})
 		}
 	}
 	for anchor, port := range cfg.SitePorts {
@@ -503,10 +504,10 @@ func wireOriginCandidate(origin string) (wireCandidate, error) {
 	}
 	host, p, err := net.SplitHostPort(u.Host)
 	if err != nil {
-		return wireCandidate{}, fmt.Errorf("--origin %q needs a port, like http://htmlclay.localhost:1212", origin)
+		return wireCandidate{}, fmt.Errorf("--origin %q needs a port, like http://htmlclay1.localhost:1212", origin)
 	}
 	if host == "" {
-		return wireCandidate{}, fmt.Errorf("--origin %q has no hostname, like http://htmlclay.localhost:1212", origin)
+		return wireCandidate{}, fmt.Errorf("--origin %q has no hostname, like http://htmlclay1.localhost:1212", origin)
 	}
 	port, err := strconv.Atoi(p)
 	if err != nil || port <= 0 || port > 65535 {
@@ -987,7 +988,7 @@ func wireReadStream(body io.Reader, lastID string, onFrame func(raw []byte, f wi
 func wireWhereCmd(env *wireEnv, args []string) int {
 	fs := wireFlagSet(env, "where")
 	port := fs.Int("port", 0, "the origin's loopback port, instead of looking one up")
-	origin := fs.String("origin", "", "the site's address as the browser shows it, e.g. http://htmlclay.localhost:1212; HTML Clay sites only")
+	origin := fs.String("origin", "", "the site's address as the browser shows it, e.g. http://htmlclay1.localhost:1212; HTML Clay sites only")
 	operands, err := wireParse(fs, args)
 	if err != nil {
 		return wireExitUsage
@@ -1055,7 +1056,7 @@ func wireListenCmd(env *wireEnv, args []string) int {
 	fs := wireFlagSet(env, "listen")
 	handler := fs.Bool("handler", false, "take the exclusive handler slot and keep the file watched")
 	port := fs.Int("port", 0, "the origin's loopback port, instead of looking one up")
-	origin := fs.String("origin", "", "the site's address as the browser shows it, e.g. http://htmlclay.localhost:1212; HTML Clay sites only")
+	origin := fs.String("origin", "", "the site's address as the browser shows it, e.g. http://htmlclay1.localhost:1212; HTML Clay sites only")
 	operands, err := wireParse(fs, args)
 	if err != nil {
 		return wireExitUsage
@@ -1104,7 +1105,7 @@ func wireSendCmd(env *wireEnv, args []string) int {
 	id := fs.String("id", "", "request id (default: a fresh uuid)")
 	text := fs.String("text", "", "free-form text")
 	port := fs.Int("port", 0, "the origin's loopback port, instead of looking one up")
-	origin := fs.String("origin", "", "the site's address as the browser shows it, e.g. http://htmlclay.localhost:1212; HTML Clay sites only")
+	origin := fs.String("origin", "", "the site's address as the browser shows it, e.g. http://htmlclay1.localhost:1212; HTML Clay sites only")
 	operands, err := wireParse(fs, args)
 	if err != nil {
 		return wireExitUsage
@@ -1260,7 +1261,7 @@ func wireServeCmd(env *wireEnv, args []string) int {
 
 	fs := wireFlagSet(env, "serve")
 	port := fs.Int("port", 0, "the origin's loopback port, instead of looking one up")
-	origin := fs.String("origin", "", "the site's address as the browser shows it, e.g. http://htmlclay.localhost:1212; HTML Clay sites only")
+	origin := fs.String("origin", "", "the site's address as the browser shows it, e.g. http://htmlclay1.localhost:1212; HTML Clay sites only")
 	protocol := fs.String("protocol", "raw", "helper output protocol: raw or jsonl")
 	operands, err := wireParse(fs, args[:sep])
 	if err != nil {

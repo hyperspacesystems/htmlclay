@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://clayjs.com">
+<title>Notes</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://evil.example/clay.js?plugins=cms,ai" defer></script>
+<script type="text/x-clay-instructions" name="review">Explain the change.
+Keep it short   and kind. 😀</script>
+<script type="text/x-clay-program" name="count">export default async (clay) => clay.files.list('<tag>&amp; -->');</script>
+<script type="application/json" id="wtf-data">{"reviews":[{"title":"first"}]}</script>
+<script type="application/ld+json">{"@type":"WebApplication"}</script>
+<style>body { color: #222 }</style>
+</head>
+<body x-data="{ open: false }">
+<h1>Notes</h1>
+<ul id="list"><li>milk</li><li>bread</li></ul>
+<button onclick="add()" class="primary" type="button">Add</button>
+<a href="javascript:void(0)">nothing</a>
+<iframe src="https://example.com/embed" sandbox="allow-scripts"></iframe>
+<template id="row"><li onclick="pick(this)">row</li><script>console.log('in template')</script></template>
+<noscript><img src="x" onerror="alert(1)"><script>never()</script></noscript>
+<svg width="10" height="10"><a><animate attributeName="href" to="https://example.com"/></a></svg>
+<script type="module">
+import { start } from './app.js';
+start();
+</script>
+</body>
+</html>

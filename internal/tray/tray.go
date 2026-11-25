@@ -2,25 +2,24 @@ package tray
 
 import (
 	_ "embed"
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
+	"slices"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"fyne.io/systray"
-	"github.com/panphora/htmlclay/internal/browser"
-	"github.com/panphora/htmlclay/internal/config"
-	"github.com/panphora/htmlclay/internal/platform"
+	"github.com/panphora/htmlclay/internal/appcore"
 )
 
-// listPollInterval is how often a submenu re-renders from its authoritative
-// list. A folder can be trusted by the permission dialog or by a page request,
-// neither of which has a handle to the tray, so the menu is refreshed by polling
-// rather than pushed to. Two seconds is well below the time it takes a user to
-// open the submenu, and the render is a cheap no-op when nothing changed.
+// listPollInterval is how often the menu re-reads its rows from the host. A
+// change can come from a page, a dialog or the command line, none of which has
+// a handle to the tray, so the menu polls rather than being pushed to. Two
+// seconds is well below the time it takes a person to open the menu, and an
+// unchanged row is not touched.
 const listPollInterval = 2 * time.Second
 
 //go:embed icon.png
@@ -41,346 +40,144 @@ var iconTemplateBytes []byte
 //go:embed icon.ico
 var iconICOBytes []byte
 
-// UpdateInfo is what the version row offers. With Apply set the update is
-// downloaded and staged, so the row offers a restart and clicking it calls
-// Apply; without it the row links to URL, the download page.
-type UpdateInfo struct {
-	Version string
-	URL     string
-	Apply   func()
-}
-
-// Row is one entry in a list submenu. Label is what the user sees, Path is what
-// the hook is called with. They are carried separately because they differ: a
-// folder that is missing or whose identity no longer matches is labelled as
-// such. Recovering the path by stripping that marker off the label was the old
-// protocol, and it broke for anyone who named a folder to end in the marker.
+// Row is one entry of the lists the host's older tray helpers return (trusted
+// and served folders, programs, exports). The menu no longer shows those lists;
+// the Settings pages do. The helpers and their tests still speak in rows.
 type Row struct {
 	Path  string
 	Label string
+	// Serving marks a row whose submenu held actions rather than a click of its own.
+	Serving bool
 }
 
-// TrustedFolderHooks are the app operations the Trusted Folders submenu drives.
-// Each returns the authoritative list so the tray always re-renders from truth
-// rather than tracking state itself. Add pops the native folder picker and
-// trusts the choice; Remove untrusts one (asking first, app-side, because it
-// closes a live origin); List is the initial render and the poll.
-type TrustedFolderHooks struct {
-	List   func() []Row
-	Add    func() []Row
-	Remove func(path string) []Row
+// MenuItem is one row of the one menu, as the host computes it from
+// appcore.MenuRows and MenuTitle. Children are a submenu's rows. A row whose ID
+// is appcore.MenuSeparator is a line between groups.
+type MenuItem struct {
+	ID       string
+	Title    string
+	Enabled  bool
+	Children []MenuItem
 }
 
-// HelperHooks are the app operations the Programs submenu drives. Each returns
-// the authoritative list so the tray always re-renders from config state.
-type HelperHooks struct {
-	// Title names the Programs item, counting missing program files. May be nil.
-	Title func() string
-	// List is the programs whose file is missing; Row relinks one.
-	List func() []Row
-	// Manage opens the Programs page.
-	Manage    func()
-	Row       func(id string) []Row
-	Documents func() []Row
-	Document  func(key string) []Row
-	// AIEditOff runs after the AI Editing checkbox is turned off, to cancel
-	// running AI edits. May be nil.
-	AIEditOff func()
+// MenuHooks drive the one menu: Rows is read every listPollInterval, and Do is
+// called with the id of a clicked row (a child's id for Recent and Needs you).
+// Tapped, when set, runs on a left click instead of showing the menu, which a
+// right click still shows; the tray calls it with the menu's own thread, so it
+// must return at once.
+type MenuHooks struct {
+	Rows   func() []MenuItem
+	Do     func(id string)
+	Tapped func()
 }
 
-// ExportHooks drive the Export as Zip submenu: Documents lists the open
-// documents, Export zips one (by row Path) and returns the fresh list.
-type ExportHooks struct {
-	Documents func() []Row
-	Export    func(path string) []Row
+// childSlots is how many rows each submenu can show: up to eight items, and for
+// Recent one more for its "No recent documents" row.
+var childSlots = map[string]int{
+	appcore.MenuNeedsYou: 8,
+	appcore.MenuRecent:   9,
 }
 
-// slotCount is how many submenu rows exist before any list is rendered. The pool
-// grows from there as entries need places to sit.
-//
-// A row is never destroyed. systray v1.12.0 does have MenuItem.Remove(), on all
-// three platforms, but rebuilding the list every render would reintroduce the
-// queued-click hazard render exists to prevent and churn a goroutine per row per
-// render; rows are shown, retitled, and hidden instead. Adding one at runtime is
-// the library's normal operating mode, which is what makes growing possible. It
-// has to be: the row click is the only caller of untrustFolder, so a fixed pool
-// meant every trusted folder past the sixteenth could not be revoked from the
-// menu at all, while still granting silent reads and writes.
-const slotCount = 16
+// slotState is what one menu item should show.
+type slotState struct {
+	visible bool
+	title   string
+	enabled bool
+}
 
-type slot struct {
-	item *systray.MenuItem
-	path string
+// menuShape is the menu's top level as the tray builds it: each row's id in
+// order, separators included. A change in titles, enabled states or children
+// leaves it alone; sync connecting or a Needs you row appearing changes it.
+func menuShape(rows []MenuItem) []string {
+	shape := make([]string, 0, len(rows))
+	for _, r := range rows {
+		shape = append(shape, r.ID)
+	}
+	return shape
+}
+
+// planRows lays the host's rows onto the menu's items: every top-level row the
+// host sent shows, and a submenu's children fill its slots in order while the
+// rest hide.
+func planRows(rows []MenuItem) (top map[string]slotState, children map[string][]slotState) {
+	top = make(map[string]slotState, len(rows))
+	children = make(map[string][]slotState, len(childSlots))
+	for _, r := range rows {
+		if r.ID == appcore.MenuSeparator {
+			continue
+		}
+		top[r.ID] = slotState{visible: true, title: r.Title, enabled: r.Enabled}
+		n, parent := childSlots[r.ID]
+		if !parent {
+			continue
+		}
+		slots := make([]slotState, n)
+		for i := 0; i < n && i < len(r.Children); i++ {
+			c := r.Children[i]
+			slots[i] = slotState{visible: true, title: c.Title, enabled: c.Enabled}
+		}
+		children[r.ID] = slots
+	}
+	return top, children
+}
+
+// applyChanged runs apply for a slot only when its state differs from what
+// it last showed, and records the new state. Every systray call is a D-Bus
+// signal on Linux, which closes an open submenu, and hiding an item already
+// hidden logs an error on Windows, so an unchanged poll touches nothing.
+func applyChanged[K comparable](shown map[K]slotState, key K, s slotState, apply func()) {
+	if last, ok := shown[key]; ok && last == s {
+		return
+	}
+	apply()
+	shown[key] = s
+}
+
+func applySlot(item *systray.MenuItem, s slotState) {
+	if !s.visible {
+		item.Hide()
+		return
+	}
+	item.SetTitle(s.title)
+	if s.enabled {
+		item.Enable()
+	} else {
+		item.Disable()
+	}
+	item.Show()
 }
 
 type Tray struct {
-	cfg           *config.Config
-	version       string
-	onOpenExample func()
-	onOpenBackups func()
-	onOpenKept    func()
-	onQuit        func()
-	updateCh      <-chan UpdateInfo
-	updateItem    *systray.MenuItem
-	updateURL     string
-	updateApply   func()
+	menu       *MenuHooks
+	beforeQuit func() bool
+	onQuit     func()
+	quitting   atomic.Bool
 
-	trusted             *TrustedFolderHooks
-	trustedMenu         *listMenu
-	helpers             *HelperHooks
-	helpersMenu         *listMenu
-	helperDocumentsMenu *listMenu
-	export              *ExportHooks
+	mu    sync.Mutex
+	rows  []MenuItem
+	shape []string
+	items map[string]*systray.MenuItem
+	kids  map[string][]*systray.MenuItem
+	// shown is what each item last showed; render and build only.
+	shown map[*systray.MenuItem]slotState
 
 	// notice is a permanent row for something about this machine that HTML Clay
-	// cannot fix and the user can. Empty means there is nothing to say.
+	// cannot fix and the person can. Empty means there is nothing to say.
 	notice string
 }
 
-func Run(cfg *config.Config, version string, onOpenExample func(), onOpenBackups func(), onOpenKept func(), onQuit func(), updateCh <-chan UpdateInfo, trusted *TrustedFolderHooks, helpers *HelperHooks, export *ExportHooks, notice string) {
-	t := &Tray{
-		cfg:           cfg,
-		version:       version,
-		onOpenExample: onOpenExample,
-		onOpenBackups: onOpenBackups,
-		onOpenKept:    onOpenKept,
-		onQuit:        onQuit,
-		updateCh:      updateCh,
-		trusted:       trusted,
-		helpers:       helpers,
-		export:        export,
-		notice:        notice,
-	}
+// Run shows the one menu and blocks until the tray quits. beforeQuit runs when
+// the person chooses Quit (or Exit); false keeps the app open. onQuit runs as
+// the tray ends.
+func Run(menu *MenuHooks, beforeQuit func() bool, onQuit func(), notice string) {
+	t := &Tray{menu: menu, beforeQuit: beforeQuit, onQuit: onQuit, notice: notice}
 	systray.Run(t.onReady, t.onExit)
 }
 
-const profilePrivacy = "Use this name in files opened with this app. Files can save your name and person ID, and anyone who receives those files can read them.\n\nTurning this off stops HTML Clay supplying your name. Names already saved in files stay there."
-
-// profileActions are the Profile submenu's operations, with the native dialogs
-// passed in so tests can drive them without opening any UI.
-type profileActions struct {
-	cfg    *config.Config
-	prompt func(title, message, initial string) (string, bool, error)
-	alert  func(title, message string)
-}
-
-// askName asks until it gets a valid name or the person cancels.
-func (p *profileActions) askName(initial string) (string, bool) {
-	message := profilePrivacy
-	for {
-		value, ok, err := p.prompt("Display Name", message, initial)
-		if err != nil {
-			p.alert("Could not ask for a name", err.Error())
-			return "", false
-		}
-		if !ok {
-			return "", false
-		}
-		name, err := config.CleanProfileName(value)
-		if err == nil {
-			return name, true
-		}
-		message = err.Error() + "\n\n" + profilePrivacy
-		initial = value
-	}
-}
-
-// toggle turns sharing on or off and returns whether it is now on. A profile that is on
-// but damaged reads as off in the menu, and clicking it repairs it: the name is asked for
-// again and a damaged id is replaced.
-func (p *profileActions) toggle() bool {
-	cur := p.cfg.ProfileState()
-	next := cur
-	if cur.Shareable() {
-		next.Enabled = false
-	} else {
-		if _, err := config.CleanProfileName(cur.Name); err != nil {
-			name, ok := p.askName(cur.Name)
-			if !ok {
-				return false
-			}
-			next.Name = name
-		}
-		if !config.ValidProfileID(next.ID) {
-			id, err := config.NewProfileID()
-			if err != nil {
-				p.alert("Could not set up your profile", err.Error())
-				return false
-			}
-			next.ID = id
-		}
-		next.Enabled = true
-	}
-	if err := p.cfg.UpdateProfile(next); err != nil {
-		p.alert("Could not save your profile", err.Error())
-		return p.cfg.ProfileState().Shareable()
-	}
-	return next.Enabled
-}
-
-// rename changes the display name, keeping the id and whether sharing is on.
-func (p *profileActions) rename() {
-	cur := p.cfg.ProfileState()
-	name, ok := p.askName(cur.Name)
-	if !ok {
-		return
-	}
-	next := cur
-	next.Name = name
-	if !config.ValidProfileID(next.ID) {
-		id, err := config.NewProfileID()
-		if err != nil {
-			p.alert("Could not set up your profile", err.Error())
-			return
-		}
-		next.ID = id
-	}
-	if err := p.cfg.UpdateProfile(next); err != nil {
-		p.alert("Could not save your profile", err.Error())
-	}
-}
-
-// listMenu renders an authoritative list into a growing slot pool, with an
-// optional add row, per-row click actions, and polling for lists that change
-// outside the tray.
-type listMenu struct {
-	mu    sync.Mutex
-	menu  *systray.MenuItem
-	empty *systray.MenuItem
-	slots []*slot
-	// onRow is set by watch, after the slots exist, and read at click time rather
-	// than captured, so a slot grown later behaves exactly like one built up front.
-	onRow      func(string) []Row
-	rowTooltip string
-}
-
-func newListMenu(title, tooltip, emptyText, addTitle, addTooltip string) (*listMenu, *systray.MenuItem) {
-	menu := systray.AddMenuItem(title, tooltip)
-	var addItem *systray.MenuItem
-	if addTitle != "" {
-		addItem = menu.AddSubMenuItem(addTitle, addTooltip)
-	}
-	lm := &listMenu{menu: menu}
-	lm.empty = menu.AddSubMenuItem(emptyText, "")
-	lm.empty.Disable()
-	lm.mu.Lock()
-	for i := 0; i < slotCount; i++ {
-		lm.addSlotLocked()
-	}
-	lm.mu.Unlock()
-	return lm, addItem
-}
-
-// addSlotLocked appends one hidden row and starts its click goroutine. Caller
-// holds lm.mu.
-//
-// The goroutine closes over the *slot, never its index. Growing appends to
-// lm.slots and so reallocates the backing array, and an index read from the
-// goroutine would race with that append; the pointer stays valid whatever the
-// slice does.
-func (lm *listMenu) addSlotLocked() *slot {
-	s := &slot{item: lm.menu.AddSubMenuItem("", "")}
-	s.item.Hide()
-	lm.slots = append(lm.slots, s)
-	go func() {
-		for range s.item.ClickedCh {
-			lm.mu.Lock()
-			path, onRow := s.path, lm.onRow
-			lm.mu.Unlock()
-			if path == "" || onRow == nil {
-				continue
-			}
-			// In its own goroutine: removing asks for confirmation first,
-			// and a blocking dialog here would freeze every other row.
-			go func() {
-				if rows := onRow(path); rows != nil {
-					lm.render(rows)
-				}
-			}()
-		}
-	}()
-	return s
-}
-
-// freeSlotLocked returns a vacant slot, growing the pool when every slot is
-// taken. Caller holds lm.mu.
-func (lm *listMenu) freeSlotLocked() *slot {
-	for _, s := range lm.slots {
-		if s.path == "" {
-			return s
-		}
-	}
-	return lm.addSlotLocked()
-}
-
-// render reconciles the slot pool with rows. An entry keeps its existing slot
-// across renders and only vacated slots are reused, so a click already queued
-// against a row stays bound to the entry that was in it. Compacting the rows
-// instead would let one entry's queued click land on whatever entry shifted into
-// its row, which with a destructive action is the difference between untrusting
-// the folder you clicked and untrusting a different one. Safe to call from any
-// goroutine.
-func (lm *listMenu) render(rows []Row) {
-	lm.mu.Lock()
-	defer lm.mu.Unlock()
-
-	label := make(map[string]string, len(rows))
-	for _, r := range rows {
-		label[r.Path] = r.Label
-	}
-	// Vacate slots whose entry is gone; leave every other entry in place, and
-	// refresh its label so a folder that has since gone missing says so.
-	assigned := make(map[string]bool, len(rows))
-	for _, s := range lm.slots {
-		if s.path == "" {
-			continue
-		}
-		if l, ok := label[s.path]; ok {
-			s.item.SetTitle(l)
-			assigned[s.path] = true
-			continue
-		}
-		s.path = ""
-		s.item.Hide()
-	}
-	// Place new entries into the lowest free slot, adding one when the pool is
-	// full. Every entry therefore has a clickable row, which is what makes every
-	// grant revocable from the menu.
-	for _, r := range rows {
-		if assigned[r.Path] {
-			continue
-		}
-		s := lm.freeSlotLocked()
-		s.path = r.Path
-		s.item.SetTitle(r.Label)
-		s.item.SetTooltip(lm.rowTooltip)
-		s.item.Show()
-		assigned[r.Path] = true
-	}
-	if len(assigned) == 0 {
-		lm.empty.Show()
-	} else {
-		lm.empty.Hide()
-	}
-}
-
-// watch sets the row action and, when poll is set, starts the poller that keeps
-// the menu in step with entries created outside the tray. The per-row click
-// goroutines belong to the slots themselves (addSlotLocked), because the pool can
-// gain a slot long after this has run.
-func (lm *listMenu) watch(onRow func(string) []Row, poll func() []Row) {
-	lm.mu.Lock()
-	lm.onRow = onRow
-	lm.mu.Unlock()
-	if poll != nil {
-		go func() {
-			ticker := time.NewTicker(listPollInterval)
-			defer ticker.Stop()
-			for range ticker.C {
-				lm.render(poll())
-			}
-		}()
-	}
+// MenuOnLeftClick goes back to showing the menu on a left click, for a tray
+// whose Tapped can no longer do anything.
+func MenuOnLeftClick() {
+	systray.SetOnTapped(nil)
 }
 
 func (t *Tray) onReady() {
@@ -393,6 +190,9 @@ func (t *Tray) onReady() {
 		systray.SetTemplateIcon(iconTemplateBytes, iconBytes)
 	}
 	systray.SetTooltip("HTML Clay")
+	if t.menu.Tapped != nil {
+		systray.SetOnTapped(t.menu.Tapped)
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
@@ -401,78 +201,115 @@ func (t *Tray) onReady() {
 		systray.Quit()
 	}()
 
-	t.addNotice()
-
-	t.updateItem = systray.AddMenuItem("HTML Clay v"+t.version, "Installed version")
-	t.updateItem.Disable()
-	systray.AddSeparator()
-
-	exampleItem := systray.AddMenuItem("Open Example File", "Create and open a sample self-saving HTML file")
-	backupsItem := systray.AddMenuItem("Backups", "Open the folder holding every saved version of your files")
-	keptItem := systray.AddMenuItem("Kept Copies…", "See and delete safety copies kept before outside data removals and version restores")
-	if t.export != nil {
-		em, _ := newListMenu("Export as Zip", "Save an open file and its attachments as one zip in Downloads", "No files open", "", "")
-		em.rowTooltip = "Click to save this file and its attachments as a zip in Downloads"
-		em.render(t.export.Documents())
-		em.watch(t.export.Export, t.export.Documents)
-	}
-	systray.AddSeparator()
-
-	addTrustedItem := t.buildTrustedMenu()
-	systray.AddSeparator()
-	addHelperItem := t.buildHelpersMenu()
-	systray.AddSeparator()
-	aiEditItem := systray.AddMenuItemCheckbox("AI Editing", "Select text in an HTML file and press ⌘J to ask an agent on this computer to rewrite it", t.cfg.AIEditEnabled())
-	systray.AddSeparator()
-
-	profile := &profileActions{
-		cfg:    t.cfg,
-		prompt: platform.PromptName,
-		alert:  func(title, message string) { _ = platform.Notify(title, message) },
-	}
-	profileItem := systray.AddMenuItem("Profile", "Your name in files opened with HTML Clay")
-	useProfileItem := profileItem.AddSubMenuItemCheckbox("Use My Profile in Files", "Files can save your name and person ID", t.cfg.ProfileState().Shareable())
-	renameProfileItem := profileItem.AddSubMenuItem("Change Display Name…", "")
-	systray.AddSeparator()
-
-	loginItem := systray.AddMenuItemCheckbox("Start on Login", "", t.cfg.StartOnLoginEnabled())
-	systray.AddSeparator()
-
-	quitItem := systray.AddMenuItem("Quit", "")
-
+	t.render()
 	go func() {
-		for {
-			select {
-			case <-exampleItem.ClickedCh:
-				go t.onOpenExample()
-			case <-backupsItem.ClickedCh:
-				go t.onOpenBackups()
-			case <-keptItem.ClickedCh:
-				go t.onOpenKept()
-			case <-loginItem.ClickedCh:
-				t.toggleLoginItem(loginItem)
-			case <-aiEditItem.ClickedCh:
-				t.toggleAIEdit(aiEditItem)
-			case <-useProfileItem.ClickedCh:
-				if profile.toggle() {
-					useProfileItem.Check()
-				} else {
-					useProfileItem.Uncheck()
-				}
-			case <-renameProfileItem.ClickedCh:
-				profile.rename()
-			case info := <-t.updateCh:
-				t.showUpdate(info)
-			case <-t.updateItem.ClickedCh:
-				t.clickUpdate()
-			case <-quitItem.ClickedCh:
-				systray.Quit()
-			}
+		for range time.Tick(listPollInterval) {
+			t.render()
 		}
 	}()
+}
 
-	t.watchTrustedMenu(addTrustedItem)
-	t.watchHelpersMenu(addHelperItem)
+// render reads the host's rows and shows them. The menu is built again only
+// when its shape changed, because fyne's separators cannot be hidden and the
+// host's groups need a different number of lines with sync on or off; every
+// other change updates the existing items in place.
+func (t *Tray) render() {
+	rows := t.menu.Rows()
+	shape := menuShape(rows)
+	t.mu.Lock()
+	t.rows = rows
+	if !slices.Equal(shape, t.shape) {
+		if t.shape != nil {
+			systray.ResetMenu()
+		}
+		t.build(rows)
+		t.shape = shape
+	}
+	items, kids, shown := t.items, t.kids, t.shown
+	t.mu.Unlock()
+	top, children := planRows(rows)
+	for id, item := range items {
+		applyChanged(shown, item, top[id], func() { applySlot(item, top[id]) })
+	}
+	for id, slots := range kids {
+		for i, child := range slots {
+			applyChanged(shown, child, children[id][i], func() { applySlot(child, children[id][i]) })
+		}
+	}
+}
+
+// build makes the menu's items for rows, top to bottom, with the machine
+// notice first. A removed item closes its click channel, which ends its
+// watcher.
+func (t *Tray) build(rows []MenuItem) {
+	t.addNotice()
+	t.items = make(map[string]*systray.MenuItem, len(rows))
+	t.kids = make(map[string][]*systray.MenuItem, len(childSlots))
+	t.shown = make(map[*systray.MenuItem]slotState)
+	for _, r := range rows {
+		if r.ID == appcore.MenuSeparator {
+			systray.AddSeparator()
+			continue
+		}
+		item := systray.AddMenuItem(r.Title, "")
+		t.items[r.ID] = item
+		for i := 0; i < childSlots[r.ID]; i++ {
+			child := item.AddSubMenuItem("", "")
+			child.Hide()
+			t.shown[child] = slotState{}
+			t.kids[r.ID] = append(t.kids[r.ID], child)
+		}
+		switch {
+		case r.ID == appcore.MenuQuit:
+			go t.watchQuit(item)
+		case len(t.kids[r.ID]) > 0:
+			for i, child := range t.kids[r.ID] {
+				go t.watchChild(r.ID, i, child)
+			}
+		default:
+			go t.watchRow(r.ID, item)
+		}
+	}
+}
+
+func (t *Tray) watchRow(id string, item *systray.MenuItem) {
+	for range item.ClickedCh {
+		go t.menu.Do(id)
+	}
+}
+
+// watchChild hands a click on child slot i to the host as the id of the row the
+// host last put there, and drops a click on a slot it has since emptied.
+func (t *Tray) watchChild(parent string, i int, item *systray.MenuItem) {
+	for range item.ClickedCh {
+		t.mu.Lock()
+		id := ""
+		for _, r := range t.rows {
+			if r.ID == parent && i < len(r.Children) {
+				id = r.Children[i].ID
+			}
+		}
+		t.mu.Unlock()
+		if id != "" {
+			go t.menu.Do(id)
+		}
+	}
+}
+
+// watchQuit asks before quitting. Asking can take a while (a save check, then a
+// dialog), so a second click while it asks does nothing.
+func (t *Tray) watchQuit(item *systray.MenuItem) {
+	for range item.ClickedCh {
+		if !t.quitting.CompareAndSwap(false, true) {
+			continue
+		}
+		go func() {
+			defer t.quitting.Store(false)
+			if t.beforeQuit == nil || t.beforeQuit() {
+				systray.Quit()
+			}
+		}()
+	}
 }
 
 // addNotice puts the machine notice at the very top of the menu, disabled
@@ -490,184 +327,6 @@ func (t *Tray) addNotice() *systray.MenuItem {
 	item.Disable()
 	systray.AddSeparator()
 	return item
-}
-
-// buildTrustedMenu adds the Trusted Folders submenu: an add row, and rows that
-// untrust their folder on click. Polled, because the permission dialog and a
-// page's own request both trust folders with no handle to the tray.
-func (t *Tray) buildTrustedMenu() *systray.MenuItem {
-	if t.trusted == nil {
-		return nil
-	}
-	lm, addItem := newListMenu(
-		"Trusted Folders",
-		"Folders whose HTML Clay files open editable with no prompts",
-		"No trusted folders yet",
-		"Trust a Folder…",
-		"Pick a folder to trust",
-	)
-	lm.rowTooltip = "Click to stop trusting this folder"
-	t.trustedMenu = lm
-	if t.trusted.List != nil {
-		lm.render(t.trusted.List())
-	}
-	return addItem
-}
-
-// watchTrustedMenu wires the add flow (in its own goroutine, because the folder
-// picker blocks until the user answers) and the row/poll machinery.
-func (t *Tray) watchTrustedMenu(addItem *systray.MenuItem) {
-	if t.trusted == nil || t.trustedMenu == nil {
-		return
-	}
-	if addItem != nil && t.trusted.Add != nil {
-		go func() {
-			for range addItem.ClickedCh {
-				go func() {
-					if rows := t.trusted.Add(); rows != nil {
-						t.trustedMenu.render(rows)
-					}
-				}()
-			}
-		}()
-	}
-	t.trustedMenu.watch(t.trusted.Remove, t.trusted.List)
-}
-
-func (t *Tray) buildHelpersMenu() *systray.MenuItem {
-	if t.helpers == nil {
-		return nil
-	}
-	title := "Programs"
-	if t.helpers.Title != nil {
-		title = t.helpers.Title()
-	}
-	manageTitle := ""
-	if t.helpers.Manage != nil {
-		manageTitle = "Manage Programs…"
-	}
-	lm, manageItem := newListMenu(
-		title,
-		"Programs HTML Clay documents can ask to run",
-		"No missing program files",
-		manageTitle,
-		"See which documents may run which programs, and remove access",
-	)
-	lm.rowTooltip = "Choose where this program's file is now"
-	t.helpersMenu = lm
-	if t.helpers.List != nil {
-		lm.render(t.helpers.List())
-	}
-	if t.helpers.Documents != nil && t.helpers.Document != nil {
-		menu := lm.menu.AddSubMenuItem("Open Documents", "Programs the documents open in HTML Clay ask for")
-		dm := &listMenu{menu: menu, rowTooltip: "Set up this document's program, or see it on the Programs page"}
-		dm.empty = menu.AddSubMenuItem("No open documents use programs", "")
-		dm.empty.Disable()
-		dm.render(t.helpers.Documents())
-		t.helperDocumentsMenu = dm
-	}
-	return manageItem
-}
-
-func (t *Tray) watchHelpersMenu(manageItem *systray.MenuItem) {
-	if t.helpers == nil || t.helpersMenu == nil {
-		return
-	}
-	if manageItem != nil && t.helpers.Manage != nil {
-		go func() {
-			for range manageItem.ClickedCh {
-				go t.helpers.Manage()
-			}
-		}()
-	}
-	t.helpersMenu.watch(t.helpers.Row, t.helpers.List)
-	if t.helpers.Title != nil {
-		go func() {
-			ticker := time.NewTicker(listPollInterval)
-			defer ticker.Stop()
-			for range ticker.C {
-				t.helpersMenu.menu.SetTitle(t.helpers.Title())
-			}
-		}()
-	}
-	if t.helperDocumentsMenu != nil {
-		t.helperDocumentsMenu.watch(t.helpers.Document, t.helpers.Documents)
-	}
-}
-
-func (t *Tray) toggleLoginItem(loginItem *systray.MenuItem) {
-	newVal := !t.cfg.StartOnLoginEnabled()
-	execPath, err := os.Executable()
-	if err != nil || execPath == "" {
-		fmt.Fprintf(os.Stderr, "[htmlclay] cannot determine executable path: %v\n", err)
-		return
-	}
-
-	if err := platform.SetLoginItem(newVal, execPath); err != nil {
-		return
-	}
-
-	t.cfg.SetStartOnLogin(newVal)
-	if err := t.cfg.Save(); err != nil {
-		t.cfg.SetStartOnLogin(!newVal)
-		platform.SetLoginItem(!newVal, execPath)
-		return
-	}
-
-	if newVal {
-		loginItem.Check()
-	} else {
-		loginItem.Uncheck()
-	}
-}
-
-func (t *Tray) toggleAIEdit(item *systray.MenuItem) {
-	newVal := !t.cfg.AIEditEnabled()
-	t.cfg.SetAIEditEnabled(newVal)
-	if err := t.cfg.Save(); err != nil {
-		t.cfg.SetAIEditEnabled(!newVal)
-		fmt.Fprintf(os.Stderr, "[htmlclay] Could not save the AI Editing setting: %v\n", err)
-		return
-	}
-	if newVal {
-		item.Check()
-		return
-	}
-	item.Uncheck()
-	if t.helpers != nil && t.helpers.AIEditOff != nil {
-		go t.helpers.AIEditOff()
-	}
-}
-
-func (t *Tray) showUpdate(info UpdateInfo) {
-	t.updateURL = info.URL
-	t.updateApply = info.Apply
-	title, tooltip := updateRowText(info)
-	t.updateItem.SetTitle(title)
-	t.updateItem.SetTooltip(tooltip)
-	t.updateItem.Enable()
-}
-
-func updateRowText(info UpdateInfo) (title, tooltip string) {
-	if info.Apply != nil {
-		return fmt.Sprintf("Restart to Update (v%s)", info.Version), "Restart HTML Clay now to finish updating"
-	}
-	return fmt.Sprintf("Update available: v%s", info.Version), "Click to download"
-}
-
-// clickUpdate runs the apply hook in its own goroutine, because it may ask
-// for confirmation and waits for saves in flight, and a blocking call here
-// would freeze every other row.
-func (t *Tray) clickUpdate() {
-	if t.updateApply != nil {
-		go t.updateApply()
-		return
-	}
-	if t.updateURL != "" {
-		if err := browser.OpenURL(t.updateURL); err != nil {
-			fmt.Fprintf(os.Stderr, "[htmlclay] Error opening browser: %v\n", err)
-		}
-	}
 }
 
 // Quit ends the tray the way its Quit row does, so the app shuts down through

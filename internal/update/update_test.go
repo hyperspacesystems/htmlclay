@@ -16,9 +16,9 @@ func TestCheckUpdateAvailable(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	info := Check("1.0", srv.URL)
-	if info == nil {
-		t.Fatal("expected update info")
+	info, err := Check("1.0", srv.URL)
+	if info == nil || err != nil {
+		t.Fatalf("expected update info, got %v", err)
 	}
 	if info.Version != "2.0" {
 		t.Errorf("expected version 2.0, got %q", info.Version)
@@ -34,9 +34,9 @@ func TestCheckNoUpdate(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	info := Check("1.0", srv.URL)
-	if info != nil {
-		t.Error("expected nil for same version")
+	info, err := Check("1.0", srv.URL)
+	if info != nil || err != nil {
+		t.Errorf("expected nil, nil for the same version, got %v, %v", info, err)
 	}
 }
 
@@ -46,16 +46,16 @@ func TestCheckServerError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	info := Check("1.0", srv.URL)
-	if info != nil {
-		t.Error("expected nil for server error")
+	info, err := Check("1.0", srv.URL)
+	if info != nil || err == nil {
+		t.Errorf("a server error = %v, %v, want a failed check", info, err)
 	}
 }
 
 func TestCheckUnreachable(t *testing.T) {
-	info := Check("1.0", "http://127.0.0.1:1")
-	if info != nil {
-		t.Error("expected nil for unreachable server")
+	info, err := Check("1.0", "http://127.0.0.1:1")
+	if info != nil || err == nil {
+		t.Errorf("an unreachable server = %v, %v, want a failed check", info, err)
 	}
 }
 

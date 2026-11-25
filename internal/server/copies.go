@@ -108,7 +108,7 @@ func (s *Server) readCopies(root *os.Root, relPath string) (map[string]*copyEntr
 	meta := map[string]copyMeta{}
 	if data, err := root.ReadFile(copiesIndex); err == nil {
 		if jErr := json.Unmarshal(data, &meta); jErr != nil {
-			s.logger.Printf("The recovery copy index of %s is unreadable, reading it as no marks: %v", relPath, jErr)
+			s.Logger.Printf("The recovery copy index of %s is unreadable, reading it as no marks: %v", relPath, jErr)
 			meta = map[string]copyMeta{}
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
@@ -187,13 +187,13 @@ func (s *Server) handleCopies(w http.ResponseWriter, r *http.Request) {
 		defer root.Close()
 		copies, rErr := s.readCopies(root, f.RelPath)
 		if rErr != nil {
-			s.logger.Printf("Could not read the recovery copies of %s: %v", f.RelPath, rErr)
+			s.Logger.Printf("Could not read the recovery copies of %s: %v", f.RelPath, rErr)
 			copyError(w, http.StatusInternalServerError, "could not read the copies")
 			return
 		}
 		list = sortedCopies(copies)
 	} else if !errors.Is(err, versions.ErrNoHistory) && !errors.Is(err, fs.ErrNotExist) {
-		s.logger.Printf("Could not open the recovery copies of %s: %v", f.RelPath, err)
+		s.Logger.Printf("Could not open the recovery copies of %s: %v", f.RelPath, err)
 		copyError(w, http.StatusInternalServerError, "could not read the copies")
 		return
 	}
@@ -221,7 +221,7 @@ func (s *Server) handleCopy(w http.ResponseWriter, r *http.Request) {
 		root, err := s.copiesRoot(s.copyKey(f), f.AbsPath, false)
 		if err != nil {
 			if !errors.Is(err, versions.ErrNoHistory) && !errors.Is(err, fs.ErrNotExist) {
-				s.logger.Printf("Could not open the recovery copies of %s: %v", f.RelPath, err)
+				s.Logger.Printf("Could not open the recovery copies of %s: %v", f.RelPath, err)
 				copyError(w, http.StatusInternalServerError, "could not read the copy")
 				return
 			}
@@ -235,7 +235,7 @@ func (s *Server) handleCopy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err != nil {
-			s.logger.Printf("Could not read recovery copy %s of %s: %v", id, f.RelPath, err)
+			s.Logger.Printf("Could not read recovery copy %s of %s: %v", id, f.RelPath, err)
 			copyError(w, http.StatusInternalServerError, "could not read the copy")
 			return
 		}
@@ -260,14 +260,14 @@ func (s *Server) handleCopy(w http.ResponseWriter, r *http.Request) {
 	key := s.copyKey(f)
 	root, err := s.copiesRoot(key, f.AbsPath, true)
 	if err != nil {
-		s.logger.Printf("Could not open the recovery copies of %s: %v", f.RelPath, err)
+		s.Logger.Printf("Could not open the recovery copies of %s: %v", f.RelPath, err)
 		copyError(w, http.StatusInternalServerError, "could not store the copy")
 		return
 	}
 	defer root.Close()
 	copies, err := s.readCopies(root, f.RelPath)
 	if err != nil {
-		s.logger.Printf("Could not read the recovery copies of %s: %v", f.RelPath, err)
+		s.Logger.Printf("Could not read the recovery copies of %s: %v", f.RelPath, err)
 		copyError(w, http.StatusInternalServerError, "could not store the copy")
 		return
 	}
@@ -281,7 +281,7 @@ func (s *Server) handleCopy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !errors.Is(rErr, fs.ErrNotExist) {
-		s.logger.Printf("Could not read recovery copy %s of %s: %v", id, f.RelPath, rErr)
+		s.Logger.Printf("Could not read recovery copy %s of %s: %v", id, f.RelPath, rErr)
 		copyError(w, http.StatusInternalServerError, "could not store the copy")
 		return
 	}
@@ -310,19 +310,19 @@ func (s *Server) handleCopy(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		copies[id] = &copyEntry{ID: id, Time: time.Now().UnixMilli(), Size: int64(len(body)), Done: []copyMark{}}
 		if iErr := writeCopiesIndex(root, copies); iErr != nil {
-			s.logger.Printf("Stored recovery copy %s of %s without its index entry: %v", id, f.RelPath, iErr)
+			s.Logger.Printf("Stored recovery copy %s of %s without its index entry: %v", id, f.RelPath, iErr)
 		}
 	}
 	if err != nil {
 		if created {
 			root.Remove(name)
 		}
-		s.logger.Printf("Could not store recovery copy %s of %s: %v", id, f.RelPath, err)
+		s.Logger.Printf("Could not store recovery copy %s of %s: %v", id, f.RelPath, err)
 		copyError(w, http.StatusInternalServerError, "could not store the copy")
 		return
 	}
 	if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-		s.logger.Printf("Could not keep the history of %s for its recovery copy: %v", f.RelPath, pErr)
+		s.Logger.Printf("Could not keep the history of %s for its recovery copy: %v", f.RelPath, pErr)
 	}
 	writeCopyJSON(w, http.StatusCreated, map[string]any{"id": id, "size": len(body)})
 }
@@ -356,7 +356,7 @@ func (s *Server) handleCopyDone(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// A client treats 404 as final, so only a missing history or folder may answer it.
 		if !errors.Is(err, versions.ErrNoHistory) && !errors.Is(err, fs.ErrNotExist) {
-			s.logger.Printf("Could not open the recovery copies of %s: %v", f.RelPath, err)
+			s.Logger.Printf("Could not open the recovery copies of %s: %v", f.RelPath, err)
 			copyError(w, http.StatusInternalServerError, "could not record the decision")
 			return
 		}
@@ -385,7 +385,7 @@ func (s *Server) handleCopyDone(w http.ResponseWriter, r *http.Request) {
 	mark.E, _ = json.Marshal(e)
 	entry.Done = append(entry.Done, mark)
 	if err := writeCopiesIndex(root, copies); err != nil {
-		s.logger.Printf("Could not record a decision on recovery copy %s of %s: %v", id, f.RelPath, err)
+		s.Logger.Printf("Could not record a decision on recovery copy %s of %s: %v", id, f.RelPath, err)
 		copyError(w, http.StatusInternalServerError, "could not record the decision")
 		return
 	}

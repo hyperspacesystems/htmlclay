@@ -1,0 +1,21 @@
+{
+  "name": "a local process with a cookie",
+  "hosts": [
+    "served"
+  ],
+  "served": "unreleased",
+  "setup": {
+    "program": "none",
+    "decision": "none"
+  },
+  "steps": [
+    {
+      "do": "subscribe",
+      "as": "local-with-cookie",
+      "stream": "p",
+      "expect": {
+        "status": 403
+      }
+    }
+  ]
+}

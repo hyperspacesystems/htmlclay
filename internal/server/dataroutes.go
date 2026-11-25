@@ -237,7 +237,7 @@ func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode
 		if err != nil {
 			status, body := mapDataError(err, mode.face)
 			if status == http.StatusInternalServerError {
-				s.logger.Printf("Data extraction could not read the document: %v", err)
+				s.Logger.Printf("Data extraction could not read the document: %v", err)
 			}
 			writeDataError(w, status, body)
 			return
@@ -250,7 +250,7 @@ func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode
 		// extractable because disk happens to contain it.
 		doc, err := dataapi.ParseBytes(htmlutil.StripToken(raw))
 		if err != nil {
-			s.logger.Printf("Data extraction could not parse the document: %v", err)
+			s.Logger.Printf("Data extraction could not parse the document: %v", err)
 			writeDataError(w, http.StatusInternalServerError, extractionFailed())
 			return
 		}
@@ -278,7 +278,7 @@ func (s *Server) writeExtracted(w http.ResponseWriter, raw []byte, mode dataMode
 
 	body, err := dataapi.Marshal(value)
 	if err != nil {
-		s.logger.Printf("Data extraction could not marshal its result: %v", err)
+		s.Logger.Printf("Data extraction could not marshal its result: %v", err)
 		writeDataError(w, http.StatusInternalServerError, extractionFailed())
 		return
 	}

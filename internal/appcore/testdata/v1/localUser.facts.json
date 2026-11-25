@@ -1,0 +1,97 @@
+{
+  "now": "2026-11-12T15:00:00Z",
+  "rev": 1,
+  "epoch": "00000000000000a1",
+  "home": "/Users/sam",
+  "host": {
+    "version": "2.0.3",
+    "os": "darwin",
+    "port": 1212,
+    "service": "off",
+    "stopped": false,
+    "implemented": [
+      "app.openKeptPage",
+      "dashboard.open",
+      "document.export",
+      "document.forget",
+      "document.open",
+      "document.recover",
+      "document.reveal",
+      "document.versions",
+      "file.open",
+      "folder.copyAddress",
+      "folder.merge",
+      "folder.relink",
+      "folder.reveal",
+      "folder.serve",
+      "folder.setFraming",
+      "folder.stopServing",
+      "folder.stopTrusting",
+      "folder.trust",
+      "host.quit",
+      "prefs.set",
+      "program.add",
+      "program.askAgain",
+      "program.relink",
+      "program.remove",
+      "program.removeAccess",
+      "program.removeAllAccess",
+      "program.reveal",
+      "program.setAllTrusted",
+      "request.answer",
+      "request.show",
+      "service.restart",
+      "template.create",
+      "waiting.markSeen"
+    ]
+  },
+  "documents": [],
+  "folders": [],
+  "programs": [],
+  "requests": [],
+  "events": [],
+  "seen": [],
+  "sync": {
+    "connected": false,
+    "username": "",
+    "keySuffix": "",
+    "paused": false,
+    "syncingFiles": 0,
+    "offlineChanges": 0,
+    "viewOnlyTeams": 0,
+    "lastFinishedAt": null,
+    "fullName": ""
+  },
+  "update": {
+    "current": "2.0.3",
+    "ready": null,
+    "checkedAt": "2026-11-12T14:12:00Z",
+    "automatic": true,
+    "finishing": false
+  },
+  "preferences": {
+    "openAtLogin": true,
+    "openAtLoginChosen": true,
+    "aiEditing": true,
+    "appearance": "system",
+    "yourName": "",
+    "useName": false
+  },
+  "move": {
+    "state": "offered",
+    "folders": [
+      {
+        "id": "panphora",
+        "name": "panphora",
+        "port": 4321,
+        "address": "panphora.htmlclay.localhost:1212"
+      },
+      {
+        "id": "design-team",
+        "name": "Design Team",
+        "port": 4322,
+        "address": "design-team.htmlclay.localhost:1212"
+      }
+    ]
+  }
+}

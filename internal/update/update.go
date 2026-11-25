@@ -2,6 +2,7 @@ package update
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,33 +16,30 @@ type Info struct {
 	URL     string `json:"url"`
 }
 
-func Check(currentVersion, versionURL string) *Info {
+// Check reads the release receipt: the newer release, nil when this version
+// is the newest, or why the receipt could not be read.
+func Check(currentVersion, versionURL string) (*Info, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	resp, err := client.Get(versionURL)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil
+		return nil, fmt.Errorf("release info: HTTP %d", resp.StatusCode)
 	}
 
 	var info Info
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return nil
+		return nil, err
 	}
 
-	if info.Version == "" || info.Version == currentVersion {
-		return nil
+	if info.Version != "" && compareVersions(info.Version, currentVersion) > 0 {
+		return &info, nil
 	}
-
-	if compareVersions(info.Version, currentVersion) > 0 {
-		return &info
-	}
-
-	return nil
+	return nil, nil
 }
 
 func compareVersions(a, b string) int {

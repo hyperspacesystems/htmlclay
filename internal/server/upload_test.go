@@ -554,7 +554,7 @@ func TestUploadTokenDoesNotReachTheAccessLog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv.logger = logger
+	srv.Logger = logger
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)

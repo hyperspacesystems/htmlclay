@@ -41,7 +41,7 @@ func SetLoginItem(enabled bool, executablePath string) error {
 	content := fmt.Sprintf(`[Desktop Entry]
 Type=Application
 Name=HTML Clay
-Exec="%s"
+Exec="%s" --autostart
 X-GNOME-Autostart-enabled=true
 `, executablePath)
 

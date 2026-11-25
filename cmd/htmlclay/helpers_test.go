@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
@@ -40,6 +41,21 @@ func clearPageAskQuiet(t *testing.T, a *app, document string) {
 
 // A click on Deny is not remembered: it denies the helper for the rest of this
 // open, stores nothing, and a new open may ask again, including after a restart.
+// writeHelperPageNamed writes another document beside the page a test already
+// made, so two documents share one folder.
+func writeHelperPageNamed(t *testing.T, dir, name string, names ...string) string {
+	t.Helper()
+	var metas strings.Builder
+	for _, helper := range names {
+		metas.WriteString("<meta name=\"htmlclay-helper\" content=\"" + helper + "\">")
+	}
+	path := filepath.Join(dir, name+".htmlclay")
+	if err := os.WriteFile(path, []byte("<!doctype html><head>"+metas.String()+"</head>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestHelperDenialAppliesToThisOpenOnly(t *testing.T) {
 	home := t.TempDir()
 	cfgBase := t.TempDir()
@@ -253,10 +269,7 @@ func TestHelperApprovalSelectsThenPersistsTheProgram(t *testing.T) {
 	plan := a.helpersForUseWith(document, "search", helperApprovalDialogs{
 		setup: func(string, string, string, string, string) (platform.Choice, error) {
 			order = append(order, "setup")
-			if len(order) == 1 {
-				return platform.ChoiceMiddle, nil
-			}
-			return platform.ChoiceAffirm, nil
+			return platform.ChoiceMiddle, nil
 		},
 		choose: func(prompt, dir string) (string, bool, error) {
 			order = append(order, "choose")
@@ -273,17 +286,80 @@ func TestHelperApprovalSelectsThenPersistsTheProgram(t *testing.T) {
 			return true, nil
 		},
 	})
-	if strings.Join(order, ",") != "setup,setup,choose,prepare" {
+	if strings.Join(order, ",") != "setup,choose,prepare" {
 		t.Fatalf("dialog order = %v", order)
 	}
 	program, ok := plan.allowed["search"]
-	if !ok || program.Path != programPath || !program.AnyDocument {
-		t.Fatalf("allowed helper = %+v, %v", program, ok)
+	if !ok || program.Path != programPath || program.AnyDocument {
+		t.Fatalf("a picked file was granted for every document: %+v, %v", program, ok)
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
 		t.Fatalf("saved resolution = %+v", resolution)
 	}
+	second := writeHelperPageNamed(t, home, "second", "search")
+	secondResolution, _ := a.rt.cfg.ResolveHelper(second, "search", true, a.scopeOf(second))
+	if secondResolution.Decided {
+		t.Fatalf("a picked file covered a second document: %+v", secondResolution)
+	}
+}
+
+// pickOneDocumentProgram sets up a program by hand for one document and returns
+// the app, a second document in the same folder and the program it registered.
+func pickOneDocumentProgram(t *testing.T) (*app, string, config.HelperProgram) {
+	t.Helper()
+	settledSetup(t)
+	home := t.TempDir()
+	a := newTestApp(t, home)
+	document := writeHelperPage(t, home, "search")
+	second := writeHelperPageNamed(t, home, "second", "search")
+	programPath := writeTestProgram(t, t.TempDir(), "search", 0755)
+	plan := a.helpersForUseWith(document, "search", helperApprovalDialogs{
+		setup: func(string, string, string, string, string) (platform.Choice, error) {
+			return platform.ChoiceMiddle, nil
+		},
+		choose: func(string, string) (string, bool, error) {
+			return programPath, true, nil
+		},
+		prepare: func(string) (bool, error) { return true, nil },
+	})
+	program, ok := plan.allowed["search"]
+	if !ok || program.Path != programPath || program.AnyDocument {
+		t.Fatalf("a picked file was granted for every document: %+v, %v", program, ok)
+	}
+	if secondResolution, _ := a.rt.cfg.ResolveHelper(second, "search", true, a.scopeOf(second)); secondResolution.Decided {
+		t.Fatalf("a picked file covered a second document: %+v", secondResolution)
+	}
+	return a, second, program
+}
+
+func TestPickedProgramCanBeWidenedLater(t *testing.T) {
+	t.Run("tray programs page", func(t *testing.T) {
+		a, second, program := pickOneDocumentProgram(t)
+		dialogs := helperApprovalDialogs{
+			setup: func(string, string, string, string, string) (platform.Choice, error) {
+				return platform.ChoiceAffirm, nil
+			},
+		}
+		if outcome, err := a.widenHelperProgram(program, dialogs); err != nil || outcome != "widened" {
+			t.Fatalf("widen = %q, %v", outcome, err)
+		}
+		resolution, _ := a.rt.cfg.ResolveHelper(second, "search", true, a.scopeOf(second))
+		if !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+			t.Fatalf("second document after widening = %+v", resolution)
+		}
+	})
+
+	t.Run("Mac app setAllTrusted", func(t *testing.T) {
+		a, second, program := pickOneDocumentProgram(t)
+		if refusal := a.setProgramAllTrusted(appcore.Effect{Type: "program.setAllTrusted", ProgramID: program.ID, On: true}); refusal != nil {
+			t.Fatalf("setAllTrusted refused: %+v", refusal)
+		}
+		resolution, _ := a.rt.cfg.ResolveHelper(second, "search", true, a.scopeOf(second))
+		if !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
+			t.Fatalf("second document after widening = %+v", resolution)
+		}
+	})
 }
 
 func TestHelperDecisionSaveFailureRollsBackExactly(t *testing.T) {
@@ -421,7 +497,7 @@ func TestTrustedNavigationRestoresHelpersWithoutDialogs(t *testing.T) {
 					t.Error("browser navigation raised a helper permission dialog")
 					return platform.ChoiceNone, nil
 				}
-				resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+				resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 				if resolution.Decided != permission.decided || resolution.Allowed != permission.allowed {
 					t.Fatalf("stored resolution = %+v", resolution)
 				}
@@ -475,8 +551,13 @@ func TestTrustedNavigationRestoresHelpersWithoutDialogs(t *testing.T) {
 						t.Fatal(err)
 					}
 					helpers := meta.Document.Helpers
-					if len(helpers) != 3 || helpers[0].Name != "search" || helpers[0].State != permission.state || helpers[1].Name != "ai-edit" || helpers[1].State != "ready" ||
-						helpers[2].Name != "blockeditor-tool" || helpers[2].State != "ready" {
+					if len(helpers) != 8 || helpers[0].Name != "search" || helpers[0].State != permission.state || helpers[1].Name != "ai-edit" || helpers[1].State != "ready" ||
+						helpers[2].Name != "ai-tools" || helpers[2].State != "ready" ||
+						helpers[3].Name != "programs" || helpers[3].State != "ready" ||
+						helpers[4].Name != "blockeditor-tool" || helpers[4].State != "ready" ||
+						helpers[5].Name != "file-search" || helpers[5].State != "ready" ||
+						helpers[6].Name != "file-convert" || helpers[6].State != "ready" ||
+						helpers[7].Name != "folder-watch" || helpers[7].State != "ready" {
 						t.Fatalf("visit %d: discovery helpers = %+v, want search:%s", visit, helpers, permission.state)
 					}
 					t.Logf("visit %d: discovery search=%s", visit, helpers[0].State)
@@ -544,7 +625,7 @@ func TestRefreshingOpenDispatchersAppliesRevocationWithoutPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 	s, _ := a.openForTest(t, document)
-	a.applyHelperPlan(s, document, a.helpersForOpenWith(document, false, false, helperApprovalDialogs{}))
+	a.applyHelperPlan(s.srv.Core, document, a.helpersForOpenWith(document, false, false, helperApprovalDialogs{}))
 	before := s.srv.HelperGeneration(document)
 	if before == 0 || !s.srv.HelpersBound(document) {
 		t.Fatal("allowed helper did not attach")
@@ -648,7 +729,7 @@ func TestTheDocumentProgramsPromptHasItsOwnSeamAndButtons(t *testing.T) {
 	if strings.Contains(helperSetupChooseFile, "Folder") || strings.Contains(strings.ToLower(helperSetupChooseFile), "trust") {
 		t.Fatalf("the first dialog's affirmative grants a folder: %q", helperSetupChooseFile)
 	}
-	if !strings.Contains(helperSetupTrusted, "Trusted Folders") || !strings.Contains(helperSetupChooseOther, "Choose Another File") {
+	if !strings.Contains(helperSetupTrusted, "trusted folders") || !strings.Contains(helperSetupChooseOther, "Choose another file") {
 		t.Fatalf("the More Options dialog does not offer the wider grant and another file: %q %q", helperSetupTrusted, helperSetupChooseOther)
 	}
 }

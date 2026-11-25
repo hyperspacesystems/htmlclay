@@ -10,8 +10,11 @@ import (
 	"sync/atomic"
 
 	"github.com/panphora/htmlclay/internal/browser"
+	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/tier"
 	"github.com/panphora/htmlclay/internal/trust"
 )
 
@@ -22,14 +25,14 @@ import (
 //  2. A site's anchor is either a LIVE trusted folder or an ordinary directory,
 //     never both.
 //  3. A site holds at most one trusted read root, and it is the site's own
-//     anchor. Under broadest-wins anchoring no OTHER trusted folder can contain
-//     a site's anchor, because a broader one would have been the anchor. This is
-//     what replaces the three copies of the EqualOrUnder seeding condition that
-//     used to push roots between sites, and the bug family they carried: a
-//     folder declared below an already-open site granted nothing, and one folder
-//     could go live on two ports.
-//  4. A live trusted folder has at most one site, so one project is one origin
-//     at one hostname on the app's port.
+//     anchor. No other trusted folder needs a root installed there: an enclosing
+//     folder has a site of its own, and a folder inside that keeps its own address
+//     (trustedAnchor) has one too. This is what replaces the three copies of the
+//     EqualOrUnder seeding condition that used to push roots between sites, and
+//     the bug family they carried: a folder declared below an already-open site
+//     granted nothing, and one folder could go live on two ports.
+//  4. A live trusted folder has at most one site, so one folder is one origin at
+//     one hostname on the app's port.
 
 // site is one origin: one anchor folder, one hostname on the app's port, one session
 // manager, one hosted server. A trusted folder always has exactly one site. A file
@@ -81,8 +84,8 @@ func (s *site) close() {
 	s.sessions.RevokeAll()
 }
 
-// anchorFor returns the folder that owns absPath's origin: the broadest live
-// trusted folder containing it, else the file's own folder.
+// anchorFor returns the folder that owns absPath's origin: the trusted folder
+// trustedAnchor names, else the file's own folder.
 func (a *app) anchorFor(absPath string) (anchor string, trusted bool) {
 	if folder, ok := a.trustedAnchor(absPath); ok {
 		return folder, true
@@ -90,12 +93,17 @@ func (a *app) anchorFor(absPath string) (anchor string, trusted bool) {
 	return filepath.Dir(absPath), false
 }
 
-// trustedAnchor returns the BROADEST live trusted folder containing absPath.
+// trustedAnchor returns the live trusted folder that owns absPath's origin: the
+// DEEPEST one that keeps its own address or belongs to a team, else the BROADEST
+// of the rest.
 //
-// Broadest, not most specific, so one project is one origin however deeply its
-// files nest and however many folders inside it were declared separately.
-// Untrusting the broad one makes the next call return the nested one, which is
-// the nested folder's fallback with no bookkeeping anywhere.
+// Deepest with an address, because a folder already answering at an address keeps
+// it when a folder around it is trusted (see trustFolder): what the browser stored
+// for its documents lives at that address, and moving the documents would leave it
+// behind. Otherwise broadest, not most specific, so one project is one origin
+// however deeply its files nest and however many folders inside it were declared
+// separately. Untrusting the broad one makes the next call return the nested one,
+// which is the nested folder's fallback with no bookkeeping anywhere.
 //
 // It reads the DECLARED list, never a site's installed roots. A site bound at
 // startup has armed nothing yet, so its roots would answer no and route would
@@ -106,7 +114,7 @@ func (a *app) anchorFor(absPath string) (anchor string, trusted bool) {
 // Ties (two declared folders with the same path length) break lexically so the
 // choice is deterministic regardless of config order.
 func (a *app) trustedAnchor(absPath string) (string, bool) {
-	best := ""
+	broadest, deepest := "", ""
 	for _, tf := range a.rt.cfg.TrustedFolderList() {
 		if !session.EqualOrUnder(absPath, tf.Path) {
 			continue
@@ -115,13 +123,37 @@ func (a *app) trustedAnchor(absPath string) (string, bool) {
 			continue
 		}
 		switch {
-		case best == "",
-			len(tf.Path) < len(best),
-			len(tf.Path) == len(best) && tf.Path < best:
-			best = tf.Path
+		case broadest == "",
+			len(tf.Path) < len(broadest),
+			len(tf.Path) == len(broadest) && tf.Path < broadest:
+			broadest = tf.Path
+		}
+		owns := tf.OwnAddress
+		if !owns && (deepest == "" || len(tf.Path) >= len(deepest)) {
+			// Only a folder that could still win is worth the record read.
+			owns = a.teamFolderScope(tf.Path)
+		}
+		if !owns {
+			continue
+		}
+		switch {
+		case deepest == "",
+			len(tf.Path) > len(deepest),
+			len(tf.Path) == len(deepest) && tf.Path < deepest:
+			deepest = tf.Path
 		}
 	}
-	return best, best != ""
+	if deepest != "" {
+		return deepest, true
+	}
+	return broadest, broadest != ""
+}
+
+// teamFolderScope reports whether path belongs to a team folder. A team's
+// documents answer at the address the team was granted, so a folder newly trusted
+// around one never takes it over.
+func (a *app) teamFolderScope(path string) bool {
+	return a.scopeOf(path).Kind == config.ScopeTeam
 }
 
 // trustedCovers is the server's auto-registration gate: does absPath sit inside
@@ -164,6 +196,20 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 	a.mu.Unlock()
 	sessions := session.NewManagerWithHome(a.rt.home)
 	sessions.SetGuard(a.rt.guard)
+	sessions.SetOnChange(a.keptTokensChanged)
+	if key != anchor {
+		sessions.SetFileOnly()
+		// A document that still needs the warning reads only itself; once the
+		// person allows or trusts it, its page keeps this origin and gains its
+		// folder as any opened file does.
+		sessions.SetStranger(func(p string) bool { return a.tierOf(p).Warn() })
+	}
+	// Registration runs under a.mu, so this hook must never take it:
+	// ResolveDocument reads only the config fact (see there).
+	sessions.SetServedOwner(func(p string) bool {
+		o, err := a.ResolveDocument(p)
+		return err == nil && o.Kind == OwnerServed
+	})
 
 	s := &site{
 		anchor:    anchor,
@@ -180,7 +226,13 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		// holding no lock, and s.trusted is written under a.mu by adoptLocked. Nothing is
 		// lost by reading the value frozen at build time, because adoption installs the
 		// root itself. A closed site never arms, and a revoked manager refuses anyway.
-		if !trusted || s.closed.Load() {
+		if s.closed.Load() {
+			return
+		}
+		// Every site, trusted or not, first takes back the tokens kept at the last
+		// quit, before anything registers in it (savetokens.go).
+		a.restoreKept(s)
+		if !trusted {
 			return
 		}
 		if iErr := sessions.InstallTrustedRoot(anchor); iErr != nil && !errors.Is(iErr, session.ErrRevoked) {
@@ -195,33 +247,78 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 	srv.SetInternalDir(a.rt.configDir)
 	srv.SetSiteLabel(filepath.Base(anchor))
 	srv.SetHooks(server.Hooks{
-		Confirm:        a.rt.confirm,
-		TrustedCovers:  a.trustedCovers,
-		TrustedLive:    a.trustedLive,
-		Route:          a.routeTrusted,
-		MayTrustFolder: a.mayTrustFromPrompt,
-		TrustFolder:    a.trustFromPrompt,
-		TrustRequest:   a.trustFromPage,
-		AIEditEnabled:  a.rt.cfg.AIEditEnabled,
-		AIEditEngines:  a.rt.cfg.AIEditEngines,
-		Profile:        a.rt.cfg.SharedPerson,
-		AskHelper:      a.askHelperForUse,
-		Reveal:         browser.Reveal,
-		OpenFolder:     browser.OpenURL,
-		ExportDocument: a.exportForPage,
+		Confirm:          a.readConfirmer().Ask,
+		MainFolder:       a.isMainFolder,
+		TrustedCovers:    a.trustedCovers,
+		TrustedLive:      a.trustedLive,
+		Route:            a.routeTrusted,
+		MayTrustFolder:   a.mayTrustFromPrompt,
+		TrustFolder:      a.trustFromPrompt,
+		TrustRequest:     a.trustFromPage,
+		AIEditFor:        a.aiEditFor,
+		AskAIEdit:        a.askAIEdit,
+		AIEditFiles:      a.aiEditFiles,
+		DocumentTrust:    a.documentTrust,
+		AskDocument:      a.askDocumentForWire,
+		AITools:          a.aiToolsHost(),
+		Programs:         a.programsHost(),
+		NoteAIEditResult: a.noteAIEditResult,
+		Saved:            a.noteDocumentSaved,
+		Stranger:         a.stranger,
+		StrangerRead:     a.strangerRead,
+		AIEditEngines:    a.rt.cfg.AIEditEngines,
+		AIEditModels:     a.rt.cfg.AIEditModels,
+		AIEditEfforts:    a.rt.cfg.AIEditEfforts,
+		BuiltinFor:       a.builtinFor,
+		AskBuiltin:       a.askBuiltin,
+		Profile:          a.rt.cfg.SharedPerson,
+		AskHelper:        a.askHelperForUse,
+		HelperGranted:    a.helperGranted,
+		Reveal:           browser.Reveal,
+		OpenFolder:       browser.OpenURL,
+		ExportDocument:   a.exportForPage,
+		NewDocument:      a.newDocumentForPage,
+		UnsavedReport:    a.noteUnsavedReport,
 	})
 	s.srv = srv
 	return s
 }
 
 // originKey names what a file's slug is remembered under. A file loose in home anchors at
-// home like every other such file, so its own path is the key.
-func (a *app) originKey(absPath, anchor string) string {
-	if anchor == a.rt.home {
+// home like every other such file, and a file with its own origin shares it with nothing,
+// so for both the file's own path is the key.
+func (a *app) originKey(absPath, anchor string, own bool) string {
+	if own || anchor == a.rt.home {
 		return absPath
 	}
 	return anchor
 }
+
+// ownOrigin reports a file that must not share an origin with any other, so its
+// page can never read a neighbour's storage or registration. Outside a trusted
+// folder: a document nobody vouches for, and a file that already has its own
+// origin, so trusting it later never moves what its page stored. Inside a
+// trusted folder: a stranger's document, so one dropped into a project never
+// joins the project's origin. Every other document there shares the folder's
+// origin, which its pages need to reach each other.
+func (a *app) ownOrigin(absPath string) bool {
+	if _, trusted := a.trustedAnchor(absPath); trusted {
+		return a.stranger(absPath)
+	}
+	return a.rt.cfg.SiteSlug(absPath) != "" || a.tierOf(absPath).Tier == tier.Unknown
+}
+
+// stranger reports a document HTML Clay knows came from someone else, a
+// download or one whose signature does not count, that nobody has vouched for
+// since. Its page runs only on an origin of its own, and another site serves
+// it sandboxed (Hooks.Stranger).
+func (a *app) stranger(absPath string) bool {
+	v := a.tierOf(absPath)
+	return v.Tier == tier.Unknown && (v.Reason == tier.ReasonDownloaded || v.Reason == tier.ReasonBrokenSignature)
+}
+
+// ownSite reports a site keyed by one file rather than by its folder.
+func (s *site) ownSite() bool { return s.key != s.anchor }
 
 // discardPendingLocked closes a site that was built and never published, and drops its
 // slug if this build allocated it, so a refused open records nothing. Caller holds a.mu.
@@ -245,7 +342,7 @@ func (a *app) lookupLocked(absPath string) (*site, string, bool) {
 // invariant 4's lookup: one folder, one site. Caller holds a.mu.
 func (a *app) siteAtLocked(folder string) *site {
 	for _, s := range a.sites {
-		if s.anchor == folder {
+		if s.anchor == folder && !s.ownSite() {
 			return s
 		}
 	}
@@ -258,7 +355,15 @@ func (a *app) siteAtLocked(folder string) *site {
 // Two rules, with genuinely different inputs. Conflating them is what produced
 // the inert-folder bug: rule 1 reads the declared config fact and never looks at
 // any site's installed roots, because a site bound at startup has armed none yet.
-func (a *app) siteForLocked(absPath string) *site {
+func (a *app) siteForLocked(absPath string, own bool) *site {
+	if own {
+		for _, s := range a.sites {
+			if s.key == absPath {
+				return s
+			}
+		}
+		return nil
+	}
 	if folder, ok := a.trustedAnchor(absPath); ok {
 		return a.siteAtLocked(folder)
 	}
@@ -308,8 +413,35 @@ func (a *app) registerLocked(s *site, absPath string, via session.Provenance) (s
 // auto-registration), so a file is only ever registered in one site and gets
 // exactly one token, whichever door it arrived through.
 func (a *app) route(absPath string, via session.Provenance) (*site, string, bool) {
+	// A site that exists but has not served a request since a restart still holds
+	// its kept tokens dormant. Arm it first, outside a.mu, so a file opened again
+	// keeps the token its old tab holds instead of minting a second one.
+	own := a.ownOrigin(absPath)
+	a.mu.Lock()
+	existing := a.siteForLocked(absPath, own)
+	a.mu.Unlock()
+	if existing != nil && !existing.closed.Load() {
+		existing.armOnce.Do(existing.arm)
+	}
+	// A dormant ad-hoc site whose folder holds this file comes back the same way,
+	// through the router's own restore and its lock, so the file keeps the address
+	// and token its old tab holds, and a tab reconnecting at this moment finds the
+	// site instead of a second one built beside it.
+	if existing == nil {
+		if slug := a.tokens.Load().keptSlugFor(absPath); slug != "" {
+			a.restoreKeptSlug(slug)
+		}
+	}
+
 	a.mu.Lock()
 	if a.stopping {
+		a.mu.Unlock()
+		return nil, "", false
+	}
+	// A served file has exactly one writer, and it is not a site: a second site
+	// would race the served host over the same bytes.
+	if owner, err := a.ResolveDocument(absPath); err == nil && owner.Kind == OwnerServed {
+		a.rt.logger.Printf("Refusing a second site for %s: it is served at %s", absPath, owner.URL())
 		a.mu.Unlock()
 		return nil, "", false
 	}
@@ -325,7 +457,7 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 		a.rt.logger.Printf("File already open, re-launching window: %s", absPath)
 		return s, rel, true
 	}
-	if s := a.siteForLocked(absPath); s != nil {
+	if s := a.siteForLocked(absPath, own); s != nil {
 		rel, ok := a.registerLocked(s, absPath, via)
 		a.mu.Unlock()
 		return s, rel, ok
@@ -333,8 +465,14 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 	a.mu.Unlock()
 
 	anchor, trusted := a.anchorFor(absPath)
-	key := a.originKey(absPath, anchor)
+	if own {
+		anchor, trusted = filepath.Dir(absPath), false
+	}
+	key := a.originKey(absPath, anchor, own)
 	pending := a.buildSite(anchor, key, trusted)
+	// The same for a site rebuilt here: its kept tokens come back before the
+	// registration below.
+	pending.armOnce.Do(pending.arm)
 
 	a.mu.Lock()
 	// Another open may have produced a usable site while we were building.
@@ -354,7 +492,7 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 		pending.close()
 		return s, rel, true
 	}
-	if s := a.siteForLocked(absPath); s != nil {
+	if s := a.siteForLocked(absPath, own); s != nil {
 		rel, ok := a.registerLocked(s, absPath, via)
 		a.discardPendingLocked(pending)
 		a.mu.Unlock()
@@ -393,6 +531,16 @@ func (a *app) route(absPath string, via session.Provenance) (*site, string, bool
 // swapped for a symlink since declaration stops granting. Refusing here costs
 // nothing visible: the file falls back to serving read-only with the banner.
 func (a *app) routeTrusted(absPath string) (string, bool) {
+	target, ok := a.serveTrusted(absPath)
+	if ok {
+		a.noteOpen(absPath, recents.HowTrusted, false)
+	}
+	return target, ok
+}
+
+// serveTrusted is routeTrusted without the Recent row, for a program that reaches
+// a document the person did not open.
+func (a *app) serveTrusted(absPath string) (string, bool) {
 	if _, trusted := a.anchorFor(absPath); !trusted {
 		return "", false
 	}
@@ -416,6 +564,10 @@ func (a *app) routeTrusted(absPath string) (string, bool) {
 // startLegacyRedirects.
 func (a *app) startSites() {
 	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if f, ok := a.rt.cfg.ServedFolderForPath(tf.Path); ok && f.Serving {
+			a.rt.logger.Printf("Trusted folder %s is served at %s; it has no separate site", tf.Path, a.servedAddress(f))
+			continue
+		}
 		if info, err := os.Stat(tf.Path); err != nil || !info.IsDir() {
 			a.rt.logger.Printf("Trusted folder %s is missing; its address answers with a recovery page", tf.Path)
 			continue
@@ -436,12 +588,28 @@ func (a *app) startSites() {
 		a.rt.logger.Printf("Trusted folder %s at http://%s", tf.Path, s.host)
 	}
 	a.startLegacyRedirects()
+	a.holdLocalPorts()
 }
 
 // shutdown stops the server, every site and every legacy listener, and releases every
 // capability handle.
 func (a *app) shutdown() {
+	a.shutdownOnce.Do(a.shutdownNow)
+}
+
+func (a *app) shutdownNow() {
 	a.rt.logger.Printf("Shutting down...")
+	if a.trayPanel != nil {
+		a.trayPanel.Close()
+	}
+	if a.stopRecovered != nil {
+		close(a.stopRecovered)
+		a.stopRecovered = nil
+	}
+	if a.stopFileTypes != nil {
+		close(a.stopFileTypes)
+		a.stopFileTypes = nil
+	}
 
 	a.mu.Lock()
 	a.stopping = true
@@ -449,6 +617,9 @@ func (a *app) shutdown() {
 	parkedPorts := append([]*parked(nil), a.parked...)
 	a.parked = nil
 	a.mu.Unlock()
+
+	a.stopRequests()
+	a.closeAITools()
 
 	for _, p := range parkedPorts {
 		p.close()
@@ -472,6 +643,20 @@ func (a *app) shutdown() {
 		s.cancel()
 		s.srv.Shutdown(context.Background())
 	}
+	// Save what the live-room service still holds and stop it before the served
+	// mounts are cancelled: it writes through their handlers.
+	a.service.close()
+	// Tell the Mac app bye only now: what the service held is saved, or logged as lost.
+	a.endShellStreams()
+	a.servedMu.RLock()
+	mounts := make([]*servedMount, 0, len(a.servedByName))
+	for _, m := range a.servedByName {
+		mounts = append(mounts, m)
+	}
+	a.servedMu.RUnlock()
+	for _, m := range mounts {
+		m.cancel()
+	}
 	if a.rt.httpServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), server.ShutdownBudget)
 		if err := a.rt.httpServer.Shutdown(ctx); err != nil {
@@ -480,12 +665,24 @@ func (a *app) shutdown() {
 		}
 		cancel()
 	}
+	if a.served != nil {
+		a.served.Close()
+	}
+	for _, m := range mounts {
+		if m.lock != nil {
+			m.lock.Release()
+		}
+	}
+	// Write the kept save permission a last time before RevokeAll empties every
+	// session, so the next launch gives open tabs their permission back.
+	a.tokens.Load().finish(sites)
 	// RevokeAll closes the read-root capability handles, so it runs only once no request
 	// can still be reading through one.
 	for _, s := range sites {
 		s.sessions.RevokeAll()
 	}
 	a.rt.bound.close()
+	a.closeShell()
 }
 
 func fileURL(host, relPath string) string {

@@ -1,4 +1,4 @@
-.PHONY: build build-tailwind test clean fetch-tailwind sync-conformance sync-selector-parity differential dist-macos dist-macos-unsigned dist-linux dist-windows
+.PHONY: build build-tailwind build-service fetch-service test clean fetch-tailwind sync-conformance sync-selector-parity differential dist-macos dist-macos-unsigned dist-linux dist-windows
 
 # Where the conformance corpus is generated. Only needed by sync-conformance; the vendored copy
 # under internal/dataapi/testdata is checked in so `go test` never needs node or a sibling checkout.
@@ -31,6 +31,18 @@ fetch-tailwind:
 
 build-tailwind: fetch-tailwind
 	CGO_ENABLED=$(CGO) go build -tags tailwind_bundle -trimpath -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/htmlclay
+ifeq ($(shell uname -s),Darwin)
+	codesign -f -s - $(BINARY)
+endif
+
+# Builds the live-room service blob for this machine into internal/service/blobs
+# (gitignored): the pinned Node binary (service/node-pins.json) plus the service
+# and its packages. Needs network on first run; downloads cache in service/.cache.
+fetch-service:
+	node service/build.mjs --goos $(shell go env GOOS) --goarch $(shell go env GOARCH)
+
+build-service: fetch-tailwind fetch-service
+	CGO_ENABLED=$(CGO) go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/htmlclay
 ifeq ($(shell uname -s),Darwin)
 	codesign -f -s - $(BINARY)
 endif

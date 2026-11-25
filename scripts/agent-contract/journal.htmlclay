@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Journal</title>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"title":"h1","note":"p.note","items":["ul.items li",{"name":".name"}]}</script>
+</head>
+<body>
+<h1>Journal</h1>
+<p class="note">first entry</p>
+<ul class="items"><li><span class="name">monday</span></li><li><span class="name">tuesday</span></li></ul>
+</body>
+</html>

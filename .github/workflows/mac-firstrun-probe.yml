@@ -1,0 +1,69 @@
+name: mac-firstrun-probe
+
+# Started by hand only. Answers two questions about a fresh WarpBuild Mac before
+# the release-time first-run check is built on it: does the runner have a
+# desktop session where an app's windows show, and does Gatekeeper stop a
+# quarantined download for its first-launch prompt there.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label
+        default: warp-macos-14-arm64-6x
+
+jobs:
+  probe:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 8
+    steps:
+      - name: Session
+        run: |
+          sw_vers
+          id -un
+          who || true
+          launchctl print "gui/$(id -u)" >/dev/null 2>&1 && echo "gui domain: yes" || echo "gui domain: no"
+          pgrep -lx WindowServer || echo "WindowServer: none"
+          pgrep -lx Dock || echo "Dock: none"
+          pgrep -lx loginwindow || echo "loginwindow: none"
+          spctl --status || true
+          csrutil status || true
+
+      - name: Download like a browser
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/hc.dmg" https://download.htmlclay.com/HTMLClay-1.16.4-universal.dmg
+          Q="0081;$(printf %x "$(date +%s)");Safari;$(uuidgen)"
+          echo "QUARANTINE=$Q" >> "$GITHUB_ENV"
+          xattr -w com.apple.quarantine "$Q" "$RUNNER_TEMP/hc.dmg"
+          spctl --assess --type open --context context:primary-signature -vv "$RUNNER_TEMP/hc.dmg" || echo "dmg assess failed: $?"
+          xcrun stapler validate "$RUNNER_TEMP/hc.dmg" || echo "dmg staple check failed: $?"
+
+      - name: Install
+        run: |
+          hdiutil attach -nobrowse -mountpoint "$RUNNER_TEMP/mnt" "$RUNNER_TEMP/hc.dmg"
+          ditto "$RUNNER_TEMP/mnt/HTMLClay.app" /Applications/HTMLClay.app
+          hdiutil detach "$RUNNER_TEMP/mnt"
+          xattr -w com.apple.quarantine "$QUARANTINE" /Applications/HTMLClay.app
+          spctl --assess --type execute -vv /Applications/HTMLClay.app || echo "app assess failed: $?"
+
+      - name: First launch
+        run: |
+          cat > "$RUNNER_TEMP/windows.swift" <<'SWIFT'
+          import CoreGraphics
+          import Foundation
+          let all = (CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as NSArray? as? [[String: Any]]) ?? []
+          for w in all {
+              let owner = w[kCGWindowOwnerName as String] as? String ?? "?"
+              let layer = w[kCGWindowLayer as String] as? Int ?? -1
+              print("window: \(owner) layer \(layer)")
+          }
+          print("windows on screen: \(all.count)")
+          SWIFT
+          START=$(date '+%Y-%m-%d %H:%M:%S')
+          open /Applications/HTMLClay.app || echo "open failed: $?"
+          sleep 20
+          pgrep -lf HTMLClay.app || echo "HTML Clay: not running"
+          pgrep -lx CoreServicesUIAgent || echo "CoreServicesUIAgent: none"
+          swift "$RUNNER_TEMP/windows.swift" || echo "window list failed: $?"
+          lsof -nP -iTCP -sTCP:LISTEN | grep -i htmlclay || echo "HTML Clay listening: none"
+          log show --start "$START" --style compact --predicate 'process == "syspolicyd" OR process == "CoreServicesUIAgent"' | tail -40 || true

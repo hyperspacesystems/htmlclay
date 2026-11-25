@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net"
 	"net/http"
 	"os"
@@ -29,13 +30,16 @@ type Server struct {
 	hosts    []string
 	port     int
 	sessions *session.Manager
-	logger   *logging.Logger
 	versions *versions.Store
 	// runtimeNoticeMu guards runtimeNotices, the (path, detail) pairs already logged for a
 	// document served with public runtime URLs.
 	runtimeNoticeMu sync.Mutex
 	runtimeNotices  map[string]bool
-	internalDir     string
+	// newDocumentMu guards newDocumentAt, when this site last made a new
+	// document, so a page cannot fill a folder with them.
+	newDocumentMu sync.Mutex
+	newDocumentAt time.Time
+	internalDir   string
 	// uploadsDir is the per-computer uploads library, ~/htmlclay/uploads. Empty
 	// when the home directory could not be resolved, which refuses uploads and
 	// 404s the library route rather than writing anywhere else.
@@ -62,24 +66,10 @@ type Server struct {
 	hub          *hub
 	watcher      *watcher
 	coord        *streamCoordinator
-	// wire is per-server, unlike the shared live-sync runtime above: a site is
-	// the lifetime boundary for an instruction channel, so untrusting a folder
-	// (which closes the site) cannot leave a live wire into it.
-	wire           *wireHub
-	helperBindings helperBindingRegistry
-	helperMu       sync.Mutex
-	helpers        map[string]*helperDispatcher
-	helperOffline  map[string][]string
-	// helperAsking parks requests for a helper the person has not answered,
-	// keyed by helperAskKey, while one dialog asks about it.
-	helperAsking map[string][]parkedHelperRequest
-	// helperSetting marks, by helperAskKey, a setup dialog that is running, so a
-	// second setup request for the same name waits its turn instead of stacking.
-	helperSetting map[string]bool
-	// helperAskQuiet holds, per file, when a page may next raise the dialog
-	// after one that granted nothing.
-	helperAskQuiet map[string]time.Time
-	aiEdit         aiEditRegistry
+	// The wire core is per-server, unlike the shared live-sync runtime above: a
+	// site is the lifetime boundary for an instruction channel, so untrusting a
+	// folder (which closes the site) cannot leave a live wire into it.
+	*wire.Core
 	// guard judges every write to a document against the baseline HTML Clay last
 	// wrote, so a save or an outside edit that destroys data can raise a notice.
 	// guardQueue serializes its observations and resolves per history key, and
@@ -124,6 +114,9 @@ type Server struct {
 // A document links its files as /_/uploads/<folder>/<name>, which every site
 // server answers from here, so the document can move anywhere and keep them.
 func UploadsLibraryDir() (string, error) {
+	if given := os.Getenv("HTMLCLAY_APP_DATA_DIR"); given != "" && filepath.IsAbs(given) {
+		return filepath.Join(filepath.Clean(given), "uploads"), nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -217,7 +210,6 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	s := &Server{
 		sessions: sessions,
 		hosts:    hosts,
-		logger:   logger,
 		versions: store,
 		broker:   newBroker(sessions, logger, defaultConfirm),
 		recalcs:  newRecalcWaits(),
@@ -225,7 +217,6 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 		hub:      ls.hub,
 		watcher:  ls.watcher,
 		coord:    ls.coord,
-		wire:     newWireHub(),
 
 		guard:      guard,
 		guardQueue: guardQueue,
@@ -234,6 +225,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 
 		tailwindLogged: map[string]bool{},
 	}
+	s.Core = wire.NewCore(looseWire{s: s}, looseWire{s: s}, logger, s.writeError)
 	s.tailwindCompile = s.compileTailwind
 	// The watcher is shared by every site, so an external change is offered to each
 	// site's guard and judged by the one that owns the document's key.
@@ -246,6 +238,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 
 	mux.HandleFunc("GET /_/read/{token}", s.handleRead)
 	mux.HandleFunc("POST /_/save/{token}", sameOrigin(s.handleSave))
+	mux.HandleFunc("POST /_/unsaved/{token}", sameOrigin(s.handleUnsavedReport))
 	mux.HandleFunc("POST /_/recalc/{token}", sameOrigin(s.handleRecalcNote))
 	mux.HandleFunc("POST /_/upload/{token}", sameOrigin(s.handleUpload))
 	mux.HandleFunc("GET /_/meta/{token}", s.handleMeta)
@@ -280,6 +273,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	mux.HandleFunc("POST /_/helper-setup/{token}", sameOrigin(s.handleHelperSetup))
 	mux.HandleFunc("POST /_/versions-folder/{token}", sameOrigin(s.handleVersionsFolder))
 	mux.HandleFunc("POST /_/export/{token}", sameOrigin(s.handleExport))
+	mux.HandleFunc("POST /_/new-document/{token}", sameOrigin(s.handleNewDocument))
 	// Registered ahead of the catch-all. The stream is a read, but it joins the
 	// gate: live-sync authorizes by registered path rather than by token, so
 	// without the gate it is reachable by any page the user's browser has open.
@@ -333,7 +327,7 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	// ("matches fewer methods but has a more general path pattern") and panics at
 	// registration. Listing the two methods the wire uses keeps one guard while
 	// leaving anything else on the subtree to fall through as it would anyway.
-	wire := s.wireMux()
+	wire := s.WireMux()
 	mux.Handle("GET /_/wire/", wire)
 	mux.Handle("POST /_/wire/", wire)
 
@@ -409,17 +403,33 @@ func (s *Server) Start() error {
 	return err
 }
 
+// CancelBuiltins stops built-in program requests: program's on one document,
+// program's on every document when document is "", or every one when both are "".
+func (s *Server) CancelBuiltins(program, document string) {
+	core := s.Core
+	if core == nil {
+		return
+	}
+	if document == "" {
+		core.CancelBuiltins(program)
+		return
+	}
+	core.CancelBuiltinFor(program, document)
+}
+
 // Shutdown releases parked permission requests and closes every SSE stream
 // before handing off to http.Server.Shutdown. Both otherwise hold graceful
 // shutdown open until its timeout and are then force-closed. A server that shares
 // an injected live-sync runtime leaves it running (the process shuts the shared
 // runtime down once, before the per-site HTTP servers).
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.CancelAIEdits()
+	s.CancelAI()
+	s.CancelBuiltins("", "")
 	s.guardQueue.Settle()
 	s.recalcs.shutdown()
 	s.broker.shutdown()
-	s.wire.shutdown()
+	s.Hub.Shutdown()
+	s.RunFiles.Clear()
 	if s.ownsLiveSync {
 		s.ls.Shutdown()
 	}
@@ -430,11 +440,13 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) Close() error {
-	s.CancelAIEdits()
+	s.CancelAI()
+	s.CancelBuiltins("", "")
 	s.guardQueue.Settle()
 	s.recalcs.shutdown()
 	s.broker.shutdown()
-	s.wire.shutdown()
+	s.Hub.Shutdown()
+	s.RunFiles.Clear()
 	if s.ownsLiveSync {
 		s.ls.Shutdown()
 	}
@@ -449,7 +461,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		rw := &responseWriter{ResponseWriter: w, status: 200}
 		next.ServeHTTP(rw, r)
-		s.logger.Printf("%s %s %d %s", r.Method, redactPath(r.URL.Path), rw.status, time.Since(start))
+		s.Logger.Printf("%s %s %d %s", r.Method, redactPath(r.URL.Path), rw.status, time.Since(start))
 	})
 }
 
@@ -457,11 +469,12 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 // never written to the log file or stderr.
 func redactPath(p string) string {
 	for _, prefix := range []string{
-		"/_/save/", "/_/recalc/", "/_/read/", "/_/meta/", "/_/upload/",
+		"/_/save/", "/_/unsaved/", "/_/recalc/", "/_/read/", "/_/meta/", "/_/upload/",
+		"/_/blockeditor-state/", "/_/data-loss/",
 		"/_/versions/", "/_/version/", "/_/restore/",
-		"/_/reveal/", "/_/versions-folder/", "/_/export/",
+		"/_/reveal/", "/_/versions-folder/", "/_/export/", "/_/new-document/",
 		"/_/workspace-request/", "/_/helper-setup/",
-		"/_/copies/", "/_/blockeditor-state/", "/_/data-loss/",
+		"/_/copies/",
 	} {
 		if strings.HasPrefix(p, prefix) {
 			return prefix + "<redacted>"

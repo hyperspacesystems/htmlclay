@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -279,7 +281,7 @@ func TestStartListenerMovesOffAnOldDefaultPort(t *testing.T) {
 	}
 	select {
 	case msg := <-notices:
-		if !strings.Contains(msg, "htmlclay.localhost") {
+		if !strings.Contains(msg, "htmlclay1.localhost") {
 			t.Fatalf("the notice should show a numbered address:\n%s", msg)
 		}
 	case <-time.After(5 * time.Second):
@@ -492,5 +494,55 @@ func TestRouterRefusesASiteClosedBetweenLookupAndArm(t *testing.T) {
 	}
 	if !s.closed.Load() {
 		t.Fatal("the folder was untrusted inside the window, but the site is not closed")
+	}
+}
+
+// TestBareHostSendsAStrangerItsOwnSite is Carbon 9: a local script writing to a
+// download through the loopback data API reaches the site that serves the
+// document, and the address the agent lane lists for it opens it.
+func TestBareHostSendsAStrangerItsOwnSite(t *testing.T) {
+	home, _ := resolveSymlinks(t.TempDir())
+	proj := filepath.Join(home, "proj")
+	notes := filepath.Join(proj, "notes.htmlclay")
+	writeTestFile(t, notes, `<!DOCTYPE html>
+<html><head><script type="application/json" data-rules-name="api" data-rules-version="1">{"title":"h1"}</script></head>
+<body><h1>BEFORE</h1></body></html>
+`)
+
+	a := newTestApp(t, home)
+	a.tierStore().SetDeveloper(false)
+	if err := a.trustFolder(proj); err != nil {
+		t.Fatal(err)
+	}
+	liveSite(t, a, proj)
+	downloadedHere(t, a, notes)
+	bare := "127.0.0.1:" + strconv.Itoa(a.rt.port)
+
+	write := servedRequest(t, a, http.MethodPost, bare, "/_/api/proj/notes.htmlclay", `{"title":"AFTER"}`, map[string]string{
+		"Content-Type": "application/json",
+	})
+	if write.Code != http.StatusOK {
+		t.Fatalf("a program's data write to a download in a trusted folder = %d %s", write.Code, write.Body.String())
+	}
+	if saved, _ := os.ReadFile(notes); !strings.Contains(string(saved), "AFTER") {
+		t.Fatalf("the write did not reach the document: %s", saved)
+	}
+
+	docs, _, err := agentHost{a: a}.List(context.Background(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := ""
+	for _, doc := range docs {
+		if doc.Path == notes {
+			address = doc.URL
+		}
+	}
+	if address == "" {
+		t.Fatalf("the list gave %s no address: %+v", notes, docs)
+	}
+	status, body, err := fetchWithContext(context.Background(), address)
+	if err != nil || status != http.StatusOK || !strings.Contains(body, "AFTER") {
+		t.Fatalf("the listed address %s = %d %q (%v), want the document", address, status, body, err)
 	}
 }

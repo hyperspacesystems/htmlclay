@@ -20,9 +20,17 @@ import (
 // That script asked the user to find it in the zip and run it, then restart
 // Explorer; this is that script, run by the app itself on every launch.
 const (
-	progID      = "HTMLClay.Document"
 	progIDLabel = "HTML Clay File"
 	classesPath = `Software\Classes`
+)
+
+// HTML Clay's entry in Windows' list of programs that can be a default app,
+// which Settings, Default apps reads and its registeredAppUser link opens.
+const (
+	capabilitiesPath   = `Software\HTMLClay\Capabilities`
+	registeredAppsPath = `Software\RegisteredApplications`
+	registeredAppName  = "HTML Clay"
+	appDescription     = "Opens .htmlclay files in your browser and saves edits back into them."
 )
 
 // docIconIndex selects the icon Explorer draws on a .htmlclay file. The value is
@@ -46,13 +54,15 @@ const (
 	shcnfIDList       = 0x0000
 )
 
-func registerFileTypes(exePath string) error {
+func registerFileTypes(exePath string, opts FileTypeOptions) error {
 	quoted := `"` + exePath + `"`
 	defaults := []struct{ subkey, value string }{
-		{`.htmlclay`, progID},
 		{progID, progIDLabel},
 		{progID + `\shell\open\command`, quoted + ` "%1"`},
 		{progID + `\DefaultIcon`, quoted + docIconIndex},
+	}
+	if opts.HTMLClay {
+		defaults = append([]struct{ subkey, value string }{{`.htmlclay`, progID}}, defaults...)
 	}
 
 	// Every write is attempted even after one fails, and the shell is told about
@@ -74,13 +84,24 @@ func registerFileTypes(exePath string) error {
 		keep(err)
 		wrote = wrote || changed
 	}
+	for _, v := range capabilities() {
+		changed, err := setStringValue(v.path, v.name, v.value)
+		keep(err)
+		wrote = wrote || changed
+	}
 
 	// Offering HTML Clay for .html and .htm must not take those extensions over.
 	// Creating HKCU\Software\Classes\.html with no default value leaves the
 	// merged HKEY_CLASSES_ROOT view reading the ProgID out of HKLM, so the user's
 	// browser keeps them; only the Open With list gains an entry.
 	for _, ext := range []string{`.html`, `.htm`} {
-		changed, err := addOpenWithProgID(ext)
+		var changed bool
+		var err error
+		if opts.HTMLOpenWith {
+			changed, err = addOpenWithProgID(ext)
+		} else {
+			err = deleteOpenWithProgID(ext)
+		}
 		keep(err)
 		wrote = wrote || changed
 	}
@@ -110,6 +131,12 @@ func unregisterFileTypes() error {
 		keep(deleteClassTree(`.htmlclay`))
 	}
 	keep(deleteClassTree(progID))
+	keep(deleteTree(registry.CURRENT_USER, capabilitiesPath))
+	_ = registry.DeleteKey(registry.CURRENT_USER, `Software\HTMLClay`)
+	if k, err := registry.OpenKey(registry.CURRENT_USER, registeredAppsPath, registry.SET_VALUE); err == nil {
+		keep(ignoreMissing(k.DeleteValue(registeredAppName)))
+		k.Close()
+	}
 
 	// Only our own value comes out of OpenWithProgids. The key is shared: every
 	// other program that offers itself for .html has a value there too, and
@@ -128,9 +155,14 @@ func unregisterFileTypes() error {
 // is also what keeps notifyAssociationsChanged (which makes every shell process
 // rebuild its association cache) off the path of an ordinary start.
 func setClassDefault(subkey, value string) (bool, error) {
-	path := classesPath + `\` + subkey
+	return setStringValue(classesPath+`\`+subkey, "", value)
+}
+
+// setStringValue writes one named string value under HKEY_CURRENT_USER, reading
+// first so an unchanged value costs no write.
+func setStringValue(path, name, value string) (bool, error) {
 	if k, err := registry.OpenKey(registry.CURRENT_USER, path, registry.QUERY_VALUE); err == nil {
-		current, _, readErr := k.GetStringValue("")
+		current, _, readErr := k.GetStringValue(name)
 		k.Close()
 		if readErr == nil && current == value {
 			return false, nil
@@ -142,10 +174,23 @@ func setClassDefault(subkey, value string) (bool, error) {
 		return false, err
 	}
 	defer k.Close()
-	if err := k.SetStringValue("", value); err != nil {
+	if err := k.SetStringValue(name, value); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+type registryValue struct{ path, name, value string }
+
+// capabilities lists HTML Clay as a program that can open .htmlclay files, and
+// never .html or .htm.
+func capabilities() []registryValue {
+	return []registryValue{
+		{capabilitiesPath, "ApplicationName", registeredAppName},
+		{capabilitiesPath, "ApplicationDescription", appDescription},
+		{capabilitiesPath + `\FileAssociations`, ".htmlclay", progID},
+		{registeredAppsPath, registeredAppName, capabilitiesPath},
+	}
 }
 
 // classDefaultIs reports whether the default value of a key under

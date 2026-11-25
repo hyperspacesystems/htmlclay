@@ -1,0 +1,196 @@
+{
+  "now": "2026-11-12T15:00:00Z",
+  "rev": 1,
+  "epoch": "00000000000000a1",
+  "home": "/Users/sam",
+  "host": {
+    "version": "2.0.3",
+    "os": "darwin",
+    "port": 1212,
+    "service": "off",
+    "stopped": false,
+    "implemented": [
+      "app.openKeptPage",
+      "dashboard.open",
+      "document.export",
+      "document.forget",
+      "document.open",
+      "document.recover",
+      "document.reveal",
+      "document.versions",
+      "file.open",
+      "folder.copyAddress",
+      "folder.merge",
+      "folder.relink",
+      "folder.reveal",
+      "folder.serve",
+      "folder.setFraming",
+      "folder.stopServing",
+      "folder.stopTrusting",
+      "folder.trust",
+      "host.quit",
+      "prefs.set",
+      "program.add",
+      "program.askAgain",
+      "program.relink",
+      "program.remove",
+      "program.removeAccess",
+      "program.removeAllAccess",
+      "program.reveal",
+      "program.setAllTrusted",
+      "request.answer",
+      "request.show",
+      "service.restart",
+      "template.create",
+      "waiting.markSeen"
+    ]
+  },
+  "documents": [
+    {
+      "id": "index",
+      "name": "index.html",
+      "path": "/Users/sam/GitHub/prototypes/index.html",
+      "folderID": "",
+      "url": "http://htmlclay1.localhost:1212/index.html",
+      "openNow": true,
+      "openedAt": "2026-11-12T14:55:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    },
+    {
+      "id": "todo",
+      "name": "todo.htmlclay",
+      "path": "/Users/sam/Documents/Notes/todo.htmlclay",
+      "folderID": "notes",
+      "url": "http://htmlclay2.localhost:1212/todo.htmlclay",
+      "openNow": false,
+      "openedAt": "2026-11-11T16:00:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    }
+  ],
+  "folders": [
+    {
+      "id": "notes",
+      "name": "Notes",
+      "path": "/Users/sam/Documents/Notes",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": "",
+      "trusted": true,
+      "served": false,
+      "servedName": "",
+      "synced": false,
+      "onThisComputer": true,
+      "missing": false,
+      "identityChanged": false,
+      "servedByLocal": false,
+      "boundToLocalSync": false,
+      "viewer": false,
+      "documentCount": 4,
+      "storageBytes": 0,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0
+      }
+    },
+    {
+      "id": "prototypes",
+      "name": "prototypes",
+      "path": "/Users/sam/Sites/prototypes",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": "",
+      "trusted": true,
+      "served": true,
+      "servedName": "prototypes",
+      "synced": false,
+      "onThisComputer": true,
+      "missing": false,
+      "identityChanged": false,
+      "servedByLocal": false,
+      "boundToLocalSync": false,
+      "viewer": false,
+      "documentCount": 12,
+      "storageBytes": 6291456,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "search-sh",
+      "name": "search.sh",
+      "path": "/Users/sam/bin/search.sh",
+      "fileMissing": false,
+      "allowedDocuments": [
+        "notes.htmlclay"
+      ],
+      "allTrustedFolders": false,
+      "removedDocuments": []
+    },
+    {
+      "id": "bluesky-studio",
+      "name": "bluesky-studio",
+      "path": "/Users/sam/Applications/bluesky-studio",
+      "fileMissing": false,
+      "allowedDocuments": [
+        "posts.htmlclay",
+        "drafts.htmlclay"
+      ],
+      "allTrustedFolders": true,
+      "removedDocuments": []
+    },
+    {
+      "id": "clay-search",
+      "name": "clay-search",
+      "path": "/Users/sam/bin/clay-search",
+      "fileMissing": true,
+      "allowedDocuments": [
+        "index.html"
+      ],
+      "allTrustedFolders": false,
+      "removedDocuments": []
+    }
+  ],
+  "requests": [],
+  "events": [],
+  "seen": [],
+  "sync": {
+    "connected": false,
+    "username": "",
+    "keySuffix": "",
+    "paused": false,
+    "syncingFiles": 0,
+    "offlineChanges": 0,
+    "viewOnlyTeams": 0,
+    "lastFinishedAt": null,
+    "fullName": ""
+  },
+  "update": {
+    "current": "2.0.3",
+    "ready": null,
+    "checkedAt": "2026-11-12T14:12:00Z",
+    "automatic": true,
+    "finishing": false
+  },
+  "preferences": {
+    "openAtLogin": true,
+    "openAtLoginChosen": true,
+    "aiEditing": true,
+    "appearance": "system",
+    "yourName": "",
+    "useName": false
+  },
+  "move": null
+}

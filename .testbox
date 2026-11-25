@@ -1,10 +1,11 @@
 # Runs the Go suite on a throwaway box: `testbox run`.
 # See ~/Documents/GitHub/bash_commands/testbox/README.md.
-TESTBOX_REPO=htmlclay
-# The box has Node but no Go. Setup installs the toolchain this Mac and CI use (go.mod: go 1.26),
+TESTBOX_REPO=htmlclay-mac
+# The box has Node but no Go. Setup installs the toolchain this Mac and CI use (go.mod: go 1.26.4),
 # checked against go.dev's published sha256, and links it into ~/.local/bin, which the login
 # shell every setup and command runs in puts on PATH (so `testbox run --command '...'` finds it too).
-# npm ci installs the host-conformance vectors the Go tests read from node_modules.
+# npm ci installs the host-conformance vectors the Go tests read from node_modules, and the
+# live-room service's packages, so the TestService* tests run instead of skipping.
 TESTBOX_SETUP='set -e
 v=1.26.5 sum=5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053
 if [ "$(~/.local/go/bin/go env GOVERSION 2>/dev/null)" != "go$v" ]; then
@@ -14,8 +15,50 @@ if [ "$(~/.local/go/bin/go env GOVERSION 2>/dev/null)" != "go$v" ]; then
 fi
 mkdir -p ~/.local/bin
 ln -sf ~/.local/go/bin/go ~/.local/go/bin/gofmt ~/.local/bin/
-npm ci --no-audit --no-fund'
+# The Secret Service test (internal/secret) starts a private session bus, and
+# scripts/sync-pair-box.sh traces the packaged service with strace.
+{ command -v dbus-daemon && command -v strace; } >/dev/null || { sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq dbus strace; } >/dev/null 2>&1
+npm ci --no-audit --no-fund
+(cd service && npm ci --ignore-scripts --no-audit --no-fund)
+bash scripts/served-golden-local.sh ~/served-golden-local
+true'
+# scripts/agent-contract.mjs drives the real clay-agent against the host built here. The Mac packs
+# the clay-agent source, CLAY_AGENT_SRC or the sibling ../clay-agent, as npm would publish it. The
+# pack ships beside the checkout, and setup unpacks it into ~/clay-agent and installs what it needs
+# to run. TESTBOX_CLAY_AGENT is set in ~/.profile because the login shell is the one environment the
+# configured command and a `--command` run share. With no CLAY_AGENT_SRC and no sibling, none of
+# this happens. The pack has one path for each source, so an unchanged source ships the same bytes
+# from the same place. Nothing here may print to stdout, which testbox reads.
+clay_agent_src=${CLAY_AGENT_SRC:-}
+[ -n "$clay_agent_src" ] || [ ! -f "$CONFIG_DIR/../clay-agent/bin/clay-agent.js" ] || clay_agent_src=$CONFIG_DIR/../clay-agent
+if [ -n "$clay_agent_src" ]; then
+  clay_agent_src=$(cd "$clay_agent_src" 2>/dev/null && pwd -P) && [ -f "$clay_agent_src/bin/clay-agent.js" ] \
+    || { echo ".testbox: CLAY_AGENT_SRC names no clay-agent source: ${CLAY_AGENT_SRC:-}" >&2; return 2; }
+  clay_agent_pack=${TMPDIR:-/tmp}
+  clay_agent_pack=${clay_agent_pack%/}/testbox-clay-agent-$(printf %s "$clay_agent_src" | cksum | cut -d" " -f1)
+  mkdir -p "$clay_agent_pack"
+  clay_agent_pack=$clay_agent_pack/$(cd "$clay_agent_src" && npm pack --silent --ignore-scripts --pack-destination "$clay_agent_pack" 2>/dev/null | tail -1)
+  [ -f "$clay_agent_pack" ] || { echo ".testbox: npm pack failed in $clay_agent_src" >&2; return 2; }
+  TESTBOX_EXTRA_FILES+=("$clay_agent_pack")
+  TESTBOX_SETUP+="
+rm -rf ~/clay-agent && mkdir -p ~/clay-agent && tar -xzf $(printf %q "$clay_agent_pack") -C ~/clay-agent
+(cd ~/clay-agent/package && npm install --omit=dev --no-audit --no-fund)
+grep -qs TESTBOX_CLAY_AGENT= ~/.profile || echo 'export TESTBOX_CLAY_AGENT=\$HOME/clay-agent/package' >> ~/.profile"
+fi
 # CI's Linux job runs `go test ./...`. The managed trial's tests sit behind a build tag CI does not
-# set, so they run here as a second step. Linux builds ship with CGO_ENABLED=0.
-TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 && go test ./... -count=1 && go test -tags managedtrial ./internal/managedtrial/ -count=1'
+# set, so they run here as a second step, beside the first, with its output printed after it. That
+# tag swaps production code in internal/served, so the shared tests run in both builds too, except
+# the ones scripts/tag-tests.py measured not to reach the swapped code (its TRIAL_EXEMPT list).
+# MANAGED_TRIAL_LOCAL_SOURCE points the served host's golden
+# tests at the Hyperclay Local commit they were recorded from (scripts/served-golden-local.sh), so
+# they run instead of skipping. The last step builds the Linux service blob (service/build.mjs) and
+# runs the packaged-folder check and the app against it: the tests only the service_bundle tag adds,
+# plus TestServiceStartsWithFirstServedFolder, which under that tag boots the real bundle instead of
+# HTMLCLAY_SERVICE_CMD (cmd/htmlclay/service.go). The service's own Node tests and the sync
+# product driver's test (08-sync.md 8.27) run before it. The goldens name versions in the recorder's time zone,
+# America/New_York, so the tests run in it. Linux builds ship with CGO_ENABLED=0.
+TESTBOX_COMMAND='export PATH=$HOME/.local/bin:$PATH CGO_ENABLED=0 MANAGED_TRIAL_LOCAL_SOURCE=$HOME/served-golden-local HTMLCLAY_SYNC_LOCAL=$PWD/service/test/fake TZ=America/New_York && trial_skip=$(python3 scripts/tag-tests.py skip-pattern) && { go test -tags managedtrial ./internal/served/ -count=1 -skip "$trial_skip" > "$TESTBOX_OUT/managedtrial.log" 2>&1 & trial=$!; go test ./... -count=1; plain=$?; wait $trial; tagged=$?; cat "$TESTBOX_OUT/managedtrial.log"; [ $plain -eq 0 ] && [ $tagged -eq 0 ]; } && (cd service && node --test --test-timeout=300000 test/*.test.cjs) && node --test scripts/tests/sync-product-driver.test.mjs scripts/tests/sync-held.test.mjs scripts/tests/build-changelog.test.mjs && node scripts/build-changelog.mjs --check && bash cmd/managed-trial/release-contents.sh && node service/build.mjs --goos linux --goarch amd64 && bundled=$(python3 scripts/tag-tests.py run-pattern service_bundle ./internal/service ./cmd/htmlclay --also TestServiceStartsWithFirstServedFolder) && go test -tags service_bundle ./internal/service/ ./cmd/htmlclay/ -run "$bundled" -count=1 -v'
 TESTBOX_TIMEOUT=${TESTBOX_TIMEOUT:-45m}
+# The sync soak's seed (08-sync.md 8.50): SOAK_SEED=<absolute archive> ships one
+# archive to the same path on the box, for `node scripts/soak-sync.mjs --seed "$SOAK_SEED"`.
+if [ -n "${SOAK_SEED:-}" ]; then TESTBOX_EXTRA_FILES+=("$SOAK_SEED"); fi

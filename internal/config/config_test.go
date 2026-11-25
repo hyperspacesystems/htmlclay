@@ -22,14 +22,55 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.StartOnLogin != false {
-		t.Error("expected StartOnLogin false")
+	if cfg.StartOnLogin != true {
+		t.Error("expected StartOnLogin true on a fresh install")
+	}
+	if !res.FreshInstall {
+		t.Error("expected FreshInstall true when config.json does not exist")
 	}
 	if got := cfg.TrustedFolderList(); len(got) != 0 {
 		t.Errorf("expected no trusted folders, got %v", got)
 	}
 	if res.HadAppMode || res.PromotedLegacy {
 		t.Errorf("a fresh config should need no migration, got %+v", res)
+	}
+}
+
+func TestExistingConfigKeepsStartOnLoginFalseAndRoundTripsPlaygroundSeeded(t *testing.T) {
+	baseDir := t.TempDir()
+	dir := DirFrom(baseDir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"startOnLogin":false}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, res, err := LoadFrom(baseDir, noIdentity)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.StartOnLogin != false {
+		t.Error("existing config with startOnLogin:false must stay false")
+	}
+	if res.FreshInstall {
+		t.Error("existing config must not report FreshInstall")
+	}
+	if cfg.PlaygroundSeededDone() {
+		t.Error("expected PlaygroundSeededDone false initially")
+	}
+	cfg.SetPlaygroundSeeded(true)
+	if err := cfg.Save(); err != nil {
+		t.Fatalf("save error: %v", err)
+	}
+	reloaded, res2, err := LoadFrom(baseDir, noIdentity)
+	if err != nil {
+		t.Fatalf("reload error: %v", err)
+	}
+	if !reloaded.PlaygroundSeededDone() {
+		t.Error("expected PlaygroundSeededDone true after round-trip")
+	}
+	if reloaded.StartOnLogin != false || res2.FreshInstall {
+		t.Errorf("reloaded config = startOnLogin:%v freshInstall:%v, want false/false", reloaded.StartOnLogin, res2.FreshInstall)
 	}
 }
 
@@ -64,12 +105,15 @@ func TestLoadCorruptRecoversToDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg, _, err := LoadFrom(baseDir, noIdentity)
+	cfg, res, err := LoadFrom(baseDir, noIdentity)
 	if err != nil {
 		t.Fatalf("a corrupt config should not error, got: %v", err)
 	}
 	if cfg.StartOnLogin != false {
 		t.Error("expected the default StartOnLogin false")
+	}
+	if res.FreshInstall {
+		t.Error("a quarantined corrupt config must not report FreshInstall")
 	}
 	if got := cfg.TrustedFolderList(); len(got) != 0 {
 		t.Errorf("expected the default empty trusted list, got %v", got)
@@ -130,6 +174,33 @@ func TestSaveIsAtomicNoTempLeft(t *testing.T) {
 	}
 	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Errorf("expected config.json mode 0600, got %v", info.Mode().Perm())
+	}
+}
+
+func TestEnsureDir(t *testing.T) {
+	baseDir := t.TempDir()
+	dir := DirFrom(baseDir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("MkdirAll error: %v", err)
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("dir not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("expected directory")
+	}
+}
+
+func TestConfigBaseOverride(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HTMLCLAY_CONFIG_BASE", dir)
+	got, err := Dir()
+	if err != nil {
+		t.Fatalf("Dir: %v", err)
+	}
+	if want := filepath.Join(dir, "htmlclay"); got != want {
+		t.Fatalf("Dir() = %q, want %q", got, want)
 	}
 }
 
@@ -529,8 +600,8 @@ func TestPortAndSlugsRoundTrip(t *testing.T) {
 	one := filepath.Join(base, "one")
 	two := filepath.Join(base, "two")
 	cfg.SetPort(24190)
-	cfg.RememberSiteSlug(one, "htmlclay")
-	cfg.RememberSiteSlug(two, "htmlclay1")
+	cfg.RememberSiteSlug(one, "htmlclay1")
+	cfg.RememberSiteSlug(two, "htmlclay2")
 	if err := cfg.Save(); err != nil {
 		t.Fatal(err)
 	}
@@ -542,7 +613,7 @@ func TestPortAndSlugsRoundTrip(t *testing.T) {
 	if got := loaded.Port(); got != 24190 {
 		t.Fatalf("remembered port = %d, want 24190", got)
 	}
-	for key, slug := range map[string]string{one: "htmlclay", two: "htmlclay1"} {
+	for key, slug := range map[string]string{one: "htmlclay1", two: "htmlclay2"} {
 		got, ok := loaded.SiteKeyForSlug(slug)
 		if !ok || got != key {
 			t.Fatalf("SiteKeyForSlug(%q) = %q, %v; want %q, true", slug, got, ok, key)
@@ -552,22 +623,22 @@ func TestPortAndSlugsRoundTrip(t *testing.T) {
 		}
 	}
 
-	if got := loaded.ForgetSiteSlug(one); got != "htmlclay" {
-		t.Fatalf("ForgetSiteSlug returned %q, want %q", got, "htmlclay")
+	if got := loaded.ForgetSiteSlug(one); got != "htmlclay1" {
+		t.Fatalf("ForgetSiteSlug returned %q, want %q", got, "htmlclay1")
 	}
-	if !loaded.SlugInUse("htmlclay") {
+	if !loaded.SlugInUse("htmlclay1") {
 		t.Error("a forgotten slug must stay in use, or the next folder inherits its browser storage")
 	}
-	if _, ok := loaded.SiteKeyForSlug("htmlclay"); ok {
+	if _, ok := loaded.SiteKeyForSlug("htmlclay1"); ok {
 		t.Error("a forgotten slug must have no key")
 	}
 
-	loaded.RestoreSiteSlug(one, "htmlclay")
-	if got, ok := loaded.SiteKeyForSlug("htmlclay"); !ok || got != one {
-		t.Errorf("after RestoreSiteSlug, SiteKeyForSlug(\"htmlclay\") = %q, %v; want %q, true", got, ok, one)
+	loaded.RestoreSiteSlug(one, "htmlclay1")
+	if got, ok := loaded.SiteKeyForSlug("htmlclay1"); !ok || got != one {
+		t.Errorf("after RestoreSiteSlug, SiteKeyForSlug(\"htmlclay1\") = %q, %v; want %q, true", got, ok, one)
 	}
 	for _, s := range loaded.RetiredSlugs {
-		if s == "htmlclay" {
+		if s == "htmlclay1" {
 			t.Error("a restored slug must not be retired")
 		}
 	}
@@ -585,11 +656,11 @@ func TestSiteSlugsAreCappedButTrustedFoldersSurvive(t *testing.T) {
 
 	trusted := t.TempDir()
 	cfg.AddTrustedFolder(trusted, "")
-	cfg.RememberSiteSlug(trusted, "htmlclay")
+	cfg.RememberSiteSlug(trusted, "htmlclay1")
 	adHoc := map[string]string{}
 	for i := 0; i < 70; i++ {
 		key := filepath.Join(base, fmt.Sprintf("adhoc-%02d", i))
-		slug := numberedSlugFor(i + 2)
+		slug := numberedSlugFor(i + 3)
 		adHoc[key] = slug
 		cfg.RememberSiteSlug(key, slug)
 	}
@@ -605,8 +676,8 @@ func TestSiteSlugsAreCappedButTrustedFoldersSurvive(t *testing.T) {
 	if got := len(slugs); got != siteSlugCap {
 		t.Errorf("remembered slugs = %d, want %d", got, siteSlugCap)
 	}
-	if got := slugs[trusted]; got != "htmlclay" {
-		t.Errorf("a trusted folder's slug must never be evicted: got %q, want %q", got, "htmlclay")
+	if got := slugs[trusted]; got != "htmlclay1" {
+		t.Errorf("a trusted folder's slug must never be evicted: got %q, want %q", got, "htmlclay1")
 	}
 	for key, slug := range adHoc {
 		if _, kept := slugs[key]; kept {
@@ -688,8 +759,8 @@ func TestCounterIsTheRecordOfADroppedLabel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load error: %v", err)
 	}
-	if got := cfg.AllocateSiteSlug("/a"); got != "htmlclay" {
-		t.Fatalf("first label = %q, want htmlclay", got)
+	if got := cfg.AllocateSiteSlug("/a"); got != "htmlclay1" {
+		t.Fatalf("first label = %q, want htmlclay1", got)
 	}
 	cfg.DropSiteSlug("/a")
 	if err := cfg.Save(); err != nil {
@@ -699,8 +770,142 @@ func TestCounterIsTheRecordOfADroppedLabel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload error: %v", err)
 	}
-	if got := reloaded.AllocateSiteSlug("/b"); got != "htmlclay1" {
-		t.Fatalf("after a dropped htmlclay and a reload the next label = %q, want htmlclay1", got)
+	if got := reloaded.AllocateSiteSlug("/b"); got != "htmlclay2" {
+		t.Fatalf("after a dropped htmlclay1 and a reload the next label = %q, want htmlclay2", got)
+	}
+}
+
+// A config written while the first site answered at htmlclay.localhost moves on load:
+// the key under htmlclay gets the next free numbered label and is recorded, and a
+// saved config has nothing left to move.
+func TestFirstSiteMovesOffHTMLClay(t *testing.T) {
+	base := t.TempDir()
+	writeConfigJSON(t, base, `{"siteSlugs":{"/a":"htmlclay","/b":"htmlclay1"},"retiredSlugs":["htmlclay2"],"nextSiteNumber":4}`)
+
+	cfg, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatalf("load error: %v", err)
+	}
+	if !res.MovedFirstSite {
+		t.Fatal("Load did not report moving the site at htmlclay")
+	}
+	if got := cfg.SiteSlug("/a"); got != "htmlclay3" {
+		t.Errorf("SiteSlug(/a) = %q, want htmlclay3, the next free label", got)
+	}
+	if got := cfg.SiteSlug("/b"); got != "htmlclay1" {
+		t.Errorf("SiteSlug(/b) = %q, want htmlclay1", got)
+	}
+	if key, ok := cfg.SiteKeyForSlug("htmlclay"); ok {
+		t.Errorf("%q still answers at htmlclay", key)
+	}
+	if got := cfg.MovedFirstSiteKey(); got != "/a" {
+		t.Errorf("MovedFirstSiteKey() = %q, want /a", got)
+	}
+	if got := cfg.Writes(); got != 0 {
+		t.Errorf("Load wrote the config %d times; the caller saves", got)
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	reloaded, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatalf("reload error: %v", err)
+	}
+	if res.MovedFirstSite {
+		t.Error("a saved move was made again on the next load")
+	}
+	if got := reloaded.SiteSlug("/a"); got != "htmlclay3" {
+		t.Errorf("after a reload SiteSlug(/a) = %q, want htmlclay3", got)
+	}
+	if got := reloaded.MovedFirstSiteKey(); got != "/a" {
+		t.Errorf("after a reload MovedFirstSiteKey() = %q, want /a", got)
+	}
+	if got := reloaded.AllocateSiteSlug("/c"); got != "htmlclay4" {
+		t.Errorf("AllocateSiteSlug(/c) = %q, want htmlclay4", got)
+	}
+}
+
+// A config whose htmlclay label was retired has no site to move.
+func TestARetiredFirstLabelMovesNothing(t *testing.T) {
+	base := t.TempDir()
+	writeConfigJSON(t, base, `{"siteSlugs":{"/b":"htmlclay1"},"retiredSlugs":["htmlclay"],"nextSiteNumber":3}`)
+
+	cfg, res, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatalf("load error: %v", err)
+	}
+	if res.MovedFirstSite || cfg.MovedFirstSiteKey() != "" {
+		t.Errorf("a retired htmlclay moved a site: %v, %q", res.MovedFirstSite, cfg.MovedFirstSiteKey())
+	}
+	if got := cfg.AllocateSiteSlug("/c"); got != "htmlclay2" {
+		t.Errorf("AllocateSiteSlug(/c) = %q, want htmlclay2", got)
+	}
+}
+
+// A config that ever served a site at htmlclay.localhost gets one mark, which a save
+// keeps; a config that never did gets none.
+func TestFirstSiteOriginIsMarkedOnce(t *testing.T) {
+	served := map[string]string{
+		"a site that moves on this load": `{"siteSlugs":{"/a":"htmlclay","/b":"htmlclay1"},"retiredSlugs":["htmlclay2"],"nextSiteNumber":4}`,
+		"a site an earlier build moved":  `{"siteSlugs":{"/a":"htmlclay3","/b":"htmlclay1"},"retiredSlugs":["htmlclay2"],"nextSiteNumber":5,"movedFirstSite":"/a"}`,
+		"a site whose label was retired": `{"siteSlugs":{"/b":"htmlclay1"},"retiredSlugs":["htmlclay2","htmlclay"],"nextSiteNumber":4}`,
+	}
+	marks := map[string]bool{}
+	for name, body := range served {
+		base := t.TempDir()
+		writeConfigJSON(t, base, body)
+		cfg, res, err := LoadFrom(base, noIdentity)
+		if err != nil {
+			t.Fatalf("%s: load error: %v", name, err)
+		}
+		mark := cfg.CleanMark()
+		if !res.MarkedFirstSiteOrigin || !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(mark) {
+			t.Fatalf("%s: marked %v, mark %q, want 64 hex", name, res.MarkedFirstSiteOrigin, mark)
+		}
+		if marks[mark] {
+			t.Fatalf("%s: two configs were given the same mark", name)
+		}
+		marks[mark] = true
+		if got := cfg.Writes(); got != 0 {
+			t.Errorf("%s: Load wrote the config %d times; the caller saves", name, got)
+		}
+		if err := cfg.Save(); err != nil {
+			t.Fatal(err)
+		}
+		reloaded, res, err := LoadFrom(base, noIdentity)
+		if err != nil {
+			t.Fatalf("%s: reload error: %v", name, err)
+		}
+		if res.MarkedFirstSiteOrigin || reloaded.CleanMark() != mark {
+			t.Errorf("%s: a saved mark was made again on the next load: %v, %q", name, res.MarkedFirstSiteOrigin, reloaded.CleanMark())
+		}
+	}
+
+	never := map[string]string{
+		"an empty config":                 `{}`,
+		"a config with only later labels": `{"siteSlugs":{"/b":"htmlclay1"},"retiredSlugs":["htmlclay2","htmlclay10"],"nextSiteNumber":12}`,
+	}
+	for name, body := range never {
+		base := t.TempDir()
+		writeConfigJSON(t, base, body)
+		cfg, res, err := LoadFrom(base, noIdentity)
+		if err != nil {
+			t.Fatalf("%s: load error: %v", name, err)
+		}
+		if res.MarkedFirstSiteOrigin || cfg.CleanMark() != "" {
+			t.Errorf("%s was marked: %v, %q", name, res.MarkedFirstSiteOrigin, cfg.CleanMark())
+		}
+		if err := cfg.Save(); err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(filepath.Join(DirFrom(base), "config.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(data), "dashboardCleanMark") {
+			t.Errorf("%s: the saved config names a mark: %s", name, data)
+		}
 	}
 }
 
@@ -709,12 +914,12 @@ func TestNamedSlugsDoNotCrowdOutNumberedOnesUnderTheCap(t *testing.T) {
 	base := t.TempDir()
 	slugs := map[string]string{}
 	for i := 1; i <= 10; i++ {
-		slugs[fmt.Sprintf("/n%02d", i)] = numberedSlugFor(i)
+		slugs[fmt.Sprintf("/n%02d", i)] = numberedSlugFor(i + 1)
 	}
 	for i := 0; i < siteSlugCap; i++ {
 		slugs[fmt.Sprintf("/old%02d", i)] = fmt.Sprintf("old-%04x", i)
 	}
-	raw, err := json.Marshal(map[string]any{"siteSlugs": slugs, "nextSiteNumber": 11})
+	raw, err := json.Marshal(map[string]any{"siteSlugs": slugs, "nextSiteNumber": 12})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -724,8 +929,8 @@ func TestNamedSlugsDoNotCrowdOutNumberedOnesUnderTheCap(t *testing.T) {
 		t.Fatalf("load error: %v", err)
 	}
 	for i := 1; i <= 10; i++ {
-		if got := cfg.SiteSlug(fmt.Sprintf("/n%02d", i)); got != numberedSlugFor(i) {
-			t.Errorf("numbered label /n%02d = %q, want %q", i, got, numberedSlugFor(i))
+		if got := cfg.SiteSlug(fmt.Sprintf("/n%02d", i)); got != numberedSlugFor(i+1) {
+			t.Errorf("numbered label /n%02d = %q, want %q", i, got, numberedSlugFor(i+1))
 		}
 	}
 }
@@ -1414,23 +1619,82 @@ func TestDuplicateSlugsKeepTheTrustedOwner(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	writeConfigJSON(t, base, fmt.Sprintf(`{"workspaceFolders":[{"path":%q}],"siteSlugs":{%q:"htmlclay",%q:"htmlclay",%q:"htmlclay1"}}`,
+	writeConfigJSON(t, base, fmt.Sprintf(`{"workspaceFolders":[{"path":%q}],"siteSlugs":{%q:"htmlclay1",%q:"htmlclay1",%q:"htmlclay2"}}`,
 		beta, alpha, beta, gamma))
 
 	cfg, _, err := LoadFrom(base, noIdentity)
 	if err != nil {
 		t.Fatalf("load error: %v", err)
 	}
-	if got := cfg.SiteSlug(beta); got != "htmlclay" {
-		t.Errorf("trusted folder slug = %q, want htmlclay", got)
+	if got := cfg.SiteSlug(beta); got != "htmlclay1" {
+		t.Errorf("trusted folder slug = %q, want htmlclay1", got)
 	}
 	if got := cfg.SiteSlug(alpha); got != "" {
 		t.Errorf("the losing key kept its slug: %q, want none", got)
 	}
-	if got := cfg.SiteSlug(gamma); got != "htmlclay1" {
-		t.Errorf("an unrelated key lost its slug: %q, want htmlclay1", got)
+	if got := cfg.SiteSlug(gamma); got != "htmlclay2" {
+		t.Errorf("an unrelated key lost its slug: %q, want htmlclay2", got)
 	}
-	if !cfg.SlugInUse("htmlclay") {
+	if !cfg.SlugInUse("htmlclay1") {
 		t.Error("the label is still issued, so it must stay in use")
+	}
+}
+
+func TestHeldSavesWriteOnlyOnRelease(t *testing.T) {
+	base := t.TempDir()
+	cfg, _, err := LoadFrom(base, noIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(DirFrom(base), "config.json")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.HoldSaves()
+	cfg.SetStartOnLogin(!cfg.StartOnLoginEnabled())
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := os.ReadFile(path); string(after) != string(before) {
+		t.Fatal("a held save wrote the file")
+	}
+	if err := cfg.ReleaseSaves(false); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := os.ReadFile(path); string(after) != string(before) {
+		t.Fatal("a release without write wrote the file")
+	}
+
+	cfg.HoldSaves()
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.ReleaseSaves(true); err != nil {
+		t.Fatal(err)
+	}
+	owed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(owed) == string(before) {
+		t.Fatal("the owed save never happened")
+	}
+
+	if err := cfg.ReleaseSaves(true); err != nil {
+		t.Fatal(err)
+	}
+	cfg.SetStartOnLogin(!cfg.StartOnLoginEnabled())
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	// Compared against the owed write, not the first one: the flip above restores
+	// the value the first file carried, so the bytes would match it again.
+	if after, _ := os.ReadFile(path); string(after) == string(owed) {
+		t.Fatal("saves after the release must write")
 	}
 }

@@ -35,6 +35,9 @@ type SparkleParams struct {
 	Bundle string
 	// Executable is the running binary inside Bundle.
 	Executable string
+	// Helpers are other programs inside Bundle, relative to it, that the
+	// supervisor stops before a rollback.
+	Helpers []string
 	// OldPID is the process Sparkle is about to quit, normally os.Getpid().
 	OldPID int
 	// HandoffPath is the session handoff already written for To, if any.
@@ -107,6 +110,7 @@ func prepareSparkle(dir string, p SparkleParams) (*State, error) {
 		HandoffPath:  p.HandoffPath,
 		Installer:    InstallerSparkle,
 		Executable:   rel,
+		Helpers:      p.Helpers,
 		Quit:         p.Quit,
 	}
 	if err := writeJSONAtomic(filepath.Join(dir, stateFile), st); err != nil {
@@ -288,6 +292,9 @@ func waitSparkleServing(dir string, st *State, opts SupervisorOptions) string {
 // and the port.
 func stopBundle(dir string, st *State) {
 	pids := runningCopies(filepath.Join(st.InstallPath, st.Executable))
+	for _, helper := range st.Helpers {
+		pids = append(pids, runningCopies(filepath.Join(st.InstallPath, helper))...)
+	}
 	if h, _ := readHealth(dir); h != nil && h.Txid == st.Txid && h.PID > 0 && h.PID != os.Getpid() {
 		pids = append(pids, h.PID)
 	}

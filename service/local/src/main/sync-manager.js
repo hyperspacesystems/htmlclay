@@ -1,0 +1,1090 @@
+const { EventEmitter } = require('events');
+const os = require('os');
+const path = require('upath');
+const crypto = require('crypto');
+const fs = require('fs').promises;
+const fsSync = require('fs');
+const { SyncEngine } = require('../sync-engine');
+const { SyncLogger } = require('../sync-engine/logger');
+const { getAccounts, listNodes } = require('../sync-engine/api-client');
+const { SessionRunner } = require('../sync-engine/reconcile/session-runner');
+const { firstBind, inventoryTotals, BIND_MARKER } = require('../sync-engine/reconcile/first-bind');
+const nodeMap = require('../sync-engine/node-map');
+const { classifyRoot, recordIdentity, rootDirIdentity } = require('../sync-engine/root-marker');
+const { validateRootPath, defaultTeamFolder, allocateTeamPort } = require('./roots');
+const { realpathNearestParent } = require('./utils/path-resolver');
+const { getServerBaseUrl } = require('./utils/utils');
+const { createRootLive } = require('./utils/root-live');
+const { withStructureChange } = require('./utils/write-queue');
+const { RootObserver } = require('./root-observer');
+const { load: loadConflicts, list: listConflicts } = require('../sync-engine/reconcile/conflicts');
+
+const FORWARDED = ['sync-start', 'sync-complete', 'sync-error', 'file-synced', 'sync-stats',
+  'backup-created', 'sync-retry', 'sync-failed'];
+const MAX_CONCURRENT_INITIAL = 2;
+const DISCOVERY_INTERVAL_MS = 5 * 60 * 1000;
+
+async function pathExists(dir) {
+  try {
+    await fs.stat(dir);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function dirIsEmpty(dir) {
+  try {
+    return (await fs.readdir(dir)).length === 0;
+  } catch {
+    return false;
+  }
+}
+
+// CONTRACTS §1: every feature must be on for a session to sync. Any false one
+// is "server update required", never a guess at an older contract.
+const REQUIRED_FEATURES = ['accountScopes', 'accountEvents', 'conditionalContent',
+  'conditionalStructure', 'completeInventory'];
+
+function allFeaturesOn(discovery) {
+  const features = (discovery && discovery.features) || {};
+  return REQUIRED_FEATURES.every((name) => features[name] === true);
+}
+
+/**
+ * The discovery entry a session belongs to. A migrated personal session has no account id
+ * until its import proves it, so it is found by kind (C3 §5.9).
+ */
+function accountFor(discovery, session) {
+  const accounts = (discovery && discovery.accounts) || [];
+  if (session.accountId != null) return accounts.find((a) => a.id === session.accountId);
+  return session.kind === 'personal' ? accounts.find((a) => a.kind === 'personal') : undefined;
+}
+
+/** The engine stamps `lastSyncedAt` as milliseconds; a snapshot carries ISO. */
+function isoOrNull(value) {
+  if (value === null || value === undefined) return null;
+  const at = new Date(typeof value === 'number' ? value : String(value));
+  return Number.isNaN(at.getTime()) ? null : at.toISOString();
+}
+
+class SyncManager extends EventEmitter {
+  constructor({ userData, deviceId, serverUrl, getApiKey, settingsStore, observerFor = null, takeSnapshot = () => null, localAuthority = null, logsDir = null, sealKey = null, holdRoot = () => false }) {
+    super();
+    // v1 settings never stored a server, so the manager falls back to the same default the
+    // engine does; without it discovery asks `null/_/sync/accounts` and every session 428s.
+    // holdRoot(rootId, path) names folders that never sync here: Hyperclay Local's
+    // last release passes the folders that moved to HTML Clay, by id and by path.
+    Object.assign(this, { userData, deviceId, serverUrl: getServerBaseUrl(serverUrl), getApiKey, settingsStore, takeSnapshot, localAuthority, logsDir, sealKey, holdRoot });
+    this.ownObservers = new Map();
+    this.observerFor = observerFor || ((rootId) => this._ownObserver(rootId));
+    this.sessions = new Map();
+    this.initialRunning = 0;
+    this.initialWaiters = [];
+    this.discoveryTimer = null;
+    this.discovery = null;
+    this.lastDiscoveryAt = null;
+    this.keyGeneration = 0;
+  }
+
+  /** The session's own metadata directory, once its legacy one is behind it. */
+  v2MetaDir(session) {
+    return path.join(this.userData, 'sync-meta', 'v2', session.id);
+  }
+
+  metaDirFor(session) {
+    return session.legacyMetaDir
+      ? path.join(this.userData, 'sync-meta', session.legacyMetaDir)
+      : this.v2MetaDir(session);
+  }
+
+  /**
+   * C3 §5.9 step 5: the legacy import proved the session's identity, so the
+   * personal session takes the account discovery named it and moves to its v2
+   * directory. `metaDirFor` answers with `sync-meta/v2/<sessionId>/` from here.
+   */
+  adoptLegacyIdentity(session, { accountId }) {
+    session.accountId = accountId;
+    session.legacyMetaDir = null;
+    this.settingsStore.save(this.settingsStore.get());
+  }
+
+  /**
+   * C3 §5.9 step 1: the account id a protocol 2 session has to name on every
+   * request, resolved from discovery for a session whose engine has none yet (a
+   * migrated personal session, until its import persists one). Nothing is
+   * written here: the import's own step 5 is what makes the id durable. A
+   * refresh that fails propagates as-is — the runner classifies it as offline
+   * and backs off — and a discovery that names no such account is `not-found`.
+   */
+  async resolveAccountId(entry) {
+    if (entry.session.accountId != null) return entry.session.accountId;
+    const discovery = await this.refreshAccounts();
+    const personal = entry.session.kind === 'personal'
+      ? discovery.accounts.find((a) => a.kind === 'personal')
+      : null;
+    if (!personal) throw Object.assign(new Error('personal account not in discovery'), { statusCode: 404, code: 'not-found' });
+    return personal.id;
+  }
+
+  /**
+   * C3.8: what this session's first pass is. A migrated personal session whose
+   * legacy metadata is not imported yet imports it (C3 §5.9); a team session
+   * whose bind was interrupted by a quit resumes that bind (C3 §5.8); every
+   * other session reconciles normally.
+   */
+  async firstPassFor(session) {
+    if (session.legacyMetaDir) return 'import';
+    return await pathExists(path.join(this.metaDirFor(session), BIND_MARKER)) ? 'bind' : null;
+  }
+
+  async start(session, root, { syncBase = '/_/sync', protocol = 1, firstBind = false, uploadLimit = null } = {}) {
+    if (this.sessions.has(session.id)) return { success: true };
+    const apiKey = this.getApiKey();
+    if (!apiKey) return { success: false, error: 'no-key' };
+
+    const metaDir = this.metaDirFor(session);
+    const setup = firstBind === true;
+    const resumed = setup ? null : await this.firstPassFor(session);
+    // CONTRACTS §6-7: a missing folder or another identity's metadata pauses the session before
+    // anything reads its baseline or its disk; a folder that came back clears its own pause.
+    let rootMarker = false;
+    let rootDir = null;
+    let refused = false;
+    if (!setup) {
+      const refusal = await this.localRefusal(session, root, resumed);
+      if (refusal) { this.persistPaused(session.id, refusal); refused = true; }
+      else if (['folder-missing', 'folder-replaced', 'identity-mismatch'].includes(this.pausedReasonFor(session))) this.persistPaused(session.id, null);
+      const identity = await this.readIdentity(session);
+      rootMarker = identity?.rootMarker === true;
+      rootDir = identity?.rootDir ?? null;
+    }
+    // A bind and an import own the session's first pass, so init runs no passes
+    // and opens no stream of its own. Both read the complete inventory only
+    // protocol 2 lists, and the import works in the session's v2 directory
+    // while `legacyMetaDir` still points at the legacy one.
+    const ownsFirstPass = setup || resumed !== null;
+    // C3.11: a session already paused waits for `onDiscovery`, so init runs no
+    // pass and opens nothing for it either — nothing is downloaded or uploaded
+    // until its runner is resumed.
+    const noInitPasses = ownsFirstPass || this.pausedReasonFor(session) !== null;
+
+    const logger = new SyncLogger();
+    await logger.init(root.path, { subdir: session.id, logsDir: this.logsDir });
+    const engine = new SyncEngine();
+    engine.setLogger(logger);
+    const tags = { sessionId: session.id, rootId: root.id, accountId: session.accountId };
+    const listeners = FORWARDED.map((name) => {
+      const fn = (data) => this.emit(name, { ...data, ...tags });
+      engine.on(name, fn);
+      return [name, fn];
+    });
+    const observer = this.observerFor(root.id);
+    observer.setRemoteApplyCheck((rel) => engine.isRecentRemoteApply(rel));
+    const entry = { session, root, engine, logger, listeners, observer, runner: null, conflicts: [] };
+    this.sessions.set(session.id, entry);
+    await this._refreshConflicts(entry);
+    // The executor emits `file-synced { action: 'conflict' }` when it records a
+    // conflict (C3 §5.6); the cache follows that event, so the cards do too.
+    const conflictListener = (data) => {
+      if (!data || data.action !== 'conflict') return;
+      this._refreshConflicts(entry).catch((error) => {
+        if (entry.logger) entry.logger.error('SYNC', 'Could not refresh conflict records', { error: error.message });
+      });
+    };
+    engine.on('file-synced', conflictListener);
+    listeners.push(['file-synced', conflictListener]);
+    // An attachment kept here because the plan refuses its size changes the card,
+    // so the popover redraws on the engine's own event.
+    const blocksListener = () => this.emit('status-changed', {
+      sessionId: entry.session.id, rootId: entry.root.id, accountId: entry.session.accountId,
+    });
+    engine.on('upload-blocks-changed', blocksListener);
+    listeners.push(['upload-blocks-changed', blocksListener]);
+    // The session's stream belongs to its runner (C3.7), so it is attached
+    // before init: init opens the legacy transport only when no runner exists.
+    this.attachRunner(entry);
+    if (resumed === 'import') {
+      // The legacy directory stays read-only: the import converts into the
+      // session's v2 directory and only `identity.json` moves the session to it
+      // (5.9 steps 2 to 5).
+      engine.legacyImport = {
+        entry,
+        options: {
+          legacyDir: metaDir,
+          metaDir: this.v2MetaDir(session),
+          persist: (identity) => this.adoptLegacyIdentity(session, identity),
+        },
+      };
+    }
+
+    // C3 §5.9 step 1, as the runner does for its stream: a protocol 2 session names its
+    // account on every request, init's own included. A migrated personal session has no id
+    // until its import persists one, so discovery names it; if that fails, init runs as
+    // before and the runner resolves it again.
+    const effectiveProtocol = ownsFirstPass ? 2 : protocol;
+    let accountId = session.accountId;
+    if (effectiveProtocol === 2 && accountId == null) {
+      try {
+        accountId = await this.resolveAccountId(entry);
+      } catch {
+        accountId = null;
+      }
+    }
+
+    // The session is its own owner of the root's authority registration: a root
+    // whose server stops mid-session stays registered for as long as this session
+    // runs. A refused or missing folder has no canonical path to register.
+    if (!refused && this.localAuthority) {
+      let canonicalPath = null;
+      try {
+        canonicalPath = path.resolve(await fs.realpath(root.path));
+      } catch {
+        canonicalPath = null;
+      }
+      if (canonicalPath) {
+        await withStructureChange(() => this.localAuthority.registerRoot({ ...root, canonicalPath }, { owner: session.id }));
+      }
+    }
+
+    await this._acquireInitialSlot();
+    try {
+      const result = await engine.init(apiKey, session.cached?.username, root.path, this.serverUrl,
+        this.deviceId, resumed === 'import' ? this.v2MetaDir(session) : metaDir, {
+          sessionId: session.id, accountId, rootId: root.id, rootMarker, rootDir,
+          syncBase, protocol: effectiveProtocol, firstBind: noInitPasses, uploadLimit,
+          createFolder: setup,
+          live: createRootLive(root),
+          snapshots: { take: (rel) => this.takeSnapshot(rel, root.id) },
+          observer,
+          localAuthority: this.localAuthority,
+          logger,
+          sealKey: this.sealKey,
+        });
+      if (!result.success) {
+        await this.stop(session.id);
+        return result;
+      }
+      // A bind saved by an earlier launch is this session's own pass again:
+      // the files already there are adopted, the rest is downloaded.
+      if (resumed === 'bind') {
+        const bind = await this.runBind(entry, {
+          metaDir,
+          onProgress: (progress) => this.emit('sync-progress', progress),
+        }, { drop: false });
+        if (!bind.ok) {
+          if (this.sessions.get(session.id) !== entry) return { success: false, error: bind.error };
+          await this.stop(session.id);
+          return { success: false, error: bind.error, reason: bind.reason };
+        }
+      }
+      // A first bind is the session's own pass over an empty folder and starts
+      // the runner when it is done; every other session runs its runner now.
+      if (!setup && this.sessions.get(session.id) === entry) this.startRunner(entry);
+      return result;
+    } finally {
+      this._releaseInitialSlot();
+    }
+  }
+
+  /** `identity.json`, or null when the session has none yet or it cannot be read. */
+  async readIdentity(session) {
+    try {
+      return JSON.parse(await fs.readFile(path.join(this.metaDirFor(session), 'identity.json'), 'utf8'));
+    } catch {
+      return null;
+    }
+  }
+
+  async localRefusal(session, root, resumed) {
+    if (!(await pathExists(root.path))) return 'folder-missing';
+    if (resumed === 'import') return null;
+    const identity = await this.readIdentity(session);
+    if (!identity) return null;
+    const expected = {
+      serverUrl: this.serverUrl,
+      actorId: this.settingsStore.get().actor?.id,
+      accountId: session.accountId,
+      rootId: root.id,
+      // A marked folder is proved by its marker (classifyRoot, below), so one found
+      // again at a new path is still the folder its session synced.
+      rootRealpath: identity.rootMarker === true ? null : await fs.realpath(root.path),
+    };
+    for (const [field, value] of Object.entries(expected)) {
+      if (value == null || identity[field] == null) continue;
+      if (String(identity[field]) !== String(value)) return 'identity-mismatch';
+    }
+    // The folder has to be the one the session was bound to (root-marker.js). The engine is
+    // what adopts an unmarked folder; here the session is only refused or let through.
+    const baseline = await nodeMap.load(this.metaDirFor(session));
+    return classifyRoot(root.path, {
+      rootId: root.id,
+      required: identity.rootMarker === true,
+      baselineSize: baseline ? baseline.size : 0,
+    }).refusal;
+  }
+
+  /**
+   * C3.11: every saved session starts — at launch and whenever sync is switched
+   * on — under protocol 2, with the `syncBase` discovery names. Offline, a
+   * session falls back to the base its kind and cached username imply and
+   * `rediscover` corrects it later; offline is logged, never thrown.
+   *
+   * A session discovery refuses is persisted paused first, so its entry starts
+   * with the runner in `paused` (no stream, no pass) and `onDiscovery` can
+   * resume it from there.
+   */
+  async startEnabledSessions() {
+    let discovery = null;
+    try {
+      discovery = await this.refreshAccounts();
+    } catch (error) {
+      console.error('[SYNC] Discovery refresh failed:', error.message);
+    }
+
+    const settings = this.settingsStore.get();
+    const roots = settings.roots || [];
+    for (const session of settings.syncSessions || []) {
+      const root = roots.find((r) => r.id === session.rootId);
+      if (!root) {
+        console.warn(`[SYNC] No root ${session.rootId} for session ${session.id}; not starting it`);
+        continue;
+      }
+      if (this.sessions.has(session.id)) continue;
+      if (this.holdRoot(root.id, root.path)) continue;
+
+      // A personal session discovery never identified is found by kind: C3.8's
+      // import is what proves its identity, and it has no account id until then.
+      const account = discovery && accountFor(discovery, session);
+      const syncBase = account?.syncBase
+        ?? (session.kind === 'personal' ? '/_/sync' : `/_/team/${session.cached?.username}/sync`);
+
+      if (discovery && session.paused?.reason === 'key-revoked') this.persistPaused(session.id, null);
+      if (discovery && !allFeaturesOn(discovery)) {
+        this.persistPaused(session.id, 'server-update-required');
+      } else if (discovery && !account) {
+        this.persistPaused(session.id, session.kind === 'personal' ? 'unavailable' : 'removed');
+      } else if (discovery && !account.sync.enabled) {
+        this.persistPaused(session.id, account.sync.reason);
+      }
+
+      // C3.11: one session's failure is its own. The rest still start, and what
+      // failed is logged rather than thrown out of the launch.
+      try {
+        const result = await this.start(session, root, { syncBase, protocol: 2, uploadLimit: account?.limits?.uploadBytes });
+        const entry = this.sessions.get(session.id);
+        if (entry) this.applyLimits(entry, account);
+        if (!result.success) {
+          console.error(`[SYNC] Session ${session.id} did not start:`, result.error);
+        }
+      } catch (error) {
+        console.error(`[SYNC] Session ${session.id} failed to start:`, error.message);
+      }
+    }
+
+    return this.statuses();
+  }
+
+  /** Discovery's per-file cap for this session's account, when the server sent one. */
+  applyLimits(entry, account) {
+    const bytes = account && account.limits && account.limits.uploadBytes;
+    if (Number.isFinite(bytes) && bytes > 0) {
+      entry.engine.setUploadLimit(bytes).catch((error) => entry.logger?.error?.('SYNC', 'Saving the upload cap failed', { error }));
+    }
+  }
+
+  /** The reason a session's runner starts paused for, if it is paused at all. */
+  pausedReasonFor(session) {
+    return session.paused && session.paused.reason ? session.paused.reason : null;
+  }
+
+  /**
+   * C3 §5.6: one state machine per session, owned by the entry and the engine.
+   * It opens the session's stream, reconciles once `sync-ready` arrives, turns
+   * live frames into invalidations and classifies every failure into the next
+   * state.
+   */
+  attachRunner(entry) {
+    const { engine } = entry;
+    const runner = new SessionRunner({
+      engine,
+      api: { listNodes: (options) => listNodes(engine.conn, options) },
+      stream: engine.stream,
+      manager: this,
+      // C3.12: the runner resolves a session's account id from discovery before
+      // it opens a protocol 2 stream, and it resolves it through the entry.
+      entry,
+    });
+    entry.runner = runner;
+    engine.runner = runner;
+    // C3 §5.6: every state the runner reaches is a card the popover redraws.
+    runner.on('state', (state) => this.emit('status-changed', {
+      sessionId: entry.session.id, rootId: entry.root.id, accountId: entry.session.accountId, state,
+    }));
+    return runner;
+  }
+
+  /**
+   * Start the entry's runner. Not awaited: the session is live while it
+   * reconciles. A session discovery paused before its start takes the paused
+   * state without a stream, and without rewriting the reason it already carries.
+   */
+  startRunner(entry) {
+    const runner = entry.runner || this.attachRunner(entry);
+    const paused = this.pausedReasonFor(entry.session);
+    if (paused) {
+      runner.pause(paused, { persist: false });
+      return runner;
+    }
+    runner.start().catch((error) => {
+      if (entry.logger) entry.logger.error('SYNC', 'Session runner failed', { error: error.message });
+    });
+    return runner;
+  }
+
+  async stop(sessionId) {
+    const entry = this.sessions.get(sessionId);
+    if (!entry) return { success: true };
+    this.sessions.delete(sessionId);
+    if (entry.bindAbort) entry.bindAbort.abort();
+    if (entry.runner) {
+      entry.runner.stop();
+      entry.engine.runner = null;
+    }
+    entry.observer.setRemoteApplyCheck(null);
+    const result = await entry.engine.stop();
+    // Only this session's owner goes: another session, or the root's own server,
+    // keeps its registration and rooms.
+    if (this.localAuthority) {
+      await withStructureChange(() => this.localAuthority.closeRoot(entry.root.id, { owner: entry.session.id }));
+    }
+    entry.engine.clearApiKey();
+    for (const [name, fn] of entry.listeners) entry.engine.off(name, fn);
+    return result;
+  }
+
+  async stopAll() {
+    for (const id of [...this.sessions.keys()]) await this.stop(id);
+    for (const obs of this.ownObservers.values()) await obs.stop();
+    this.ownObservers.clear();
+  }
+
+  // Used only when no observerFor is injected (C6's plain-Node driver, tests).
+  _ownObserver(rootId) {
+    let obs = this.ownObservers.get(rootId);
+    if (!obs) {
+      const root = this.settingsStore.get().roots.find((r) => r.id === rootId);
+      obs = new RootObserver(root, { live: createRootLive(root), localAuthority: this.localAuthority });
+      obs.start();
+      this.ownObservers.set(rootId, obs);
+    }
+    return obs;
+  }
+  get(sessionId) { return this.sessions.get(sessionId)?.engine || null; }
+  forRoot(rootId) {
+    for (const entry of this.sessions.values()) if (entry.root.id === rootId) return entry.engine;
+    return null;
+  }
+  /**
+   * C3 §5.6: one status per session for the popover's cards. Synchronous by
+   * contract, so the open conflicts come from the entry's cache, not the disk.
+   */
+  statuses() {
+    return [...this.sessions.values()].map((entry) => {
+      const { session, root, engine } = entry;
+      return {
+        sessionId: session.id, rootId: root.id, accountId: session.accountId,
+        running: engine.isRunning, lastSync: engine.lastSyncedAt, stats: engine.stats,
+        status: this._statusFor(entry),
+        paused: session.paused ?? null,
+        pendingCount: engine.syncQueue ? engine.syncQueue.length() : 0,
+        conflicts: entry.conflicts || [],
+        blocked: this._blockedFor(entry),
+        lastSyncAt: isoOrNull(engine.lastSyncedAt),
+        lastError: (entry.runner && entry.runner.lastError) || null,
+      };
+    });
+  }
+
+  /**
+   * Files kept here because the plan refused them: a `too-large` record counts
+   * only while the file it names is still on disk, unchanged and over the cap it
+   * was recorded under; a `file-limit`, `not-text` or `case-twin` record counts while the file is on disk.
+   * Any other record is stale and dropped here.
+   */
+  _blockedFor(entry) {
+    const list = typeof entry.engine.blockedUploads === 'function' ? entry.engine.blockedUploads() : [];
+    const blocked = [];
+    for (const file of list) {
+      if (file.reason === 'file-limit' || file.reason === 'not-text' || file.reason === 'case-twin') {
+        let present = false;
+        try {
+          present = fsSync.statSync(path.join(entry.root.path, file.path)).isFile();
+        } catch {
+          present = false;
+        }
+        if (!present) {
+          entry.engine.clearUploadBlock(file.path).catch(() => {});
+          continue;
+        }
+        blocked.push(file);
+        continue;
+      }
+      let size = null;
+      try {
+        const stat = fsSync.statSync(path.join(entry.root.path, file.path));
+        if (stat.isFile()) size = stat.size;
+      } catch {
+        size = null;
+      }
+      if (size !== file.bytes || !(file.bytes > file.limit)) {
+        entry.engine.clearUploadBlock(file.path).catch(() => {});
+        continue;
+      }
+      blocked.push(file);
+    }
+    return blocked;
+  }
+
+  /**
+   * C3 §5.6: an open conflict record outranks the runner; a live session with
+   * an empty queue is idle, any other work is syncing, and every other state is
+   * the runner's own.
+   */
+  _statusFor(entry) {
+    if (entry.conflicts && entry.conflicts.length > 0) return 'conflict';
+    // A first download holds the session before its runner starts: it is syncing, not idle.
+    if (entry.bindAbort) return 'syncing';
+    const state = entry.runner ? entry.runner.state : 'stopped';
+    if (state === 'live') {
+      const queued = entry.engine.syncQueue ? entry.engine.syncQueue.length() : 0;
+      return queued > 0 ? 'syncing' : 'idle';
+    }
+    if (state === 'starting' || state === 'reconciling') return 'syncing';
+    if (state === 'paused' || state === 'offline' || state === 'error') return state;
+    return 'idle';
+  }
+
+  /**
+   * C6: what a supervisor reads without reaching into the manager (the
+   * round-trip driver, C4's `buildSnapshot`). Discovery is reduced to the
+   * fields a caller may see, which is how the API key stays out of it.
+   */
+  snapshot() {
+    const { roots, syncSessions } = this.settingsStore.get();
+    return {
+      sessions: this.statuses(),
+      discovery: this.discovery ? {
+        accounts: (this.discovery.accounts || []).map(({ id, username, kind, role, sync }) => ({ id, username, kind, role, sync })),
+      } : null,
+      settings: { roots, syncSessions },
+    };
+  }
+
+  /**
+   * C6: every session at rest — idle, paused, or waiting on a conflict with
+   * nothing queued — and no initial pass still in flight, since a bind has no
+   * runner state of its own to say so. The caller gets `snapshot()`, so what it
+   * waited for and what it asserts on are the same thing.
+   */
+  whenAllIdle({ timeoutMs = 20_000 } = {}) {
+    return new Promise((resolve, reject) => {
+      let timer = null;
+      let poll = null;
+      const done = () => {
+        clearTimeout(timer);
+        clearInterval(poll);
+        this.off('status-changed', check);
+      };
+      const check = () => {
+        if (!this._allIdle()) return;
+        done();
+        resolve(this.snapshot());
+      };
+      timer = setTimeout(() => {
+        done();
+        reject(new Error('whenAllIdle timeout: ' + JSON.stringify(this.snapshot())));
+      }, timeoutMs);
+      poll = setInterval(check, 100);
+      this.on('status-changed', check);
+      check();
+    });
+  }
+
+  _allIdle() {
+    if (this.initialRunning > 0) return false;
+    return this.statuses().every((status) => {
+      if (status.pendingCount > 0) return false;
+      return status.status === 'idle' || status.status === 'paused' || status.status === 'conflict';
+    });
+  }
+
+  /**
+   * The update drain's test, stricter than `_allIdle` (which the round-trip
+   * driver relies on and stays as it is): no initial pass or bind running or
+   * waiting, no session starting or reconciling, and no engine holding work
+   * anywhere `stopAll` would drop it. An offline or errored session with
+   * pending work is not quiescent.
+   */
+  updateQuiescent() {
+    if (this.initialRunning > 0 || this.initialWaiters.length > 0) return false;
+    for (const entry of this.sessions.values()) {
+      if (entry.bindAbort) return false;
+      if (this._statusFor(entry) === 'syncing') return false;
+      if (entry.engine.hasUnsettledWork()) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Resolves true once `updateQuiescent()` has held for `settleMs`, longer than
+   * the watcher's write stabilization, so a save made just before the click has
+   * reached the engine; resolves false at `timeoutMs`. Never stops anything.
+   */
+  whenQuiescentForUpdate({ timeoutMs = 30_000, settleMs = 1_500, pollMs = 100 } = {}) {
+    return new Promise((resolve) => {
+      const startedAt = Date.now();
+      let quietSince = null;
+      let poll = null;
+      const finish = (quiet) => {
+        clearInterval(poll);
+        resolve(quiet);
+      };
+      const tick = () => {
+        const now = Date.now();
+        if (!this.updateQuiescent()) quietSince = null;
+        else if (quietSince === null) quietSince = now;
+        if (quietSince !== null && now - quietSince >= settleMs) return finish(true);
+        if (now - startedAt >= timeoutMs) return finish(false);
+      };
+      poll = setInterval(tick, pollMs);
+      tick();
+    });
+  }
+
+  /**
+   * C3 §5.6: the conflict records behind `statuses()`, in memory because
+   * `statuses()` is synchronous. Read at start, and again whenever the executor
+   * records a conflict or the user resolves one.
+   */
+  async _refreshConflicts(entry) {
+    let records;
+    try {
+      records = await loadConflicts(this.metaDirFor(entry.session));
+    } catch (error) {
+      if (entry.logger) entry.logger.error('SYNC', 'Could not read conflict records', { error: error.message });
+      return;
+    }
+    const next = listConflicts(records).map(({ path, kind }) => ({ path, kind }));
+    const changed = JSON.stringify(next) !== JSON.stringify(entry.conflicts || []);
+    entry.conflicts = next;
+    if (changed) {
+      this.emit('status-changed', {
+        sessionId: entry.session.id, rootId: entry.root.id, accountId: entry.session.accountId,
+      });
+    }
+  }
+
+  /** C3 §5.7: `resolve-conflict` goes through here, so the cache follows the choice. */
+  async resolveConflict({ sessionId, path, choice } = {}) {
+    const entry = this.sessions.get(sessionId);
+    if (!entry) return { ok: false, error: 'unknown' };
+    const { resolveConflict: resolve } = require('../sync-engine/reconcile/execute');
+    const result = await entry.engine.serial(() => resolve(entry.engine, { path, choice }));
+    await this._refreshConflicts(entry);
+    return result;
+  }
+
+  async resolveMassDelete({ sessionId, choice } = {}) {
+    const entry = this.sessions.get(sessionId);
+    if (!entry) return { ok: false, error: 'unknown' };
+    await entry.engine.resolveMassDelete(choice);
+    return { ok: true };
+  }
+
+  /**
+   * Discovery (CONTRACTS §1): the account list every session's eligibility
+   * comes from. Runs the reconnect sequence after every refresh.
+   */
+  async refreshAccounts() {
+    const generation = this.keyGeneration;
+    let res;
+    try {
+      res = await getAccounts({ serverUrl: this.serverUrl, apiKey: this.getApiKey() });
+    } catch (error) {
+      // An old key's failure says nothing about the key in use now.
+      if (generation !== this.keyGeneration) return this.discovery;
+      if (error && (error.statusCode === 401 || error.statusCode === 403)) this.emit('credentials-rejected', error);
+      throw error;
+    }
+    // An answer made with a key that has since changed or been removed describes someone
+    // who may no longer be signed in here.
+    if (generation !== this.keyGeneration) return this.discovery;
+    this.discovery = res;
+    this.lastDiscoveryAt = Date.now();
+    this.emit('accounts', res);
+    this.onDiscovery(res);
+    return res;
+  }
+
+  /**
+   * C3 §5.8: the popover's own trigger. A refresh inside the last thirty
+   * seconds already answers, so opening the popover costs no request of its own.
+   */
+  async refreshAccountsIfStale(maxAgeMs = 30_000) {
+    if (Date.now() - (this.lastDiscoveryAt || 0) < maxAgeMs) return this.discovery;
+    return this.refreshAccounts();
+  }
+
+  /**
+   * C3 §5.8: discovery every five minutes while sync is on, so a paused
+   * session resumes or a new team appears without a keystroke. Unref'd: a timer
+   * never holds the app open.
+   */
+  startDiscoveryTimer() {
+    if (this.discoveryTimer) return;
+    const settings = this.settingsStore.get();
+    const profileOn = !!(settings.profile && settings.profile.enabled === true);
+    if ((settings.syncEnabled !== true && !profileOn) || !this.getApiKey()) return;
+    this.discoveryTimer = setInterval(() => {
+      this.refreshAccounts().catch((error) => {
+        console.error('[SYNC] Discovery refresh failed:', error.message);
+      });
+    }, DISCOVERY_INTERVAL_MS);
+    this.discoveryTimer.unref?.();
+  }
+
+  stopDiscoveryTimer() {
+    if (!this.discoveryTimer) return;
+    clearInterval(this.discoveryTimer);
+    this.discoveryTimer = null;
+  }
+
+  /** C3.11: a session discovery refuses is persisted before it has an entry. */
+  persistPaused(sessionId, reason) {
+    const settings = this.settingsStore.get();
+    const session = this.sessions.get(sessionId)?.session
+      || (settings.syncSessions || []).find((s) => s.id === sessionId);
+    if (!session) return;
+    session.paused = reason ? { reason, since: new Date().toISOString() } : null;
+    this.settingsStore.save(settings);
+  }
+
+  /** Rename is a rebind: same session, root, node map and baseline — a new sync base. */
+  rebind(entry, account) {
+    entry.session.cached = { username: account.username, displayName: account.displayName, role: account.role };
+    entry.engine.syncBase = account.syncBase;
+    this.settingsStore.save(this.settingsStore.get());
+  }
+
+  /**
+   * A refusal that may be a stale permission: ask discovery again and let its
+   * answer decide — enabled resumes, absent pauses with `removed`, a second
+   * `forbidden` pauses instead of looping.
+   */
+  async rediscover({ reason, sessionId }) {
+    const discovery = await this.refreshAccounts();
+    const entry = this.sessions.get(sessionId);
+    if (!entry) return;
+    const account = accountFor(discovery, entry.session);
+    if (!account) return entry.runner?.pause(reason === 'unavailable' ? 'unavailable' : 'removed');
+    if (!account.sync.enabled) return entry.runner?.pause(account.sync.reason);
+    this.rebind(entry, account);
+    if (reason === 'forbidden' && entry.lastRediscoverReason === 'forbidden') {
+      entry.lastRediscoverReason = null;
+      return entry.runner?.pause('forbidden');
+    }
+    entry.lastRediscoverReason = reason;
+    return entry.runner?.start();
+  }
+
+  /**
+   * `set-api-key` saved a new key (and maybe a new server): every engine takes it, and the
+   * next discovery resumes what the old key paused.
+   */
+  adoptKey({ serverUrl } = {}) {
+    this.keyGeneration += 1;
+    if (serverUrl) this.serverUrl = serverUrl;
+    const apiKey = this.getApiKey();
+    for (const entry of this.sessions.values()) entry.engine.apiKey = apiKey;
+  }
+
+  /** Sign-out: the next answer starts from nothing, and one already in flight is ignored. */
+  forgetKey() {
+    this.keyGeneration += 1;
+    this.discovery = null;
+    this.lastDiscoveryAt = 0;
+  }
+
+  pauseAll(reason) {
+    for (const entry of this.sessions.values()) entry.runner?.pause(reason);
+  }
+
+  /**
+   * After every discovery refresh (launch, wake, the five minute timer, the
+   * popover, `account-changed`, a new key): a paused session whose cause is gone
+   * resumes. A discovery that answered was made with the current key, so it is
+   * what proves `key-revoked` over; `port-taken` belongs to C1.
+   */
+  onDiscovery(discovery) {
+    for (const entry of this.sessions.values()) {
+      this.applyLimits(entry, accountFor(discovery, entry.session));
+      // One discovery refresh is also the retry for sites held at the plan's
+      // file limit: an upgrade or a deletion online is picked up within it.
+      if (entry.runner?.state === 'live') entry.engine.retryFileLimitBlocks?.();
+      if (!entry.runner || entry.runner.state !== 'paused') continue;
+      const reason = entry.session.paused?.reason;
+      if (reason === 'port-taken') continue;
+      if (reason === 'identity-mismatch') continue;
+      if (reason === 'folder-replaced') continue;
+      if (reason === 'folder-missing' && !entry.engine.rootPresent()) continue;
+      if (!allFeaturesOn(discovery)) continue;
+      const account = accountFor(discovery, entry.session);
+      if (!account?.sync.enabled) continue;
+      // This discovery answered with the current key, so a key-revoked pause is over and the
+      // engine drops the key it was started with.
+      entry.engine.apiKey = this.getApiKey();
+      this.rebind(entry, account);
+      entry.runner.resume();
+    }
+  }
+
+  /**
+   * C3 §5.8: create the team root and session for one account and bind them.
+   * `folder` omitted takes C1's suggested default. The root serves and the
+   * files are on disk only once `firstBind` is done; a refusal before the bind
+   * marker exists drops what this created, an interrupted bind keeps it so the
+   * next start can resume it instead of downloading everything again.
+   */
+  setupTeam(options) {
+    const run = (this.setupChain || Promise.resolve()).then(() => this._setupTeam(options));
+    this.setupChain = run.catch(() => {});
+    return run;
+  }
+
+  async _setupTeam({
+    accountId,
+    folder,
+    trusted,
+    realPathOf = realpathNearestParent,
+    home = os.homedir(),
+    exists = pathExists,
+    isEmptyDir = dirIsEmpty,
+    isFree,
+    random = Math.random,
+  } = {}) {
+    if (trusted !== true) return { ok: false, error: 'untrusted' };
+
+    let discovery;
+    try {
+      discovery = await this.refreshAccounts();
+    } catch (error) {
+      return { ok: false, error: error.statusCode ? `http-${error.statusCode}` : 'offline' };
+    }
+    if (!allFeaturesOn(discovery)) return { ok: false, error: 'server-update-required' };
+    const account = ((discovery && discovery.accounts) || []).find((a) => a.id === accountId);
+    if (!account) return { ok: false, error: 'not-found' };
+    if (!account.sync || account.sync.enabled !== true) {
+      return { ok: false, error: (account.sync && account.sync.reason) || 'forbidden' };
+    }
+
+    const settings = this.settingsStore.get();
+    const roots = settings.roots || [];
+    const chosen = folder || await defaultTeamFolder(account.username, roots, { realPathOf, home, exists, isEmptyDir });
+    if (!chosen) return { ok: false, error: 'no-folder' };
+    const check = await validateRootPath(chosen, roots, { realPathOf, home });
+    if (!check.ok) return { ok: false, error: check.reason };
+
+    const root = {
+      id: crypto.randomUUID(),
+      kind: 'team',
+      path: check.path,
+      port: await allocateTeamPort(roots, { isFree, random }),
+      trustedAt: new Date().toISOString(),
+      formerAccount: null,
+    };
+    const session = {
+      id: crypto.randomUUID(),
+      rootId: root.id,
+      accountId,
+      kind: 'team',
+      cached: { username: account.username, displayName: account.displayName, role: account.role },
+      paused: null,
+      legacyMetaDir: null,
+    };
+
+    return this.bind({ session, root, account, actorId: discovery.actor && discovery.actor.id });
+  }
+
+  /**
+   * Save one root and its session, start the session and bind it. `mode: 'new'` (the
+   * default) runs the first bind, which reports progress and checks the disk before it
+   * writes; `mode: 'existing'` starts the session as a returning one, with no first bind.
+   */
+  async bind({ session, root, account, mode = 'new', actorId = this.discovery?.actor?.id }) {
+    if (this.holdRoot(root.id, root.path)) {
+      const error = new Error('This folder moved to HTML Clay, which syncs it now.');
+      error.code = 'folder-moved';
+      throw error;
+    }
+    const settings = this.settingsStore.get();
+    settings.roots = [...(settings.roots || []), root];
+    settings.syncSessions = [...(settings.syncSessions || []), session];
+    this.settingsStore.save(settings);
+    this.emit('roots-changed', { roots: settings.roots });
+
+    const firstBind = mode !== 'existing';
+    // A folder linked with its files already in it is this session's from now on: the
+    // identity is written before anything runs, and the runner marks the folder as it starts.
+    if (!firstBind) {
+      recordIdentity(this.metaDirFor(session), {
+        serverUrl: this.serverUrl,
+        actorId: actorId ?? null,
+        accountId: session.accountId ?? null,
+        rootId: root.id ?? null,
+        rootRealpath: await fs.realpath(root.path).catch(() => root.path),
+        rootDir: rootDirIdentity(root.path),
+      });
+    }
+    // On a first bind the engine exists but reconciles nothing: the bind is its first pass.
+    const started = await this.start(session, root, { syncBase: account.syncBase, protocol: 2, firstBind, uploadLimit: account?.limits?.uploadBytes });
+    if (!started.success) {
+      this._dropSession(session, root);
+      return { ok: false, error: started.error || 'no-key' };
+    }
+
+    const entry = this.sessions.get(session.id);
+    if (!entry) return { ok: false, error: 'cancelled', resumable: true };
+    if (!firstBind) {
+      this.startRunner(entry);
+      return { ok: true };
+    }
+    const result = await this.runBind(entry, {
+      account,
+      actorId,
+      metaDir: this.metaDirFor(session),
+      onProgress: (progress) => this.emit('sync-progress', progress),
+    });
+
+    if (result.ok && this.sessions.get(session.id) === entry) this.startRunner(entry);
+    return result;
+  }
+
+  /**
+   * C3 §5.8: run one session's first bind — a team setup, or a bind a quit left
+   * half done — under one of C2's two initial slots, so no more than two binds
+   * download at once. A refusal that wrote nothing drops a freshly created
+   * session; `drop: false` keeps a saved one for the next start.
+   */
+  async runBind(entry, options, { drop = true } = {}) {
+    const { session, root } = entry;
+    const bindAbort = new AbortController();
+    entry.bindAbort = bindAbort;
+    await this._acquireInitialSlot();
+    let result;
+    try {
+      result = bindAbort.signal.aborted
+        ? { ok: false, error: 'cancelled', resumable: true }
+        : await firstBind(entry, { ...options, signal: bindAbort.signal });
+    } finally {
+      this._releaseInitialSlot();
+      entry.bindAbort = null;
+    }
+
+    if (!result.ok && drop) {
+      await this.stop(session.id);
+      if (!result.resumable) this._dropSession(session, root);
+    }
+    return result;
+  }
+
+  /** Undo a setup that refused: nothing was downloaded, so nothing is kept. */
+  _dropSession(session, root) {
+    const settings = this.settingsStore.get();
+    settings.roots = (settings.roots || []).filter((r) => r.id !== root.id);
+    settings.syncSessions = (settings.syncSessions || []).filter((s) => s.id !== session.id);
+    this.settingsStore.save(settings);
+    this.emit('roots-changed', { roots: settings.roots });
+  }
+
+  /**
+   * C3 §5.8: what setting this team up would download — one complete
+   * inventory over a temporary protocol 2 connection. No session, root or file
+   * is created.
+   */
+  async previewTeam(accountId) {
+    let discovery;
+    try {
+      discovery = await this.refreshAccounts();
+    } catch (error) {
+      return { ok: false, error: error.statusCode ? `http-${error.statusCode}` : 'offline' };
+    }
+    const account = ((discovery && discovery.accounts) || []).find((a) => a.id === accountId);
+    if (!account) return { ok: false, error: 'not-found' };
+
+    let inventory;
+    try {
+      inventory = await listNodes({
+        serverUrl: this.serverUrl,
+        syncBase: account.syncBase,
+        apiKey: this.getApiKey(),
+        accountId,
+        protocol: 2,
+      });
+    } catch (error) {
+      return { ok: false, error: error.statusCode ? `http-${error.statusCode}` : 'offline' };
+    }
+    if (!inventory || inventory.complete !== true) return { ok: false, error: 'inventory-incomplete' };
+
+    return { ok: true, ...inventoryTotals(inventory) };
+  }
+
+  /** C3 §5.8: the session goes, the folder and its files stay and still serve. */
+  async disconnect(sessionId) {
+    const entry = this.sessions.get(sessionId);
+    const settings = this.settingsStore.get();
+    const session = (entry && entry.session) || (settings.syncSessions || []).find((s) => s.id === sessionId);
+    if (!session) return { ok: false, error: 'unknown' };
+
+    await this.stop(sessionId);
+    const root = (settings.roots || []).find((r) => r.id === session.rootId);
+    if (root) {
+      root.formerAccount = {
+        id: session.accountId ?? null,
+        username: (session.cached && session.cached.username) || null,
+      };
+    }
+    settings.syncSessions = (settings.syncSessions || []).filter((s) => s.id !== sessionId);
+    this.settingsStore.save(settings);
+    this.emit('roots-changed', { roots: settings.roots });
+    return { ok: true };
+  }
+
+  /** C3 §5.8: every session on the root stops and the root is dropped. */
+  async removeRoot(rootId) {
+    const settings = this.settingsStore.get();
+    if (!(settings.roots || []).some((r) => r.id === rootId)) return { ok: false, error: 'unknown' };
+
+    for (const [sessionId, entry] of [...this.sessions]) {
+      if (entry.root.id === rootId) await this.stop(sessionId);
+    }
+    settings.roots = (settings.roots || []).filter((r) => r.id !== rootId);
+    settings.syncSessions = (settings.syncSessions || []).filter((s) => s.rootId !== rootId);
+    this.settingsStore.save(settings);
+    this.emit('roots-changed', { roots: settings.roots });
+    return { ok: true };
+  }
+
+  async _acquireInitialSlot() {
+    if (this.initialRunning < MAX_CONCURRENT_INITIAL) { this.initialRunning++; return; }
+    await new Promise((resolve) => this.initialWaiters.push(resolve));
+    this.initialRunning++;
+  }
+  _releaseInitialSlot() {
+    this.initialRunning--;
+    const next = this.initialWaiters.shift();
+    if (next) next();
+  }
+}
+
+module.exports = { SyncManager };

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/panphora/htmlclay/internal/htmlutil"
+	"github.com/panphora/htmlclay/internal/tier"
 )
 
 func TestExampleEmbedded(t *testing.T) {
@@ -70,5 +71,31 @@ func TestEnsureExampleFile(t *testing.T) {
 	after, _ := os.ReadFile(path)
 	if string(after) != string(edited) {
 		t.Error("ensureExampleFile overwrote an existing example")
+	}
+}
+
+// TestTheWelcomeExampleIsThePersonsOwn is Opus 1: HTML Clay writes the welcome
+// example, so it opens without the Unknown warning, and the same code arriving
+// as a download is not trusted by it.
+func TestTheWelcomeExampleIsThePersonsOwn(t *testing.T) {
+	home := evalTempHome(t)
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	a := newTestApp(t, home)
+	path, err := a.welcomeExamplePath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.tierStore().SetDeveloper(false); err != nil {
+		t.Fatal(err)
+	}
+	if v := a.tierOf(path); v.Tier != tier.Mine {
+		t.Fatalf("the welcome example %s is %s %s, want the person's own", path, v.Tier, v.Reason)
+	}
+	downloaded := filepath.Join(home, "Downloads", "welcome.htmlclay")
+	writeTestFile(t, downloaded, string(exampleHTML))
+	downloadedHere(t, a, downloaded)
+	if v := a.tierOf(downloaded); v.Tier != tier.Unknown {
+		t.Fatalf("a downloaded copy of the welcome example is %s %s, want unknown", v.Tier, v.Reason)
 	}
 }

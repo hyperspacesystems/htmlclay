@@ -2,23 +2,36 @@ package main
 
 import (
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/aitools"
+	"github.com/panphora/htmlclay/internal/carried"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/dashboard"
+	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/logging"
+	"github.com/panphora/htmlclay/internal/panel"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recalc"
+	"github.com/panphora/htmlclay/internal/secret"
+	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/server"
+	"github.com/panphora/htmlclay/internal/service"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/shellapi"
+	"github.com/panphora/htmlclay/internal/synchistory"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/trust"
 	"github.com/panphora/htmlclay/internal/update"
@@ -30,8 +43,14 @@ var version = "1.16.4"
 //go:embed example.htmlclay
 var exampleHTML []byte
 
+// shellFailures is stdout when the Mac app started the host: fatal then prints a FAILED line it can read.
+var shellFailures io.Writer
+
 func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "[htmlclay] "+format+"\n", args...)
+	if shellFailures != nil {
+		_ = shellapi.WriteFailed(shellFailures, shellapi.Failure{Code: shellapi.FailFatal, Message: fmt.Sprintf(format, args...)})
+	}
 	os.Exit(1)
 }
 
@@ -56,6 +75,56 @@ type appRuntime struct {
 	recalc    *recalc.Runner
 	home      string
 	configDir string
+	// agentToken is what a local program sends to the agent lane, read or made at
+	// start; agentTokenFile is where it lives. Never logged or put in a snapshot.
+	agentToken     string
+	agentTokenFile string
+	// syncStore is the system's secret store holding the sync key; nil when it
+	// could not be opened, and in tests that do not set one.
+	syncStore secret.Store
+	// syncActionMu makes connect and disconnect take turns. syncMu holds
+	// syncRecord, sync.json as read once, only while it is read or changed, so a
+	// snapshot never waits on a network call.
+	syncActionMu sync.Mutex
+	syncMu       sync.Mutex
+	syncRecord   *config.Sync
+	// syncHeld is whether a sync key is held, and syncConnecting counts connects
+	// in progress: either keeps the service running with no folder served, since
+	// sync runs inside it (serviceRunner.want).
+	syncHeld       atomic.Bool
+	syncConnecting atomic.Int32
+	// syncKeyUnread is set when the last read of the sync key found none, so a
+	// connected account whose key cannot be read asks for it again.
+	syncKeyUnread atomic.Bool
+	// syncConflicts is the engine's held conflicts as Go last read them
+	// (sync_conflicts.go). Guarded by syncMu.
+	syncConflicts syncConflicts
+	// syncLast is the service's last sync report (C4), nil until one arrives.
+	syncLast *served.SyncReport
+	// syncHistory is each synced folder's stored history (sync_history.go),
+	// made on first use under configDir.
+	syncHistoryOnce sync.Once
+	syncHistory     *synchistory.Store
+	// notices is the attached Mac app streams that hear sync notices (8.40).
+	notices noticeHub
+	// syncWantedMu keeps configure sends one at a time (sendSyncWanted).
+	syncWantedMu sync.Mutex
+	// syncBinding is the sessions whose first download is running; configure leaves
+	// them out until it ends. Guarded by syncMu.
+	syncBinding map[string]bool
+	// syncBindFailed is why a folder's last first download failed, by folder id,
+	// until the next set-up of it starts. Guarded by syncMu.
+	syncBindFailed map[string]string
+	// syncBinds counts the first downloads still running, for a clean shutdown and tests.
+	syncBinds sync.WaitGroup
+	// moveRunning is true while a move from Hyperclay Local runs, and moveMoved is
+	// the ids of Local's folders this process moved. moveMu guards both.
+	moveMu      sync.Mutex
+	moveRunning bool
+	moveMoved   []string
+	// folderLockDir is where the per-folder serve locks live. It is shared by every
+	// profile on this account, so two HTML Clay processes never serve one folder.
+	folderLockDir string
 	// port is the one loopback port every site is served on, bound by startListener.
 	port  int
 	bound *boundPort
@@ -66,6 +135,10 @@ type appRuntime struct {
 	portCandidates []int
 	// confirmPort overrides the port-taken dialog. Production leaves it nil.
 	confirmPort func(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error)
+	// confirmQuit overrides the unsaved-edits quit dialog. Production leaves it nil.
+	confirmQuit func(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error)
+	// syncQuiet overrides the wait for sync before an update restart. Production leaves it nil.
+	syncQuiet func(limit time.Duration) bool
 	// portOwner and quitProcess override the port-owner lookup and the quit request.
 	portOwner   func(port int) (pid int, name string, ok bool)
 	quitProcess func(pid int, force bool) error
@@ -81,17 +154,42 @@ type appRuntime struct {
 	// confirm, when set, overrides the native read-permission dialog. Production
 	// leaves it nil (the server uses the real dialog); tests inject a decision.
 	confirm func(title, message string, allowTrust bool) (platform.ConfirmChoice, error)
+	// confirmDocument overrides the three-answer dialog behind the Unknown
+	// document warning and the team code question, where closing it decides
+	// nothing. Production leaves it nil.
+	confirmDocument func(title, message string, labels platform.ConfirmLabels) (platform.ConfirmChoice, error)
 	// confirmTrust overrides the two-button dialog behind a page's request to
 	// trust its own folder. It is a separate seam from confirm on purpose: a test
 	// that auto-approves read grants must not silently auto-approve the
 	// write-granting dialog too.
 	confirmTrust func(title, message, affirmative string) (bool, error)
+	// dialogAttempt, when set, stands in for showing a real dialog: the dialog
+	// seam refuses instead and reports which one was asked for, so a test fails
+	// rather than opening a window on the machine. Production leaves it nil.
+	dialogAttempt func(name string)
 	// chooseHelperSetup overrides the dialog that connects a program to a
 	// document. Production leaves it nil and uses platform.Choose.
 	chooseHelperSetup func(title, message, refuse, middle, affirm string) (platform.Choice, error)
 	// openProgramsURL overrides how the tray opens the Programs page's one-time
 	// link, so a test can capture it instead of launching a browser.
 	openProgramsURL func(string) error
+	// launchBrowser overrides how openFile launches a document in the default
+	// browser, so a test can capture the address instead of opening a window.
+	// Production leaves it nil and uses the platform browser.
+	launchBrowser func(string) error
+	// reveal overrides how folder.reveal shows a folder in Finder, so no test
+	// opens a Finder window. Production leaves it nil and uses browser.Reveal.
+	reveal func(string) error
+	// selectFolder overrides the native folder picker behind the Served Folders
+	// submenu, so no test can open a real picker.
+	selectFolder func(prompt string) (string, bool, error)
+	// selectFile and promptSecret override the file picker and the hidden text
+	// prompt a dashboard grant shows. Production leaves them nil.
+	selectFile   func(prompt string) (string, bool, error)
+	promptSecret func(title, message string) (string, bool, error)
+	// copyText overrides the clipboard, so no test writes to the clipboard the
+	// person is using.
+	copyText func(text string) error
 	// openKeptURL and revealKept override how the Kept Copies page opens its
 	// one-time link and reveals a kept file, so a test can capture both instead
 	// of launching a browser or a Finder window. Production leaves them nil.
@@ -114,13 +212,15 @@ type appRuntime struct {
 	writesInFlight atomic.Int64
 	writesMu       sync.Mutex
 	writesClosed   bool
+	// writesClosedForPort is a port change, not an update, closing writes.
+	writesClosedForPort bool
 	// quitForUpdate overrides how an applied update ends the process. Production
 	// leaves it nil and quits the tray, which runs the ordinary shutdown.
 	quitForUpdate func()
-	// sparkle is the macOS updater: the framework seam and the install waiting
-	// on Sparkle's quit event. Production leaves it nil and startSparkleUpdater
-	// fills in the real framework; tests set a fake.
-	sparkle *sparkleState
+	// restartHost overrides how a port change ends this process. Production
+	// leaves it nil and restarts for real; tests record the call.
+	restartHost   func()
+	startDetached func(path string, args ...string) error
 	// held, while set, holds every request until startup has built the sites
 	// and restored the update handoff, so a request can never register a file
 	// under a fresh token before its old one comes back. main sets it before
@@ -137,10 +237,49 @@ type app struct {
 	// bySlug is the router's view of the live sites, written wherever sites changes and
 	// read on every request behind hostMu, so a request never waits on mu (route holds mu
 	// across filesystem work, and one stalled mount must not block every other site).
-	hostMu   sync.RWMutex
-	bySlug   map[string]*site
+	hostMu sync.RWMutex
+	bySlug map[string]*site
+	// servedByName is the router's view of the served folders: one mount per name,
+	// read on every request behind servedMu so it never waits on a.mu or on the
+	// served host. a.served owns the handlers; this map only routes to them.
+	servedMu     sync.RWMutex
+	servedByName map[string]*servedMount
+	served       *served.Host
+	// dashboard is the workspace at htmlclay.localhost, built with the served
+	// host; nil when its bundle could not be read.
+	dashboard *dashboard.Server
+	// service runs the live-room service while a folder is served. It is nil, and
+	// every call on it is a no-op, until startRuntime builds it.
+	service *serviceRunner
+	// tokens keeps save permission across a quit (savetokens.go). Nil until
+	// startKeptTokens, and every use is nil-safe, so a test app without it keeps
+	// the old contract.
+	tokens atomic.Pointer[tokenStore]
+	// unsaved holds what open tabs report about their unsaved edits.
+	unsaved  unsavedReports
 	stopping bool
-	noTray   bool
+	// shutdownOnce: the tray, host.quit and the shell's end of input can all shut down.
+	shutdownOnce sync.Once
+	noTray       bool
+	// nativeGrants is true where the host confirms a dashboard page's grants
+	// with its own dialogs: wherever it runs its own tray (grants.go).
+	nativeGrants bool
+	// grantOpen is true while one of those dialogs is open.
+	grantOpen atomic.Bool
+	// trayPanel is the Windows panel a left click on the tray icon opens; nil
+	// where a left click shows the menu (panel.go).
+	trayPanel *panel.Supervisor
+	// shell: started by the Mac app (--shell-stdin)
+	shell     bool
+	autostart bool
+	// shellServer is the private listener the Mac app talks to, and shellDone closes
+	// when shutdown starts so every event stream ends with its bye line. Both are
+	// zero on a launch without --shell-stdin; the two Once fields let a signal and
+	// a closed stdin race to shut down without closing done twice.
+	shellServer      *http.Server
+	shellDone        chan struct{}
+	shellStreamsOnce sync.Once
+	shellServerOnce  sync.Once
 	// helperStateMu guards the permission transactions themselves and the current
 	// resolution through dispatcher attachment, so a read can see a whole one
 	// without waiting behind helperMu, which a native dialog can hold for minutes.
@@ -159,6 +298,32 @@ type app struct {
 	// pageAskQuiet holds, per document, when a page may next raise the helper
 	// dialog after one that granted nothing. Guarded by helperStateMu.
 	pageAskQuiet map[string]time.Time
+	// helperSetupOpen holds the document and program a setup question is
+	// waiting on, so a second ask about the same one does not stack another
+	// question. Guarded by helperStateMu.
+	helperSetupOpen map[string]bool
+	// aiEditAsking holds the documents whose AI editing question is open, and
+	// aiEditQuiet when each may next be asked after a question that allowed
+	// nothing. Guarded by helperStateMu.
+	aiEditAsking map[string]bool
+	aiEditQuiet  map[string]time.Time
+	// builtinAsking holds the document and program pairs whose question is open,
+	// and builtinQuiet when each may next be asked after one that allowed
+	// nothing. Guarded by helperStateMu.
+	builtinAsking map[string]bool
+	builtinQuiet  map[string]time.Time
+	// documentAsking holds the documents whose warning or team code question
+	// is open, and documentQuiet those whose question closed without an answer
+	// HTML Clay keeps, until when. Guarded by helperStateMu.
+	documentAsking map[string]bool
+	documentQuiet  map[string]time.Time
+	// toolsService is the ai-tools service, made on first use.
+	toolsOnce    sync.Once
+	toolsService *aitools.Service
+	// programStore keeps the copies carried programs run from, made on
+	// first use.
+	programsOnce sync.Once
+	programStore *carried.Store
 	// dialogAdvice is non-empty when this machine cannot raise a permission
 	// dialog at all. It is read once at startup and shown in two places, so it
 	// is held rather than asked for again: platform.MissingDialogAdvice runs
@@ -177,6 +342,31 @@ type app struct {
 	// updateOff is why startSelfUpdater did not start the updater, and empty
 	// when it did. update-now answers with it.
 	updateOff string
+	// core is the app core's own state: revision, epoch, seen waiting ids,
+	// recent action answers, subscribers. See core.go.
+	core coreState
+	// lane is the agent lane's one handler, so its replay store outlives one
+	// request. See agent.go.
+	lane agentLaneHandler
+	// aiTools is the AI editing tool picker's list, reused for aiToolsFresh so
+	// building the snapshot does not read PATH every time.
+	aiTools aiToolsCache
+	// recovered is the count of recovered changes the menus last saw, and
+	// stopRecovered ends the loop that keeps it fresh.
+	recovered     recoveredCount
+	stopRecovered chan struct{}
+	// updates is what the updater on Windows and Linux has just reported; the
+	// Mac app reads Sparkle instead.
+	updates updateState
+	// former holds the ports the app served on before the person moved it, so a
+	// bookmark at an old address still finds the app. Guarded by mu.
+	former []formerPort
+	// fileTypes is what the system last said about file types, on Windows and
+	// Linux, where the host owns them.
+	fileTypes fileTypeCache
+	// stopFileTypes ends the loop that asks the system again every minute, a
+	// person having changed the default in the system's own settings.
+	stopFileTypes chan struct{}
 }
 
 func migrateConfigDir() {
@@ -215,7 +405,52 @@ func migrateConfigDir() {
 	}
 }
 
+// openLogOverride returns the replacement for launchBrowser that writes each URL
+// the host would open instead of opening it, or nil when it does not apply.
+//
+// HTMLCLAY_OPEN_LOG is for the Mac app's tests: a host it started writes each URL
+// it would open instead of opening the browser. It only applies to a host started
+// with --shell-stdin, so an ordinary launch can never be told to stop opening the
+// browser, and only to an absolute path, so the host never writes somewhere it
+// guessed.
+func openLogOverride(shell bool, env string) func(string) error {
+	logPath, ok := openLogPath(shell, env)
+	if !ok {
+		return nil
+	}
+	return openLogLine(logPath, "")
+}
+
+// openLogPath answers where a host the app started writes what it did instead of
+// doing it, and whether it does that at all.
+func openLogPath(shell bool, env string) (string, bool) {
+	if !shell || !filepath.IsAbs(env) {
+		return "", false
+	}
+	return env, true
+}
+
+// openLogLine returns the replacement for a runtime seam that writes the line the
+// host would have acted on, with prefix, instead of acting on it.
+func openLogLine(logPath, prefix string) func(string) error {
+	return func(target string) error {
+		f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		_, err = fmt.Fprintln(f, prefix+target)
+		return err
+	}
+}
+
 func main() {
+	// A program worker is this binary started by HTML Clay to run one carried
+	// program. It returns before anything else: it takes no lock, reads no
+	// settings and opens nothing.
+	if len(os.Args) > 1 && os.Args[1] == carried.WorkerArg {
+		os.Exit(carried.RunWorker(os.Stdin, os.Stdout))
+	}
 	// The wire CLI is a client of a running app, so it must return before
 	// anything below: initConfig takes the single-instance lock, and flag.Parse
 	// stops at the first non-flag argument, which would leave a subcommand's own
@@ -227,13 +462,34 @@ func main() {
 	if code, handled := updateNowDispatch(os.Args); handled {
 		os.Exit(code)
 	}
+	// serve and stop-serving are clients of the running app too, for the same reasons.
+	if code, handled := serveDispatch(os.Args); handled {
+		os.Exit(code)
+	}
+	if code, handled := trustDispatch(os.Args); handled {
+		os.Exit(code)
+	}
+	if code, handled := syncDispatch(os.Args); handled {
+		os.Exit(code)
+	}
 
 	releaseOwnConsole()
 
 	noTray := flag.Bool("no-tray", false, "Run without system tray (signal-based shutdown)")
+	shellStdin := flag.Bool("shell-stdin", false, "Started by the HTML Clay Mac app: read a secret from stdin and serve the app's private listener")
 	unregister := flag.Bool("unregister", false, "Remove the file associations and the Start on Login entry, then exit")
 	finishUpdate := flag.Bool("finish-update", false, "Internal: finish an update this binary's previous version started")
+	afterPID := flag.Int("after-pid", 0, "Internal: wait for this process to exit first (a port change restart)")
+	openDashboard := flag.String("open-dashboard", "", "Internal: open this dashboard page once running (after a port change)")
+	autostart := flag.Bool("autostart", false, "Internal: started automatically at login (stays quiet in tray)")
+	panelChild := flag.Bool("panel", false, "Internal: run the Windows panel's window for the running app")
 	flag.Parse()
+
+	// The panel's child is started by the running app, so it must never reach
+	// the single-instance lock, which would forward its flag to that app.
+	if *panelChild {
+		os.Exit(panel.RunChild())
+	}
 
 	// Before initConfig, and so before the single-instance lock, on purpose. A
 	// launch that finds the lock held forwards its arguments to the running app
@@ -249,11 +505,45 @@ func main() {
 		os.Exit(runFinishUpdate())
 	}
 
+	// The Go host inside the Swift app's bundle never becomes the app itself.
+	if code, handled := handOffToMacApp(*shellStdin, *noTray, flag.Args()); handled {
+		os.Exit(code)
+	}
+
+	// The previous copy can take about 25 s to shut down (sync's flush, the
+	// service, the listeners), and this copy cannot start until it has.
+	if *afterPID > 0 && !update.WaitGone(*afterPID, 40*time.Second) {
+		fmt.Fprintf(os.Stderr, "[htmlclay] The previous HTML Clay (pid %d) did not exit\n", *afterPID)
+	}
+
+	// The Mac app writes the secret on stdin and expects the private listener to
+	// come up, so a bad line ends the launch before anything binds.
+	var shellSecret string
+	var shellIn io.Reader
+	if *shellStdin {
+		bootstrap, in, err := shellapi.ReadBootstrap(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[htmlclay] %v\n", err)
+			_ = shellapi.WriteFailed(os.Stdout, shellapi.Failure{Code: shellapi.FailBadBootstrap})
+			os.Exit(2)
+		}
+		shellSecret, shellIn = bootstrap.Secret, in
+		shellFailures = os.Stdout
+		exitWithParent()
+	}
+
 	migrateConfigDir()
 
 	fmt.Fprintln(os.Stderr, "[htmlclay] Starting up...")
 
-	a := &app{rt: &appRuntime{}, noTray: *noTray}
+	a := &app{rt: &appRuntime{}, noTray: *noTray || *shellStdin, shell: *shellStdin, autostart: *autostart}
+	a.nativeGrants = !a.noTray
+	if logPath, ok := openLogPath(*shellStdin, os.Getenv("HTMLCLAY_OPEN_LOG")); ok {
+		a.rt.launchBrowser = openLogLine(logPath, "")
+		a.rt.reveal = openLogLine(logPath, "reveal ")
+		a.rt.copyText = openLogLine(logPath, "copy ")
+	}
+	a.initCore()
 	a.initConfig()
 	defer a.rt.si.Unlock()
 	// Holding the lock makes this the process an update supervisor should judge.
@@ -261,13 +551,30 @@ func main() {
 
 	a.initLogger()
 	defer a.rt.logger.Close()
+	if a.installWaitingUpdate(flag.Args()) {
+		a.rt.logger.Close()
+		a.rt.si.Unlock()
+		os.Exit(0)
+	}
+	a.holdSavesWhileUnjudged()
 
 	a.startRuntime()
 	a.finishUpgrade()
 
-	a.refreshLoginItem()
-	a.refreshFileTypes()
-	a.warnMissingDialogs()
+	// The Mac app owns the login item and file types; a host it started, or any
+	// host inside its bundle, changes neither.
+	if a.ownsLoginItem() {
+		a.refreshLoginItem()
+		a.refreshFileTypes()
+		a.warnMissingDialogs()
+	}
+	if a.managesFileTypes() {
+		go a.refreshFileTypeState()
+		if a.stopFileTypes == nil {
+			a.stopFileTypes = make(chan struct{})
+		}
+		go a.watchFileTypes(a.stopFileTypes)
+	}
 
 	// Bind the one port before argv is processed, asking the user what to do if it is held,
 	// then build every live trusted folder's site, so a URL bookmarked before the last quit
@@ -279,9 +586,21 @@ func main() {
 			a.rt.si.Unlock()
 			os.Exit(1)
 		}
+		if a.shell {
+			_ = shellapi.WriteFailed(os.Stdout, shellapi.Failure{Code: shellapi.FailPortTaken, Port: a.rt.cfg.Port()})
+			a.rt.logger.Close()
+			a.rt.si.Unlock()
+			os.Exit(4)
+		}
 		return
 	}
 	a.startSites()
+	a.startServed()
+	a.seedDefaultPlayground()
+	a.startFormerPorts()
+	if *shellStdin {
+		a.startShell(shellSecret, shellIn)
+	}
 	// An update restart left the previous process's sessions behind; take them
 	// back before anything else can register, so every tab that was open keeps
 	// saving at the address it already has. An ordinary launch finds no file.
@@ -289,13 +608,30 @@ func main() {
 	if _, err := a.restoreUpdateHandoff(filepath.Join(a.rt.configDir, updateHandoffFile)); err != nil {
 		a.rt.logger.Printf("Update handoff ignored: %v", err)
 	}
+	// Then the tokens kept at the last quit, so a tab left open across an ordinary
+	// restart keeps saving too. Each site takes its own back on its first request.
+	a.startKeptTokens(filepath.Join(a.rt.configDir, saveTokensFile))
 	a.releaseRequests()
-	markUpdateHealth(update.HealthServing)
+	if *openDashboard != "" {
+		go a.trayDo("dashboard.open", map[string]any{"route": *openDashboard})
+	} else if !a.shell && !a.noTray && a.loaded.FreshInstall && len(flag.Args()) == 0 && !*autostart {
+		go a.trayDo("dashboard.open", map[string]any{"route": "/"})
+	}
+	a.stopRecovered = make(chan struct{})
+	go a.watchRecovered(a.stopRecovered)
+	if !a.shell {
+		markUpdateHealth(update.HealthServing)
+		go a.settleUpgradeSave()
+	}
 
 	args := flag.Args()
 	if len(args) > 0 {
 		a.rt.logger.Printf("Opening file: %s", args[0])
 		a.openFile(args[0])
+	}
+	for _, path := range a.takeOpenAfterUpdate() {
+		a.rt.logger.Printf("Opening file from before the update: %s", path)
+		a.openFile(path)
 	}
 
 	a.rt.si.OnFileReceived(func(path string) {
@@ -310,13 +646,12 @@ func main() {
 		a.openFile(path)
 	})
 
-	updateCh := make(chan tray.UpdateInfo, 1)
-	if !a.startSelfUpdater(updateCh) {
-		go a.checkForUpdateLink(updateCh)
+	if !a.startSelfUpdater() {
+		go a.checkForUpdateLink()
 	}
 	a.rt.si.OnCommand(a.handleInstanceCommand)
 
-	a.run(updateCh)
+	a.run()
 }
 
 func (a *app) initConfig() {
@@ -329,6 +664,12 @@ func (a *app) initConfig() {
 	}
 	fmt.Fprintf(os.Stderr, "[htmlclay] Config dir: %s\n", configDir)
 
+	token, tokenFile, err := loadAgentToken(configDir)
+	if err != nil {
+		fatal("Error writing the agent token: %v", err)
+	}
+	a.rt.agentToken, a.rt.agentTokenFile = token, tokenFile
+
 	a.rt.si = platform.NewSingleInstance(configDir)
 	isPrimary, err := a.rt.si.TryLock()
 	if err != nil {
@@ -336,15 +677,32 @@ func (a *app) initConfig() {
 	}
 
 	if !isPrimary {
-		fmt.Fprintln(os.Stderr, "[htmlclay] Another instance running, forwarding file...")
+		if a.shell {
+			fmt.Fprintln(os.Stderr, "[htmlclay] Another instance is running")
+			_ = shellapi.WriteFailed(os.Stdout, shellapi.Failure{Code: shellapi.FailAlreadyRunning})
+			os.Exit(3)
+		}
 		args := flag.Args()
 		if len(args) > 0 {
+			fmt.Fprintln(os.Stderr, "[htmlclay] Another instance running, forwarding file...")
 			filePath, err := filepath.Abs(args[0])
 			if err != nil {
 				fatal("Error resolving path: %v", err)
 			}
 			if err := a.rt.si.SendFilePath(filePath); err != nil {
 				fatal("Error sending file to running instance: %v", err)
+			}
+		} else if !a.autostart {
+			fmt.Fprintln(os.Stderr, "[htmlclay] Another instance running, opening dashboard...")
+			reply, err := a.rt.si.SendCommand("open-dashboard")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[htmlclay] Could not ask running instance to open dashboard: %v\n", err)
+			}
+			if errors.Is(err, platform.ErrNoAnswer) || strings.HasPrefix(reply, "refused") {
+				_ = platform.Notify(
+					"HTML Clay is already running",
+					"Quit the older HTML Clay in the system tray, then open this one again.",
+				)
 			}
 		}
 		os.Exit(0)
@@ -358,14 +716,21 @@ func (a *app) initConfig() {
 	fmt.Fprintf(os.Stderr, "[htmlclay] Config loaded: %d trusted folder(s)\n", len(cfg.TrustedFolderList()))
 	a.rt.cfg = cfg
 	a.loaded = res
+	// Set here, not in startRuntime: holdSavesWhileUnjudged runs before
+	// startRuntime and reads the update state under this folder.
+	a.rt.configDir = configDir
+	if resolved, rErr := resolveSymlinks(configDir); rErr == nil {
+		a.rt.configDir = resolved
+	}
+}
+
+// appLogPath is the file initLogger writes and app.revealLog shows.
+func (a *app) appLogPath() string {
+	return filepath.Join(a.rt.configDir, "htmlclay.log")
 }
 
 func (a *app) initLogger() {
-	configDir, err := config.Dir()
-	if err != nil {
-		fatal("Error resolving config dir: %v", err)
-	}
-	logPath := filepath.Join(configDir, "htmlclay.log")
+	logPath := a.appLogPath()
 	logger, err := logging.NewDualWrite(logPath)
 	if err != nil {
 		fatal("Error creating logger: %v", err)
@@ -392,10 +757,14 @@ func (a *app) startRuntime() {
 	if err != nil {
 		fatal("Error resolving config dir: %v", err)
 	}
-	a.rt.configDir = configDir
-	if resolved, rErr := resolveSymlinks(configDir); rErr == nil {
-		a.rt.configDir = resolved
+
+	// An unresolved lock directory is left empty on purpose: serving then refuses
+	// with that error instead of serving unlocked.
+	lockDir, lockErr := folderlock.DefaultDir()
+	if lockErr != nil {
+		a.rt.logger.Printf("Could not resolve the folder lock directory: %v", lockErr)
 	}
+	a.rt.folderLockDir = lockDir
 
 	a.rt.versions = versions.New(filepath.Join(configDir, "versions"))
 	// Prune once at startup; every later pass is opportunistic after a backup.
@@ -425,6 +794,10 @@ func (a *app) startRuntime() {
 	a.rt.policy = trust.Policy{Home: a.rt.home, Guard: a.rt.guard}
 
 	a.rt.portCandidates = defaultPorts
+
+	a.rt.syncStore = a.openSyncStore()
+	a.loadSyncAtStart()
+	a.service = newServiceRunner(a)
 
 	a.rt.logger.Printf("Runtime ready (home=%s)", a.rt.home)
 }
@@ -480,7 +853,7 @@ func (a *app) finishUpgrade() {
 		a.rt.logger.Printf("Helper config normalization dropped records: programs=%d decisions=%d", a.loaded.DroppedHelperPrograms, a.loaded.DroppedHelperDecisions)
 	}
 	repinned := a.repinTrustedFolders()
-	if a.loaded.PromotedLegacy || a.loaded.PinnedIdentities || repinned {
+	if a.loaded.PromotedLegacy || a.loaded.PinnedIdentities || a.loaded.AssignedFolderIDs || a.loaded.MovedFirstSite || a.loaded.MarkedFirstSiteOrigin || repinned {
 		if err := a.rt.cfg.Save(); err != nil {
 			a.rt.logger.Printf("Could not persist the upgraded config: %v", err)
 		}
@@ -490,6 +863,16 @@ func (a *app) finishUpgrade() {
 	}
 	if a.loaded.PinnedIdentities {
 		a.rt.logger.Printf("Pinned trusted folders that were recorded without an identity fingerprint")
+	}
+	if a.loaded.AssignedFolderIDs {
+		a.rt.logger.Printf("Gave trusted folders the id each one keeps")
+	}
+	if a.loaded.MovedFirstSite {
+		key := a.rt.cfg.MovedFirstSiteKey()
+		a.rt.logger.Printf("Moved %s from htmlclay.localhost to %s.localhost: the old address is the dashboard's now", key, a.rt.cfg.SiteSlug(key))
+	}
+	if a.loaded.MarkedFirstSiteOrigin {
+		a.rt.logger.Printf("The dashboard clears what a site stored at htmlclay.localhost, once in each browser")
 	}
 	if !a.loaded.HadAppMode {
 		return
@@ -517,7 +900,7 @@ func (a *app) finishUpgrade() {
 	}()
 }
 
-func (a *app) run(updateCh <-chan tray.UpdateInfo) {
+func (a *app) run() {
 	if a.noTray {
 		a.rt.logger.Printf("Running without tray, waiting for signal...")
 		sigCh := make(chan os.Signal, 1)
@@ -527,24 +910,12 @@ func (a *app) run(updateCh <-chan tray.UpdateInfo) {
 		return
 	}
 	a.rt.logger.Printf("Starting system tray...")
-	tray.Run(a.rt.cfg, version, a.openExample, a.openBackups, a.openKeptPage, func() {
-		a.prepareSparkleQuit()
+	hooks := &tray.MenuHooks{Rows: a.trayMenuRows, Do: a.doTrayMenu}
+	if a.trayPanel = a.newTrayPanel(); a.trayPanel != nil {
+		hooks.Tapped = a.panelTapped
+	}
+	tray.Run(hooks, a.confirmQuit, func() {
 		a.shutdown()
-	}, updateCh, &tray.TrustedFolderHooks{
-		List:   a.trustedFolderRows,
-		Add:    a.pickAndTrustFolder,
-		Remove: a.removeTrustedFolder,
-	}, &tray.HelperHooks{
-		Title:     a.helperProgramsTitle,
-		List:      a.helperProgramRows,
-		Manage:    a.openProgramsPage,
-		Row:       a.relinkHelperProgramFromTray,
-		Documents: a.helperDocumentRows,
-		Document:  a.trayHelperDocument,
-		AIEditOff: a.cancelAIEdits,
-	}, &tray.ExportHooks{
-		Documents: a.exportDocumentRows,
-		Export:    a.exportDocument,
 	}, a.dialogAdvice)
 	a.rt.logger.Printf("Tray exited")
 }
@@ -603,6 +974,35 @@ func markUpdateHealth(phase string) {
 	}
 }
 
+// holdSavesWhileUnjudged: a host started by an update that is still being judged
+// keeps its config changes in memory until the verdict (settleUpgradeSave).
+func (a *app) holdSavesWhileUnjudged() {
+	if update.Unjudged(update.UpdatesDir(a.rt.configDir)) {
+		a.rt.cfg.HoldSaves()
+		a.rt.logger.Printf("An update is being judged; config changes wait for its verdict")
+	}
+}
+
+// settleUpgradeSave waits up to 10 s for the verdict. On done the held changes are
+// saved and the update handoff is removed; on a rollback, or no verdict, the
+// changes stay in memory only and the handoff stays for the previous version.
+func (a *app) settleUpgradeSave() {
+	dir := update.UpdatesDir(a.rt.configDir)
+	for i := 0; i < 40 && update.Unjudged(dir); i++ {
+		time.Sleep(250 * time.Millisecond)
+	}
+	st, _ := update.ReadState(dir)
+	write := st == nil || (st.Phase != update.PhaseRolledBack && st.Phase != update.PhaseApplying)
+	if err := a.rt.cfg.ReleaseSaves(write); err != nil {
+		a.rt.logger.Printf("config save after the update verdict failed: %v", err)
+	}
+	if write {
+		a.removeUpdateHandoff(filepath.Join(a.rt.configDir, updateHandoffFile))
+		// This version stays, so the previous version's service copy can go.
+		service.PruneOthers(serviceRuntimeRoot(a.rt.configDir))
+	}
+}
+
 // warnMissingDialogs turns a silent failure into an instruction. On a desktop
 // with neither zenity nor kdialog every permission prompt fails closed, which is
 // correct, but the result the user sees is a file that will not open and nothing
@@ -639,7 +1039,11 @@ func (a *app) refreshFileTypes() {
 	if err != nil || execPath == "" {
 		return
 	}
-	if err := platform.RegisterFileTypes(execPath); err != nil {
+	opts := platform.FileTypeOptions{
+		HTMLClay:     !a.rt.cfg.StoppedOpeningFiles(),
+		HTMLOpenWith: a.rt.cfg.HTMLOpenWith(),
+	}
+	if err := platform.RegisterFileTypes(execPath, opts); err != nil {
 		a.rt.logger.Printf("Could not register the .htmlclay file association: %v", err)
 	}
 }
@@ -656,6 +1060,12 @@ func (a *app) refreshLoginItem() {
 	if err := platform.SetLoginItem(true, execPath); err != nil {
 		a.rt.logger.Printf("Could not refresh login item: %v", err)
 	}
+}
+
+// ownsLoginItem: only a Go-main HTML Clay keeps the login item and file types.
+func (a *app) ownsLoginItem() bool {
+	_, mac := bundledMacHost()
+	return !a.shell && !mac
 }
 
 // notifyUser sends a best-effort native message through the runtime seam, so a

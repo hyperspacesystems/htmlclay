@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
@@ -30,15 +31,15 @@ func mustWrite(t *testing.T, path string) {
 // tests starts from defaultConfirm, so pinning it to deny here keeps osascript
 // off the screen even for tests that never touch the broker directly.
 func init() {
-	defaultConfirm = func(string, string, bool) (platform.ConfirmChoice, error) {
-		return platform.ConfirmDeny, nil
+	defaultConfirm = func(context.Context, confirm.Ask) (confirm.Reply, error) {
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	}
 }
 
 func countingConfirm(choice platform.ConfirmChoice, n *int32) brokerConfirm {
-	return func(string, string, bool) (platform.ConfirmChoice, error) {
+	return func(_ context.Context, ask confirm.Ask) (confirm.Reply, error) {
 		atomic.AddInt32(n, 1)
-		return choice, nil
+		return ReadReply(choice, offersTrust(ask)), nil
 	}
 }
 
@@ -236,9 +237,9 @@ func TestBrokerContextCancel(t *testing.T) {
 
 // failIfPrompted is a confirm for tests that must never reach a prompt at all.
 func failIfPrompted(t *testing.T) brokerConfirm {
-	return func(string, string, bool) (platform.ConfirmChoice, error) {
+	return func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		t.Error("no prompt should have been raised")
-		return platform.ConfirmDeny, nil
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	}
 }
 
@@ -301,9 +302,9 @@ func TestBrokerShutdownReleasesParkedWaiters(t *testing.T) {
 	mgr, home := brokerManager(t)
 	gate := make(chan struct{})
 	defer close(gate)
-	b := newBroker(mgr, logging.NewStdout(), func(string, string, bool) (platform.ConfirmChoice, error) {
+	b := newBroker(mgr, logging.NewStdout(), func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		<-gate
-		return platform.ConfirmDeny, nil
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	})
 
 	holdBatchOpen(b)
@@ -334,9 +335,9 @@ func TestBrokerParkCapDeniesOverflow(t *testing.T) {
 	mgr, home := brokerManager(t)
 	gate := make(chan struct{})
 	defer close(gate)
-	b := newBroker(mgr, logging.NewStdout(), func(string, string, bool) (platform.ConfirmChoice, error) {
+	b := newBroker(mgr, logging.NewStdout(), func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		<-gate
-		return platform.ConfirmDeny, nil
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	})
 	defer b.shutdown()
 
@@ -364,10 +365,10 @@ func TestBrokerSuppressionDuringPromptNoReprompt(t *testing.T) {
 	mgr, home := brokerManager(t)
 	var prompts int32
 	gate := make(chan struct{})
-	b := newBroker(mgr, logging.NewStdout(), func(string, string, bool) (platform.ConfirmChoice, error) {
+	b := newBroker(mgr, logging.NewStdout(), func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		atomic.AddInt32(&prompts, 1)
 		<-gate
-		return platform.ConfirmDeny, nil
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	})
 
 	holdBatchOpen(b)
@@ -411,9 +412,9 @@ func TestBrokerWakesWaiterParkedDuringPrompt(t *testing.T) {
 	mustWrite(t, filepath.Join(proj, "sub", "y.js"))
 
 	gate := make(chan struct{})
-	b := newBroker(mgr, logging.NewStdout(), func(string, string, bool) (platform.ConfirmChoice, error) {
+	b := newBroker(mgr, logging.NewStdout(), func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		<-gate
-		return platform.ConfirmAllowOnce, nil
+		return confirm.Reply{Choice: readAnswerAllowOnce}, nil
 	})
 
 	holdBatchOpen(b)
@@ -531,9 +532,10 @@ func TestMayTrustFalseSuppressesTheChoiceAndTheTrust(t *testing.T) {
 
 	var offered atomic.Bool
 	offered.Store(true)
-	b := newBroker(mgr, logging.NewStdout(), func(_, _ string, allowTrust bool) (platform.ConfirmChoice, error) {
+	b := newBroker(mgr, logging.NewStdout(), func(_ context.Context, ask confirm.Ask) (confirm.Reply, error) {
+		allowTrust := offersTrust(ask)
 		offered.Store(allowTrust)
-		return platform.ConfirmAllowAlways, nil
+		return ReadReply(platform.ConfirmAllowAlways, allowTrust), nil
 	})
 	var mayTrustCalls, trustCalls int32
 	b.mayTrust = func(string) bool {
@@ -600,11 +602,11 @@ func TestBrokerParkExpiresWhileAnotherTreesDialogIsUp(t *testing.T) {
 	// is still zero.
 	entered := make(chan struct{}, 4)
 	var prompts int32
-	b, clock := manualBroker(t, mgr, func(string, string, bool) (platform.ConfirmChoice, error) {
+	b, clock := manualBroker(t, mgr, func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		atomic.AddInt32(&prompts, 1)
 		entered <- struct{}{}
 		<-gate
-		return platform.ConfirmDeny, nil
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	})
 
 	one := make(chan bool, 1)
@@ -719,14 +721,14 @@ func TestBrokerRearmsTheBatchAfterADialogCloses(t *testing.T) {
 	// well before it and would let the count assertion below read a stale zero.
 	entered := make(chan struct{}, 4)
 	var prompts int32
-	b, clock := manualBroker(t, mgr, func(string, string, bool) (platform.ConfirmChoice, error) {
+	b, clock := manualBroker(t, mgr, func(context.Context, confirm.Ask) (confirm.Reply, error) {
 		if atomic.AddInt32(&prompts, 1) == 1 {
 			entered <- struct{}{}
 			<-gate
-			return platform.ConfirmDeny, nil
+			return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 		}
 		entered <- struct{}{}
-		return platform.ConfirmDeny, nil
+		return confirm.Reply{Choice: confirm.ChoiceDeny}, nil
 	})
 
 	first := make(chan bool, 1)

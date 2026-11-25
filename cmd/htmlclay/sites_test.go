@@ -24,6 +24,7 @@ import (
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/testutil"
+	"github.com/panphora/htmlclay/internal/tier"
 	"github.com/panphora/htmlclay/internal/trust"
 	"github.com/panphora/htmlclay/internal/versions"
 )
@@ -65,12 +66,25 @@ func newTestApp(t *testing.T, home string) *app {
 	return newTestAppWithConfigDir(t, home, t.TempDir())
 }
 
-// newTestAppWithConfigDir is buildTestApp plus a bound listener. A test that only reads
-// or edits config while another app on the same cfgBase is still running uses
-// buildTestApp, so it never contends for that app's port.
+// newShellTestApp is newTestApp for a host the Mac app started.
+func newShellTestApp(t *testing.T, home string) *app {
+	t.Helper()
+	return newTestAppAs(t, home, t.TempDir(), true)
+}
+
+// newTestAppWithConfigDir is buildTestApp plus a bound listener.
 func newTestAppWithConfigDir(t *testing.T, home, cfgBase string) *app {
 	t.Helper()
+	return newTestAppAs(t, home, cfgBase, false)
+}
+
+// newTestAppAs is newTestAppWithConfigDir with shell chosen. Binding the
+// listener saves the port, which schedules a snapshot, and a snapshot reads
+// shell: so shell is set first, as main sets it before anything starts.
+func newTestAppAs(t *testing.T, home, cfgBase string, shell bool) *app {
+	t.Helper()
 	a := buildTestApp(t, home, cfgBase)
+	a.shell = shell
 	if !a.startListener() {
 		t.Fatal("test app could not bind a port")
 	}
@@ -90,6 +104,18 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 		t.Fatalf("config: %v", err)
 	}
 	configDir := filepath.Join(t.TempDir(), "htmlclay")
+	// Tests write their documents themselves, so they open them as a developer
+	// does: a file with no download mark is the person's own. A test of the
+	// unknown document warning marks its document downloaded, which developer
+	// mode never overrides. The store is the app's from the start, so a test
+	// that points the app at another config folder keeps it.
+	trustStore, _, err := tier.Open(filepath.Join(t.TempDir(), "trust"))
+	if err != nil {
+		t.Fatalf("trust store: %v", err)
+	}
+	if err := trustStore.SetDeveloper(true); err != nil {
+		t.Fatalf("developer mode: %v", err)
+	}
 	guard := func(dir string) bool {
 		return session.EqualOrUnder(dir, configDir) || session.EqualOrUnder(configDir, dir)
 	}
@@ -101,7 +127,11 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 			ls:        ls,
 			home:      home,
 			configDir: configDir,
-			confirm:   denyConfirm,
+			// Each test app gets a lock directory of its own, so a test and the app
+			// it stands in for never share the real one; a test that wants two
+			// processes to contend assigns the same directory to both.
+			folderLockDir: filepath.Join(t.TempDir(), "folder-locks"),
+			confirm:       denyConfirm,
 			// A page's on-use helper prompt is dismissed by default for the same
 			// reason: no test may put a real dialog on the user's screen, and a
 			// dismissed prompt grants nothing and stores nothing.
@@ -125,10 +155,14 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 			// stubbed: no test may put real UI on the user's screen. A test that
 			// cares what the user was told overrides this with a recorder.
 			notify: func(string, string) error { return nil },
-			guard:  guard,
-			policy: trust.Policy{Home: home, Guard: guard},
+			// Opening a page goes nowhere by default too: a test that opens a
+			// document must never open the person's real browser.
+			launchBrowser: func(string) error { return nil },
+			guard:         guard,
+			policy:        trust.Policy{Home: home, Guard: guard},
 		},
 	}
+	a.core.tiers = trustStore
 	a.rt.portCandidates = []int{0}
 	a.rt.confirmPort = func(title, message string, _ platform.ConfirmLabels) (platform.ConfirmChoice, error) {
 		t.Errorf("unexpected port dialog: %s: %s", title, message)
@@ -137,7 +171,20 @@ func buildTestApp(t *testing.T, home, cfgBase string) *app {
 	a.rt.portOwner = func(int) (int, string, bool) { return 0, "", false }
 	a.rt.quitProcess = func(int, bool) error { return nil }
 	t.Cleanup(func() {
+		// Closing the sites below wakes the kept-token writer, which must not write
+		// into a temp folder this test is removing.
+		a.tokens.Load().halt()
 		ls.Shutdown()
+		// The served folders' lock files stay open while mounted, and Windows
+		// cannot delete an open file, so they are released before t.TempDir
+		// removes the lock directory (as shutdown does).
+		a.service.close()
+		a.servedMu.RLock()
+		for _, m := range a.servedByName {
+			m.cancel()
+			m.lock.Release()
+		}
+		a.servedMu.RUnlock()
 		a.mu.Lock()
 		defer a.mu.Unlock()
 		// Set stopping the way the real shutdown does, under this same lock. Work
@@ -607,7 +654,7 @@ func TestOpenPrefersOpenedRootOverGrantedRoot(t *testing.T) {
 	// appearing before AND after the granted one, so check both directly.
 	for _, order := range []string{"opened last", "opened first"} {
 		a.mu.Lock()
-		got := a.siteForLocked(notes)
+		got := a.siteForLocked(notes, false)
 		a.mu.Unlock()
 		if got != siteC {
 			t.Fatalf("%s: the opened root must win over the broad grant", order)
@@ -2162,7 +2209,7 @@ func TestConfirmLabelsMatchTheirAction(t *testing.T) {
 	if _, ok := a.trustFromPage(file, true); !ok {
 		t.Fatalf("a page asking to trust its own ordinary folder should be allowed: %q", message)
 	}
-	if label != "Trust Folder" {
+	if label != "Trust folder" {
 		t.Errorf("the dialog that trusts a folder must say so, got %q with message %q", label, message)
 	}
 
@@ -2587,7 +2634,8 @@ func TestGuardRefusesASymlinkedUploadsLibraryByBothSpellings(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(home, "htmlclay", "uploads")); err == nil {
 		t.Fatal("the library must not exist before the guard is built")
 	}
-	a := newTestApp(t, home)
+	// startRuntime runs before the listener, as main does.
+	a := buildTestApp(t, home, t.TempDir())
 	a.startRuntime()
 
 	if err := os.MkdirAll(filepath.Join(linked, "uploads", "assets-board"), 0o755); err != nil {

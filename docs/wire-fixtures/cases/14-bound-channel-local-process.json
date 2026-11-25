@@ -1,0 +1,34 @@
+{
+  "name": "a bound channel refuses a local process",
+  "hosts": [
+    "served"
+  ],
+  "served": "unreleased",
+  "setup": {
+    "program": "echo",
+    "decision": "allow"
+  },
+  "steps": [
+    {
+      "do": "subscribe",
+      "as": "handler",
+      "stream": "h",
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "do": "send",
+      "as": "handler",
+      "frame": {
+        "type": "wire/request",
+        "id": "r1",
+        "helper": "search",
+        "payload": {}
+      },
+      "expect": {
+        "status": 403
+      }
+    }
+  ]
+}

@@ -242,6 +242,7 @@ var programsDone = map[string]string{
 	"revoked":   "Access removed. Open documents stop using it right away.",
 	"relinked":  "The program now points at the new file.",
 	"widened":   "Allowed for documents in your trusted folders.",
+	"ask-again": "That document will ask again next time you use it.",
 	"removed":   "Removed from the list. No file on your Mac was deleted.",
 	"unchanged": "Nothing changed.",
 	"failed":    "That did not work. HTML Clay's log has the details.",
@@ -262,7 +263,7 @@ func (a *app) programsAction(action, programID, document, name string) string {
 			return "failed"
 		}
 		a.helperStateMu.Lock()
-		previous, had, rerr := a.rt.cfg.RevokeHelper(document, name)
+		previous, had, rerr := a.rt.cfg.RevokeHelperInScope(document, name, a.scopeOf(document))
 		if err = rerr; err == nil {
 			if err = a.rt.cfg.Save(); err != nil {
 				a.rt.cfg.ForgetHelperDecision(document, name)
@@ -301,7 +302,7 @@ func (a *app) programsAction(action, programID, document, name string) string {
 		// Each document that lost access remembers it, as a single Remove Access
 		// does, so it stops asking instead of offering setup again.
 		for _, d := range removed {
-			if _, _, err = a.rt.cfg.RevokeHelper(d.Document, d.Name); err != nil {
+			if _, _, err = a.rt.cfg.RevokeHelperInScope(d.Document, d.Name, a.scopeOf(d.Document)); err != nil {
 				break
 			}
 		}
@@ -329,7 +330,7 @@ func (a *app) programsAction(action, programID, document, name string) string {
 		// The documents that used it keep a refusal, so none of them falls
 		// through to another program with the same name without asking.
 		for _, d := range removed {
-			if _, _, err = a.rt.cfg.RevokeHelper(d.Document, d.Name); err != nil {
+			if _, _, err = a.rt.cfg.RevokeHelperInScope(d.Document, d.Name, a.scopeOf(d.Document)); err != nil {
 				break
 			}
 		}
@@ -355,6 +356,11 @@ func (a *app) programsAction(action, programID, document, name string) string {
 			return "failed"
 		}
 		outcome, err = a.widenHelperProgram(program, a.systemHelperApprovalDialogs())
+	case "ask-again-document":
+		if document == "" {
+			return "failed"
+		}
+		outcome, err = a.askDocumentAgainFromPrograms(document, a.systemHelperApprovalDialogs())
 	default:
 		return "failed"
 	}
@@ -383,7 +389,7 @@ func (a *app) relinkHelperProgram(program config.HelperProgram, dialogs helperAp
 	affirm := helperSetupChooseFile
 	if path != "" {
 		message += fmt.Sprintf("\n\nHTML Clay found a file with the same name:\n\n    %s\n\nEvery document allowed to use “%s” will run this file instead.", a.tildePath(path), program.Name)
-		affirm = "Allow File"
+		affirm = "Use this file"
 	} else {
 		message += fmt.Sprintf("\n\nChoose the file to use instead. Every document allowed to use “%s” will run it.", program.Name)
 	}
@@ -483,8 +489,15 @@ type programsView struct {
 	Done     string
 	Missing  []programsGroup
 	Groups   []programsGroup
+	Denied   []programsDeniedRow
 	Open     []programsOpenRow
 	SignedIn bool
+}
+
+type programsDeniedRow struct {
+	File     string
+	Path     string
+	Document string
 }
 
 type programsOpenRow struct {
@@ -536,6 +549,13 @@ func (a *app) programsViewModel() programsView {
 		} else {
 			view.Groups = append(view.Groups, *byPath[key])
 		}
+	}
+	for _, doc := range a.deniedDocumentFacts() {
+		view.Denied = append(view.Denied, programsDeniedRow{
+			File:     filepath.Base(doc),
+			Path:     a.tildePath(doc),
+			Document: doc,
+		})
 	}
 	for _, row := range a.helperDocumentRows() {
 		document, name, _ := strings.Cut(row.Path, "\x00")

@@ -164,7 +164,7 @@ func TestFableEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if got := argAfter(t, argvOf(t, argvFile), "--model"); got != "claude-fable-5-1" {
+	if got := argAfter(t, argvOf(t, argvFile), "--model"); got != "claude-fable-5-2" {
 		t.Fatalf("--model = %q", got)
 	}
 	stdin := readText(t, stdinFile)
@@ -206,22 +206,177 @@ func TestCodexEngine(t *testing.T) {
 	}
 }
 
-func TestAgyIsRefused(t *testing.T) {
+func TestClaudeArgsEmitsValidEffort(t *testing.T) {
+	argv := claudeArgs("claude-opus-5-5", "max")
+	if got := argAfter(t, argv, "--effort"); got != "max" {
+		t.Fatalf("--effort = %q, want max", got)
+	}
+	if hasArg(claudeArgs("claude-opus-5-5", "bogus"), "--effort") {
+		t.Fatal("invalid effort must not emit --effort")
+	}
+	promptIdx := -1
+	toolsIdx := -1
+	mcpIdx := -1
+	for i, arg := range argv {
+		switch arg {
+		case "--append-system-prompt":
+			promptIdx = i
+		case "--tools":
+			toolsIdx = i
+		case "--strict-mcp-config":
+			mcpIdx = i
+		}
+	}
+	if promptIdx < 0 || toolsIdx < 0 || mcpIdx < 0 || toolsIdx > promptIdx || mcpIdx > promptIdx {
+		t.Fatalf("lockdown flags must precede --append-system-prompt: %q", argv)
+	}
+}
+
+func TestLookPathWindowsRefusesBatchShims(t *testing.T) {
+	dir := t.TempDir()
+	cmdShim := filepath.Join(dir, "claude.cmd")
+	if err := os.WriteFile(cmdShim, []byte("@echo off\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := []string{"PATH=" + dir, "PATHEXT=.COM;.EXE;.BAT;.CMD"}
+	if _, err := lookPathOS("windows", "claude", env); !errors.Is(err, errScriptOnly) {
+		t.Fatalf("lookPathOS(windows, claude) with only .cmd = %v, want errScriptOnly", err)
+	}
+	if _, err := lookPathOS("windows", cmdShim, env); !errors.Is(err, errScriptOnly) {
+		t.Fatalf("lookPathOS(windows, explicit .cmd) = %v, want errScriptOnly", err)
+	}
+	exeBin := filepath.Join(dir, "claude.exe")
+	if err := os.WriteFile(exeBin, []byte("MZ"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := lookPathOS("windows", "claude", env)
+	if err != nil {
+		t.Fatalf("lookPathOS(windows, claude) with .exe = %v", err)
+	}
+	if !strings.EqualFold(got, exeBin) {
+		t.Fatalf("got %q, want %q", got, exeBin)
+	}
+}
+
+func TestResolveAgyModelClampsEffort(t *testing.T) {
+	cases := []struct {
+		model, effort, want string
+	}{
+		{"gemini-4-carbon", "xhigh", "gemini-4-carbon-high"},
+		{"gemini-4-argon", "xhigh", "gemini-4-argon-high"},
+		{"gemini-3.8-flash", "xhigh", "gemini-3.8-flash-high"},
+		{"gemini-4-neon", "xhigh", "gemini-4-neon-xhigh"},
+		{"gemini-4-carbon", "", "gemini-4-carbon-high"},
+		{"gemini-4-carbon", "low", "gemini-4-carbon-low"},
+		{"gemini-4-carbon-medium", "xhigh", "gemini-4-carbon-medium"},
+	}
+	for _, tc := range cases {
+		if got := resolveAgyModel(tc.model, tc.effort); got != tc.want {
+			t.Errorf("resolveAgyModel(%q, %q) = %q, want %q", tc.model, tc.effort, got, tc.want)
+		}
+	}
+}
+
+func TestAgyEngineLockdownStreamingAndCleanup(t *testing.T) {
 	requireUnix(t)
 	binDir := t.TempDir()
-	marker := filepath.Join(t.TempDir(), "marker")
-	writeAgent(t, binDir, "agy", "#!/bin/sh\ntouch \"$FAKE_MARKER\"\n")
+	argvFile := filepath.Join(t.TempDir(), "argv")
+	cwdFile := filepath.Join(t.TempDir(), "cwd")
+	settingsCopy := filepath.Join(t.TempDir(), "settings.json")
+	settingsPathFile := filepath.Join(t.TempDir(), "settings.path")
+	fakeAgy := `#!/bin/sh
+printf '%s\n' "$@" > "$FAKE_ARGV"
+pwd -P > "$FAKE_CWD"
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--settings" ]; then
+    printf '%s' "$arg" > "$FAKE_SETTINGS_PATH"
+    cp "$arg" "$FAKE_SETTINGS_COPY"
+  fi
+  prev="$arg"
+done
+printf '%s\n' '{"event":"init","init":{"model":"gemini-4-carbon-high"}}'
+printf '%s\n' '{"event":"step_update","step_update":{"text_delta":"<p>Hel"}}'
+printf '%s\n' '{"event":"step_update","step_update":{"text_delta":"lo</p>"}}'
+printf '%s\n' '{"event":"result","result":{"status":"SUCCESS","response":"\u0060\u0060\u0060html\n<p>Hello</p>\n\u0060\u0060\u0060"}}'
+`
+	writeAgent(t, binDir, "agy", fakeAgy)
 
+	var streamed strings.Builder
+	result, err := Run(context.Background(), Payload{
+		Tag:         "p",
+		ElementHTML: "<p>old</p>",
+		Comment:     "@agy tighten",
+	}, Options{
+		Env: testEnv(binDir,
+			"FAKE_ARGV="+argvFile,
+			"FAKE_CWD="+cwdFile,
+			"FAKE_SETTINGS_COPY="+settingsCopy,
+			"FAKE_SETTINGS_PATH="+settingsPathFile,
+		),
+		Models:  map[string]string{"agy": "gemini-4-carbon"},
+		Efforts: map[string]string{"agy": "xhigh"},
+	}, func(text string) {
+		streamed.WriteString(text)
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if result.HTML != "<p>Hello</p>" {
+		t.Fatalf("html = %q, want <p>Hello</p>", result.HTML)
+	}
+	if streamed.String() != "<p>Hello</p>" {
+		t.Fatalf("streamed = %q, want <p>Hello</p>", streamed.String())
+	}
+	argv := argvOf(t, argvFile)
+	if got := argAfter(t, argv, "--model"); got != "gemini-4-carbon-high" {
+		t.Fatalf("--model = %q, want gemini-4-carbon-high (clamped from xhigh)", got)
+	}
+	if !hasArg(argv, "--sandbox") || !hasArg(argv, "--disable-slash-commands") {
+		t.Fatalf("argv = %q, want --sandbox and --disable-slash-commands", argv)
+	}
+	// Verify prompt combines systemPrompt + userPrompt in -p=...
+	argvRaw := readText(t, argvFile)
+	if !strings.Contains(argvRaw, "-p="+systemPrompt) || !strings.Contains(argvRaw, "Request: tighten") {
+		t.Fatalf("argvRaw = %q, want -p= containing systemPrompt and Request: tighten", argvRaw)
+	}
+	// Verify lockdown.json is outside cmd.Dir (child work dir) and cleaned up after exit.
+	settingsPath := readText(t, settingsPathFile)
+	cwd := strings.TrimSpace(readText(t, cwdFile))
+	if filepath.Dir(settingsPath) == cwd {
+		t.Fatalf("lockdown.json (%s) must sit outside empty child workDir (%s)", settingsPath, cwd)
+	}
+	if _, err := os.Stat(settingsPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("lockdown.json (%s) was not removed after exit", settingsPath)
+	}
+	settingsText := readText(t, settingsCopy)
+	for _, want := range []string{`"allowNonWorkspaceAccess":false`, `"enableTerminalSandbox":true`, `"read_file(*)"`, `"run_command(*)"`, `"command(*)"`} {
+		if !strings.Contains(settingsText, want) {
+			t.Fatalf("lockdown.json missing %s: %s", want, settingsText)
+		}
+	}
+}
+
+func TestAgyErrorAndOversizedPrompt(t *testing.T) {
+	requireUnix(t)
+	binDir := t.TempDir()
+	writeAgent(t, binDir, "agy", "#!/bin/sh\nprintf '%s\\n' '{\"event\":\"result\",\"result\":{\"status\":\"ERROR\",\"error\":\"quota exceeded\"}}'\n")
 	_, err := Run(context.Background(), Payload{
 		Tag:         "p",
 		ElementHTML: "<p>old</p>",
-		Comment:     "@agy x",
-	}, Options{Env: testEnv(binDir, "FAKE_MARKER="+marker)}, nil)
-	if code := errorCode(t, err); code != "engine_unsupported" {
-		t.Fatalf("code = %q", code)
+		Comment:     "@agy tighten",
+	}, Options{Env: testEnv(binDir)}, nil)
+	if code := errorCode(t, err); code != "engine_failed" || !strings.Contains(err.Error(), "quota exceeded") {
+		t.Fatalf("err = %v, want engine_failed mentioning quota exceeded", err)
 	}
-	if _, statErr := os.Stat(marker); statErr == nil {
-		t.Fatal("the agy agent was started")
+
+	_, err = Run(context.Background(), Payload{
+		Tag:         "p",
+		ElementHTML: "<p>" + strings.Repeat("a", agyMaxPromptBytes()+100) + "</p>",
+		Comment:     "@agy tighten",
+	}, Options{Env: testEnv(binDir)}, nil)
+	if code := errorCode(t, err); code != "engine_unsupported" {
+		t.Fatalf("oversized prompt code = %q, want engine_unsupported", code)
 	}
 }
 
@@ -251,7 +406,7 @@ func TestContextReferences(t *testing.T) {
 	if err := os.Mkdir(baseDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	run := func(t *testing.T, ref string) (Result, error) {
+	runAs := func(t *testing.T, files bool, refs ...string) (Result, error) {
 		t.Helper()
 		if err := os.Remove(stdinFile); err != nil && !errors.Is(err, os.ErrNotExist) {
 			t.Fatal(err)
@@ -260,11 +415,16 @@ func TestContextReferences(t *testing.T) {
 			Tag:         "p",
 			ElementHTML: "<p>old</p>",
 			Comment:     "tighten",
-			ContextRefs: []string{ref},
+			ContextRefs: refs,
 		}, Options{
-			BaseDir: baseDir,
-			Env:     testEnv(binDir, "FAKE_ARGV="+argvFile, "FAKE_STDIN="+stdinFile),
+			BaseDir:      baseDir,
+			Env:          testEnv(binDir, "FAKE_ARGV="+argvFile, "FAKE_STDIN="+stdinFile),
+			ContextFiles: files,
 		}, nil)
+	}
+	run := func(t *testing.T, ref string) (Result, error) {
+		t.Helper()
+		return runAs(t, true, ref)
 	}
 
 	t.Run("escape", func(t *testing.T) {
@@ -347,6 +507,25 @@ func TestContextReferences(t *testing.T) {
 			t.Fatalf("stdin = %q", stdin)
 		}
 	})
+
+	t.Run("a document that may not attach files", func(t *testing.T) {
+		if err := os.WriteFile(filepath.Join(baseDir, "notes.md"), []byte("hello notes"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := runAs(t, false, "page", "notes.md")
+		if code := errorCode(t, err); code != "invalid_context" {
+			t.Fatalf("code = %q", code)
+		}
+		if !strings.Contains(err.Error(), "@notes.md") || !strings.Contains(err.Error(), "trust") {
+			t.Fatalf("message = %q", err.Error())
+		}
+		if _, err := os.Stat(stdinFile); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("the engine started for a request that attached a file it may not")
+		}
+		if _, err := runAs(t, false, "page"); err != nil {
+			t.Fatalf("the page alone must still work: %v", err)
+		}
+	})
 }
 
 func TestGenericEngines(t *testing.T) {
@@ -378,6 +557,29 @@ func TestGenericEngines(t *testing.T) {
 	}
 	if strings.Contains(substituted.HTML, "{prompt}") {
 		t.Fatalf("the placeholder reached the agent: %q", substituted.HTML)
+	}
+}
+
+func TestGenericEngineRunsInTheFolderOnlyWithSiblingFiles(t *testing.T) {
+	requireUnix(t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, files := range []bool{false, true} {
+		got, err := Run(context.Background(), Payload{Tag: "p", ElementHTML: "<p>old</p>", Comment: "@where hi"}, Options{
+			File:         filepath.Join(dir, "page.html"),
+			BaseDir:      dir,
+			Engines:      map[string][]string{"where": {"sh", "-c", "pwd -P"}},
+			Env:          testEnv(t.TempDir()),
+			ContextFiles: files,
+		}, nil)
+		if err != nil {
+			t.Fatalf("files=%v: Run: %v", files, err)
+		}
+		if inFolder := strings.TrimSpace(got.HTML) == dir; inFolder != files {
+			t.Fatalf("files=%v: the engine ran in %q, the document's folder is %q", files, strings.TrimSpace(got.HTML), dir)
+		}
 	}
 }
 
@@ -627,7 +829,7 @@ func TestBothAgentsMissing(t *testing.T) {
 	if code := errorCode(t, err); code != "engine_unavailable" {
 		t.Fatalf("code = %q", code)
 	}
-	want := "Neither Claude Code nor Codex is installed. Install one and sign in."
+	want := "None of Claude Code, Codex, or Gemini (agy) is installed. Install one and sign in."
 	if err.Error() != want {
 		t.Fatalf("message = %q, want %q", err.Error(), want)
 	}

@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
+if [ -f "$ROOT_DIR/FORK.md" ]; then
+  echo "This is the private fork (FORK.md). Releases run only from the public htmlclay checkout." >&2
+  exit 1
+fi
+
 # Promotion has its own publication-only preflight and recovery path.
 for arg in "$@"; do
   case "$arg" in
@@ -303,13 +308,21 @@ section "Step 3: Commit & Push"
 # whole script down at the one moment it exists to recover from.
 if [ "$RESUME" = true ]; then
   info "Version already committed by the run being resumed"
+  if ! node scripts/build-changelog.mjs --check; then
+    error "website/changelog.html does not match CHANGELOG.md. Run node scripts/build-changelog.mjs, commit it, then resume again"
+    exit 1
+  fi
 else
   if changelog-section --repo . --release "${NEW_VERSION}" --name htmlclay < /dev/null; then
     success "CHANGELOG.md has the v${NEW_VERSION} section"
   else
     warn "changelog-section could not draft the v${NEW_VERSION} section; releasing without one"
   fi
-  git add cmd/htmlclay/main.go website/index.html
+  if ! node scripts/build-changelog.mjs; then
+    error "The changelog page cannot read CHANGELOG.md (the line is above). Fix it and run node scripts/build-changelog.mjs, or undo this run's edits with: git checkout -- cmd/htmlclay/main.go website/index.html website/download/index.html CHANGELOG.md"
+    exit 1
+  fi
+  git add cmd/htmlclay/main.go website/index.html website/download/index.html website/changelog.html website/changelog/index.html
   if [ -f CHANGELOG.md ]; then git add CHANGELOG.md; fi
   git commit -m "chore: release v${NEW_VERSION}"
   success "Committed version bump"
@@ -427,7 +440,7 @@ trap - EXIT
 # Keep this list in step with PAGES in scripts/stamp-website.js: a page stamped
 # and not staged ships stale and leaves the tree dirty, which fails the next
 # release's clean-tree check.
-git add website/index.html
+git add website/index.html website/download/index.html
 if git diff --cached --quiet; then
   info "Website already current, nothing to push"
 else

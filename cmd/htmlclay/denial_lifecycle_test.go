@@ -5,9 +5,18 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 )
+
+// switchBuiltinsOff turns the three built-in programs off, for a test of a
+// declared helper whose document sits where the built-ins would run.
+func switchBuiltinsOff(a *app) {
+	for _, id := range builtin.IDs {
+		a.rt.cfg.SetBuiltinOn(id, false)
+	}
+}
 
 func helperDiscoveryState(t *testing.T, s *site, document string) string {
 	t.Helper()
@@ -27,11 +36,20 @@ func helperDiscoveryState(t *testing.T, s *site, document string) string {
 	if err := json.Unmarshal([]byte(body), &meta); err != nil {
 		t.Fatal(err)
 	}
-	// The declared helper, then the built-ins ai-edit and blockeditor-tool, both on by default
-	// (blockeditor-tool because the bundled runtime carries its tool-generation prompts).
-	if len(meta.Document.Helpers) != 3 || meta.Document.Helpers[1].Name != "ai-edit" || meta.Document.Helpers[1].State != "ready" ||
-		meta.Document.Helpers[2].Name != "blockeditor-tool" || meta.Document.Helpers[2].State != "ready" {
+	// The declared helper, then the built-ins ai-edit, ai-tools, programs and
+	// blockeditor-tool, then the three built-in programs, none of which this
+	// document may run: it is loose, or the test switched them off.
+	if len(meta.Document.Helpers) != 8 || meta.Document.Helpers[1].Name != "ai-edit" || meta.Document.Helpers[1].State != "ready" ||
+		meta.Document.Helpers[2].Name != "ai-tools" || meta.Document.Helpers[2].State != "ready" ||
+		meta.Document.Helpers[3].Name != "programs" || meta.Document.Helpers[3].State != "ready" ||
+		meta.Document.Helpers[4].Name != "blockeditor-tool" || meta.Document.Helpers[4].State != "ready" {
 		t.Fatalf("helpers: %+v", meta.Document.Helpers)
+	}
+	for i, name := range []string{"file-search", "file-convert", "folder-watch"} {
+		row := meta.Document.Helpers[i+5]
+		if row.Name != name || row.State != "unavailable" {
+			t.Fatalf("helpers[%d] = %+v, want %s unavailable", i+5, row, name)
+		}
 	}
 	return meta.Document.Helpers[0].State
 }
@@ -70,7 +88,7 @@ func TestADenialLastsForTheRestOfThatOpen(t *testing.T) {
 				t.Fatalf("initial plan %+v, calls %d", plan, calls)
 			}
 			s, rel := a.openForTest(t, document)
-			a.applyHelperPlan(s, document, plan)
+			a.applyHelperPlan(s.srv.Core, document, plan)
 			if state := helperDiscoveryState(t, s, document); state != "denied" {
 				t.Fatalf("initial state %q", state)
 			}

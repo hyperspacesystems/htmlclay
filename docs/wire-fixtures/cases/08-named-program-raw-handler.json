@@ -1,0 +1,50 @@
+{
+  "name": "a named program on a raw handler",
+  "hosts": [
+    "loose",
+    "served"
+  ],
+  "served": "released",
+  "setup": {
+    "program": "none",
+    "decision": "none"
+  },
+  "steps": [
+    {
+      "do": "subscribe",
+      "as": "handler",
+      "stream": "h",
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "do": "subscribe",
+      "as": "page",
+      "stream": "p",
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "do": "send",
+      "as": "page",
+      "frame": {
+        "type": "wire/request",
+        "id": "r1",
+        "helper": "search",
+        "payload": {}
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "do": "see",
+      "stream": "p",
+      "type": "wire/error",
+      "id": "r1",
+      "code": "helper_protocol_unsupported"
+    }
+  ]
+}

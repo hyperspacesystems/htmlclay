@@ -17,6 +17,10 @@ file. It uses the same request transport, but gives the program a bounded JSON
 result and lets the page skip save coordination when the document is not
 involved.
 
+HTML Clay serves documents two ways: on a loose file's site, with one hostname
+per project tree, and in a served folder, a folder you chose to serve at
+`http://<name>.htmlclay.localhost:<port>/`. The wire works on both.
+
 ## What you need
 
 - HTML Clay 1.6.0 or later, with the file open in a browser
@@ -341,10 +345,11 @@ fi
 `ai-edit` is built in. For every `.html` and `.htmlclay` document, `/_/meta` lists
 `{ "name": "ai-edit", "state": "ready" }` after the declared helpers, or `"unavailable"` when
 AI Editing is turned off in the tray. HTML Clay answers it itself: it needs no declaration or
-approval, never occupies the handler slot, requires the document's `Save-Token`, and runs one
-request per document at a time. A document that declares a helper named `ai-edit` does not
-replace it. The request and its frames are the ones ClayJS's `ai-edit` plugin sends and reads;
-see [SECURITY.md](../SECURITY.md#ai-editing) for what the agent may do.
+approval, never occupies the handler slot, and runs one request per document at a time. On a
+loose file's site it requires the document's `Save-Token`; in a served folder no token exists, so
+it admits the document's page and refuses a local process. A document that declares a helper
+named `ai-edit` does not replace it. The request and its frames are the ones ClayJS's `ai-edit`
+plugin sends and reads; see [SECURITY.md](../SECURITY.md#ai-editing) for what the agent may do.
 
 The agent comes from the request's leading `@claude`, `@fable` or `@codex` token, and from the
 configured default agent when the comment carries no such token (Claude Code is the default when
@@ -375,16 +380,18 @@ htmlclay wire where  <file>                         print the origin serving <fi
 ```
 
 Flags may sit on either side of the file. `--origin <url>` names an HTML Clay
-site's address as the browser shows it, such as
-`http://htmlclay.localhost:1212`; `--port <n>` names a Hyperclay Local origin,
-which has no hostname; HTML Clay's own port looks the file's hostname up on it. Either one reaches a file whose folder HTML Clay remembers
-no origin for: copy the address out of the page's own address bar. `serve` uses
-raw mode unless you pass `--protocol=jsonl`.
+site's or served folder's address as the browser shows it, such as
+`http://htmlclay1.localhost:1212` or `http://notes.htmlclay.localhost:1212`;
+`--port <n>` names a Hyperclay Local origin, which has no hostname; HTML Clay's
+own port looks the file's hostname up on it. Either one reaches a file whose
+folder HTML Clay remembers no origin for: copy the address out of the page's own
+address bar. `serve` uses raw mode unless you pass `--protocol=jsonl`.
 
-Discovery reads HTML Clay's remembered hostnames first, then the folders Hyperclay
-Local publishes for the same purpose. When both apps serve the same file, the
-command cannot tell which origin you meant, so it exits 8 and asks for `--origin`
-or `--port`.
+Discovery reads HTML Clay's config first, both remembered loose sites and served
+folders, so `htmlclay wire` finds a file in a served folder by itself and reaches
+it at the folder's address. Next it reads the folders Hyperclay Local publishes
+for the same purpose. When both apps serve the same file, the command cannot tell
+which origin you meant, so it exits 8 and asks for `--origin` or `--port`.
 
 `listen` is an observer unless you pass `--handler`. The handler slot is exclusive
 (one program per file) and it also keeps HTML Clay watching the file while no tab
@@ -397,7 +404,7 @@ appears when you come back.
 | 1 | bad arguments |
 | 2 | HTML Clay is not running |
 | 3 | the address is held by the recovery page |
-| 4 | no site is serving that file, so open it first |
+| 4 | no site or served folder is serving that file, so open it or serve its folder first |
 | 5 | another program holds the handler slot |
 | 6 | refused |
 | 7 | sent, and nothing was attached to take it |
@@ -406,18 +413,38 @@ appears when you come back.
 ## What keeps this safe
 
 **A local process runs as you, so it needs no secret.** The wire tells a browser
-from a program by attestation: a browser sends `Sec-Fetch-Site` or `Origin` on
-every request and cannot forge either, and a local process sends neither. That is
-the entire classifier. There is no token to leak and no header to copy.
+from a program by attestation: on a loose file's site, a browser sends
+`Sec-Fetch-Site` or `Origin` on every request and cannot forge either, and a local
+process sends neither. On a served folder, a local process also sends none of
+`Sec-Fetch-Mode`, `Sec-Fetch-Dest`, or `Cookie`: the served address sets a cookie
+on every visit, so even a browser too old to send `Sec-Fetch-Site` gives itself
+away. There is no token to leak and no header to copy.
 
 **A page may only reach its own file.** Requests are addressed by the file's
-absolute path, and a page can only name the file it was served from. Anything but
-`same-origin` is rejected: HTML Clay serves one hostname per project tree, and
-admitting `same-site` or `cross-site` would let one project's page drive another
-project's wire.
+absolute path (or the page's URL, resolved to that path), and a page can only name
+the file it was served from. Anything but `same-origin` is rejected: HTML Clay
+serves one hostname per project tree for loose files and
+`http://<name>.htmlclay.localhost:<port>/` for each served folder, and admitting
+`same-site` or `cross-site` would let one project's or folder's page drive
+another's wire.
 
 **Only a program may be a handler.** A page can send and observe. It cannot claim
 the handler slot, so an open tab cannot impersonate your agent.
+
+**A served folder admits three callers.** Anything else is refused with 403 before
+a document is looked up:
+
+1. **A page of this folder.** `Sec-Fetch-Site` is exactly `same-origin`, and
+   `Origin` when present is the folder's own origin. It names its document by its
+   page URL. A page is never the handler.
+2. **The document's program.** The program runs inside HTML Clay and holds the one
+   handler slot while its document is bound. A bound channel on a served origin
+   admits the document's page, and no token exists there: anyone who may save the
+   document in the folder may use its programs.
+3. **A local process.** It sends the folder's exact `Host` and none of `Origin`,
+   `Sec-Fetch-Site`, `Sec-Fetch-Mode`, `Sec-Fetch-Dest`, or `Cookie`. It names an
+   absolute `file` inside the folder. It may be handler, observer, or sender on an
+   unbound channel only, and it can never reach a built-in program (AI editing).
 
 **Every frame is bounded JSON.** Raw mode carries requests and small status
 lines. Structured mode adds a bounded result. Document edits remain in the file,
@@ -439,20 +466,23 @@ one profile per page through `/_/meta` capability discovery and uses it for both
 **Rollout order depends on direction, and only `htmlclay` mints a save token.** When adding a wire
 address, ship hosts first and clients last; when narrowing an attribute that rolling clients read,
 ship dual injection on the host before narrowing clients. `hyperclay` and `hyperclay-local`
-authorize saves by cookie, whereas `htmlclay` posts to `/_/save/{token}` using `savetoken` (while
-still stripping legacy `htmlclaytoken` in `HOST_TOKEN_ATTRS`, kept separate from non-credential
-`HOST_IDENTITY_ATTRS`).
+authorize saves by cookie, whereas `htmlclay` on a loose file's site posts to `/_/save/{token}`
+using `savetoken` (a served folder has no save token, and `HOST_TOKEN_ATTRS` still strips legacy
+`htmlclaytoken`, kept separate from non-credential `HOST_IDENTITY_ATTRS`).
 
 ## Things that will trip you up
 
-**Open the file before attaching.** A file registers with HTML Clay on its first
-document navigation, and the wire finds files through that registration. Attaching
-first exits 4 with "open it first".
+**Open a loose file before attaching.** A loose file registers with HTML Clay on
+its first document navigation, and the wire finds it through that registration.
+Attaching first exits 4 with "open it first". For a served folder, `htmlclay wire`
+finds a file in the folder by itself from HTML Clay's config and reaches it at the
+folder's address.
 
-**Chrome your script adds must be injected, never authored.** A node marked
-`no-save` is left out of the document that gets written, so writing one into the
-file by hand means the first save deletes it permanently. Build panels, overlays,
-and toolbars at runtime and mark them before connecting them:
+**A node marked `no-save` must be injected, never authored.** Chrome marked
+`no-save` is left out of the document that gets written, so writing such a node
+into the file by hand or from a program means the first save deletes it
+permanently. Build panels, overlays, and toolbars at runtime and mark them before
+connecting them:
 
 ```js
 node.setAttribute("clay", "no-save no-snapshot no-watch");
@@ -470,16 +500,34 @@ has nothing to match and quietly does not appear.
 that has already finished, and exiting finishes it. Structured helpers use a
 terminal result instead, which HTML Clay holds until clean exit and EOF.
 
-**The first save after a program's edit warns you.** It reports that the file
-changed outside this tab and that your version was saved with the previous one in
-Backups. Nothing is lost, and the page's own save carries the program's edit
-forward. Known wart.
+**Every save after an agent write reports a stale write.** On a loose file's site,
+the save after a program's edit warns that the file changed outside this tab and
+that your version was saved with the previous one in Backups. Nothing is lost, and
+the page's own save carries the program's edit forward. Known wart.
+
+**Rewriting a served document on disk does not update an open page live.** When a
+program or a process attached with `htmlclay wire` rewrites a served document on
+disk while a page has it open, the page keeps showing the old content, and its
+next save is refused as stale (412). No bytes are lost: the version from before
+the program's write is kept in the document's history.
 
 **Re-attach after editing an open form on disk.** Modifying an already-open `.htmlclay` form on
 disk (for example with `sed`) reloads and re-registers the tab while an existing `htmlfile listen`
 Monitor stays silently attached to the old session. Stop the Monitor and start a fresh
 `htmlfile listen` after any on-disk edit, and when a send seems missing, run `htmlfile collect <path>`
 first because the answers live in the file.
+
+## Conformance cases
+
+`docs/wire-fixtures/` in the repository holds one JSON file per wire behavior, and
+`cmd/htmlclay/wire_conformance_test.go` replays every case on a loose file's site
+and on a served folder. Cases 14 and 15 describe served behavior not yet released.
+
+Run the suite from the repository root:
+
+```bash
+go test ./cmd/htmlclay/ -run '^TestM3WireConformance' -count=1 -v
+```
 
 ## A worked example
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -340,7 +341,7 @@ func TestDataFileWriteBrowserNeedsTheTargetFilesSaveToken(t *testing.T) {
 	assertUnchanged(t, path, queryWriteDoc)
 
 	withToken := postDataWrite(t, srv, target, `{"title":"World"}`,
-		browser(map[string]string{helperTokenHeader: f.Token}))
+		browser(map[string]string{wire.TokenHeader: f.Token}))
 	if withToken.Code != http.StatusOK {
 		t.Fatalf("the file's own token = %d, want 200: %s", withToken.Code, withToken.Body.String())
 	}

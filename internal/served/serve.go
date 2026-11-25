@@ -1,0 +1,524 @@
+package served
+
+import (
+	"errors"
+	"io/fs"
+	"net/http"
+	"net/http/httputil"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync/atomic"
+
+	"github.com/panphora/htmlclay/internal/clayruntime"
+	"github.com/panphora/htmlclay/internal/wire"
+)
+
+// rootServer answers one root: Local's static catch-all, its document lane, its
+// folder listings and its error body.
+type rootServer struct {
+	id string
+	// workspaceEntry is where a top-level load of "/" goes (Options.WorkspaceEntry).
+	workspaceEntry func(rootID string) string
+	// onPageLoad hears about a document that answered a top-level page load
+	// (Options.OnPageLoad). Nil hears nothing.
+	onPageLoad func(rootID, rel string)
+	// onUnsavedReport hears an open tab say whether its document holds unsaved
+	// edits (Options.OnUnsavedReport). Nil hears nothing.
+	onUnsavedReport func(absPath, tab string, seq int64, unsaved, frozen bool)
+	// heldCopy finds a held conflict's kept server copy (Options.HeldCopy).
+	heldCopy func(rootID, rel string) (string, bool)
+	// beforePage hears about a top-level page load before any of the page is
+	// written (Options.BeforePage). Nil hears nothing.
+	beforePage func(rootID, absPath string)
+	// stranger reports a document this root must serve with its scripts off
+	// (Options.Stranger). Nil serves every page as itself.
+	stranger func(absPath string) bool
+	baseDir  string
+	// publicHost is the served folder's address; empty in the trial binary.
+	publicHost string
+	registry   *consentRegistry
+	assets     fs.FS
+	selected   string
+	releases   map[string]clayruntime.Release
+	// commit is the one writer of this root's documents: every route that writes
+	// goes through the same host, so two of them cannot interleave.
+	commit *commitHost
+	// service and serviceProxy are the full host's JS service: the room-owning
+	// public routes are forwarded to it (forward.go). Both nil without one.
+	service      *serviceLink
+	serviceProxy *httputil.ReverseProxy
+	// live is this root's projection of the process hub: every tab's sync stream
+	// joins it, and hooks carries every commit's live calls into it.
+	live  *rootLive
+	hooks *liveHooks
+	// syncWorker and syncDataWorker are the SharedWorker scripts this host
+	// serves, read at boot.
+	syncWorker     []byte
+	syncDataWorker []byte
+	// tailwind is this root's generated stylesheets: the compiles a save starts
+	// and the one a read starts when it misses.
+	tailwind *tailwindHost
+	// control is this root as the control listener and the watcher see it.
+	control *controlRoot
+	// allowFraming is the folder's choice (step 7.14): while it is false, every
+	// answer of this folder carries framePolicy.
+	allowFraming atomic.Bool
+	// framePolicy is the one frame rule this folder's answers carry: its own
+	// pages and the dashboard, never another site.
+	framePolicy string
+	// wire is this root's wire core, nil when the root carries none; wireMux is
+	// its handler.
+	wire    *wire.Core
+	wireMux http.Handler
+	// wirePolicy is what this root's wire may grant; nil with no wire.
+	wirePolicy wire.Policy
+	// internalDir is the app's own data folder, the one nothing under it may name.
+	internalDir string
+}
+
+// htmlRoutePattern is Local's SPA-aware route: the document names an .html or
+// .htmlclay file and everything after it is a client-side route.
+var htmlRoutePattern = regexp.MustCompile(`^(.*?\.html(?:clay)?)(\/.*)?$`)
+
+// svgPathPattern matches a file send must hand over as a download: an SVG can
+// carry <script>, and served inline from this origin it runs with the page's own
+// authority.
+var svgPathPattern = regexp.MustCompile(`(?i)\.svgz?$`)
+
+func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
+	runtime, err := loadRuntimeReleases(cfg.assets)
+	if err != nil {
+		return nil, err
+	}
+	registry := newConsentRegistry(root.path, nil)
+	registry.Ready()
+	baseDir := registry.BaseReal()
+	liveRoot := newRootLive(runtime.Releases, runtime.Selected)
+	if cfg.service != nil {
+		liveRoot.notices = func(name string, payload any) {
+			cfg.events.appendNotice(root.id, name, payload)
+		}
+	}
+	hooks := newLiveHooks(liveRoot)
+	hooks.guard.v2 = root.publicHost != ""
+	compile := cfg.compileTailwind
+	if compile == nil && defaultTailwindCompile != nil {
+		compile = defaultTailwindCompile(cfg.localSource)
+	}
+	tailwind := newTailwindHost(baseDir, compile, registry)
+	hooks.tailwind = tailwind
+	host := newCommitHost(baseDir, root.id, registry, hooks, runtime.Releases)
+	host.service = cfg.service
+	host.onStructure = cfg.onStructure
+	host.onRetire = cfg.onRetire
+	host.onCreate = cfg.onCreate
+	host.stranger = cfg.stranger
+	host.onCopy = cfg.onCopy
+	if cfg.service != nil {
+		cfg.service.setRoot(root.id, baseDir)
+	}
+	worker, err := readWorkerScript(cfg.assets, "sync-worker.js")
+	if err != nil {
+		return nil, err
+	}
+	dataWorker, err := readWorkerScript(cfg.assets, "sync-data-worker.js")
+	if err != nil {
+		return nil, err
+	}
+	framePolicy := "frame-ancestors 'self'"
+	if cfg.dashboard != "" {
+		framePolicy = "frame-ancestors 'self' " + cfg.dashboard
+	}
+	server := &rootServer{
+		id:              root.id,
+		stranger:        cfg.stranger,
+		workspaceEntry:  cfg.workspaceEntry,
+		onPageLoad:      cfg.onPageLoad,
+		onUnsavedReport: cfg.onUnsavedReport,
+		heldCopy:        cfg.heldCopy,
+		beforePage:      cfg.beforePage,
+		baseDir:         baseDir,
+		publicHost:      root.publicHost,
+		registry:        registry,
+		assets:          cfg.assets,
+		selected:        runtime.Selected,
+		releases:        runtime.Releases,
+		commit:          host,
+		live:            liveRoot,
+		hooks:           hooks,
+		tailwind:        tailwind,
+		syncWorker:      worker,
+		syncDataWorker:  dataWorker,
+		control:         newControlRoot(root.id, baseDir, registry, host, cfg.events),
+		framePolicy:     framePolicy,
+	}
+	server.allowFraming.Store(root.allowFraming)
+	if cfg.service != nil {
+		server.service = cfg.service
+		server.serviceProxy = newServiceProxy(cfg.service, root.id, cfg.dashboard)
+	}
+	return server, nil
+}
+
+// pageLoad is a GET a browser makes for a page: no Sec-Fetch-Dest, or document.
+func pageLoad(r *http.Request) bool {
+	dest := r.Header.Get("Sec-Fetch-Dest")
+	return r.Method == http.MethodGet && (dest == "" || dest == "document")
+}
+
+// policy is this root's gate: by name when it is a served folder, else by port.
+func (s *rootServer) policy(r *http.Request) originPolicy {
+	if s.publicHost != "" {
+		return namePolicy(s.publicHost)
+	}
+	return portPolicy(localPort(r))
+}
+
+func (s *rootServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !s.allowFraming.Load() {
+		w.Header().Set("Content-Security-Policy", s.framePolicy)
+	}
+	urlPath, marked, ok := gate(w, r, s.policy(r))
+	if !ok {
+		return
+	}
+	if marked && s.wireMux != nil && (urlPath == "/wire/subscribe" || urlPath == "/wire/send" || strings.HasPrefix(urlPath, "/wire/runs/")) {
+		s.wireMux.ServeHTTP(w, r)
+		return
+	}
+	if marked && r.Method == http.MethodPost && urlPath == "/helper-setup" {
+		s.serveHelperSetup(w, r)
+		return
+	}
+	if s.service.active() != nil {
+		if forward, name := s.forwardsToService(r, urlPath, marked); forward && s.forwardToService(w, r, name) {
+			return
+		}
+	}
+	// The root opens the workspace, as Local's does: only a top-level page load
+	// of "/" (not HEAD, a framed document's link, an <img>), and only when the
+	// workspace can open; otherwise the listing answers.
+	if urlPath == "/" && !marked && s.workspaceEntry != nil && pageLoad(r) {
+		if entry := s.workspaceEntry(s.id); entry != "" {
+			w.Header().Set("Cache-Control", "no-store")
+			http.Redirect(w, r, entry, http.StatusFound)
+			return
+		}
+	}
+	// Express matches its routes against the still-encoded path, so a `%2F`
+	// inside a segment does not split it here either.
+	rawPath := r.URL.EscapedPath()
+	favicon, isFavicon := faviconFiles[strings.TrimSuffix(rawPath, "/")]
+	_, isTemplate := templateFilename(rawPath)
+	getOrHead := r.Method == http.MethodGet || r.Method == http.MethodHead
+	versionsTail, hasVersionsTail := routeTail(urlPath, "/versions/")
+	versionTail, hasVersionTail := routeTail(urlPath, "/version/")
+	restoreTail, hasRestoreTail := routeTail(urlPath, "/restore/")
+	dataLossTail, hasDataLossTail := routeTail(urlPath, "/data-loss/")
+	// Express matches its routes non-strictly, so `/upload` answers `/upload/` too.
+	systemPath := strings.TrimSuffix(urlPath, "/")
+	apiName := apiDocumentName(urlPath)
+	// The plain-URL data pair is the one lane that is not under `/_/`: Local
+	// answers `<name>.html?data=` and `/` as index.html.
+	plainQuery := readDataQuery(r.RequestURI)
+	plainName, plainDocument := plainDataName(urlPath)
+	var err error
+	switch {
+	case marked && getOrHead && urlPath == "/data-loss":
+		err = s.serveDataLossGet(w, r)
+	case marked && r.Method == http.MethodPost && urlPath == "/unsaved" && s.publicHost != "":
+		err = s.serveUnsavedReport(w, r)
+	case marked && r.Method == http.MethodPost && urlPath == "/data-loss":
+		err = s.serveDataLossPost(w, r, "")
+	case marked && r.Method == http.MethodPost && hasDataLossTail:
+		err = s.serveDataLossPost(w, r, dataLossTail)
+	case marked && getOrHead && hasVersionsTail:
+		err = s.serveVersions(w, r, versionsTail)
+	case marked && getOrHead && hasVersionTail:
+		err = s.serveVersion(w, r, versionTail)
+	case marked && r.Method == http.MethodPost && hasRestoreTail:
+		err = s.serveRestore(w, r, restoreTail)
+	case marked && r.Method == http.MethodPost && apiName != "":
+		err = s.serveAPIWrite(w, r, apiName)
+	case marked && r.Method == http.MethodPost && systemPath == "/api":
+		err = s.serveAPIWrite(w, r, "index.html")
+	case marked && getOrHead && apiName != "":
+		err = s.serveAPIGet(w, r, apiName)
+	case marked && getOrHead && systemPath == "/api":
+		err = s.serveAPIGet(w, r, "index.html")
+	case marked && r.Method == http.MethodPost && systemPath == "/upload":
+		err = s.serveUpload(w, r)
+	case marked && r.Method == http.MethodPost && documentActionSegments[systemPath]:
+		err = s.serveDocumentAction(w, r)
+	case marked && getOrHead && strings.HasPrefix(rawPath, theirsPrefix) && len(rawPath) > len(theirsPrefix):
+		err = s.serveTheirs(w, r)
+	case marked && getOrHead && strings.HasPrefix(rawPath, "/_/uploads/") && len(rawPath) > len("/_/uploads/"):
+		err = s.serveUploadFile(w, r)
+	case marked && getOrHead && urlPath == "/meta":
+		err = s.serveMeta(w, r)
+	case marked && getOrHead && urlPath == "/blockeditor-state":
+		err = s.servePageState(w, r)
+	case marked && getOrHead && urlPath == preSpecSyncWorkerPath:
+		err = serveWorkerScript(w, s.syncWorker)
+	case marked && getOrHead && urlPath == syncDataWorkerPath:
+		err = serveWorkerScript(w, s.syncDataWorker)
+	case getOrHead && (urlPath == "/sync" || urlPath == "/live-sync/stream"):
+		err = s.serveLiveStream(w, r)
+	case r.Method == http.MethodPost && relayAddress(urlPath) && bareAllowed(urlPath, marked):
+		err = s.serveRelay(w, r, urlPath)
+	case r.Method == http.MethodPost && urlPath == "/save" && bareAllowed(urlPath, marked):
+		err = s.serveSave(w, r)
+	case getOrHead && isFavicon:
+		err = s.serveFavicon(w, r, favicon)
+	case getOrHead && isTemplate:
+		err = s.serveTemplate(w, r, rawPath)
+	case marked && getOrHead && strings.HasPrefix(rawPath, "/_/clayjs/"):
+		err = s.serveRuntimeAsset(w, r)
+	case getOrHead && tailwindRoutePattern.MatchString(rawPath):
+		err = s.serveTailwind(w, r, rawPath)
+	case r.Method == http.MethodPost && !marked && plainQuery.present && plainDocument:
+		err = s.servePlainAPIWrite(w, r, plainName)
+	case getOrHead && !marked && plainQuery.present && plainDocument:
+		err = s.servePlainDataGet(w, r, plainName)
+	default:
+		err = s.serve(w, r, marked)
+	}
+	if err != nil {
+		serveError(w, r, err)
+	}
+}
+
+// serve is Local's static catch-all: the folder listing at `/` and below, the
+// SPA-aware document route, and every other file through send.
+func (s *rootServer) serve(w http.ResponseWriter, r *http.Request, marked bool) error {
+	// A request that arrived under the reserved `/_/` marker and reached the
+	// catch-all was not consumed by any system route, so its stripped path must
+	// not be served as a document.
+	if marked {
+		sendText(w, r, http.StatusNotFound, "File not found")
+		return nil
+	}
+
+	urlPath, err := decodeOnce(r.URL.EscapedPath())
+	if err != nil {
+		return err
+	}
+	if urlPath == "/" {
+		return s.serveDirListing(w, r, s.baseDir, s.baseDir)
+	}
+	if urlPath == "" || urlPath[0] != '/' {
+		return invalidPathError()
+	}
+
+	requestedPath := urlPath[1:]
+	match := htmlRoutePattern.FindStringSubmatch(requestedPath)
+	target := requestedPath
+	if match != nil {
+		target = match[1]
+	}
+	if _, err := validateSegments(target); err != nil {
+		return err
+	}
+	realPath, err := resolveReadPath(s.registry, target)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(realPath)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		// An .html segment names a document, never a folder.
+		if match != nil {
+			return fileNotFoundError()
+		}
+		return s.serveDirListing(w, r, realPath, s.baseDir)
+	}
+
+	// A page type in an uploads folder is a download on every branch, so the
+	// decision is made before the page branch is reached rather than beside the
+	// header below. Uploads store directly inside `assets-<stem>/`, so only the
+	// immediate parent counts, compared without case.
+	uploaded := refusedUploadPath(realPath) && inUploadsFolder(realPath)
+	// A document nobody vouches for is served with its scripts off: this
+	// origin can read the whole folder, and a page on it can change any file
+	// here.
+	stranger := s.strangerPage(realPath)
+	if stranger {
+		w.Header().Set("Content-Security-Policy", "sandbox")
+	}
+	if match != nil && !uploaded {
+		if pageLoad(r) && s.beforePage != nil && r.Header.Get("Clay-Source") != "1" {
+			// The app keys a document on the path as the system writes it.
+			s.beforePage(s.id, realOrSame(realPath))
+		}
+		err := s.serveHtml(w, r, realPath, match[1])
+		// A page a person asked for is a document they opened. Everything else
+		// this root answers is the page's own business.
+		if err == nil && pageLoad(r) && s.onPageLoad != nil {
+			if rel, relErr := filepath.Rel(s.baseDir, realPath); relErr == nil {
+				s.onPageLoad(s.id, filepath.ToSlash(rel))
+			}
+		}
+		return err
+	}
+
+	// nosniff on everything: the browser takes the type send sets from the
+	// extension and never second-guesses it from the bytes.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if svgPathPattern.MatchString(realPath) || uploaded {
+		w.Header().Set("Content-Disposition", "attachment")
+	}
+	// send types an extensionless file by its bare basename, as if `html` or
+	// `svg` were an extension: a file with no extension is bytes, never a page.
+	contentType := "application/octet-stream"
+	if filepath.Ext(realPath) != "" {
+		contentType = mimeTypeFor(realPath)
+	}
+	sendFile(w, r, realPath, info, contentType)
+	return nil
+}
+
+// pageExtensions are the types a browser renders as a page that can run
+// script: a sandbox header on these is what keeps a stranger's page inert.
+var pageExtensions = map[string]bool{
+	".html": true, ".htm": true, ".htmlclay": true, ".xhtml": true, ".xml": true, ".svg": true, ".svgz": true,
+}
+
+// strangerPage reports a file that renders as a page and whose document needs
+// the warning. A compressed page (evil.html.gz) is a page with its sidecar on.
+func (s *rootServer) strangerPage(realPath string) bool {
+	if s.stranger == nil {
+		return false
+	}
+	ext := strings.ToLower(filepath.Ext(realPath))
+	if ext == ".gz" || ext == ".br" {
+		ext = strings.ToLower(filepath.Ext(strings.TrimSuffix(realPath, ext)))
+	}
+	return pageExtensions[ext] && s.stranger(realOrSame(realPath))
+}
+
+// serveDirListing renders one folder's listing.
+func (s *rootServer) serveDirListing(w http.ResponseWriter, r *http.Request, dirPath, baseDir string) error {
+	entries, err := readListingEntries(dirPath)
+	if err != nil {
+		sendText(w, r, http.StatusInternalServerError, "Error reading directory")
+		return nil
+	}
+	displayPath := ""
+	if rel, err := filepath.Rel(baseDir, dirPath); err == nil && rel != "." {
+		displayPath = filepath.ToSlash(rel)
+	}
+	sendText(w, r, http.StatusOK, string(renderDirListing(displayPath, entries)))
+	return nil
+}
+
+// readListingEntries reads a folder the way fs.readdir answers: libuv sorts the
+// entries by name with strcmp, so the listing is in name order too.
+func readListingEntries(dirPath string) ([]listingEntry, error) {
+	raw, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]listingEntry, 0, len(raw))
+	for _, entry := range raw {
+		kind := entry.Type()
+		isDir := entry.IsDir()
+		if !isDir && !kind.IsRegular() {
+			continue
+		}
+		entries = append(entries, listingEntry{Name: entry.Name(), IsDir: isDir})
+	}
+	return entries, nil
+}
+
+// serveError is Local's error handler: the status from the error, ENOENT and
+// ENOTDIR as 404, and one body per status class.
+func serveError(w http.ResponseWriter, r *http.Request, err error) {
+	status := http.StatusInternalServerError
+	var pathErr *PathError
+	switch {
+	case errors.As(err, &pathErr) && pathErr.Status != 0:
+		status = pathErr.Status
+	case errors.Is(err, fs.ErrNotExist), isNotDirError(err):
+		status = http.StatusNotFound
+	}
+	body := "Internal server error"
+	switch status {
+	case http.StatusNotFound:
+		body = "File not found"
+	case http.StatusForbidden:
+		body = "Access denied"
+	case http.StatusBadRequest:
+		body = "Bad request"
+	}
+	sendText(w, r, status, body)
+}
+
+// refusedUploadPath is Local's refusedUpload: the types a document folder may
+// not hold, because a document stored beside a document and served from the
+// same origin is stored XSS. SVG is deliberately accepted and served inert.
+func refusedUploadPath(fileName string) bool {
+	ext := strings.ToLower(filepath.Ext(fileName))
+	if ext == "" || ext == ".svg" || ext == ".svgz" {
+		return false
+	}
+	if uploadRefusedExtensions[ext] {
+		return true
+	}
+	return documentTypePattern.MatchString(mimeLookup(ext[1:]))
+}
+
+var uploadRefusedExtensions = map[string]bool{
+	".html": true, ".htm": true, ".shtml": true, ".xhtml": true, ".xht": true, ".htmlclay": true,
+	".xml": true, ".xsl": true, ".xslt": true, ".mathml": true, ".mml": true, ".rss": true,
+	".atom": true, ".rdf": true,
+	".js": true, ".mjs": true, ".cjs": true, ".ecma": true,
+}
+
+var documentTypePattern = regexp.MustCompile(`^(?:text/html|application/xhtml\+xml|text/xml|application/xml|[a-z0-9.-]+/[a-z0-9.+-]*\+xml|text/mathml|text/javascript|application/javascript|application/x-javascript|application/ecmascript|text/ecmascript)$`)
+
+// inUploadsFolder is Local's inUploadsFolder: a file directly inside a
+// document's uploads folder, where every upload is stored.
+func inUploadsFolder(realPath string) bool {
+	return strings.HasPrefix(strings.ToLower(filepath.Base(filepath.Dir(realPath))), "assets-")
+}
+
+// mimeExtensionFor is the extension `send` looks up: everything after the last
+// `.`, `/` or `\` of the whole path, lowercased.
+func mimeExtensionFor(path string) string {
+	if at := strings.LastIndexAny(path, `./\`); at >= 0 {
+		return strings.ToLower(path[at+1:])
+	}
+	return strings.ToLower(path)
+}
+
+func mimeLookup(path string) string {
+	if value, ok := mimeTypes[mimeExtensionFor(path)]; ok {
+		return value
+	}
+	return mimeDefaultType
+}
+
+// mimeCharset is send's charset rule: text types and JavaScript or JSON are
+// UTF-8, and any other type is served without a charset.
+func mimeCharset(mediaType string) string {
+	if strings.HasPrefix(mediaType, "text/") ||
+		strings.HasPrefix(mediaType, "application/javascript") ||
+		strings.HasPrefix(mediaType, "application/json") {
+		return "UTF-8"
+	}
+	return ""
+}
+
+// mimeTypeFor is what send sets for a file it serves: the type its extension
+// names, with the charset send appends to that type.
+func mimeTypeFor(path string) string {
+	mediaType := mimeLookup(path)
+	if charset := mimeCharset(mediaType); charset != "" {
+		return mediaType + "; charset=" + charset
+	}
+	return mediaType
+}

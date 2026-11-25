@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/trust"
@@ -51,6 +54,8 @@ const (
 	recoveryOrdinary recoveryKind = iota
 	recoveryDead
 	recoveryRevoked
+	// recoveryMoved holds a port Hyperclay Local served a folder on before the folder moved here.
+	recoveryMoved
 )
 
 func (k recoveryKind) String() string {
@@ -59,6 +64,8 @@ func (k recoveryKind) String() string {
 		return "dead"
 	case recoveryRevoked:
 		return "revoked"
+	case recoveryMoved:
+		return "moved from Hyperclay Local"
 	}
 	return "ordinary"
 }
@@ -86,8 +93,11 @@ func (a *app) ownsOrigin(host string) bool {
 		return false
 	}
 	port, _ := strconv.Atoi(p)
-	if port == a.rt.port {
+	if port == a.rt.port || a.isFormerPort(port) {
 		if name == "localhost" || name == "127.0.0.1" || name == "::1" {
+			return true
+		}
+		if label, ok := strings.CutSuffix(name, "."+appcore.ServedParent); ok && config.ValidServedName(label) == nil {
 			return true
 		}
 		label, ok := strings.CutSuffix(name, ".localhost")
@@ -109,6 +119,17 @@ func (a *app) ownsOrigin(host string) bool {
 }
 
 func (a *app) parkPortMode(anchor string, port int, page []byte, kind recoveryKind) bool {
+	return a.parkPortTo(anchor, port, page, kind, func(r *http.Request) (string, bool) {
+		if kind == recoveryRevoked {
+			return "", false
+		}
+		return a.recoveryTargetFor(anchor, r, kind == recoveryDead)
+	})
+}
+
+// parkPortTo binds port and answers every request with page, or with a redirect
+// to the address target names. target decides which requests may be sent on.
+func (a *app) parkPortTo(anchor string, port int, page []byte, kind recoveryKind, target func(r *http.Request) (string, bool)) bool {
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		a.rt.logger.Printf("Legacy port %d for %s is taken; dropping it", port, anchor)
@@ -119,16 +140,14 @@ func (a *app) parkPortMode(anchor string, port int, page []byte, kind recoveryKi
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
-		if kind != recoveryRevoked {
-			if target, ok := a.recoveryTargetFor(anchor, r, kind == recoveryDead); ok {
-				// Origin only, never stripped: the hop this redirect causes is cross-site
-				// to the destination hostname, and the destination admits it only when the
-				// Referer names an origin we own (server.EligibleNavigation).
-				w.Header().Set("Referrer-Policy", "strict-origin")
-				w.Header().Set("Location", target)
-				w.WriteHeader(http.StatusFound)
-				return
-			}
+		if location, ok := target(r); ok {
+			// Origin only, never stripped: the hop this redirect causes is cross-site
+			// to the destination hostname, and the destination admits it only when the
+			// Referer names an origin we own (server.EligibleNavigation).
+			w.Header().Set("Referrer-Policy", "strict-origin")
+			w.Header().Set("Location", location)
+			w.WriteHeader(http.StatusFound)
+			return
 		}
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -159,25 +178,99 @@ func (a *app) parkPortMode(anchor string, port int, page []byte, kind recoveryKi
 	return true
 }
 
+// relocatable answers the document an eligible navigation names, as its path on any
+// site and as a file, when an address that no longer serves it may send the navigation
+// on: an .htmlclay file under home that is not hidden and not the app's own. It never
+// touches the disk, so it cannot be asked which files exist.
+func (a *app) relocatable(r *http.Request) (rel, abs string, ok bool) {
+	if !server.EligibleNavigation(r, a.ownsOrigin) {
+		return "", "", false
+	}
+	rel = strings.TrimPrefix(r.URL.Path, "/")
+	if strings.Contains(rel, "\\") || strings.HasPrefix(rel, "_/") || !strings.EqualFold(filepath.Ext(rel), ".htmlclay") {
+		return "", "", false
+	}
+	for _, part := range strings.Split(rel, "/") {
+		if part == ".." || part == "." {
+			return "", "", false
+		}
+	}
+	abs, err := server.ValidatePath(rel, a.rt.home)
+	if err != nil || session.HasHiddenComponent(a.rt.home, abs) || session.EqualOrUnder(abs, a.rt.configDir) || a.rt.versions.Contains(abs) {
+		return "", "", false
+	}
+	return rel, abs, true
+}
+
+// movedSiteTarget answers where a navigation to the dashboard's host goes when it names
+// a document of the site that answered there before the dashboard did: the same path at
+// the address that site's key has now. The dashboard's own paths are never sent on. Like
+// every relocation it registers nothing, and the address it names decides what is served.
+func (a *app) movedSiteTarget(r *http.Request) (string, bool) {
+	key := a.rt.cfg.MovedFirstSiteKey()
+	if key == "" || (a.dashboard != nil && a.dashboard.Owns(r.URL.Path)) {
+		return "", false
+	}
+	rel, abs, ok := a.relocatable(r)
+	if !ok || !session.EqualOrUnder(abs, key) {
+		return "", false
+	}
+	slug := a.rt.cfg.SiteSlug(key)
+	if slug == "" {
+		return "", false
+	}
+	target := fileURL(siteHost(slug, a.rt.port), rel)
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	return target, true
+}
+
+// siteMovedMessage is what a page open on the first site before the update that
+// moved it shows when its save is refused at the dashboard's address.
+const siteMovedMessage = "Your latest change wasn't saved because this page's address moved when HTML Clay updated. Copy the text you just changed first, reload to go to the new address, and paste it back to save."
+
+// refuseMovedFirstSiteWrite answers a write from a page that was open on the
+// first site before an update moved it off the dashboard's address. The
+// dashboard cannot take it and the page's latest change is not saved, so the
+// answer says so, with the site's new address; a reload goes there through
+// movedSiteTarget. Only a same-origin POST under /_/ that the dashboard does not
+// own is answered, so no other page learns where the site went.
+func (a *app) refuseMovedFirstSiteWrite(w http.ResponseWriter, r *http.Request) bool {
+	key := a.rt.cfg.MovedFirstSiteKey()
+	if key == "" || r.Method != http.MethodPost || !strings.HasPrefix(r.URL.Path, "/_/") || r.Header.Get("Sec-Fetch-Site") != "same-origin" {
+		return false
+	}
+	if a.dashboard != nil && a.dashboard.Owns(r.URL.Path) {
+		return false
+	}
+	slug := a.rt.cfg.SiteSlug(key)
+	if slug == "" {
+		return false
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusConflict)
+	json.NewEncoder(w).Encode(map[string]string{"code": "site-moved", "msg": siteMovedMessage, "to": "http://" + siteHost(slug, a.rt.port) + "/"})
+	return true
+}
+
 // Relocation registers nothing; the destination performs authorization and file lookup.
 // The caller's gate or the router has already validated Host, and a retired address has
 // no live site, so the same-port refusals that used to live here have nothing to refuse.
 func (a *app) recoveryTargetFor(anchor string, r *http.Request, requireSource bool) (string, bool) {
-	if !server.EligibleNavigation(r, a.ownsOrigin) {
+	rel, abs, ok := a.relocatable(r)
+	if !ok || !session.EqualOrUnder(abs, anchor) {
 		return "", false
 	}
-	rel := strings.TrimPrefix(r.URL.Path, "/")
-	if strings.Contains(rel, "\\") || strings.HasPrefix(rel, "_/") || !strings.EqualFold(filepath.Ext(rel), ".htmlclay") {
-		return "", false
-	}
-	for _, part := range strings.Split(rel, "/") {
-		if part == ".." || part == "." {
-			return "", false
+	// A document that is served now is reached at its served address, however old
+	// the address this navigation named.
+	if owner, err := a.ResolveDocument(abs); err == nil && owner.Kind == OwnerServed {
+		target := owner.URL()
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
 		}
-	}
-	abs, err := server.ValidatePath(rel, a.rt.home)
-	if err != nil || !session.EqualOrUnder(abs, anchor) || session.HasHiddenComponent(a.rt.home, abs) || session.EqualOrUnder(abs, a.rt.configDir) || a.rt.versions.Contains(abs) {
-		return "", false
+		return target, true
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -320,8 +413,8 @@ var deadFolderPage = []byte(`<!doctype html>
   <p>HTML Clay can no longer confirm that the folder at this location is the one you trusted.
      It may have been moved, deleted, or replaced. Nothing is served at this address until you approve it again.</p>
   <ul>
-    <li>If the folder is still there and you trust it, open the HTML Clay menu, choose
-        <strong>Trusted Folders</strong> &rsaquo; <strong>Trust a Folder…</strong>, and select the same folder.</li>
+    <li>If the folder is still there and you trust it, open HTML Clay Settings, go to
+        <strong>Folders</strong>, choose <strong>Trust a folder…</strong>, and select the same folder.</li>
     <li>Then reload this page. HTML Clay will use the folder's current address.</li>
   </ul>
 </main>

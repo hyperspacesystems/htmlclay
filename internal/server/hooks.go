@@ -1,6 +1,13 @@
 package server
 
-import "github.com/panphora/htmlclay/internal/platform"
+import (
+	"context"
+
+	"github.com/panphora/htmlclay/internal/builtin"
+	"github.com/panphora/htmlclay/internal/confirm"
+	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/wire"
+)
 
 // Hooks are the decisions a site's server cannot make for itself. Each one
 // needs the declared trusted-folder list, the app's site registry, or a native
@@ -15,14 +22,17 @@ import "github.com/panphora/htmlclay/internal/platform"
 // A nil field disables that route, which is what a standalone server (every
 // server test) wants.
 type Hooks struct {
-	// Confirm replaces the native read-permission dialog. Nil uses the real one.
+	// Confirm presents one read question and waits for the person's answer, so
+	// only the presenter differs between a window and a dialog. Nil uses the real
+	// native dialog.
 	//
-	// allowTrust reports whether the dialog may offer to trust the folder
-	// durably. The app decides it from its refusal rules BEFORE the dialog is
-	// drawn, so a folder that could never be trusted is never offered; the
-	// button used to be drawn always and the refusal arrived afterwards as a
-	// notification, which asked the user for a choice that could not be honored.
-	Confirm func(title, message string, allowTrust bool) (platform.ConfirmChoice, error)
+	// The Ask's answers say whether the durable choice may be offered: the app
+	// decides that from its refusal rules BEFORE the question is shown, so a
+	// folder that could never be trusted is never offered. The button used to be
+	// drawn always and the refusal arrived afterwards as a notification, which
+	// asked the user for a choice that could not be honored. ctx is cancelled
+	// when every request waiting on the answer has stopped waiting.
+	Confirm func(ctx context.Context, ask confirm.Ask) (confirm.Reply, error)
 
 	// TrustedCovers reports whether absPath sits inside a DECLARED trusted
 	// folder. It is the config fact, not this site's runtime roots: a file can
@@ -47,8 +57,16 @@ type Hooks struct {
 	// anything that does not anchor at a live trusted folder.
 	Route func(absPath string) (url string, ok bool)
 
-	// MayTrustFolder gates Confirm's allowTrust for a candidate folder.
+	// MayTrustFolder gates Confirm's trust-folder answer for a candidate folder.
 	MayTrustFolder func(dir string) bool
+
+	// UnsavedReport hears an open tab say whether its document holds edits not
+	// saved yet (unsaved-report-v1). Nil hears nothing.
+	UnsavedReport func(absPath, tab string, seq int64, unsaved, frozen bool)
+
+	// MainFolder reports whether a candidate folder is one of the main personal
+	// folders. Nil leaves the question without that detail.
+	MainFolder func(dir string) bool
 
 	// TrustFolder is the durable half of the read prompt's "Trust this folder"
 	// choice. The folder there is one the PAGE steered, by choosing which
@@ -63,14 +81,57 @@ type Hooks struct {
 	// reached by a link, and the dialog says so on its first line.
 	TrustRequest func(requestingFile string, openedByUser bool) (url string, ok bool)
 
-	// AIEditEnabled reports the AI Editing switch. Nil means this server offers no
-	// AI editing at all: no discovery entry and no built-in answer, which is what a
+	// AIEditFor answers whether document may use AI editing now (on) and, when
+	// not, whether to ask the person (ask). Nil means this server offers no AI
+	// editing at all: no discovery entry and no built-in answer, which is what a
 	// standalone server (every server test) wants.
-	AIEditEnabled func() bool
+	AIEditFor func(document string) (on, ask bool)
+	// AskAIEdit raises the AI editing question for document. Nil asks nothing.
+	AskAIEdit func(document string)
+	// AIEditFiles answers whether document's AI requests may attach its sibling
+	// files. Nil means none may: a request attaches the page alone.
+	AIEditFiles func(document string) bool
+	// DocumentTrust is what the app knows of document's trust. Nil means no
+	// document is ready.
+	DocumentTrust func(document string) wire.Trust
+	// AskDocument raises the one question document's code needs. Nil asks
+	// nothing.
+	AskDocument func(document, program string)
+	// NoteAIEditResult hears an AI edit that finished on a document, so a save
+	// after Keep can trust exactly the code that edit produces. Nil ignores it.
+	NoteAIEditResult func(document, elementHTML, tag, resultHTML string)
+	// Saved hears the bytes a page saved into a document. Nil ignores them.
+	Saved func(absPath string, data []byte)
+	// AITools is the ai-tools host. Nil means this server offers no AI with
+	// tools.
+	AITools wire.AIToolsHost
+	// Programs is the carried programs host. Nil means this server runs no
+	// program a document carries.
+	Programs wire.ProgramsHost
+	// Stranger reports a page that may run only on an origin of its own. A site
+	// that reaches it as an asset serves it sandboxed: no scripts and an opaque
+	// origin, so it cannot act as this site. Nil means no page is one.
+	Stranger func(absPath string) bool
+	// StrangerRead reports a page that still needs the warning asking to read
+	// outside what it may. The read is refused and the app raises the warning,
+	// because a page nobody vouches for never widens what it can read. It
+	// answers true for such a page. Nil never refuses.
+	StrangerRead func(pagePath string) bool
 
 	// AIEditEngines returns the default engine name ("" for claude) and the
 	// user-defined engines. Nil means the built-ins only.
 	AIEditEngines func() (string, map[string][]string)
+
+	// AIEditModels returns the model each AI engine runs with. Nil means defaults.
+	AIEditModels func() map[string]string
+	// AIEditEfforts returns the reasoning effort each AI engine runs with. Nil
+	// means defaults.
+	AIEditEfforts func() map[string]string
+	// BuiltinFor answers whether document may run a built-in program now. Nil
+	// means every built-in program is off.
+	BuiltinFor func(document, program string) builtin.Access
+	// AskBuiltin raises the built-in program question for document. Nil asks nothing.
+	AskBuiltin func(document, program string)
 
 	// Profile reports the person documents may see (spec §9 People). Nil means this
 	// server offers no People at all: no extension and no block. ok false means the
@@ -85,6 +146,14 @@ type Hooks struct {
 	// which is what a standalone server (every server test) wants.
 	AskHelper func(file, name string) bool
 
+	// HelperGranted reports whether name may run the registered program programID
+	// for file at this moment. The server asks it immediately before a program's
+	// process starts, because the grant a dispatcher holds was resolved earlier:
+	// a folder that has since become a team folder, a scope that can no longer be
+	// read, or an access the person removed must stop the process. Nil allows,
+	// which is what a standalone server (every server test) wants.
+	HelperGranted func(file, name, programID string) bool
+
 	// Reveal shows a document's file in the OS file manager, selected. Nil hides
 	// the action, which is what a standalone server (every server test) wants.
 	Reveal func(absPath string) error
@@ -96,6 +165,12 @@ type Hooks struct {
 	// ExportDocument zips a document with its uploads into Downloads and shows it.
 	// Nil hides the action.
 	ExportDocument func(absPath string) error
+
+	// NewDocument writes html, a blank copy the page built of the document at
+	// source, to a new file beside it and returns the address the new file
+	// serves at. via is how source was registered, which the copy takes too.
+	// An ActionRefusal is shown to the page as written. Nil hides the action.
+	NewDocument func(source string, via session.Provenance, html []byte) (url string, err error)
 }
 
 // SetHooks wires the app behind this server. Call once, before Start.
@@ -105,5 +180,6 @@ func (s *Server) SetHooks(h Hooks) {
 		s.broker.confirm = h.Confirm
 	}
 	s.broker.mayTrust = h.MayTrustFolder
+	s.broker.mainFolder = h.MainFolder
 	s.broker.trust = h.TrustFolder
 }

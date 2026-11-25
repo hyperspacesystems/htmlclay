@@ -23,6 +23,8 @@ class PromotionTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / 'cmd/htmlclay').mkdir(parents=True)
         (self.root / 'cmd/htmlclay/main.go').write_text('var version = "1.2.3"\n')
+        (self.root / 'website').mkdir()
+        (self.root / 'website/changelog.html').write_text('<article class="release" id="v1.2.3">')
         self.record = dict(schema=2, app='htmlclay', version='1.2.3', source_sha='a' * 40, release_sha='e' * 40,
                            manifest_identity='b' * 64, candidate_sha256='c' * 64,
                            payload_date='2026-11-01T10:00:00.000Z', bucket='hyperclay-candidates')
@@ -214,6 +216,14 @@ class PromotionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'requalify'):
             promotion.validate(record)
 
+    def test_a_changelog_page_without_the_version_refuses_without_dispatch(self):
+        (self.root / 'website/changelog.html').write_text('<article class="release" id="v1.2.2">')
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, 'no v1.2.3 section'):
+                promotion.promote(self.record, Path(directory), True)
+        self.assertFalse(self.dispatched)
+        self.assertFalse(self.public)
+
     def test_release_or_version_mismatch_refuses_without_dispatch(self):
         for mismatch in ('release', 'version', 'tag'):
             with self.subTest(mismatch=mismatch), tempfile.TemporaryDirectory() as directory:
@@ -290,10 +300,15 @@ class PromotionTests(unittest.TestCase):
         git('config', 'user.name', 'Fixture')
         git('config', 'user.email', 'fixture@example.invalid')
         git('config', 'commit.gpgsign', 'false')
-        (self.root / 'website').mkdir()
+        (self.root / 'website').mkdir(exist_ok=True)
+        (self.root / 'website/download').mkdir(exist_ok=True)
         (self.root / 'website/index.html').write_text(
             '<span data-version>v1.2.2</span>'
             '<span data-sha256="htmlclay-linux-amd64.tar.gz">old</span>')
+        (self.root / 'website/download/index.html').write_text(
+            '<span data-version>v1.2.2</span>'
+            '<a data-mac-dmg href="https://download.htmlclay.com/HTMLClay-1.2.2-universal.dmg">HTMLClay-1.2.2-universal.dmg</a>'
+            '<span data-sha256="HTMLClay-1.2.2-universal.dmg">old</span>')
         (self.root / 'scripts').mkdir()
         (self.root / 'scripts/stamp-website.js').write_text((ROOT / 'scripts/stamp-website.js').read_text())
         git('add', '.')
@@ -343,6 +358,8 @@ class PromotionTests(unittest.TestCase):
                 self.assertFalse(any(c[0] == 'node' and c[-1] != '--check' for c in commands))
             self.assertFalse(any(c[:2] == ('git', 'push') for c in repeated))
             self.assertEqual(self.git('rev-parse', 'v1.2.3'), self.record['release_sha'])
+            self.assertIn('HTMLClay-1.2.3-universal.dmg', (self.root / 'website/download/index.html').read_text())
+            self.assertEqual(self.git('status', '--porcelain'), '')
 
     def test_non_release_owned_descendant_refuses(self):
         command = self.real_checkout()
@@ -440,12 +457,26 @@ class PromotionTests(unittest.TestCase):
         python = port / 'python3'
         python.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
         python.chmod(0o755)
+        # A copy outside the checkout: the private fork's FORK.md guard would refuse first.
+        release = self.root / 'scripts/release.sh'
+        release.parent.mkdir(exist_ok=True)
+        release.write_text((ROOT / 'scripts/release.sh').read_text())
         for options in ([], ['--no-install']):
             with self.subTest(options=options):
-                result = subprocess.run(['/bin/bash', str(ROOT / 'scripts/release.sh'), '--from-candidate=' + str(record), *options],
+                result = subprocess.run(['/bin/bash', str(release), '--from-candidate=' + str(record), *options],
                                         env=dict(os.environ, PATH=str(port)+':'+os.environ['PATH']), text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout.splitlines(), ['scripts/promote_candidate.py', str(record), *options])
+
+    def test_release_refuses_while_fork_marker_exists(self):
+        release = self.root / 'scripts/release.sh'
+        release.parent.mkdir(exist_ok=True)
+        release.write_text((ROOT / 'scripts/release.sh').read_text())
+        (self.root / 'FORK.md').write_text('private fork\n')
+        result = subprocess.run(['/bin/bash', str(release), '--from-candidate=' + str(self.root / 'record.json')],
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('This is the private fork (FORK.md)', result.stderr)
 
 
 if __name__ == '__main__':

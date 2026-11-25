@@ -27,7 +27,7 @@ func (a *app) helperBindingStatus(document, name string) string {
 	if denied {
 		return "denied for this open"
 	}
-	resolution, found := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document))
+	resolution, found := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document), a.scopeOf(document))
 	if resolution.Program.ID != "" {
 		if status := helperProgramStatus(resolution.Program.Path); status != "" {
 			return status + ": " + resolution.Program.Path
@@ -108,7 +108,7 @@ func (a *app) trayHelperStatus(document, name string) string {
 	if denied {
 		return "denied until reopened"
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document))
+	resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document), a.scopeOf(document))
 	switch {
 	case resolution.Allowed && helperProgramMissing(resolution.Program.Path):
 		return "file missing"
@@ -123,7 +123,7 @@ func (a *app) trayHelperStatus(document, name string) string {
 // not set up gets the setup dialog, and one that is opens the Programs page.
 func (a *app) trayHelperDocument(key string) []tray.Row {
 	document, name, _ := strings.Cut(key, "\x00")
-	if resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document)); resolution.Allowed && !helperProgramMissing(resolution.Program.Path) {
+	if resolution, _ := a.rt.cfg.ResolveHelper(document, name, a.trustedLive(document), a.scopeOf(document)); resolution.Allowed && !helperProgramMissing(resolution.Program.Path) {
 		a.openProgramsPage()
 		return a.helperDocumentRows()
 	}

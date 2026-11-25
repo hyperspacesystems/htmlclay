@@ -1138,6 +1138,9 @@ func TestGuardRestoreDoesNotRefire(t *testing.T) {
 	live := newSubscriber(f.AbsPath, laneLive)
 	srv.hub.add(live)
 	srv.watcher.quiet = 0
+	// The test polls by hand below. The watcher's own loop must never poll at
+	// the same time, or the two polls race on the entry.
+	srv.watcher.poll = time.Hour
 	srv.watcher.watch(f)
 	t.Cleanup(func() {
 		srv.watcher.shutdown()
@@ -1802,7 +1805,7 @@ func TestGuardHostedSitesJudgeOnce(t *testing.T) {
 
 	// The second site shares the live-sync runtime and the store but registered
 	// nothing, so the document is not its to judge.
-	other := newTestHostedServer(t, "other.localhost:9999", nil, newTestManager(t, srv.sessions.HomeDir()), srv.logger, srv.versions, srv.ls)
+	other := newTestHostedServer(t, "other.localhost:9999", nil, newTestManager(t, srv.sessions.HomeDir()), srv.Logger, srv.versions, srv.ls)
 
 	live := newSubscriber(f.AbsPath, laneLive)
 	srv.hub.add(live)

@@ -16,9 +16,16 @@ const (
 // resolveContext turns @ref tokens into prompt sections. Every ref has to land
 // on a regular file inside the document's own folder, after symlinks, and never
 // on a dotfile, a dot folder or the server's own state.
-func resolveContext(refs []string, baseDir string, internal func(string) bool) ([]string, error) {
+func resolveContext(refs []string, baseDir string, internal func(string) bool, files bool) ([]string, error) {
 	if len(refs) > maxContextRefs {
 		return nil, contextFailure("too many context files, at most %d", maxContextRefs)
+	}
+	if !files {
+		for _, ref := range refs {
+			if ref != "page" {
+				return nil, contextFailure("@%s cannot be attached. Only documents you trust can share other files with AI. Choose Trust it like a file I made when HTML Clay asks, or run htmlclay trust on this file.", ref)
+			}
+		}
 	}
 	base, err := filepath.EvalSymlinks(baseDir)
 	if err != nil {

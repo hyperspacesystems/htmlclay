@@ -9,6 +9,8 @@ executables/
 .DS_Store
 resource_windows_*.syso
 
+service/node_modules/
+
 # wrangler files
 .wrangler
 .dev.vars*
@@ -21,3 +23,5 @@ resource_windows_*.syso
 
 __pycache__/
 test-box-out/
+/internal/service/blobs/
+/service/.cache/

@@ -92,6 +92,20 @@ td+td{padding-left:12px}
 </section>
 {{end}}
 
+{{if .Denied}}
+<h2>Blocked documents</h2>
+<section class="card">
+  <ul>
+  {{range .Denied}}
+    <li>
+      <span class="who">{{.File}}<span class="detail">{{.Path}}</span></span>
+      <form method="post" action="/programs/action"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="ask-again-document"><input type="hidden" name="document" value="{{.Document}}"><button type="submit">Ask Again…</button></form>
+    </li>
+  {{end}}
+  </ul>
+</section>
+{{end}}
+
 {{if .Open}}
 <h2>Open documents</h2>
 <table>

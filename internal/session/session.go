@@ -9,8 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // ErrOutsideHome is returned by Register when a file resolves to a path outside
@@ -20,6 +23,11 @@ var ErrOutsideHome = errors.New("path is outside home directory")
 // ErrRevoked is returned by every capability-granting method after RevokeAll. A site
 // that has been closed must never serve again, however late a request arrives.
 var ErrRevoked = errors.New("session manager revoked")
+
+// ErrServedPath is returned by Register for a file inside a folder a served host
+// writes. The served address is that file's only writer, so no site may hold a
+// second one.
+var ErrServedPath = errors.New("this file is in a served folder")
 
 // Provenance records how a file's registration came to exist, as independent
 // accumulating flags rather than one value. A file can be more than one thing
@@ -53,6 +61,13 @@ type File struct {
 	// owning Manager's mu, not the file lock: it is registration state, written
 	// by Register and read through Manager.Via.
 	via Provenance
+
+	// used is the UTC day (UnixDay) a request last carried this file's token or
+	// registered it. It bounds how long a kept token survives a quit (see the
+	// app's save-tokens.json); it never limits a token within one run.
+	used atomic.Int64
+	// changed is the owning Manager's change hook, captured at registration.
+	changed func(removed bool)
 
 	writeMu sync.Mutex
 
@@ -196,11 +211,36 @@ func (f *File) SetHistoryKey(key string) {
 // to mark a file observed. Caller must hold Lock().
 func (f *File) Observed() bool { return f.lastServerWrite != "" }
 
-// RecordServerWrite advances both records. Caller must hold Lock().
+// RecordServerWrite advances both records. Caller must hold Lock(). Every host
+// write replaces the file through a temp file and a rename, so the file's
+// identity changes too, and the change hook hears of it so a kept record of
+// this token follows the file.
 func (f *File) RecordServerWrite(hash string) {
 	f.lastServerWrite = hash
 	f.lastStableObservation = hash
 	f.externalSinceOwnWrite = false
+	if f.changed != nil {
+		f.changed(false)
+	}
+}
+
+// UnixDay is the UTC day t falls on, counted from the Unix epoch.
+func UnixDay(t time.Time) int64 { return t.Unix() / 86400 }
+
+// UsedDay is the UTC day (UnixDay) a request last carried this file's token.
+func (f *File) UsedDay() int64 { return f.used.Load() }
+
+// SetUsedDay puts back the day a kept token was last used before a restart, so
+// restoring it does not count as a use.
+func (f *File) SetUsedDay(day int64) { f.used.Store(day) }
+
+// touch stamps today as the file's last use, telling the change hook only when
+// the day moves, so a busy tab costs at most one record write a day.
+func (f *File) touch() {
+	today := UnixDay(time.Now())
+	if f.used.Swap(today) != today && f.changed != nil {
+		f.changed(false)
+	}
 }
 
 // NoteWriteByThisHost marks that this process wrote the file itself. Call it only
@@ -224,6 +264,11 @@ func (f *File) WrittenByThisHost() bool { return f.writtenHere }
 func (f *File) RecordStableObservation(hash string) {
 	if hash != f.lastServerWrite {
 		f.externalSinceOwnWrite = true
+	}
+	// An outside editor that saves by rename gives the file a new identity, which
+	// the kept record must learn before a crash, not only at a clean quit.
+	if hash != f.lastStableObservation && f.changed != nil {
+		f.changed(false)
 	}
 	f.lastStableObservation = hash
 }
@@ -297,8 +342,24 @@ type Manager struct {
 	// read root (the config dir and the versions/backup dir). It is injected by
 	// the runtime, which knows those paths; the session manager does not.
 	guard func(dir string) bool
+	// servedOwner, when set, reports paths inside a folder a served host writes.
+	// Such a path is never registered here: that host is its only writer. It is
+	// injected by the runtime, which knows the served folders.
+	servedOwner func(absPath string) bool
 	// revoked is set by RevokeAll and never cleared. Guarded by mu.
 	revoked bool
+	// onChange, when set, hears every change to what Snapshot returns: removed is
+	// true for a revocation, false for an addition. It is called with mu held, so
+	// it must never block or take a lock that can wait on this manager.
+	onChange func(removed bool)
+	// stranger answers whether a document still needs the warning. A file-only
+	// site installs no folder read root while it does; once the person allows or
+	// trusts the document, the next registration installs the root as for any
+	// other opened file. Nil keeps the site as it was built.
+	stranger func(absPath string) bool
+	// fileOnly is a site that holds one document nobody vouches for: opening
+	// it grants no read access to its folder. Guarded by mu.
+	fileOnly bool
 }
 
 func NewManager() (*Manager, error) {
@@ -334,6 +395,64 @@ func (m *Manager) SetGuard(guard func(dir string) bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.guard = guard
+}
+
+// SetOnChange installs the change hook (see Manager.onChange). Call it once, at
+// construction, before the manager serves any request or registers any file.
+func (m *Manager) SetOnChange(onChange func(removed bool)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.onChange = onChange
+}
+
+func (m *Manager) changed(removed bool) {
+	if m.onChange != nil {
+		m.onChange(removed)
+	}
+}
+
+// SetServedOwner installs the check that a path belongs to a served folder. Such a
+// path is never registered: the served host is its only writer.
+func (m *Manager) SetServedOwner(owned func(absPath string) bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.servedOwner = owned
+}
+
+// SetFileOnly makes opening a file grant its page no read access to the
+// file's folder. Call it once, at construction, before the manager registers
+// anything.
+func (m *Manager) SetFileOnly() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.fileOnly = true
+}
+
+// SetStranger installs the check that a document still needs the warning. Call
+// it once, at construction, before the manager registers anything.
+func (m *Manager) SetStranger(stranger func(absPath string) bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.stranger = stranger
+}
+
+// holdsStranger reports a file-only site whose document still needs the
+// warning, so opening it grants no read root for its folder.
+func (m *Manager) holdsStranger(absPath string) bool {
+	if !m.fileOnly {
+		return false
+	}
+	if m.stranger == nil {
+		return true
+	}
+	return m.stranger(absPath)
+}
+
+// FileOnly reports a manager made with SetFileOnly.
+func (m *Manager) FileOnly() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.fileOnly
 }
 
 func (m *Manager) HomeDir() string {
@@ -430,6 +549,16 @@ func ContainWithinHome(home, child string) (string, bool) {
 	return prefix + rest, true
 }
 
+// SamePath reports whether two paths name the same file, folding case where the
+// disk does: a page can spell a folder Assets while trust spells it assets.
+func SamePath(a, b string) bool {
+	x, y := filepath.Clean(a), filepath.Clean(b)
+	if caseInsensitiveFS() {
+		x, y = strings.ToLower(x), strings.ToLower(y)
+	}
+	return x == y
+}
+
 // EqualOrUnder reports whether child is parent or sits below it, folding case on
 // the platforms whose filesystem ignores it.
 //
@@ -518,6 +647,10 @@ func (m *Manager) register(absPath string, via Provenance, token string) (*File,
 		return nil, ErrRevoked
 	}
 
+	if m.servedOwner != nil && m.servedOwner(cleaned) {
+		return nil, ErrServedPath
+	}
+
 	if m.guard != nil && m.guard(cleaned) {
 		return nil, fmt.Errorf("path %q is in a forbidden location", cleaned)
 	}
@@ -530,10 +663,15 @@ func (m *Manager) register(absPath string, via Provenance, token string) (*File,
 			return nil, fmt.Errorf("path %q is already registered under another token", cleaned)
 		}
 		f := m.byToken[existing]
+		before := f.via
 		f.via |= via
-		if via.Has(ViaOsOpen) {
+		if via.Has(ViaOsOpen) && !m.holdsStranger(cleaned) {
 			_ = m.installReadRoot(filepath.Dir(cleaned), rootOpened)
 		}
+		if f.via != before {
+			m.changed(false)
+		}
+		f.touch()
 		return f, nil
 	}
 
@@ -556,7 +694,10 @@ func (m *Manager) register(absPath string, via Provenance, token string) (*File,
 		RelPath: relPath,
 		Name:    filepath.Base(cleaned),
 		via:     via,
+		changed: m.onChange,
 	}
+	f.used.Store(UnixDay(time.Now()))
+	defer m.changed(false)
 
 	m.byToken[token] = f
 	m.byPath[cleaned] = token
@@ -572,7 +713,7 @@ func (m *Manager) register(absPath string, via Provenance, token string) (*File,
 	// its reads already ride the trusted root, and an extra opened root would
 	// keep the folder readable after the folder is untrusted, which is exactly
 	// the zombie capability revocation exists to end.
-	if via.Has(ViaOsOpen) {
+	if via.Has(ViaOsOpen) && !m.holdsStranger(cleaned) {
 		_ = m.installReadRoot(filepath.Dir(cleaned), rootOpened)
 	}
 	return f, nil
@@ -630,6 +771,8 @@ type RestorableRegistration struct {
 	Path  string
 	Via   Provenance
 	Token string
+	// Used is the UTC day (UnixDay) a request last carried the token.
+	Used int64
 }
 
 // Snapshot is everything a site's session manager holds that a restart would
@@ -656,6 +799,7 @@ func (m *Manager) Snapshot() Snapshot {
 			Path:  path,
 			Via:   m.byToken[token].via,
 			Token: token,
+			Used:  m.byToken[token].UsedDay(),
 		})
 	}
 	for dir, rr := range m.readRoots {
@@ -664,6 +808,36 @@ func (m *Manager) Snapshot() Snapshot {
 		}
 	}
 	return snap
+}
+
+// ReadGrants lists the folders this site's pages may read only because the
+// person granted them. A folder also opened or trusted here, in any spelling,
+// stays readable without the grant, so it is left out: removing that grant
+// would end nothing. Spellings of one folder are listed once, since
+// RevokeReadRoot ends them together.
+func (m *Manager) ReadGrants() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.revoked {
+		return nil
+	}
+	var granted, held []string
+	for dir, rr := range m.readRoots {
+		if rr.opened || rr.trusted {
+			held = append(held, dir)
+		} else if rr.granted {
+			granted = append(granted, dir)
+		}
+	}
+	slices.Sort(granted)
+	var out []string
+	for _, dir := range granted {
+		same := func(other string) bool { return SamePath(dir, other) }
+		if !slices.ContainsFunc(held, same) && !slices.ContainsFunc(out, same) {
+			out = append(out, dir)
+		}
+	}
+	return out
 }
 
 // RegistrationInfo is a snapshot of one registration, for the tray and for
@@ -710,6 +884,7 @@ func (m *Manager) Unregister(absPath string) bool {
 	}
 	delete(m.byPath, absPath)
 	delete(m.byToken, token)
+	defer m.changed(true)
 
 	dir := filepath.Dir(absPath)
 	rr, ok := m.readRoots[dir]
@@ -770,7 +945,11 @@ func (m *Manager) installReadRoot(dir string, kind rootKind) error {
 // GrantReadRoot widens a session's reads to dir (read-only), the operation a
 // granted permission performs.
 func (m *Manager) GrantReadRoot(dir string) error {
-	return m.installValidatedRoot(dir, rootGranted)
+	if err := m.installValidatedRoot(dir, rootGranted); err != nil {
+		return err
+	}
+	m.changed(false)
+	return nil
 }
 
 // InstallTrustedRoot installs an ALREADY-canonical trusted folder (resolved,
@@ -797,7 +976,11 @@ func (m *Manager) InstallTrustedRoot(canonical string) error {
 // again here would let a swap between the prompt and the install bind the
 // capability to a directory the user never saw.
 func (m *Manager) GrantCanonicalRoot(canonical string) error {
-	return m.installCanonicalRoot(canonical, rootGranted)
+	if err := m.installCanonicalRoot(canonical, rootGranted); err != nil {
+		return err
+	}
+	m.changed(false)
+	return nil
 }
 
 // TrustedCovers reports whether an installed trusted root covers absPath.
@@ -864,16 +1047,23 @@ func (m *Manager) installCanonicalRoot(canonical string, kind rootKind) error {
 func (m *Manager) RevokeReadRoot(dir string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	rr, ok := m.readRoots[dir]
-	if !ok {
-		return
-	}
-	rr.granted = false
-	if !rr.opened && !rr.trusted {
-		if rr.root != nil {
-			rr.root.Close()
+	revoked := false
+	for key, rr := range m.readRoots {
+		// The broker keys a grant by the page's spelling, trust by the disk's.
+		if !SamePath(key, dir) {
+			continue
 		}
-		delete(m.readRoots, dir)
+		revoked = true
+		rr.granted = false
+		if !rr.opened && !rr.trusted {
+			if rr.root != nil {
+				rr.root.Close()
+			}
+			delete(m.readRoots, key)
+		}
+	}
+	if revoked {
+		m.changed(true)
 	}
 }
 
@@ -943,6 +1133,9 @@ func (m *Manager) Lookup(token string) (*File, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	f, ok := m.byToken[token]
+	if ok {
+		f.touch()
+	}
 	return f, ok
 }
 
@@ -1074,4 +1267,5 @@ func (m *Manager) RevokeAll() {
 	m.byToken = make(map[string]*File)
 	m.byPath = make(map[string]string)
 	m.readRoots = make(map[string]*readRoot)
+	m.changed(true)
 }

@@ -90,6 +90,11 @@ func TestConfirmDarwinKeepsReturnOffDenyWhenARefusalIsStored(t *testing.T) {
 	if !strings.Contains(read, `default button "Deny"`) {
 		t.Fatalf("without Later, Deny stays the default:\n%s", read)
 	}
+	// Escape answers with the refusing button whatever it is labelled, as the
+	// Quit dialog's "Keep open" needs.
+	if !strings.Contains(read, `cancel button "Deny"`) {
+		t.Fatalf("without Later, Deny is the cancel button, so Escape refuses:\n%s", read)
+	}
 
 	dir := t.TempDir()
 	for i, script := range []string{stored, read} {
@@ -113,15 +118,11 @@ func TestConfirmDarwinReportsAFailedDialogAsNoAnswer(t *testing.T) {
 	}
 }
 
-func TestUserCancelledOnlyForCancelButton(t *testing.T) {
-	out := []byte("execution error: User canceled. (-128)\n")
-	if !userCancelled("Cancel", out) {
-		t.Error("Cancel with -128 should read as a refusal")
+func TestUserCancelledReadsTheRefusingButton(t *testing.T) {
+	if !userCancelled([]byte("execution error: User canceled. (-128)\n")) {
+		t.Error("the cancel button's -128 should read as a refusal")
 	}
-	if userCancelled("Deny", out) {
-		t.Error("only a button titled Cancel ends the script with -128")
-	}
-	if userCancelled("Cancel", []byte("execution error: something else (-1700)\n")) {
+	if userCancelled([]byte("execution error: something else (-1700)\n")) {
 		t.Error("other osascript errors are failures")
 	}
 }

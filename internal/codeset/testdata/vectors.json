@@ -1,0 +1,195 @@
+{
+  "version": "clay-codeset-v1",
+  "testKey": {
+    "id": "test-2026-11",
+    "public": "RowxbAdShUhWHsmfC-QzonkIVT4Vx9yCgqK3eRuPirE"
+  },
+  "vectors": [
+    {
+      "file": "app-saved.html",
+      "hash": "ef9c76a0d884586dcbb09ae682739ed429af5978e178570030a8aa7229ce98f1",
+      "parts": 13,
+      "signature": "unsigned"
+    },
+    {
+      "file": "app.html",
+      "hash": "ef9c76a0d884586dcbb09ae682739ed429af5978e178570030a8aa7229ce98f1",
+      "parts": 13,
+      "signature": "unsigned"
+    },
+    {
+      "file": "framework-attrs.html",
+      "hash": "835aec178a61adf32d9cff35132ab8092a3d5aadb2a35734765b8594e43b23c3",
+      "parts": 6,
+      "signature": "unsigned"
+    },
+    {
+      "file": "math-noscript-script.html",
+      "hash": "8eadf40a4020011eed056aafe664eb0ab26b31c4b80a8025b01d3d5907734120",
+      "parts": 1,
+      "signature": "unsigned"
+    },
+    {
+      "file": "plain.html",
+      "hash": "0904defed48fb56ac5152a7d9f6be152427481823e1da8b34bc79352faef2e17",
+      "parts": 0,
+      "signature": "unsigned"
+    },
+    {
+      "file": "same-data-type-params.html",
+      "hash": "ef9c76a0d884586dcbb09ae682739ed429af5978e178570030a8aa7229ce98f1",
+      "parts": 13,
+      "signature": "unsigned"
+    },
+    {
+      "file": "select-button-onclick.html",
+      "hash": "1396c4963b62d0f2f28cc9a63b76d0e2971d2d10e61332386413701e5c395f10",
+      "parts": 1,
+      "signature": "unsigned"
+    },
+    {
+      "file": "signed-handler-added.html",
+      "hash": "198790fcc05aeac03319d13d47209c57fd57382d90bf1adeafc475c97db8716c",
+      "parts": 14,
+      "signature": "invalid"
+    },
+    {
+      "file": "signed-moved-to-body.html",
+      "hash": "ef9c76a0d884586dcbb09ae682739ed429af5978e178570030a8aa7229ce98f1",
+      "parts": 13,
+      "signature": "unsigned"
+    },
+    {
+      "file": "signed-other-app.html",
+      "hash": "ef9c76a0d884586dcbb09ae682739ed429af5978e178570030a8aa7229ce98f1",
+      "parts": 13,
+      "signature": "invalid"
+    },
+    {
+      "file": "signed-pinned-script.html",
+      "hash": "c002159e4ee3e3c0941f1da4b58a6bb9830934f6a9534ddddeeb2acdfb4852f2",
+      "parts": 14,
+      "signature": "valid"
+    },
+    {
+      "file": "signed-relative-script.html",
+      "hash": "4e9b266e5d379d514e4e32e192483aa32cf29d845288e73271b325a95861db27",
+      "parts": 14,
+      "signature": "unpinned"
+    },
+    {
+      "file": "signed-saved.html",
+      "hash": "ef9c76a0d884586dcbb09ae682739ed429af5978e178570030a8aa7229ce98f1",
+      "parts": 13,
+      "signature": "valid"
+    },
+    {
+      "file": "signed-svg-script.html",
+      "hash": "96c73e3661970c3618e9ccc4478accc4358e582352f9e8a4a1aa4f786db9b5b5",
+      "parts": 14,
+      "signature": "unpinned"
+    },
+    {
+      "file": "signed-twice.html",
+      "hash": "ef9c76a0d884586dcbb09ae682739ed429af5978e178570030a8aa7229ce98f1",
+      "parts": 13,
+      "signature": "invalid"
+    },
+    {
+      "file": "signed-unpinned-script.html",
+      "hash": "20dee1828329c1a8df0c28c096d4665c2607a68cfb8e0be0c50de702a36be63d",
+      "parts": 14,
+      "signature": "unpinned"
+    },
+    {
+      "file": "signed-unreadable-integrity.html",
+      "hash": "0f94b03818d2ae8dc81ee6b89caff8bec6b427710a3c76fcb0c66f76db74f9fe",
+      "parts": 14,
+      "signature": "unpinned"
+    },
+    {
+      "file": "signed.html",
+      "hash": "ef9c76a0d884586dcbb09ae682739ed429af5978e178570030a8aa7229ce98f1",
+      "parts": 13,
+      "signature": "valid"
+    },
+    {
+      "file": "svg-noscript-onerror.html",
+      "hash": "0783aad3ab2a29266f20b5fe851437ab5751ed4866ef896cbbfdc50c2981340c",
+      "parts": 1,
+      "signature": "unsigned"
+    },
+    {
+      "file": "svg-noscript-script.html",
+      "hash": "8eadf40a4020011eed056aafe664eb0ab26b31c4b80a8025b01d3d5907734120",
+      "parts": 1,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-data-script-becomes-code.html",
+      "hash": "a5946d02b13a12db4c88a8dd4fc89799fa2c6debff8a6df44f1a6006bc852f72",
+      "parts": 14,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-handler-in-data.html",
+      "hash": "198790fcc05aeac03319d13d47209c57fd57382d90bf1adeafc475c97db8716c",
+      "parts": 14,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-hx-vals-added.html",
+      "hash": "b80983abca6410cb63c3c0f69fbe852bc08cd80a12986431765520857870e5e0",
+      "parts": 14,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-inline-script-added.html",
+      "hash": "0684e6ce77f9e9a32330029966875b8d3604a0d9ed5fe5af39d54034145faf59",
+      "parts": 14,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-instructions-edited.html",
+      "hash": "2bbe15dbac45fdc1713ef31311284fc64fc414a893bed1b91e8ce6771d36c07c",
+      "parts": 13,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-program-edited.html",
+      "hash": "e2eb561490a367506c5a3d23191f690459827af4d02950dd8d51ebccd57b6588",
+      "parts": 13,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-script-in-template.html",
+      "hash": "0a1b710ae053da7024e108f61463c928a5585a157b0bf04a14826d612ef1abdd",
+      "parts": 14,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-scripts-reordered.html",
+      "hash": "8d42a7b3c74432c071a7664a09a8f4a5cffc08c4aef7ebd024dd03b8a8b635ec",
+      "parts": 13,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-signature-meta-acts.html",
+      "hash": "b77c97cfc45c4f59f95c7ffd145e13623f02a4c82a05d46eb08fb85ed1892264",
+      "parts": 14,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-src-swapped.html",
+      "hash": "a766c75a285d3e055908aa67f9954d2deb9898564d1ec476109bd4676b57d4ce",
+      "parts": 13,
+      "signature": "unsigned"
+    },
+    {
+      "file": "t-tab-javascript-url.html",
+      "hash": "9cd6662d8eb7b8921e6e44bcc252dabce4b3167fb43c02bea0ecfa181934b573",
+      "parts": 14,
+      "signature": "unsigned"
+    }
+  ]
+}

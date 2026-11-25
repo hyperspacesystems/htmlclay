@@ -1,0 +1,646 @@
+package served
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"syscall"
+	"time"
+
+	"github.com/panphora/htmlclay/internal/dataapi"
+	"github.com/panphora/htmlclay/internal/platform"
+)
+
+// Local's workspace structural writes: a move, a trash move, a duplicate and
+// the two sync spellings of the first two. A structure change touches whole
+// trees, so Local runs it inside one exclusive boundary that no document write
+// can enter while it runs; every path it names is locked here instead, and in
+// an order that cannot deadlock against another structure change.
+
+// structurePolicy is one row of Local's STRUCTURE_KINDS.
+type structurePolicy struct {
+	retire      bool
+	copy        bool
+	crossDevice bool
+	// exclusive refuses a step whose destination already exists. The workspace
+	// checks names before Go's structure lock, so another tab or a save can
+	// take a name in between; a move or copy onto it would lose those bytes.
+	exclusive bool
+	// freeName moves to <to>.<unix ms> when the destination is another entry,
+	// the fallback Local's engine uses for a trashed folder. Sync trashes a file
+	// at one fixed name, so a second trash of the same path would otherwise
+	// replace the first, and the engine forgets a trashed file at once.
+	freeName bool
+}
+
+var structureKinds = map[string]structurePolicy{
+	"move":      {crossDevice: true, exclusive: true},
+	"trash":     {retire: true, crossDevice: true, exclusive: true},
+	"duplicate": {copy: true, exclusive: true},
+	// The engine checks a sync move's destination before the move, outside any
+	// lock it shares with this host (it holds no boundary across the call), so the
+	// move itself must refuse a destination taken in between.
+	"sync-move":  {crossDevice: true, exclusive: true},
+	"sync-trash": {retire: true, crossDevice: true, freeName: true},
+}
+
+// structureEntry is one resolved step: the canonical path a name is at now, the
+// canonical path it is going to, the root-relative names the step gave, and the
+// blockeditor-state work Local's workspace command does after the step.
+type structureEntry struct {
+	FromPath  string
+	ToPath    string
+	IsDir     bool
+	FromName  string
+	ToName    string
+	PageState string
+}
+
+// structureResult mirrors Local's structure answer. Err carries the failure
+// itself, which Local keeps as a non-enumerable `error` on the answer.
+type structureResult struct {
+	Outcome      string
+	Completed    int
+	Reason       string
+	Err          error
+	PageStateErr error
+	// HistoryErr is the first kept history a completed step could not carry to
+	// its new name; both sets stay on disk where they were.
+	HistoryErr error
+	// Refusal is a refusal answered to the client as it was decided.
+	Refusal *serviceRefusal
+}
+
+// metadataDirName is Local's METADATA_DIR, the one folder a duplicate copies
+// whole without walking it.
+const metadataDirName = ".hyperclay"
+
+// restructure is Local's restructure. There is no authority to plan against
+// without rooms, so the outcome is the moves themselves.
+func (h *commitHost) restructure(kind string, entries []structureEntry) (structureResult, error) {
+	return h.restructureOp(kind, entries, "", nil)
+}
+
+// restructureOp is restructure with the op a service-attached change is
+// consulted under.
+func (h *commitHost) restructureOp(kind string, entries []structureEntry, opID string, opHandle *string) (structureResult, error) {
+	unlock := h.locks.lockStructure()
+	defer unlock()
+	switch kind {
+	case "folder":
+		return h.makeFolders(entries), nil
+	case "empty-trash":
+		return h.emptyTrash(), nil
+	}
+	policy, ok := structureKinds[kind]
+	if !ok {
+		return structureResult{}, fmt.Errorf("Unknown structure kind: %s", kind)
+	}
+
+	svc := h.service.active()
+	var consult *consultation
+	var holdID string
+	if svc != nil {
+		// The full-host stage: the service plans the rooms' move before the
+		// first file moves and settles it with what completed (protocol v1,
+		// structure/prepare and structure/settle).
+		if opID == "" {
+			opID = newOpID()
+		}
+		consult = svc.begin(opID, opHandle, h.rootID, h.baseDir, "", "", "structure", kind)
+		answer, err := consult.prepareStructure(h.structureSteps(kind, entries))
+		if err != nil {
+			consult.end(err)
+			refusal := retryableRefusal("service-unavailable")
+			return structureResult{Outcome: "refused", Reason: refusal.Code, Refusal: &refusal}, nil
+		}
+		if answer.Decision == "refuse" {
+			log.Printf("structure %s: the service refused: %d %s %s", kind, answer.Status, answer.Code, answer.Body)
+			svc.abort(consult.ID, "refused")
+			refusal := serviceRefusal{Status: answer.Status, Code: answer.Code, Body: answer.Body, Headers: answer.Headers}
+			return structureResult{Outcome: "refused", Reason: answer.Code, Refusal: &refusal}, nil
+		}
+		holdID = *answer.HoldID
+	}
+
+	completed := 0
+	var failure error
+	if policy.copy {
+		for index, entry := range entries {
+			if err := destinationFree(policy, entry); err != nil {
+				failure = err
+				break
+			}
+			if err := os.MkdirAll(upathDir(entry.ToPath), 0o777); err != nil {
+				failure = err
+				break
+			}
+			if err := copyStructure(entry.FromPath, entry.ToPath); err != nil {
+				failure = err
+				break
+			}
+			if h.onCopy != nil && entry.FromName != "" && entry.ToName != "" {
+				h.onCopy(h.rootID, entry.FromName, entry.ToName)
+			}
+			completed = index + 1
+		}
+		result := structureAnswer(completed, failure)
+		if consult != nil {
+			copied := make([]int, completed)
+			for index := range copied {
+				copied[index] = index
+			}
+			if err := h.settleStructure(consult, entries, holdID, completed, copied, result.Outcome); err != nil {
+				log.Printf("structure %s: settle: %v", kind, err)
+				h.markStructureUnconfirmed(consult.link, entries[:completed], true)
+				consult.link.abortStructureSettle(consult.ID, completed, copied)
+			}
+		}
+		return result, nil
+	}
+
+	var copiedSteps []int
+	for index := range entries {
+		if policy.freeName {
+			if err := moveAsideFromTaken(&entries[index]); err != nil {
+				failure = err
+				break
+			}
+		}
+		entry := entries[index]
+		if err := destinationFree(policy, entry); err != nil {
+			failure = err
+			break
+		}
+		copied, err := moveEntry(entry.FromPath, entry.ToPath, policy.crossDevice)
+		if err != nil {
+			failure = err
+			break
+		}
+		if copied {
+			copiedSteps = append(copiedSteps, index)
+		}
+		completed = index + 1
+	}
+	if consult != nil {
+		if err := h.settleStructure(consult, entries, holdID, completed, copiedSteps, structureAnswer(completed, failure).Outcome); err != nil {
+			log.Printf("structure %s: settle: %v", kind, err)
+			h.markStructureUnconfirmed(consult.link, entries[:completed], false)
+			// The abort waits for the page-state moves below: the service
+			// reconciles from Go's read, which must already carry the moved state.
+			defer consult.link.abortStructureSettle(consult.ID, completed, copiedSteps)
+		}
+	}
+	var historyErr error
+	for _, entry := range entries[:completed] {
+		var err error
+		switch {
+		case entry.PageState == "move" && entry.IsDir:
+			err = movePageStateDir(h.baseDir, entry.FromName, entry.ToName)
+		case entry.PageState == "move":
+			err = movePageState(h.baseDir, entry.FromName, entry.ToName)
+		case entry.PageState == "drop" && entry.IsDir:
+			err = dropPageStateDir(h.baseDir, entry.FromName)
+		case entry.PageState == "drop":
+			err = dropPageState(h.baseDir, entry.FromName)
+		}
+		if err != nil {
+			result := structureAnswer(completed, failure)
+			result.PageStateErr = err
+			result.HistoryErr = historyErr
+			return result, nil
+		}
+		// A rename carries the document's history with it. A trash move does not:
+		// the document's kept versions read at the name it had, which is where a
+		// restore puts it back.
+		if policy.retire {
+			if h.onRetire != nil && entry.FromName != "" {
+				h.onRetire(h.rootID, entry.FromName, entry.IsDir)
+			}
+			continue
+		}
+		if entry.IsDir {
+			err = moveFolderHistory(h.baseDir, entry.FromName, entry.ToName)
+		} else {
+			err = moveDocumentHistory(h.baseDir, entry.FromName, entry.ToName)
+		}
+		if err != nil {
+			// Both sets stay on disk where they are; the move itself completed.
+			log.Printf("structure %s: the history of %s did not move: %v", kind, entry.FromName, err)
+			historyErr = err
+		}
+		if h.onStructure != nil && entry.FromName != "" && entry.ToName != "" {
+			h.onStructure(h.rootID, entry.FromName, entry.ToName, entry.IsDir)
+		}
+	}
+	result := structureAnswer(completed, failure)
+	result.HistoryErr = historyErr
+	return result, nil
+}
+
+// structureSteps is what the service plans from: each step's root-relative
+// names, their locations under the root, and the canonical paths resolved here.
+// Every path is in Local's upath spelling (forward slashes): the service refuses
+// any other as not normalized, which on Windows was every move.
+func (h *commitHost) structureSteps(kind string, entries []structureEntry) []structureStep {
+	steps := make([]structureStep, 0, len(entries))
+	for _, entry := range entries {
+		step := structureStep{Kind: kind}
+		if entry.FromName != "" {
+			location := filepath.ToSlash(filepath.Join(h.baseDir, filepath.FromSlash(entry.FromName)))
+			isDir := entry.IsDir
+			isSymlink := false
+			if info, err := os.Lstat(location); err == nil {
+				isSymlink = info.Mode()&os.ModeSymlink != 0
+			}
+			step.From = &structureSide{Name: entry.FromName, Location: location, CanonicalPath: filepath.ToSlash(entry.FromPath), IsDir: &isDir, IsSymlink: &isSymlink}
+		}
+		if entry.ToName != "" {
+			step.To = &structureSide{Name: entry.ToName, Location: filepath.ToSlash(filepath.Join(h.baseDir, filepath.FromSlash(entry.ToName))), CanonicalPath: filepath.ToSlash(entry.ToPath)}
+		}
+		steps = append(steps, step)
+	}
+	return steps
+}
+
+// makeFolders is the workspace's folder command: each step's destination made
+// as one new directory, never its parents, stopping at the first failure.
+func (h *commitHost) makeFolders(entries []structureEntry) structureResult {
+	completed := 0
+	var failure error
+	for index, entry := range entries {
+		if err := os.Mkdir(entry.ToPath, 0o777); err != nil {
+			failure = err
+			break
+		}
+		completed = index + 1
+	}
+	return structureAnswer(completed, failure)
+}
+
+// emptyTrash is the workspace's empty-trash command: everything inside the
+// root's `.trash/` removed, the folder itself kept. A missing Trash is already
+// empty; a `.trash` that is not a directory is refused as Local's
+// assertTrashDirectory refuses it.
+func (h *commitHost) emptyTrash() structureResult {
+	trash := filepath.Join(h.baseDir, ".trash")
+	info, err := os.Lstat(trash)
+	if errors.Is(err, fs.ErrNotExist) {
+		return structureAnswer(0, nil)
+	}
+	if err != nil {
+		return structureAnswer(0, err)
+	}
+	if !info.IsDir() {
+		return structureAnswer(0, &os.PathError{Op: "lstat", Path: trash, Err: errTrashNotFolder})
+	}
+	names, err := os.ReadDir(trash)
+	if err != nil {
+		return structureAnswer(0, err)
+	}
+	completed := 0
+	for _, entry := range names {
+		if err := os.RemoveAll(filepath.Join(trash, entry.Name())); err != nil {
+			return structureAnswer(completed, err)
+		}
+		completed++
+	}
+	return structureAnswer(completed, nil)
+}
+
+// errTrashNotFolder is the refusal for a `.trash` that is not a folder. It is
+// ENOTDIR on every platform: on Windows syscall.ENOTDIR is a not-found error.
+var errTrashNotFolder = errors.New("not a directory")
+
+// structureAnswer is Local's outcome/completed/reason triple: a failure after
+// one step is partial, a failure before any is failed.
+func structureAnswer(completed int, failure error) structureResult {
+	result := structureResult{Outcome: "committed", Completed: completed, Err: failure}
+	if failure == nil {
+		return result
+	}
+	result.Outcome = "failed"
+	if completed > 0 {
+		result.Outcome = "partial"
+	}
+	result.Reason = structureErrorCode(failure)
+	return result
+}
+
+// structureErrorCode is the `error.code` Local reports as the reason, or its
+// `failed` when the failure carries none.
+func structureErrorCode(err error) string {
+	if errors.Is(err, errTrashNotFolder) {
+		return "ENOTDIR"
+	}
+	// Not-found first: on Windows syscall.ENOTDIR is ERROR_PATH_NOT_FOUND, which
+	// libuv names ENOENT. On Unix only ENOENT is ErrNotExist.
+	if errors.Is(err, fs.ErrNotExist) {
+		return "ENOENT"
+	}
+	for _, code := range []struct {
+		errno syscall.Errno
+		name  string
+	}{
+		{syscall.ENOENT, "ENOENT"},
+		{syscall.EEXIST, "EEXIST"},
+		{syscall.ENOTDIR, "ENOTDIR"},
+		{syscall.EISDIR, "EISDIR"},
+		{syscall.EACCES, "EACCES"},
+		{syscall.EPERM, "EPERM"},
+		{syscall.EXDEV, "EXDEV"},
+		{syscall.ENOSPC, "ENOSPC"},
+		{syscall.EIO, "EIO"},
+	} {
+		if errors.Is(err, code.errno) {
+			return code.name
+		}
+	}
+	// Windows errors carry no Unix errno; libuv names them by meaning.
+	switch {
+	case errors.Is(err, fs.ErrExist):
+		return "EEXIST"
+	case errors.Is(err, fs.ErrPermission):
+		return "EPERM"
+	}
+	return "failed"
+}
+
+// destinationFree refuses an exclusive step whose destination is taken, unless
+// it is the source itself (a case-only rename on a case-insensitive disk).
+func destinationFree(policy structurePolicy, entry structureEntry) error {
+	if !policy.exclusive {
+		return nil
+	}
+	taken, err := os.Lstat(entry.ToPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if source, err := os.Lstat(entry.FromPath); err == nil && os.SameFile(source, taken) {
+		return nil
+	}
+	return &fs.PathError{Op: "rename", Path: entry.ToPath, Err: fs.ErrExist}
+}
+
+// moveAsideFromTaken points entry at <to>.<unix ms> (counting up past any name
+// also taken) when its destination is another entry, never the source itself.
+func moveAsideFromTaken(entry *structureEntry) error {
+	taken, err := os.Lstat(entry.ToPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if source, err := os.Lstat(entry.FromPath); err == nil && os.SameFile(source, taken) {
+		return nil
+	}
+	for stamp := time.Now().UnixMilli(); ; stamp++ {
+		suffix := "." + strconv.FormatInt(stamp, 10)
+		if _, err := os.Lstat(entry.ToPath + suffix); errors.Is(err, fs.ErrNotExist) {
+			entry.ToPath += suffix
+			entry.ToName += suffix
+			return nil
+		} else if err != nil {
+			return err
+		}
+	}
+}
+
+// moveEntry is Local's moveEntry: a rename, and on a cross-device rename a copy
+// and an unlink. It reports whether the entry was copied.
+func moveEntry(from, to string, crossDevice bool) (bool, error) {
+	if err := os.MkdirAll(upathDir(to), 0o777); err != nil {
+		return false, err
+	}
+	err := os.Rename(from, to)
+	if err == nil {
+		return false, nil
+	}
+	if !crossDevice || !errors.Is(err, syscall.EXDEV) {
+		return false, err
+	}
+	if err := copyFileOverwriting(from, to); err != nil {
+		return false, err
+	}
+	if err := os.Remove(from); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// copyFileOverwriting is fs.copyFile's default: the destination is replaced.
+func copyFileOverwriting(from, to string) error {
+	source, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+	info, err := source.Stat()
+	if err != nil {
+		return err
+	}
+	target, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(target, source); err != nil {
+		target.Close()
+		return err
+	}
+	return target.Close()
+}
+
+// copyStructure is Local's copyStructure: a duplicate, with nothing raw ever
+// written first for a watcher to see. Documents lose their copy-only sections,
+// every entry is created exclusively so an occupied destination is never
+// overwritten, and the source is only ever read.
+func copyStructure(from, to string) error {
+	info, err := os.Lstat(from)
+	if err != nil {
+		return err
+	}
+	mode := info.Mode().Perm()
+
+	if info.IsDir() {
+		if upathBase(from) == metadataDirName {
+			return copyTreeExclusive(from, to)
+		}
+		if err := os.Mkdir(to, mode); err != nil {
+			return err
+		}
+		if err := os.Chmod(to, mode); err != nil {
+			return err
+		}
+		names, err := os.ReadDir(from)
+		if err != nil {
+			return err
+		}
+		sort.Slice(names, func(i, j int) bool { return names[i].Name() < names[j].Name() })
+		for _, entry := range names {
+			if err := copyStructure(upathJoin(from, entry.Name()), upathJoin(to, entry.Name())); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if info.Mode()&os.ModeSymlink != 0 {
+		return copySymlinkExclusive(from, to)
+	}
+
+	if isDocumentName(upathBase(from)) {
+		bytes, err := os.ReadFile(from)
+		if err != nil {
+			return err
+		}
+		if err := writeExclusive(to, stripCopyBytes(bytes), mode); err != nil {
+			return err
+		}
+		// A duplicate of a download is a download: the copy carries the mark,
+		// or it would open as if the person had made it.
+		_ = platform.KeepDownloadMark(from, to)
+		return os.Chmod(to, mode)
+	}
+
+	bytes, err := os.ReadFile(from)
+	if err != nil {
+		return err
+	}
+	if err := writeExclusive(to, bytes, mode); err != nil {
+		return err
+	}
+	_ = platform.KeepDownloadMark(from, to)
+	return nil
+}
+
+// stripCopyBytes is Local's stripCopyBytes: a copy carries no copy-only
+// analytics or promos, and a document with nothing marked keeps its exact
+// bytes. Where the strip cannot locate a marked section it leaves the bytes
+// alone, so a duplicate never fails on markup it could not parse.
+func stripCopyBytes(bytes []byte) []byte {
+	cleaned, err := dataapi.StripCopyContent(bytes)
+	if err != nil {
+		return bytes
+	}
+	return cleaned
+}
+
+// writeExclusive is fs.writeFile's `wx` flag: a destination that exists is an
+// error, never an overwrite.
+func writeExclusive(to string, content []byte, mode os.FileMode) error {
+	handle, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		return err
+	}
+	if _, err := handle.Write(content); err != nil {
+		handle.Close()
+		return err
+	}
+	return handle.Close()
+}
+
+// copySymlinkExclusive recreates a link where the destination is free.
+func copySymlinkExclusive(from, to string) error {
+	if _, err := os.Lstat(to); err == nil {
+		return &os.LinkError{Op: "copy", Old: from, New: to, Err: syscall.EEXIST}
+	}
+	target, err := os.Readlink(from)
+	if err != nil {
+		return err
+	}
+	return os.Symlink(target, to)
+}
+
+// copyTreeExclusive is fs.cp with `recursive` and `errorOnExist` and without
+// `force`, the one call a duplicate makes for the metadata folder.
+func copyTreeExclusive(from, to string) error {
+	info, err := os.Lstat(from)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return copySymlinkExclusive(from, to)
+	}
+	if !info.IsDir() {
+		bytes, err := os.ReadFile(from)
+		if err != nil {
+			return err
+		}
+		return writeExclusive(to, bytes, info.Mode().Perm())
+	}
+	if err := os.Mkdir(to, info.Mode().Perm()); err != nil {
+		return err
+	}
+	names, err := os.ReadDir(from)
+	if err != nil {
+		return err
+	}
+	sort.Slice(names, func(i, j int) bool { return names[i].Name() < names[j].Name() })
+	for _, entry := range names {
+		if err := copyTreeExclusive(filepath.Join(from, entry.Name()), filepath.Join(to, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// markStructureUnconfirmed handles a structure settle the service never
+// confirmed: the files moved, but the service's rooms may still be keyed to the
+// old paths, and their next checkpoint would be refused and the edits lost
+// when the room expired. Every page document the completed steps touched is
+// marked unconfirmed at its old and its new path (only the new one for a copy),
+// so semantic writes to either wait. The caller then aborts with the completed
+// steps, so the service can settle late and reconcile each marked document.
+func (h *commitHost) markStructureUnconfirmed(link *serviceLink, done []structureEntry, copy bool) {
+	for _, entry := range done {
+		if !entry.IsDir {
+			if !copy && entry.FromName != "" && isDocumentName(entry.FromName) {
+				link.markUnconfirmed(entry.FromPath, h.rootID, entry.FromName)
+			}
+			if entry.ToName != "" && isDocumentName(entry.ToName) {
+				link.markUnconfirmed(entry.ToPath, h.rootID, entry.ToName)
+			}
+			continue
+		}
+		if entry.ToName == "" {
+			continue
+		}
+		_ = filepath.WalkDir(entry.ToPath, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			rel, relErr := filepath.Rel(entry.ToPath, path)
+			if relErr != nil {
+				return nil
+			}
+			rel = filepath.ToSlash(rel)
+			if !isDocumentName(rel) {
+				return nil
+			}
+			link.markUnconfirmed(path, h.rootID, entry.ToName+"/"+rel)
+			if !copy && entry.FromName != "" {
+				link.markUnconfirmed(filepath.Join(entry.FromPath, filepath.FromSlash(rel)), h.rootID, entry.FromName+"/"+rel)
+			}
+			return nil
+		})
+	}
+}
+
+// settleStructure sends the settle, unless a harness armed settle-lost for the
+// first step's source, which drops it as a slow or restarting service would.
+func (h *commitHost) settleStructure(consult *consultation, entries []structureEntry, holdID string, completed int, copiedSteps []int, outcome string) error {
+	if len(entries) > 0 && takeFault(faultSettleLost, entries[0].FromName) {
+		return errors.New("structure/settle: lost (fault settle-lost)")
+	}
+	return consult.settleStructure(holdID, completed, copiedSteps, outcome)
+}

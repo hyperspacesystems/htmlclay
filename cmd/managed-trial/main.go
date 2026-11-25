@@ -17,13 +17,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/panphora/htmlclay/internal/managedtrial"
+	"github.com/panphora/htmlclay/internal/served"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
-	if err := managedtrial.Run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
+	if err := served.Run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintf(os.Stderr, "managed-trial: %v\n", err)
 		os.Exit(1)
 	}

@@ -5,7 +5,9 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"github.com/panphora/htmlclay/internal/wire"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -132,7 +134,7 @@ func (s *Server) handleDataAPIWrite(w http.ResponseWriter, r *http.Request) {
 		if absPath, ok := s.resolveWriteTarget(relPath); ok {
 			f, _ = s.sessions.LookupByPath(absPath)
 		}
-		if f == nil || subtle.ConstantTimeCompare([]byte(r.Header.Get(helperTokenHeader)), []byte(f.Token)) != 1 {
+		if f == nil || subtle.ConstantTimeCompare([]byte(r.Header.Get(wire.TokenHeader)), []byte(f.Token)) != 1 {
 			writeWriteError(w, http.StatusForbidden, writeErrorBody{
 				Error:   "Save-Token required",
 				Message: "A page writes JSON only with the target file's Save-Token header.",
@@ -237,109 +239,261 @@ func (s *Server) mayRegisterForWrite(absPath string) bool {
 		!s.isInternal(absPath)
 }
 
-// writeApplied is handleSave's commit sequence with the body computed from the stored bytes.
+// writeApplied answers POST /_/api with what writeData stored: the data read back
+// through the rules, or a sheet patch's own answer.
 func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session.File, data dataapi.Value, mode dataMode, isBrowser bool, wait *recalcRequest) {
+	ifMatch, sent := listHeader(r, "If-Match")
+	written, refusal := s.writeData(f, dataWrite{
+		host:        r.Host,
+		data:        data,
+		mode:        mode,
+		ifMatch:     ifMatch,
+		ifMatchSent: sent,
+		program:     !isBrowser,
+		wait:        wait,
+	})
+	if refusal != nil {
+		refusal.answer(w)
+		return
+	}
+	if written.patch == nil {
+		stored := written.stored
+		var outcome *recalcOutcome
+		if written.parked != nil {
+			docURL := (&url.URL{Scheme: "http", Host: s.Host(), Path: servedPathOf(f)}).String()
+			o := s.awaitRecalc(r.Context(), written.parked, docURL, wait.total)
+			if o.recalculated {
+				f.Lock()
+				fresh, freshErr := s.readRegisteredFile(f.AbsPath)
+				f.Unlock()
+				if freshErr == nil {
+					stored = fresh
+				} else {
+					o = recalcOutcome{code: "no-browser"}
+				}
+			}
+			outcome = &o
+		}
+		var meta *dataapi.Object
+		stale := written.mode.face == faceAPI && (written.stale || dataapi.HasStaleMark(stored))
+		if outcome != nil && outcome.recalculated {
+			stale = dataapi.HasStaleMark(stored)
+		}
+		if written.mode.face == faceAPI {
+			meta = writeAnswerMeta(r.URL.Query().Has("meta"), specwire.Etag(stored), written.changed, stale, outcome)
+		}
+		s.writeExtracted(w, stored, written.mode, meta, stale)
+		return
+	}
+
+	etag := specwire.Etag(written.stored)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(patchAnswer{Etag: etag, Changed: written.patch.Changed, Recalculated: false, Stale: written.patch.Stale}); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("ETag", etag)
+	dataHeaders(w)
+	w.WriteHeader(http.StatusOK)
+	w.Write(bytes.TrimRight(buf.Bytes(), "\n"))
+}
+
+// dataShape is how a data write's JSON is to be read.
+type dataShape int
+
+const (
+	// dataPosted is a POST body as /_/api takes it: data to write, or a sheet
+	// patch when it is shaped as one and the document's rules name no "patch" key.
+	dataPosted dataShape = iota
+	// dataWhole is data to write through the rules, whatever its shape.
+	dataWhole
+	// dataPatch is a sheet patch's list of operations.
+	dataPatch
+)
+
+// dataWrite is one write through a document's rules, whoever asks for it.
+type dataWrite struct {
+	// host is the Host the caller named, which says which runtime URLs in the
+	// written bytes are this host's own.
+	host        string
+	data        dataapi.Value
+	shape       dataShape
+	mode        dataMode
+	ifMatch     string
+	ifMatchSent bool
+	// program says no page is behind the write, so the data guard judges it: a
+	// write that would remove data needs an If-Match naming the exact version read.
+	program bool
+	// keep refuses the write unless the bytes it replaces are a kept version,
+	// whatever the If-Match proves.
+	keep bool
+	// wait asks the write lane to park a recalculation waiter when computed values
+	// are left stale.
+	wait *recalcRequest
+	// owned is asked once the file's lock is held. False refuses the write: the
+	// document stopped being this host's to write while the write waited.
+	owned func() bool
+}
+
+// dataWritten is what the lane answers a data write it stored.
+type dataWritten struct {
+	// stored is the document as it now stands: the bytes written, or the bytes
+	// already there when the data changed nothing.
+	stored []byte
+	// mode is the caller's mode with a query's rules resolved, for reading the
+	// data back.
+	mode    dataMode
+	changed bool
+	stale   bool
+	// replaced names the kept version that holds the bytes the write replaced,
+	// when the write had to keep them.
+	replaced string
+	// patch is the engine's answer when a sheet patch was applied.
+	patch  *dataapi.PatchResult
+	parked *recalcWait
+}
+
+// dataRefusal is a data write the lane did not store. Nothing was written. answer
+// writes the answer POST /_/api gives, and err is what a program is told.
+type dataRefusal struct {
+	err    error
+	answer func(w http.ResponseWriter)
+}
+
+// writeData is the lane behind POST /_/api: handleSave's commit sequence with the
+// body computed from the stored bytes.
+func (s *Server) writeData(f *session.File, in dataWrite) (dataWritten, *dataRefusal) {
+	refuse := func(err error, answer func(w http.ResponseWriter)) (dataWritten, *dataRefusal) {
+		return dataWritten{}, &dataRefusal{err: err, answer: answer}
+	}
+	refuseWith := func(err error, status int, body writeErrorBody) (dataWritten, *dataRefusal) {
+		return refuse(err, func(w http.ResponseWriter) { writeWriteError(w, status, body) })
+	}
 	f.Lock()
+	if in.owned != nil && !in.owned() {
+		f.Unlock()
+		return refuseWith(ErrNotOwned, http.StatusNotFound, writeErrorBody{Error: "Not Found", Message: "No such document."})
+	}
 	current, readErr := s.readRegisteredFile(f.AbsPath)
 	if readErr != nil {
 		f.Unlock()
 		if errors.Is(readErr, errRefusedInternal) || errors.Is(readErr, os.ErrNotExist) {
-			writeWriteError(w, http.StatusNotFound, writeErrorBody{Error: "Site content not found", Message: "The document has no content on disk."})
-			return
+			return refuseWith(fs.ErrNotExist, http.StatusNotFound, writeErrorBody{Error: "Site content not found", Message: "The document has no content on disk."})
 		}
-		s.logger.Printf("Data write could not read %s: %v", f.RelPath, readErr)
-		writeWriteError(w, http.StatusInternalServerError, writeErrorBody{Error: "Write failed", Message: "Could not read the stored document."})
-		return
+		s.Logger.Printf("Data write could not read %s: %v", f.RelPath, readErr)
+		return refuseWith(readErr, http.StatusInternalServerError, writeErrorBody{Error: "Write failed", Message: "Could not read the stored document."})
 	}
 
-	if ifMatch, sent := listHeader(r, "If-Match"); sent && !specwire.IfMatchSatisfied(ifMatch, current) {
+	if in.ifMatchSent && !specwire.IfMatchSatisfied(in.ifMatch, current) {
 		etag := specwire.Etag(current)
+		receipt := f.SaveReceiptFor(etag)
 		f.Unlock()
-		w.Header().Set("ETag", etag)
-		writeWriteError(w, http.StatusPreconditionFailed, writeErrorBody{
-			Error:   "Precondition Failed",
-			Message: f.Name + " changed since you read it. Nothing was written.",
+		return refuse(&StaleError{Etag: etag, SaveID: receipt}, func(w http.ResponseWriter) {
+			w.Header().Set("ETag", etag)
+			writeWriteError(w, http.StatusPreconditionFailed, writeErrorBody{
+				Error:   "Precondition Failed",
+				Message: f.Name + " changed since you read it. Nothing was written.",
+			})
 		})
-		return
 	}
 
-	if mode.face == faceAPI {
-		stripped := htmlutil.StripToken(current)
-		if rules, _, found, rErr := dataapi.DocumentRules(stripped, "api"); rErr == nil && found && dataapi.IsPatchBody(data, rules) {
-			if wait != nil {
+	source := htmlutil.StripToken(current)
+	ops, patching := in.data, in.shape == dataPatch
+	if in.shape == dataPosted && in.mode.face == faceAPI {
+		if rules, _, found, rErr := dataapi.DocumentRules(source, "api"); rErr == nil && found && dataapi.IsPatchBody(in.data, rules) {
+			if in.wait != nil {
 				f.Unlock()
-				writeWriteError(w, http.StatusBadRequest, writeErrorBody{Error: "Invalid recalculate", Message: "recalculate=wait does not take a sheet patch."})
-				return
+				return refuseWith(errors.New("recalculate=wait does not take a sheet patch"), http.StatusBadRequest, writeErrorBody{Error: "Invalid recalculate", Message: "recalculate=wait does not take a sheet patch."})
 			}
-			s.patchApplied(w, r, f, current, data, isBrowser)
-			return
+			ops, _ = in.data.(*dataapi.Object).Get("patch")
+			patching = true
 		}
 	}
 
-	var res *dataapi.WriteResult
-	var err error
-	if mode.face == faceQuery {
-		mode.value, err = dataapi.ParseRelaxed(mode.rules)
-		mode.resolved = err == nil
-		if err == nil {
-			res, err = dataapi.WriteDocumentWithRules(htmlutil.StripToken(current), data, mode.value)
-		}
-	} else {
-		res, err = dataapi.WriteDocument(htmlutil.StripToken(current), data, "api")
-	}
-	if err != nil {
-		f.Unlock()
-		if mode.face == faceQuery {
-			var parse *dataapi.RulesParseError
-			var selector dataapi.SelectorFailure
-			if errors.As(err, &parse) || errors.As(err, &selector) {
-				status, body := mapDataError(err, faceQuery)
-				writeDataError(w, status, body)
-				return
-			}
-		}
-		status, body := mapWriteError(err)
-		if status == http.StatusInternalServerError {
-			s.logger.Printf("Data write of %s failed: %v", f.RelPath, err)
-		}
-		writeWriteError(w, status, body)
-		return
-	}
-	// A query face's own rules are judged against the bytes the engine produced, before
-	// anything is written, so a write the caller could not read back never lands.
-	if mode.face == faceQuery {
-		doc, extractErr := dataapi.ParseBytes(res.HTML)
-		if extractErr == nil {
-			_, extractErr = doc.Extract(mode.value)
-		}
-		if extractErr != nil {
+	mode := in.mode
+	var html []byte
+	var patched *dataapi.PatchResult
+	spliced := false
+	stale := false
+	if patching {
+		res, err := dataapi.PatchDocument(source, ops, dataapi.PatchOptions{Token: "api"})
+		if err != nil {
 			f.Unlock()
-			status, body := mapDataError(extractErr, faceQuery)
-			writeDataError(w, status, body)
-			return
+			status, body := mapWriteError(err)
+			if status == http.StatusInternalServerError {
+				s.Logger.Printf("Sheet patch of %s failed: %v", f.RelPath, err)
+			}
+			return refuseWith(refusedData(err, status, body), status, body)
 		}
+		patched, html = res, res.HTML
+	} else {
+		var res *dataapi.WriteResult
+		var err error
+		if mode.face == faceQuery {
+			mode.value, err = dataapi.ParseRelaxed(mode.rules)
+			mode.resolved = err == nil
+			if err == nil {
+				res, err = dataapi.WriteDocumentWithRules(source, in.data, mode.value)
+			}
+		} else {
+			res, err = dataapi.WriteDocument(source, in.data, "api")
+		}
+		if err != nil {
+			f.Unlock()
+			if mode.face == faceQuery {
+				var parse *dataapi.RulesParseError
+				var selector dataapi.SelectorFailure
+				if errors.As(err, &parse) || errors.As(err, &selector) {
+					status, body := mapDataError(err, faceQuery)
+					return refuse(err, func(w http.ResponseWriter) { writeDataError(w, status, body) })
+				}
+			}
+			status, body := mapWriteError(err)
+			if status == http.StatusInternalServerError {
+				s.Logger.Printf("Data write of %s failed: %v", f.RelPath, err)
+			}
+			return refuseWith(refusedData(err, status, body), status, body)
+		}
+		// A query face's own rules are judged against the bytes the engine produced, before
+		// anything is written, so a write the caller could not read back never lands.
+		if mode.face == faceQuery {
+			doc, extractErr := dataapi.ParseBytes(res.HTML)
+			if extractErr == nil {
+				_, extractErr = doc.Extract(mode.value)
+			}
+			if extractErr != nil {
+				f.Unlock()
+				status, body := mapDataError(extractErr, faceQuery)
+				return refuse(extractErr, func(w http.ResponseWriter) { writeDataError(w, status, body) })
+			}
+		}
+		if res.Changed {
+			html = res.HTML
+		}
+		spliced = res.Spliced
+		stale = res.Stale
 	}
 
+	exact := dataguard.NamesExactVersion(in.ifMatch)
 	var parked *recalcWait
-	written := current
-	key := ""
-	if res.Changed {
-		ifMatch, _ := listHeader(r, "If-Match")
-		written, key, err = s.commitDataEdit(f, current, res.HTML, r.Host,
-			dataguard.NamesExactVersion(ifMatch) && !isBrowser, !isBrowser && !dataguard.NamesExactVersion(ifMatch))
+	written, key, replaced := current, "", ""
+	if html != nil {
+		var err error
+		written, key, replaced, err = s.commitDataEdit(f, current, html, in.host,
+			in.keep || (exact && in.program), in.program && !exact)
 		if err != nil {
 			f.Unlock()
 			var refusal *dataEditError
 			if errors.As(err, &refusal) {
-				writeWriteError(w, refusal.status, refusal.body)
-				return
+				return refuseWith(refusal.told(), refusal.status, refusal.body)
 			}
-			writeWriteError(w, http.StatusInternalServerError, writeErrorBody{Error: "Write failed", Message: "write error"})
-			return
+			return refuseWith(err, http.StatusInternalServerError, writeErrorBody{Error: "Write failed", Message: "write error"})
 		}
 		f.NoteWriteFromOutsideTabs()
 		if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-			s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+			s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 		}
 		s.coord.acceptServerReplacement(f)
 		// Announced as an external change, not a save: no tab relays this write to the others,
@@ -347,7 +501,7 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 		// protection a text editor's write gets.
 		etag := specwire.Etag(written)
 		var frame *recalcFrame
-		if wait != nil && (res.Stale || dataapi.HasStaleMark(written)) {
+		if in.wait != nil && (stale || dataapi.HasStaleMark(written)) {
 			if p, parkErr := s.recalcs.park(f.AbsPath, etag); parkErr == nil {
 				parked, frame = p, &recalcFrame{ID: p.id, Etag: etag}
 			}
@@ -359,38 +513,20 @@ func (s *Server) writeApplied(w http.ResponseWriter, r *http.Request, f *session
 	}
 	f.Unlock()
 
-	if res.Changed {
-		ifMatch, _ := listHeader(r, "If-Match")
-		exact := dataguard.NamesExactVersion(ifMatch)
-		s.observeWrite(f, key, current, written, dataguard.External, writeProof{IfMatched: exact, ProvenReader: exact && !isBrowser, FromPage: isBrowser})
+	if html != nil {
+		s.observeWrite(f, key, current, written, dataguard.External, writeProof{IfMatched: exact, ProvenReader: exact && in.program, FromPage: !in.program})
 		s.versions.MaybePrune(key, f.AbsPath)
-		s.logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), res.Spliced)
-	}
-	var outcome *recalcOutcome
-	if parked != nil {
-		docURL := (&url.URL{Scheme: "http", Host: s.Host(), Path: servedPathOf(f)}).String()
-		o := s.awaitRecalc(r.Context(), parked, docURL, wait.total)
-		if o.recalculated {
-			f.Lock()
-			fresh, freshErr := s.readRegisteredFile(f.AbsPath)
-			f.Unlock()
-			if freshErr == nil {
-				written = fresh
-			} else {
-				o = recalcOutcome{code: "no-browser"}
-			}
+		if patched != nil {
+			s.Logger.Printf("Patched sheet cells in %s (%d cells, %d rows)", f.RelPath, patched.Changed.Cells, patched.Changed.Rows)
+		} else {
+			s.Logger.Printf("Wrote data into %s (%d bytes, spliced=%v)", f.RelPath, len(written), spliced)
 		}
-		outcome = &o
 	}
-	var meta *dataapi.Object
-	stale := mode.face == faceAPI && (res.Stale || dataapi.HasStaleMark(written))
-	if outcome != nil && outcome.recalculated {
-		stale = dataapi.HasStaleMark(written)
+	changed := !bytes.Equal(written, current)
+	if !changed {
+		replaced = ""
 	}
-	if mode.face == faceAPI {
-		meta = writeAnswerMeta(r.URL.Query().Has("meta"), specwire.Etag(written), res.Changed, stale, outcome)
-	}
-	s.writeExtracted(w, written, mode, meta, stale)
+	return dataWritten{stored: written, mode: mode, changed: changed, stale: stale, replaced: replaced, patch: patched, parked: parked}, nil
 }
 
 // staleWhy is the sentence on a write that left computed values old and did not wait.
@@ -440,57 +576,18 @@ func readAnswerMeta(full bool, etag string, stale bool) *dataapi.Object {
 	return meta
 }
 
-// patchApplied applies a sheet patch body. Caller holds f.Lock; patchApplied releases it.
-func (s *Server) patchApplied(w http.ResponseWriter, r *http.Request, f *session.File, current []byte, body dataapi.Value, isBrowser bool) {
-	patch, _ := body.(*dataapi.Object).Get("patch")
-	res, err := dataapi.PatchDocument(htmlutil.StripToken(current), patch, dataapi.PatchOptions{Token: "api"})
-	if err != nil {
-		f.Unlock()
-		status, errBody := mapWriteError(err)
-		if status == http.StatusInternalServerError {
-			s.logger.Printf("Sheet patch of %s failed: %v", f.RelPath, err)
-		}
-		writeWriteError(w, status, errBody)
-		return
+// refusedData is what a program is told of a read or a write the engine refused:
+// the status, the code and the sentence the data route answers, around the
+// engine's own error.
+func refusedData(err error, status int, body writeErrorBody) error {
+	var noTag *dataapi.NoRulesTag
+	switch {
+	case errors.As(err, &noTag), errors.Is(err, errNoAPIRulesTag):
+		return ErrNoDataRules
+	case status >= http.StatusInternalServerError:
+		return err
 	}
-	ifMatch, _ := listHeader(r, "If-Match")
-	written, key, err := s.commitDataEdit(f, current, res.HTML, r.Host,
-		dataguard.NamesExactVersion(ifMatch) && !isBrowser, !isBrowser && !dataguard.NamesExactVersion(ifMatch))
-	if err != nil {
-		f.Unlock()
-		var refusal *dataEditError
-		if errors.As(err, &refusal) {
-			writeWriteError(w, refusal.status, refusal.body)
-			return
-		}
-		writeWriteError(w, http.StatusInternalServerError, writeErrorBody{Error: "Write failed", Message: "write error"})
-		return
-	}
-	f.NoteWriteFromOutsideTabs()
-	if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-		s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
-	}
-	s.coord.acceptServerReplacement(f)
-	s.coord.publishExternalChange(f, f.Name+" was updated through the data API", forBrowser(written, key, s.documentURLFor(f)), specwire.Etag(written))
-	f.Unlock()
-
-	exact := dataguard.NamesExactVersion(ifMatch)
-	s.observeWrite(f, key, current, written, dataguard.External, writeProof{IfMatched: exact, ProvenReader: exact && !isBrowser, FromPage: isBrowser})
-	s.versions.MaybePrune(key, f.AbsPath)
-	s.logger.Printf("Patched sheet cells in %s (%d cells, %d rows)", f.RelPath, res.Changed.Cells, res.Changed.Rows)
-
-	etag := specwire.Etag(written)
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(patchAnswer{Etag: etag, Changed: res.Changed, Recalculated: false, Stale: res.Stale}); err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("ETag", etag)
-	dataHeaders(w)
-	w.WriteHeader(http.StatusOK)
-	w.Write(bytes.TrimRight(buf.Bytes(), "\n"))
+	return &DataRefusedError{Status: status, Code: body.Code, Message: body.Message, Err: err}
 }
 
 type patchAnswer struct {
@@ -509,15 +606,33 @@ type dataEditError struct {
 
 func (e *dataEditError) Error() string { return e.body.Message }
 
+// told is the refusal as a program's own call is told of it.
+func (e *dataEditError) told() error {
+	switch {
+	case e.body.WouldRemove != nil:
+		return &ReadRequiredError{
+			Etag:    e.body.Etag,
+			Message: e.body.Message,
+			Items:   e.body.WouldRemove.Items,
+			Values:  e.body.WouldRemove.Values,
+			Paths:   e.body.WouldRemove.Paths,
+		}
+	case e.status == http.StatusServiceUnavailable:
+		return ErrVersionNotKept
+	}
+	return &DataRefusedError{Status: e.status, Code: e.body.Code, Message: e.body.Message}
+}
+
 // commitDataEdit commits an edit computed from the stored bytes: canonicalize, hold
 // the page format floor, check the result against the page on disk, then back up and
-// write it. It returns the stored bytes and the document's history key. Caller holds
-// f.Lock.
+// write it. It returns the stored bytes, the document's history key and, when keep
+// is set, the name of the kept version that holds the bytes it replaced. Caller
+// holds f.Lock.
 //
 // The stored document is the only source of an edit, so the bytes it produced can
 // carry a runtime URL only if disk already held one. Canonicalizing before the
 // admission check means what is judged is what would be written.
-func (s *Server) commitDataEdit(f *session.File, current, html []byte, host string, provenReader, readFirst bool) ([]byte, string, error) {
+func (s *Server) commitDataEdit(f *session.File, current, html []byte, host string, keep, readFirst bool) ([]byte, string, string, error) {
 	html = canonicalForWrite(host, html)
 	html = []byte(pageadmission.WithPageFormatFloor(string(html),
 		pageadmission.PageFormatFloor(string(current))))
@@ -534,7 +649,7 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 		if reason == "" {
 			reason = code
 		}
-		return nil, "", &dataEditError{status: http.StatusConflict, body: writeErrorBody{
+		return nil, "", "", &dataEditError{status: http.StatusConflict, body: writeErrorBody{
 			Error: "Page format", Message: admissionErr.Error(),
 			Details: map[string]string{"code": code, "reason": reason},
 		}}
@@ -543,7 +658,7 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 	written := s.foldRecord(f, []byte(pageadmission.StripPageTag(string(html))), current)
 	if readFirst {
 		if D := readRequiredWrite(current, written); D != nil {
-			return nil, "", &dataEditError{status: http.StatusPreconditionRequired, body: writeErrorBody{
+			return nil, "", "", &dataEditError{status: http.StatusPreconditionRequired, body: writeErrorBody{
 				Code:        "read-required",
 				Error:       "Read first",
 				Message:     "This write would remove data. Read the document first and send its etag as If-Match.",
@@ -554,36 +669,41 @@ func (s *Server) commitDataEdit(f *session.File, current, html []byte, host stri
 	}
 	key, _ := s.ensureHistoryKeyLocked(f, current)
 	// A proven reader is a program that read this exact version and computes its
-	// edit from it, so its write replaces bytes nothing else holds. Those bytes have
-	// to be kept first: if they cannot be, the write does not happen at all.
-	if provenReader && !s.recentVersionsHold(key, f.AbsPath, current) {
-		if bErr := s.backupVersion(key, f.AbsPath, current); bErr != nil {
-			s.logger.Printf("Could not keep the current version of %s: %v", f.RelPath, bErr)
-			return nil, "", &dataEditError{status: http.StatusServiceUnavailable, body: writeErrorBody{
+	// edit from it, so its write replaces bytes nothing else holds, and a program's
+	// own call asks for the same whatever it proved. Those bytes have to be kept
+	// first: if they cannot be, the write does not happen at all. The version that
+	// holds them is the write's undo.
+	replaced := ""
+	if keep {
+		name, kErr := s.keepVersion(key, f.AbsPath, current)
+		if kErr != nil {
+			s.Logger.Printf("Could not keep the current version of %s: %v", f.RelPath, kErr)
+			return nil, "", "", &dataEditError{status: http.StatusServiceUnavailable, body: writeErrorBody{
 				Code:    "recovery-unavailable",
 				Error:   "Could not keep the current version",
 				Message: "The current version could not be stored in history, so nothing was written. Try again.",
 			}}
 		}
+		replaced = name
 	}
 	if !s.versions.HasHistory(key, f.AbsPath) {
 		if bErr := s.backupVersion(key, f.AbsPath, current); bErr != nil {
-			s.logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
+			s.Logger.Printf("Pre-write backup failed for %s: %v", f.RelPath, bErr)
 		}
 	}
 	if bErr := s.backupVersion(key, f.AbsPath, written); bErr != nil {
-		s.logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
+		s.Logger.Printf("Backup failed for %s: %v", f.RelPath, bErr)
 	}
 	if err := atomicWriteFile(f.AbsPath, written); err != nil {
-		s.logger.Printf("Error writing %s: %v", f.AbsPath, err)
-		return nil, "", err
+		s.Logger.Printf("Error writing %s: %v", f.AbsPath, err)
+		return nil, "", "", err
 	}
 	if sErr := s.versions.SettlePageState(key, f.AbsPath, written); sErr != nil {
-		s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
+		s.Logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
 	}
 	f.RecordServerWrite(versions.Hash(written))
 	f.NoteWriteByThisHost()
-	return written, key, nil
+	return written, key, replaced, nil
 }
 
 // readRequiredWrite judges what a program's write would destroy between the
@@ -615,17 +735,19 @@ func (s *Server) backupVersion(key, absPath string, content []byte) error {
 	return err
 }
 
-// recentVersionsChecked is how many of the newest versions recentVersionsHold looks
-// through. A few, not one: the watcher and the page save lane both store versions of
-// the same document, so a write caught mid-save lands after the copy it is checking.
+// recentVersionsChecked is how many of the newest versions recentVersionHolding
+// looks through. A few, not one: the watcher and the page save lane both store
+// versions of the same document, so a write caught mid-save lands after the copy it
+// is checking.
 const recentVersionsChecked = 3
 
-// recentVersionsHold reports whether one of the newest few versions holds exactly
-// content, so bytes already kept need no second copy.
-func (s *Server) recentVersionsHold(key, absPath string, content []byte) bool {
+// recentVersionHolding is the name of the newest of those few versions that
+// holds exactly content, or "" when none does, so bytes already kept need no
+// second copy.
+func (s *Server) recentVersionHolding(key, absPath string, content []byte) string {
 	entries, err := s.versions.List(key, absPath)
 	if err != nil {
-		return false
+		return ""
 	}
 	if len(entries) > recentVersionsChecked {
 		entries = entries[:recentVersionsChecked]
@@ -637,10 +759,26 @@ func (s *Server) recentVersionsHold(key, absPath string, content []byte) bool {
 			continue
 		}
 		if versions.Hash(body) == want {
-			return true
+			return entry.Name
 		}
 	}
-	return false
+	return ""
+}
+
+// keepVersion makes sure content is a kept version of the document and answers
+// the name of the version that holds it: a recent one that already does, or the
+// one it stores now.
+func (s *Server) keepVersion(key, absPath string, content []byte) (string, error) {
+	if name := s.recentVersionHolding(key, absPath, content); name != "" {
+		return name, nil
+	}
+	if err := s.backupVersion(key, absPath, content); err != nil {
+		return "", err
+	}
+	if name := s.recentVersionHolding(key, absPath, content); name != "" {
+		return name, nil
+	}
+	return "", errors.New("no version of " + absPath + " holds the kept bytes")
 }
 
 // mapWriteError gives the write engine's refusals the bodies hyperclay-local sends, and defers to

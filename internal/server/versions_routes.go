@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"github.com/panphora/htmlclay/internal/wire"
 	"io/fs"
 	"net/http"
 	"os"
@@ -43,8 +44,7 @@ func historyKey(f *session.File) string {
 
 // noStoreJSON marks every token-bearing response uncacheable.
 func noStoreJSON(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
+	wire.NoStoreJSON(w)
 }
 
 func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +58,7 @@ func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
 	f.Unlock()
 
 	if err != nil {
-		s.logger.Printf("Error listing versions for %s: %v", f.RelPath, err)
+		s.Logger.Printf("Error listing versions for %s: %v", f.RelPath, err)
 		s.writeError(w, http.StatusInternalServerError, "list error")
 		return
 	}
@@ -94,7 +94,7 @@ func (s *Server) handleReadVersion(w http.ResponseWriter, r *http.Request) {
 	f.Unlock()
 
 	if err != nil {
-		s.logger.Printf("Error reading version %s of %s: %v", name, f.RelPath, err)
+		s.Logger.Printf("Error reading version %s of %s: %v", name, f.RelPath, err)
 		s.writeError(w, http.StatusNotFound, "version not found")
 		return
 	}
@@ -117,9 +117,42 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name := r.PathValue("name")
-	if _, _, err := versions.ParseEntryName(name); err != nil {
-		s.writeError(w, http.StatusBadRequest, "invalid version name")
+	if err := s.RestoreVersion(f, r.Host, name); err != nil {
+		var refusal *RestoreRefusal
+		if errors.As(err, &refusal) {
+			s.writeError(w, refusal.Status, refusal.Message)
+			return
+		}
+		s.writeError(w, http.StatusInternalServerError, "write error")
 		return
+	}
+
+	noStoreJSON(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":      true,
+		"msg":     "Restored " + name,
+		"msgType": "success",
+	})
+}
+
+// RestoreRefusal is a restore the host did not perform, with the status and the
+// message its own route answers for it.
+type RestoreRefusal struct {
+	Status  int
+	Message string
+}
+
+func (e *RestoreRefusal) Error() string { return e.Message }
+
+// RestoreVersion puts one kept version back on disk through the lane POST
+// /_/restore uses: the document's current bytes are kept first, and nothing is
+// written when the version cannot be read, is not a complete HTML document, or
+// cannot be backed up. host is the host the restored bytes are canonicalised
+// for. A caller that has no HTTP request of its own (the dashboard's restore)
+// calls this rather than writing the file itself.
+func (s *Server) RestoreVersion(f *session.File, host, name string) error {
+	if _, _, err := versions.ParseEntryName(name); err != nil {
+		return &RestoreRefusal{Status: http.StatusBadRequest, Message: "invalid version name"}
 	}
 
 	f.Lock()
@@ -135,31 +168,27 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	// absent has nothing to lose and needs no safety copy.
 	if readErr != nil && !errors.Is(readErr, fs.ErrNotExist) {
 		f.Unlock()
-		s.logger.Printf("Refusing to restore %s: current file cannot be read: %v", f.RelPath, readErr)
-		s.writeError(w, http.StatusInternalServerError, "current file cannot be read, so no safety backup is possible")
-		return
+		s.Logger.Printf("Refusing to restore %s: current file cannot be read: %v", f.RelPath, readErr)
+		return &RestoreRefusal{Status: http.StatusInternalServerError, Message: "current file cannot be read, so no safety backup is possible"}
 	}
 
 	data, err := s.versions.Read(key, f.AbsPath, name)
 	if err != nil {
 		f.Unlock()
-		s.logger.Printf("Error reading version %s of %s: %v", name, f.RelPath, err)
-		s.writeError(w, http.StatusNotFound, "version not found")
-		return
+		s.Logger.Printf("Error reading version %s of %s: %v", name, f.RelPath, err)
+		return &RestoreRefusal{Status: http.StatusNotFound, Message: "version not found"}
 	}
 	// Versions are written from banner-stripped saves, but a restore must not
 	// trust that history: strip again so no path writes a banner to disk.
 	data = htmlutil.StripBanner(data)
 	if len(data) > maxRestoreSize {
 		f.Unlock()
-		s.writeError(w, http.StatusRequestEntityTooLarge, "version is too large to restore")
-		return
+		return &RestoreRefusal{Status: http.StatusRequestEntityTooLarge, Message: "version is too large to restore"}
 	}
 	if !htmlutil.IsCompleteHTMLDocument(data) {
 		f.Unlock()
-		s.logger.Printf("Refusing to restore %s of %s: not a complete HTML document", name, f.RelPath)
-		s.writeError(w, http.StatusBadRequest, "version is not a complete HTML document")
-		return
+		s.Logger.Printf("Refusing to restore %s of %s: not a complete HTML document", name, f.RelPath)
+		return &RestoreRefusal{Status: http.StatusBadRequest, Message: "version is not a complete HTML document"}
 	}
 
 	// The safety backup before a restore is mandatory, unlike a normal save: a
@@ -176,9 +205,8 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		}
 		if bErr != nil {
 			f.Unlock()
-			s.logger.Printf("Refusing to restore %s: safety backup failed: %v", f.RelPath, bErr)
-			s.writeError(w, http.StatusInternalServerError, "could not create a safety backup")
-			return
+			s.Logger.Printf("Refusing to restore %s: safety backup failed: %v", f.RelPath, bErr)
+			return &RestoreRefusal{Status: http.StatusInternalServerError, Message: "could not create a safety backup"}
 		}
 	}
 
@@ -192,7 +220,7 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	data = htmlutil.StripHTMLClayID(data)
 	// A version's bytes are whatever a save once wrote, which may predate the save
 	// lane's canonicalization and carry this host's runtime URLs.
-	data = canonicalForWrite(r.Host, data)
+	data = canonicalForWrite(host, data)
 	data = []byte(pageadmission.WithPageFormatFloor(string(data),
 		max(pageadmission.PageFormatFloor(string(current)), pageadmission.PageFormatFloor(string(data)))))
 
@@ -202,14 +230,13 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 
 	if wErr := atomicWriteFile(f.AbsPath, data); wErr != nil {
 		f.Unlock()
-		s.logger.Printf("Error restoring %s: %v", f.AbsPath, wErr)
-		s.writeError(w, http.StatusInternalServerError, "write error")
-		return
+		s.Logger.Printf("Error restoring %s: %v", f.AbsPath, wErr)
+		return &RestoreRefusal{Status: http.StatusInternalServerError, Message: "write error"}
 	}
 
 	if key != "" {
 		if sErr := s.versions.SettlePageState(key, f.AbsPath, data); sErr != nil {
-			s.logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
+			s.Logger.Printf("Could not settle page state for %s: %v", f.RelPath, sErr)
 		}
 	}
 
@@ -220,7 +247,7 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	// Restoring engages the history, so it is no longer a throwaway first-open
 	// snapshot: clear any provisional flag so it is never reclaimed.
 	if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-		s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+		s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 	}
 	s.coord.acceptServerReplacement(f)
 	s.broadcastDiskHTML(f, data, key)
@@ -234,11 +261,6 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 
 	s.versions.MaybePrune(key, f.AbsPath)
 
-	s.logger.Printf("Restored %s from version %s", f.RelPath, name)
-	noStoreJSON(w)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"ok":      true,
-		"msg":     "Restored " + name,
-		"msgType": "success",
-	})
+	s.Logger.Printf("Restored %s from version %s", f.RelPath, name)
+	return nil
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"strings"
 	"testing"
 
@@ -109,10 +110,10 @@ func TestSheetGuardPageMatchedClearStillFires(t *testing.T) {
 	value, _ := json.Marshal("")
 	body := fmt.Sprintf(`{"patch":[{"range":"B1","values":[[%s]]}]}`, value)
 	headers := map[string]string{
-		"Sec-Fetch-Site":  "same-origin",
-		"Origin":          fmt.Sprintf("http://127.0.0.1:%d", srv.port),
-		helperTokenHeader: file.Token,
-		"If-Match":        specwire.Etag(original),
+		"Sec-Fetch-Site": "same-origin",
+		"Origin":         fmt.Sprintf("http://127.0.0.1:%d", srv.port),
+		wire.TokenHeader: file.Token,
+		"If-Match":       specwire.Etag(original),
 	}
 	w := postDataWrite(t, srv, "/_/api/fixtures/sheet.htmlclay", body, headers)
 	if w.Code != 200 {

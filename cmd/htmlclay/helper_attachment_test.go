@@ -11,11 +11,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/carried"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/platform"
 )
@@ -35,11 +37,27 @@ type attachmentTerminal struct {
 // file name tells it which program it is.
 const attachmentHelperMode = "HTMLCLAY_ATTACHMENT_HELPER"
 
+// Two names make the copy another program: attachmentWaiter records that it
+// started and then stays alive until something stops it, and attachmentErrorer
+// answers a structured error.
+const (
+	attachmentWaiter  = "waiter"
+	attachmentErrorer = "errorer"
+)
+
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == carried.WorkerArg {
+		os.Exit(carried.RunWorker(os.Stdin, os.Stdout))
+	}
 	if os.Getenv(attachmentHelperMode) != "" {
 		os.Exit(runAttachmentHelper())
 	}
 	http.DefaultTransport = loopbackTransport()
+	// A test never reads this computer's own Hyperclay Local data: the move code
+	// reads HTMLCLAY_LOCAL_USERDATA, so it names a folder that does not exist.
+	if os.Getenv("HTMLCLAY_LOCAL_USERDATA") == "" {
+		os.Setenv("HTMLCLAY_LOCAL_USERDATA", filepath.Join(os.TempDir(), "htmlclay-test-no-local-"+strconv.Itoa(os.Getpid())))
+	}
 	os.Exit(m.Run())
 }
 
@@ -60,6 +78,13 @@ func runAttachmentHelper() int {
 		return 1
 	}
 	label := strings.TrimSuffix(filepath.Base(self), ".exe")
+	switch label {
+	case attachmentWaiter:
+		time.Sleep(30 * time.Second)
+	case attachmentErrorer:
+		fmt.Println(`{"type":"error","code":"invalid_request","message":"bad request","details":{"field":"query"}}`)
+		return 0
+	}
 	result, err := json.Marshal(map[string]any{"type": "result", "value": map[string]string{"program": label}})
 	if err != nil {
 		return 1
@@ -201,10 +226,10 @@ func TestHelperAttachmentUsesCurrentPermissions(t *testing.T) {
 				a.refreshHelperDispatchers()
 				if kind == "new denial" {
 					denied := a.helpersForUseWith(document, "search", allowDocumentDialogs(oldPath, platform.ConfirmDeny, nil))
-					a.applyHelperPlan(s, document, denied)
+					a.applyHelperPlan(s.srv.Core, document, denied)
 				}
 			}
-			a.applyHelperPlan(s, document, stale)
+			a.applyHelperPlan(s.srv.Core, document, stale)
 			registered, ok := s.sessions.LookupByPath(document)
 			if !ok {
 				t.Fatal("document registration disappeared")
@@ -225,7 +250,7 @@ func TestHelperAttachmentUsesCurrentPermissions(t *testing.T) {
 				if terminal.Type != "wire/done" || terminal.Payload.Program != "replacement" {
 					t.Fatalf("stale attachment executed wrong program: %+v", terminal)
 				}
-				current, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+				current, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 				if !current.Allowed || current.Program.Path != newPath {
 					t.Fatal("replacement config changed")
 				}
@@ -269,7 +294,7 @@ func TestHelperRefreshDoesNotNotifyForAnUnrelatedDeletedDocument(t *testing.T) {
 	a.rt.notify = func(string, string) error { notifications.Add(1); return nil }
 	path := writeTestProgram(t, t.TempDir(), "search", 0755)
 	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(path, platform.ConfirmAllowOnce, nil))
-	current, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+	current, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if !current.Allowed || current.Program.Path != path {
 		t.Fatal("repair did not save the selected program")
 	}

@@ -130,11 +130,16 @@ jobs:
         if: matrix.goarch == 'amd64'
         run: go test -tags tailwind_bundle ./internal/tailwind/ -count=1
 
+      - name: Build the service bundle
+        run: node service/build.mjs --goos linux --goarch ${{ matrix.goarch }}
+
       - name: Build
         run: |
           GOOS=linux GOARCH=${{ matrix.goarch }} \
-            go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ inputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
-          go version -m htmlclay | grep -q -- '-tags=tailwind_bundle'
+            go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="-s -w -X main.version=${{ inputs.version }} -X main.updateChannel=stable" -o htmlclay ./cmd/htmlclay
+          go version -m htmlclay | grep -q -- '-tags=tailwind_bundle,service_bundle'
+          # The runner is amd64, so only that build can be asked what it carries.
+          if [ "${{ matrix.goarch }}" = "amd64" ]; then ./htmlclay update-info | grep -q '"service":true'; fi
         env:
           CGO_ENABLED: "0"
 
@@ -226,13 +231,21 @@ jobs:
         run: go test -tags tailwind_bundle ./internal/tailwind/ -count=1
         shell: pwsh
 
+      - name: Build the service bundle
+        run: |
+          node service/build.mjs --goos windows --goarch ${{ matrix.goarch }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        shell: pwsh
+
       - name: Build
         run: |
           $env:CGO_ENABLED = "0"
           $env:GOARCH = "${{ matrix.goarch }}"
-          go build -tags tailwind_bundle -trimpath -ldflags="-s -w -X main.version=${{ inputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
+          go build -tags "tailwind_bundle service_bundle" -trimpath -ldflags="-s -w -X main.version=${{ inputs.version }} -X main.updateChannel=stable" -o htmlclay.exe ./cmd/htmlclay
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle')) { Write-Error "built without the Tailwind bundle"; exit 1 }
+          if (-not (go version -m htmlclay.exe | Select-String -SimpleMatch -- '-tags=tailwind_bundle,service_bundle')) { Write-Error "built without the Tailwind and service bundles"; exit 1 }
+          # The runner is amd64, so only that build can be asked what it carries.
+          if ("${{ matrix.goarch }}" -eq "amd64" -and -not (./htmlclay.exe update-info | Select-String -SimpleMatch -- '"service":true')) { Write-Error "htmlclay.exe does not carry the service"; exit 1 }
         shell: pwsh
 
       - name: Install TrustedSigning module
@@ -355,7 +368,14 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           UPDATE_CHANNEL: stable
           SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+          HTMLCLAY_RELEASE_BUILD: "1"
         run: bash packaging/macos/build.sh --universal
+
+      - name: Verify the signed bundle
+        env:
+          VERSION: ${{ inputs.version }}
+          HTMLCLAY_RELEASE_BUILD: "1"
+        run: bash packaging/macos/verify-bundle.sh --universal --hardened HTMLClay.app "$VERSION" com.htmlclay.HTMLClay
 
       - uses: actions/upload-artifact@v4
         with:
@@ -382,6 +402,13 @@ jobs:
           fi
           if [ -z "$SPARKLE_ED_PRIVATE_KEY" ] || [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
             echo "::error::Set both the SPARKLE_ED_PRIVATE_KEY secret and the SPARKLE_PUBLIC_ED_KEY repository variable, or neither."
+            exit 1
+          fi
+          LEGACY=packaging/macos/appcast-legacy-item.xml
+          if [ -f "$LEGACY" ]; then
+            export SPARKLE_LEGACY_ITEM="$LEGACY"
+          elif [ "${VERSION%%.*}" -ge 2 ]; then
+            echo "::error::$LEGACY is missing. Run packaging/macos/capture-legacy-item.sh at the release candidate and commit it, so Macs below macOS 14 keep the last 1.x."
             exit 1
           fi
           bash packaging/macos/sparkle-appcast.sh "$VERSION" "HTMLClay-${VERSION}-universal.app.zip" sparkle-out

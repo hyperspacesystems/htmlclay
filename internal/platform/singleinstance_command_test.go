@@ -125,7 +125,7 @@ func TestSingleInstanceMalformedCommandIsRefused(t *testing.T) {
 	si, dir := primaryForTest(t)
 	si.OnCommand(func(string) string { t.Error("a malformed frame reached the handler"); return "accepted" })
 	for name, frame := range map[string]string{
-		"too long":     "\x00update-now " + strings.Repeat("9", 300) + "\n",
+		"too long":     "\x00update-now " + strings.Repeat("9", maxCommand) + "\n",
 		"control byte": "\x00update-now\t9.9.9\n",
 		"empty":        "\x00\n",
 	} {

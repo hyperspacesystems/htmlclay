@@ -79,14 +79,14 @@ func TestReviewRemoveMissingDoesNotSwitchProgram(t *testing.T) {
 	if _, _, err := a.rt.cfg.DecideHelper(config.HelperDecision{Document: doc, Name: "search", Program: missing.ID, Allowed: true}); err != nil {
 		t.Fatal(err)
 	}
-	before, _ := a.rt.cfg.ResolveHelper(doc, "search", true)
+	before, _ := a.rt.cfg.ResolveHelper(doc, "search", true, a.scopeOf(doc))
 	if before.Program.ID != missing.ID {
 		t.Fatal("fixture did not bind missing program")
 	}
 	if outcome := a.programsAction("remove", missing.ID, "", ""); outcome != "removed" {
 		t.Fatal(outcome)
 	}
-	after, _ := a.rt.cfg.ResolveHelper(doc, "search", true)
+	after, _ := a.rt.cfg.ResolveHelper(doc, "search", true, a.scopeOf(doc))
 	if after.Allowed {
 		t.Errorf("Remove from List silently granted another executable: before=%s after=%s", before.Program.ID, after.Program.ID)
 	}

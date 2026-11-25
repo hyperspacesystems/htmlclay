@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/update"
 	"os"
 	"path/filepath"
 	"time"
@@ -122,7 +124,7 @@ func (a *app) writeUpdateHandoff(path, targetVersion string) error {
 // under the final name, then rename.
 func writePrivateFile(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".update-handoff-*.json")
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+"-*.tmp")
 	if err != nil {
 		return err
 	}
@@ -143,7 +145,16 @@ func writePrivateFile(path string, data []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, path)
+	// Windows refuses to replace a file another process has open, and a virus
+	// scanner opens a just-written file for a moment: a few short retries
+	// outlast it, which matters most for the last write at quit.
+	for _, wait := range []time.Duration{0, 5, 15, 40, 100} {
+		time.Sleep(wait * time.Millisecond)
+		if err = os.Rename(tmpPath, path); err == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 // handoffPort returns the port in the handoff at path without consuming it, or
@@ -176,8 +187,11 @@ func (a *app) restoreUpdateHandoff(path string) (int, error) {
 	if errors.Is(err, os.ErrNotExist) {
 		return 0, nil
 	}
-	if rmErr := os.Remove(path); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
-		a.rt.logger.Printf("Could not delete the update handoff %s: %v", path, rmErr)
+	// While an update is judged, the previous version's supervisor may still need
+	// the file to hand the tabs back on a rollback, and it may read it after this
+	// process starts: settleUpgradeSave removes it once the update is kept.
+	if !update.Unjudged(update.UpdatesDir(a.rt.configDir)) {
+		a.removeUpdateHandoff(path)
 	}
 	if err != nil {
 		return 0, fmt.Errorf("cannot read the update handoff: %w", err)
@@ -205,25 +219,35 @@ func (a *app) restoreUpdateHandoff(path string) (int, error) {
 
 	restored := 0
 	for _, entry := range h.Sites {
-		restored += a.restoreHandoffSite(entry)
+		_, n := a.restoreHandoffSite(entry, "Update handoff")
+		restored += n
 	}
 	a.rt.logger.Printf("Update handoff %s restored %d registration(s)", h.Transaction, restored)
 	return restored, nil
 }
 
-// restoreHandoffSite brings one site back and returns how many of its
-// registrations were restored. A trusted site must already be live, because
+// removeUpdateHandoff deletes the handoff file; a file already gone is fine.
+func (a *app) removeUpdateHandoff(path string) {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		a.rt.logger.Printf("Could not delete the update handoff %s: %v", path, err)
+	}
+}
+
+// restoreHandoffSite brings one site back and returns it with how many of its
+// registrations were restored (nil and 0 when none were). from names the record
+// the entry came from in the log: the update handoff or the kept save tokens
+// (savetokens.go), which share every check here. A trusted site must already be live, because
 // startSites only builds a trusted folder that is still declared and still
 // matches its identity pin; when it is not live the trust is gone and so is
 // everything it granted. An ad-hoc site is rebuilt through buildSite, the same
 // path route uses, and published only if at least one file came back.
-func (a *app) restoreHandoffSite(entry updateHandoffSite) int {
+func (a *app) restoreHandoffSite(entry updateHandoffSite, from string) (*site, int) {
 	// The slug must still be the one config remembers for this key. That is what
 	// makes the restored host the host the tab is on, and it refuses an entry
 	// whose mapping changed (a retired or reassigned slug) while the app was down.
 	if a.rt.cfg.SiteSlug(entry.Key) != entry.Slug {
-		a.rt.logger.Printf("Update handoff: %s is no longer remembered under %s; skipping it", entry.Key, entry.Slug)
-		return 0
+		a.rt.logger.Printf("%s: %s is no longer remembered under %s; skipping it", from, entry.Key, entry.Slug)
+		return nil, 0
 	}
 
 	if entry.Trusted {
@@ -231,28 +255,30 @@ func (a *app) restoreHandoffSite(entry updateHandoffSite) int {
 		s := a.bySlug[entry.Slug]
 		a.hostMu.RUnlock()
 		if s == nil || s.closed.Load() || !s.trusted || s.key != entry.Key {
-			a.rt.logger.Printf("Update handoff: trusted folder %s has no live site; skipping it", entry.Anchor)
-			return 0
+			a.rt.logger.Printf("%s: trusted folder %s has no live site; skipping it", from, entry.Anchor)
+			return nil, 0
 		}
-		return a.restoreHandoffFiles(s, entry)
+		return s, a.restoreHandoffFiles(s, entry, from)
 	}
 
 	a.hostMu.RLock()
 	_, taken := a.bySlug[entry.Slug]
 	a.hostMu.RUnlock()
 	if taken {
-		a.rt.logger.Printf("Update handoff: %s is already live; skipping it", entry.Slug)
-		return 0
+		a.rt.logger.Printf("%s: %s is already live; skipping it", from, entry.Slug)
+		return nil, 0
 	}
 	// A folder trusted since the old process registered these files belongs to
 	// that folder's origin now, and an ad-hoc site for it would break invariant 4.
-	if _, ok := a.trustedAnchor(entry.Anchor); ok {
-		a.rt.logger.Printf("Update handoff: %s is inside a trusted folder now; skipping it", entry.Anchor)
-		return 0
+	// A stranger's own site inside a trusted folder is the exception: it stays
+	// untrusted on purpose, and its tab keeps its origin and save token.
+	if _, ok := a.trustedAnchor(entry.Anchor); ok && entry.Key == entry.Anchor {
+		a.rt.logger.Printf("%s: %s is inside a trusted folder now; skipping it", from, entry.Anchor)
+		return nil, 0
 	}
 
 	s := a.buildSite(entry.Anchor, entry.Key, false)
-	n := a.restoreHandoffFiles(s, entry)
+	n := a.restoreHandoffFiles(s, entry, from)
 
 	a.mu.Lock()
 	_, taken = a.bySlug[entry.Slug]
@@ -260,12 +286,12 @@ func (a *app) restoreHandoffSite(entry updateHandoffSite) int {
 		a.discardPendingLocked(s)
 		a.mu.Unlock()
 		s.close()
-		return 0
+		return nil, 0
 	}
 	a.publishLocked(s)
 	a.mu.Unlock()
-	a.rt.logger.Printf("Update handoff: site restored for %s at http://%s", entry.Anchor, s.host)
-	return n
+	a.rt.logger.Printf("%s: site restored for %s at http://%s", from, entry.Anchor, s.host)
+	return s, n
 }
 
 // restoreHandoffFiles re-registers each file under its old token and then
@@ -273,26 +299,41 @@ func (a *app) restoreHandoffSite(entry updateHandoffSite) int {
 // under the site's anchor, must not have moved under a trusted folder's origin,
 // must still be the same file (its recorded identity), and must pass
 // RestoreRegistration, which re-runs every Register check.
-func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite) int {
+func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite, from string) int {
 	n := 0
 	restored := make([]string, 0, len(entry.Files))
 	for _, f := range entry.Files {
 		if !session.EqualOrUnder(f.Path, s.anchor) {
-			a.rt.logger.Printf("Update handoff: %s is outside %s; skipping it", f.Path, s.anchor)
+			a.rt.logger.Printf("%s: %s is outside %s; skipping it", from, f.Path, s.anchor)
 			continue
 		}
-		if !entry.Trusted {
-			if _, ok := a.trustedAnchor(f.Path); ok {
-				a.rt.logger.Printf("Update handoff: %s is inside a trusted folder now; skipping it", f.Path)
-				continue
-			}
+		// The file must still belong to this site's folder: a folder trusted since,
+		// or given its own address inside this one, owns its documents now.
+		// A stranger's own site inside a trusted folder is the exception: it stays
+		// untrusted on purpose, and its tab keeps its origin and save token.
+		if anchor, ok := a.trustedAnchor(f.Path); s.key == s.anchor && (ok != entry.Trusted || (ok && anchor != s.anchor)) {
+			a.rt.logger.Printf("%s: %s belongs to another folder's address now; skipping it", from, f.Path)
+			continue
 		}
-		if f.Identity == "" || platform.DirIdentity(f.Path) != f.Identity {
-			a.rt.logger.Printf("Update handoff: %s is not the file the tab opened (identity changed or not recorded); skipping it", f.Path)
+		// A file opened again since the restart already has a token at another
+		// address, and one file is held by one site.
+		a.mu.Lock()
+		other, _, open := a.lookupLocked(f.Path)
+		a.mu.Unlock()
+		if open && other != s {
+			a.rt.logger.Printf("%s: %s is already open at another address; skipping it", from, f.Path)
+			continue
+		}
+		// MatchDirIdentity, not equality: macOS renumbers a volume's device at each
+		// mount, and the same file must still pass after a reboot. If an atomic
+		// save replaced the inode right before a crash or rollback, matching the
+		// newest version HTML Clay itself saved proves it is still our file.
+		if !a.matchesFileIdentity(f.Path, f.Identity) {
+			a.rt.logger.Printf("%s: %s is not the file the tab opened (identity changed or not recorded); skipping it", from, f.Path)
 			continue
 		}
 		if _, err := s.sessions.RestoreRegistration(f.Path, f.Via, f.Token); err != nil {
-			a.rt.logger.Printf("Update handoff: could not restore %s: %v", f.Path, err)
+			a.rt.logger.Printf("%s: could not restore %s: %v", from, f.Path, err)
 			continue
 		}
 		restored = append(restored, f.Path)
@@ -301,24 +342,69 @@ func (a *app) restoreHandoffFiles(s *site, entry updateHandoffSite) int {
 	if n == 0 {
 		return 0
 	}
-	for _, root := range entry.GrantedRoots {
+	// A page nobody vouches for never widens what it can read (strangerRead),
+	// so a grant from before its trust ended or its code changed stays behind:
+	// its next read asks again.
+	grants := entry.GrantedRoots
+	for _, document := range restored {
+		if len(grants) > 0 && a.tierOf(document).Warn() {
+			a.rt.logger.Printf("%s: %s needs the warning now; its site's read grants are not restored", from, document)
+			grants = nil
+		}
+	}
+	for _, root := range grants {
 		// GrantCanonicalRoot deliberately does not re-resolve, so the check that
 		// the folder is still the one the person approved happens here: a grant
 		// whose path now resolves somewhere else is dropped, never followed.
 		if resolved, err := resolveSymlinks(root); err != nil || resolved != root {
-			a.rt.logger.Printf("Update handoff: the grant on %s no longer resolves to itself; skipping it", root)
+			a.rt.logger.Printf("%s: the grant on %s no longer resolves to itself; skipping it", from, root)
 			continue
 		}
-		if id := entry.GrantIdentities[root]; id == "" || platform.DirIdentity(root) != id {
-			a.rt.logger.Printf("Update handoff: the folder granted at %s is not the one approved (identity changed or not recorded); skipping it", root)
+		if id := entry.GrantIdentities[root]; id == "" || !matchesIdentity(root, id, a.rt.home) {
+			a.rt.logger.Printf("%s: the folder granted at %s is not the one approved (identity changed or not recorded); skipping it", from, root)
 			continue
 		}
 		if err := s.sessions.GrantCanonicalRoot(root); err != nil {
-			a.rt.logger.Printf("Update handoff: could not restore the grant on %s: %v", root, err)
+			a.rt.logger.Printf("%s: could not restore the grant on %s: %v", from, root, err)
 		}
 	}
 	for _, document := range restored {
-		a.applyHelperPlan(s, document, a.helpersForNavigation(document))
+		a.applyHelperPlan(s.srv.Core, document, a.helpersForNavigation(document))
 	}
 	return n
+}
+
+func matchesIdentity(path, pinned, home string) bool {
+	_, same := platform.MatchDirIdentity(path, pinned, home)
+	return same
+}
+
+func (a *app) matchesFileIdentity(path, pinned string) bool {
+	if pinned == "" {
+		return false
+	}
+	if matchesIdentity(path, pinned, a.rt.home) {
+		return true
+	}
+	return a.matchesNewestVersion(path)
+}
+
+func (a *app) matchesNewestVersion(absPath string) bool {
+	if a.rt.versions == nil {
+		return false
+	}
+	fi, err := os.Lstat(absPath)
+	if err != nil || !fi.Mode().IsRegular() {
+		return false
+	}
+	resolved, err := resolveSymlinks(absPath)
+	if err != nil || resolved != absPath {
+		return false
+	}
+	disk, err := os.ReadFile(absPath)
+	if err != nil {
+		return false
+	}
+	_, _, newest, err := a.rt.versions.Newest(absPath)
+	return err == nil && len(newest) > 0 && bytes.Equal(disk, newest)
 }

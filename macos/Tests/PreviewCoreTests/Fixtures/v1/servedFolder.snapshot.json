@@ -1,0 +1,293 @@
+{
+  "v": 1,
+  "rev": 1,
+  "epoch": "00000000000000a1",
+  "host": {
+    "version": "2.0.3",
+    "os": "darwin",
+    "port": 1212,
+    "dashboardURL": "http://htmlclay.localhost:1212/",
+    "service": "off",
+    "stopped": false,
+    "can": {
+      "aiEdit.setCustom": false,
+      "aiEdit.setEffort": false,
+      "aiEdit.setModel": false,
+      "app.openRecoveredChanges": false,
+      "app.openSettings": false,
+      "app.revealLog": false,
+      "conflict.resolve": false,
+      "dashboard.open": true,
+      "document.export": true,
+      "document.forget": true,
+      "document.open": true,
+      "document.recover": true,
+      "document.reveal": true,
+      "document.versions": true,
+      "file.open": true,
+      "fileTypes.makeDefault": false,
+      "fileTypes.setHTMLOpenWith": false,
+      "fileTypes.stopOpening": false,
+      "folder.copyAddress": true,
+      "folder.merge": true,
+      "folder.relink": true,
+      "folder.resolveRemoval": false,
+      "folder.reveal": true,
+      "folder.serve": true,
+      "folder.setFraming": true,
+      "folder.setSynced": false,
+      "folder.setUpTeam": false,
+      "folder.stopServing": true,
+      "folder.stopTrusting": true,
+      "folder.trust": true,
+      "host.quit": true,
+      "host.setPort": false,
+      "move.quitLocal": false,
+      "move.start": false,
+      "prefs.set": true,
+      "program.add": true,
+      "program.askAgain": true,
+      "program.openExample": false,
+      "program.relink": true,
+      "program.remove": true,
+      "program.removeAccess": true,
+      "program.removeAllAccess": true,
+      "program.reveal": true,
+      "program.setAllTrusted": true,
+      "program.setOn": false,
+      "readAccess.remove": false,
+      "request.answer": true,
+      "request.show": true,
+      "service.restart": true,
+      "sync.connect": false,
+      "sync.disconnect": false,
+      "sync.revealLog": false,
+      "sync.setPaused": false,
+      "template.create": true,
+      "update.check": false,
+      "update.prepared": false,
+      "update.start": false,
+      "waiting.markSeen": true
+    }
+  },
+  "documents": [
+    {
+      "id": "index",
+      "name": "index.html",
+      "place": "~/GitHub/prototypes",
+      "folderID": null,
+      "url": "http://htmlclay1.localhost:1212/index.html",
+      "openNow": true,
+      "openedAt": "2026-11-12T14:55:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    },
+    {
+      "id": "todo",
+      "name": "todo.htmlclay",
+      "place": "~/Documents/Notes",
+      "folderID": "notes",
+      "url": "http://htmlclay2.localhost:1212/todo.htmlclay",
+      "openNow": false,
+      "openedAt": "2026-11-11T16:00:00Z",
+      "fileMissing": false,
+      "versionsKept": 0
+    }
+  ],
+  "folders": [
+    {
+      "id": "notes",
+      "name": "Notes",
+      "path": "/Users/sam/Documents/Notes",
+      "displayPath": "~/Documents/Notes",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": null,
+      "trusted": true,
+      "served": false,
+      "allowsFraming": false,
+      "synced": false,
+      "address": "",
+      "url": "",
+      "state": "ok",
+      "documentCount": 4,
+      "storageBytes": 0,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0,
+        "download": null
+      },
+      "can": {
+        "serve": true,
+        "stopServing": false,
+        "setFraming": false,
+        "sync": false,
+        "stopSyncing": false,
+        "stopTrusting": true,
+        "merge": false,
+        "openWorkspace": false
+      },
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
+    },
+    {
+      "id": "prototypes",
+      "name": "prototypes",
+      "path": "/Users/sam/Sites/prototypes",
+      "displayPath": "~/Sites/prototypes",
+      "origin": {
+        "kind": "local"
+      },
+      "parentID": null,
+      "trusted": true,
+      "served": true,
+      "allowsFraming": false,
+      "synced": false,
+      "address": "prototypes.htmlclay.localhost:1212",
+      "url": "http://prototypes.htmlclay.localhost:1212/",
+      "state": "ok",
+      "documentCount": 12,
+      "storageBytes": 6291456,
+      "sync": {
+        "state": "off",
+        "files": 0,
+        "lastFinishedAt": null,
+        "uploadedToday": 0,
+        "downloadedToday": 0,
+        "download": null
+      },
+      "can": {
+        "serve": false,
+        "stopServing": true,
+        "setFraming": true,
+        "sync": false,
+        "stopSyncing": false,
+        "stopTrusting": true,
+        "merge": false,
+        "openWorkspace": true
+      },
+      "why": {
+        "sync": {
+          "code": "not-from-account",
+          "text": "Only folders from your Hyperclay account can sync."
+        }
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "search-sh",
+      "name": "search.sh",
+      "path": "/Users/sam/bin/search.sh",
+      "fileMissing": false,
+      "allowedDocuments": [
+        "notes.htmlclay"
+      ],
+      "allTrustedFolders": false,
+      "removedDocuments": [],
+      "builtin": false,
+      "on": false
+    },
+    {
+      "id": "bluesky-studio",
+      "name": "bluesky-studio",
+      "path": "/Users/sam/Applications/bluesky-studio",
+      "fileMissing": false,
+      "allowedDocuments": [
+        "posts.htmlclay",
+        "drafts.htmlclay"
+      ],
+      "allTrustedFolders": true,
+      "removedDocuments": [],
+      "builtin": false,
+      "on": false
+    },
+    {
+      "id": "clay-search",
+      "name": "clay-search",
+      "path": "/Users/sam/bin/clay-search",
+      "fileMissing": true,
+      "allowedDocuments": [
+        "index.html"
+      ],
+      "allTrustedFolders": false,
+      "removedDocuments": [],
+      "builtin": false,
+      "on": false
+    }
+  ],
+  "readAccess": [],
+  "requests": [],
+  "waiting": [
+    {
+      "id": "w-clay-search",
+      "kind": "programFileMissing",
+      "pane": "programs",
+      "earnsDot": false,
+      "seen": false,
+      "title": "clay-search can't be found",
+      "detail": "~/bin/clay-search",
+      "subjectID": "clay-search"
+    }
+  ],
+  "counts": {
+    "total": 1,
+    "byPane": {
+      "advanced": 0,
+      "folders": 0,
+      "programs": 1,
+      "sync": 0
+    },
+    "dot": false
+  },
+  "sync": {
+    "connected": false,
+    "username": "",
+    "keySuffix": "",
+    "paused": false,
+    "syncingFiles": 0,
+    "offlineChanges": 0,
+    "viewOnlyTeams": 0,
+    "lastFinishedAt": null,
+    "fullName": "",
+    "keyStore": "",
+    "everOn": false
+  },
+  "update": {
+    "current": "2.0.3",
+    "ready": null,
+    "checkedAt": "2026-11-12T14:12:00Z",
+    "automatic": true,
+    "finishing": false,
+    "checking": false,
+    "downloadURL": "",
+    "downloading": "",
+    "lastCheck": null
+  },
+  "preferences": {
+    "openAtLogin": true,
+    "openAtLoginChosen": true,
+    "aiEditing": true,
+    "appearance": "system",
+    "yourName": "",
+    "useName": false,
+    "aiEditTool": "",
+    "aiEditTools": []
+  },
+  "move": null,
+  "recoveredChanges": 0,
+  "fileTypes": {
+    "managed": false,
+    "default": "",
+    "htmlOpenWith": false,
+    "stopped": false
+  }
+}

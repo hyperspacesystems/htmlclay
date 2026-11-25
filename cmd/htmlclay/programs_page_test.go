@@ -198,7 +198,7 @@ func TestProgramsActionNeedsCSRFAndOrigin(t *testing.T) {
 	if rec := c.do("POST", "/programs/action", form, func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "same-site") }); rec.Code != http.StatusForbidden {
 		t.Fatalf("same-site = %d, want 403", rec.Code)
 	}
-	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", false); !resolution.Allowed {
+	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", false, a.scopeOf(document)); !resolution.Allowed {
 		t.Fatal("a refused action changed the permission")
 	}
 
@@ -206,7 +206,7 @@ func TestProgramsActionNeedsCSRFAndOrigin(t *testing.T) {
 	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/programs?done=revoked" {
 		t.Fatalf("revoke = %d %q", rec.Code, rec.Header().Get("Location"))
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if resolution.Allowed || !resolution.Revoked {
 		t.Fatalf("after revoke resolution = %+v, want revoked", resolution)
 	}
@@ -288,7 +288,7 @@ func TestProgramsRelinkKeepsTheProgramID(t *testing.T) {
 	if outcome, err := a.relinkHelperProgram(program, dialogs); err != nil || outcome != "relinked" {
 		t.Fatalf("relink = %q, %v", outcome, err)
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "tweet-score", false)
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "tweet-score", false, a.scopeOf(document))
 	if !resolution.Allowed || resolution.Program.ID != program.ID || filepath.Clean(resolution.Program.Path) != filepath.Clean(moved) {
 		t.Fatalf("after relink resolution = %+v, want %s at %s", resolution, program.ID, moved)
 	}
@@ -311,7 +311,9 @@ func TestProgramsRelinkPickerStartsInAFolderThatExists(t *testing.T) {
 	}
 	var started string
 	dialogs := helperApprovalDialogs{
-		setup: func(string, string, string, string, string) (platform.Choice, error) { return platform.ChoiceAffirm, nil },
+		setup: func(string, string, string, string, string) (platform.Choice, error) {
+			return platform.ChoiceAffirm, nil
+		},
 		choose: func(_, dir string) (string, bool, error) {
 			started = dir
 			return "", false, nil

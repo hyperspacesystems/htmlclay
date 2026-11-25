@@ -243,7 +243,7 @@ func (s *Server) tailwindStylesheet(ctx context.Context, absPath string, html []
 	}
 	if cachePath != "" {
 		if err := writeTailwindCache(cachePath, fp, css); err != nil {
-			s.logger.Printf("Tailwind: cache write failed: %v", err)
+			s.Logger.Printf("Tailwind: cache write failed: %v", err)
 		}
 	}
 	return css, fp, nil
@@ -266,7 +266,7 @@ func (s *Server) logTailwindFailure(ctx context.Context, absPath, fp string, err
 		return
 	}
 	s.tailwindLogged[key] = true
-	s.logger.Printf("Tailwind: %s: %v", absPath, err)
+	s.Logger.Printf("Tailwind: %s: %v", absPath, err)
 }
 
 // tailwindCachePath names the one file a document's stylesheet is cached in, or

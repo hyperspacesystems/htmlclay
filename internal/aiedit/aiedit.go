@@ -2,6 +2,7 @@ package aiedit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,8 +47,25 @@ type Options struct {
 	Engines  map[string][]string    // user-configured engines: name -> argv; "{prompt}" in an arg substitutes the prompt
 	Env      []string               // environment for the child; nil means helper.LoginEnv()
 	Internal func(path string) bool // reports a path in the server's own state; nil means none
+	Models   map[string]string      // engine name -> model; "" or missing is the engine's default
+	Efforts  map[string]string      // engine name -> reasoning effort; "" or missing is the engine's default
 	Mock     bool                   // deterministic fake reply, for tests and MOCK_MODEL=1
 	Status   func(text string)      // lifecycle status for the page; nil means none
+	// ContextFiles lets @file references attach the document's sibling files.
+	// HTML Clay sets it only for a document whose code the person or a signed
+	// release vouches for; anything else edits with the page alone.
+	ContextFiles bool
+}
+
+// choose applies the model and effort the person picked for e.
+func (o Options) choose(e engine) engine {
+	if model := o.Models[e.name]; model != "" {
+		e.model = model
+	}
+	if effort := o.Efforts[e.name]; effort != "" {
+		e.effort = effort
+	}
+	return e
 }
 
 type Result struct {
@@ -71,6 +89,7 @@ type engine struct {
 	name    string
 	adapter string
 	model   string
+	effort  string
 	command []string
 }
 
@@ -78,10 +97,10 @@ var builtinOrder = []string{"claude", "fable", "codex", "agy"}
 
 func builtinEngines() map[string]engine {
 	return map[string]engine{
-		"claude": {name: "claude", adapter: "claude", model: "claude-opus-5-5"},
-		"fable":  {name: "fable", adapter: "claude", model: "claude-fable-5-1"},
-		"codex":  {name: "codex", adapter: "codex"},
-		"agy":    {name: "agy", adapter: "unsupported"},
+		"claude": {name: "claude", adapter: "claude", model: "claude-opus-5-5", effort: "high"},
+		"fable":  {name: "fable", adapter: "claude", model: "claude-fable-5-2", effort: "high"},
+		"codex":  {name: "codex", adapter: "codex", model: "gpt-5.6-sol", effort: "high"},
+		"agy":    {name: "agy", adapter: "agy", model: "gemini-4-carbon", effort: "high"},
 	}
 }
 
@@ -139,6 +158,8 @@ func statusLabel(e engine) string {
 		return "Fable"
 	case "codex":
 		return "Codex"
+	case "agy":
+		return "Gemini"
 	}
 	return e.name
 }
@@ -151,20 +172,24 @@ func programLabel(e engine) string {
 		return "Claude Code"
 	case "codex":
 		return "Codex"
+	case "agy":
+		return "Antigravity CLI (agy)"
 	}
 	return statusLabel(e)
 }
 
-// fallbackName is the other built-in agent a built-in default falls back to,
-// and "" when the default cannot fall back.
-func fallbackName(defaultName string) string {
+// fallbackNames are the other built-in agents a built-in default falls back to
+// in order, and nil when the default cannot fall back.
+func fallbackNames(defaultName string) []string {
 	switch defaultName {
 	case "claude", "fable":
-		return "codex"
+		return []string{"codex", "agy"}
 	case "codex":
-		return "claude"
+		return []string{"claude", "agy"}
+	case "agy":
+		return []string{"claude", "codex"}
 	}
-	return ""
+	return nil
 }
 
 // engineProgram is the executable an engine starts.
@@ -174,6 +199,8 @@ func engineProgram(e engine) (string, *Error) {
 		return "claude", nil
 	case "codex":
 		return "codex", nil
+	case "agy":
+		return "agy", nil
 	case "generic":
 		if len(e.command) == 0 {
 			return "", &Error{Code: "engine_failed", Message: fmt.Sprintf("engine @%s has an empty command", e.name)}
@@ -191,8 +218,15 @@ func unavailableError(e engine) *Error {
 	}
 	return &Error{
 		Code: "engine_unavailable",
-		Message: fmt.Sprintf("@%s isn't available: %s was not found on this machine. Install it and sign in, or pick another agent with @claude, @fable or @codex.",
+		Message: fmt.Sprintf("@%s isn't available: %s was not found on this machine. Install it and sign in, or pick another agent with @claude, @fable, @codex or @agy.",
 			e.name, missing),
+	}
+}
+
+func scriptOnlyError(e engine) *Error {
+	return &Error{
+		Code:    "engine_unavailable",
+		Message: fmt.Sprintf("%s is installed as a script here. Install the Windows app version.", programLabel(e)),
 	}
 }
 
@@ -245,7 +279,7 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 	engines := resolveEngines(o.Engines)
 	defaultName := strings.ToLower(o.Default)
 	if defaultName == "" {
-		defaultName = "claude"
+		defaultName = FirstFound(nil)
 	}
 	fallback, ok := engines[defaultName]
 	if !ok {
@@ -255,6 +289,7 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 	if routeErr != nil {
 		return Result{}, routeErr
 	}
+	chosen = o.choose(chosen)
 	if chosen.adapter == "unsupported" {
 		return Result{}, &Error{
 			Code:    "engine_unsupported",
@@ -278,7 +313,7 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 		}
 		pageText = string(text)
 	}
-	sections, err := resolveContext(p.ContextRefs, o.BaseDir, o.Internal)
+	sections, err := resolveContext(p.ContextRefs, o.BaseDir, o.Internal, o.ContextFiles)
 	if err != nil {
 		return Result{}, err
 	}
@@ -312,24 +347,52 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 		bin, lookErr = lookPath(program, env)
 	}
 	if lookErr != nil {
-		otherName := ""
+		var candidates []string
 		if !explicit {
-			otherName = fallbackName(defaultName)
+			candidates = fallbackNames(defaultName)
 		}
-		other, found := engines[otherName]
-		if !found {
+		if len(candidates) == 0 {
+			if errors.Is(lookErr, errScriptOnly) {
+				return Result{}, scriptOnlyError(chosen)
+			}
 			return Result{}, unavailableError(chosen)
 		}
-		otherProgram, otherProgramErr := engineProgram(other)
-		if otherProgramErr != nil {
-			return Result{}, otherProgramErr
+		var (
+			foundOther   bool
+			other        engine
+			otherProgram string
+			otherBin     string
+			scriptEngine *engine
+		)
+		if errors.Is(lookErr, errScriptOnly) {
+			c := chosen
+			scriptEngine = &c
 		}
-		otherBin, otherErr := lookPath(otherProgram, env)
-		if otherErr != nil {
-			return Result{}, &Error{Code: "engine_unavailable", Message: "Neither Claude Code nor Codex is installed. Install one and sign in."}
+		for _, otherName := range candidates {
+			cand, ok := engines[otherName]
+			if !ok {
+				continue
+			}
+			prog, progErr := engineProgram(cand)
+			if progErr != nil {
+				continue
+			}
+			if foundBin, err := lookPath(prog, env); err == nil {
+				other, otherProgram, otherBin, foundOther = cand, prog, foundBin, true
+				break
+			} else if errors.Is(err, errScriptOnly) && scriptEngine == nil {
+				c := cand
+				scriptEngine = &c
+			}
+		}
+		if !foundOther {
+			if scriptEngine != nil {
+				return Result{}, scriptOnlyError(*scriptEngine)
+			}
+			return Result{}, &Error{Code: "engine_unavailable", Message: "None of Claude Code, Codex, or Gemini (agy) is installed. Install one and sign in."}
 		}
 		status(fmt.Sprintf("%s isn't installed, editing with %s", programLabel(chosen), statusLabel(other)))
-		chosen, program, bin = other, otherProgram, otherBin
+		chosen, program, bin = o.choose(other), otherProgram, otherBin
 	} else {
 		status("Editing with " + statusLabel(chosen))
 	}

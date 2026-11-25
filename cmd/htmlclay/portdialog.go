@@ -305,7 +305,7 @@ func (a *app) afterStartup(next http.Handler) http.Handler {
 // announceHostnames is the one-time notice for a config upgraded from per-folder ports or
 // from the old default port: the addresses changed, and page data does not follow.
 func (a *app) announceHostnames(port int) {
-	msg := fmt.Sprintf("HTML Clay now serves every folder from port %d, each at its own address, such as http://htmlclay.localhost:%d/.\n\n"+
+	msg := fmt.Sprintf("HTML Clay now serves every folder from port %d, each at its own address, such as http://htmlclay1.localhost:%d/.\n\n"+
 		"Bookmarks to older addresses may stop working, and anything a page stored in the browser (localStorage) under an old address is not carried over.", port, port)
 	go func() {
 		if err := a.informUser("HTML Clay", msg); err != nil {
@@ -331,6 +331,10 @@ func (a *app) lookupPortOwner(port int) (int, string, bool) {
 }
 
 func (a *app) askPortTaken(port, pid int, name string, known bool) portDecision {
+	if a.shell {
+		a.rt.logger.Printf("Port %d is taken; the Mac app is told instead of a dialog", port)
+		return portQuit
+	}
 	retry := "Retry"
 	if known {
 		retry = "Quit It and Retry"
@@ -410,4 +414,5 @@ func (a *app) saveConfig(what string) {
 	if err := a.rt.cfg.Save(); err != nil {
 		a.rt.logger.Printf("Could not save config after %s: %v", what, err)
 	}
+	a.changed()
 }

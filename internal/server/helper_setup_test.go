@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,9 +20,9 @@ import (
 // back before the rest of the package runs.
 func shortHelperParkLimit(t *testing.T, limit time.Duration) {
 	t.Helper()
-	previous := helperParkLimit
-	helperParkLimit = limit
-	t.Cleanup(func() { helperParkLimit = previous })
+	previous := wire.HelperParkLimit
+	wire.HelperParkLimit = limit
+	t.Cleanup(func() { wire.HelperParkLimit = previous })
 }
 
 func postHelperSetup(t *testing.T, srv *Server, token, name string, stamp func(*http.Request)) *httptest.ResponseRecorder {
@@ -68,7 +69,7 @@ func getServedDocument(t *testing.T, srv *Server, pageURL string, headers map[st
 func TestParkedRequestExpires(t *testing.T) {
 	shortHelperParkLimit(t, 200*time.Millisecond)
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	structuredHelper(t, "result-null")
 	var calls atomic.Int32
@@ -82,7 +83,7 @@ func TestParkedRequestExpires(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "parked", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
@@ -91,8 +92,8 @@ func TestParkedRequestExpires(t *testing.T) {
 	deadline := time.After(time.Second)
 	for {
 		select {
-		case raw := <-observer.ch:
-			env, err := decodeWireEnvelope(raw)
+		case raw := <-observer.Ch:
+			env, err := wire.DecodeEnvelope(raw)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -115,20 +116,20 @@ func TestParkedRequestExpires(t *testing.T) {
 func TestLateApprovalNeverRunsAnExpiredRequest(t *testing.T) {
 	shortHelperParkLimit(t, 200*time.Millisecond)
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	countPath := filepath.Join(t.TempDir(), "count")
 	t.Setenv(serverHelperArg, countPath)
 	program := helperProgram("search", structuredHelper(t, "count"))
-	approved := make(chan *wireSub, 1)
+	approved := make(chan *wire.Sub, 1)
 	srv.SetHooks(Hooks{AskHelper: func(path, name string) bool {
 		time.Sleep(400 * time.Millisecond)
 		if err := srv.AttachHelpers(path, map[string]config.HelperProgram{name: program}, nil); err != nil {
 			t.Errorf("reattach after approval: %v", err)
 			return false
 		}
-		sub := &wireSub{key: path, ch: make(chan []byte, 64), done: make(chan struct{})}
-		if _, _, err := srv.wire.add(sub, 0); err != nil {
+		sub := &wire.Sub{Key: path, Ch: make(chan []byte, 64), Done: make(chan struct{})}
+		if _, _, err := srv.Hub.Add(sub, 0); err != nil {
 			t.Errorf("observe after approval: %v", err)
 			return false
 		}
@@ -141,13 +142,13 @@ func TestLateApprovalNeverRunsAnExpiredRequest(t *testing.T) {
 	t.Cleanup(func() { srv.DetachHelpers(file.AbsPath) })
 	observer := helperObserver(t, srv, file.AbsPath)
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "parked", File: file.AbsPath,
 		Helper: "search", Payload: json.RawMessage(`{}`),
 	})
 	receiveHelperType(t, observer, "wire/ack", "parked")
 
-	if granted, ran := srv.setUpHelper(file.AbsPath, "search"); !granted || !ran {
+	if granted, ran := srv.SetUpHelper(file.AbsPath, "search"); !granted || !ran {
 		t.Fatalf("setup = granted %v, ran %v, want both true", granted, ran)
 	}
 	env := receiveHelperType(t, observer, "wire/error", "parked")
@@ -158,15 +159,15 @@ func TestLateApprovalNeverRunsAnExpiredRequest(t *testing.T) {
 		t.Fatal("a request that expired while parked ran the helper program")
 	}
 
-	var late *wireSub
+	var late *wire.Sub
 	select {
 	case late = <-approved:
 	case <-time.After(2 * time.Second):
 		t.Fatal("no wire subscription after the approval reattached the helpers")
 	}
-	t.Cleanup(func() { srv.wire.remove(late) })
+	t.Cleanup(func() { srv.Hub.Remove(late) })
 
-	srv.wire.publish(file.AbsPath, wireEnvelope{
+	srv.Hub.Publish(file.AbsPath, wire.Envelope{
 		V: 1, Type: "wire/request", ID: "after", File: file.AbsPath,
 		Helper: "search", Document: "none", Payload: json.RawMessage(`{}`),
 	})
@@ -180,7 +181,7 @@ func TestLateApprovalNeverRunsAnExpiredRequest(t *testing.T) {
 
 func TestHelperSetupEndpointStates(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search", "ocr")
 	exe := structuredHelper(t, "result-null")
 	program := helperProgram("search", exe)
@@ -225,7 +226,7 @@ func TestHelperSetupEndpointStates(t *testing.T) {
 
 func TestHelperSetupEndpointRunsOneDialogAtATime(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	writeHelperDocument(t, file.AbsPath, "search")
 	program := helperProgram("search", structuredHelper(t, "result-null"))
 	var calls atomic.Int32
@@ -272,7 +273,7 @@ func TestHelperSetupEndpointRunsOneDialogAtATime(t *testing.T) {
 
 func TestSetupBarInjection(t *testing.T) {
 	srv, file := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	page := `<!doctype html><html><head><meta name="htmlclay-helper" content="search"></head><body>hi</body></html>`
 	if err := os.WriteFile(file.AbsPath, []byte(page), 0644); err != nil {
 		t.Fatal(err)

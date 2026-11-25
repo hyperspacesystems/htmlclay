@@ -3,1548 +3,940 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HTML Clay: self-saving HTML apps for your desktop</title>
-  <meta name="description" content="Like editing a Word doc, except the document is a live HTML app. HTML Clay opens your .htmlclay file, you edit it, and save writes back into the same file.">
-  <link rel="canonical" href="https://htmlclay.com">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>HTML Clay: Software you can keep and modify, in one HTML file</title>
+  <meta name="description" content="Real software in a single HTML file on your computer. Double-click any .htmlclay file to use it in your browser, every change saves straight back into that file; you can modify it or transport it wherever you want.">
+  <link rel="canonical" href="https://htmlclay.com/">
+  <link rel="icon" href="/favicon.svg?v=c0269aea" type="image/svg+xml">
 
   <meta property="og:type" content="website">
-  <meta property="og:title" content="HTML files that save themselves">
-  <meta property="og:description" content="Open an .htmlclay file, edit it, and your changes save straight back into the file. Free, offline, no account.">
-  <meta property="og:url" content="https://htmlclay.com">
-  <meta property="og:image" content="https://htmlclay.com/og.png?v=2">
+  <meta property="og:title" content="HTML Clay: Software you can keep">
+  <meta property="og:description" content="Real software in a single HTML file on your computer. Every edit saves straight back into the file, and you can reshape how it works anytime.">
+  <meta property="og:url" content="https://htmlclay.com/">
+  <meta property="og:image" content="https://htmlclay.com/og.png?v=9493635c">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="HTML Clay: HTML files that save themselves. One file, double-click to open, edits save back.">
+  <meta property="og:image:alt" content="HTML Clay: Software in a single HTML file. One portable file, shapeable UI and code, local-first with no DB.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://htmlclay.com/og.png?v=2">
-  <meta property="twitter:domain" content="htmlclay.com">
-  <meta property="twitter:url" content="https://htmlclay.com">
-  <meta name="twitter:title" content="HTML files that save themselves">
-  <meta name="twitter:description" content="Open an .htmlclay file, edit it, and your changes save straight back into the file. Free, offline, no account.">
+  <meta name="twitter:image" content="https://htmlclay.com/og.png?v=9493635c">
+  <meta name="twitter:domain" content="htmlclay.com">
+  <meta name="twitter:url" content="https://htmlclay.com/">
+  <meta name="twitter:title" content="HTML Clay: Software you can keep">
+  <meta name="twitter:description" content="Real software in a single HTML file on your computer. Every edit saves straight back into the file, and you can reshape how it works anytime.">
 
-  <style>
-    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
-    :root {
-      --bg: #faf8f3;
-      --ink: #1b1a17;
-      --muted: #6f6b62;
-      --line: #e7e3d8;
-      --card: #ffffff;
-      --accent: #c2410c;
-      --btn: #161512;
-      --btn-ink: #faf8f3;
-    }
-    * { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      font-size: 17px;
-      -webkit-font-smoothing: antialiased;
-    }
-    .wrap { max-width: 640px; margin: 0 auto; padding: 0 22px; }
-
-    .sitenav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 22px 0 0;
-      font-size: 14px;
-    }
-
-    .sitenav a {
-      color: var(--muted);
-      font-weight: 600;
-      text-decoration: none;
-    }
-
-    .sitenav a:hover { color: var(--ink); }
-    .sitenav .brand { display: inline-flex; align-items: center; gap: 8px; flex: none; color: var(--ink); font: 700 17px/1 "IBM Plex Sans", system-ui, sans-serif; letter-spacing: -.01em; }
-    .sitenav .brand img { display: block; width: 31px; height: 28px; flex: none; }
-
-    .sitenav .navlinks {
-      display: flex;
-      flex: 1;
-      flex-wrap: wrap;
-      align-items: baseline;
-      justify-content: flex-end;
-      min-width: 0;
-      gap: 6px 18px;
-    }
-    .sitenav .github-clay {
-      display: inline-block;
-      position: relative;
-      color: var(--ink);
-      font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-      font-size: 12px;
-      line-height: 1.6;
-    }
-    .github-clay:hover { color: var(--ink); }
-    .github-clay:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 4px;
-      border-radius: 3px;
-    }
-    .github-bracket { color: var(--accent); }
-    .github-mascot {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 22px;
-      margin: 0 4px;
-      color: var(--btn-ink);
-      background: var(--btn);
-      border-radius: 52% 48% 43% 57% / 46% 42% 58% 54%;
-      box-shadow: 0 2px 0 var(--line);
-      transform: rotate(-3deg);
-      transform-origin: center bottom;
-      vertical-align: middle;
-    }
-    .github-mascot svg {
-      display: block;
-      width: 15px;
-      height: 15px;
-      fill: currentColor;
-    }
-    .github-word { position: relative; margin-right: 3px; }
-    .github-word::after {
-      content: "";
-      position: absolute;
-      right: 0;
-      bottom: -2px;
-      left: 0;
-      height: 2px;
-      background: var(--accent);
-      border-radius: 999px;
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform .28s ease;
-    }
-    .github-clay:hover .github-mascot { animation: knead-clay .55s ease-in-out; }
-    .github-clay:hover .github-word::after,
-    .github-clay:focus-visible .github-word::after { transform: scaleX(1); }
-    .github-clay:hover .github-close { transform: translateX(1px); }
-    .github-close { display: inline-block; transition: transform .2s ease; }
-
-    @keyframes knead-clay {
-      0%, 100% {
-        border-radius: 52% 48% 43% 57% / 46% 42% 58% 54%;
-        transform: rotate(-3deg) scale(1);
-      }
-      38% {
-        border-radius: 42% 58% 55% 45% / 56% 48% 52% 44%;
-        transform: rotate(4deg) scale(1.12, .88);
-      }
-      70% {
-        border-radius: 58% 42% 48% 52% / 43% 55% 45% 57%;
-        transform: rotate(-1deg) scale(.94, 1.08);
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .github-clay:hover .github-mascot { animation: none; }
-      .github-word::after, .github-close { transition: none; }
-    }
-    .navlinks a { white-space: nowrap; }
-    .sitenav a[aria-current="page"] { color: var(--accent); }
-    a { color: var(--accent); text-underline-offset: 2px; }
-    a:hover { text-decoration: none; }
-
-    h1, h2 {
-      font-family: ui-rounded, "SF Pro Rounded", system-ui, "Segoe UI", sans-serif;
-      letter-spacing: -0.01em;
-      line-height: 1.2;
-    }
-
-    /* Hero */
-    .hero { text-align: center; padding: 56px 0 8px; }
-    .hero img { width: 116px; height: 116px; display: block; margin: 0 auto 22px; }
-    .hero h1 { font-size: 38px; margin: 0 0 16px; }
-    .hero p.lede { font-size: 19px; color: var(--ink); margin: 0 auto; max-width: 30em; }
-    .filechip {
-      display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 13px; color: var(--muted); background: #f1ede2;
-      border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; white-space: nowrap;
-    }
-
-    /* Download */
-    .cta { text-align: center; padding: 34px 0 8px; }
-    .btn {
-      display: inline-block; background: var(--btn); color: var(--btn-ink);
-      font-size: 19px; font-weight: 600; text-decoration: none;
-      padding: 14px 30px; border-radius: 11px; transition: transform .06s ease, background .15s ease;
-    }
-    .btn:hover { background: #000; }
-    .btn:active { transform: translateY(1px); }
-    .cta .sub { color: var(--muted); font-size: 14px; margin-top: 12px; }
-    .cta .sub a { color: var(--muted); }
-    .trust { color: var(--muted); font-size: 14px; margin-top: 4px; }
-    .trust-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; list-style: none; margin: 22px 0 4px; padding: 0; }
-    .trust-badge {
-      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
-      background: var(--card); color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: none;
-    }
-    .trust-badge svg { display: block; flex-shrink: 0; }
-    a.trust-badge:hover { color: var(--ink); border-color: var(--muted); }
-    a.trust-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-    /* Sections */
-    section { padding: 28px 0; }
-    h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin: 0 0 18px; }
-    .points { display: grid; gap: 18px; }
-    .point { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 18px 20px; }
-    .point h3 { margin: 0 0 5px; font-size: 18px; }
-    .point p { margin: 0; color: var(--muted); }
-
-    .steps { counter-reset: step; display: grid; gap: 16px; }
-    .step { display: flex; gap: 15px; align-items: baseline; }
-    .step::before {
-      counter-increment: step; content: counter(step);
-      flex: 0 0 30px; height: 30px; line-height: 30px; text-align: center;
-      background: var(--btn); color: var(--btn-ink); border-radius: 50%;
-      font-size: 15px; font-weight: 600;
-    }
-    .step b { font-size: 17px; }
-    .step p { margin: 2px 0 0; color: var(--muted); }
-
-    .safe, .callout { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 20px 22px; }
-    .safe p, .callout p { margin: 0; color: var(--muted); }
-    .safe p + p, .callout p + p { margin-top: 12px; }
-    .safe b, .callout b { color: var(--ink); }
-
-    .chips { display: flex; flex-wrap: wrap; gap: 9px; }
-    .chip { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 7px 15px; font-size: 15px; }
-
-    .closer { text-align: center; padding: 40px 0 4px; }
-    .closer p { font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; font-size: 24px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
-
-    /* Downloads list */
-    .dl { border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: var(--card); }
-    .dl-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 18px; border-top: 1px solid var(--line); }
-    .dl-row:first-child { border-top: none; }
-    .dl-row .os { font-weight: 600; }
-    .dl-row .os span { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
-    .dl-row a.file { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
-    .dl-row .filecol { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 0; }
-    .dl-hash { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: var(--muted); overflow-wrap: anywhere; text-align: right; }
-    /* The label is a pseudo-element so it cannot be orphaned onto its own line by
-       the hash wrapping, and so selecting the hash copies only the hash. */
-    .dl-hash:not(:empty)::before { content: "SHA-256 "; opacity: .7; }
-    /* Empty until a release stamps it, and an empty slot must take no space. */
-    .dl-hash:empty { display: none; }
-    .dl-note { color: var(--muted); font-size: 14px; margin: 16px 0 0; }
-    .dl-note + .dl-note { margin-top: 10px; }
-    .dl-note b { color: var(--ink); }
-
-    footer { padding: 40px 0 64px; text-align: center; color: var(--muted); font-size: 14px; }
-    footer p { margin: 0 0 8px; }
-    footer[data-hyper-footer] { padding: 0 0 64px; }
-
-    @media (max-width: 480px) {
-      .hero h1 { font-size: 31px; }
-      .hero { padding-top: 40px; }
-      .dl-row { flex-direction: column; align-items: flex-start; gap: 4px; }
-      .dl-row .filecol { align-items: flex-start; }
-      .dl-hash { text-align: left; }
-    }
-
-    /* ---- App gallery ---- */
-    button.chip { cursor: pointer; font: inherit; line-height: 1.25; color: var(--ink); -webkit-appearance: none; appearance: none; }
-    button.chip:hover { border-color: var(--muted); }
-    .chip[aria-selected="true"] { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); }
-    .chip[aria-selected="true"]:hover { background: #000; }
-
-    .preview { padding-top: 8px; }
-    .app-panel[hidden] { display: none; }
-
-    .window { background: var(--card); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; box-shadow: 0 20px 46px -28px rgba(0,0,0,.4); }
-    .window-bar { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: #f1ede2; border-bottom: 1px solid var(--line); }
-    .window-bar .dots { display: flex; gap: 6px; }
-    .window-bar .dots i { width: 11px; height: 11px; border-radius: 50%; background: #d8d2c4; }
-    .window-bar .fname { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; color: var(--muted); }
-    .window-body { padding: 22px; }
-
-    /* shared app controls */
-    .window-body main[sap] { margin: 0; }
-    .window-body .app-h { font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; font-size: 17px; margin: 0 0 14px; letter-spacing: -0.01em; }
-    .window-body input[type=text], .window-body input[type=number], .window-body input[type=date],
-    .window-body input[type=search], .window-body textarea, .window-body select {
-      font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px;
-    }
-    .window-body input:focus, .window-body textarea:focus, .window-body select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(194,65,12,.13); }
-    .window-body textarea { width: 100%; resize: vertical; min-height: 124px; line-height: 1.65; }
-    .app-note { color: var(--muted); font-size: 14px; margin: 14px 0 0; }
-
-    /* to-do */
-    .app-panel[data-app="todo"] .window-body { position: relative; }
-    .app-panel[data-app="todo"] .app-note { position: absolute; top: 22px; right: 22px; margin: 0; }
-    .todo-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-    .todo-list label { display: flex; align-items: center; gap: 11px; padding: 9px 4px; cursor: pointer; font-size: 17px; }
-    .todo-list input { width: 19px; height: 19px; accent-color: var(--accent); flex: none; }
-    .todo-list input:checked + span { color: var(--muted); text-decoration: line-through; }
-
-    /* journal */
-    .journal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
-    .journal-head .app-h { margin: 0; }
-
-    /* budget */
-    .budget-table { width: 100%; border-collapse: collapse; }
-    .budget-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 0 0 8px; font-weight: 600; }
-    .budget-table th:last-child, .budget-table td:last-child { text-align: right; }
-    .budget-table td { padding: 7px 0; border-top: 1px solid var(--line); }
-    .budget-table tbody td:first-child { width: 60%; }
-    .budget-table input[type=number] { width: 116px; text-align: right; }
-    .budget-table tfoot td { border-top: 2px solid #534d42; font-weight: 700; font-size: 18px; padding-top: 12px; }
-
-    /* recipe + wiki two-pane */
-    .pane { display: grid; grid-template-columns: 152px 1fr; gap: 18px; align-items: start; }
-    .pane-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; }
-    .pane-list li { padding: 8px 11px; border-radius: 8px; cursor: pointer; font-size: 15px; border: 1px solid transparent; }
-    .pane-list li:hover { background: var(--bg); }
-    .pane-list li.active { background: var(--bg); border-color: var(--line); font-weight: 600; }
-    .pane-detail .app-h { margin-bottom: 10px; }
-    .pane-detail textarea { min-height: 150px; }
-    .wiki-pagetitle {
-      width: 100%; margin: 0 0 12px; padding: 10px 12px;
-      font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
-      font-weight: 600; font-size: 18px; letter-spacing: -0.01em; color: var(--ink);
-      background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
-    }
-    .add-row {
-      margin-top: 6px; display: flex; align-items: center; gap: 8px;
-      padding: 0 11px; border: 1px solid transparent; border-radius: 8px;
-      transition: background .12s ease, border-color .12s ease, box-shadow .12s ease;
-    }
-    .add-row:hover { background: var(--bg); }
-    .add-row:focus-within { background: var(--bg); border-color: var(--accent); box-shadow: 0 0 0 3px rgba(194,65,12,.13); }
-    .add-row-plus { flex: none; color: var(--muted); font-size: 17px; line-height: 1; }
-    .add-row:focus-within .add-row-plus { color: var(--accent); }
-    .add-row input { flex: 1; min-width: 0; border: none; background: transparent; padding: 9px 0; font: inherit; color: var(--ink); }
-    .add-row input::placeholder { color: var(--muted); }
-    .add-row input:focus { outline: none; box-shadow: none; border-color: transparent; }
-
-    /* habit */
-    .habit-grid { display: grid; grid-template-columns: 1fr repeat(7, 26px) 40px; gap: 9px 7px; align-items: center; }
-    .habit-grid .col-h { font-size: 11px; color: var(--muted); text-align: center; }
-    .habit-grid .hname { font-size: 15px; }
-    .habit-grid .cnt { font-size: 13px; color: var(--muted); text-align: right; }
-    .habit-grid input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0 auto; display: block; }
-
-    /* reading */
-    .reading-list { list-style: none; margin: 0; padding: 0; }
-    .reading-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
-    .reading-list li:first-child { border-top: none; }
-    .reading-list .btitle { font-size: 16px; }
-    .reading-list .status-tag {
-      font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
-      padding: 5px 13px; border-radius: 999px;
-      border: 1px solid var(--line); background: var(--bg); color: var(--ink);
-      -webkit-appearance: none; appearance: none;
-      transition: filter .12s ease;
-    }
-    .reading-list .status-tag:hover { filter: brightness(0.97); }
-    .reading-list .status-tag:focus-visible { outline: 2px solid var(--muted); outline-offset: 2px; }
-
-    @media (max-width: 480px) {
-      .pane { grid-template-columns: 1fr; }
-      .habit-grid { grid-template-columns: 1fr repeat(7, 1fr) 32px; }
-      .window-body { padding: 16px; }
-    }
-    /* ---- Breakout game ---- */
-    [data-app="game"] {
-      --bk-bg: #faf8f3;
-      --bk-ink: #1b1a17;
-      --bk-muted: #6f6b62;
-      --bk-line: #e7e3d8;
-      --bk-card: #ffffff;
-      --bk-accent: #c2410c;
-    }
-    [data-app="game"] .bk-wrap {
-      max-width: 480px;
-      margin: 0 auto;
-      font-family: system-ui, sans-serif;
-      color: var(--bk-ink);
-    }
-    [data-app="game"] .bk-hud {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin: 0 2px 8px;
-      font-size: 13px;
-      color: var(--bk-muted);
-      font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
-    }
-    [data-app="game"] .bk-hud-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      letter-spacing: 0.01em;
-    }
-    [data-app="game"] .bk-hud b {
-      color: var(--bk-ink);
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      min-width: 1.6em;
-      text-align: left;
-    }
-    [data-app="game"] .bk-dots {
-      display: inline-flex;
-      gap: 4px;
-    }
-    [data-app="game"] .bk-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--bk-accent);
-      transition: transform 0.18s ease, opacity 0.18s ease;
-    }
-    [data-app="game"] .bk-dot.is-lost {
-      opacity: 0.22;
-      transform: scale(0.7);
-      background: var(--bk-muted);
-    }
-    [data-app="game"] .bk-stage {
-      position: relative;
-      background: var(--bk-card);
-      border: 1px solid var(--bk-line);
-      border-radius: 13px;
-      padding: 10px;
-      box-shadow: 0 1px 2px rgba(27, 26, 23, 0.04), 0 8px 24px rgba(27, 26, 23, 0.05);
-      overflow: hidden;
-    }
-    [data-app="game"] .bk-stage canvas {
-      display: block;
-      width: 100%;
-      height: auto;
-      border-radius: 8px;
-      touch-action: none;
-      cursor: pointer;
-    }
-    [data-app="game"] .bk-hint {
-      margin: 9px 4px 0;
-      font-size: 12px;
-      line-height: 1.4;
-      color: var(--bk-muted);
-      text-align: center;
-    }
-  </style>
+  <link rel="stylesheet" href="/css/site.css?v=6c77a3cf">
   <script src="https://signal.hyperclay.com/v1.js" defer></script>
 </head>
 <body>
-  <main class="wrap">
 
-    <nav class="sitenav">
-      <a class="brand" href="/" aria-label="HTML Clay home"><img src="assets/htmlclay-mark.svg" alt="" width="31" height="28"><span>HTML Clay</span></a>
+  <header class="site-header">
+    <nav class="sitenav" aria-label="Primary">
+      <a class="brand" href="/" aria-current="page" aria-label="HTML Clay home">
+        <img src="/assets/htmlclay-mark.svg?v=b9d5decc" alt="" width="27" height="30">
+        <span>HTML Clay</span>
+      </a>
       <div class="navlinks">
-        <a class="github-clay" href="https://github.com/hyperspacesystems/htmlclay" target="_blank" rel="noopener" aria-label="View HTML Clay source on GitHub"><span class="github-bracket" aria-hidden="true">&lt;</span><span class="github-mascot" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></span><span class="github-word" aria-hidden="true">source</span><span class="github-bracket github-close" aria-hidden="true">/&gt;</span></a>
-        <a href="/" aria-current="page">Home</a>
-        <a href="/docs/guide/quick-start/">Get started</a>
-        <a href="/docs/features/">Features</a>
+        <a href="/features/">Features</a>
+        <a href="/apps/">Apps</a>
+        <a href="/security/">Security</a>
         <a href="/docs/">Docs</a>
-        <a href="https://onehtmlfile.com/">Starter apps</a>
+        <a href="/changelog">Changelog</a>
+        <a class="github-clay" href="https://github.com/hyperspacesystems/htmlclay" target="_blank" rel="noopener" aria-label="View HTML Clay source on GitHub"><span class="github-bracket" aria-hidden="true">&lt;</span><span class="github-mascot" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></span><span class="github-word" aria-hidden="true">source</span><span class="github-bracket github-close" aria-hidden="true">/&gt;</span></a>
       </div>
+      <a class="nav-cta" href="/download/">Download</a>
     </nav>
+  </header>
 
-    <div class="hero">
-      <img src="assets/htmlclay-mark.svg" alt="HTML Clay" width="116" height="106">
-      <h1>Software you can keep</h1>
-      <p class="lede">A personal app in an HTML file on your computer</p>
-    </div>
+  <main>
 
-    <div class="cta">
-      <a class="btn" href="https://journal.hyperclay.com/" style="margin-bottom: 10px;">Try an example</a>
-      <a id="download-btn" class="btn" href="#downloads" download data-hv-goal="download" data-hv-where="hero" data-hv-os="unknown"><span id="download-label">Download</span></a>
-      <div class="trust">Free. No account. Works offline.</div>
-      <div class="sub" id="download-sub"><a href="#downloads">See all downloads</a></div>
-    </div>
-
-    <ul class="trust-badges" aria-label="Why trust HTML Clay">
-      <li><a class="trust-badge" href="https://github.com/hyperspacesystems/htmlclay"><svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" focusable="false"><path d="M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.3Zm176,27.7-48-40a8,8,0,1,0-10.24,12.3L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z"/></svg><span>Source available</span></a></li>
-      <li><span class="trust-badge" title="No usage analytics or telemetry in HTML Clay."><svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" focusable="false"><path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76Zm47.33,75.84,41.67,45.85a32,32,0,0,1-41.67-45.85ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z"/></svg><span>No tracking</span></span></li>
-      <li><span class="trust-badge"><svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" focusable="false"><path d="M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H208a8,8,0,0,1,8,8Zm-48,48a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,224Z"/></svg><span>Runs locally</span></span></li>
-      <li><span class="trust-badge" id="platform-trust"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg><span id="platform-trust-label">Free to use</span></span></li>
-    </ul>
-
-    <section>
-      <h2>Built like a document</h2>
-      <div class="points">
-        <div class="point">
-          <h3>One file, start to finish</h3>
-          <p>Email it, back it up, drop it in any folder. No account, no cloud, no app store. The file is the whole app, and it belongs to you.</p>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container">
+        <h1>Software you can keep</h1>
+        <p class="lede">Real software in a single HTML file on your computer. Double-click any <span class="filechip">.htmlclay</span> file to use it in your browser, every change saves straight back into that file; you can modify it or transport it wherever you want.</p>
+        <div class="hero-actions">
+          <a id="download-btn" class="btn btn-amber" href="#downloads" data-fallback-href="#downloads" download data-hv-goal="download" data-hv-where="hero" data-hv-os="unknown">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            <span id="download-label">Download HTML Clay</span>
+          </a>
+          <a class="btn btn-secondary" href="/features/">Explore features</a>
         </div>
-        <div class="point">
-          <h3>Your changes stick</h3>
-          <p>Jot a note, check a box, drag things around. It saves itself right back into the file. Reopen it next week and it's exactly as you left it.</p>
-        </div>
-        <div class="point">
-          <h3>Quiet and local</h3>
-          <p>HTML Clay runs on your computer with no sign-up and no tracking. Self-contained files work offline, even on a plane.</p>
+        <p class="hero-sub" id="download-sub"><a href="/download/">All platforms &amp; SHA-256 checksums</a></p>
+
+        <ul class="trust-badges" aria-label="Why trust HTML Clay">
+          <li><span class="trust-badge" id="platform-trust"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><span id="platform-trust-label">Signed &amp; notarized</span></span></li>
+          <li><span class="trust-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg><span>Free &amp; works offline</span></span></li>
+          <li><span class="trust-badge" title="No usage analytics or telemetry in HTML Clay."><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg><span>No account or tracking</span></span></li>
+          <li><a class="trust-badge" href="https://github.com/hyperspacesystems/htmlclay"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>Source available</span></a></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Hero Desktop Stage -->
+    <section class="hero-stage-wrap" aria-label="HTML Clay desktop preview">
+      <div class="container">
+        <div class="hero-stage" data-theme-stage data-theme="light">
+          <div class="stage-topbar">
+            <span class="stage-menubar-pill">
+              <img src="/assets/htmlclay-mark.svg?v=b9d5decc" alt="" width="20" height="22">
+              <span>Running locally in your browser &amp; macOS menu bar</span>
+            </span>
+            <div class="theme-switch" role="group" aria-label="Desktop preview appearance">
+              <button type="button" class="theme-btn" data-stage-theme-btn="light" aria-pressed="true">Light</button>
+              <button type="button" class="theme-btn" data-stage-theme-btn="dark" aria-pressed="false">Dark</button>
+            </div>
+          </div>
+
+          <div class="hero-composition">
+            <div class="browser-frame">
+              <div class="browser-chrome">
+                <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="browser-url">htmlclay.localhost:1212/sunday-dinner.htmlclay</span>
+                <span class="browser-saved">Saved to disk</span>
+              </div>
+              <img src="/images/v2/apps/blockeditor.webp?v=4304547b" data-light-src="/images/v2/apps/blockeditor.webp?v=4304547b" data-dark-src="/images/v2/apps/blockeditor-dark.webp?v=4a066ccb" alt="Block editor running as a local .htmlclay document with a Sunday dinner checklist and formatted menu." width="800" height="500">
+            </div>
+
+            <div class="popover-showcase">
+              <div class="popover-unit">
+                <span class="popover-label">Menu bar app</span>
+                <div class="popover-frame">
+                  <img src="/images/v2/panel-light.webp?v=c690686a" data-light-src="/images/v2/panel-light.webp?v=c690686a" data-dark-src="/images/v2/panel-dark.webp?v=649f1bde" alt="HTML Clay native macOS menu-bar popover showing open documents, program approval prompt, and sync controls." width="382" height="474">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="stage-caption">Your document opens in your regular browser at a stable local address.</p>
         </div>
       </div>
     </section>
 
-    <section>
-      <h2>How it works</h2>
-      <div class="steps">
-        <div class="step">
+    <!-- Three Core Pillars -->
+    <section class="section section-tight">
+      <div class="container">
+        <div class="pillars-grid">
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <h2>One file, start to finish</h2>
+            <p>Layout, logic, and saved data live together inside one standard HTML file on your disk, with automatic version history. Email it, drop it in Git or Dropbox, or host it.</p>
+          </article>
+
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </div>
+            <h2>Modify how it works anytime</h2>
+            <p>Your apps aren't locked boxes. Open any file in your code editor or press <span class="filechip">&#8984;J</span> to activate AI and you can add fields, reshape the interface, or adapt the workflow around how you work.</p>
+          </article>
+
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 12.86a10 10 0 0 1 5.17-2.89"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+            </div>
+            <h2>Nonintrusive, fast, and offline</h2>
+            <p>No sign-up, no telemetry, and no Electron wrapper around your tabs. HTML Clay bundles the ClayJS runtime and Tailwind v4 compiler inside the app so your documents build and save even when you're offline.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Spotlight 1: Software Ownership & Freedom to Reshape -->
+    <section class="section section-warm" id="ownership">
+      <div class="container">
+        <div class="section-head">
+          <h2>Download it once. Own it completely. Reshape any part of it.</h2>
+          <p>Most software locks you inside someone else's rules and charges rent to keep using your own data. An <span class="filechip">.htmlclay</span> app is a portable offline file you never pay to keep or upgrade, and you can reshape it right from its own interface or any editor on your computer.</p>
+        </div>
+
+        <div class="ownership-ledger">
+
+          <!-- BLOCK 1: Download once, keep forever -->
+          <article class="ownership-cell">
+            <div class="own-stage">
+              <div class="own-viewport">
+                <div class="v-compare">
+                  <div class="v-compare-col v-compare-rent">
+                    <div class="v-compare-head">Rented cloud app</div>
+                    <div class="v-nag-row">
+                      <svg class="v-nag-cloud" viewBox="40 330 1100 530" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M428.28 350.52c-67.297 0.070313-127.22 39.613-149.44 98.617-3.0234-0.22656-6.0469-0.38281-9.0859-0.49219-116.73 0-211.36 87.875-211.36 196.27 0 108.39 94.633 196.28 211.36 196.28h686.89c102.14 0 184.93-76.895 184.93-171.74 0-94.848-82.789-171.74-184.93-171.74-42.266 0.023437-83.23 13.488-116.1 38.148-28.031-81.109-109.21-136.15-200.93-136.29-27.707 0.085937-55.141 5.2305-80.699 15.145-29.469-40.105-78.359-64.129-130.64-64.203zm92.457 208.55c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0.015625-13.559 11.836-24.539 26.426-24.539zm158.52 0c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0-13.559 11.832-24.539 26.426-24.539zm-133.33 94.309 54.07 28.082 54.07-28.078 59.746 43.223-16.309 19.355-45.906-33.156-51.602 26.734-51.602-26.734-45.926 33.156-16.309-19.355z"/></svg>
+                      <span>Session expired: log in</span>
+                    </div>
+                    <div class="v-nag-row">
+                      <svg class="v-nag-cloud" viewBox="40 330 1100 530" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M428.28 350.52c-67.297 0.070313-127.22 39.613-149.44 98.617-3.0234-0.22656-6.0469-0.38281-9.0859-0.49219-116.73 0-211.36 87.875-211.36 196.27 0 108.39 94.633 196.28 211.36 196.28h686.89c102.14 0 184.93-76.895 184.93-171.74 0-94.848-82.789-171.74-184.93-171.74-42.266 0.023437-83.23 13.488-116.1 38.148-28.031-81.109-109.21-136.15-200.93-136.29-27.707 0.085937-55.141 5.2305-80.699 15.145-29.469-40.105-78.359-64.129-130.64-64.203zm92.457 208.55c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0.015625-13.559 11.836-24.539 26.426-24.539zm158.52 0c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0-13.559 11.832-24.539 26.426-24.539zm-133.33 94.309 54.07 28.082 54.07-28.078 59.746 43.223-16.309 19.355-45.906-33.156-51.602 26.734-51.602-26.734-45.926 33.156-16.309-19.355z"/></svg>
+                      <span>Upgrade to Pro ($14/mo)</span>
+                    </div>
+                    <div class="v-nag-row">
+                      <svg class="v-nag-cloud" viewBox="40 330 1100 530" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M428.28 350.52c-67.297 0.070313-127.22 39.613-149.44 98.617-3.0234-0.22656-6.0469-0.38281-9.0859-0.49219-116.73 0-211.36 87.875-211.36 196.27 0 108.39 94.633 196.28 211.36 196.28h686.89c102.14 0 184.93-76.895 184.93-171.74 0-94.848-82.789-171.74-184.93-171.74-42.266 0.023437-83.23 13.488-116.1 38.148-28.031-81.109-109.21-136.15-200.93-136.29-27.707 0.085937-55.141 5.2305-80.699 15.145-29.469-40.105-78.359-64.129-130.64-64.203zm92.457 208.55c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0.015625-13.559 11.836-24.539 26.426-24.539zm158.52 0c14.594 0 26.426 10.98 26.426 24.539 0 13.547-11.832 24.539-26.426 24.539s-26.426-10.98-26.426-24.539c0-13.559 11.832-24.539 26.426-24.539zm-133.33 94.309 54.07 28.082 54.07-28.078 59.746 43.223-16.309 19.355-45.906-33.156-51.602 26.734-51.602-26.734-45.926 33.156-16.309-19.355z"/></svg>
+                      <span>New UI forced overnight</span>
+                    </div>
+                  </div>
+                  <div class="v-compare-col v-compare-own">
+                    <div class="v-compare-head">budget.htmlclay</div>
+                    <div class="v-own-row"><span>&#10003;</span> Opens offline right away</div>
+                    <div class="v-own-row"><span>&#10003;</span> $0 forever on your disk</div>
+                    <div class="v-own-row"><span>&#10003;</span> Stays how you set it</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="own-copy">
+              <h3>Download once, keep forever</h3>
+              <p>Save an app to your computer and keep using it offline for years with zero rent, no login prompt, and no forced updates changing how your tool works.</p>
+            </div>
+          </article>
+
+          <!-- BLOCK 2: Change how any app works -->
+          <article class="ownership-cell">
+            <div class="own-stage">
+              <div class="own-viewport">
+                <div class="v-split-code">
+                  <div class="v-code-pane">
+                    <div class="v-pane-tag">Code editor</div>
+                    <code>&lt;h3&gt;Daily note&lt;/h3&gt;</code>
+                    <code class="v-code-hl">+ &lt;input type="date"&gt;</code>
+                    <code>&lt;textarea bind="note"&gt;</code>
+                  </div>
+                  <div class="v-live-pane">
+                    <div class="v-pane-tag">Live in browser</div>
+                    <div class="v-mini-note-head">
+                      <strong>Daily note</strong>
+                      <span class="v-live-date-pill">Nov 23</span>
+                    </div>
+                    <div class="v-mini-note-lines">
+                      <span></span><span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="own-copy">
+              <h3>Change how any app works</h3>
+              <p>Delete buttons you never touch, add the exact field your workflow needs, or reshape the app from its own interface with <span class="filechip">&#8984;J</span>, browser DevTools, or any text editor.</p>
+            </div>
+          </article>
+
+          <!-- BLOCK 3: Give it the look you want -->
+          <article class="ownership-cell">
+            <div class="own-stage">
+              <div class="own-viewport">
+                <div class="v-triptych">
+                  <div class="v-skin v-skin-paper">
+                    <strong>Sunday Menu</strong>
+                    <p>Roast chicken, lemon potatoes, sourdough.</p>
+                    <span class="v-skin-rule"></span>
+                    <div class="v-skin-actions">
+                      <span class="v-skin-btn v-skin-btn-sec">More details</span>
+                      <span class="v-skin-btn v-skin-btn-pri">Order</span>
+                    </div>
+                  </div>
+                  <div class="v-skin v-skin-night">
+                    <strong>Sunday Menu</strong>
+                    <p>Roast chicken, lemon potatoes, sourdough.</p>
+                    <span class="v-skin-rule"></span>
+                    <div class="v-skin-actions">
+                      <span class="v-skin-btn v-skin-btn-sec">More details</span>
+                      <span class="v-skin-btn v-skin-btn-pri">Order</span>
+                    </div>
+                  </div>
+                  <div class="v-skin v-skin-sage">
+                    <strong>Sunday Menu</strong>
+                    <p>Roast chicken, lemon potatoes, sourdough.</p>
+                    <span class="v-skin-rule"></span>
+                    <div class="v-skin-actions">
+                      <span class="v-skin-btn v-skin-btn-sec">More details</span>
+                      <span class="v-skin-btn v-skin-btn-pri">Order</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="own-copy">
+              <h3>Give it the look you want</h3>
+              <p>Swap fonts, adjust spacing, or restyle any app into a warm paper sheet, crisp dark workspace, or cozy custom theme with the tools on your computer.</p>
+            </div>
+          </article>
+
+          <!-- BLOCK 4: Portable anywhere HTML runs -->
+          <article class="ownership-cell">
+            <div class="own-stage">
+              <div class="own-viewport own-viewport-hub">
+                <div class="v-hub">
+                  <div class="v-hub-source">
+                    <span class="v-hub-ext">.htmlclay</span>
+                    <strong>roadmap</strong>
+                    <small>App + Data &middot; 44 KB</small>
+                  </div>
+                  <svg class="v-hub-branch" viewBox="0 0 112 188" fill="none" aria-hidden="true">
+                    <path d="M 3 94 L 24 94 M 24 94 C 39 94, 40 44.5, 55 44.5 M 24 94 C 39 94, 40 143.5, 55 143.5 M 55 44.5 C 73 44.5, 76 20, 105 20 M 55 44.5 C 73 44.5, 76 69, 105 69 M 55 143.5 C 73 143.5, 76 119, 105 119 M 55 143.5 C 73 143.5, 76 168, 105 168" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+                    <path d="M 99.5 15.5 L 106.5 20 L 99.5 24.5 M 99.5 64.5 L 106.5 69 L 99.5 73.5 M 99.5 114.5 L 106.5 119 L 99.5 123.5 M 99.5 163.5 L 106.5 168 L 99.5 172.5" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="24" cy="94" r="2.5" fill="currentColor"/>
+                    <circle cx="55" cy="44.5" r="2.3" fill="currentColor"/>
+                    <circle cx="55" cy="143.5" r="2.3" fill="currentColor"/>
+                  </svg>
+                  <div class="v-hub-targets">
+                    <div class="v-hub-dest"><b>Email a friend</b><span>Opens with data intact</span></div>
+                    <div class="v-hub-dest"><b>Any static host</b><span>Rename .html &amp; publish</span></div>
+                    <div class="v-hub-dest"><b>Git or Dropbox</b><span>Plain-text backups</span></div>
+                    <div class="v-hub-dest"><b>Every browser</b><span>Mac &middot; Win &middot; Linux</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="own-copy">
+              <h3>Portable anywhere HTML runs</h3>
+              <p>App, layout, and saved data travel together inside one standard file. Email a copy to a friend, drop it in Dropbox or Git, or drag it onto any static web host as <span class="filechip">.html</span>.</p>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Spotlight 2: Live 8-App sap.min.js Playground -->
+    <section class="section" id="playground">
+      <div class="container">
+        <div class="section-head">
+          <h2>Any interface you want, inside one HTML file</h2>
+          <p>Every app below is plain HTML running live on this page, from a two-pane wiki and a budget table to a Breakout game. Open one in HTML Clay and your edits save straight back into the <span class="filechip">.htmlclay</span> file, ready to use as-is or reshape into your own tool.</p>
+        </div>
+
+        <div class="workbench-shell">
+          <div class="chips" id="app-chips" role="tablist" aria-label="Example apps">
+            <button type="button" class="chip" data-app="wiki" role="tab" id="chip-wiki" aria-controls="panel-app-wiki" aria-selected="true" tabindex="0">Personal wiki</button>
+            <button type="button" class="chip" data-app="todo" role="tab" id="chip-todo" aria-controls="panel-app-todo" aria-selected="false" tabindex="-1">To-do list</button>
+            <button type="button" class="chip" data-app="journal" role="tab" id="chip-journal" aria-controls="panel-app-journal" aria-selected="false" tabindex="-1">Journal</button>
+            <button type="button" class="chip" data-app="budget" role="tab" id="chip-budget" aria-controls="panel-app-budget" aria-selected="false" tabindex="-1">Budget tracker</button>
+            <button type="button" class="chip" data-app="recipe" role="tab" id="chip-recipe" aria-controls="panel-app-recipe" aria-selected="false" tabindex="-1">Recipe box</button>
+            <button type="button" class="chip" data-app="habit" role="tab" id="chip-habit" aria-controls="panel-app-habit" aria-selected="false" tabindex="-1">Habit tracker</button>
+            <button type="button" class="chip" data-app="reading" role="tab" id="chip-reading" aria-controls="panel-app-reading" aria-selected="false" tabindex="-1">Reading list</button>
+            <button type="button" class="chip" data-app="game" role="tab" id="chip-game" aria-controls="panel-app-game" aria-selected="false" tabindex="-1">A little game</button>
+          </div>
+
+          <div class="preview" id="app-preview" aria-live="polite">
+
+            <!-- Personal wiki -->
+            <div class="app-panel" id="panel-app-wiki" role="tabpanel" aria-labelledby="chip-wiki" data-app="wiki" data-autoselect>
+              <div class="window">
+                <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">wiki.htmlclay</span></div></div>
+                <div class="window-body">
+                  <main sap state="selected">
+                    <div class="pane">
+                      <div>
+                        <ul class="pane-list" items="pages">
+                          <li item template set:selected="item.$key" class:active="state.selected === item.$key"><span bind="title"></span><input type="hidden" bind="content" value=""></li>
+                          <li item class="pick" set:selected="item.$key" class:active="state.selected === item.$key"><span bind="title">Home</span><input type="hidden" bind="content" value="Welcome to my wiki. Everything lives in this one file."></li>
+                          <li item set:selected="item.$key" class:active="state.selected === item.$key"><span bind="title">Ideas</span><input type="hidden" bind="content" value="- a single-file recipe app&#10;- a habit tracker for the fridge"></li>
+                          <li item set:selected="item.$key" class:active="state.selected === item.$key"><span bind="title">Reading</span><input type="hidden" bind="content" value="Dune, The Hobbit, Project Hail Mary"></li>
+                        </ul>
+                        <form trigger-add="pages" class="add-row">
+                          <span class="add-row-plus" aria-hidden="true">+</span>
+                          <input bind="title" placeholder="New page" required aria-label="New page title">
+                        </form>
+                      </div>
+                      <div class="pane-detail" detail="pages by state.selected">
+                        <input class="wiki-pagetitle" bind="title" aria-label="Page title">
+                        <textarea bind="content" placeholder="Start writing…"></textarea>
+                      </div>
+                    </div>
+                  </main>
+                </div>
+              </div>
+            </div>
+
+            <!-- To-do list -->
+            <div class="app-panel" id="panel-app-todo" role="tabpanel" aria-labelledby="chip-todo" data-app="todo" hidden>
+              <div class="window">
+                <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">rick-todos.htmlclay</span></div></div>
+                <div class="window-body">
+                  <main sap>
+                    <ul class="todo-list" items="todos">
+                      <li item template><label><input type="checkbox" bind="done"><span bind="title"></span></label></li>
+                      <li item><label><input type="checkbox" bind="done"><span bind="title">Build a portal gun</span></label></li>
+                      <li item><label><input type="checkbox" bind="done"><span bind="title">Turn myself into a pickle</span></label></li>
+                      <li item><label><input type="checkbox" bind="done"><span bind="title">Get more Szechuan sauce</span></label></li>
+                    </ul>
+                    <form trigger-add="todos" class="add-row">
+                      <span class="add-row-plus" aria-hidden="true">+</span>
+                      <input bind="title" placeholder="Add a task" required aria-label="New task">
+                    </form>
+                    <p class="app-note" text="plural(count(state.todos, t => !t.done), 'thing', 'things') + ' left to do'">3 things left to do</p>
+                  </main>
+                </div>
+              </div>
+            </div>
+
+            <!-- Journal -->
+            <div class="app-panel" id="panel-app-journal" role="tabpanel" aria-labelledby="chip-journal" data-app="journal" hidden>
+              <div class="window">
+                <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">journal.htmlclay</span></div></div>
+                <div class="window-body">
+                  <main sap>
+                    <div class="journal-head">
+                      <h3 class="app-h">What I did today</h3>
+                      <input type="date" data-default-today aria-label="Entry date">
+                    </div>
+                    <textarea bind="entry" placeholder="Today I…">Mapped out the spring garden beds before the frost hits. Moved the rosemary pot onto the porch, fixed the sticky kitchen drawer, and put a pot of lentil soup on the stove.</textarea>
+                  </main>
+                </div>
+              </div>
+            </div>
+
+            <!-- Budget tracker -->
+            <div class="app-panel" id="panel-app-budget" role="tabpanel" aria-labelledby="chip-budget" data-app="budget" hidden>
+              <div class="window">
+                <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">budget.htmlclay</span></div></div>
+                <div class="window-body">
+                  <main sap>
+                    <table class="budget-table">
+                      <thead><tr><th>Item</th><th>Cost</th></tr></thead>
+                      <tbody items="items">
+                        <tr item template><td bind="name"></td><td><input type="number" min="0" step="1" bind="cost" value="0"></td></tr>
+                        <tr item><td bind="name">Rent</td><td><input type="number" min="0" step="1" bind="cost" value="1200"></td></tr>
+                        <tr item><td bind="name">Groceries</td><td><input type="number" min="0" step="1" bind="cost" value="320"></td></tr>
+                        <tr item><td bind="name">Coffee</td><td><input type="number" min="0" step="1" bind="cost" value="60"></td></tr>
+                        <tr item><td bind="name">Internet</td><td><input type="number" min="0" step="1" bind="cost" value="50"></td></tr>
+                      </tbody>
+                      <tfoot>
+                        <tr><td>Total</td><td calc:total="sum(state.items, 'cost')" text:usd="state.total">$1,630</td></tr>
+                      </tfoot>
+                    </table>
+                    <form trigger-add="items" class="add-row">
+                      <span class="add-row-plus" aria-hidden="true">+</span>
+                      <input bind="name" placeholder="Add an item" required aria-label="New item">
+                    </form>
+                  </main>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recipe box -->
+            <div class="app-panel" id="panel-app-recipe" role="tabpanel" aria-labelledby="chip-recipe" data-app="recipe" data-autoselect hidden>
+              <div class="window">
+                <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">recipes.htmlclay</span></div></div>
+                <div class="window-body">
+                  <main sap state="selected">
+                    <div class="pane">
+                      <div>
+                        <ul class="pane-list" items="recipes">
+                          <li item template set:selected="item.$key" class:active="state.selected === item.$key"><span bind="name"></span><input type="hidden" bind="recipe" value=""></li>
+                          <li item class="pick" set:selected="item.$key" class:active="state.selected === item.$key"><span bind="name">Pancakes</span><input type="hidden" bind="recipe" value="Whisk 1 cup flour, 1 cup milk, 1 egg, and 2 tbsp melted butter until smooth.&#10;Pour rounds onto a hot, greased pan.&#10;Flip when bubbles form; cook till golden.&#10;Top with maple syrup."></li>
+                          <li item set:selected="item.$key" class:active="state.selected === item.$key"><span bind="name">Guacamole</span><input type="hidden" bind="recipe" value="Mash 2 ripe avocados with a fork.&#10;Stir in the juice of 1 lime, 1/4 diced onion, a handful of chopped cilantro, and salt to taste.&#10;Serve right away with chips."></li>
+                          <li item set:selected="item.$key" class:active="state.selected === item.$key"><span bind="name">Spaghetti</span><input type="hidden" bind="recipe" value="Boil spaghetti in salted water till al dente.&#10;Gently cook sliced garlic in olive oil, add crushed tomatoes, and simmer 10 min.&#10;Toss with the pasta and fresh basil."></li>
+                        </ul>
+                        <form trigger-add="recipes" class="add-row">
+                          <span class="add-row-plus" aria-hidden="true">+</span>
+                          <input bind="name" placeholder="Add a recipe" required aria-label="New recipe">
+                        </form>
+                      </div>
+                      <div class="pane-detail" detail="recipes by state.selected">
+                        <h3 class="app-h" bind="name"></h3>
+                        <textarea bind="recipe" placeholder="Recipe…"></textarea>
+                      </div>
+                    </div>
+                    <p class="app-note" show="!state.selected">Pick a recipe.</p>
+                  </main>
+                </div>
+              </div>
+            </div>
+
+            <!-- Habit tracker -->
+            <div class="app-panel" id="panel-app-habit" role="tabpanel" aria-labelledby="chip-habit" data-app="habit" hidden>
+              <div class="window">
+                <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">habits.htmlclay</span></div></div>
+                <div class="window-body">
+                  <main sap>
+                    <div class="habit-grid" items="habits">
+                      <span></span>
+                      <span class="col-h">M</span><span class="col-h">T</span><span class="col-h">W</span><span class="col-h">T</span><span class="col-h">F</span><span class="col-h">S</span><span class="col-h">S</span>
+                      <span></span>
+                      <div item template class="habit-row" style="display:contents">
+                        <span class="hname" bind="name"></span>
+                        <input type="checkbox" bind="d0"><input type="checkbox" bind="d1"><input type="checkbox" bind="d2"><input type="checkbox" bind="d3"><input type="checkbox" bind="d4"><input type="checkbox" bind="d5"><input type="checkbox" bind="d6">
+                        <span class="cnt" text="count([item.d0,item.d1,item.d2,item.d3,item.d4,item.d5,item.d6], v => v) + '/7'"></span>
+                      </div>
+                      <div item class="habit-row" style="display:contents">
+                        <span class="hname" bind="name">Meditate</span>
+                        <input type="checkbox" bind="d0" checked><input type="checkbox" bind="d1" checked><input type="checkbox" bind="d2" checked><input type="checkbox" bind="d3"><input type="checkbox" bind="d4"><input type="checkbox" bind="d5"><input type="checkbox" bind="d6">
+                        <span class="cnt" text="count([item.d0,item.d1,item.d2,item.d3,item.d4,item.d5,item.d6], v => v) + '/7'">3/7</span>
+                      </div>
+                      <div item class="habit-row" style="display:contents">
+                        <span class="hname" bind="name">Exercise</span>
+                        <input type="checkbox" bind="d0" checked><input type="checkbox" bind="d1"><input type="checkbox" bind="d2" checked><input type="checkbox" bind="d3"><input type="checkbox" bind="d4" checked><input type="checkbox" bind="d5"><input type="checkbox" bind="d6">
+                        <span class="cnt" text="count([item.d0,item.d1,item.d2,item.d3,item.d4,item.d5,item.d6], v => v) + '/7'">3/7</span>
+                      </div>
+                      <div item class="habit-row" style="display:contents">
+                        <span class="hname" bind="name">Read</span>
+                        <input type="checkbox" bind="d0"><input type="checkbox" bind="d1" checked><input type="checkbox" bind="d2"><input type="checkbox" bind="d3" checked><input type="checkbox" bind="d4"><input type="checkbox" bind="d5" checked><input type="checkbox" bind="d6" checked>
+                        <span class="cnt" text="count([item.d0,item.d1,item.d2,item.d3,item.d4,item.d5,item.d6], v => v) + '/7'">4/7</span>
+                      </div>
+                    </div>
+                    <form trigger-add="habits" class="add-row">
+                      <span class="add-row-plus" aria-hidden="true">+</span>
+                      <input bind="name" placeholder="Add a habit" required aria-label="New habit">
+                    </form>
+                  </main>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reading list -->
+            <div class="app-panel" id="panel-app-reading" role="tabpanel" aria-labelledby="chip-reading" data-app="reading" hidden>
+              <div class="window">
+                <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">reading-list.htmlclay</span></div></div>
+                <div class="window-body">
+                  <main sap>
+                    <div class="reading-head">
+                      <h3 class="app-h">Reading list</h3>
+                      <p class="app-note" text="count(state.books, b => b.status === 'Read') + ' of ' + count(state.books) + ' read'">2 of 4 read</p>
+                    </div>
+                    <ul class="reading-list" items="books">
+                      <li item template><span class="btitle" bind="title"></span><input type="hidden" bind="status" value="Want to read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')"></button></li>
+                      <li item><span class="btitle" bind="title">Dune</span><input type="hidden" bind="status" value="Read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')">Read</button></li>
+                      <li item><span class="btitle" bind="title">The Hobbit</span><input type="hidden" bind="status" value="Reading"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')">Reading</button></li>
+                      <li item><span class="btitle" bind="title">Project Hail Mary</span><input type="hidden" bind="status" value="Want to read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')">Want to read</button></li>
+                      <li item><span class="btitle" bind="title">Sapiens</span><input type="hidden" bind="status" value="Read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')">Read</button></li>
+                    </ul>
+                    <form trigger-add="books" class="add-row">
+                      <span class="add-row-plus" aria-hidden="true">+</span>
+                      <input bind="title" placeholder="Add a book" required aria-label="New book">
+                    </form>
+                  </main>
+                </div>
+              </div>
+            </div>
+
+            <!-- A little game (Breakout) -->
+            <div class="app-panel" id="panel-app-game" role="tabpanel" aria-labelledby="chip-game" data-app="game" hidden>
+              <div class="window">
+                <div class="window-bar"><div class="window-bar-left"><span class="dots"><i></i><i></i><i></i></span><span class="fname">breakout.htmlclay</span></div></div>
+                <div class="window-body">
+                  <div class="bk-wrap">
+                    <div class="bk-hud">
+                      <span class="bk-hud-item bk-score">Score <b data-bk="score">0</b></span>
+                      <span class="bk-hud-item bk-lives">Lives <span data-bk="lives" class="bk-dots"></span></span>
+                    </div>
+                    <div class="bk-stage">
+                      <canvas data-bk="canvas"></canvas>
+                    </div>
+                    <p class="bk-hint">Move the paddle with your mouse, drag, or arrow keys.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Spotlight 3: Live Sync & Built-In AI Modification -->
+    <section class="section section-warm" id="live-sync-ai">
+      <div class="container">
+        <div class="section-head">
+          <h2>Reshape with AI, edit in your code editor, and see it update live</h2>
+          <p>Because an <span class="filechip">.htmlclay</span> app is a plain file on your disk, your browser, your text editor, and your AI tools can all work on the same living document at once.</p>
+        </div>
+
+        <div class="two-col spotlight-pair-compact">
+          <article class="card spotlight-card">
+            <h3>Live sync across browsers &amp; editors</h3>
+            <p>Edit an open <span class="filechip">.htmlclay</span> file in a text editor or CLI agent and watch your open browser tab morph the change in place without losing scroll position or unsaved typing.</p>
+
+            <div class="spot-stage">
+              <div class="spot-stage-bar">
+                <span class="spot-stage-caption">Live budget edit across two tabs</span>
+              </div>
+
+              <div class="spot-viewport">
+                <div class="spot-slide">
+                  <div class="sv-browsers">
+                    <div class="sv-win">
+                      <div class="sv-win-bar">
+                        <span class="sv-dots"><i></i><i></i><i></i></span>
+                        <span class="sv-url">budget.htmlclay</span>
+                        <span class="sv-win-tag">Tab 1</span>
+                      </div>
+                      <div class="sv-win-body">
+                        <div class="sv-kv"><span>Rent</span><b>$1,200</b></div>
+                        <div class="sv-kv sv-kv-edit"><span>Groceries</span><b>$345</b></div>
+                        <div class="sv-kv sv-kv-tot"><span>Total</span><b>$1,545</b></div>
+                      </div>
+                    </div>
+
+                    <div class="sv-sync-bolt" aria-hidden="true">
+                      <svg width="26" height="20" viewBox="0 0 26 20" fill="none"><path d="M2 10H22M17 5L22.5 10L17 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <span>Mirrored</span>
+                    </div>
+
+                    <div class="sv-win">
+                      <div class="sv-win-bar">
+                        <span class="sv-dots"><i></i><i></i><i></i></span>
+                        <span class="sv-url">budget.htmlclay</span>
+                        <span class="sv-win-tag sv-tag-green">Tab 2</span>
+                      </div>
+                      <div class="sv-win-body">
+                        <div class="sv-kv"><span>Rent</span><b>$1,200</b></div>
+                        <div class="sv-kv sv-kv-live"><span>Groceries</span><b>$345</b></div>
+                        <div class="sv-kv sv-kv-tot"><span>Total</span><b>$1,545</b></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="spotlight-links">
+              <a href="/docs/live-sync/">Read Live Sync docs &rarr;</a>
+              <a href="/features/#folders">Folders &amp; Hyperclay sync</a>
+            </div>
+          </article>
+
+          <article class="card spotlight-card">
+            <h3>Press &#8984;J to modify any part of a page</h3>
+            <p>Select any element in a document and press <span class="filechip">&#8984;J</span> (<span class="filechip">Ctrl+J</span> on Windows and Linux) to add a feature or restyle how it works using your agent.</p>
+
+            <div class="spot-stage">
+              <div class="spot-stage-bar">
+                <span class="spot-stage-caption">Plain note &rarr; Botanical daily journal</span>
+              </div>
+
+              <div class="spot-viewport">
+                <div class="spot-slide">
+                  <div class="av-transform">
+                    <div class="av-orig">
+                      <span class="av-badge-plain">Original</span>
+                      <strong class="av-orig-title">Daily journal</strong>
+                      <div class="av-orig-lines"><i></i><i></i><i></i></div>
+                    </div>
+
+                    <div class="av-cmdj-bridge" aria-hidden="true">
+                      <kbd>&#8984;J</kbd>
+                      <svg width="22" height="14" viewBox="0 0 22 14" fill="none"><path d="M1 7H19M14.5 2.5L19.5 7L14.5 11.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+
+                    <div class="av-journal-custom">
+                      <div class="av-vine-rail" aria-hidden="true">
+                        <svg viewBox="0 0 36 144" fill="none">
+                          <path d="M18 138 C12 114, 24 92, 17 68 C11 46, 23 30, 18 14" stroke="#4D7A58" stroke-width="1.6" stroke-linecap="round"/>
+                          <path d="M16 108 C8 104, 6 95, 13 93 C17 92, 18 101, 16 108 Z" fill="#6D9B76"/>
+                          <path d="M19 82 C27 78, 29 69, 22 67 C18 66, 17 75, 19 82 Z" fill="#6D9B76"/>
+                          <path d="M15 52 C7 48, 6 39, 13 38 C17 37, 17 46, 15 52 Z" fill="#6D9B76"/>
+                          <circle cx="18" cy="14" r="6" fill="#E58B52"/>
+                          <circle cx="13" cy="10" r="4" fill="#ECA86B"/>
+                          <circle cx="23" cy="10" r="4" fill="#ECA86B"/>
+                          <circle cx="13" cy="18" r="4" fill="#ECA86B"/>
+                          <circle cx="23" cy="18" r="4" fill="#ECA86B"/>
+                          <circle cx="18" cy="14" r="2.3" fill="#4A2C14"/>
+                        </svg>
+                      </div>
+                      <div class="av-journal-main">
+                        <div class="av-journal-banner" aria-hidden="true">
+                          <svg viewBox="0 0 210 38" preserveAspectRatio="none">
+                            <rect width="210" height="38" fill="#F4DFC0"/>
+                            <circle cx="168" cy="14" r="9" fill="#EC9F2E"/>
+                            <path d="M0 38 L0 24 Q42 12 88 26 T176 22 L210 27 L210 38 Z" fill="#D99B66"/>
+                            <path d="M0 38 L0 30 Q65 20 124 31 T210 26 L210 38 Z" fill="#6D8C6E"/>
+                          </svg>
+                        </div>
+                        <div class="av-journal-meta">
+                          <span class="av-j-date">Mon, Nov 23</span>
+                          <span class="av-j-tag">#garden</span>
+                          <span class="av-j-tag">#ideas</span>
+                        </div>
+                        <strong class="av-j-head">Morning in the greenhouse</strong>
+                        <div class="av-j-ruled"><i></i><i></i></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="spotlight-links">
+              <a href="/features/#ai-editing">AI editing tour &rarr;</a>
+              <a href="/docs/guide/ai-editing/">AI editing guide</a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Starter Apps Gallery Strip (Synced from One HTML File by scripts/build-website.mjs) -->
+    <section class="section">
+      <div class="container">
+        <div class="section-head-split">
           <div>
-            <b>Install HTML Clay</b>
-            <p>One small, free app. One time.</p>
+            <h2>Start with a finished HTML file app</h2>
+            <p>Download any of these free MIT-0 <span class="filechip">.htmlclay</span> apps from One HTML File, double-click it on your computer, and customize how it works. Signed offline with <span class="filechip">ecosystem-2026-11</span> so they open ready to use.</p>
           </div>
+          <a class="btn btn-secondary btn-sm" href="/apps/">View all apps &amp; samples &rarr;</a>
         </div>
-        <div class="step">
-          <div>
-            <b>Double-click a file</b>
-            <p>Open any <span class="filechip">.htmlclay</span> file you downloaded or made with an AI tool. It runs in your regular browser, in an ordinary tab, with the shortcuts you already know.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div>
-            <b>Just use it</b>
-            <p>Type, edit, organize. Changes go back into the same file, and most files save as you go.</p>
-          </div>
+
+        <div class="apps-strip-grid">
+          <!-- onehtmlfile:home-apps:start -->
+          <article class="app-card">
+            <div class="app-card-shot">
+              <img src="/images/v2/apps/blockeditor.webp?v=4304547b" alt="Block editor: a document with a dragged checklist block and callout sliding out of an envelope stamped Free, Every two weeks." width="800" height="500" decoding="async">
+            </div>
+            <div class="app-card-body">
+              <h3>Block editor</h3>
+              <p>Get ideas down with headings, lists, tables, toggles, code blocks, and boards, rearrange blocks into order, and save changes as you type.</p>
+              <div class="app-card-actions">
+                <a class="btn btn-secondary btn-sm" href="https://blockeditor.onehtmlfile.com/">Open live</a>
+                <a href="https://blockeditor.onehtmlfile.com/_/download?as=htmlclay&amp;file=1">Download .htmlclay</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="app-card">
+            <div class="app-card-shot">
+              <img src="/images/v2/apps/journal.webp?v=b999e1fb" alt="Journal: a daily Markdown notebook with dated entries and ruled paper sliding out of an envelope stamped Free, Every two weeks." width="800" height="500" decoding="async">
+            </div>
+            <div class="app-card-body">
+              <h3>Journal</h3>
+              <p>Keep dated Markdown notes on ruled paper, search across entries as you type, filter by tag, and export or import Markdown whenever you want.</p>
+              <div class="app-card-actions">
+                <a class="btn btn-secondary btn-sm" href="https://journal.onehtmlfile.com/">Open live</a>
+                <a href="https://journal.onehtmlfile.com/_/download?as=htmlclay&amp;file=1">Download .htmlclay</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="app-card">
+            <div class="app-card-shot">
+              <img src="/images/v2/apps/kanban.webp?v=e28022e7" alt="Kanban: a three-column project board of lists and cards sliding out of an envelope stamped Free, Every two weeks." width="800" height="500" decoding="async">
+            </div>
+            <div class="app-card-body">
+              <h3>Kanban</h3>
+              <p>Split projects into lists and cards with checklists, due dates, colored labels, file attachments, comments, and instant search.</p>
+              <div class="app-card-actions">
+                <a class="btn btn-secondary btn-sm" href="https://kanban.onehtmlfile.com/">Open live</a>
+                <a href="https://kanban.onehtmlfile.com/_/download?as=htmlclay&amp;file=1">Download .htmlclay</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="app-card">
+            <div class="app-card-shot">
+              <img src="/images/v2/apps/calculator.webp?v=34792135" alt="Freelance rate calculator: an expense worksheet showing sustainable hourly, daily, and weekly rates sliding out of an envelope stamped Free, Every two weeks." width="800" height="500" decoding="async">
+            </div>
+            <div class="app-card-body">
+              <h3>Freelance Rate Calculator</h3>
+              <p>Enter your living costs, business expenses, fees, taxes, and billable hours to find the hourly, daily, and weekly rate your work needs.</p>
+              <div class="app-card-actions">
+                <a class="btn btn-secondary btn-sm" href="https://freelanceratecalculator.com/">Open live</a>
+                <a href="https://freelanceratecalculator.com/_/download?as=htmlclay&amp;file=1">Download .htmlclay</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="app-card">
+            <div class="app-card-shot">
+              <img src="/images/v2/apps/whatthefunc.webp?v=b19900b6" alt="What The Func Changed: a side-by-side code diff and plain English explanation sliding out of an envelope stamped Free, Every two weeks." width="800" height="500" decoding="async">
+            </div>
+            <div class="app-card-body">
+              <h3>What The Func</h3>
+              <p>Read any code diff beside line by line plain English notes from your AI agent, so you can review a change or learn how part of your project works.</p>
+              <div class="app-card-actions">
+                <a class="btn btn-secondary btn-sm" href="https://whatthefunc.app/">Open live</a>
+                <a href="https://whatthefunc.app/_/download?as=htmlclay&amp;file=1">Download .htmlclay</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="card app-catalog-card">
+            <div>
+              <h3>Browse the full catalog</h3>
+              <p>Explore more free, single-file MIT-0 apps on One HTML File, or grab a lightweight starter file to inspect and customize in your text editor.</p>
+            </div>
+            <div class="app-card-actions">
+              <a class="btn btn-dark btn-sm" href="/apps/">Starter apps &amp; samples</a>
+              <a href="https://onehtmlfile.com/">onehtmlfile.com &nearr;</a>
+            </div>
+          </article>
+          <!-- onehtmlfile:home-apps:end -->
         </div>
       </div>
     </section>
 
-    <section>
-      <h2>Make your own without coding</h2>
-      <div class="callout">
-        <p>Ask your favorite AI to build a planner, recipe box, or small tracker as a single HTML file that works with HTML Clay. Open it in HTML Clay, and your edits save right back into the file.</p>
-        <p>The layout, behavior, and saved content live together in one file. That gives an AI agent one place to read and change when you want your app to work differently.</p>
-      </div>
-    </section>
+    <!-- Security & Program Execution Band -->
+    <section class="section section-warm" id="safe">
+      <div class="container">
+        <div class="split-spotlight">
+          <div class="spotlight-copy">
+            <h2>Run local programs from your HTML files</h2>
+            <p class="spotlight-subhead">Sandboxed by default. Explicit when a file asks for more.</p>
+            <p>Every <span class="filechip">.htmlclay</span> page runs inside your regular browser's sandbox on <span class="filechip">127.0.0.1</span>. An unknown download opens read-only on its own isolated origin and cannot touch other files or run local programs behind your back.</p>
+            <ul class="spotlight-list">
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                <span><strong>Pinned program approvals:</strong> native dialogs show the exact script path, pin its binary identity before running, and have no default Return-key button.</span>
+              </li>
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                <span><strong>Built-in data-loss guard:</strong> unexpected outside edits or large deletions keep a pinned backup in <strong>Kept Copies</strong> with one-click restore.</span>
+              </li>
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                <span><strong>Nothing leaves your machine unasked:</strong> zero analytics, no CORS headers to outside sites, and never serves files outside your home folder.</span>
+              </li>
+            </ul>
+            <div class="spotlight-links">
+              <a class="btn btn-secondary btn-sm" href="/security/">Read Security &amp; Trust &rarr;</a>
+            </div>
+          </div>
 
-    <section>
-      <h2>It's just a web page</h2>
-      <div class="callout">
-        <p>Rename it <span class="filechip">.html</span> and it opens in any browser. HTML Clay only adds one thing: the ability for the page to <b>save your edits back into the file.</b></p>
-      </div>
-    </section>
-
-    <section>
-      <h2>What people make</h2>
-      <div class="chips" id="app-chips" role="tablist" aria-label="Example apps">
-        <button class="chip" data-app="wiki" role="tab">Personal wiki</button>
-        <button class="chip" data-app="todo" role="tab">To-do list</button>
-        <button class="chip" data-app="journal" role="tab">Journal</button>
-        <button class="chip" data-app="budget" role="tab">Budget tracker</button>
-        <button class="chip" data-app="recipe" role="tab">Recipe box</button>
-        <button class="chip" data-app="habit" role="tab">Habit tracker</button>
-        <button class="chip" data-app="reading" role="tab">Reading list</button>
-        <button class="chip" data-app="game" role="tab">A little game</button>
-      </div>
-    </section>
-
-    <section class="preview" id="app-preview" aria-live="polite">
-
-      <!-- Personal wiki -->
-      <div class="app-panel" data-app="wiki" data-autoselect hidden>
-        <div class="window">
-          <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">wiki.htmlclay</span></div>
-          <div class="window-body">
-            <main sap state="selected">
-              <div class="pane">
-                <div>
-                  <ul class="pane-list" items="pages">
-                    <li item template set:selected="item.$key" class:active="state.selected === item.$key"><span bind="title"></span><input type="hidden" bind="content" value=""></li>
-                    <li item class="pick" set:selected="item.$key" class:active="state.selected === item.$key"><span bind="title">Home</span><input type="hidden" bind="content" value="Welcome to my wiki. Everything lives in this one file."></li>
-                    <li item set:selected="item.$key" class:active="state.selected === item.$key"><span bind="title">Ideas</span><input type="hidden" bind="content" value="- a single-file recipe app&#10;- a habit tracker for the fridge"></li>
-                    <li item set:selected="item.$key" class:active="state.selected === item.$key"><span bind="title">Reading</span><input type="hidden" bind="content" value="Dune, The Hobbit, Project Hail Mary"></li>
-                  </ul>
-                  <form trigger-add="pages" class="add-row">
-                    <span class="add-row-plus" aria-hidden="true">+</span>
-                    <input bind="title" placeholder="New page" required aria-label="New page title">
-                  </form>
-                </div>
-                <div class="pane-detail" detail="pages by state.selected">
-                  <input class="wiki-pagetitle" bind="title" aria-label="Page title">
-                  <textarea bind="content" placeholder="Start writing…"></textarea>
-                </div>
+          <div class="ui-stage" data-theme-stage data-theme="light">
+            <div class="ui-stage-bar">
+              <span class="ui-stage-title">Native macOS Program Approval</span>
+              <div class="theme-switch" role="group" aria-label="Approval dialog appearance">
+                <button type="button" class="theme-btn" data-stage-theme-btn="light" aria-pressed="true">Light</button>
+                <button type="button" class="theme-btn" data-stage-theme-btn="dark" aria-pressed="false">Dark</button>
               </div>
-            </main>
-          </div>
-        </div>
-      </div>
-
-      <!-- To-do list -->
-      <div class="app-panel" data-app="todo" hidden>
-        <div class="window">
-          <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">rick-todos.htmlclay</span></div>
-          <div class="window-body">
-            <main sap>
-              <ul class="todo-list" items="todos">
-                <li item template><label><input type="checkbox" bind="done"><span bind="title"></span></label></li>
-                <li item><label><input type="checkbox" bind="done"><span bind="title">Build a portal gun</span></label></li>
-                <li item><label><input type="checkbox" bind="done"><span bind="title">Turn myself into a pickle</span></label></li>
-                <li item><label><input type="checkbox" bind="done"><span bind="title">Get more Szechuan sauce</span></label></li>
-              </ul>
-              <form trigger-add="todos" class="add-row">
-                <span class="add-row-plus" aria-hidden="true">+</span>
-                <input bind="title" placeholder="Add a task" required aria-label="New task">
-              </form>
-              <p class="app-note" text="plural(count(state.todos, t => !t.done), 'thing', 'things') + ' left to do'"></p>
-            </main>
-          </div>
-        </div>
-      </div>
-
-      <!-- Journal -->
-      <div class="app-panel" data-app="journal" hidden>
-        <div class="window">
-          <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">journal.htmlclay</span></div>
-          <div class="window-body">
-            <main sap>
-              <div class="journal-head">
-                <h3 class="app-h">What I did today</h3>
-                <input type="date" data-default-today aria-label="Entry date">
-              </div>
-              <textarea bind="entry" placeholder="Today I…"></textarea>
-            </main>
-          </div>
-        </div>
-      </div>
-
-      <!-- Budget tracker -->
-      <div class="app-panel" data-app="budget" hidden>
-        <div class="window">
-          <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">budget.htmlclay</span></div>
-          <div class="window-body">
-            <main sap>
-              <table class="budget-table">
-                <thead><tr><th>Item</th><th>Cost</th></tr></thead>
-                <tbody items="items">
-                  <tr item template><td bind="name"></td><td><input type="number" min="0" step="1" bind="cost" value="0"></td></tr>
-                  <tr item><td bind="name">Rent</td><td><input type="number" min="0" step="1" bind="cost" value="1200"></td></tr>
-                  <tr item><td bind="name">Groceries</td><td><input type="number" min="0" step="1" bind="cost" value="320"></td></tr>
-                  <tr item><td bind="name">Coffee</td><td><input type="number" min="0" step="1" bind="cost" value="60"></td></tr>
-                  <tr item><td bind="name">Internet</td><td><input type="number" min="0" step="1" bind="cost" value="50"></td></tr>
-                </tbody>
-                <tfoot>
-                  <tr><td>Total</td><td calc:total="sum(state.items, 'cost')" text:usd="state.total"></td></tr>
-                </tfoot>
-              </table>
-              <form trigger-add="items" class="add-row">
-                <span class="add-row-plus" aria-hidden="true">+</span>
-                <input bind="name" placeholder="Add an item" required aria-label="New item">
-              </form>
-            </main>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recipe box -->
-      <div class="app-panel" data-app="recipe" data-autoselect hidden>
-        <div class="window">
-          <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">recipes.htmlclay</span></div>
-          <div class="window-body">
-            <main sap state="selected">
-              <div class="pane">
-                <div>
-                  <ul class="pane-list" items="recipes">
-                    <li item template set:selected="item.$key" class:active="state.selected === item.$key"><span bind="name"></span><input type="hidden" bind="recipe" value=""></li>
-                    <li item class="pick" set:selected="item.$key" class:active="state.selected === item.$key"><span bind="name">Pancakes</span><input type="hidden" bind="recipe" value="Whisk 1 cup flour, 1 cup milk, 1 egg, and 2 tbsp melted butter until smooth.&#10;Pour rounds onto a hot, greased pan.&#10;Flip when bubbles form; cook till golden.&#10;Top with maple syrup."></li>
-                    <li item set:selected="item.$key" class:active="state.selected === item.$key"><span bind="name">Guacamole</span><input type="hidden" bind="recipe" value="Mash 2 ripe avocados with a fork.&#10;Stir in the juice of 1 lime, 1/4 diced onion, a handful of chopped cilantro, and salt to taste.&#10;Serve right away with chips."></li>
-                    <li item set:selected="item.$key" class:active="state.selected === item.$key"><span bind="name">Spaghetti</span><input type="hidden" bind="recipe" value="Boil spaghetti in salted water till al dente.&#10;Gently cook sliced garlic in olive oil, add crushed tomatoes, and simmer 10 min.&#10;Toss with the pasta and fresh basil."></li>
-                  </ul>
-                  <form trigger-add="recipes" class="add-row">
-                    <span class="add-row-plus" aria-hidden="true">+</span>
-                    <input bind="name" placeholder="Add a recipe" required aria-label="New recipe">
-                  </form>
-                </div>
-                <div class="pane-detail" detail="recipes by state.selected">
-                  <h3 class="app-h" bind="name"></h3>
-                  <textarea bind="recipe" placeholder="Recipe…"></textarea>
-                </div>
-              </div>
-              <p class="app-note" show="!state.selected">Pick a recipe.</p>
-            </main>
-          </div>
-        </div>
-      </div>
-
-      <!-- Habit tracker -->
-      <div class="app-panel" data-app="habit" hidden>
-        <div class="window">
-          <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">habits.htmlclay</span></div>
-          <div class="window-body">
-            <main sap>
-              <div class="habit-grid" items="habits">
-                <span></span>
-                <span class="col-h">M</span><span class="col-h">T</span><span class="col-h">W</span><span class="col-h">T</span><span class="col-h">F</span><span class="col-h">S</span><span class="col-h">S</span>
-                <span></span>
-                <div item template class="habit-row" style="display:contents">
-                  <span class="hname" bind="name"></span>
-                  <input type="checkbox" bind="d0"><input type="checkbox" bind="d1"><input type="checkbox" bind="d2"><input type="checkbox" bind="d3"><input type="checkbox" bind="d4"><input type="checkbox" bind="d5"><input type="checkbox" bind="d6">
-                  <span class="cnt" text="count([item.d0,item.d1,item.d2,item.d3,item.d4,item.d5,item.d6], v => v) + '/7'"></span>
-                </div>
-                <div item class="habit-row" style="display:contents">
-                  <span class="hname" bind="name">Meditate</span>
-                  <input type="checkbox" bind="d0" checked><input type="checkbox" bind="d1" checked><input type="checkbox" bind="d2" checked><input type="checkbox" bind="d3"><input type="checkbox" bind="d4"><input type="checkbox" bind="d5"><input type="checkbox" bind="d6">
-                  <span class="cnt" text="count([item.d0,item.d1,item.d2,item.d3,item.d4,item.d5,item.d6], v => v) + '/7'"></span>
-                </div>
-                <div item class="habit-row" style="display:contents">
-                  <span class="hname" bind="name">Exercise</span>
-                  <input type="checkbox" bind="d0" checked><input type="checkbox" bind="d1"><input type="checkbox" bind="d2" checked><input type="checkbox" bind="d3"><input type="checkbox" bind="d4" checked><input type="checkbox" bind="d5"><input type="checkbox" bind="d6">
-                  <span class="cnt" text="count([item.d0,item.d1,item.d2,item.d3,item.d4,item.d5,item.d6], v => v) + '/7'"></span>
-                </div>
-                <div item class="habit-row" style="display:contents">
-                  <span class="hname" bind="name">Read</span>
-                  <input type="checkbox" bind="d0"><input type="checkbox" bind="d1" checked><input type="checkbox" bind="d2"><input type="checkbox" bind="d3" checked><input type="checkbox" bind="d4"><input type="checkbox" bind="d5" checked><input type="checkbox" bind="d6" checked>
-                  <span class="cnt" text="count([item.d0,item.d1,item.d2,item.d3,item.d4,item.d5,item.d6], v => v) + '/7'"></span>
-                </div>
-              </div>
-              <form trigger-add="habits" class="add-row">
-                <span class="add-row-plus" aria-hidden="true">+</span>
-                <input bind="name" placeholder="Add a habit" required aria-label="New habit">
-              </form>
-            </main>
-          </div>
-        </div>
-      </div>
-
-      <!-- Reading list -->
-      <div class="app-panel" data-app="reading" hidden>
-        <div class="window">
-          <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">reading-list.htmlclay</span></div>
-          <div class="window-body">
-            <main sap>
-              <ul class="reading-list" items="books">
-                <li item template><span class="btitle" bind="title"></span><input type="hidden" bind="status" value="Want to read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')"></button></li>
-                <li item><span class="btitle" bind="title">Dune</span><input type="hidden" bind="status" value="Read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')"></button></li>
-                <li item><span class="btitle" bind="title">The Hobbit</span><input type="hidden" bind="status" value="Reading"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')"></button></li>
-                <li item><span class="btitle" bind="title">Project Hail Mary</span><input type="hidden" bind="status" value="Want to read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')"></button></li>
-                <li item><span class="btitle" bind="title">Sapiens</span><input type="hidden" bind="status" value="Read"><button type="button" class="status-tag" text="item.status" set:status="item.status === 'Want to read' ? 'Reading' : (item.status === 'Reading' ? 'Read' : 'Want to read')"></button></li>
-              </ul>
-              <form trigger-add="books" class="add-row">
-                <span class="add-row-plus" aria-hidden="true">+</span>
-                <input bind="title" placeholder="Add a book" required aria-label="New book">
-              </form>
-              <p class="app-note" text="count(state.books, b => b.status === 'Read') + ' of ' + count(state.books) + ' read'"></p>
-            </main>
-          </div>
-        </div>
-      </div>
-
-      <!-- A little game (Breakout) -->
-      <div class="app-panel" data-app="game" hidden>
-        <div class="window">
-          <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">breakout.htmlclay</span></div>
-          <div class="window-body">
-            <div class="bk-wrap">
-              <div class="bk-hud">
-                <span class="bk-hud-item bk-score">Score <b data-bk="score">0</b></span>
-                <span class="bk-hud-item bk-lives">Lives <span data-bk="lives" class="bk-dots"></span></span>
-              </div>
-              <div class="bk-stage">
-                <canvas data-bk="canvas"></canvas>
-              </div>
-              <p class="bk-hint">Move the paddle with your mouse, drag, or arrow keys.</p>
+            </div>
+            <div class="ui-shot">
+              <img src="/images/v2/request-found-light.webp?v=2c29b8ec" data-light-src="/images/v2/request-found-light.webp?v=2c29b8ec" data-dark-src="/images/v2/request-found-dark.webp?v=547e7b40" alt="Native macOS dialog asking Let todo.htmlclay run a program? showing ~/Documents/todo/tools/search.sh with Don't allow and Allow search.sh buttons." width="460" height="304" decoding="async">
             </div>
           </div>
         </div>
       </div>
-
     </section>
 
-    <section id="safe">
-      <h2>Is it safe?</h2>
-      <div class="safe">
-        <p><b>The page runs in your browser's sandbox.</b> By default, it saves only into its own file. Inside a folder you explicitly trust, HTML Clay files can change other files in that folder. HTML Clay's file server does not serve files outside your home folder.</p>
-        <p><b>Programs require a separate approval.</b> An approved document program runs with your account's permissions and can read or change files your account can access. Only approve programs you trust. AI editing sends the selected HTML, your request and any included context to your agent, which may contact its model provider.</p>
-        <p>The long version of everything the app does, with this boundary stated exactly, is on the <a href="/docs/features/">features page</a>.</p>
+    <!-- Compact #downloads Strip (Preserving All stamp-website.js Hooks) -->
+    <section class="section" id="downloads">
+      <div class="container">
+        <div class="section-head-split">
+          <div>
+            <h2>Download HTML Clay <span data-version style="color:var(--muted);font-weight:400">v1.16.4</span></h2>
+            <p>Free for macOS, Windows, and Linux. Install once, then double-click any <span class="filechip">.htmlclay</span> file.</p>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="/download/">Install guide &amp; verification &rarr;</a>
+        </div>
+
+        <div class="dl">
+          <div class="dl-row">
+            <div class="os">macOS <span>Universal (Apple Silicon + Intel), signed and notarized</span></div>
+            <div class="filecol">
+              <a class="file" data-mac-dmg href="https://download.htmlclay.com/HTMLClay-1.16.4-universal.dmg" download data-hv-goal="download" data-hv-where="list" data-hv-os="mac" data-hv-arch="universal">HTMLClay-1.16.4-universal.dmg</a>
+              <div class="dl-hash-wrap">
+                <code class="dl-hash" data-sha256="HTMLClay-1.16.4-universal.dmg">8ea9402a14fc60e6c9e63ec2a6931e320477668a1720e15719912cd5ad629c0f</code>
+                <button type="button" class="copy-hash-btn" data-copy-sha="HTMLClay-1.16.4-universal.dmg">Copy SHA-256</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="dl-row">
+            <div class="os">Windows <span>64-bit Intel or AMD, signed</span></div>
+            <div class="filecol">
+              <a class="file" href="https://download.htmlclay.com/htmlclay-windows-amd64.zip" download data-hv-goal="download" data-hv-where="list" data-hv-os="windows" data-hv-arch="amd64">htmlclay-windows-amd64.zip</a>
+              <div class="dl-hash-wrap">
+                <code class="dl-hash" data-sha256="htmlclay-windows-amd64.zip">576dc0a4e26c0049bb3bb3c4ad7cb61c39fca66c66fb89ed6db80a398b3e5e9c</code>
+                <button type="button" class="copy-hash-btn" data-copy-sha="htmlclay-windows-amd64.zip">Copy SHA-256</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="dl-row">
+            <div class="os">Windows <span>ARM64, signed</span></div>
+            <div class="filecol">
+              <a class="file" href="https://download.htmlclay.com/htmlclay-windows-arm64.zip" download data-hv-goal="download" data-hv-where="list" data-hv-os="windows" data-hv-arch="arm64">htmlclay-windows-arm64.zip</a>
+              <div class="dl-hash-wrap">
+                <code class="dl-hash" data-sha256="htmlclay-windows-arm64.zip">f64295d937205a31cec92cdb27234992d3d4a81ac63b4684418fa2139f48ccb9</code>
+                <button type="button" class="copy-hash-btn" data-copy-sha="htmlclay-windows-arm64.zip">Copy SHA-256</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="dl-row">
+            <div class="os">Linux <span>x86_64</span></div>
+            <div class="filecol">
+              <a class="file" href="https://download.htmlclay.com/htmlclay-linux-amd64.tar.gz" download data-hv-goal="download" data-hv-where="list" data-hv-os="linux" data-hv-arch="amd64">htmlclay-linux-amd64.tar.gz</a>
+              <div class="dl-hash-wrap">
+                <code class="dl-hash" data-sha256="htmlclay-linux-amd64.tar.gz">45f3a3df9397203b36ec949cbfaa2a11eaed9e13d486408efee04f691c46fb62</code>
+                <button type="button" class="copy-hash-btn" data-copy-sha="htmlclay-linux-amd64.tar.gz">Copy SHA-256</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="dl-row">
+            <div class="os">Linux <span>ARM64</span></div>
+            <div class="filecol">
+              <a class="file" href="https://download.htmlclay.com/htmlclay-linux-arm64.tar.gz" download data-hv-goal="download" data-hv-where="list" data-hv-os="linux" data-hv-arch="arm64">htmlclay-linux-arm64.tar.gz</a>
+              <div class="dl-hash-wrap">
+                <code class="dl-hash" data-sha256="htmlclay-linux-arm64.tar.gz">b5821969c9276cd2c8774b12cf2909c089b7f8d5b39f2efbd885c43568278a1a</code>
+                <button type="button" class="copy-hash-btn" data-copy-sha="htmlclay-linux-arm64.tar.gz">Copy SHA-256</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
-
-    <section id="downloads">
-      <h2>Download <span data-version style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400">v1.16.4</span></h2>
-      <div class="dl">
-        <div class="dl-row">
-          <div class="os">macOS <span>Universal (Apple Silicon + Intel), signed and notarized</span></div>
-          <div class="filecol"><a class="file" data-mac-dmg href="https://download.htmlclay.com/HTMLClay-1.16.4-universal.dmg" download data-hv-goal="download" data-hv-where="list" data-hv-os="mac" data-hv-arch="universal">HTMLClay-1.16.4-universal.dmg</a>
-            <code class="dl-hash" data-sha256="HTMLClay-1.16.4-universal.dmg">8ea9402a14fc60e6c9e63ec2a6931e320477668a1720e15719912cd5ad629c0f</code>
-          </div>
-        </div>
-        <div class="dl-row">
-          <div class="os">Windows <span>64-bit Intel or AMD, signed</span></div>
-          <div class="filecol"><a class="file" href="https://download.htmlclay.com/htmlclay-windows-amd64.zip" download data-hv-goal="download" data-hv-where="list" data-hv-os="windows" data-hv-arch="amd64">htmlclay-windows-amd64.zip</a>
-            <code class="dl-hash" data-sha256="htmlclay-windows-amd64.zip">576dc0a4e26c0049bb3bb3c4ad7cb61c39fca66c66fb89ed6db80a398b3e5e9c</code>
-          </div>
-        </div>
-        <div class="dl-row">
-          <div class="os">Windows <span>ARM64, signed</span></div>
-          <div class="filecol"><a class="file" href="https://download.htmlclay.com/htmlclay-windows-arm64.zip" download data-hv-goal="download" data-hv-where="list" data-hv-os="windows" data-hv-arch="arm64">htmlclay-windows-arm64.zip</a>
-            <code class="dl-hash" data-sha256="htmlclay-windows-arm64.zip">f64295d937205a31cec92cdb27234992d3d4a81ac63b4684418fa2139f48ccb9</code>
-          </div>
-        </div>
-        <div class="dl-row">
-          <div class="os">Linux <span>x86_64</span></div>
-          <div class="filecol"><a class="file" href="https://download.htmlclay.com/htmlclay-linux-amd64.tar.gz" download data-hv-goal="download" data-hv-where="list" data-hv-os="linux" data-hv-arch="amd64">htmlclay-linux-amd64.tar.gz</a>
-            <code class="dl-hash" data-sha256="htmlclay-linux-amd64.tar.gz">45f3a3df9397203b36ec949cbfaa2a11eaed9e13d486408efee04f691c46fb62</code>
-          </div>
-        </div>
-        <div class="dl-row">
-          <div class="os">Linux <span>ARM64</span></div>
-          <div class="filecol"><a class="file" href="https://download.htmlclay.com/htmlclay-linux-arm64.tar.gz" download data-hv-goal="download" data-hv-where="list" data-hv-os="linux" data-hv-arch="arm64">htmlclay-linux-arm64.tar.gz</a>
-            <code class="dl-hash" data-sha256="htmlclay-linux-arm64.tar.gz">b5821969c9276cd2c8774b12cf2909c089b7f8d5b39f2efbd885c43568278a1a</code>
-          </div>
-        </div>
-      </div>
-
-      <p class="dl-note">
-        <b>Opening it.</b> On macOS, drag it into Applications. On Windows, unzip it and run
-        <span class="filechip">htmlclay.exe</span> once: it sets up <span class="filechip">.htmlclay</span>
-        files for your account, with no administrator prompt. On Linux, unpack the tarball and run
-        <span class="filechip">bash install.sh</span>, which installs into
-        <span class="filechip">~/.local/bin</span> and never asks for sudo.
-      </p>
-      <p class="dl-note">
-        <b>One thing Linux needs.</b> Permission prompts are real desktop dialogs, drawn by
-        <span class="filechip">zenity</span> or <span class="filechip">kdialog</span>. With neither
-        installed, a file opened from outside a folder you trust is refused rather than asked about.
-        Folders you trust work either way.
-      </p>
-      <p class="dl-note">
-        <b>Checking what you downloaded.</b> Every file's SHA-256 is listed in
-        <a href="https://download.htmlclay.com/SHA256SUMS" data-hv-goal="download" data-hv-where="index" data-hv-os="unknown">SHA256SUMS</a>. Hash your copy and compare it
-        with the matching line: <span class="filechip">sha256sum &lt;file&gt;</span> on Linux,
-        <span class="filechip">shasum -a 256 &lt;file&gt;</span> on macOS,
-        <span class="filechip">certutil -hashfile &lt;file&gt; SHA256</span> on Windows.
-      </p>
-    </section>
-
-    <div class="closer">
-      <p>Make the tool you need. Save it like a document.</p>
-    </div>
-
-    <footer>
-      <p>Building your own <span class="filechip">.htmlclay</span> files? Check out <a href="https://hyperclay.com">Hyperclay</a></p>
-      <p><a href="https://try.htmlclay.com/">Software you can pass around</a></p>
-      <p>Source code: <a href="https://github.com/hyperspacesystems/htmlclay">github.com/hyperspacesystems/htmlclay</a></p>
-      <p>Docs: <a href="/docs/">all HTML Clay docs</a></p>
-      <p>For agents: <a href="/llms.txt">llms.txt</a></p>
-    </footer>
-
-    <footer data-hyper-footer="htmlclay"></footer>
 
   </main>
 
-  <script>
-    (function () {
-      var DL = 'https://download.htmlclay.com/';
-      var ua = navigator.userAgent;
-
-      // The macOS dmg is the only versioned filename. Read it from the stamped
-      // download link so the version lives in exactly one place on this page.
-      var macUrl = document.querySelector('[data-mac-dmg]').getAttribute('href');
-
-      var os = 'other';
-      if (/Mac/.test(ua) && !/iPhone|iPad|iPod/.test(ua)) os = 'mac';
-      else if (/Win/.test(ua)) os = 'windows';
-      else if (/Linux|Android|CrOS/.test(ua)) os = 'linux';
-
-      var btn = document.getElementById('download-btn');
-      var label = document.getElementById('download-label');
-      var sub = document.getElementById('download-sub');
-      var trustLabel = document.getElementById('platform-trust-label');
-
-      var primary = {
-        mac:     { url: macUrl, label: 'Download for macOS', note: 'Universal', trust: 'Notarized by Apple' },
-        windows: { url: DL + 'htmlclay-windows-amd64.zip', label: 'Download for Windows', note: '64-bit', trust: 'Signed for Windows' },
-        linux:   { url: DL + 'htmlclay-linux-amd64.tar.gz', label: 'Download for Linux', note: 'x86_64' }
-      };
-
-      if (primary[os]) {
-        btn.href = primary[os].url;
-        btn.dataset.hvOs = os;
-        label.textContent = primary[os].label;
-        sub.innerHTML = primary[os].note + ' &middot; <a href="#downloads">all downloads</a>';
-        if (primary[os].trust) {
-          trustLabel.textContent = primary[os].trust;
-        }
-      } else {
-        btn.href = '#downloads';
-        btn.removeAttribute('download');
-        label.textContent = 'Download';
-        sub.innerHTML = '<a href="#downloads">See all downloads</a>';
-      }
-    })();
-  </script>
-
-  <!-- Live example apps: sap engine + gallery switcher -->
-  <script src="sap.min.js"></script>
-  <script>
-    (function () {
-      var chips = [].slice.call(document.querySelectorAll('#app-chips .chip'));
-      var panels = [].slice.call(document.querySelectorAll('#app-preview .app-panel'));
-
-      function autoSelect(p) {
-        if (!p || p.__did || !p.hasAttribute('data-autoselect')) return;
-        p.__did = true;
-        var first = p.querySelector('.pick');
-        if (first) first.click();
-      }
-
-      function show(app) {
-        chips.forEach(function (c) { c.setAttribute('aria-selected', String(c.dataset.app === app)); });
-        panels.forEach(function (p) {
-          var on = p.dataset.app === app;
-          if (on) {
-            if (p.hidden) { p.hidden = false; p.dispatchEvent(new CustomEvent('app:show')); }
-            autoSelect(p);
-          } else if (!p.hidden) {
-            p.hidden = true;
-            p.dispatchEvent(new CustomEvent('app:hide'));
-          }
-        });
-      }
-
-      chips.forEach(function (c) { c.addEventListener('click', function () { show(c.dataset.app); }); });
-
-      function init() {
-        document.querySelectorAll('input[type=date][data-default-today]').forEach(function (el) {
-          el.value = new Date().toISOString().slice(0, 10);
-        });
-        show('wiki');
-      }
-
-      // sapjs mounts (and attaches its action listeners) on DOMContentLoaded, and
-      // it registers that handler before this script runs. Defer the initial
-      // autoselect to the same event so the wiki's first row click is handled.
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-      } else {
-        init();
-      }
-    })();
-  </script>
-  <!-- Breakout game -->
-  <script>
-(function () {
-  "use strict";
-
-  var el = document.querySelector('.app-panel[data-app="game"]');
-  if (!el || el.dataset.bkInit === "1") return;
-  el.dataset.bkInit = "1";
-
-  var canvas = el.querySelector('[data-bk="canvas"]');
-  var stage = el.querySelector(".bk-stage");
-  var scoreOut = el.querySelector('[data-bk="score"]');
-  var livesOut = el.querySelector('[data-bk="lives"]');
-  if (!canvas || !stage) return;
-  var ctx = canvas.getContext("2d");
-
-  var THEME = {
-    bg: "#faf8f3",
-    ink: "#1b1a17",
-    muted: "#6f6b62",
-    line: "#e7e3d8",
-    card: "#ffffff",
-    accent: "#c2410c"
-  };
-
-  // Warm palette for the brick rows (top = warmest accent, fading down).
-  var ROW_COLORS = ["#c2410c", "#d6691f", "#e0883a", "#caa35a", "#b7b59c"];
-
-  var COLS = 8;
-  var ROWS = 5;
-  var START_LIVES = 3;
-
-  // Logical (CSS-pixel) play area. Updated on resize.
-  var W = 480;
-  var H = 340;
-  var dpr = 1;
-
-  var state = {
-    bricks: [],
-    paddle: { x: 0, y: 0, w: 84, h: 12, targetX: 0, squash: 0 },
-    ball: { x: 0, y: 0, r: 6, vx: 0, vy: 0, stuck: true, launchT: 0 },
-    particles: [],
-    score: 0,
-    lives: START_LIVES,
-    flash: 0
-  };
-
-  var BRICK = { top: 36, gapX: 6, gapY: 7, sideMargin: 14, h: 16 };
-
-  var running = false;
-  var rafId = 0;
-  var lastT = 0;
-  var keyLeft = false;
-  var keyRight = false;
-
-  function rand(a, b) {
-    return a + Math.random() * (b - a);
-  }
-
-  function brickLayout() {
-    var usableW = W - BRICK.sideMargin * 2;
-    var bw = (usableW - BRICK.gapX * (COLS - 1)) / COLS;
-    return { bw: bw, bh: BRICK.h, x0: BRICK.sideMargin, y0: BRICK.top };
-  }
-
-  function buildBricks() {
-    var lay = brickLayout();
-    var list = [];
-    for (var r = 0; r < ROWS; r++) {
-      for (var c = 0; c < COLS; c++) {
-        list.push({
-          x: lay.x0 + c * (lay.bw + BRICK.gapX),
-          y: lay.y0 + r * (lay.bh + BRICK.gapY),
-          w: lay.bw,
-          h: lay.bh,
-          color: ROW_COLORS[r % ROW_COLORS.length],
-          alive: true,
-          // appear: 0..1 grow-in animation; break: 0..1 shatter animation.
-          appear: 0,
-          breakT: 0,
-          row: r
-        });
-      }
-    }
-    return list;
-  }
-
-  function refillBricks() {
-    state.bricks = buildBricks();
-    // Stagger the grow-in so the refill feels alive.
-    for (var i = 0; i < state.bricks.length; i++) {
-      state.bricks[i].appear = -state.bricks[i].row * 0.06;
-    }
-  }
-
-  function resetBall(centerPaddle) {
-    var p = state.paddle;
-    if (centerPaddle) {
-      p.targetX = W / 2;
-      p.x = W / 2;
-    }
-    var b = state.ball;
-    b.r = Math.max(5, Math.round(W * 0.013));
-    b.stuck = true;
-    b.launchT = 0;
-    b.x = p.x;
-    b.y = p.y - p.h / 2 - b.r - 1;
-    b.vx = 0;
-    b.vy = 0;
-  }
-
-  function launchBall() {
-    var b = state.ball;
-    if (!b.stuck) return;
-    b.stuck = false;
-    var speed = ballSpeed();
-    var ang = rand(-0.35, 0.35); // mostly upward, slight random lean
-    b.vx = Math.sin(ang) * speed;
-    b.vy = -Math.cos(ang) * speed;
-  }
-
-  function ballSpeed() {
-    // Scale with play size so it feels the same at any width.
-    return W * 0.62;
-  }
-
-  function setupSizes() {
-    var p = state.paddle;
-    p.w = Math.max(64, Math.round(W * 0.18));
-    p.h = Math.max(10, Math.round(H * 0.035));
-    p.y = H - Math.round(H * 0.07);
-    if (p.x === 0) {
-      p.x = W / 2;
-      p.targetX = W / 2;
-    }
-  }
-
-  function resize() {
-    var rect = stage.getBoundingClientRect();
-    var innerW = rect.width - 20; // stage padding 10px each side
-    if (innerW <= 0) innerW = 460;
-    var aspect = 340 / 480;
-    var cssW = innerW;
-    var cssH = Math.round(cssW * aspect);
-
-    dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
-    canvas.style.width = cssW + "px";
-    canvas.style.height = cssH + "px";
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-
-    var prevW = W;
-    W = cssW;
-    H = cssH;
-    setupSizes();
-
-    // Keep bricks proportional after a resize.
-    if (!state.bricks.length) {
-      refillBricks();
-    } else {
-      var lay = brickLayout();
-      for (var i = 0; i < state.bricks.length; i++) {
-        var bk = state.bricks[i];
-        var col = i % COLS;
-        var row = Math.floor(i / COLS);
-        bk.x = lay.x0 + col * (lay.bw + BRICK.gapX);
-        bk.y = lay.y0 + row * (lay.bh + BRICK.gapY);
-        bk.w = lay.bw;
-        bk.h = lay.bh;
-      }
-    }
-
-    var ratio = prevW > 0 ? W / prevW : 1;
-    state.paddle.x *= ratio;
-    state.paddle.targetX *= ratio;
-    if (state.ball.stuck) {
-      resetBall(false);
-    } else {
-      state.ball.x *= ratio;
-      state.ball.y *= ratio;
-    }
-    draw(); // repaint immediately even while paused
-  }
-
-  // ---- Input ----
-  function pointerToX(clientX) {
-    var rect = canvas.getBoundingClientRect();
-    var x = (clientX - rect.left) / rect.width * W;
-    return Math.max(state.paddle.w / 2, Math.min(W - state.paddle.w / 2, x));
-  }
-
-  function onMouseMove(e) {
-    state.paddle.targetX = pointerToX(e.clientX);
-  }
-  function onTouchMove(e) {
-    if (e.touches && e.touches.length) {
-      state.paddle.targetX = pointerToX(e.touches[0].clientX);
-      e.preventDefault();
-    }
-  }
-  function onTouchStart(e) {
-    if (e.touches && e.touches.length) {
-      state.paddle.targetX = pointerToX(e.touches[0].clientX);
-    }
-    launchBall();
-  }
-  function onCanvasClick() {
-    launchBall();
-  }
-  function onKeyDown(e) {
-    if (!isVisible()) return;
-    if (e.key === "ArrowLeft") {
-      keyLeft = true;
-      e.preventDefault();
-    } else if (e.key === "ArrowRight") {
-      keyRight = true;
-      e.preventDefault();
-    } else if (e.key === "ArrowUp" || e.key === " " || e.key === "Spacebar") {
-      launchBall();
-      e.preventDefault();
-    }
-  }
-  function onKeyUp(e) {
-    if (e.key === "ArrowLeft") keyLeft = false;
-    else if (e.key === "ArrowRight") keyRight = false;
-  }
-
-  canvas.addEventListener("mousemove", onMouseMove);
-  canvas.addEventListener("touchmove", onTouchMove, { passive: false });
-  canvas.addEventListener("touchstart", onTouchStart, { passive: false });
-  canvas.addEventListener("click", onCanvasClick);
-  document.addEventListener("keydown", onKeyDown);
-  document.addEventListener("keyup", onKeyUp);
-
-  // ---- Particles ----
-  function spawnBurst(x, y, color) {
-    var n = 7;
-    for (var i = 0; i < n; i++) {
-      var a = rand(0, Math.PI * 2);
-      var sp = rand(40, 150);
-      state.particles.push({
-        x: x,
-        y: y,
-        vx: Math.cos(a) * sp,
-        vy: Math.sin(a) * sp - 30,
-        life: 1,
-        decay: rand(1.8, 3.2),
-        r: rand(1.5, 3),
-        color: color
-      });
-    }
-  }
-
-  // ---- HUD ----
-  function renderHud() {
-    if (scoreOut) scoreOut.textContent = String(state.score);
-    if (livesOut) {
-      var want = START_LIVES;
-      var dots = livesOut.querySelectorAll(".bk-dot");
-      if (dots.length !== want) {
-        livesOut.innerHTML = "";
-        for (var i = 0; i < want; i++) {
-          var d = document.createElement("span");
-          d.className = "bk-dot";
-          livesOut.appendChild(d);
-        }
-        dots = livesOut.querySelectorAll(".bk-dot");
-      }
-      for (var j = 0; j < dots.length; j++) {
-        if (j < state.lives) dots[j].classList.remove("is-lost");
-        else dots[j].classList.add("is-lost");
-      }
-    }
-  }
-
-  // ---- Physics ----
-  function aliveCount() {
-    var n = 0;
-    for (var i = 0; i < state.bricks.length; i++) if (state.bricks[i].alive) n++;
-    return n;
-  }
-
-  function loseLife() {
-    state.lives -= 1;
-    state.paddle.squash = 1;
-    if (state.lives <= 0) {
-      // Silent full reset — no dead end.
-      state.lives = START_LIVES;
-      state.score = 0;
-      refillBricks();
-    }
-    renderHud();
-    resetBall(true);
-  }
-
-  function update(dt) {
-    var p = state.paddle;
-    var b = state.ball;
-
-    // Keyboard nudges the target.
-    var kSpeed = W * 1.15 * dt;
-    if (keyLeft) p.targetX -= kSpeed;
-    if (keyRight) p.targetX += kSpeed;
-    p.targetX = Math.max(p.w / 2, Math.min(W - p.w / 2, p.targetX));
-
-    // Smooth easing toward target.
-    p.x += (p.targetX - p.x) * Math.min(1, dt * 18);
-    if (p.squash > 0) p.squash = Math.max(0, p.squash - dt * 4);
-
-    // Stuck ball rides the paddle.
-    if (b.stuck) {
-      b.x = p.x;
-      b.y = p.y - p.h / 2 - b.r - 1;
-    } else {
-      // Substep so a fast ball can't tunnel through bricks/walls.
-      var steps = Math.max(1, Math.ceil((ballSpeed() * dt) / (b.r * 0.9)));
-      var sdt = dt / steps;
-      for (var s = 0; s < steps; s++) {
-        stepBall(sdt);
-        if (b.stuck) break;
-      }
-    }
-
-    // Particles.
-    for (var i = state.particles.length - 1; i >= 0; i--) {
-      var pt = state.particles[i];
-      pt.life -= pt.decay * dt;
-      if (pt.life <= 0) {
-        state.particles.splice(i, 1);
-        continue;
-      }
-      pt.vy += 220 * dt;
-      pt.x += pt.vx * dt;
-      pt.y += pt.vy * dt;
-    }
-
-    // Brick anims.
-    for (var k = 0; k < state.bricks.length; k++) {
-      var bk = state.bricks[k];
-      if (bk.appear < 1) bk.appear = Math.min(1, bk.appear + dt * 4.5);
-      if (bk.breakT > 0) {
-        bk.breakT += dt * 5;
-        if (bk.breakT >= 1) {
-          bk.breakT = 0;
-        }
-      }
-    }
-
-    if (state.flash > 0) state.flash = Math.max(0, state.flash - dt * 3.5);
-
-    if (aliveCount() === 0) {
-      // Endless: refill the same level, keep the ball in play.
-      refillBricks();
-      state.flash = 0.5;
-    }
-  }
-
-  function stepBall(dt) {
-    var b = state.ball;
-    var p = state.paddle;
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
-
-    // Walls.
-    if (b.x - b.r < 0) {
-      b.x = b.r;
-      b.vx = Math.abs(b.vx);
-    } else if (b.x + b.r > W) {
-      b.x = W - b.r;
-      b.vx = -Math.abs(b.vx);
-    }
-    if (b.y - b.r < 0) {
-      b.y = b.r;
-      b.vy = Math.abs(b.vy);
-    }
-
-    // Paddle.
-    var pl = p.x - p.w / 2;
-    var pr = p.x + p.w / 2;
-    var pt = p.y - p.h / 2;
-    if (
-      b.vy > 0 &&
-      b.y + b.r >= pt &&
-      b.y - b.r <= p.y + p.h / 2 &&
-      b.x >= pl - b.r &&
-      b.x <= pr + b.r
-    ) {
-      b.y = pt - b.r;
-      var hit = (b.x - p.x) / (p.w / 2); // -1..1
-      hit = Math.max(-1, Math.min(1, hit));
-      var maxAng = 1.05; // ~60deg
-      var ang = hit * maxAng;
-      var sp = ballSpeed();
-      b.vx = Math.sin(ang) * sp;
-      b.vy = -Math.abs(Math.cos(ang) * sp);
-      p.squash = 1;
-    }
-
-    // Bricks.
-    for (var i = 0; i < state.bricks.length; i++) {
-      var bk = state.bricks[i];
-      if (!bk.alive) continue;
-      if (
-        b.x + b.r > bk.x &&
-        b.x - b.r < bk.x + bk.w &&
-        b.y + b.r > bk.y &&
-        b.y - b.r < bk.y + bk.h
-      ) {
-        // Resolve on the shallower overlap axis.
-        var overlapL = b.x + b.r - bk.x;
-        var overlapR = bk.x + bk.w - (b.x - b.r);
-        var overlapT = b.y + b.r - bk.y;
-        var overlapB = bk.y + bk.h - (b.y - b.r);
-        var minX = Math.min(overlapL, overlapR);
-        var minY = Math.min(overlapT, overlapB);
-        if (minX < minY) {
-          b.vx = -b.vx;
-          b.x += overlapL < overlapR ? -minX : minX;
-        } else {
-          b.vy = -b.vy;
-          b.y += overlapT < overlapB ? -minY : minY;
-        }
-        bk.alive = false;
-        bk.breakT = 0.001;
-        state.score += 10;
-        spawnBurst(bk.x + bk.w / 2, bk.y + bk.h / 2, bk.color);
-        renderHud();
-        break; // one brick per substep keeps things stable
-      }
-    }
-
-    // Fell below.
-    if (b.y - b.r > H) {
-      loseLife();
-    }
-  }
-
-  // ---- Render ----
-  function roundRect(c, x, y, w, h, r) {
-    r = Math.min(r, w / 2, h / 2);
-    c.beginPath();
-    c.moveTo(x + r, y);
-    c.arcTo(x + w, y, x + w, y + h, r);
-    c.arcTo(x + w, y + h, x, y + h, r);
-    c.arcTo(x, y + h, x, y, r);
-    c.arcTo(x, y, x + w, y, r);
-    c.closePath();
-  }
-
-  function draw() {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-
-    // Soft paper backdrop with a faint top vignette.
-    ctx.fillStyle = THEME.card;
-    ctx.fillRect(0, 0, W, H);
-    var grd = ctx.createLinearGradient(0, 0, 0, H);
-    grd.addColorStop(0, "rgba(194,65,12,0.035)");
-    grd.addColorStop(0.4, "rgba(194,65,12,0)");
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, W, H);
-
-    // Level-clear flash.
-    if (state.flash > 0) {
-      ctx.fillStyle = "rgba(194,65,12," + (state.flash * 0.12).toFixed(3) + ")";
-      ctx.fillRect(0, 0, W, H);
-    }
-
-    // Bricks.
-    for (var i = 0; i < state.bricks.length; i++) {
-      var bk = state.bricks[i];
-      var ap = Math.max(0, Math.min(1, bk.appear));
-      if (bk.alive) {
-        if (ap <= 0) continue;
-        var ease = 1 - Math.pow(1 - ap, 3);
-        var cx = bk.x + bk.w / 2;
-        var cy = bk.y + bk.h / 2;
-        var sc = 0.7 + 0.3 * ease;
-        var w = bk.w * sc;
-        var h = bk.h * sc;
-        ctx.globalAlpha = ease;
-        ctx.fillStyle = bk.color;
-        roundRect(ctx, cx - w / 2, cy - h / 2, w, h, 5);
-        ctx.fill();
-        // Glossy top highlight.
-        ctx.globalAlpha = ease * 0.22;
-        ctx.fillStyle = "#ffffff";
-        roundRect(ctx, cx - w / 2 + 2, cy - h / 2 + 2, w - 4, h * 0.4, 4);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-    }
-
-    // Particles.
-    for (var p2 = 0; p2 < state.particles.length; p2++) {
-      var pt = state.particles[p2];
-      ctx.globalAlpha = Math.max(0, Math.min(1, pt.life));
-      ctx.fillStyle = pt.color;
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    // Paddle (with squash).
-    var p = state.paddle;
-    var sq = p.squash;
-    var pw = p.w * (1 + sq * 0.12);
-    var ph = p.h * (1 - sq * 0.22);
-    ctx.save();
-    ctx.shadowColor = "rgba(194,65,12,0.28)";
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 2;
-    ctx.fillStyle = THEME.accent;
-    roundRect(ctx, p.x - pw / 2, p.y - ph / 2, pw, ph, ph / 2);
-    ctx.fill();
-    ctx.restore();
-    ctx.globalAlpha = 0.25;
-    ctx.fillStyle = "#ffffff";
-    roundRect(ctx, p.x - pw / 2 + 3, p.y - ph / 2 + 2, pw - 6, ph * 0.4, ph * 0.3);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Ball.
-    var b = state.ball;
-    ctx.save();
-    ctx.shadowColor = "rgba(27,26,23,0.25)";
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetY = 2;
-    ctx.fillStyle = THEME.ink;
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    // Tiny shine.
-    ctx.globalAlpha = 0.35;
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Ball parked: a subtle hint for how to launch (the paddle stays fully interactive).
-    if (b.stuck) {
-      ctx.globalAlpha = 0.45 + 0.3 * Math.sin(performance.now() / 320);
-      ctx.fillStyle = THEME.muted;
-      ctx.font = '600 12px ui-rounded, "SF Pro Rounded", system-ui, sans-serif';
-      ctx.textAlign = "center";
-      ctx.fillText("click, space, or ↑ to launch", W / 2, p.y - 26);
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  // ---- Loop ----
-  function frame(t) {
-    if (!running) return;
-    if (!lastT) lastT = t;
-    var dt = (t - lastT) / 1000;
-    lastT = t;
-    if (dt > 0.05) dt = 0.05; // clamp after tab stalls
-    update(dt);
-    draw();
-    rafId = window.requestAnimationFrame(frame);
-  }
-
-  function start() {
-    if (running) return;
-    if (document.hidden) return;
-    running = true;
-    lastT = 0;
-    rafId = window.requestAnimationFrame(frame);
-  }
-
-  function stop() {
-    running = false;
-    if (rafId) {
-      window.cancelAnimationFrame(rafId);
-      rafId = 0;
-    }
-  }
-
-  // ---- Visibility contract ----
-  el.addEventListener("app:show", function () {
-    resize();
-    for (var i = 0; i < state.bricks.length; i++) state.bricks[i].appear = 1; // full board immediately
-    start(); // loop runs so the paddle is interactive; the ball waits for a launch
-  });
-  el.addEventListener("app:hide", function () {
-    stop();
-  });
-  document.addEventListener("visibilitychange", function () {
-    if (document.hidden) {
-      stop();
-    } else if (isVisible()) {
-      lastT = 0;
-      start();
-    }
-  });
-  window.addEventListener("resize", function () {
-    resize();
-  });
-
-  function isVisible() {
-    if (!el.isConnected) return false;
-    var r = el.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) return false;
-    var cs = window.getComputedStyle(el);
-    return cs.display !== "none" && cs.visibility !== "hidden";
-  }
-
-  // ---- Init ----
-  refillBricks();
-  resize();
-  renderHud();
-  draw();
-  // Run the loop whenever the game is visible; the ball waits for the player to launch.
-  if (isVisible() && !document.hidden) start();
-})();
-  </script>
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <a class="footer-brand" href="/">
+          <img src="/assets/htmlclay-mark.svg?v=b9d5decc" alt="" width="27" height="30">
+          <span>HTML Clay</span>
+        </a>
+        <p class="footer-tagline">Software in a single HTML file, yours to keep and modify.</p>
+      </div>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/apps/">Starter Apps</a></li>
+            <li><a href="/download/">Download</a></li>
+            <li><a href="/changelog">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Documentation</h3>
+          <ul>
+            <li><a href="/docs/guide/quick-start/">Quick Start</a></li>
+            <li><a href="/docs/features/">Features Reference</a></li>
+            <li><a href="/docs/live-sync/">Live Sync</a></li>
+            <li><a href="/docs/json-http/">JSON over HTTP</a></li>
+            <li><a href="/docs/llms.txt">llms.txt</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Trust &amp; Source</h3>
+          <ul>
+            <li><a href="/security/">Security &amp; Trust</a></li>
+            <li><a href="https://github.com/hyperspacesystems/htmlclay">GitHub Source</a></li>
+            <li><a href="https://download.htmlclay.com/SHA256SUMS" data-hv-goal="download" data-hv-where="index" data-hv-os="unknown">SHA256SUMS</a></li>
+            <li><a href="https://onehtmlfile.com/">Free MIT-0 Apps</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Ecosystem</h3>
+          <ul>
+            <li><a href="https://hyperclay.com">Hyperclay</a></li>
+            <li><a href="https://clayjs.com">ClayJS</a></li>
+            <li><a href="https://hyperclaylocal.com">Hyperclay Local</a></li>
+            <li><a href="https://onehtmlfile.com/">One HTML File</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <footer data-hyper-footer="htmlclay"></footer>
+
+  <script src="/sap.min.js?v=db4cb200"></script>
+  <script src="/js/site.js?v=cc02a5e3"></script>
   <script src="https://hyperclay.com/public/js/hyper-footer.js" defer></script>
-<script src="https://hyperclay.com/public/js/polite-pop.js" defer></script>
+  <script src="https://hyperclay.com/public/js/polite-pop.js" defer></script>
 </body>
 </html>

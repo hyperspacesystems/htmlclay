@@ -1,0 +1,53 @@
+import AppKit
+import PreviewCore
+import ServiceManagement
+
+@main
+@MainActor
+enum Entry {
+    private static var delegate: AppDelegate?
+
+    static func main() {
+        let arguments = CommandLine.arguments
+        switch LaunchArguments.role(arguments, fileExists: { FileManager.default.fileExists(atPath: $0) }) {
+        case let .updateNow(rest):
+            exit(UpdateNowClient.run(rest))
+        case .unregister:
+            if AppIdentity.of(bundleID: Bundle.main.bundleIdentifier) == .product {
+                try? SMAppService.mainApp.unregister()
+            }
+            HostExec.replace(arguments)
+        case .host:
+            HostExec.replace(arguments)
+        case let .app(open):
+            run(opening: open)
+        }
+    }
+
+    private static func run(opening paths: [String]) {
+        let app = NSApplication.shared
+        let current = ProcessInfo.processInfo.processIdentifier
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: AppDelegate.bundleID)
+        let running = others.map { AppIdentity.Running(pid: $0.processIdentifier, bundlePath: $0.bundleURL?.path) }
+        if let pid = AppIdentity.otherInstance(pid: current, bundlePath: Bundle.main.bundleURL.path, among: running),
+           let other = others.first(where: { $0.processIdentifier == pid }) {
+            if HandOff.isLegacy(other) {
+                if !HandOff.stopLegacy(other) {
+                    HandOff.alertLegacyStillRunning()
+                    exit(0)
+                }
+            } else {
+                HandOff.give(paths, to: other)
+                exit(0)
+            }
+        }
+        let delegate = AppDelegate()
+        Entry.delegate = delegate
+        app.delegate = delegate
+        if !paths.isEmpty {
+            delegate.application(app, open: paths.map { URL(fileURLWithPath: $0) })
+        }
+        app.setActivationPolicy(.accessory)
+        app.run()
+    }
+}

@@ -58,7 +58,7 @@ func (s *Server) handleDataLossGet(w http.ResponseWriter, r *http.Request) {
 		return s.readRegisteredFile(f.AbsPath)
 	})
 	if err != nil {
-		s.logger.Printf("Data guard read of %s failed: %v", f.RelPath, err)
+		s.Logger.Printf("Data guard read of %s failed: %v", f.RelPath, err)
 		writeDataLossError(w, http.StatusInternalServerError, "The data guard could not read this document.")
 		return
 	}
@@ -104,7 +104,7 @@ func (s *Server) handleDataLossResolve(w http.ResponseWriter, r *http.Request) {
 		if _, bErr := s.versions.Backup(key, f.AbsPath, current); bErr != nil {
 			return fmt.Errorf("back up the current document: %w", bErr)
 		}
-		out, _, err := s.commitDataEdit(f, current, html, r.Host, false, false)
+		out, _, _, err := s.commitDataEdit(f, current, html, r.Host, false, false)
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ func (s *Server) handleDataLossResolve(w http.ResponseWriter, r *http.Request) {
 	})
 	if err == nil {
 		if pErr := s.versions.SetProvisional(key, f.AbsPath, false); pErr != nil {
-			s.logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
+			s.Logger.Printf("Could not clear provisional flag for %s: %v", f.RelPath, pErr)
 		}
 	}
 	if err == nil && written != nil {
@@ -134,7 +134,7 @@ func (s *Server) handleDataLossResolve(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, dataguard.ErrNotRestorable), errors.Is(err, dataguard.ErrNoRecoverCopy):
 			writeDataLossError(w, http.StatusUnprocessableEntity, "The data cannot be restored onto the current page. Revert instead.")
 		default:
-			s.logger.Printf("Data guard resolve of %s failed: %v", f.RelPath, err)
+			s.Logger.Printf("Data guard resolve of %s failed: %v", f.RelPath, err)
 			writeDataLossError(w, http.StatusInternalServerError, "The data guard could not resolve this event.")
 		}
 		return

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security &amp; Trust: HTML Clay</title>
+  <meta name="description" content="How HTML Clay isolates downloaded files, verifies signed ecosystem apps, pins helper program binaries, and keeps your documents safe on localhost.">
+  <link rel="canonical" href="https://htmlclay.com/security/">
+  <link rel="icon" href="/favicon.svg?v=c0269aea" type="image/svg+xml">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Security &amp; Trust: HTML Clay">
+  <meta property="og:description" content="Plain-English breakdown of HTML Clay's three-tier document trust model, pinned program approvals, localhost boundary, and zero-telemetry design.">
+  <meta property="og:url" content="https://htmlclay.com/security/">
+  <meta property="og:image" content="https://htmlclay.com/og.png?v=9493635c">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="HTML Clay: Software in a single HTML file. One portable file, shapeable UI and code, local-first with no DB.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://htmlclay.com/og.png?v=9493635c">
+  <meta name="twitter:title" content="Security &amp; Trust: HTML Clay">
+  <meta name="twitter:description" content="Plain-English breakdown of HTML Clay's three-tier document trust model, pinned program approvals, localhost boundary, and zero-telemetry design.">
+
+  <link rel="stylesheet" href="/css/site.css?v=6c77a3cf">
+  <script src="https://signal.hyperclay.com/v1.js" defer></script>
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="sitenav" aria-label="Primary">
+      <a class="brand" href="/" aria-label="HTML Clay home">
+        <img src="/assets/htmlclay-mark.svg?v=b9d5decc" alt="" width="27" height="30">
+        <span>HTML Clay</span>
+      </a>
+      <div class="navlinks">
+        <a href="/features/">Features</a>
+        <a href="/apps/">Apps</a>
+        <a href="/security/" aria-current="page">Security</a>
+        <a href="/docs/">Docs</a>
+        <a href="/changelog">Changelog</a>
+        <a class="github-clay" href="https://github.com/hyperspacesystems/htmlclay" target="_blank" rel="noopener" aria-label="View HTML Clay source on GitHub"><span class="github-bracket" aria-hidden="true">&lt;</span><span class="github-mascot" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></span><span class="github-word" aria-hidden="true">source</span><span class="github-bracket github-close" aria-hidden="true">/&gt;</span></a>
+      </div>
+      <a class="nav-cta" href="/download/">Download</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <header class="page-header">
+      <div class="container">
+        <h1>Security &amp; trust, stated plainly</h1>
+        <p class="lede">Opening an HTML file from the internet should be as safe to inspect as a web page, while software you build and trust should save without friction. Here is the exact boundary HTML Clay enforces on your machine.</p>
+      </div>
+    </header>
+
+    <!-- 1. Three-Tier Document Trust Model -->
+    <section class="section" id="trust-model">
+      <div class="container">
+        <div class="section-head">
+          <h2>Three-tier document trust model</h2>
+          <p>Document trust follows both where a file came from and whether its executable code has changed, rather than relying on folder location alone.</p>
+        </div>
+
+        <div class="pillars-grid">
+          <article class="card">
+            <h3>1. Your own files &amp; trusted folders</h3>
+            <p>Files you created locally and documents inside folders you marked <span class="filechip">Trusted</span> open directly at a stable local origin, write atomic saves back into their file, and keep version history automatically.</p>
+            <div class="pill-row" style="margin-top: 16px;">
+              <span class="kiln-pill kiln-pill-trusted">Trusted folder</span>
+              <span class="filechip">Direct atomic save</span>
+            </div>
+          </article>
+
+          <article class="card">
+            <h3>2. Signed ecosystem apps</h3>
+            <p>Official starter apps carry a detached cryptographic signature (<span class="filechip">ecosystem-2026-11</span>) verified completely offline against their code. If the signature matches, they open ready to save with no nag screen; if tampered with, they drop to untrusted.</p>
+            <div class="pill-row" style="margin-top: 16px;">
+              <span class="kiln-pill kiln-pill-synced">Offline signature check</span>
+              <span class="filechip">ecosystem-2026-11</span>
+            </div>
+          </article>
+
+          <article class="card">
+            <h3>3. Downloaded &amp; unknown files</h3>
+            <p>Quarantined downloads, files without an origin record, or files whose code changed outside HTML Clay are isolated on their own per-document browser origin. They open read-only first, ask before saving, and never auto-run helper programs.</p>
+            <div class="pill-row" style="margin-top: 16px;">
+              <span class="kiln-pill kiln-pill-amber">Isolated origin</span>
+              <span class="filechip">Read-only until trusted</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Native Program Approval Dialog Showcase -->
+    <section class="section section-warm" id="program-approval">
+      <div class="container">
+        <div class="split-spotlight">
+          <div class="spotlight-copy">
+            <h2>Program approval designed against accidental clicks</h2>
+            <p>An approved local helper program runs as your OS user account: it can read or modify files you can access and reach the network. Because that crosses out of the browser sandbox, HTML Clay treats program setup with strict, verifiable rules:</p>
+            <ul class="spotlight-list">
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                <span><strong>Binary identity pinning:</strong> HTML Clay records the target file's identity before opening the dialog. If the file on disk is swapped or replaced during approval, execution is refused.</span>
+              </li>
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                <span><strong>No default Return-key button:</strong> pressing <span class="filechip">Return</span> or <span class="filechip">Space</span> by reflex never approves a program. You must explicitly click <strong>Allow</strong>.</span>
+              </li>
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                <span><strong>Blocked auto-suggest locations:</strong> HTML Clay never suggests a binary from the document's own folder, <span class="filechip">Downloads</span>, temporary directories, files modified in the last 10 minutes, or raw shell/script interpreters (<span class="filechip">sh</span>, <span class="filechip">python</span>, <span class="filechip">node</span>).</span>
+              </li>
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                <span><strong>Dialog rate-limiting &amp; instant revocation:</strong> dismissing or denying a request stops page-raised prompts from nagging you, and revoking a grant in Settings takes effect immediately.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="ui-stage" data-theme-stage data-theme="light">
+            <div class="ui-stage-bar">
+              <span class="ui-stage-title">Native macOS Program Consent</span>
+              <div class="theme-switch" role="group" aria-label="Approval dialog appearance">
+                <button type="button" class="theme-btn" data-stage-theme-btn="light" aria-pressed="true">Light</button>
+                <button type="button" class="theme-btn" data-stage-theme-btn="dark" aria-pressed="false">Dark</button>
+              </div>
+            </div>
+            <div class="ui-shot">
+              <img src="/images/v2/request-found-light.webp?v=2c29b8ec" data-light-src="/images/v2/request-found-light.webp?v=2c29b8ec" data-dark-src="/images/v2/request-found-dark.webp?v=547e7b40" alt="Native macOS dialog asking Let todo.htmlclay run a program? showing ~/Documents/todo/tools/search.sh with plain-English warning and non-default Don't allow / Allow search.sh buttons." width="460" height="304">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Calm Technical Breakdown (6 Cards) -->
+    <section class="section" id="architecture">
+      <div class="container">
+        <div class="section-head">
+          <h2>Localhost boundary, privacy, and verification</h2>
+          <p>Concrete facts you can check yourself with <span class="filechip">lsof</span>, a packet monitor, or the public repository.</p>
+        </div>
+
+        <div class="guarantees-grid">
+          <article class="guarantee-card">
+            <h3>Localhost-only server (127.0.0.1)</h3>
+            <p>HTML Clay binds strictly to loopback (<span class="filechip">127.0.0.1</span>), never exposes ports to your LAN, never serves files outside your home folder, refuses dotfiles, and sends zero CORS headers, so outside websites in other tabs cannot read or write your documents.</p>
+          </article>
+
+          <article class="guarantee-card">
+            <h3>AI editing consent &amp; data boundary</h3>
+            <p>Pressing <span class="filechip">&#8984;J</span> sends only the selected HTML, your prompt, and ordinary <span class="filechip">@file</span> attachments from a trusted document's own folder (refusing dotfiles and symlinks out) to your configured CLI tool, which talks to its own model provider. Turn AI editing off anytime in Settings.</p>
+          </article>
+
+          <article class="guarantee-card">
+            <h3>Zero telemetry &amp; no account required</h3>
+            <p>The desktop app collects no usage analytics, crash telemetry, or document titles, and requires no login. Network traffic occurs only for signed update checks (unless disabled) or if you explicitly connect a Hyperclay sync key.</p>
+          </article>
+
+          <article class="guarantee-card">
+            <h3>Data-loss guard &amp; Kept Copies</h3>
+            <p>Saves, JSON API writes, and external disk changes are checked against <span class="filechip">data-guard-v2</span>. Unconditional writes that would wipe values without a matching <span class="filechip">If-Match</span> ETag are refused with <span class="filechip">428</span>, and replaced versions are pinned in <strong>Kept Copies</strong>.</p>
+          </article>
+
+          <article class="guarantee-card">
+            <h3>Apple Notarization &amp; Windows code signing</h3>
+            <p>Every macOS Universal release is signed with a Developer ID certificate, notarized by Apple, and updated via signed Sparkle feeds. Windows x64 and ARM64 binaries are Authenticode-signed and install in user space without administrator elevation.</p>
+          </article>
+
+          <article class="guarantee-card">
+            <h3>Open source &amp; SHA-256 verifiable</h3>
+            <p>Inspect the Go host, data API selector gate, and protocol conformance suite on <a href="https://github.com/hyperspacesystems/htmlclay">GitHub</a>, and verify every release archive against our published <a href="https://download.htmlclay.com/SHA256SUMS">SHA256SUMS</a> manifest.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-tight">
+      <div class="container">
+        <div class="banner-card">
+          <div>
+            <h2>Verify your download</h2>
+            <p>Every platform archive on our Download page includes its exact SHA-256 checksum and verification command.</p>
+          </div>
+          <div class="pill-row">
+            <a class="btn btn-amber" href="/download/">Downloads &amp; SHA-256s</a>
+            <a class="btn btn-secondary" href="https://github.com/hyperspacesystems/htmlclay">Inspect source on GitHub</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <a class="footer-brand" href="/">
+          <img src="/assets/htmlclay-mark.svg?v=b9d5decc" alt="" width="27" height="30">
+          <span>HTML Clay</span>
+        </a>
+        <p class="footer-tagline">Software in a single HTML file, yours to keep and modify.</p>
+      </div>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/apps/">Starter Apps</a></li>
+            <li><a href="/download/">Download</a></li>
+            <li><a href="/changelog">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Documentation</h3>
+          <ul>
+            <li><a href="/docs/guide/quick-start/">Quick Start</a></li>
+            <li><a href="/docs/features/">Features Reference</a></li>
+            <li><a href="/docs/live-sync/">Live Sync</a></li>
+            <li><a href="/docs/json-http/">JSON over HTTP</a></li>
+            <li><a href="/docs/llms.txt">llms.txt</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Trust &amp; Source</h3>
+          <ul>
+            <li><a href="/security/">Security &amp; Trust</a></li>
+            <li><a href="https://github.com/hyperspacesystems/htmlclay">GitHub Source</a></li>
+            <li><a href="https://download.htmlclay.com/SHA256SUMS">SHA256SUMS</a></li>
+            <li><a href="https://onehtmlfile.com/">Free MIT-0 Apps</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Ecosystem</h3>
+          <ul>
+            <li><a href="https://hyperclay.com">Hyperclay</a></li>
+            <li><a href="https://clayjs.com">ClayJS</a></li>
+            <li><a href="https://hyperclaylocal.com">Hyperclay Local</a></li>
+            <li><a href="https://onehtmlfile.com/">One HTML File</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <footer data-hyper-footer="htmlclay"></footer>
+
+  <script src="/js/site.js?v=cc02a5e3"></script>
+  <script src="https://hyperclay.com/public/js/hyper-footer.js" defer></script>
+  <script src="https://hyperclay.com/public/js/polite-pop.js" defer></script>
+</body>
+</html>

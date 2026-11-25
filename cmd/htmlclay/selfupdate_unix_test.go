@@ -47,3 +47,28 @@ func TestApplyUpdateHandsOffSwapsAndQuits(t *testing.T) {
 		t.Fatal("an applied update must keep a second click from starting another")
 	}
 }
+
+// An update downloaded before a quit installs at the next start, and the file
+// that start was asked to open reaches the new version once.
+func TestAWaitingUpdateInstallsAtStartAndKeepsTheFile(t *testing.T) {
+	a, install := updateTestApp(t)
+	os.WriteFile(install, []byte("#!/bin/sh\nexit 0\n"), 0o755)
+	staged := filepath.Join(filepath.Dir(install), ".htmlclay.new")
+	os.WriteFile(staged, []byte("#!/bin/sh\n# new\nexit 0\n"), 0o755)
+	if err := update.RecordWaiting(update.UpdatesDir(a.rt.configDir), "9.9.9", staged); err != nil {
+		t.Fatal(err)
+	}
+
+	if !a.installWaiting(install, []string{"/home/sam/notes.htmlclay"}) {
+		t.Fatal("the waiting update was not installed at start")
+	}
+	if data, _ := os.ReadFile(install); string(data) != "#!/bin/sh\n# new\nexit 0\n" {
+		t.Fatal("the staged binary is not at the install path")
+	}
+	if got := a.takeOpenAfterUpdate(); len(got) != 1 || got[0] != "/home/sam/notes.htmlclay" {
+		t.Fatalf("the new version opens %q, want the file the start was asked to open", got)
+	}
+	if got := a.takeOpenAfterUpdate(); got != nil {
+		t.Fatalf("the file opened again on a later start: %q", got)
+	}
+}

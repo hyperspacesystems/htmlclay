@@ -160,5 +160,5 @@ func (s *Server) reportRuntimeUnavailable(path, detail string) {
 	}
 	s.runtimeNotices[key] = true
 	s.runtimeNoticeMu.Unlock()
-	s.logger.Printf("Serving %s with public runtime URLs: %s", path, detail)
+	s.Logger.Printf("Serving %s with public runtime URLs: %s", path, detail)
 }

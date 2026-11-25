@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
 	"os"
@@ -9,10 +10,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/panphora/htmlclay/internal/agentlane"
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/trust"
 )
+
+// oldDashboardHost is where the dashboard answered before it moved to
+// appcore.DashboardHost. It answers a redirect to the same path there, so a bookmark
+// still opens the dashboard.
+const oldDashboardHost = "dashboard." + appcore.ServedParent
 
 // serveHost is the one handler on the one port. It routes by the Host header and nothing
 // else: an issued slug reaches its site, a retired slug reaches the recovery flow, the
@@ -23,6 +31,12 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 	if err != nil || port != strconv.Itoa(a.rt.port) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
+	}
+	if name == "127.0.0.1" || name == "localhost" || name == "::1" {
+		if strings.HasPrefix(r.URL.Path, agentlane.Prefix) {
+			a.agentLane().ServeHTTP(w, r)
+			return
+		}
 	}
 	if r.Header.Get("Sec-Fetch-Site") == "cross-site" && !server.EligibleNavigation(r, a.ownsOrigin) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
@@ -39,6 +53,19 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 	}
 	if name == "localhost" || name == "127.0.0.1" || name == "::1" {
 		if apiPath, ok := scriptAPIPath(r); ok {
+			abs := filepath.Join(a.rt.home, filepath.FromSlash(apiPath))
+			if owner, err := a.ResolveDocument(abs); err == nil && owner.Kind == OwnerServed {
+				writeServedElsewhere(w, owner.URL())
+				return
+			}
+			// A document with an origin of its own is served there, not by
+			// the folder it happens to sit in.
+			if a.ownOrigin(abs) {
+				if s, _, ok := a.route(abs, session.ViaTrusted); ok {
+					a.dispatch(w, r, s, "")
+					return
+				}
+			}
 			if s := a.siteServingPath(apiPath); s != nil {
 				a.dispatch(w, r, s, "")
 				return
@@ -53,6 +80,35 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 		w.Write(indexPage)
 		return
 	}
+	if name == oldDashboardHost {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Location", "http://"+appcore.DashboardHost+":"+port+r.URL.RequestURI())
+		w.WriteHeader(http.StatusFound)
+		return
+	}
+	if name == appcore.DashboardHost {
+		if target, ok := a.movedSiteTarget(r); ok {
+			recoveryHeaders(w)
+			w.Header().Set("Referrer-Policy", "strict-origin")
+			w.Header().Set("Location", target)
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		if a.refuseMovedFirstSiteWrite(w, r) {
+			return
+		}
+		if a.dashboard == nil {
+			http.Error(w, "The workspace is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		a.dashboard.ServeHTTP(w, r)
+		return
+	}
+	if served, ok := strings.CutSuffix(name, "."+appcore.ServedParent); ok {
+		a.serveServed(w, r, served)
+		return
+	}
 	slug, ok := strings.CutSuffix(name, ".localhost")
 	if !ok || !server.ValidSlug(slug) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
@@ -62,8 +118,11 @@ func (a *app) serveHost(w http.ResponseWriter, r *http.Request) {
 	s := a.bySlug[slug]
 	a.hostMu.RUnlock()
 	if s == nil {
-		a.serveRetired(w, r, slug)
-		return
+		// An ad-hoc address with tokens kept at the last quit rebuilds its site here.
+		if s = a.restoreKeptSlug(slug); s == nil {
+			a.serveRetired(w, r, slug)
+			return
+		}
 	}
 	a.dispatch(w, r, s, slug)
 }
@@ -138,7 +197,7 @@ func (a *app) siteServingPath(rel string) *site {
 		if s.key == abs {
 			return s
 		}
-		if s.anchor == a.rt.home || !session.EqualOrUnder(abs, s.anchor) {
+		if s.ownSite() || !session.EqualOrUnder(abs, s.anchor) {
 			continue
 		}
 		if best == nil || len(s.anchor) > len(best.anchor) {
@@ -154,6 +213,20 @@ func writeNoFolder(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusNotFound)
 	w.Write([]byte(`{"error":"No open folder","message":"No folder HTML Clay is serving right now contains this file. Open the file in HTML Clay first, or send the request to its folder's address, which htmlclay wire where <file> prints."}` + "\n"))
+}
+
+// writeServedElsewhere answers a bare-host data API request for a file a served
+// folder holds: the served host is that file's only writer, so the request has to
+// go to the address the folder answers at.
+func writeServedElsewhere(w http.ResponseWriter, address string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(map[string]string{
+		"error":   "Served elsewhere",
+		"message": "This file's folder is served at its own address. Send the request there.",
+		"address": address,
+	})
 }
 
 func recoveryHeaders(w http.ResponseWriter) {

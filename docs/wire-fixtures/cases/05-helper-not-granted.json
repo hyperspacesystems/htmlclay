@@ -1,0 +1,42 @@
+{
+  "name": "helper not granted",
+  "hosts": [
+    "loose",
+    "served"
+  ],
+  "served": "released",
+  "setup": {
+    "program": "echo",
+    "decision": "none"
+  },
+  "steps": [
+    {
+      "do": "subscribe",
+      "as": "page",
+      "stream": "p",
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "do": "send",
+      "as": "page",
+      "frame": {
+        "type": "wire/describe",
+        "id": "r1",
+        "helper": "search",
+        "payload": {}
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "do": "see",
+      "stream": "p",
+      "type": "wire/error",
+      "id": "r1",
+      "code": "helper_not_granted"
+    }
+  ]
+}

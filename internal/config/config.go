@@ -3,12 +3,14 @@ package config
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,13 +27,21 @@ type Config struct {
 	// ("concurrent map iteration and write") and a slice append tears under marshal.
 	// Every exported mutator and Save take it; callers must not touch the fields
 	// directly. Lock order is a.mu -> cfg.mu (nothing takes cfg.mu then a.mu).
-	mu           sync.Mutex
+	mu sync.Mutex
+	// holdSaves keeps every write in memory while an update is judged; saveOwed
+	// records that one was asked for (HoldSaves, ReleaseSaves).
+	holdSaves    bool
+	saveOwed     bool
 	StartOnLogin bool `json:"startOnLogin"`
 	// ListenPort is the one loopback port every site is served on, held on 127.0.0.1 and
 	// ::1 for as long as the app runs. 0 until the first launch chooses one. The port is
 	// part of the browser origin, so a change here resets every page's browser storage,
 	// which is why the app asks before moving it. Read through Port().
 	ListenPort int `json:"port,omitempty"`
+	// FormerPorts are ports the app served on before the person moved it, newest
+	// last. Startup holds each one that is free and sends page visits on to the
+	// same address on the current port. At most formerPortCap are kept.
+	FormerPorts []int `json:"formerPorts,omitempty"`
 	// SiteSlugs maps an origin key to the label it is served under, <label>.localhost:<port>.
 	// The key is the site's anchor (a trusted folder, or the folder a loose file was opened
 	// from), or the file's own path for a file loose in the home directory, which can
@@ -43,10 +53,21 @@ type Config struct {
 	// untrusted, or the entry was evicted). They are never issued again, so no folder can
 	// inherit another's browser storage, and their addresses answer the recovery page.
 	RetiredSlugs []string `json:"retiredSlugs,omitempty"`
-	// NextSiteNumber is the number the next new slug gets: 1 is htmlclay, 2 is htmlclay1, and so
-	// on. It only grows, so a label is never issued twice and no folder inherits another's
-	// browser storage.
+	// NextSiteNumber is the number the next new slug gets: 2 is htmlclay1, 3 is htmlclay2, and so
+	// on. 1 was htmlclay, whose address is the dashboard's now, so it is never issued. It only
+	// grows, so a label is never issued twice and no folder inherits another's browser storage.
 	NextSiteNumber int `json:"nextSiteNumber,omitempty"`
+	// MovedFirstSite is the origin key that was served under htmlclay before
+	// htmlclay.localhost became the dashboard's address. The dashboard's host sends a
+	// navigation for a document under this key to the address the key has now. Written
+	// once, by moveFirstSite.
+	MovedFirstSite string `json:"movedFirstSite,omitempty"`
+	// DashboardCleanMark is made once for a config that ever served a site at
+	// htmlclay.localhost. What that site stored in a browser sits at the dashboard's
+	// address now, so each browser's first entry to the dashboard clears it and keeps
+	// this value in a cookie as the record that it was cleared. Written by
+	// markFirstSiteOrigin alone.
+	DashboardCleanMark string `json:"dashboardCleanMark,omitempty"`
 	// SitePorts is the pre-hostname record of the loopback port each origin was served on.
 	// Kept so an old bookmark can be redirected: startup binds each remembered port that is
 	// still free with a redirect to the folder's hostname, and drops the entry the first
@@ -72,20 +93,54 @@ type Config struct {
 	// TrustedFolders once on Load and cleared on the next Save, which is the
 	// completion marker. Distinct Go field, distinct JSON key, distinct type, so
 	// the decoder never sees a shape it does not expect.
-	LegacyTrusted   []string         `json:"trustedFolders,omitempty"`
-	HelperPrograms  []HelperProgram  `json:"helperPrograms,omitempty"`
-	HelperDecisions []HelperDecision `json:"helperDecisions,omitempty"`
+	LegacyTrusted []string `json:"trustedFolders,omitempty"`
+	// ServedFolders are folders served whole at http://<name>.htmlclay.localhost:<port>/.
+	// A served folder is always also a trusted folder.
+	ServedFolders []ServedFolder `json:"servedFolders,omitempty"`
+	// RetiredServedNames are names once given to a served folder that was then removed.
+	// A name is never given out again, so an old address never reaches a different folder.
+	RetiredServedNames []string         `json:"retiredServedNames,omitempty"`
+	HelperPrograms     []HelperProgram  `json:"helperPrograms,omitempty"`
+	HelperDecisions    []HelperDecision `json:"helperDecisions,omitempty"`
 	// AIEdit is the built-in AI editing helper's setting. Nil, or a nil Enabled,
 	// reads as on: AI editing is on unless the person turned it off.
 	AIEdit *AIEditSettings `json:"aiEdit,omitempty"`
+	// AIEditDocuments are the documents the person allowed AI editing for where
+	// the switch alone is not enough: a team folder, or an unreadable team record.
+	AIEditDocuments []AIEditDocument `json:"aiEditDocuments,omitempty"`
+	// BuiltinPrograms are the built-in programs' switches and the documents the
+	// person allowed for each, keyed by program id (internal/builtin). A missing
+	// entry is on: documents the person made, and signed ecosystem apps, use the
+	// built-in programs without a question unless the person switched one off.
+	BuiltinPrograms map[string]*BuiltinProgram `json:"builtinPrograms,omitempty"`
+	// StopOpeningFiles is true after the person chose "Stop opening .htmlclay
+	// files", so the startup file type refresh leaves the system's choice alone.
+	// Make HTML Clay the default clears it.
+	StopOpeningFiles bool `json:"stopOpeningFiles,omitempty"`
+	// HTMLOpenWithOff is true when the person took HTML Clay out of Open With for
+	// .html files (Windows and Linux; the Mac's claim is fixed in Info.plist).
+	HTMLOpenWithOff bool `json:"htmlOpenWithOff,omitempty"`
 	// Profile is the person HTML Clay names in files it serves, when Enabled. Nil
 	// means never set up, which reads as off. The id survives renames and toggles.
 	Profile *Profile `json:"profile,omitempty"`
+	// AppearanceSetting is the person's chosen appearance: "system", "light" or
+	// "dark". Empty reads as system. Read through Appearance().
+	AppearanceSetting string `json:"appearance,omitempty"`
 	// Updates set to "off" keeps the self-updater from downloading or applying
 	// anything, for machines whose software is managed some other way. The tray
 	// still links to the download page. Anything else, or nothing, leaves it on.
 	Updates string `json:"updates,omitempty"`
-	baseDir string
+	// TeamRecord is true once team-folders.json has had its first entry. It is the
+	// only trace of the team record in config.json, so that a record that has gone
+	// missing reads as unknown -- nothing may be granted broadly -- rather than as a
+	// machine that never had a team folder. Written by MarkTeamFolder alone.
+	TeamRecord bool `json:"teamRecord,omitempty"`
+	// PlaygroundSeeded is true once the default ~/htmlclay/workspace folder has
+	// been created and served on a fresh install, so deleting or untrusting it
+	// never recreates it on later launches.
+	PlaygroundSeeded bool `json:"playgroundSeeded,omitempty"`
+	baseDir          string
+	writes           int
 }
 
 // TrustedFolder is one declared folder. Identity is the folder's device+inode
@@ -94,9 +149,47 @@ type Config struct {
 // since declaration is refused under the old name instead of granting write
 // over whatever tree the link now points at.
 type TrustedFolder struct {
+	// ID is the folder's own id, 16 lowercase hex, made once when the folder is
+	// first trusted and kept for as long as the entry lives. Serving the folder
+	// does not change it, so every holder follows the folder by id, not by path.
+	ID       string `json:"id,omitempty"`
 	Path     string `json:"path"`
 	Identity string `json:"identity,omitempty"`
+	// OwnAddress is the address this folder keeps when a folder around it is
+	// trusted: its documents already answered there, and what the browser stored
+	// for them (logins, local storage) lives at that address. It is set only when
+	// a broader folder is trusted around a folder that already had an address, so
+	// no configuration written before it existed has it, and every one of those
+	// routes exactly as it always has.
+	OwnAddress bool `json:"ownAddress,omitempty"`
 }
+
+// ServedFolder is one folder HTML Clay serves whole. ID is 16 lowercase hex, made once;
+// it is the folder's root id on the control API. Serving is false while the person has
+// stopped serving it but kept it in the list.
+type ServedFolder struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	Identity string `json:"identity,omitempty"`
+	Serving  bool   `json:"serving"`
+
+	AllowFraming bool `json:"allowFraming,omitempty"`
+}
+
+var (
+	ErrServedNameInvalid = errors.New("served-name-invalid")
+	ErrServedNameTaken   = errors.New("served-name-taken")
+	ErrServedNameRetired = errors.New("served-name-retired")
+	ErrAlreadyServed     = errors.New("already-served")
+)
+
+// reservedServedNames can never name a served folder: they are, or could become, the
+// app's own addresses.
+var reservedServedNames = map[string]bool{"dashboard": true, "hyperclay": true, "htmlclay": true, "localhost": true, "www": true, "api": true}
+
+var servedNamePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$`)
+var servedIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
 // AIEditSettings mirrors Hyperclay Local's settings.aiEdit. Default names the engine
 // used when a request names none ("" means claude). Engines are user-defined agents:
@@ -105,6 +198,12 @@ type AIEditSettings struct {
 	Enabled *bool               `json:"enabled,omitempty"`
 	Default string              `json:"default,omitempty"`
 	Engines map[string][]string `json:"engines,omitempty"`
+	// Models is the model each engine runs with, by engine name. A missing or
+	// empty entry is the engine's own default.
+	Models map[string]string `json:"models,omitempty"`
+	// Efforts is the reasoning effort each engine runs with, by engine name. A
+	// missing or empty entry is HTML Clay's default for that engine.
+	Efforts map[string]string `json:"efforts,omitempty"`
 }
 
 // sitePortCap bounds the remembered-port map. Every entry becomes a bound
@@ -123,13 +222,109 @@ const sitePortCap = 32
 func (c *Config) AddTrustedFolder(dir, identity string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return c.addTrustedFolderLocked(dir, identity)
+}
+
+// addTrustedFolderLocked records dir unless it is already there, with the one id
+// the entry keeps for life. The caller holds c.mu.
+func (c *Config) addTrustedFolderLocked(dir, identity string) bool {
 	for _, w := range c.TrustedFolders {
 		if w.Path == dir {
 			return false
 		}
 	}
-	c.TrustedFolders = append(c.TrustedFolders, TrustedFolder{Path: dir, Identity: identity})
+	id, _ := c.newFolderIDLocked()
+	c.TrustedFolders = append(c.TrustedFolders, TrustedFolder{ID: id, Path: dir, Identity: identity})
 	return true
+}
+
+// ErrFolderIDHeld is TrustFolderWithID refusing an id another folder already holds,
+// or a path already trusted under another id.
+var ErrFolderIDHeld = errors.New("the folder id is held by another folder")
+
+// TrustFolderWithID trusts dir under id, the id a synced account's folder was given
+// before it was on this computer, so serving it later borrows that id. A path
+// already trusted under the same id is left as it is.
+func (c *Config) TrustFolderWithID(dir, identity, id string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, w := range c.TrustedFolders {
+		if w.Path == dir {
+			if w.ID == id {
+				return nil
+			}
+			return ErrFolderIDHeld
+		}
+		if w.ID == id {
+			return ErrFolderIDHeld
+		}
+	}
+	for _, f := range c.ServedFolders {
+		if f.ID == id {
+			return ErrFolderIDHeld
+		}
+	}
+	c.TrustedFolders = append(c.TrustedFolders, TrustedFolder{ID: id, Path: dir, Identity: identity})
+	return nil
+}
+
+// NewFolderID mints a folder id no folder in the config holds, for a folder that
+// is listed before it is on this computer, such as a synced account's.
+func (c *Config) NewFolderID() (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.newFolderIDLocked()
+}
+
+// newFolderIDLocked mints a folder id: 16 lowercase hex, the shape served folders
+// have always used, never one any folder in the config already holds. The caller
+// holds c.mu.
+func (c *Config) newFolderIDLocked() (string, error) {
+	for {
+		var raw [8]byte
+		if _, err := rand.Read(raw[:]); err != nil {
+			return "", fmt.Errorf("cannot generate folder id: %w", err)
+		}
+		id := hex.EncodeToString(raw[:])
+		taken := false
+		for _, f := range c.ServedFolders {
+			if f.ID == id {
+				taken = true
+				break
+			}
+		}
+		if !taken {
+			for _, w := range c.TrustedFolders {
+				if w.ID == id {
+					taken = true
+					break
+				}
+			}
+		}
+		if !taken {
+			return id, nil
+		}
+	}
+}
+
+// trustedFolderIDLocked answers the id the trusted entry at path keeps, giving an
+// entry that has none the one id it will hold from now on. The caller holds c.mu
+// and has already made sure the entry exists.
+func (c *Config) trustedFolderIDLocked(path string) (string, bool, error) {
+	for i := range c.TrustedFolders {
+		if c.TrustedFolders[i].Path != path {
+			continue
+		}
+		if c.TrustedFolders[i].ID == "" {
+			id, err := c.newFolderIDLocked()
+			if err != nil {
+				return "", true, err
+			}
+			c.TrustedFolders[i].ID = id
+		}
+		return c.TrustedFolders[i].ID, true, nil
+	}
+	return "", false, nil
 }
 
 // RemoveTrustedFolder drops dir from the list, returning the entry it removed
@@ -171,12 +366,226 @@ func (c *Config) SetTrustedIdentity(dir, identity string) (previous string, ok b
 	return "", false
 }
 
+// SetTrustedOwnAddress records whether the entry at dir keeps its own address, and
+// returns the value it replaced along with whether there was an entry to change, so
+// a caller whose save fails can put it back.
+func (c *Config) SetTrustedOwnAddress(dir string, own bool) (previous bool, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, w := range c.TrustedFolders {
+		if w.Path == dir {
+			c.TrustedFolders[i].OwnAddress = own
+			return w.OwnAddress, true
+		}
+	}
+	return false, false
+}
+
+// RelinkTrustedFolder points the entry with id at path, keeping its id, and pins it
+// to identity, the folder's fingerprint where it is now. It answers the entry it
+// replaced, so a caller whose save fails can put it back by relinking to the
+// previous path and pin. ok reports whether there was an entry with that id.
+func (c *Config) RelinkTrustedFolder(id, path, identity string) (previous TrustedFolder, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, w := range c.TrustedFolders {
+		if w.ID != id {
+			continue
+		}
+		previous = w
+		c.TrustedFolders[i].Path = path
+		c.TrustedFolders[i].Identity = identity
+		return previous, true
+	}
+	return TrustedFolder{}, false
+}
+
 // TrustedFolderList returns a copy of the trusted folders so callers can read
 // the list without touching the field under the lock.
 func (c *Config) TrustedFolderList() []TrustedFolder {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]TrustedFolder(nil), c.TrustedFolders...)
+}
+
+// ValidServedName reports whether name may name a served folder at all, before
+// uniqueness: ErrServedNameInvalid for the wrong shape or a reserved name, else nil.
+func ValidServedName(name string) error {
+	if !servedNamePattern.MatchString(name) || reservedServedNames[name] {
+		return ErrServedNameInvalid
+	}
+	return nil
+}
+
+// ServedFolderList returns a copy of the served folders so callers can read the
+// list without touching the field under the lock.
+func (c *Config) ServedFolderList() []ServedFolder {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]ServedFolder(nil), c.ServedFolders...)
+}
+
+// ServedFolderByID returns the served folder with that id.
+func (c *Config) ServedFolderByID(id string) (ServedFolder, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, f := range c.ServedFolders {
+		if f.ID == id {
+			return f, true
+		}
+	}
+	return ServedFolder{}, false
+}
+
+// ServedFolderByName returns the served folder served under that name.
+func (c *Config) ServedFolderByName(name string) (ServedFolder, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, f := range c.ServedFolders {
+		if f.Name == name {
+			return f, true
+		}
+	}
+	return ServedFolder{}, false
+}
+
+// ServedFolderForPath returns the served folder rooted at path. path must already be
+// canonical, as for trusted folders.
+func (c *Config) ServedFolderForPath(path string) (ServedFolder, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, f := range c.ServedFolders {
+		if f.Path == path {
+			return f, true
+		}
+	}
+	return ServedFolder{}, false
+}
+
+// ServedNameAvailable reports whether name may be given to a served folder now:
+// well formed, not in use, and never given out before.
+func (c *Config) ServedNameAvailable(name string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.servedNameAvailableLocked(name)
+}
+
+func (c *Config) servedNameAvailableLocked(name string) error {
+	if err := ValidServedName(name); err != nil {
+		return err
+	}
+	for _, f := range c.ServedFolders {
+		if f.Name == name {
+			return ErrServedNameTaken
+		}
+	}
+	for _, retired := range c.RetiredServedNames {
+		if retired == name {
+			return ErrServedNameRetired
+		}
+	}
+	return nil
+}
+
+// AddServedFolder records path as served under name and, under the same lock, as a
+// trusted folder: a served folder is always also trusted. path must already be
+// canonical; the caller validates before adding.
+func (c *Config) AddServedFolder(path, identity, name string) (ServedFolder, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.servedNameAvailableLocked(name); err != nil {
+		return ServedFolder{}, err
+	}
+	for _, f := range c.ServedFolders {
+		if f.Path == path {
+			return ServedFolder{}, ErrAlreadyServed
+		}
+	}
+	// Serving a folder does not give it a new identity: the id belongs to the
+	// trusted entry and serving borrows it for as long as the folder is served.
+	c.addTrustedFolderLocked(path, identity)
+	id, found, err := c.trustedFolderIDLocked(path)
+	if err != nil {
+		return ServedFolder{}, fmt.Errorf("cannot generate served folder id: %w", err)
+	}
+	if !found {
+		return ServedFolder{}, fmt.Errorf("cannot generate served folder id: no trusted entry for %s", path)
+	}
+	entry := ServedFolder{ID: id, Name: name, Path: path, Identity: identity, Serving: true}
+	c.ServedFolders = append(c.ServedFolders, entry)
+	return entry, nil
+}
+
+// SetServing turns serving on or off for a served folder, returning false if there
+// is no entry with that id.
+func (c *Config) SetServing(id string, serving bool) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, f := range c.ServedFolders {
+		if f.ID == id {
+			c.ServedFolders[i].Serving = serving
+			return true
+		}
+	}
+	return false
+}
+
+// SetServedAllowFraming turns whether other sites may frame a folder's answers on
+// or off, returning false if there is no entry with that id.
+func (c *Config) SetServedAllowFraming(id string, allow bool) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, f := range c.ServedFolders {
+		if f.ID == id {
+			c.ServedFolders[i].AllowFraming = allow
+			return true
+		}
+	}
+	return false
+}
+
+// RelinkServedFolder is RelinkTrustedFolder for a served entry: the path and the pin
+// move, while the id, the name its address is built from and the serving state stay.
+func (c *Config) RelinkServedFolder(id, path, identity string) (previous ServedFolder, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, f := range c.ServedFolders {
+		if f.ID != id {
+			continue
+		}
+		previous = f
+		c.ServedFolders[i].Path = path
+		c.ServedFolders[i].Identity = identity
+		return previous, true
+	}
+	return ServedFolder{}, false
+}
+
+// RemoveServedFolder drops the entry and retires its name, so an old address never
+// reaches a different folder. The trusted folder stays: stopping serving a folder
+// is not the same as no longer trusting it.
+func (c *Config) RemoveServedFolder(id string) (ServedFolder, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, f := range c.ServedFolders {
+		if f.ID == id {
+			c.ServedFolders = append(c.ServedFolders[:i], c.ServedFolders[i+1:]...)
+			c.retireServedNameLocked(f.Name)
+			return f, true
+		}
+	}
+	return ServedFolder{}, false
+}
+
+// retireServedNameLocked appends name to RetiredServedNames once. Like RetiredSlugs
+// the list is never trimmed: a name that left it could be handed out again.
+func (c *Config) retireServedNameLocked(name string) {
+	for _, retired := range c.RetiredServedNames {
+		if retired == name {
+			return
+		}
+	}
+	c.RetiredServedNames = append(c.RetiredServedNames, name)
 }
 
 // promoteLegacyTrusted turns 1.2.0's read-only trusted folders into ordinary
@@ -295,6 +704,81 @@ func (c *Config) dedupeTrustedFolders() {
 	c.TrustedFolders = kept
 }
 
+// sanitizeServedFolders drops served entries that could not have been written by
+// AddServedFolder and duplicates of entries an earlier one already holds, first
+// wins. Every kept entry's path becomes a trusted folder if it is not one already,
+// because a served folder is always trusted. It reports nothing, the way the
+// trusted-folder dedupe next to it reports nothing: the caller saves the config on
+// its own schedule and the cleanup is re-derived on every load.
+func (c *Config) sanitizeServedFolders() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var kept []ServedFolder
+	ids := make(map[string]bool, len(c.ServedFolders))
+	names := make(map[string]bool, len(c.ServedFolders))
+	paths := make(map[string]bool, len(c.ServedFolders))
+	for _, f := range c.ServedFolders {
+		if !servedIDPattern.MatchString(f.ID) || ValidServedName(f.Name) != nil || f.Path == "" {
+			continue
+		}
+		if ids[f.ID] || names[f.Name] || paths[f.Path] {
+			continue
+		}
+		ids[f.ID] = true
+		names[f.Name] = true
+		paths[f.Path] = true
+		kept = append(kept, f)
+		c.addTrustedFolderLocked(f.Path, f.Identity)
+	}
+	c.ServedFolders = kept
+	var retired []string
+	retiredNames := make(map[string]bool, len(c.RetiredServedNames))
+	for _, name := range c.RetiredServedNames {
+		if ValidServedName(name) != nil || retiredNames[name] {
+			continue
+		}
+		retiredNames[name] = true
+		retired = append(retired, name)
+	}
+	c.RetiredServedNames = retired
+}
+
+// assignFolderIDs settles the id every trusted folder keeps. A served entry's id
+// is the folder's id, so it is copied onto the trusted entry at the same path; an
+// entry without one, or with an id that could not have been made by this build,
+// gets a fresh id. Nothing here reuses another folder's id, so a folder removed and
+// trusted again at the same path comes back as a new folder with a new id. It
+// reports whether anything changed, and writes nothing: Load reports the change
+// through its Result and the caller saves once.
+func (c *Config) assignFolderIDs() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	changed := false
+	for i := range c.TrustedFolders {
+		path := c.TrustedFolders[i].Path
+		servedID := ""
+		for _, f := range c.ServedFolders {
+			if f.Path == path {
+				servedID = f.ID
+				break
+			}
+		}
+		switch {
+		case servedID != "" && servedID != c.TrustedFolders[i].ID:
+			c.TrustedFolders[i].ID = servedID
+			changed = true
+		case servedID == "" && !servedIDPattern.MatchString(c.TrustedFolders[i].ID):
+			id, err := c.newFolderIDLocked()
+			if err != nil {
+				continue
+			}
+			c.TrustedFolders[i].ID = id
+			changed = true
+		}
+	}
+	return changed
+}
+
 // SitePort returns the port previously used for an anchor, or 0 if there is none.
 func (c *Config) SitePort(anchor string) int {
 	c.mu.Lock()
@@ -401,12 +885,18 @@ func (c *Config) slugInUseLocked(slug string) bool {
 	return false
 }
 
-// AllocateSiteSlug records and returns key's slug: the next label in the htmlclay, htmlclay1,
-// htmlclay2, ... sequence, skipping any label already issued or retired. The counter only grows.
+// AllocateSiteSlug records and returns key's slug: the next label in the htmlclay1, htmlclay2,
+// ... sequence, skipping any label already issued or retired. The counter only grows.
 func (c *Config) AllocateSiteSlug(key string) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	n := max(c.NextSiteNumber, 1)
+	return c.allocateSiteSlugLocked(key)
+}
+
+// allocateSiteSlugLocked is AllocateSiteSlug for a caller holding c.mu. It starts at 2,
+// so it never issues firstSiteLabel.
+func (c *Config) allocateSiteSlugLocked(key string) string {
+	n := max(c.NextSiteNumber, 2)
 	for {
 		slug := numberedSlugFor(n)
 		n++
@@ -471,6 +961,21 @@ func (c *Config) RestoreSiteSlug(key, slug string) {
 	c.RetiredSlugs = kept
 }
 
+// MovedFirstSiteKey returns the origin key moveFirstSite moved off htmlclay, or "".
+func (c *Config) MovedFirstSiteKey() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.MovedFirstSite
+}
+
+// CleanMark returns the mark markFirstSiteOrigin made, or "" for a config that
+// never served a site at the dashboard's address.
+func (c *Config) CleanMark() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.DashboardCleanMark
+}
+
 // SiteSlugList returns a copy of the slug map.
 func (c *Config) SiteSlugList() map[string]string {
 	c.mu.Lock()
@@ -496,12 +1001,50 @@ func (c *Config) retireLocked(slug string) {
 
 var numberedSlug = regexp.MustCompile(`^htmlclay([1-9][0-9]*)?$`)
 
+// firstSiteLabel is the label counter value 1 stood for. Its address, htmlclay.localhost,
+// is the dashboard's, so no site is served under it.
+const firstSiteLabel = "htmlclay"
+
 // numberedSlugFor maps counter value n (from 1) to its label: htmlclay, htmlclay1, htmlclay2, ...
 func numberedSlugFor(n int) string {
 	if n == 1 {
-		return "htmlclay"
+		return firstSiteLabel
 	}
-	return "htmlclay" + strconv.Itoa(n-1)
+	return firstSiteLabel + strconv.Itoa(n-1)
+}
+
+// moveFirstSite moves a config written while the first site answered at htmlclay.localhost:
+// the key served under that label gets the next free numbered one, and the key is recorded
+// so the dashboard's host can send an old link to it. It reports whether a key moved.
+func (c *Config) moveFirstSite() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for key, slug := range c.SiteSlugs {
+		if slug == firstSiteLabel {
+			c.allocateSiteSlugLocked(key)
+			c.MovedFirstSite = key
+			return true
+		}
+	}
+	return false
+}
+
+// markFirstSiteOrigin gives a config its DashboardCleanMark when a site was ever served
+// under htmlclay: one that moved off it, or one whose label was retired while it was
+// still issued. No build issues that label now, so no other config needs a mark. It
+// reports whether it made one.
+func (c *Config) markFirstSiteOrigin() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.DashboardCleanMark != "" || (c.MovedFirstSite == "" && !slices.Contains(c.RetiredSlugs, firstSiteLabel)) {
+		return false
+	}
+	var raw [32]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return false
+	}
+	c.DashboardCleanMark = hex.EncodeToString(raw[:])
+	return true
 }
 
 // retireNamedSlugs moves a config from the earlier <folder>-<4 hex> labels to numbered
@@ -640,6 +1183,19 @@ func (c *Config) SelfUpdateOff() bool {
 	return c.Updates == "off"
 }
 
+// SetSelfUpdateOff records, under the lock, whether updates are off. Turning
+// them back on clears the setting, so the file reads as it did before anyone
+// chose.
+func (c *Config) SetSelfUpdateOff(off bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if off {
+		c.Updates = "off"
+	} else {
+		c.Updates = ""
+	}
+}
+
 // AIEditEnabled reports whether AI editing is on, under the lock. A missing setting
 // reads as on; only an explicit false turns it off.
 func (c *Config) AIEditEnabled() bool {
@@ -657,6 +1213,24 @@ func (c *Config) SetAIEditEnabled(v bool) {
 		c.AIEdit = &AIEditSettings{}
 	}
 	c.AIEdit.Enabled = &v
+}
+
+// Appearance reports the chosen appearance under the lock. Empty, or anything the
+// app does not name, reads as system.
+func (c *Config) Appearance() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.AppearanceSetting == "" {
+		return "system"
+	}
+	return c.AppearanceSetting
+}
+
+// SetAppearance records the chosen appearance under the lock.
+func (c *Config) SetAppearance(v string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.AppearanceSetting = v
 }
 
 // AIEditEngines returns the default engine name and a copy of the user engines,
@@ -805,6 +1379,10 @@ func (c *Config) UpdateProfile(next Profile) error {
 }
 
 func defaultConfigDir() (string, error) {
+	// HTMLCLAY_CONFIG_BASE replaces the OS config folder, so tests and seeded profiles never touch the real config. The app's own folder is still <base>/htmlclay.
+	if base := os.Getenv("HTMLCLAY_CONFIG_BASE"); base != "" {
+		return filepath.Abs(base)
+	}
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("cannot determine config directory: %w", err)
@@ -840,9 +1418,27 @@ func EnsureDir() error {
 	return os.MkdirAll(dir, 0755)
 }
 
+// PlaygroundSeededDone reports whether the default Playground folder was already
+// seeded on a fresh install.
+func (c *Config) PlaygroundSeededDone() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.PlaygroundSeeded
+}
+
+// SetPlaygroundSeeded records whether the default Playground folder has been seeded.
+func (c *Config) SetPlaygroundSeeded(v bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.PlaygroundSeeded = v
+}
+
 // Result reports what Load had to do to the file, so startup can act on a
 // one-time migration without a live field for a setting that no longer exists.
 type Result struct {
+	// FreshInstall is true only when config.json did not exist on disk. It is
+	// false on every existing config and when a corrupt config is quarantined.
+	FreshInstall bool
 	// HadAppMode is true when the loaded file still carried App Mode. Startup
 	// uses it to delete the Chromium profile directory that mode created.
 	HadAppMode bool
@@ -853,6 +1449,18 @@ type Result struct {
 	// gained one, which is what a config written by a Windows build from before
 	// DirIdentity answered there looks like.
 	PinnedIdentities bool
+	// AssignedFolderIDs is true when trusted folders that had no id gained the
+	// one they keep, which is what every config written before ids existed, and
+	// every config whose served folders predate them, looks like.
+	AssignedFolderIDs bool
+	// MovedFirstSite is true when the site served under htmlclay moved to a
+	// numbered label, which is what a config written before htmlclay.localhost
+	// became the dashboard's address looks like.
+	MovedFirstSite bool
+	// MarkedFirstSiteOrigin is true when the config gained its DashboardCleanMark:
+	// with the move above, or on the first load by a build that clears the
+	// dashboard's address.
+	MarkedFirstSiteOrigin bool
 	// DroppedHelperPrograms and DroppedHelperDecisions report malformed,
 	// duplicate, dangling, or over-cap helper records removed during Load.
 	DroppedHelperPrograms  int
@@ -875,6 +1483,8 @@ func LoadFrom(baseDir string, identity func(string) string) (*Config, Result, er
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
+		cfg.StartOnLogin = true
+		res.FreshInstall = true
 		return cfg, res, nil
 	}
 	if err != nil {
@@ -910,14 +1520,25 @@ func LoadFrom(baseDir string, identity func(string) string) (*Config, Result, er
 	// After the promotion, which appends straight to the list with a byte-exact
 	// dedupe of its own and so can add an alias of an entry already there.
 	cfg.dedupeTrustedFolders()
+	// After the dedupe, which settles the trusted list, and before the pin backfill,
+	// so a trusted folder added here for a served entry without a pin gets one on
+	// this load rather than the next.
+	cfg.sanitizeServedFolders()
+	// After the sanitize, which is what makes every served entry also a trusted
+	// one, so a served folder's id lands on its trusted entry on this load.
+	res.AssignedFolderIDs = cfg.assignFolderIDs()
 	// After the dedupe, so a pin is never derived for an entry that is about to
 	// be dropped as an alias of one already kept.
 	res.PinnedIdentities = cfg.backfillIdentities(identity)
 	res.DroppedHelperPrograms, res.DroppedHelperDecisions = cfg.normalizeHelpers()
+	cfg.normalizeAIEditDocuments()
 	cfg.capSitePorts()
 	cfg.retireNamedSlugs()
 	cfg.dedupeSiteSlugs()
 	cfg.capSiteSlugs()
+	// After the dedupe and the cap, so the key that moves is the one that keeps a label.
+	res.MovedFirstSite = cfg.moveFirstSite()
+	res.MarkedFirstSiteOrigin = cfg.markFirstSiteOrigin()
 	return cfg, res, nil
 }
 
@@ -931,8 +1552,33 @@ func (c *Config) Save() error {
 	return c.saveLocked()
 }
 
+// HoldSaves keeps every later write in memory until ReleaseSaves: a version on
+// trial must not change the file the version it replaced reads after a rollback.
+func (c *Config) HoldSaves() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.holdSaves = true
+}
+
+// ReleaseSaves ends a hold. With write, a save asked for during the hold happens
+// once now; without, the held changes stay in memory only.
+func (c *Config) ReleaseSaves(write bool) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	owed := c.saveOwed
+	c.holdSaves, c.saveOwed = false, false
+	if !write || !owed {
+		return nil
+	}
+	return c.saveLocked()
+}
+
 // saveLocked writes the config. The caller holds c.mu.
 func (c *Config) saveLocked() error {
+	if c.holdSaves {
+		c.saveOwed = true
+		return nil
+	}
 	dir := DirFrom(c.baseDir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -960,5 +1606,16 @@ func (c *Config) saveLocked() error {
 	if err := os.Chmod(tmpPath, 0600); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, path)
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	c.writes++
+	return nil
+}
+
+// Writes is how many times this Config has reached the disk since it was loaded.
+func (c *Config) Writes() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.writes
 }

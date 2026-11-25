@@ -82,7 +82,11 @@ func (a *app) zipDocumentToDownloads(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := browser.OpenURL(downloads); err != nil {
+	open := browser.OpenURL
+	if a.rt.launchBrowser != nil {
+		open = a.rt.launchBrowser
+	}
+	if err := open(downloads); err != nil {
 		a.rt.logger.Printf("Error opening the Downloads folder: %v", err)
 		if err := a.informUser("HTML Clay", "Saved "+filepath.Base(out)+" in Downloads."); err != nil {
 			a.rt.logger.Printf("Could not notify about the export: %v", err)

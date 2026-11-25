@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en" autosave clay-mode-switch="live" opens-in="edit">
+<head>
+<meta charset="utf-8">
+<meta name="hyper-source" content="https://hyperclay.com/templates/freelance-rate-calculator/owned/latest.html">
+<meta name="hyper-version" content="1.2.0">
+<meta name="clay-template" content="freelance-rate-calculator owned">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freelance Rate Calculator: Find Your Sustainable Rate</title>
+<meta name="application-name" content="Freelance Rate Calculator">
+<meta name="description" content="Stop undercharging. This free freelance rate calculator turns your real living costs, business expenses, and tax rate into the hourly rate you need to charge.">
+<meta name="theme-color" content="#fcfdfe">
+<meta property="og:title" content="Calculate your sustainable freelance rate">
+<meta property="og:description" content="Most freelancers guess their rate and lose money. This free calculator shows you the real number in a couple of minutes.">
+<meta property="og:type" content="website">
+<meta name="twitter:title" content="Calculate your sustainable freelance rate">
+<meta name="twitter:description" content="Most freelancers guess their rate and lose money. This free calculator shows you the real number in a couple of minutes.">
+<style>
+:root {
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sheet: var(--surface);
+  --line: var(--edge);
+  --line-2: var(--edge-strong);
+  --accent: var(--peri-bar);
+  --paper-fill: var(--surface-2);
+  --shadow: 0 1px 2px var(--shade), 0 8px 24px var(--shade);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; overflow-x: clip; }
+body { font-family: var(--sans); color: var(--ink); background: var(--band); font-size: 16px; line-height: 1.5; text-wrap: pretty; -webkit-font-smoothing: antialiased; }
+.g-housing { --cell: var(--housing-cell); --cell-border: var(--housing-line); --bar: var(--housing-bar); --gink: var(--housing-ink); }
+.g-travel  { --cell: var(--travel-cell); --cell-border: var(--travel-line); --bar: var(--travel-bar); --gink: var(--travel-ink); }
+.g-biz1    { --cell: var(--biz1-cell); --cell-border: var(--biz1-line); --bar: var(--biz1-bar); --gink: var(--biz1-ink); }
+.g-biz2    { --cell: var(--biz2-cell); --cell-border: var(--biz2-line); --bar: var(--biz2-bar); --gink: var(--biz2-ink); }
+.g-biz3    { --cell: var(--biz3-cell); --cell-border: var(--biz3-line); --bar: var(--biz3-bar); --gink: var(--biz3-ink); }
+
+.wrap { max-width: 1320px; margin: 0 auto; padding-left: clamp(16px, 3vw, 40px); padding-right: clamp(16px, 3vw, 40px); }
+.ws-head, .grp, .content-grid, .duo { display: grid; grid-template-columns: 230px minmax(540px, 600px) minmax(240px, 1fr); column-gap: 24px; align-items: start; }
+.content-grid > * { grid-column: 2; min-width: 0; }
+.band { background: var(--band); padding: 32px 0; }
+section[aria-labelledby="tab-expenses"] { padding-top: 48px; }
+
+h1, h2, h3 { font-family: var(--sans); font-weight: 800; line-height: 1.15; letter-spacing: -.02em; color: var(--ink); }
+h1 { font-size: clamp(30px, 4.2vw, 44px); }
+h2 { font-size: clamp(22px, 3vw, 28px); }
+h2.blue { color: var(--ink); }
+.goldword { color: var(--goldink); }
+.subtitle { font-style: normal; font-weight: 500; color: var(--ink-2); font-size: clamp(15px, 1.8vw, 16.5px); margin-top: 6px; line-height: 1.5; }
+.center { text-align: center; }
+
+.converge { display: flex; justify-content: center; gap: 64px; color: var(--royal); font-size: 16px; font-weight: 700; margin: 8px 0; }
+
+.tabrow { position: relative; text-align: center; margin-bottom: 32px; }
+.tabrow::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--border); z-index: 0; }
+.tab { position: relative; z-index: 1; justify-self: center; display: inline-block; background: var(--accent-soft); color: var(--royal); border: 1px solid var(--accent-line); border-radius: 0; font-size: 12.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; padding: 7px 22px; box-shadow: 0 1px 2px var(--shade); }
+
+
+.app-head { background: var(--band); border-bottom: 1px solid var(--border); }
+.app-head-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding-top: 12px; padding-bottom: calc(12px + var(--clay-menu-height, 0px)); padding-right: calc(clamp(16px, 3vw, 40px) + var(--clay-menu-width, 0px)); }
+.app-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.app-logo { display: block; flex: none; width: 38px; height: 38px; }
+.app-name { font: 700 20px/1.2 var(--sans); color: var(--ink); letter-spacing: -.015em; }
+.app-sub { margin-top: 2px; font: 500 14.5px/1.3 var(--sans); color: var(--ink-2); }
+@media (max-width: 520px) {
+  .app-logo { width: 32px; height: 32px; }
+  .app-name { font-size: 17px; }
+  .app-sub { font-size: 13.5px; }
+}
+@media (scripting: none) { [clay-menu-slot], .rc-add, .rc-remove, footer .resetline { display: none !important; } }
+html:not([editmode]) :is(.rc-add, .rc-remove, footer .resetline) { display: none !important; }
+[items="custom"] > [item][template] { display: none; }
+
+.ws-head { margin-bottom: 10px; align-items: end; }
+.ws-head .ghead { color: var(--ink-2); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+.ws-head .cols { display: grid; grid-template-columns: minmax(170px, 1fr) 104px 104px 104px; gap: 8px; padding: 0 16px; align-items: end; }
+.ws-head .cols .chead { text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--ink); }
+.ws-head .cols .chead .arr { display: block; color: var(--royal); font-weight: 700; font-size: 13px; line-height: 1.1; margin-top: 2px; }
+.ws-head .fnote { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 0; padding: 8px 12px; }
+.ws-head .fnote b { display: block; color: var(--ink); font-weight: 700; margin-bottom: 2px; }
+.ws-head .fnote span { color: var(--royal); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.grp { margin-bottom: 24px; }
+.grp:last-child { margin-bottom: 0; }
+.grp-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-left: 0; box-shadow: 0 1px 2px var(--shade); padding: 16px 16px 16px 21px; }
+.grp-card::before, aside.card.sidenote::before { content: ""; position: absolute; left: 0; top: -1px; bottom: -1px; width: 5px; background: var(--bar); }
+.grp-card h3 { font-family: var(--sans); color: var(--gink); font-size: 16.5px; font-weight: 700; margin-bottom: 6px; letter-spacing: -.01em; }
+.grp-card h3:last-child { margin-bottom: 0; }
+.grp-card p { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+.grp-card p + p { margin-top: 8px; }
+
+.sheet { background: var(--surface); border: 1px solid var(--border); border-radius: 0; box-shadow: 0 1px 3px var(--shade); padding: 4px 0; }
+.row { position: relative; display: grid; grid-template-columns: minmax(170px, 1fr) 104px 104px 104px; gap: 4px 8px; align-items: center; padding: 8px 16px; min-height: 50px; }
+.row + .row:not(.sumrow) { border-top: 1px solid var(--border-soft); }
+.row.colhead { min-height: 0; padding: 10px 16px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); border-radius: 0; }
+.row.colhead + .row { border-top: 0; }
+.row.colhead .cell.plain { height: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); line-height: 1.2; }
+.row.colhead .converge { font-size: 12px !important; color: var(--royal); margin-top: 2px !important; font-weight: 700; }
+.row .lab { font-weight: 600; font-size: 15px; color: var(--ink); line-height: 1.3; }
+.microlab { display: none; }
+.cell { width: 104px; height: 36px; border-radius: 0; font-family: var(--sans); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cell:not(.plain) { display: flex; align-items: center; position: relative; background: var(--cell); border: 1px solid var(--cell-border, var(--cell-line)); cursor: text; transition: border-color .15s, background-color .15s, box-shadow .15s; }
+.cell:not(.plain) input { width: 100%; height: 100%; border: 0; background: transparent; font: inherit; font-weight: 700; color: var(--live); text-align: center; padding: 0; font-variant-numeric: tabular-nums; }
+.cell:not(.plain) input:focus { outline: none; }
+.cell:focus-within { background: var(--surface); border-color: var(--peri-bar); outline: none; box-shadow: 0 0 0 3px var(--focus-ring); }
+.cell .fix { position: absolute; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--gink); opacity: .72; pointer-events: none; }
+.cell.money .fix { left: 7px; }
+.cell.pct .fix { right: 7px; }
+.cell.plain { display: flex; align-items: center; justify-content: center; background: transparent; color: var(--ink); font-weight: 700; text-align: center; }
+.cell.invalid { border-color: var(--red); box-shadow: 0 0 0 2px var(--invalid-ring); }
+.cell.plain.invalid { color: var(--red); }
+.row.sumrow { border-top: 2px solid var(--rule); margin: 4px 16px 2px; padding: 10px 0 6px; min-height: 0; }
+.row.sumrow .lab { font-size: 13.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); }
+.row.sumrow .sumval { font-weight: 800; font-size: 16px; color: var(--live); }
+.ledger .cnv { color: var(--royal); font-size: 15px; font-weight: 700; text-align: center; }
+.note { position: absolute; left: calc(100% + 24px); top: 50%; transform: translateY(-50%); width: min(25vw, 350px); font-style: normal; font-size: 13px; line-height: 1.4; color: var(--ink-2); }
+.note.blue { color: var(--ink-2); }
+.note .la { font-style: normal; margin-right: 6px; color: var(--bar, var(--royal)); font-weight: 700; }
+.note.blue .la { color: var(--royal); }
+.grp.notes-left .row { min-height: 0; }
+.grp.notes-left .note { position: static; transform: none; width: auto; grid-column: 1 / -1; grid-row: 2; text-align: left; font-size: 13px; color: var(--ink-2); margin-top: 0; }
+.grp.notes-left .row .lab { grid-row: 1; grid-column: 1; }
+.grp.notes-left .row .cellslot { grid-row: 1; }
+.grp.notes-left .note .la { display: none; }
+
+section[aria-labelledby="tab-fees"] .grp.g-biz1 { margin-bottom: 0; }
+section[aria-labelledby="tab-fees"] .grp.g-biz1 > .sheet { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; box-shadow: none; }
+section[aria-labelledby="tab-fees"] .grp + .grp > .sheet.ledger { border-top-left-radius: 0; border-top-right-radius: 0; border-top: 2px solid var(--rule); padding-top: 12px; }
+section[aria-labelledby="tab-fees"] .ledger .lrow.total .num { border-top: 0; padding-top: 0; }
+
+.rc-add { display: block; width: calc(100% - 32px); margin: 8px 16px 8px; border: 1px dashed var(--bar); border-radius: 6px; background: color-mix(in srgb, var(--cell) 50%, var(--surface)); color: var(--gink); padding: 10px 14px; font-family: inherit; font-size: 14px; font-weight: 600; font-style: normal; text-align: left; cursor: pointer; }
+.rc-add:hover { background: var(--cell); border-style: solid; }
+.rc-add:focus-visible { outline: 2px solid var(--peri-bar); outline-offset: 2px; background: var(--cell); border-style: solid; }
+
+.ledger { padding: 14px 0 18px; }
+.ledger .lrow { position: relative; display: grid; grid-template-columns: minmax(170px, 1fr) 104px 104px 104px; gap: 8px; align-items: baseline; padding: 5px 16px; }
+.ledger .lrow .llab { font-weight: 800; font-size: 13.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); }
+.ledger .lrow .llab small { display: block; font-weight: 500; font-style: normal; text-transform: none; letter-spacing: 0; color: var(--ink-3); font-size: 12.5px; margin-top: 1px; }
+.ledger .lrow .num { text-align: center; font-size: 15.5px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ledger .lrow .num small { display: block; font-weight: 500; font-style: normal; color: var(--ink-3); font-size: 12px; margin-top: 1px; }
+.ledger .lrow.head .num { font-family: var(--sans); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 2px solid var(--rule); padding-bottom: 4px; }
+.ledger .lrow.total .num { border-top: 2px solid var(--rule); padding-top: 6px; }
+.ledger > .converge { display: grid; grid-template-columns: minmax(170px, 1fr) 104px 104px 104px; gap: 8px; padding: 0 16px; text-align: center; margin: 6px 0; }
+.ledger > .converge span:first-child { grid-column: 2; }
+.bigwell { position: relative; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 0; margin: 8px 16px 0; padding: 14px 14px 12px; text-align: center; }
+.bigwell > .note { left: calc(100% + 40px); }
+.bigwell .bignum { color: var(--live); font-size: clamp(24px, 3vw, 30px); font-weight: 800; letter-spacing: -.01em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.bigwell .in { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-top: 4px; }
+@media (min-width: 700px) {
+  .ledger .bigwell { display: grid; grid-template-columns: minmax(170px, 1fr) 104px 104px 104px; column-gap: 8px; padding-left: 0; padding-right: 0; }
+  .ledger .bigwell .bignum, .ledger .bigwell .in { grid-column: 2 / 5; }
+}
+
+.chapter { padding-top: 24px; padding-bottom: 8px; text-align: center; }
+section.chapter { padding-top: 48px; }
+.payoff .chapter { padding-top: 0; }
+section.wrap.center > .chapter { padding-top: 0; }
+section.wrap.center { padding-top: 48px; }
+
+.interstitial { margin-top: 24px; padding: 32px; background: var(--surface); border: 1px solid var(--edge); box-shadow: 0 4px 12px var(--shade-lift); text-align: center; }
+.interstitial .q { color: var(--ink-2); font-size: 16px; font-weight: 500; }
+.interstitial .q span { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; background: var(--cream); border: 1px solid var(--gold-line); border-radius: 0; padding: 1px 7px; }
+.interstitial .no { margin-top: 8px; font-size: 16.5px; font-weight: 800; color: var(--ink); }
+.interstitial .chapter { padding: 16px 0 0; margin-top: 16px; }
+.interstitial .chapter h2 { font-size: clamp(22px, 2.8vw, 26px); color: var(--ink); line-height: 1.2; }
+.interstitial .subtitle { max-width: 52ch; margin: 8px auto 0; font-size: 15.5px; color: var(--ink-2); }
+.interstitial > div:has(.formulabox) { display: inline-flex; flex-direction: column; align-items: center; margin-top: 24px; padding: 16px 24px; background: var(--accent-soft); border: 1px solid var(--accent-line); max-width: 100%; }
+.formulabox { background: transparent; display: inline-block; padding: 0; margin-top: 0; font-size: clamp(15px, 2vw, 17.5px); font-weight: 700; color: var(--royal); letter-spacing: -.01em; }
+
+.duo { row-gap: 24px; }
+.duo > .card { grid-column: 2; min-width: 0; }
+.duo > .tax-guide { grid-column: 3; }
+.card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 0; box-shadow: 0 1px 3px var(--shade); padding: 20px 22px; }
+.card .note.pinned { position: static; transform: none; width: auto; display: block; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-soft); font-size: 13.5px; color: var(--ink-2); }
+.card .note.pinned .la { display: none; }
+.taxrow { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; }
+.taxrow + .taxrow:not(.sum) { border-top: 1px solid var(--border-soft); }
+.taxrow .llab { font-weight: 600; font-size: 15px; color: var(--ink); line-height: 1.35; }
+.taxrow .llab small { display: block; font-weight: 400; font-style: normal; color: var(--ink-2); font-size: 13px; margin-top: 2px; line-height: 1.4; }
+.taxrow .val { font-weight: 700; font-size: 16px; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.taxrow.sum { border-top: 2px solid var(--rule); margin-top: 4px; padding-top: 12px; }
+.taxrow.sum .llab { font-size: 13.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.tax-guide h4 { font-family: var(--sans); font-style: normal; font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--royal); text-align: left; margin-bottom: 10px; }
+.tax-guide-lead { font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
+.tax-guide-formula { margin: 16px 0 14px; padding: 16px 18px; background: var(--peri); border: 1px solid var(--accent-line); border-radius: 0; color: var(--royal); text-align: center; font-size: 13.5px; font-weight: 700; }
+.tax-guide-formula span { display: block; }
+.tax-guide-rule { width: 78%; height: 1.5px; background: var(--royal); opacity: .45; margin: 7px auto; }
+.tax-guide-formula strong { display: block; margin-top: 10px; font-family: var(--sans); font-size: 15px; font-style: normal; font-weight: 800; color: var(--ink); }
+.tax-guide-note { font-size: 13.5px; font-style: normal; line-height: 1.55; color: var(--ink-2); }
+.tax-error { font-size: 14px; margin-top: 14px; }
+.sidenote { font-size: 13.5px; font-style: normal; color: var(--ink-2); line-height: 1.55; }
+aside.card.sidenote::before { width: 4px; background: var(--royal); }
+aside.card.sidenote { background: var(--surface-2); border-left: 0; padding-left: 26px; }
+.sidenote b { font-style: normal; font-weight: 700; color: var(--ink); }
+.sidenote p + p { margin-top: 10px; }
+
+.breakeven { margin-top: 24px; padding: 32px; background: var(--surface); border: 1px solid var(--edge); box-shadow: 0 4px 12px var(--shade-lift); text-align: center; }
+.breakeven .chapter { padding-top: 0; }
+.breakeven .parts, .breakeven > .converge { display: grid; grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr) 12px minmax(0, 1fr); gap: clamp(10px, 2.2vw, 20px); width: min(100%, 528px); margin-left: auto; margin-right: auto; align-items: center; }
+.breakeven .parts { margin-top: 20px; }
+.breakeven > .converge span:nth-child(1) { grid-column: 1; }
+.breakeven > .converge span:nth-child(2) { grid-column: 3; }
+.breakeven > .converge span:nth-child(3) { grid-column: 5; }
+.breakeven .part { background: var(--surface-2); border: 1px solid var(--border); border-radius: 0; padding: 10px 8px; min-width: 0; }
+.breakeven .part .plab { color: var(--ink-3); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.breakeven .part .pval { font-size: clamp(16px, 2.2vw, 19px); font-weight: 700; color: var(--ink); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.breakeven .plus { color: var(--royal); font-weight: 800; font-size: 18px; }
+.bigresult { position: relative; display: inline-block; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 0; padding: 16px 44px 14px; margin-top: 4px; }
+.bigresult .bignum { color: var(--live); font-size: clamp(28px, 4.2vw, 38px); font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.bigresult .in { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-top: 4px; }
+.resultnote { font-size: 13.5px; font-style: normal; font-weight: 500; color: var(--ink-2); margin-top: 10px; }
+
+.payoff { text-align: center; padding-top: 40px; padding-bottom: 24px; }
+.hero { position: relative; background: var(--cream); border: 1px solid var(--gold-line); border-bottom: 0; box-shadow: 0 4px 14px var(--hero-shade); width: 100%; max-width: 480px; margin: 24px auto 0; padding: 34px 20px 31px; }
+.hero .goldbar { position: absolute; left: -1px; right: -1px; bottom: 0; height: 8px; background: var(--gold); }
+#your-rate .hero { padding-bottom: 37px; }
+.hero .num { position: relative; top: -15px; font-size: clamp(56px, 9.5vw, 92px); font-weight: 800; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink); }
+.hero::before, .hero::after { display: none; }
+.paycaption { color: var(--ink-2); font-size: 15.5px; margin-top: 12px; }
+.paycaption b { color: var(--ink); font-weight: 700; }
+.twins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; width: 100%; margin: 32px auto 0; }
+.twin h3 { font-size: 20px; font-weight: 700; margin-bottom: 12px; color: var(--ink); }
+.twin .box { position: relative; padding: 28px 16px 27px; font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+.twin .box > span:not(.cbar) { position: relative; top: -10px; }
+.twin .box .cbar { position: absolute; left: -1px; right: -1px; bottom: 0; height: 7px; }
+.twin.daily .box { background: var(--peri); border: 1px solid var(--accent-line); border-bottom: 0; }
+.twin.daily .cbar { background: var(--peri-bar); }
+.twin.daily .tcap { color: var(--ink-2); }
+.twin.weekly .box { background: var(--sage); border: 1px solid var(--sage-line); border-bottom: 0; }
+.twin.weekly .cbar { background: var(--sage-bar); }
+.twin.weekly .tcap { color: var(--ink-2); }
+.tcap { font-size: 14.5px; margin-top: 10px; }
+.tcap b { color: var(--ink); }
+
+.adjcard { max-width: 600px; }
+
+footer { border-top: 1px solid var(--border); margin-top: 48px; padding: 36px 0 52px; background: var(--surface-2); }
+html[editmode] footer { padding-bottom: 120px; }
+footer .meta { max-width: 720px; margin: 0 auto; font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+footer .meta b { font-variant: normal; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); font-size: 12px; font-weight: 800; margin-right: 4px; }
+footer .meta p + p { margin-top: 10px; }
+footer .credits { text-align: center; margin-top: 28px; font-size: 14.5px; color: var(--ink-2); }
+footer .credits a { color: var(--royal); font-weight: 600; text-underline-offset: 2px; }
+footer .resetline { text-align: center; margin-top: 18px; }
+footer .resetline button { background: var(--surface); border: 1px solid var(--edge); border-radius: 6px; padding: 6px 14px; color: var(--ink-2); font-family: var(--sans); font-size: 13px; font-weight: 600; font-style: normal; text-decoration: none; cursor: pointer; }
+footer .resetline button:hover { border-color: var(--ink-3); color: var(--ink); background: var(--hover); }
+
+@media (max-width: 1139px) {
+  .content-grid { grid-template-columns: minmax(0, 600px); justify-content: center; }
+  .content-grid > *, .duo > .card { grid-column: 1; }
+  .ws-head { grid-template-columns: 1fr; position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--band) 96%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--border-soft); padding: 8px 0 6px; }
+  .ws-head .ghead, .ws-head .fnote { display: none; }
+  .ws-head .cols { max-width: 600px; }
+  .grp { grid-template-columns: 1fr; row-gap: 12px; max-width: 600px; }
+  .grp > span:empty { display: none; }
+  .row { min-height: 0; }
+  .note { position: static; transform: none; width: auto; grid-column: 1 / -1; grid-row: 2; font-size: 13px; margin-top: 0; }
+  .ledger .bigwell > .note { grid-column: 2 / 5; grid-row: 3; margin-top: 4px; }
+  .row .lab { grid-row: 1; grid-column: 1; }
+  .row .cellslot { grid-row: 1; }
+  .grp.notes-left .note { text-align: left; width: auto; }
+  .note .la { display: none; }
+  .duo { grid-template-columns: 1fr; max-width: 600px; }
+  .ws-head .cols, .grp, .duo, .adjcard { margin-left: auto; margin-right: auto; }
+}
+@media (max-width: 699px) {
+  .ws-head { display: none; }
+  .row.colhead { display: none; }
+  .row { grid-template-columns: repeat(3, 1fr); padding: 12px 14px; }
+  .row .lab { grid-column: 1 / -1; grid-row: 1; }
+  .row .note { grid-column: 1 / -1; grid-row: 2; }
+  .microlab { display: block; grid-row: 3; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--ink-3); text-transform: uppercase; text-align: center; margin-top: 6px; }
+  .row .cellslot { grid-row: 4; justify-self: stretch; }
+  .row.sumrow { display: flex; justify-content: space-between; align-items: center; }
+  .row.sumrow .cellslot { display: none; }
+  .row.sumrow .cellslot:has(.sumval) { display: block; }
+  .cell { width: 100%; }
+  .ledger .lrow { grid-template-columns: repeat(3, 1fr); }
+  .ledger .lrow .llab { grid-column: 1 / -1; margin-bottom: 4px; }
+  .ledger > .converge { grid-template-columns: repeat(3, 1fr); }
+  .ledger > .converge span:first-child { grid-column: auto; }
+  .bigwell { margin: 10px 12px 0; }
+  .ledger .bigwell > .note { grid-column: 1 / -1; }
+  .interstitial, .breakeven { padding: 24px 18px; }
+  .twins { grid-template-columns: 1fr; gap: 24px; }
+  .converge { gap: 34px; }
+}
+@media (max-width: 520px) {
+  .breakeven .parts, .breakeven > .converge { gap: 4px; }
+  .breakeven .part { padding: 10px 4px; }
+  .breakeven .part .pval { font-size: 12px; overflow-wrap: anywhere; }
+}
+.rc-error { color: var(--red); font-style: normal; font-weight: 700; font-size: clamp(15px, 2vw, 17px); line-height: 1.4; }
+.row .rc-remove { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: none; color: var(--gink); font-size: 19px; line-height: 1; cursor: pointer; padding: 0 4px; opacity: 0; transition: opacity .15s; }
+.row:hover .rc-remove, .row:focus-within .rc-remove { opacity: .65; }
+.row .rc-remove:hover { opacity: 1; color: var(--red); }
+/* Text buttons: drawn 40px tall, with a 44px tap area from 2px of reach above and below (David, Nov 11). */
+.rc-add, footer .resetline button { position: relative; min-height: 40px; }
+:is(.rc-add, footer .resetline button)::after { content: ""; position: absolute; inset: auto 0; top: 50%; height: 44px; translate: 0 -50%; }
+@media (max-width: 699px) {
+  [items="custom"] > .row .lab { padding-right: 40px; }
+  .row .rc-remove { top: 4px; right: 4px; transform: none; width: 44px; height: 44px; padding: 0; opacity: .65; }
+}
+@media (hover: none) { .row .rc-remove { opacity: .65; } }
+.rc-clabel { font-weight: 600; font-size: 15px; outline: none; min-width: 60px; display: inline-block; color: var(--ink); }
+.rc-clabel:empty::before { content: attr(data-placeholder); color: var(--ink-3); font-weight: 400; font-style: normal; }
+[cms-template] { display: none !important; }
+/* The save chip is the failure message only: nothing while all is well, words when a save did not go through. */
+.rc-saved { position: fixed; right: 16px; bottom: 76px; z-index: 60; display: none; color: var(--red); font-style: normal; font-weight: 600; font-size: 12.5px; pointer-events: none; }
+.rc-saved.on { display: block; }
+@media (min-width: 900px) { .rc-saved { bottom: auto; top: 60px; } }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .row .rc-remove { transition: none; }
+}
+</style>
+<style clay-variant="look-1" clay-variant-label="Classic">
+:root {
+  --serif: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+  --ink: #0f172a;
+  --ink-2: #1e293b;
+  --ink-3: #334155;
+  --muted: #334155;
+  --live: #1d4ed8;
+  --royal: #1e40af;
+  --red: #dc2626;
+  --band: #fcfdfe;
+  --surface: #fcfdfe;
+  --surface-2: #f8fafc;
+  --hover: #f1f5f9;
+  --edge: #cbd5e1;
+  --edge-strong: #94a3b8;
+  --border: #dce2ec;
+  --border-soft: #eef2f6;
+  --rule: #c6d2e1;
+  --accent-soft: #f4f7ff;
+  --accent-line: #bfd2fd;
+  --cream: #fef9e7;
+  --gold: #f2c94c;
+  --gold-line: #e5c653;
+  --goldink: #6e4806;
+  --peri: #edf3ff;
+  --peri-bar: #2563eb;
+  --sage: #ebf6ee;
+  --sage-line: #b7dfc0;
+  --sage-bar: #276738;
+  --intro-bg: #f4f7fb;
+  --intro-series: #e7effc;
+  --intro-bar: #e9eff8;
+  --shade: rgb(15 23 42 / .04);
+  --shade-lift: rgb(15 23 42 / .05);
+  --cell-line: rgb(15 23 42 / .14);
+  --focus-ring: rgb(37 99 235 / .16);
+  --invalid-ring: rgb(220 38 38 / .2);
+  --hero-shade: rgb(180 134 24 / .08);
+  --housing-cell: #fbedeb;
+  --housing-line: #e8c3be;
+  --housing-bar: #d47a72;
+  --housing-ink: #6b221b;
+  --travel-cell: #fcf0e1;
+  --travel-line: #ebd0ad;
+  --travel-bar: #db9b48;
+  --travel-ink: #693605;
+  --biz1-cell: #fdf6db;
+  --biz1-line: #e8d896;
+  --biz1-bar: #d9b838;
+  --biz1-ink: #594300;
+  --biz2-cell: #eaf1fd;
+  --biz2-line: #bdd2f7;
+  --biz2-bar: #6490e6;
+  --biz2-ink: #1e3a8a;
+  --biz3-cell: #eaf4e6;
+  --biz3-line: #bdd9b2;
+  --biz3-bar: #6ca458;
+  --biz3-ink: #1f4712;
+}
+</style>
+<style clay-variant="look-2" clay-variant-label="Vellum" media="not all">
+@import url("https://clayjs.com/v1/fonts/ibm-plex.css");
+:root {
+  --serif: "IBM Plex Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+  --ink: #211b14;
+  --ink-2: #3d3328;
+  --ink-3: #57493a;
+  --muted: #57493a;
+  --live: #124b63;
+  --royal: #154e59;
+  --red: #b82921;
+  --band: #f2ebe0;
+  --surface: #faf6ee;
+  --surface-2: #eae1d2;
+  --hover: #e3d9c7;
+  --edge: #cdc0ab;
+  --edge-strong: #a3937b;
+  --border: #ddd2bf;
+  --border-soft: #ece4d6;
+  --rule: #c7b9a2;
+  --accent-soft: #e3eef0;
+  --accent-line: #abc8cf;
+  --cream: #f5e8c6;
+  --gold: #c98f22;
+  --gold-line: #d6b86c;
+  --goldink: #664106;
+  --peri: #e1ecf4;
+  --peri-bar: #225c82;
+  --sage: #e6efe0;
+  --sage-line: #b4cfb0;
+  --sage-bar: #316837;
+  --intro-bg: #ece3d4;
+  --intro-series: #e2d7c5;
+  --intro-bar: #e5dac8;
+  --shade: rgb(33 27 20 / .05);
+  --shade-lift: rgb(33 27 20 / .08);
+  --cell-line: rgb(33 27 20 / .16);
+  --focus-ring: rgb(34 92 130 / .18);
+  --invalid-ring: rgb(184 41 33 / .2);
+  --hero-shade: rgb(120 82 14 / .1);
+  --housing-cell: #f5e5de;
+  --housing-line: #debcb0;
+  --housing-bar: #b8624f;
+  --housing-ink: #692417;
+  --travel-cell: #f6ead7;
+  --travel-line: #dfc5a0;
+  --travel-bar: #c28035;
+  --travel-ink: #633506;
+  --biz1-cell: #f4edd1;
+  --biz1-line: #dbd096;
+  --biz1-bar: #b39826;
+  --biz1-ink: #544204;
+  --biz2-cell: #e3ecf3;
+  --biz2-line: #b6c9db;
+  --biz2-bar: #50799e;
+  --biz2-ink: #1c3d5c;
+  --biz3-cell: #e5efe0;
+  --biz3-line: #bad0b0;
+  --biz3-bar: #5f8d50;
+  --biz3-ink: #234718;
+}
+</style>
+<style clay-variant="look-3" clay-variant-label="Evening" media="not all">
+:root {
+  --serif: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+  --ink: #f1eee9;
+  --ink-2: #d8d4cc;
+  --ink-3: #bbb7ae;
+  --muted: #bbb7ae;
+  --live: #f0c876;
+  --royal: #b3c2f6;
+  --red: #f87e77;
+  --band: #0f1623;
+  --surface: #171e2c;
+  --surface-2: #131927;
+  --hover: #232b3c;
+  --edge: #364053;
+  --edge-strong: #58637b;
+  --border: #2a3344;
+  --border-soft: #202838;
+  --rule: #475369;
+  --accent-soft: #202941;
+  --accent-line: #3d4b74;
+  --cream: #262118;
+  --gold: #e4b24d;
+  --gold-line: #9f7932;
+  --goldink: #f2d086;
+  --peri: #1e273e;
+  --peri-bar: #87a0f0;
+  --sage: #152b1f;
+  --sage-line: #295841;
+  --sage-bar: #5abb88;
+  --intro-bg: #131927;
+  --intro-series: #1a2134;
+  --intro-bar: #171e2c;
+  --shade: rgb(2 3 9 / .4);
+  --shade-lift: rgb(2 3 9 / .5);
+  --cell-line: rgb(235 239 245 / .18);
+  --focus-ring: rgb(135 160 240 / .3);
+  --invalid-ring: rgb(248 126 119 / .3);
+  --hero-shade: rgb(2 3 9 / .5);
+  --housing-cell: #342021;
+  --housing-line: #6e4145;
+  --housing-bar: #e37a84;
+  --housing-ink: #fdc8cb;
+  --travel-cell: #312317;
+  --travel-line: #6d4a2c;
+  --travel-bar: #e29858;
+  --travel-ink: #f7d3b2;
+  --biz1-cell: #2b2817;
+  --biz1-line: #5e5629;
+  --biz1-bar: #d0bf5e;
+  --biz1-ink: #ece3ae;
+  --biz2-cell: #2c2337;
+  --biz2-line: #5c4774;
+  --biz2-bar: #b691e1;
+  --biz2-ink: #e4d1fb;
+  --biz3-cell: #162c23;
+  --biz3-line: #295e4c;
+  --biz3-bar: #5bc19d;
+  --biz3-ink: #b5e8d3;
+}
+</style>
+<script>
+(() => {
+  const root = document.documentElement;
+  const blocks = [...document.head.querySelectorAll('style[clay-variant]')];
+  const named = (name) => blocks.find((style) => style.getAttribute('clay-variant') === name);
+  const saved = named(root.getAttribute('look'));
+  if (saved) for (const style of blocks) style === saved ? style.removeAttribute('media') : style.setAttribute('media', 'not all');
+  const slot = root.getAttribute('visitor-drafts');
+  if (!slot) return;
+  try {
+    const file = location.pathname.replace(/\/{2,}/g, '/').match(/^(.*?\/[^/]+\.(?:html|htmlclay))(?:\/|$)/i);
+    const path = file && file[1].toLowerCase() !== '/index.html' ? file[1] : '/';
+    const hinted = named(JSON.parse(localStorage.getItem(`clay:visitor-drafts:${slot}@${path}`))?.data?.look);
+    if (!hinted || hinted.getAttribute('media') !== 'not all') return;
+    const hint = document.createElement('style');
+    hint.setAttribute('clay', 'editor-ui');
+    hint.setAttribute('clay-look-hint', '');
+    hint.textContent = hinted.textContent;
+    document.head.append(hint);
+    setTimeout(() => hint.remove(), 4000);
+  } catch {}
+})();
+</script>
+<style clay-menu-skin="1" media="not all">
+[part~="dock"] { --bevel-surface: var(--sheet); --bevel-sunk: var(--hover); --bevel-ink: var(--ink); --bevel-ink-2: var(--ink-2); --bevel-muted: var(--ink-3); --bevel-faint: var(--ink-3); --bevel-line: var(--line); --bevel-line-2: var(--line-2); --bevel-line-3: var(--line-2); --bevel-brass: var(--royal); --bevel-font-sans: var(--sans); --bevel-font-mono: var(--mono); --clay-shadow: var(--shadow); }
+[part~="button"] { width: 32px; height: 32px; border: 0; border-radius: 6px; background: none; color: var(--ink-2); }
+[part~="button"]:hover, [part~="button"][aria-expanded="true"] { color: var(--ink); background: var(--hover); }
+[part~="button"] svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: square; stroke-linejoin: miter; }
+[part~="list"] { width: 270px; padding: 5px; background: var(--sheet); border: 1px solid var(--line-2); border-radius: 8px; box-shadow: var(--shadow); }
+[part~="item"], [part~="dismiss"], [part~="text"] { min-height: 30px; padding: 7px 9px; border-radius: 5px; font: 400 13px/1.3 var(--sans); color: var(--ink); }
+[part~="item"] kbd { padding-left: 14px; font: 400 11px/1 var(--mono); color: var(--ink-3); }
+[part~="quiet"] { font-size: 11.5px; color: var(--ink-3); text-decoration: underline; text-underline-offset: 2px; }
+[part~="dismiss"] { color: var(--ink-3); }
+[part~="dismiss"]:hover { color: var(--ink); }
+[part~="separator"] { height: 1px; margin: 5px 4px; background: var(--line); }
+@media (max-width: 759px) { [part~="button"] { width: 44px; height: 44px; } }
+</style>
+<script type="application/json" data-rules-name="api" data-rules-version="1">{"cc_share":"input[bind=\"cc_share\"]@value","service_share":"input[bind=\"service_share\"]@value","cc_fee":"input[bind=\"cc_fee\"]@value","service_fee":"input[bind=\"service_fee\"]@value","others_fee":"input[bind=\"others_fee\"]@value","sales_tax":"input[bind=\"sales_tax\"]@value","tax_reserve":"input[bind=\"tax_reserve\"]@value","vacation":"input[bind=\"vacation\"]@value","holidays":"input[bind=\"holidays\"]@value","sick":"input[bind=\"sick\"]@value","days_per_week":"input[bind=\"days_per_week\"]@value","hours_per_day":"input[bind=\"hours_per_day\"]@value","savings":"input[bind=\"savings\"]@value","housing":{"rent":{"daily":"[items=\"housing\"] > [data-expense=\"rent\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"rent\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"rent\"] input[bind=\"annual\"]@value"},"utilities":{"daily":"[items=\"housing\"] > [data-expense=\"utilities\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"utilities\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"utilities\"] input[bind=\"annual\"]@value"},"communications":{"daily":"[items=\"housing\"] > [data-expense=\"communications\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"communications\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"communications\"] input[bind=\"annual\"]@value"},"food":{"daily":"[items=\"housing\"] > [data-expense=\"food\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"food\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"food\"] input[bind=\"annual\"]@value"},"insurance":{"daily":"[items=\"housing\"] > [data-expense=\"insurance\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"insurance\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"insurance\"] input[bind=\"annual\"]@value"},"healthInsurance":{"daily":"[items=\"housing\"] > [data-expense=\"healthInsurance\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"healthInsurance\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"healthInsurance\"] input[bind=\"annual\"]@value"},"medical":{"daily":"[items=\"housing\"] > [data-expense=\"medical\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"medical\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"medical\"] input[bind=\"annual\"]@value"},"gym":{"daily":"[items=\"housing\"] > [data-expense=\"gym\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"gym\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"gym\"] input[bind=\"annual\"]@value"},"streaming":{"daily":"[items=\"housing\"] > [data-expense=\"streaming\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"streaming\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"streaming\"] input[bind=\"annual\"]@value"},"clothing":{"daily":"[items=\"housing\"] > [data-expense=\"clothing\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"clothing\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"clothing\"] input[bind=\"annual\"]@value"},"retirement":{"daily":"[items=\"housing\"] > [data-expense=\"retirement\"] input[bind=\"daily\"]@value","monthly":"[items=\"housing\"] > [data-expense=\"retirement\"] input[bind=\"monthly\"]@value","annual":"[items=\"housing\"] > [data-expense=\"retirement\"] input[bind=\"annual\"]@value"}},"travel":{"transportation":{"daily":"[items=\"travel\"] > [data-expense=\"transportation\"] input[bind=\"daily\"]@value","monthly":"[items=\"travel\"] > [data-expense=\"transportation\"] input[bind=\"monthly\"]@value","annual":"[items=\"travel\"] > [data-expense=\"transportation\"] input[bind=\"annual\"]@value"},"travel":{"daily":"[items=\"travel\"] > [data-expense=\"travel\"] input[bind=\"daily\"]@value","monthly":"[items=\"travel\"] > [data-expense=\"travel\"] input[bind=\"monthly\"]@value","annual":"[items=\"travel\"] > [data-expense=\"travel\"] input[bind=\"annual\"]@value"}},"biz1":{"supplies":{"daily":"[items=\"biz1\"] > [data-expense=\"supplies\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz1\"] > [data-expense=\"supplies\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz1\"] > [data-expense=\"supplies\"] input[bind=\"annual\"]@value"},"hardwareSoftware":{"daily":"[items=\"biz1\"] > [data-expense=\"hardwareSoftware\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz1\"] > [data-expense=\"hardwareSoftware\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz1\"] > [data-expense=\"hardwareSoftware\"] input[bind=\"annual\"]@value"},"assets":{"daily":"[items=\"biz1\"] > [data-expense=\"assets\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz1\"] > [data-expense=\"assets\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz1\"] > [data-expense=\"assets\"] input[bind=\"annual\"]@value"},"subscriptions":{"daily":"[items=\"biz1\"] > [data-expense=\"subscriptions\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz1\"] > [data-expense=\"subscriptions\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz1\"] > [data-expense=\"subscriptions\"] input[bind=\"annual\"]@value"},"website":{"daily":"[items=\"biz1\"] > [data-expense=\"website\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz1\"] > [data-expense=\"website\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz1\"] > [data-expense=\"website\"] input[bind=\"annual\"]@value"}},"biz2":{"advertising":{"daily":"[items=\"biz2\"] > [data-expense=\"advertising\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz2\"] > [data-expense=\"advertising\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz2\"] > [data-expense=\"advertising\"] input[bind=\"annual\"]@value"},"legalAccounting":{"daily":"[items=\"biz2\"] > [data-expense=\"legalAccounting\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz2\"] > [data-expense=\"legalAccounting\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz2\"] > [data-expense=\"legalAccounting\"] input[bind=\"annual\"]@value"},"development":{"daily":"[items=\"biz2\"] > [data-expense=\"development\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz2\"] > [data-expense=\"development\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz2\"] > [data-expense=\"development\"] input[bind=\"annual\"]@value"}},"biz3":{"office":{"daily":"[items=\"biz3\"] > [data-expense=\"office\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz3\"] > [data-expense=\"office\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz3\"] > [data-expense=\"office\"] input[bind=\"annual\"]@value"},"help":{"daily":"[items=\"biz3\"] > [data-expense=\"help\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz3\"] > [data-expense=\"help\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz3\"] > [data-expense=\"help\"] input[bind=\"annual\"]@value"},"other":{"daily":"[items=\"biz3\"] > [data-expense=\"other\"] input[bind=\"daily\"]@value","monthly":"[items=\"biz3\"] > [data-expense=\"other\"] input[bind=\"monthly\"]@value","annual":"[items=\"biz3\"] > [data-expense=\"other\"] input[bind=\"annual\"]@value"}},"custom":["[items=\"custom\"] > .row[item]:not([template])",{"id":"@id","label":".rc-clabel","daily":"input[bind=\"daily\"]@value","monthly":"input[bind=\"monthly\"]@value","annual":"input[bind=\"annual\"]@value"}],"masthead":"html@data-legacy-masthead","thanks":["a[clay-menu-item]",{"id":"@data-id"}],"look":"html@look"}</script>
+</head>
+<body sap>
+
+<header class="app-head">
+  <div class="app-head-in wrap">
+    <div class="app-brand"><svg class="app-logo" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#1c1c1e"/><path d="M30 34V12A22 22 0 1 0 52 34Z" fill="#ecce52"/><path d="M35 29V7A22 22 0 0 1 57 29Z" fill="#f4f1e8"/></svg><div><p class="app-name">Freelance Rate Calculator</p><p class="app-sub">Find your sustainable rate</p></div></div>
+    <div clay-menu-slot clay-menu-looks no-edit-switch clay-menu-label="Settings"></div>
+  </div>
+</header>
+<div class="doc-links" hidden>
+<a cms-template data-id="" clay-menu-item clay-menu-section="end" clay-menu-quiet clay-menu-dismiss="Remove this suggestion" href="mailto:david@hyperclay.com?subject=Freelance%20Rate%20Calculator">Send an appreciation email to the creator of this file</a>
+<a data-id="appreciation" clay-menu-item clay-menu-section="end" clay-menu-quiet clay-menu-dismiss="Remove this suggestion" href="mailto:david@hyperclay.com?subject=Freelance%20Rate%20Calculator">Send an appreciation email to the creator of this file</a>
+</div>
+
+<section class="band" aria-labelledby="tab-expenses">
+  <div class="tabrow"><div class="wrap content-grid"><span class="tab" id="tab-expenses">ANNUAL EXPENSES</span></div></div>
+  <div class="wrap">
+
+    <div class="ws-head">
+      <div class="ghead">Group</div>
+      <div class="cols">
+        <div class="ghead">Category</div>
+        <div class="chead">DAILY<span class="arr">↓</span></div>
+        <div class="chead">MONTHLY<span class="arr">↓</span></div>
+        <div class="chead">ANNUAL<span class="arr">↓</span></div>
+      </div>
+      <div class="fnote"><b>← Annual Expenses, by category, will be equal to:</b><span>(&nbsp;Daily&nbsp;×&nbsp;365&nbsp;) + (&nbsp;Monthly&nbsp;×&nbsp;12&nbsp;) + (&nbsp;Annual&nbsp;×&nbsp;1&nbsp;)</span></div>
+    </div>
+
+    <div class="grp g-housing">
+      <aside class="grp-card">
+        <h3>Living</h3>
+        <p>These are the essential expenses you need to cover to maintain your current lifestyle.</p>
+        <p>If you can't cover these costs, you can't be a full-time freelancer, sorry!</p>
+      </aside>
+      <div class="sheet" items="housing">
+        <div class="row" item data-expense="rent">
+          <div class="lab">Rent or Mortgage</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Rent or Mortgage, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="2400" step="10" min="0" inputmode="decimal" aria-label="Rent or Mortgage, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Rent or Mortgage, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>How much for the roof over your head?</span>
+        </div>
+        <div class="row" item data-expense="utilities">
+          <div class="lab">Utilities</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Utilities, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="180" step="10" min="0" inputmode="decimal" aria-label="Utilities, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Utilities, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Lights? Electricity? Heating/Air Conditioning? Water?</span>
+        </div>
+        <div class="row" item data-expense="communications">
+          <div class="lab">Phone &amp; Internet</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Phone and Internet, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="130" step="10" min="0" inputmode="decimal" aria-label="Phone and Internet, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Phone and Internet, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Cell phone bill? Cable? Internet? Landline?</span>
+        </div>
+        <div class="row" item data-expense="food">
+          <div class="lab">Food &amp; Entertainment</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="27" step="10" min="0" inputmode="decimal" aria-label="Food and Entertainment, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Food and Entertainment, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Food and Entertainment, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Groceries? Outings? Dinner with friends?</span>
+        </div>
+        <div class="row" item data-expense="insurance">
+          <div class="lab">Other Insurance</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Other insurance, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="80" step="10" min="0" inputmode="decimal" aria-label="Other insurance, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Other insurance, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Renters? Liability? Car insurance?</span>
+        </div>
+        <div class="row" item data-expense="healthInsurance">
+          <div class="lab">Health Insurance</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Health insurance, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="474" step="10" min="0" inputmode="decimal" aria-label="Health insurance, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Health insurance, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Self-employed? You pay the whole premium.</span>
+        </div>
+        <div class="row" item data-expense="medical">
+          <div class="lab">Medical &amp; Dental</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Medical and dental, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="50" step="10" min="0" inputmode="decimal" aria-label="Medical and dental, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Medical and dental, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Copays, prescriptions, cleanings?</span>
+        </div>
+        <div class="row" item data-expense="gym">
+          <div class="lab">Gym &amp; Fitness</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Gym and fitness, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="86" step="10" min="0" inputmode="decimal" aria-label="Gym and fitness, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Gym and fitness, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Membership? Classes?</span>
+        </div>
+        <div class="row" item data-expense="streaming">
+          <div class="lab">Streaming &amp; Subscriptions</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Streaming and subscriptions, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="45" step="10" min="0" inputmode="decimal" aria-label="Streaming and subscriptions, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Streaming and subscriptions, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Netflix? Spotify? News?</span>
+        </div>
+        <div class="row" item data-expense="clothing">
+          <div class="lab">Clothing &amp; Personal Care</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Clothing and personal care, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="100" step="10" min="0" inputmode="decimal" aria-label="Clothing and personal care, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Clothing and personal care, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Clothes? Haircuts? Toiletries?</span>
+        </div>
+        <div class="row" item data-expense="retirement">
+          <div class="lab">Retirement Savings</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Retirement savings, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Retirement savings, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="5000" step="10" min="0" inputmode="decimal" aria-label="Retirement savings, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Even a little each year adds up.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp g-travel">
+      <aside class="grp-card">
+        <h3>Travel</h3>
+        <p>Most likely you will also need to cover these costs.</p>
+      </aside>
+      <div class="sheet" items="travel">
+        <div class="row" item data-expense="transportation">
+          <div class="lab">Transportation</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Transportation, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="110" step="10" min="0" inputmode="decimal" aria-label="Transportation, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Transportation, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Car payments? Train, bus, or subway fare? Uber or taxi rides?</span>
+        </div>
+        <div class="row" item data-expense="travel">
+          <div class="lab">Travel (Hotel &amp; Tickets)</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Travel, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Travel, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="1200" step="10" min="0" inputmode="decimal" aria-label="Travel, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Airplane tickets? Hotel or AirBnB? Train or bus trips? Event travel?</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp g-biz1">
+      <aside class="grp-card">
+        <h3>Business I</h3>
+        <p>These are your main business expenses.</p>
+        <p>Example: If you need a computer every three years, consider taking the total cost and dividing it by 3, then place the amount in the 'Annual' column.</p>
+      </aside>
+      <div class="sheet" items="biz1">
+        <div class="row" item data-expense="supplies">
+          <div class="lab">Office Supplies</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Office Supplies, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="20" step="10" min="0" inputmode="decimal" aria-label="Office Supplies, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Office Supplies, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Pens, paper, ink? Small office furniture or workstations?</span>
+        </div>
+        <div class="row" item data-expense="hardwareSoftware">
+          <div class="lab">Hardware &amp; Software</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Hardware and Software, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Hardware and Software, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="1000" step="10" min="0" inputmode="decimal" aria-label="Hardware and Software, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>New computer? Monitors? One-time software purchases?</span>
+        </div>
+        <div class="row" item data-expense="assets">
+          <div class="lab">Business Assets</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Business Assets, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Business Assets, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="200" step="10" min="0" inputmode="decimal" aria-label="Business Assets, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Fonts? Icons? Images? Books? Add-ons?</span>
+        </div>
+        <div class="row" item data-expense="subscriptions">
+          <div class="lab">Subscriptions</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Subscriptions, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Subscriptions, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="1200" step="10" min="0" inputmode="decimal" aria-label="Subscriptions, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Figma? Google Workspace? Newsletter software? Professional tools?</span>
+        </div>
+        <div class="row" item data-expense="website">
+          <div class="lab">Website</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Website, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Website, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="250" step="10" min="0" inputmode="decimal" aria-label="Website, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Hosting? Servers? Cloud? Domain registrations?</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp g-biz2">
+      <aside class="grp-card">
+        <h3>Business II</h3>
+        <p>These can be considered optional if you are just starting out.</p>
+      </aside>
+      <div class="sheet" items="biz2">
+        <div class="row" item data-expense="advertising">
+          <div class="lab">Advertising</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Advertising, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="25" step="10" min="0" inputmode="decimal" aria-label="Advertising, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Advertising, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Google Ads? Print or online ads? Facebook? Instagram?</span>
+        </div>
+        <div class="row" item data-expense="legalAccounting">
+          <div class="lab">Legal &amp; Accounting</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Legal and Accounting, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Legal and Accounting, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="900" step="10" min="0" inputmode="decimal" aria-label="Legal and Accounting, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Contracts? Taxes? Accounting? Legal advice?</span>
+        </div>
+        <div class="row" item data-expense="development">
+          <div class="lab">Professional Development</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Professional Development, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Professional Development, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="500" step="10" min="0" inputmode="decimal" aria-label="Professional Development, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Tuition? Professional classes? Networking events?</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp g-biz3">
+      <aside class="grp-card">
+        <h3>Business III</h3>
+        <p>Once your business is established, these additional expenses could be part of your financial planning.</p>
+      </aside>
+      <div class="sheet" items="biz3">
+        <div class="row" item data-expense="office">
+          <div class="lab">Office Space</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Office Space, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="200" step="10" min="0" inputmode="decimal" aria-label="Office Space, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Office Space, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Co-working space? Office?</span>
+        </div>
+        <div class="row" item data-expense="help">
+          <div class="lab">Contracts &amp; Help</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Contracts and Help, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Contracts and Help, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="150" step="10" min="0" inputmode="decimal" aria-label="Contracts and Help, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Need to hire help on projects? Any additional help?</span>
+        </div>
+        <div class="row" item data-expense="other">
+          <div class="lab">Other</div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Other, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="30" step="10" min="0" inputmode="decimal" aria-label="Other, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Other, annual amount" viewmode:disabled disabled></label></span>
+          <span class="note"><span class="la">←</span>Business insurance? Business entity fees? Other expenses?</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp g-biz3">
+      <aside class="grp-card">
+        <h3>Custom</h3>
+        <p>Anything else? Add your own recurring costs here, in whichever column fits.</p>
+      </aside>
+      <div class="sheet" items="custom">
+        <div class="row" item template>
+          <div class="lab"><span class="rc-clabel" editmode:contenteditable bind="label" data-placeholder="Name this expense" persist inert-contenteditable="plaintext-only"></span></div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, annual amount" viewmode:disabled disabled></label></span>
+          <button type="button" class="rc-remove" trigger-remove aria-label="Remove this custom expense">×</button>
+        </div>
+        <div class="row" item cms-template data-id="">
+          <div class="lab"><span class="rc-clabel" editmode:contenteditable bind="label" data-placeholder="Name this expense" persist inert-contenteditable="plaintext-only"></span></div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, annual amount" viewmode:disabled disabled></label></span>
+          <button type="button" class="rc-remove" trigger-remove aria-label="Remove this custom expense">×</button>
+        </div>
+        <div class="row" item id="row-sample">
+          <div class="lab"><span class="rc-clabel" editmode:contenteditable bind="label" data-placeholder="Name this expense" persist inert-contenteditable="plaintext-only">Coworking desk</span></div>
+          <span class="microlab">Daily</span><span class="microlab">Monthly</span><span class="microlab">Annual</span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="daily" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, daily amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="monthly" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, monthly amount" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input persist bind="annual" value="" step="10" min="0" inputmode="decimal" aria-label="Custom expense, annual amount" viewmode:disabled disabled></label></span>
+          <button type="button" class="rc-remove" trigger-remove aria-label="Remove this custom expense">×</button>
+        </div>
+        <button type="button" class="rc-add" trigger-add="custom">+ Add a custom expense</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <span></span>
+      <div class="sheet ledger">
+        <div class="lrow"><div class="llab"></div><div class="cnv">↓</div><div class="cnv">↓</div><div class="cnv">↓</div></div>
+        <div class="lrow head">
+          <div class="llab"></div>
+          <div class="num">Daily</div><div class="num">Monthly</div><div class="num">Annual</div>
+        </div>
+        <div class="lrow">
+          <div class="llab">SUB TOTAL<small>Rates</small></div>
+          <div class="num"><span calc:sub_daily="sum([].concat(state.housing, state.travel, state.biz1, state.biz2, state.biz3, state.custom), 'daily')" text:usd="state.sub_daily">$27</span><small>× 365</small></div>
+          <div class="num"><span calc:sub_monthly="sum([].concat(state.housing, state.travel, state.biz1, state.biz2, state.biz3, state.custom), 'monthly')" text:usd="state.sub_monthly">$3,930</span><small>× 12</small></div>
+          <div class="num"><span calc:sub_annual="sum([].concat(state.housing, state.travel, state.biz1, state.biz2, state.biz3, state.custom), 'annual')" text:usd="state.sub_annual">$10,400</span><small>× 1</small></div>
+          <span class="note blue"><span class="la">←</span>Amount you spend per day, month, and year. Multiply each by the number of days, months, and years.</span>
+        </div>
+        <div class="lrow total">
+          <div class="llab">ANNUAL TOTAL</div>
+          <div class="num" calc:ann_daily="state.sub_daily * 365" text:usd="state.ann_daily">$9,855</div>
+          <div class="num" calc:ann_monthly="state.sub_monthly * 12" text:usd="state.ann_monthly">$47,160</div>
+          <div class="num" calc:ann_annual="state.sub_annual * 1" text:usd="state.ann_annual">$10,400</div>
+          <span class="note blue"><span class="la">←</span>Add these amounts to get your total annual expenses</span>
+        </div>
+        <div class="converge"><span>↘</span><span>↓</span><span>↙</span></div>
+        <div class="bigwell">
+          <div class="bignum" calc:annual_expenses="state.ann_daily + state.ann_monthly + state.ann_annual" text:usd="state.annual_expenses">$67,415</div>
+          <div class="in">in ANNUAL EXPENSES</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap content-grid">
+<section class="interstitial">
+  <p class="q">So, you need to earn <span text:usd="state.annual_expenses">$67,415</span> to cover costs?</p>
+  <p class="no">No, you need more.</p>
+  <div class="chapter">
+    <h2 class="blue">How to Reach Your<br>Break-Even Point</h2>
+  </div>
+  <p class="subtitle">You need to earn enough to cover all annual expenses AFTER sales fees and taxes are paid.</p>
+  <div>
+    <span class="formulabox">Expenses &nbsp;+&nbsp; Fees &nbsp;+&nbsp; Taxes &nbsp;=&nbsp; Break-Even Point</span>
+  </div>
+</section>
+</div>
+
+<section class="chapter wrap content-grid">
+  <h2>Sales Fees and Taxes</h2>
+  <p class="subtitle">You can't escape them ¯\_(ツ)_/¯</p>
+</section>
+
+<section class="band" aria-labelledby="tab-fees">
+  <div class="tabrow"><div class="wrap content-grid"><span class="tab" id="tab-fees">SALES FEES</span></div></div>
+  <div class="wrap">
+    <div class="grp g-biz1 notes-left">
+      <span></span>
+      <div class="sheet">
+        <div class="row colhead">
+          <div class="lab"></div>
+          <div class="cell plain" style="font-weight:700">Credit Card<span class="converge" style="display:block;font-size:16px;margin:0">↓</span></div>
+          <div class="cell plain" style="font-weight:700">Service<span class="converge" style="display:block;font-size:16px;margin:0">↓</span></div>
+          <div class="cell plain" style="font-weight:700">Others<span class="converge" style="display:block;font-size:16px;margin:0">↓</span></div>
+        </div>
+        <div class="row">
+          <div class="lab">% of Total Sales</div>
+          <span class="microlab">Credit card</span><span class="microlab">Service</span><span class="microlab">Others</span>
+          <span class="cellslot"><label class="cell pct" class:invalid="state.mix_error"><span class="fix">%</span><input bind="cc_share" persist value="0" step="5" min="0" max="100" inputmode="decimal" aria-label="Credit card share of total sales" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell pct" class:invalid="state.mix_error"><span class="fix">%</span><input bind="service_share" persist value="0" step="5" min="0" max="100" inputmode="decimal" aria-label="Service share of total sales" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><span class="cell plain" calc:others_share="100 - num(state.cc_share) - num(state.service_share)" calc:mix_error="state.others_share &lt; 0" text:pct="state.others_share" class:invalid="state.mix_error">100%</span></span>
+          <span class="note">What % of your sales come from credit cards / services / commissions / others?<span class="la">→</span></span>
+        </div>
+        <div class="row g-travel">
+          <div class="lab">Transaction Fee</div>
+          <span class="microlab">Credit card</span><span class="microlab">Service</span><span class="microlab">Others</span>
+          <span class="cellslot"><label class="cell pct"><span class="fix">%</span><input bind="cc_fee" persist value="0" step="0.1" min="0" inputmode="decimal" aria-label="Credit card transaction fee" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell pct"><span class="fix">%</span><input bind="service_fee" persist value="0" step="0.1" min="0" inputmode="decimal" aria-label="Service transaction fee" viewmode:disabled disabled></label></span>
+          <span class="cellslot"><label class="cell pct"><span class="fix">%</span><input bind="others_fee" persist value="0" step="0.1" min="0" inputmode="decimal" aria-label="Others transaction fee" viewmode:disabled disabled></label></span>
+          <span class="note">What is the transaction fee?<span class="la">→</span></span>
+        </div>
+      </div>
+      <aside class="card sidenote">
+        <p><b>Credit Card</b><br>Do you accept credit card payments?</p>
+        <p><b>Service</b><br>Do you pay any third-party fees? (e.g., sales commissions, Upwork)</p>
+        <p><b>Other</b><br>All other sales that have a transaction fee. If none, enter 0%.</p>
+      </aside>
+    </div>
+    <div class="grp">
+      <span></span>
+      <div class="sheet ledger">
+        <div class="lrow total">
+          <div class="llab">TOTAL FEES</div>
+          <div class="num"><span text:usd="state.fees_amt" show="!state.calc_error">$0</span><span show="state.calc_error" hidden>—</span></div>
+          <div class="num"><span text:usd="state.fees_amt" show="!state.calc_error">$0</span><span show="state.calc_error" hidden>—</span></div>
+          <div class="num"><span text:usd="state.fees_amt" show="!state.calc_error">$0</span><span show="state.calc_error" hidden>—</span></div>
+        </div>
+        <div class="converge"><span>↘</span><span>↓</span><span>↙</span></div>
+        <div class="bigwell">
+          <div class="bignum" calc:blended_fee="(num(state.cc_share)*num(state.cc_fee) + num(state.service_share)*num(state.service_fee) + state.others_share*num(state.others_fee)) / 10000" calc:fees_amt="state.blended_fee * state.break_even" text:usd="state.fees_amt" show="!state.calc_error">$0</div>
+          <div class="bignum" show="state.calc_error" hidden>—</div>
+          <div class="in">in SALES FEES</div>
+          <span class="note blue"><span class="la">←</span>Your total annual sales fees</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section class="band" aria-labelledby="tab-taxes">
+  <div class="tabrow"><div class="wrap content-grid"><span class="tab" id="tab-taxes">TAXES</span></div></div>
+  <div class="wrap">
+    <div class="duo">
+      <div class="card">
+        <div class="taxrow g-biz1">
+          <div class="llab">Sales tax / VAT<small>Leave at 0 unless you resell goods or software licences. Most US states do not tax freelance services.</small></div>
+          <span class="val"><label class="cell pct" style="width:84px"><span class="fix">%</span><input bind="sales_tax" persist value="0" step="0.1" min="0" inputmode="decimal" aria-label="Sales tax or VAT rate" viewmode:disabled disabled></label></span>
+        </div>
+        <div class="taxrow g-biz2" calc:remaining_rate="1 - state.blended_fee - num(state.sales_tax)/100 - num(state.tax_reserve)/100" calc:rate_error="state.remaining_rate &lt;= 0" calc:calc_error="state.mix_error || state.rate_error">
+          <div class="llab">Income + self-employment tax reserve<small>Share of every dollar you bill that you set aside</small></div>
+          <span class="val"><label class="cell pct" style="width:84px"><span class="fix">%</span><input bind="tax_reserve" persist value="25" step="0.1" min="0" inputmode="decimal" aria-label="Income and self-employment tax reserve" viewmode:disabled disabled></label></span>
+        </div>
+        <div class="taxrow">
+          <div class="llab">Tax reserve amount<small><span text:pct="num(state.tax_reserve)">25%</span> of everything you bill</small></div>
+          <div class="val"><span calc:tax_reserve_amt="num(state.tax_reserve)/100 * state.break_even" text:usd2="state.tax_reserve_amt" show="!state.calc_error">$22,471.67</span><span show="state.calc_error" hidden>—</span></div>
+        </div>
+        <div class="taxrow">
+          <div class="llab">Sales Tax / VAT amount<small><span text:pct="num(state.sales_tax)">0%</span> of everything you bill</small></div>
+          <div class="val"><span calc:sales_tax_amt="num(state.sales_tax)/100 * state.break_even" text:usd2="state.sales_tax_amt" show="!state.calc_error">$0.00</span><span show="state.calc_error" hidden>—</span></div>
+        </div>
+        <div class="taxrow sum">
+          <div class="llab">TOTAL TAXES TO SET ASIDE</div>
+          <div class="val" style="color:var(--live);font-weight:800;font-size:22px"><span calc:total_taxes="state.tax_reserve_amt + state.sales_tax_amt" text:usd2="state.total_taxes" show="!state.calc_error">$22,471.67</span><span show="state.calc_error" hidden>—</span></div>
+        </div>
+        <p class="sidenote" style="margin-top:14px" show="!state.rate_error">Fees and tax reserves are figured on what you actually bill, so your rate includes the money you set aside.</p>
+        <p class="rc-error tax-error" show="state.rate_error" hidden>Your fees and tax rates add up to 100% or more. Lower one to calculate a rate.</p>
+      </div>
+      <aside class="card tax-guide">
+        <h4>CHOOSE YOUR TAX RESERVE</h4>
+        <p class="tax-guide-lead">Your actual tax depends on profit, deductions, other income, and where you live.</p>
+        <div class="tax-guide-formula">
+          <span>last year's freelance taxes</span>
+          <span class="tax-guide-rule"></span>
+          <span>last year's freelance revenue</span>
+          <strong>= your reserve rate</strong>
+        </div>
+        <p class="tax-guide-note"><b>25% is an example, not a tax estimate.</b> Include income, self-employment, and any state or local income taxes that apply to your freelance work.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<div class="wrap content-grid">
+<section class="breakeven">
+  <div class="chapter">
+    <h2 class="blue">Break-Even Point</h2>
+  </div>
+  <div class="parts">
+    <div class="part"><div class="plab">Expenses</div><div class="pval" text:usd="state.annual_expenses">$67,415</div></div>
+    <div class="plus">+</div>
+    <div class="part"><div class="plab">Fees</div><div class="pval"><span text:usd="state.fees_amt" show="!state.calc_error">$0</span><span show="state.calc_error" hidden>—</span></div></div>
+    <div class="plus">+</div>
+    <div class="part"><div class="plab">Taxes</div><div class="pval"><span text:usd2="state.total_taxes" show="!state.calc_error">$22,471.67</span><span show="state.calc_error" hidden>—</span></div></div>
+  </div>
+  <div class="converge"><span>↘</span><span>↓</span><span>↙</span></div>
+  <div class="bigresult" show="!state.calc_error">
+    <div class="bignum" calc:break_even="rc.solve(state.annual_expenses, state.blended_fee, num(state.sales_tax)/100, num(state.tax_reserve)/100)" text:usd2="state.break_even">$89,886.67</div>
+    <div class="in">in TOTAL ANNUAL SALES</div>
+  </div>
+  <div class="bigresult" show="state.calc_error" hidden>
+    <div class="rc-error" show="state.mix_error" hidden>Change your % of total sales — they add up to more than 100%.</div>
+    <div class="rc-error" show="!state.mix_error &amp;&amp; state.rate_error" hidden>Your fees and tax rates add up to 100% or more. Lower one to calculate a rate.</div>
+  </div>
+  <p class="resultnote">↑ Your total annual sales required to break even</p>
+</section>
+</div>
+
+<section class="chapter wrap content-grid">
+  <h2>Your Working Days</h2>
+  <p class="subtitle">How many days and hours will you work?</p>
+</section>
+
+<section class="band" aria-labelledby="tab-days">
+  <div class="tabrow"><div class="wrap content-grid"><span class="tab" id="tab-days">WORKING DAYS</span></div></div>
+  <div class="wrap">
+
+    <div class="grp g-housing">
+      <aside class="grp-card">
+        <h3>Days Off</h3>
+        <p>The total number of days per year that you will not work.</p>
+        <p>Weekends will be calculated below.</p>
+      </aside>
+      <div class="sheet">
+        <div class="row">
+          <div class="lab">Vacation</div>
+          <span class="microlab"></span><span class="microlab">Days</span><span class="microlab"></span>
+          <span class="cellslot"></span>
+          <span class="cellslot"><label class="cell"><input bind="vacation" persist value="21" step="1" min="0" inputmode="decimal" aria-label="Vacation days per year" viewmode:disabled disabled></label></span>
+          <span class="cellslot"></span>
+          <span class="note"><span class="la">←</span>How many vacation days do you want per year?</span>
+        </div>
+        <div class="row">
+          <div class="lab">Holidays</div>
+          <span class="microlab"></span><span class="microlab">Days</span><span class="microlab"></span>
+          <span class="cellslot"></span>
+          <span class="cellslot"><label class="cell"><input bind="holidays" persist value="10" step="1" min="0" inputmode="decimal" aria-label="Holidays per year" viewmode:disabled disabled></label></span>
+          <span class="cellslot"></span>
+          <span class="note"><span class="la">←</span>As a reference, there are 11 public holidays in the US</span>
+        </div>
+        <div class="row">
+          <div class="lab">Sick Days</div>
+          <span class="microlab"></span><span class="microlab">Days</span><span class="microlab"></span>
+          <span class="cellslot"></span>
+          <span class="cellslot"><label class="cell"><input bind="sick" persist value="7" step="1" min="0" inputmode="decimal" aria-label="Sick days per year" viewmode:disabled disabled></label></span>
+          <span class="cellslot"></span>
+          <span class="note"><span class="la">←</span>It's standard to have 8 or more sick days in the US</span>
+        </div>
+        <div class="row sumrow">
+          <div class="lab">TOTAL DAYS OFF</div>
+          <span class="cellslot"></span>
+          <span class="cellslot"><span class="cell plain sumval" calc:days_off="num(state.vacation) + num(state.holidays) + num(state.sick)" text:int="state.days_off">38</span></span>
+          <span class="cellslot"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp g-travel">
+      <aside class="grp-card">
+        <h3>Working Days</h3>
+        <p>The total number of days per year that you will work on your business.</p>
+      </aside>
+      <div class="sheet">
+        <div class="row">
+          <div class="lab">Available Days</div>
+          <span class="microlab"></span><span class="microlab">Days</span><span class="microlab"></span>
+          <span class="cellslot"></span>
+          <span class="cellslot"><span class="cell plain" calc:available_days="365 - state.days_off" text:int="state.available_days">327</span></span>
+          <span class="cellslot"></span>
+          <span class="note"><span class="la">←</span>Days a year minus total days off (from above)</span>
+        </div>
+        <div class="row">
+          <div class="lab">Working Days / per week</div>
+          <span class="microlab"></span><span class="microlab">Days</span><span class="microlab"></span>
+          <span class="cellslot"></span>
+          <span class="cellslot"><label class="cell"><input bind="days_per_week" persist value="5" step="1" min="1" max="7" inputmode="decimal" aria-label="Working days per week" viewmode:disabled disabled></label></span>
+          <span class="cellslot"></span>
+          <span class="note"><span class="la">←</span>How many days a week do you work?</span>
+        </div>
+        <div class="row sumrow">
+          <div class="lab">TOTAL WORKING DAYS</div>
+          <span class="cellslot"></span>
+          <span class="cellslot"><span class="cell plain sumval" calc:working_days="Math.floor(num(state.days_per_week) / 7 * state.available_days)" text:int="state.working_days">233</span></span>
+          <span class="cellslot"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp g-biz1">
+      <aside class="grp-card">
+        <h3>Hours</h3>
+      </aside>
+      <div class="sheet">
+        <div class="row">
+          <div class="lab">Working Hours / per day</div>
+          <span class="microlab"></span><span class="microlab">Hours</span><span class="microlab"></span>
+          <span class="cellslot"></span>
+          <span class="cellslot"><label class="cell"><input bind="hours_per_day" persist value="5" step="1" min="1" max="24" inputmode="decimal" aria-label="Working hours per day" viewmode:disabled disabled></label></span>
+          <span class="cellslot"></span>
+          <span class="note"><span class="la">←</span>How many hours a day do you expect to be paid for? Looking for work on the internet is not paid work, sorry.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="payoff wrap content-grid" id="your-rate">
+  <div class="chapter">
+    <h2>Your <span class="goldword">Sustainable</span> Hourly Rate</h2>
+  </div>
+  <div class="hero" calc:hourly_rate="state.break_even / state.working_days / num(state.hours_per_day)" effect="var n=el.querySelector('.num'); n.hidden=!!state.calc_error; if(!state.calc_error) n.textContent=fmt.usd2(state.hourly_rate)" onbeforesnapshot="var g=this.querySelector('.goldbar');if(g){g.style.removeProperty('transform');g.style.removeProperty('transition');if(!g.getAttribute('style'))g.removeAttribute('style')}">
+    <div class="num" sap-ignore>$77.16</div>
+    <div class="rc-error" show="state.mix_error" hidden>Change your % of total sales — they add up to more than 100%.</div>
+    <div class="rc-error" show="!state.mix_error &amp;&amp; state.rate_error" hidden>Your fees and tax rates add up to 100% or more. Lower one to calculate a rate.</div>
+    <div class="goldbar"></div>
+  </div>
+  <p class="paycaption">How much you need to charge <b>to stay sustainable</b></p>
+  <div class="twins">
+    <div class="twin daily">
+      <h3>Daily Rate</h3>
+      <div class="box"><span calc:daily_rate="state.break_even / state.working_days" text:usd2="state.daily_rate" show="!state.calc_error">$385.78</span><span show="state.calc_error" hidden>—</span><span class="cbar"></span></div>
+      <p class="tcap">Your <b>sustainable</b> daily rate</p>
+    </div>
+    <div class="twin weekly">
+      <h3>Weekly Rate</h3>
+      <div class="box"><span calc:weekly_rate="state.daily_rate * num(state.days_per_week)" text:usd2="state.weekly_rate" show="!state.calc_error">$1,928.90</span><span show="state.calc_error" hidden>—</span><span class="cbar"></span></div>
+      <p class="tcap">Your <b>sustainable</b> weekly rate</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap center content-grid">
+  <div class="chapter">
+    <h2>Adjustments for Savings</h2>
+    <p class="subtitle">Ready to go beyond your break-even point?</p>
+  </div>
+</section>
+
+<section class="band savingsband" aria-labelledby="tab-savings">
+  <div class="tabrow"><div class="wrap content-grid"><span class="tab" id="tab-savings">SAVINGS</span></div></div>
+  <div class="wrap">
+    <div class="grp g-biz1">
+      <span></span>
+      <div class="sheet">
+        <div class="row">
+          <div class="lab">Annual Savings</div>
+          <span class="microlab"></span><span class="microlab">Amount</span><span class="microlab"></span>
+          <span class="cellslot"></span>
+          <span class="cellslot"><label class="cell money"><span class="fix">$</span><input bind="savings" persist value="0" step="100" min="0" inputmode="decimal" aria-label="Annual savings goal" viewmode:disabled disabled></label></span>
+          <span class="cellslot"></span>
+          <span class="note"><span class="la">←</span>Saving for something beyond retirement?</span>
+        </div>
+      </div>
+    </div>
+    <div class="grp">
+      <span></span>
+      <div class="card adjcard">
+        <div class="taxrow">
+          <div class="llab">Adjusted Annual Expenses<small>Your expenses plus your savings goal</small></div>
+          <div class="val" calc:adj_expenses="state.annual_expenses + num(state.savings)" text:usd="state.adj_expenses">$67,415</div>
+        </div>
+        <div class="taxrow">
+          <div class="llab">Adjusted Sales Fees</div>
+          <div class="val"><span calc:adj_fees="state.blended_fee * state.adj_sales" text:usd="state.adj_fees" show="!state.calc_error">$0</span><span show="state.calc_error" hidden>—</span></div>
+        </div>
+        <div class="taxrow">
+          <div class="llab">Adjusted Taxes</div>
+          <div class="val"><span calc:adj_taxes="(num(state.tax_reserve) + num(state.sales_tax))/100 * state.adj_sales" text:usd2="state.adj_taxes" show="!state.calc_error">$22,471.67</span><span show="state.calc_error" hidden>—</span></div>
+        </div>
+        <div class="taxrow sum">
+          <div class="llab">ADJUSTED ANNUAL SALES</div>
+          <div class="val" style="color:var(--live);font-weight:800;font-size:22px"><span calc:adj_sales="rc.solve(state.annual_expenses + num(state.savings), state.blended_fee, num(state.sales_tax)/100, num(state.tax_reserve)/100)" text:usd2="state.adj_sales" show="!state.calc_error">$89,886.67</span><span show="state.calc_error" hidden>—</span></div>
+        </div>
+        <span class="note blue pinned"><span class="la">←</span>Your newly adjusted total annual sales needed to save <span text:usd="state.savings">$0</span> per year...</span>
+      </div>
+      <aside class="card sidenote">
+        <p><b>Why the adjustment?</b><br>Since you want to save money per year (great idea!), you will need to earn additional income to cover it.</p>
+        <p>And yes, you still have to pay fees and taxes on this amount. Yay...</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="payoff wrap content-grid">
+  <div class="chapter">
+    <h2>Your New Hourly Rate</h2>
+    <p class="subtitle">Covering expenses and saving <span text:usd="state.savings">$0</span> per year!</p>
+  </div>
+  <div class="hero" calc:adj_hourly="state.adj_sales / state.working_days / num(state.hours_per_day)" effect="var n=el.querySelector('.num'); n.hidden=!!state.calc_error; if(!state.calc_error) n.textContent=fmt.usd2(state.adj_hourly)" onbeforesnapshot="var g=this.querySelector('.goldbar');if(g){g.style.removeProperty('transform');g.style.removeProperty('transition');if(!g.getAttribute('style'))g.removeAttribute('style')}">
+    <div class="num" sap-ignore>$77.16</div>
+    <div class="rc-error" show="state.mix_error" hidden>Change your % of total sales — they add up to more than 100%.</div>
+    <div class="rc-error" show="!state.mix_error &amp;&amp; state.rate_error" hidden>Your fees and tax rates add up to 100% or more. Lower one to calculate a rate.</div>
+    <div class="goldbar"></div>
+  </div>
+  <p class="paycaption">Adjusted hourly rate for the desired annual savings</p>
+  <div class="twins">
+    <div class="twin daily">
+      <h3>Daily Rate</h3>
+      <div class="box"><span calc:adj_daily="state.adj_sales / state.working_days" text:usd2="state.adj_daily" show="!state.calc_error">$385.78</span><span show="state.calc_error" hidden>—</span><span class="cbar"></span></div>
+      <p class="tcap">Your new daily rate</p>
+    </div>
+    <div class="twin weekly">
+      <h3>Weekly Rate</h3>
+      <div class="box"><span calc:adj_weekly="state.adj_daily * num(state.days_per_week)" text:usd2="state.adj_weekly" show="!state.calc_error">$1,928.90</span><span show="state.calc_error" hidden>—</span><span class="cbar"></span></div>
+      <p class="tcap">Your new weekly rate</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="meta">
+      <p><b>Method.</b> Fees and tax reserves are solved on the sales you actually bill, not on bare expenses. Income and self-employment taxes use the reserve percentage you enter. This is a planning assumption, not a tax-liability estimate.</p>
+      <p><b>Privacy.</b> Your financial values and expense labels are excluded from analytics. Downloading from the hosted page sends the numbers and expense labels saved in your browser to Hyperclay to build the downloadable HTML. The hosted page counts anonymous visits, scrolling, and download clicks. Downloaded copies have no analytics.</p>
+    </div>
+    <div class="credits">
+      Brought to you by <a href="https://panphora.com">David Miranda</a> &nbsp;·&nbsp; Original spreadsheet by <a href="https://www.linkedin.com/in/zachary-c-collins/">Zach Collins</a>
+    </div>
+    <div class="resetline"><button type="button" id="rc-reset">Reset to example numbers</button></div>
+  </div>
+</footer>
+<div class="rc-saved" id="rc-saved" aria-live="polite" onbeforesnapshot="this.classList.remove('on');this.textContent=''"></div>
+
+<script id="rc-math">
+window.rc = (function () {
+  function solve(target, f, salestax, reserve) {
+    var remaining = 1 - f - salestax - reserve;
+    return remaining > 0 ? target / remaining : 0;
+  }
+  return { solve: solve };
+})();
+</script>
+
+<script id="rc-new-rows">
+(function () {
+  var rows = ["healthInsurance", "medical", "gym", "streaming", "clothing", "retirement"];
+  var legacy = "clay:visitor-drafts:freelance-rate-calculator-v1";
+  var file = location.pathname.replace(/\/{2,}/g, "/").match(/^(.*?\/[^/]+\.(?:html|htmlclay))(?:\/|$)/i);
+  var path = file ? file[1] : "/";
+  if (path.toLowerCase() === "/index.html") path = "/";
+  var key = legacy + "@" + path;
+  var rec;
+  try {
+    var raw = localStorage.getItem(key);
+    if (raw == null && localStorage.getItem(key + ":legacy") == null) raw = localStorage.getItem(legacy);
+    rec = JSON.parse(raw || "null");
+  } catch (e) { return; }
+  var h = rec && rec.data && rec.data.housing;
+  if (!h || typeof h !== "object" || "healthInsurance" in h) return;
+  document.addEventListener("clay:drafts-restored", function (e) {
+    if (!e.detail || !e.detail.restored) return;
+    rows.forEach(function (r) {
+      document.querySelectorAll('[items="housing"] > [data-expense="' + r + '"] input[bind]').forEach(function (el) {
+        if (el.value === "") return;
+        el.value = "";
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+    if (window.clay && clay.ready) clay.ready.then(function () { if (clay.visitorDrafts) clay.visitorDrafts.saveNow(); });
+  }, { once: true });
+})();
+</script>
+<script id="rc-mode">
+(function () {
+  var resetBtn = document.getElementById("rc-reset");
+  function onReset() {
+    if (window.rcReset) window.rcReset();
+  }
+
+  window.clay = window.clay || {};
+  window.clay.modeParticipants = window.clay.modeParticipants || [];
+  window.clay.modeParticipants.push({
+    id: "template:freelance-rate-calculator",
+    order: 1000,
+    prepare: function () {
+      return {
+        enable: function () { resetBtn.addEventListener("click", onReset); },
+        quiesce: function () {},
+        resume: function () {},
+        dispose: function () { resetBtn.removeEventListener("click", onReset); },
+      };
+    },
+  });
+})();
+</script>
+<script src="https://clayjs.com/v1/clay.js?plugins=menu&exclude=richclay"></script>
+<script src="https://clayjs.com/v1/sap.js"></script>
+<script id="rc-app">
+["saving", "saved", "error", "conflict", "offline"].forEach(function (state) {
+  document.addEventListener("clay:save-" + state, function () { if (window.rcFlashSaved) window.rcFlashSaved(state); });
+});
+window.rcReset = function () { if (window.clay && clay.visitorDrafts && clay.visitorDrafts.active) clay.visitorDrafts.reset(); };
+</script>
+<script id="rc-migrate">
+(function () {
+  var OLD = "rc-values-v1";
+  if (!window.clay || !clay.ready) return;
+  clay.ready.then(function () {
+    if (!clay.isDraftMode || !clay.visitorDrafts || clay.visitorDrafts.hasDraft()) return;
+    var saved;
+    try { saved = JSON.parse(localStorage.getItem(OLD) || "null"); } catch (e) { return; }
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return;
+    var changed = false;
+    document.querySelectorAll("[sap] input[bind][aria-label]").forEach(function (el) {
+      if (el.closest("[items='custom'], [template], [cms-template]")) return;
+      var k = el.getAttribute("aria-label").replace(/^Other insurance,/, "Insurance,");
+      if (!Object.prototype.hasOwnProperty.call(saved, k)) return;
+      var v = saved[k];
+      if (typeof v !== "string" && !(typeof v === "number" && isFinite(v))) return;
+      if (el.value === String(v)) return;
+      el.value = String(v);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      changed = true;
+    });
+    if (!changed) return;
+    ["healthInsurance", "medical", "gym", "streaming", "clothing", "retirement"].forEach(function (r) {
+      document.querySelectorAll('[items="housing"] > [data-expense="' + r + '"] input[bind]').forEach(function (el) {
+        if (el.value === "") return;
+        el.value = "";
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+  });
+})();
+</script>
+
+<script>
+(function () {
+  document.addEventListener("focus", function (e) {
+    if (e.target && e.target.matches && e.target.matches(".cell input")) e.target.select();
+  }, true);
+
+  var savedEl = document.getElementById("rc-saved");
+  var failures = { error: "Couldn't save", conflict: "Changed elsewhere", offline: "Offline, will retry" };
+  window.rcFlashSaved = function (state) {
+    if (!savedEl) return;
+    var words = failures[state] || "";
+    if (savedEl.textContent !== words) savedEl.textContent = words;
+    savedEl.classList.toggle("on", Boolean(words));
+  };
+})();
+</script>
+
+<script>
+(function () {
+  var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduced || !("IntersectionObserver" in window)) return;
+
+  document.querySelectorAll(".hero").forEach(function (hero) {
+    var numEl = hero.querySelector(".num");
+    if (!numEl) return;
+    var io = new IntersectionObserver(function (entries) {
+      if (!entries[0].isIntersecting) return;
+      io.disconnect();
+      var target = parseFloat(numEl.textContent.replace(/[^0-9.]/g, "")) || 0;
+      var start = null;
+      function step(ts) {
+        if (!start) start = ts;
+        var t = Math.min((ts - start) / 700, 1);
+        var eased = 1 - Math.pow(1 - t, 3);
+        numEl.textContent = "$" + (target * eased).toFixed(2);
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }, { threshold: 0.6 });
+    io.observe(hero);
+  });
+})();
+</script>
+<template data-hyperclay-bar><style>
+.bar { --t-bg: #f4f7fb; --t-ink: #0f172a; --t-line: #cbd5e1; --t-accent: #1d4ed8; --t-on-accent: #fcfdfe;
+  background: var(--t-bg); color: var(--t-ink); font: 13.5px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+@media (prefers-color-scheme: dark) { .bar { --t-bg: #111a2e; --t-ink: #e2e8f0; --t-line: #2a3650; --t-accent: #7aa2f7; --t-on-accent: #0b1220; } }
+.bar[data-kind="trial"] { border-top: 1px solid var(--t-line); }
+.bar[data-kind="temp"] { border-bottom: 1px solid var(--t-line); }
+.btn { border: 1px solid var(--t-line); background: transparent; color: var(--t-ink); }
+.primary { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-on-accent); }
+</style></template>
+</body>
+</html>

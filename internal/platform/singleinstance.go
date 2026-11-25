@@ -2,6 +2,9 @@ package platform
 
 import (
 	"bufio"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net"
@@ -49,7 +52,7 @@ func verifyBanner(c net.Conn) bool {
 // first, so such a build times out and drops the frame instead of opening it.
 const (
 	commandPrefix = 0
-	maxCommand    = 256
+	maxCommand    = 4096
 	maxAnswer     = 1024
 )
 
@@ -124,7 +127,7 @@ func answerCommand(c net.Conn, r *bufio.Reader, refusal string, handler func(str
 // reads the one-line answer.
 func exchangeCommand(c net.Conn, cmd string) (string, error) {
 	if cmd == "" || len(cmd) > maxCommand || strings.ContainsAny(cmd, "\x00\n") {
-		return "", errors.New("a command is one line of at most 256 bytes")
+		return "", errors.New("a command is one line of at most 4096 bytes")
 	}
 	c.SetWriteDeadline(time.Now().Add(2 * time.Second))
 	if _, err := io.WriteString(c, "\x00"+cmd+"\n"); err != nil {
@@ -139,4 +142,44 @@ func exchangeCommand(c net.Conn, cmd string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSuffix(line, "\n"), nil
+}
+
+// On Windows the channel is a loopback TCP port, which every local user can
+// reach, so a command frame there also carries the instance secret. The primary
+// writes the secret to a file only its own user can read; a client that can
+// read the file is that user. The sealed form is "secret <hex> <command>". A
+// file path frame carries no secret and is unchanged, so a 1.x second instance
+// still hands its file to a 2.0 primary.
+const sealedPrefix = "secret "
+
+// instanceSecretFile is the secret's file name in the config folder.
+const instanceSecretFile = "instance-secret"
+
+// newInstanceSecret returns 32 random bytes as hex.
+func newInstanceSecret() (string, error) {
+	var b [32]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b[:]), nil
+}
+
+// sealCommand is the command frame's text for a channel that needs the secret.
+func sealCommand(secret, cmd string) string { return sealedPrefix + secret + " " + cmd }
+
+// sealedHandler wraps handler so that it only sees commands sealed with
+// secret. Every other frame is refused without reaching it. A nil handler
+// answers CommandStarting, as on the other platforms.
+func sealedHandler(secret string, handler func(string) string) func(string) string {
+	return func(frame string) string {
+		rest, sealed := strings.CutPrefix(frame, sealedPrefix)
+		got, cmd, found := strings.Cut(rest, " ")
+		if !sealed || !found || secret == "" || subtle.ConstantTimeCompare([]byte(got), []byte(secret)) != 1 {
+			return "refused the command did not carry this instance's secret"
+		}
+		if handler == nil {
+			return CommandStarting
+		}
+		return handler(cmd)
+	}
 }

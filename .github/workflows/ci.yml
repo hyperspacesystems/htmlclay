@@ -30,6 +30,9 @@ jobs:
       - name: Install the locked packages
         run: npm ci
 
+      - name: The changelog page matches CHANGELOG.md
+        run: node scripts/build-changelog.mjs --check && node --test scripts/tests/build-changelog.test.mjs
+
       - name: Test
         run: go test ./... -count=1
 
@@ -60,10 +63,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install the conformance package and browser driver
-        run: |
-          npm ci
-          npx --no-install playwright install --with-deps chromium
+      - name: Install the browser driver
+        run: npx --no-install playwright install --with-deps chromium
 
       - name: Conformance gate
         run: npm run conformance
@@ -98,6 +99,10 @@ jobs:
           path: ~/.cache/htmlclay-build/tailwind
           key: tailwind-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('internal/tailwind/assets.go') }}
 
+      # service/build.mjs bundles the live-room service with esbuild, a root dev dependency.
+      - name: Install the locked packages
+        run: npm ci
+
       - name: Build the Linux binary the tarball ships
         run: bash packaging/linux/build.sh
 
@@ -109,10 +114,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb zenity xdotool dbus-x11 shared-mime-info desktop-file-utils xdg-utils libglib2.0-bin imagemagick jq
 
-      - name: Install the conformance package and browser driver
-        run: |
-          npm ci
-          npx --no-install playwright install --with-deps chromium
+      - name: Install the browser driver
+        run: npx --no-install playwright install --with-deps chromium
 
       - name: Linux checks
         run: bash scripts/linux-checks/run-all.sh

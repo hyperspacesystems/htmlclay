@@ -101,6 +101,10 @@ type State struct {
 	Installer string `json:"installer,omitempty"`
 	// Executable is the app's binary relative to the bundle, set with Installer.
 	Executable string `json:"executable,omitempty"`
+	// Helpers are the other programs inside the bundle, relative to it, that
+	// keep it running: the Swift app's host owns the site servers, so it must
+	// die with the app before the bundle is swapped back.
+	Helpers []string `json:"helpers,omitempty"`
 	// Quit is set with Installer when Sparkle installs To on a plain quit. Then
 	// nothing relaunches To, so the supervisor starts it without its tray only to
 	// see it serve, stops it again, and relaunches nothing after a rollback: the
@@ -279,6 +283,7 @@ func Apply(dir string, p ApplyParams) (*State, error) {
 		return nil, fmt.Errorf("start supervisor: %w", err)
 	}
 	cmd.Process.Release()
+	os.Remove(filepath.Join(dir, waitingFile))
 	return st, nil
 }
 
@@ -307,6 +312,18 @@ func ClearState(dir, txid string) bool {
 }
 
 // ReadState returns updates/state.json, or nil when there is none.
+// Unjudged reports whether an update is applying and a supervisor may still be
+// judging it. A new version holds back config changes the version it replaced
+// could not read until the verdict is in.
+func Unjudged(dir string) bool {
+	st, err := ReadState(dir)
+	if err != nil || st == nil || st.Phase != PhaseApplying {
+		return false
+	}
+	age := time.Since(st.Time)
+	return age >= 0 && age <= stateMaxAge
+}
+
 func ReadState(dir string) (*State, error) {
 	var st State
 	ok, err := readJSON(filepath.Join(dir, stateFile), &st)
@@ -612,6 +629,18 @@ func stopNewVersion(cmd *exec.Cmd, exited <-chan struct{}, watched, childPID int
 	case <-time.After(5 * time.Second):
 	}
 }
+
+// StartDetached starts path with args in its own session, outliving this process.
+func StartDetached(path string, args ...string) (*exec.Cmd, error) {
+	return startDetached(path, args...)
+}
+
+// ProcessAlive reports whether pid is a process that has not exited. On Windows
+// an exited process whose handle someone still holds counts as exited.
+func ProcessAlive(pid int) bool { return pid > 0 && processAlive(pid) }
+
+// WaitGone waits up to timeout for pid to exit and reports whether it did.
+func WaitGone(pid int, timeout time.Duration) bool { return waitGone(pid, timeout) }
 
 // waitGone polls until pid has exited or timeout passes, and reports whether it exited.
 func waitGone(pid int, timeout time.Duration) bool {

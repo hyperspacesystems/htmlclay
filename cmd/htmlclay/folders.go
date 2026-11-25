@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
+	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/confirm"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
+	"github.com/panphora/htmlclay/internal/shellapi"
 	"github.com/panphora/htmlclay/internal/tray"
 	"github.com/panphora/htmlclay/internal/trust"
 )
@@ -32,14 +38,25 @@ func (a *app) trustFolder(dir string) error {
 		// approving it never helping.
 		previous, _ = a.rt.cfg.SetTrustedIdentity(canonical, identity)
 	}
+	// Only a folder trusted for the first time hands its trusted children their
+	// own address. Approving a folder already on the list again (a re-pin) keeps
+	// every child where it answers now, so no address in use moves.
+	var owned []string
+	if added {
+		owned = a.takeOwnAddress(canonical)
+	}
 	if sErr := a.rt.cfg.Save(); sErr != nil {
 		// Put the list back exactly as it was: drop an entry this call added,
-		// restore the old pin on one it only re-pinned. Removing a pre-existing
-		// entry here would revoke a folder the user still holds.
+		// restore the old pin on one it only re-pinned, and drop the addresses
+		// this call handed out. Removing a pre-existing entry here would revoke a
+		// folder the user still holds.
 		if added {
 			a.rt.cfg.RemoveTrustedFolder(canonical)
 		} else {
 			a.rt.cfg.SetTrustedIdentity(canonical, previous)
+		}
+		for _, path := range owned {
+			a.rt.cfg.SetTrustedOwnAddress(path, false)
 		}
 		a.mu.Unlock()
 		return fmt.Errorf("could not save config: %w", sErr)
@@ -54,6 +71,32 @@ func (a *app) trustFolder(dir string) error {
 	a.bringLive(canonical)
 	a.refreshHelperDispatchers()
 	return nil
+}
+
+// takeOwnAddress keeps every trusted folder inside the newly trusted dir at the
+// address its documents already answer at, so trusting a folder around it never
+// moves them: what the browser stored for them is stored at that address.
+//
+// Only a folder with a remembered slug has an address to keep, and a slug in
+// siteSlugs was never retired (retiring drops the entry), so its presence is the
+// whole record. Nothing marks a folder at upgrade, only here, so every
+// configuration written before this existed routes exactly as it did.
+//
+// It returns the folders it changed, for a caller whose save fails to put back.
+func (a *app) takeOwnAddress(dir string) []string {
+	var changed []string
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if tf.Path == dir || tf.OwnAddress || !session.EqualOrUnder(tf.Path, dir) {
+			continue
+		}
+		if a.rt.cfg.SiteSlug(tf.Path) == "" {
+			continue
+		}
+		if _, ok := a.rt.cfg.SetTrustedOwnAddress(tf.Path, true); ok {
+			changed = append(changed, tf.Path)
+		}
+	}
+	return changed
 }
 
 // bringLive gives a newly trusted folder its own origin now rather than at the
@@ -73,6 +116,13 @@ func (a *app) trustFolder(dir string) error {
 // folder no file has been opened in. That is intended, since the folder is
 // genuinely trusted either way, but it is why sitePortCap matters more than it did.
 func (a *app) bringLive(canonical string) {
+	a.bindLive(canonical, false)
+}
+
+// bindLive is bringLive for a caller that may have written the folder's label
+// already, with the entry it belongs to: labelSaved skips the write that records
+// it, so that caller's one write stays the only one.
+func (a *app) bindLive(canonical string, labelSaved bool) {
 	if !a.shouldBindLive(canonical) {
 		return
 	}
@@ -94,7 +144,9 @@ func (a *app) bringLive(canonical string) {
 	// Persist the slug in the same critical section that publishes the site, and
 	// so under the same lock shutdown takes to set stopping. Saving after the
 	// unlock let a config write land after shutdown had already returned.
-	a.saveConfig("trusting " + s.slug)
+	if !labelSaved {
+		a.saveConfig("trusting " + s.slug)
+	}
 	a.mu.Unlock()
 
 	a.rt.logger.Printf("Trusted folder %s at http://%s", canonical, s.host)
@@ -188,45 +240,30 @@ func (a *app) untrustFolder(dir string) error {
 		return fmt.Errorf("could not save config: %w", err)
 	}
 
-	var dropped, reopen []string
+	var reopen []session.RegistrationInfo
+	var closing []*site
 	if s := a.siteAtLocked(dir); s != nil {
+		closing = append(closing, s)
 		for _, reg := range s.sessions.Registrations() {
-			dropped = append(dropped, reg.Path)
 			if reg.Via.Has(session.ViaOsOpen) {
-				reopen = append(reopen, reg.Path)
+				reopen = append(reopen, session.RegistrationInfo{Path: reg.Path, Via: session.ViaOsOpen})
 			}
 		}
-		s.close()
-		a.removeSiteLocked(s)
 	}
-	// One "Trust this folder" click on the read prompt sets both the granted and
-	// the trusted flag on a single read root, so clearing trust alone would leave
-	// the granted flag holding the root open and the folder still readable.
-	// Untrusting takes back everything that click gave. A folder the user
-	// explicitly OPENED survives, because that root is what its page is served
-	// from.
-	for _, other := range a.sites {
-		other.sessions.RevokeTrustedRoot(dir)
-		other.sessions.RevokeReadRoot(dir)
-	}
+	dropped := a.closeSitesLocked(closing, dir)
 	a.mu.Unlock()
 
 	for _, p := range dropped {
 		a.rt.ls.DropSubscribers(p)
+		a.unsaved.forget(p)
 	}
 	for _, tf := range a.rt.cfg.TrustedFolderList() {
 		if tf.Path != dir && session.EqualOrUnder(tf.Path, dir) {
 			a.bringLive(tf.Path)
 		}
 	}
-	for _, p := range reopen {
-		s, _, ok := a.route(p, session.ViaOsOpen)
-		if !ok {
-			a.rt.logger.Printf("Could not re-home %s after untrusting %s", p, dir)
-			continue
-		}
-		a.applyHelperPlan(s, p, a.helpersForOpen(p, false))
-	}
+	a.closeFolderRequests(dir)
+	a.routeAgain(reopen, "untrusting "+dir)
 	// A legacy per-folder port for this folder, if one is still bound, keeps answering the
 	// recovery page for the rest of this run instead of redirecting: its folder is no longer
 	// trusted. Its config entry was forgotten above.
@@ -239,6 +276,249 @@ func (a *app) untrustFolder(dir string) error {
 	a.refreshHelperDispatchers()
 	a.rt.logger.Printf("Trusted folder removed: %s (%d registrations dropped, %d re-homed)", dir, len(dropped), len(reopen))
 	return nil
+}
+
+// mergeFolder runs folder.merge: the child stops keeping its own address and its
+// documents answer at the parent's address, after every open page has saved.
+//
+// Nothing in the folder moves and nothing in it is rewritten, and what the
+// browser stored at the child's address stays there. The child's slug stays in
+// the config as the label its old address answers with: serveRetired sends a
+// navigation from it to the site that owns the file now, which is the parent.
+func (a *app) mergeFolder(e appcore.Effect) *appcore.Refusal {
+	childPath := a.folderPath(e.FolderID)
+	parentPath := a.folderPath(e.ParentID)
+	if childPath == "" || parentPath == "" {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+
+	// Both folders are checked again: either can have been replaced, re-pinned or
+	// untrusted since the plan, and the child can have stopped keeping its address.
+	child, ok := a.trustedEntry(childPath)
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+	parent, ok := a.trustedEntry(parentPath)
+	if !ok || !child.OwnAddress || childPath == parentPath || !session.EqualOrUnder(childPath, parentPath) {
+		return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow, SubjectID: e.FolderID}
+	}
+	for _, entry := range []config.TrustedFolder{child, parent} {
+		info, err := os.Stat(entry.Path)
+		if err != nil || !info.IsDir() || !trust.IdentityOK(entry.Path, entry.Identity, a.rt.home) {
+			return &appcore.Refusal{Code: appcore.WhyIdentityChanged, SubjectID: e.FolderID, Text: appcore.TextWhyServeIdentityChanged}
+		}
+	}
+
+	if refusal := a.flushOpenPages(e.FolderID); refusal != nil {
+		return refusal
+	}
+
+	a.mu.Lock()
+	previousOwn, _ := a.rt.cfg.SetTrustedOwnAddress(childPath, false)
+	// The port a site of the child's was parked on goes in the same write, or the
+	// old address would answer from a listener the fold has no site for.
+	forgottenPort := a.rt.cfg.ForgetSitePort(childPath)
+	if err := a.rt.cfg.Save(); err != nil {
+		a.rt.cfg.SetTrustedOwnAddress(childPath, previousOwn)
+		if forgottenPort != 0 {
+			a.rt.cfg.RememberSitePort(childPath, forgottenPort)
+		}
+		a.mu.Unlock()
+		return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: e.FolderID}
+	}
+	var reopen []session.RegistrationInfo
+	var closing []*site
+	if s := a.siteAtLocked(childPath); s != nil {
+		reopen = s.sessions.Registrations()
+		closing = append(closing, s)
+	}
+	dropped := a.closeSitesLocked(closing, childPath)
+	a.mu.Unlock()
+
+	for _, p := range dropped {
+		a.rt.ls.DropSubscribers(p)
+	}
+	a.routeAgain(reopen, "merging "+childPath)
+	a.refreshHelperDispatchers()
+	a.rt.logger.Printf("Merged trusted folder %s into %s (%d documents routed again)", childPath, parentPath, len(reopen))
+	return nil
+}
+
+// warnInsideTrusted is the Trust sheet's code for a folder inside one already
+// trusted: its documents answer at that folder's address now, and trusting it
+// gives them an address of their own. The person has to acknowledge it before
+// the trust.
+const warnInsideTrusted = "inside-trusted"
+
+// trustFromAction runs folder.trust, the Trust sheet's door. It is the one door
+// that shows a warning and carries the answer back, so it is the one door where
+// a folder inside a trusted folder gets its own address. The picker and the two
+// page doors record such a folder under the folder around it, as they always
+// have, and move nothing.
+func (a *app) trustFromAction(e appcore.Effect) *appcore.Refusal {
+	canonical, err := a.rt.policy.Canonical(e.Path)
+	if err != nil {
+		a.rt.logger.Printf("Could not trust folder %s: %v", e.Path, err)
+		return &appcore.Refusal{Code: appcore.RefuseCannotTrust}
+	}
+	// Read again here, the way the relink and the program effects read their
+	// warnings: a folder that came to sit inside a trusted one after the sheet
+	// asked is never moved on the sheet's word.
+	if around, inside := a.trustedAround(canonical); inside {
+		if !slices.Contains(e.Acknowledged, warnInsideTrusted) {
+			return &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation}
+		}
+		return a.trustInsideTrusted(canonical, around)
+	}
+	if err := a.trustFolder(canonical); err != nil {
+		a.rt.logger.Printf("Could not trust folder %s: %v", canonical, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	return nil
+}
+
+// trustedAround answers the live trusted folder whose address dir's documents
+// answer at now, for a dir that is not on the trusted list. That is the one trust
+// that moves documents. A folder already on the list keeps the address it has
+// when it is approved again, and a served folder's documents stay at the served
+// address whatever is trusted inside it, so neither has a folder around it here.
+func (a *app) trustedAround(dir string) (string, bool) {
+	if _, listed := a.trustedEntry(dir); listed {
+		return "", false
+	}
+	owner, err := a.ResolveDocument(dir)
+	if err != nil || owner.Kind != OwnerTrusted {
+		return "", false
+	}
+	return owner.FolderPath, true
+}
+
+// trustInsideTrusted is mergeFolder in reverse: canonical, which sits inside the
+// trusted folder around, is trusted with an address of its own, after every open
+// page has saved.
+//
+// Nothing in the folder moves and nothing in it is rewritten, and what the
+// browser stored at around's address stays there. One config write records the
+// entry, that it keeps its own address, and the label that address answers with;
+// when it fails, nothing has changed. After it, around's site lets go of the
+// documents it had open from canonical, so around's address redirects their pages
+// to the new one and no longer saves them.
+func (a *app) trustInsideTrusted(canonical, around string) *appcore.Refusal {
+	if refusal := a.flushOpenPages(""); refusal != nil {
+		return refusal
+	}
+	identity := platform.DirIdentity(canonical)
+
+	a.mu.Lock()
+	// The flush ran without the lock, so the folder around is read once more.
+	if now, inside := a.trustedAround(canonical); !inside || now != around {
+		a.mu.Unlock()
+		return &appcore.Refusal{Code: appcore.RefuseNotAllowedNow}
+	}
+	a.rt.cfg.AddTrustedFolder(canonical, identity)
+	a.rt.cfg.SetTrustedOwnAddress(canonical, true)
+	// A label remembered from before the folder around was trusted is the address
+	// these documents had then, so it is the one they go back to.
+	freshSlug := a.rt.cfg.SiteSlug(canonical) == ""
+	a.slugForLocked(canonical)
+	if err := a.rt.cfg.Save(); err != nil {
+		a.rt.cfg.RemoveTrustedFolder(canonical)
+		if freshSlug {
+			a.rt.cfg.DropSiteSlug(canonical)
+		}
+		a.mu.Unlock()
+		a.rt.logger.Printf("Could not trust folder %s: %v", canonical, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	a.adoptLocked(canonical)
+	var moved []session.RegistrationInfo
+	previous := a.siteAtLocked(around)
+	if previous != nil {
+		for _, reg := range previous.sessions.Registrations() {
+			if session.EqualOrUnder(reg.Path, canonical) && previous.sessions.Unregister(reg.Path) {
+				moved = append(moved, reg)
+			}
+		}
+	}
+	a.mu.Unlock()
+
+	// What closing a whole site does for every document it held, done for the ones
+	// that left a site that stays open.
+	for _, reg := range moved {
+		previous.srv.Core.Forget(reg.Path)
+		a.rt.ls.DropSubscribers(reg.Path)
+	}
+	a.bindLive(canonical, true)
+	a.routeAgain(moved, "trusting "+canonical)
+	a.refreshHelperDispatchers()
+	a.rt.logger.Printf("Trusted folder %s inside %s at its own address (%d documents routed again)", canonical, around, len(moved))
+	return nil
+}
+
+// flushOpenPages is the flush host.quit uses, run before a change that moves open
+// documents to another address: a page that still holds edits stops the change,
+// and then nothing at all has changed.
+func (a *app) flushOpenPages(subjectID string) *appcore.Refusal {
+	if names, answered := a.unsavedDocuments(); !answered || len(names) > 0 {
+		return &appcore.Refusal{Code: appcore.RefuseUnsavedEdits, SubjectID: subjectID, Documents: names}
+	}
+	return nil
+}
+
+// routeAgain registers documents again after a change took them from the site
+// that held them, each with the provenance it is given, and attaches its programs
+// where it lands. A document a served folder holds is left at its served address.
+func (a *app) routeAgain(regs []session.RegistrationInfo, after string) {
+	for _, reg := range regs {
+		if owner, err := a.ResolveDocument(reg.Path); err == nil && owner.Kind == OwnerServed {
+			a.rt.logger.Printf("Leaving %s at its served address %s", reg.Path, owner.URL())
+			continue
+		}
+		s, _, ok := a.route(reg.Path, reg.Via)
+		if !ok {
+			a.rt.logger.Printf("Could not route %s again after %s", reg.Path, after)
+			continue
+		}
+		a.applyHelperPlan(s.srv.Core, reg.Path, a.helpersForOpen(reg.Path, false))
+	}
+}
+
+// trustedEntry answers the trusted folder at path, if there is one.
+func (a *app) trustedEntry(path string) (config.TrustedFolder, bool) {
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		if tf.Path == path {
+			return tf, true
+		}
+	}
+	return config.TrustedFolder{}, false
+}
+
+// closeSitesLocked closes every site in closing, records the registration paths they
+// held, and takes folder's roots back from every site still live. Caller holds a.mu
+// and has already marked each of them closed if the router must stop dispatching to
+// it. The returned paths are the ones whose live-sync subscribers the caller must
+// drop once it has let go of a.mu.
+func (a *app) closeSitesLocked(closing []*site, folder string) []string {
+	var dropped []string
+	for _, s := range closing {
+		for _, reg := range s.sessions.Registrations() {
+			dropped = append(dropped, reg.Path)
+		}
+		s.close()
+		a.removeSiteLocked(s)
+	}
+	// One "Trust this folder" click on the read prompt sets both the granted and
+	// the trusted flag on a single read root, so clearing trust alone would leave
+	// the granted flag holding the root open and the folder still readable.
+	// Untrusting takes back everything that click gave. A folder the user
+	// explicitly OPENED survives, because that root is what its page is served
+	// from.
+	for _, other := range a.sites {
+		other.sessions.RevokeTrustedRoot(folder)
+		other.sessions.RevokeReadRoot(folder)
+	}
+	a.tokens.Load().forgetKeptGrants(folder)
+	return dropped
 }
 
 // removeSiteLocked drops s from the registry. Caller holds a.mu and has already
@@ -330,12 +610,24 @@ func (a *app) trustFromPage(requestingFile string, openedByUser bool) (string, b
 	}
 	msg := fmt.Sprintf("%s%s wants to trust its folder:\n\n%s\n\nEvery HTML Clay file in that folder becomes editable without asking, including files added later, and any file in it will be able to change any other. Only allow this for a folder you control completely.",
 		reached, requestingFile, canonical)
-	allowed, err := a.confirmTrustRequest("HTML Clay", msg, "Trust Folder")
+	detail := ""
+	if a.isMainFolder(canonical) {
+		detail = "main-folder"
+	}
+	ask := confirm.Ask{
+		Kind:     appcore.RequestFolderReadAgain,
+		Document: requestingFile,
+		Folder:   filepath.Base(canonical),
+		Path:     canonical,
+		Detail:   detail,
+		Answers:  []string{confirm.ChoiceDeny, readChoiceTrustFolder},
+	}
+	reply, err := a.trustConfirmer("HTML Clay", msg).Ask(context.Background(), ask)
 	if err != nil {
 		a.rt.logger.Printf("Trust dialog error for %s: %v", canonical, err)
 		return "", false
 	}
-	if !allowed {
+	if reply.Choice != readChoiceTrustFolder {
 		return "", false
 	}
 	if err := a.trustFolder(canonical); err != nil {
@@ -355,13 +647,17 @@ func (a *app) trustFromPage(requestingFile string, openedByUser bool) (string, b
 // without this the document reports every declared name as unavailable and a
 // reload cannot change it.
 func (a *app) serveURL(absPath string) (string, bool) {
+	// A served file is reached at its served address; it is not a site's to register.
+	if owner, err := a.ResolveDocument(absPath); err == nil && owner.Kind == OwnerServed {
+		return owner.URL(), true
+	}
 	s, rel, ok := a.route(absPath, session.ViaTrusted)
 	if !ok {
 		return "", false
 	}
 	// Browser navigation restores stored permissions; only an explicit file
 	// open should ask the user to approve a new program.
-	a.applyHelperPlan(s, absPath, a.helpersForNavigation(absPath))
+	a.applyHelperPlan(s.srv.Core, absPath, a.helpersForNavigation(absPath))
 	return s.url(rel), true
 }
 
@@ -380,7 +676,7 @@ func (a *app) confirmTrustRequest(title, message, affirmative string) (bool, err
 	if a.rt.confirmTrust != nil {
 		return a.rt.confirmTrust(title, message, affirmative)
 	}
-	return platform.ConfirmWithButtons(title, message, affirmative)
+	return a.dialogs().confirmWithButtons(title, message, affirmative)
 }
 
 // confirmTrayChange is confirmTrustRequest for a change the user started from
@@ -390,7 +686,7 @@ func (a *app) confirmTrayChange(title, message, affirmative string) (bool, error
 	if a.rt.confirmTrust != nil {
 		return a.rt.confirmTrust(title, message, affirmative)
 	}
-	return platform.ConfirmChange(title, message, affirmative)
+	return a.dialogs().confirmChange(title, message, affirmative)
 }
 
 // reportTrustRefused tells the user why a folder was not remembered. Staying
@@ -405,7 +701,7 @@ func (a *app) confirmTrayChange(title, message, affirmative string) (bool, error
 // would never raise another permission dialog for the rest of its life.
 func (a *app) reportTrustRefused(dir, reason string) {
 	msg := dir + " was not added to your trusted folders.\n\n" + reason +
-		"\n\nIt stays readable until you quit. You can add it yourself from the HTML Clay menu."
+		"\n\nIt stays readable as long as this page can save. You can add it yourself from the HTML Clay menu."
 	go func() {
 		if nErr := a.notifyUser("HTML Clay", msg); nErr != nil {
 			a.rt.logger.Printf("Could not notify about the refused trust of %s: %v", dir, nErr)
@@ -474,7 +770,7 @@ func (a *app) shadowedBy(dir string) (string, bool) {
 // once for a personal folder, because picking ~/Documents by accident from a
 // file dialog is easy and the consequence is the whole tree.
 func (a *app) pickAndTrustFolder() []tray.Row {
-	dir, ok, err := platform.SelectFolder("Choose a folder to trust. Every HTML Clay file inside it (including files added later) opens editable with no prompts, and any file in it can change any other.")
+	dir, ok, err := a.selectFolder("Choose a folder to trust. Every HTML Clay file inside it (including files added later) opens editable with no prompts, and any file in it can change any other.")
 	if err != nil {
 		a.rt.logger.Printf("Folder picker failed: %v", err)
 		return a.trustedFolderRows()
@@ -485,7 +781,7 @@ func (a *app) pickAndTrustFolder() []tray.Row {
 	canonical, cErr := a.rt.policy.Canonical(dir)
 	if cErr == nil && a.rt.policy.IsPersonal(canonical) {
 		msg := fmt.Sprintf("%s is one of your main personal folders.\n\nTrusting it makes every HTML Clay file anywhere inside it editable with no prompts, and lets any of them change any other. Most people want a single project folder instead.", canonical)
-		proceed, cfErr := a.confirmTrayChange("HTML Clay", msg, "Trust Folder")
+		proceed, cfErr := a.confirmTrayChange("HTML Clay", msg, "Trust folder")
 		if cfErr != nil || !proceed {
 			return a.trustedFolderRows()
 		}
@@ -535,4 +831,242 @@ func (a *app) removeTrustedFolder(dir string) []tray.Row {
 		a.rt.logger.Printf("Could not untrust folder %s: %v", dir, err)
 	}
 	return a.trustedFolderRows()
+}
+
+// warnDifferentFolder is the Find it sheet's code for a folder at the new path that
+// is not the one that moved. The person has to acknowledge it before the relink.
+const warnDifferentFolder = "different-folder"
+
+// folderRelinkPreview is the Find it sheet's answer: the folder as it will be
+// stored, and the codes the person has to acknowledge. The effect reads the same
+// warnings, so a folder that changed between the sheet and the click is never
+// relinked on the sheet's word.
+func (a *app) folderRelinkPreview(folderID, path string) (shellapi.Preview, *appcore.Refusal) {
+	entry, ok := trustedFolderByID(a.rt.cfg.TrustedFolderList(), folderID)
+	if !ok {
+		return shellapi.Preview{}, &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: folderID}
+	}
+	canonical, refusal := a.relinkCanonical(path, entry.ID)
+	if refusal != nil {
+		return shellapi.Preview{}, refusal
+	}
+	if served, isServed := a.rt.cfg.ServedFolderByID(entry.ID); isServed {
+		if _, refusal := a.serveFactsFor(canonical, served); refusal != nil {
+			return shellapi.Preview{}, refusal
+		}
+	}
+	return shellapi.Preview{
+		Path:     canonical,
+		Name:     filepath.Base(canonical),
+		Warnings: a.relinkWarnings(canonical, a.relinkPin(entry)),
+	}, nil
+}
+
+// relinkFolder runs folder.relink: the entry keeps its id, name, address and frame
+// setting and points at the folder's new path. A folder that moved keeps its
+// identity, so nothing needs acknowledging. A different folder there needs every
+// warning the sheet showed. A team folder stays one: the new path joins the team
+// record first and the config is saved second, so a stop between the two leaves the
+// stricter state.
+func (a *app) relinkFolder(e appcore.Effect) *appcore.Refusal {
+	entry, ok := trustedFolderByID(a.rt.cfg.TrustedFolderList(), e.FolderID)
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: e.FolderID}
+	}
+	served, isServed := a.rt.cfg.ServedFolderByID(entry.ID)
+	canonical, refusal := a.relinkCanonical(e.Path, entry.ID)
+	if refusal != nil {
+		return refusal
+	}
+	if a.syncDownloadRunning(entry.ID) {
+		return &appcore.Refusal{Code: appcore.RefuseSyncDownloading, SubjectID: entry.ID}
+	}
+	// A served folder is served from its new path, so the new path obeys every rule a folder
+	// served there for the first time would: never inside or around another served folder.
+	if isServed {
+		if _, refusal := a.serveFactsFor(canonical, served); refusal != nil {
+			return refusal
+		}
+	}
+	for _, warning := range a.relinkWarnings(canonical, a.relinkPin(entry)) {
+		if !slices.Contains(e.Acknowledged, warning.Code) {
+			return &appcore.Refusal{Code: appcore.RefuseNeedsConfirmation, SubjectID: entry.ID}
+		}
+	}
+	identity := platform.DirIdentity(canonical)
+	if refusal := a.carryTeamFolder(entry.Path, canonical, entry.ID, identity); refusal != nil {
+		return refusal
+	}
+
+	previousTrusted, ok := a.rt.cfg.RelinkTrustedFolder(entry.ID, canonical, identity)
+	if !ok {
+		return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: entry.ID}
+	}
+	var previousServed config.ServedFolder
+	if isServed {
+		var servedOK bool
+		previousServed, servedOK = a.rt.cfg.RelinkServedFolder(entry.ID, canonical, identity)
+		if !servedOK {
+			a.rt.cfg.RelinkTrustedFolder(previousTrusted.ID, previousTrusted.Path, previousTrusted.Identity)
+			return &appcore.Refusal{Code: appcore.RefuseNoSuchFolder, SubjectID: entry.ID}
+		}
+	}
+	if err := a.rt.cfg.Save(); err != nil {
+		a.rt.cfg.RelinkTrustedFolder(previousTrusted.ID, previousTrusted.Path, previousTrusted.Identity)
+		if isServed {
+			a.rt.cfg.RelinkServedFolder(previousServed.ID, previousServed.Path, previousServed.Identity)
+		}
+		a.rt.logger.Printf("Could not relink the folder %s: %v", entry.Path, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: entry.ID}
+	}
+	a.rt.logger.Printf("Folder relinked: id=%s from=%s to=%s", entry.ID, entry.Path, canonical)
+
+	a.bringLive(canonical)
+	if isServed {
+		served.Path, served.Identity = canonical, identity
+		a.moveRelinkedMount(served)
+	}
+	a.refreshHelperDispatchers()
+	a.changed()
+	return nil
+}
+
+// syncDownloadRunning: a folder's first download holds its old path in the
+// service until it ends, so the folder is found again only after that.
+func (a *app) syncDownloadRunning(folderID string) bool {
+	a.rt.syncMu.Lock()
+	defer a.rt.syncMu.Unlock()
+	record, err := a.syncRecordLocked()
+	if err != nil {
+		return false
+	}
+	for _, session := range record.SyncSessions {
+		if session.RootID == folderID && a.rt.syncBinding[session.ID] {
+			return true
+		}
+	}
+	return false
+}
+
+// relinkCanonical is the folder a relink would point an entry at, as it will be
+// stored, or why the path cannot be used: a folder that is not there, or one
+// another entry already holds.
+func (a *app) relinkCanonical(path, folderID string) (string, *appcore.Refusal) {
+	canonical, err := a.rt.policy.Canonical(path)
+	if err != nil {
+		return "", &appcore.Refusal{Code: appcore.RefuseCannotTrust}
+	}
+	info, err := os.Stat(canonical)
+	if err != nil || !info.IsDir() {
+		return "", &appcore.Refusal{Code: appcore.RefuseNotAFolder}
+	}
+	for _, other := range a.rt.cfg.TrustedFolderList() {
+		if other.ID != folderID && other.Path == canonical {
+			return "", &appcore.Refusal{Code: appcore.RefuseNotAllowedNow, SubjectID: folderID, OtherPath: canonical}
+		}
+	}
+	return canonical, nil
+}
+
+// relinkPin is the identity the entry is pinned to. A served entry carries its own
+// copy of the pin and the facts read that one, so it wins when the two disagree.
+func (a *app) relinkPin(entry config.TrustedFolder) string {
+	if served, ok := a.rt.cfg.ServedFolderByID(entry.ID); ok && served.Identity != "" {
+		return served.Identity
+	}
+	return entry.Identity
+}
+
+// relinkWarnings is what a person should know before an entry is pointed at
+// canonical: whether the folder there is the one that moved, then the Trust sheet's
+// own warnings about the new location.
+func (a *app) relinkWarnings(canonical, pin string) []shellapi.Warning {
+	var warnings []shellapi.Warning
+	if pin == "" || !trust.IdentityOK(canonical, pin, a.rt.home) {
+		warnings = append(warnings, shellapi.Warning{Code: warnDifferentFolder, Text: appcore.TextWarnDifferentFolder})
+	}
+	return append(warnings, a.folderWarnings(canonical)...)
+}
+
+// carryTeamFolder keeps a relinked team folder a team folder. A record entry the new
+// folder's identity matches already covers it, wherever the folder has gone.
+// Otherwise the new path joins the team record before the config changes: a stop
+// between the two leaves the old path marked too, which grants no more than before.
+func (a *app) carryTeamFolder(oldPath, canonical, folderID, identity string) *appcore.Refusal {
+	team, ok := a.teamFolderFor(oldPath)
+	if !ok {
+		return nil
+	}
+	for _, candidate := range a.rt.cfg.TeamFolderList() {
+		if candidate.Kind == config.TeamFolderKindTeam && identity != "" && candidate.Identity == identity {
+			return nil
+		}
+	}
+	entry := config.TeamFolder{
+		FolderID: folderID,
+		Path:     canonical,
+		Identity: identity,
+		Kind:     config.TeamFolderKindTeam,
+		Key:      team.Key,
+	}
+	if err := a.rt.cfg.MarkTeamFolder(entry); err != nil {
+		a.rt.logger.Printf("Could not keep folder %s in the team record: %v", canonical, err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed, SubjectID: folderID}
+	}
+	a.rt.logger.Printf("Team folder relinked: id=%s from=%s to=%s", folderID, team.Path, canonical)
+	return nil
+}
+
+// teamFolderFor answers the team record entry that makes path a team folder, by the
+// same rules program decisions use: the folder whose path holds it, or whose
+// identity it carries.
+func (a *app) teamFolderFor(path string) (config.TeamFolder, bool) {
+	scope := a.scopeOf(path)
+	if scope.Kind != config.ScopeTeam {
+		return config.TeamFolder{}, false
+	}
+	for _, folder := range a.rt.cfg.TeamFolderList() {
+		if folder.Kind == config.TeamFolderKindTeam && folder.Scope() == scope {
+			return folder, true
+		}
+	}
+	return config.TeamFolder{}, false
+}
+
+// moveRelinkedMount moves a served folder's address to its new path, so it answers
+// from the folder that moved rather than from the one that is no longer there. A
+// mount the folder already has is dropped first, because a root is served once: its
+// files moved with the folder, so its copy is taken away the way a stop serving
+// takes it, and the service is asked to let go before that.
+func (a *app) moveRelinkedMount(entry config.ServedFolder) {
+	if a.served == nil || !entry.Serving {
+		return
+	}
+	a.servedMu.Lock()
+	mount := a.servedByName[entry.Name]
+	delete(a.servedByName, entry.Name)
+	a.servedMu.Unlock()
+	if mount != nil {
+		if _, err := a.service.removeRoot(entry.ID); err != nil {
+			a.rt.logger.Printf("The live-room service did not answer while relinking %s: %v", entry.Name, err)
+		}
+		a.served.RemoveRoot(entry.ID)
+		mount.cancel()
+		if mount.lock != nil {
+			mount.lock.Release()
+		}
+	}
+	if err := a.mountServed(entry); err != nil {
+		a.rt.logger.Printf("Could not serve the folder %s at its new path: %v", entry.Path, err)
+	}
+}
+
+// trustedFolderByID answers the trusted entry with id.
+func trustedFolderByID(folders []config.TrustedFolder, id string) (config.TrustedFolder, bool) {
+	for _, folder := range folders {
+		if folder.ID == id {
+			return folder, true
+		}
+	}
+	return config.TrustedFolder{}, false
 }

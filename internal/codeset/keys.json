@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "rootPublic": "VSggP365uEsWJvu0QbIGC7NSC-lzvsUhPlPgA9bbX88",
+  "signing": {
+    "ecosystem-2026-11": "I1iAH3e1SmW8cOgKykcrnTFzSW_9myJgztD8Sbs-6Zk"
+  },
+  "revokedKeys": [],
+  "revokedReleases": [],
+  "revokedCodes": [],
+  "rootSig": "6Ml5i_WPSiNrErNezadoiVrpFdYpLvwlYex9u5SYd_XsuyofLMzEtj32YJ3MuHl7Q8vMuah5Nb3dwT9Yq1AOCQ"
+}

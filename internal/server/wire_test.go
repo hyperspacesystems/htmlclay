@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/panphora/htmlclay/internal/wire"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,7 +25,7 @@ func wireSendReq(t *testing.T, srv *Server, body string) *httptest.ResponseRecor
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	srv.wireMux().ServeHTTP(w, req)
+	srv.WireMux().ServeHTTP(w, req)
 	return w
 }
 
@@ -32,7 +33,7 @@ func wireSendReq(t *testing.T, srv *Server, body string) *httptest.ResponseRecor
 // admitting it, so it is the first thing worth pinning.
 func TestWireAdmitsHeaderFreeProcess(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	body := fmt.Sprintf(`{"type":"wire/request","id":"a1","file":%q}`, f.AbsPath)
 	w := wireSendReq(t, srv, body)
@@ -43,7 +44,7 @@ func TestWireAdmitsHeaderFreeProcess(t *testing.T) {
 
 func TestWireGuardRejectsCrossOriginAndSameSite(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	body := fmt.Sprintf(`{"type":"wire/request","id":"a1","file":%q}`, f.AbsPath)
 
 	cases := []struct {
@@ -69,7 +70,7 @@ func TestWireGuardRejectsCrossOriginAndSameSite(t *testing.T) {
 				req.Header.Set("Origin", tc.orig)
 			}
 			w := httptest.NewRecorder()
-			srv.wireMux().ServeHTTP(w, req)
+			srv.WireMux().ServeHTTP(w, req)
 			if w.Code != 403 {
 				t.Fatalf("expected 403, got %d", w.Code)
 			}
@@ -95,40 +96,40 @@ func TestWireAdmitsSameOriginWithoutOriginHeader(t *testing.T) {
 // tabs', and answer with fabricated terminal frames.
 func TestWirePageCannotTakeHandlerRole(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	req := httptest.NewRequest("GET", "/_/wire/subscribe?role=handler&file="+f.AbsPath, nil)
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
 	req = sameOriginHeaders(req)
 	w := httptest.NewRecorder()
-	srv.wireMux().ServeHTTP(w, req)
+	srv.WireMux().ServeHTTP(w, req)
 	if w.Code != 403 {
 		t.Fatalf("a page took the handler role: %d", w.Code)
 	}
 }
 
 func TestWireHandlerSlotIsExclusive(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 
-	first := &wireSub{key: "/f.htmlclay", handler: true, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := wh.add(first, 0); err != nil {
+	first := &wire.Sub{Key: "/f.htmlclay", Handler: true, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(first, 0); err != nil {
 		t.Fatalf("first handler refused: %v", err)
 	}
-	second := &wireSub{key: "/f.htmlclay", handler: true, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := wh.add(second, 0); err != errWireHandlerTaken {
+	second := &wire.Sub{Key: "/f.htmlclay", Handler: true, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(second, 0); err != wire.ErrWireHandlerTaken {
 		t.Fatalf("second handler admitted: %v", err)
 	}
 	// An observer alongside a handler is fine; tailing must not need the slot.
-	obs := &wireSub{key: "/f.htmlclay", ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := wh.add(obs, 0); err != nil {
+	obs := &wire.Sub{Key: "/f.htmlclay", Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(obs, 0); err != nil {
 		t.Fatalf("observer refused: %v", err)
 	}
 	// Releasing the slot lets the next handler in, so a reconnect is not
 	// permanently locked out by its own predecessor.
-	wh.remove(first)
-	third := &wireSub{key: "/f.htmlclay", handler: true, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := wh.add(third, 0); err != nil {
+	wh.Remove(first)
+	third := &wire.Sub{Key: "/f.htmlclay", Handler: true, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(third, 0); err != nil {
 		t.Fatalf("handler slot not released: %v", err)
 	}
 }
@@ -137,15 +138,15 @@ func TestWireHandlerSlotIsExclusive(t *testing.T) {
 // answer yes because the page's own observer stream takes a copy of the page's
 // own request.
 func TestWireDeliveredCountsHandlersOnly(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 	key := "/f.htmlclay"
 
-	page := &wireSub{key: key, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := wh.add(page, 0); err != nil {
+	page := &wire.Sub{Key: key, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(page, 0); err != nil {
 		t.Fatal(err)
 	}
-	handlers, observers := wh.publish(key, wireEnvelope{Type: "wire/request", ID: "r1"})
+	handlers, observers := wh.Publish(key, wire.Envelope{Type: "wire/request", ID: "r1"})
 	if handlers != 0 {
 		t.Fatalf("no agent attached but delivered=%d", handlers)
 	}
@@ -153,11 +154,11 @@ func TestWireDeliveredCountsHandlersOnly(t *testing.T) {
 		t.Fatalf("page observer did not receive its own request: %d", observers)
 	}
 
-	agent := &wireSub{key: key, handler: true, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := wh.add(agent, 0); err != nil {
+	agent := &wire.Sub{Key: key, Handler: true, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(agent, 0); err != nil {
 		t.Fatal(err)
 	}
-	handlers, observers = wh.publish(key, wireEnvelope{Type: "wire/request", ID: "r2"})
+	handlers, observers = wh.Publish(key, wire.Envelope{Type: "wire/request", ID: "r2"})
 	if handlers != 1 || observers != 1 {
 		t.Fatalf("want handlers=1 observers=1, got %d/%d", handlers, observers)
 	}
@@ -167,19 +168,19 @@ func TestWireDeliveredCountsHandlersOnly(t *testing.T) {
 // request has no memory of the cancel, so a replayed terminal frame would
 // resurrect it and "stop completely" would not survive a reload.
 func TestWireReplayOnlyAboveLastEventID(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 	key := "/f.htmlclay"
 
-	seed := &wireSub{key: key, ch: make(chan []byte, 8), done: make(chan struct{})}
-	if _, _, err := wh.add(seed, 0); err != nil {
+	seed := &wire.Sub{Key: key, Ch: make(chan []byte, 8), Done: make(chan struct{})}
+	if _, _, err := wh.Add(seed, 0); err != nil {
 		t.Fatal(err)
 	}
-	wh.publish(key, wireEnvelope{Type: "wire/status", ID: "r1", Text: "working"})
-	wh.publish(key, wireEnvelope{Type: "wire/done", ID: "r1"})
+	wh.Publish(key, wire.Envelope{Type: "wire/status", ID: "r1", Text: "working"})
+	wh.Publish(key, wire.Envelope{Type: "wire/done", ID: "r1"})
 
-	fresh := &wireSub{key: key, ch: make(chan []byte, 8), done: make(chan struct{})}
-	_, replay, err := wh.add(fresh, 0)
+	fresh := &wire.Sub{Key: key, Ch: make(chan []byte, 8), Done: make(chan struct{})}
+	_, replay, err := wh.Add(fresh, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,8 +188,8 @@ func TestWireReplayOnlyAboveLastEventID(t *testing.T) {
 		t.Fatalf("fresh subscription replayed %d frames", len(replay))
 	}
 
-	resumed := &wireSub{key: key, ch: make(chan []byte, 8), done: make(chan struct{})}
-	_, replay, err = wh.add(resumed, 1)
+	resumed := &wire.Sub{Key: key, Ch: make(chan []byte, 8), Done: make(chan struct{})}
+	_, replay, err = wh.Add(resumed, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,18 +204,18 @@ func TestWireReplayOnlyAboveLastEventID(t *testing.T) {
 }
 
 func TestWireFirstTerminalWins(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 	key := "/f.htmlclay"
-	sub := &wireSub{key: key, ch: make(chan []byte, 8), done: make(chan struct{})}
-	if _, _, err := wh.add(sub, 0); err != nil {
+	sub := &wire.Sub{Key: key, Ch: make(chan []byte, 8), Done: make(chan struct{})}
+	if _, _, err := wh.Add(sub, 0); err != nil {
 		t.Fatal(err)
 	}
-	wh.publish(key, wireEnvelope{Type: "wire/done", ID: "r1"})
-	wh.publish(key, wireEnvelope{Type: "wire/error", ID: "r1", Text: "too late"})
+	wh.Publish(key, wire.Envelope{Type: "wire/done", ID: "r1"})
+	wh.Publish(key, wire.Envelope{Type: "wire/error", ID: "r1", Text: "too late"})
 
-	resumed := &wireSub{key: key, ch: make(chan []byte, 8), done: make(chan struct{})}
-	_, replay, _ := wh.add(resumed, 1)
+	resumed := &wire.Sub{Key: key, Ch: make(chan []byte, 8), Done: make(chan struct{})}
+	_, replay, _ := wh.Add(resumed, 1)
 	if len(replay) != 1 || !strings.Contains(string(replay[0]), "wire/done") {
 		t.Fatalf("a handler rewrote an outcome a subscriber already saw: %q", replay)
 	}
@@ -224,10 +225,10 @@ func TestWireFirstTerminalWins(t *testing.T) {
 // write through the agent's OS authority into a file the page can never touch.
 func TestWireSendStampsCanonicalFile(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
-	tap := &wireSub{key: f.AbsPath, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := srv.wire.add(tap, 0); err != nil {
+	tap := &wire.Sub{Key: f.AbsPath, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := srv.Hub.Add(tap, 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -238,9 +239,9 @@ func TestWireSendStampsCanonicalFile(t *testing.T) {
 	}
 
 	select {
-	case raw := <-tap.ch:
+	case raw := <-tap.Ch:
 		payload := raw[strings.Index(string(raw), "data: ")+6:]
-		var env wireEnvelope
+		var env wire.Envelope
 		if err := json.Unmarshal(payload, &env); err != nil {
 			t.Fatalf("unparseable frame %q: %v", raw, err)
 		}
@@ -257,7 +258,7 @@ func TestWireSendStampsCanonicalFile(t *testing.T) {
 
 func TestWireSendRejectsBadFrames(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	cases := []struct {
 		name string
@@ -283,14 +284,14 @@ func TestWireSendRejectsBadFrames(t *testing.T) {
 // cross-origin POST into a preflight this mux never answers.
 func TestWireSendRequiresJSONContentType(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	body := fmt.Sprintf(`{"type":"wire/request","id":"a","file":%q}`, f.AbsPath)
 	req := httptest.NewRequest("POST", "/_/wire/send", strings.NewReader(body))
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
 	req.Header.Set("Content-Type", "text/plain")
 	w := httptest.NewRecorder()
-	srv.wireMux().ServeHTTP(w, req)
+	srv.WireMux().ServeHTTP(w, req)
 	if w.Code != 415 {
 		t.Fatalf("want 415, got %d", w.Code)
 	}
@@ -301,12 +302,12 @@ func TestWireSendRequiresJSONContentType(t *testing.T) {
 // <img src> probe from a foreign page away from the handler.
 func TestWireSendRejectsGET(t *testing.T) {
 	srv, _ := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	req := httptest.NewRequest("GET", "/_/wire/send", nil)
 	req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
 	w := httptest.NewRecorder()
-	srv.wireMux().ServeHTTP(w, req)
+	srv.WireMux().ServeHTTP(w, req)
 	if w.Code == 200 {
 		t.Fatal("GET reached the send handler")
 	}
@@ -315,37 +316,37 @@ func TestWireSendRejectsGET(t *testing.T) {
 // Bounded queues evict rather than grow, matching the live-sync hub. A subscriber
 // that cannot keep up loses its stream instead of the server losing its memory.
 func TestWireEvictsSlowSubscriber(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 	key := "/f.htmlclay"
 
-	slow := &wireSub{key: key, ch: make(chan []byte, 1), done: make(chan struct{})}
-	if _, _, err := wh.add(slow, 0); err != nil {
+	slow := &wire.Sub{Key: key, Ch: make(chan []byte, 1), Done: make(chan struct{})}
+	if _, _, err := wh.Add(slow, 0); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 5; i++ {
-		wh.publish(key, wireEnvelope{Type: "wire/status", ID: "r1", Text: "x"})
+		wh.Publish(key, wire.Envelope{Type: "wire/status", ID: "r1", Text: "x"})
 	}
 	select {
-	case <-slow.done:
+	case <-slow.Done:
 	default:
 		t.Fatal("slow subscriber was not evicted")
 	}
 }
 
 func TestWireSubscriberCapIsEnforced(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 	key := "/f.htmlclay"
 
-	for i := 0; i < maxWireSubs; i++ {
-		sub := &wireSub{key: key, ch: make(chan []byte, 2), done: make(chan struct{})}
-		if _, _, err := wh.add(sub, 0); err != nil {
+	for i := 0; i < wire.MaxWireSubs; i++ {
+		sub := &wire.Sub{Key: key, Ch: make(chan []byte, 2), Done: make(chan struct{})}
+		if _, _, err := wh.Add(sub, 0); err != nil {
 			t.Fatalf("subscriber %d refused early: %v", i, err)
 		}
 	}
-	over := &wireSub{key: key, ch: make(chan []byte, 2), done: make(chan struct{})}
-	if _, _, err := wh.add(over, 0); err != errWireBusy {
+	over := &wire.Sub{Key: key, Ch: make(chan []byte, 2), Done: make(chan struct{})}
+	if _, _, err := wh.Add(over, 0); err != wire.ErrWireBusy {
 		t.Fatalf("cap not enforced: %v", err)
 	}
 }
@@ -355,7 +356,7 @@ func TestWireSubscriberCapIsEnforced(t *testing.T) {
 // runs for files the watcher polls.
 func TestWireHandlerLeaseWatchesAndVersionsAnUnopenedFile(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	f.Lock()
 	before := f.HistoryKey()
@@ -420,7 +421,7 @@ func TestWireHandlerLeaseWatchesAndVersionsAnUnopenedFile(t *testing.T) {
 // entry out from under itself.
 func TestWireHandlerLeaseIsRefcounted(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	srv.coord.lease(f)
 	srv.coord.lease(f)
@@ -462,8 +463,8 @@ func wireSubscribeURL(ts *httptest.Server, f *session.File, role string) string 
 // real route rather than the helper.
 func TestWireSubscribeRaisesAndReleasesTheLease(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
-	ts := httptest.NewServer(srv.wireMux())
+	t.Cleanup(func() { srv.Hub.Shutdown() })
+	ts := httptest.NewServer(srv.WireMux())
 	t.Cleanup(ts.Close)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -491,12 +492,12 @@ func TestWireSubscribeRaisesAndReleasesTheLease(t *testing.T) {
 // holds the slot, so it must not hold a watch either.
 func TestWireRefusedHandlerLeavesNoLease(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
-	ts := httptest.NewServer(srv.wireMux())
+	t.Cleanup(func() { srv.Hub.Shutdown() })
+	ts := httptest.NewServer(srv.WireMux())
 	t.Cleanup(ts.Close)
 
-	held := &wireSub{key: f.AbsPath, handler: true, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := srv.wire.add(held, 0); err != nil {
+	held := &wire.Sub{Key: f.AbsPath, Handler: true, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := srv.Hub.Add(held, 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -516,18 +517,18 @@ func TestWireRefusedHandlerLeavesNoLease(t *testing.T) {
 // The exclusive slot is reserved, not competed for: tails on a file must not be
 // able to lock the user's own agent out of a slot that is free.
 func TestWireObserverCapDoesNotLockOutTheHandler(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 	key := "/f.htmlclay"
 
-	for i := 0; i < maxWireSubs; i++ {
-		sub := &wireSub{key: key, ch: make(chan []byte, 2), done: make(chan struct{})}
-		if _, _, err := wh.add(sub, 0); err != nil {
+	for i := 0; i < wire.MaxWireSubs; i++ {
+		sub := &wire.Sub{Key: key, Ch: make(chan []byte, 2), Done: make(chan struct{})}
+		if _, _, err := wh.Add(sub, 0); err != nil {
 			t.Fatalf("observer %d refused early: %v", i, err)
 		}
 	}
-	agent := &wireSub{key: key, handler: true, ch: make(chan []byte, 2), done: make(chan struct{})}
-	if _, _, err := wh.add(agent, 0); err != nil {
+	agent := &wire.Sub{Key: key, Handler: true, Ch: make(chan []byte, 2), Done: make(chan struct{})}
+	if _, _, err := wh.Add(agent, 0); err != nil {
 		t.Fatalf("observers locked the agent out of a free slot: %v", err)
 	}
 }
@@ -536,41 +537,41 @@ func TestWireObserverCapDoesNotLockOutTheHandler(t *testing.T) {
 // revisits a file whose handler has gone. Without a sweep that is one channel per
 // file ever touched, for the life of the site.
 func TestWireChannelIsDroppedOnceItsTerminalsExpire(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 	key := "/f.htmlclay"
 
-	sub := &wireSub{key: key, ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := wh.add(sub, 0); err != nil {
+	sub := &wire.Sub{Key: key, Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(sub, 0); err != nil {
 		t.Fatal(err)
 	}
-	wh.publish(key, wireEnvelope{Type: "wire/done", ID: "r1"})
-	wh.remove(sub)
+	wh.Publish(key, wire.Envelope{Type: "wire/done", ID: "r1"})
+	wh.Remove(sub)
 
-	wh.mu.Lock()
-	c, held := wh.chans[key]
-	wh.mu.Unlock()
+	wh.Mu.Lock()
+	c, held := wh.Chans[key]
+	wh.Mu.Unlock()
 	if !held {
 		t.Fatal("the outcome was dropped while a reconnect could still ask for it")
 	}
 
-	wh.mu.Lock()
-	for id, term := range c.terminal {
-		term.at = term.at.Add(-2 * wireTerminalTTL)
-		c.terminal[id] = term
+	wh.Mu.Lock()
+	for id, term := range c.Terminal {
+		term.At = term.At.Add(-2 * wire.WireTerminalTTL)
+		c.Terminal[id] = term
 	}
-	wh.mu.Unlock()
+	wh.Mu.Unlock()
 
 	// Any later hub operation sweeps, so the map is bounded by live use.
-	other := &wireSub{key: "/g.htmlclay", ch: make(chan []byte, 4), done: make(chan struct{})}
-	if _, _, err := wh.add(other, 0); err != nil {
+	other := &wire.Sub{Key: "/g.htmlclay", Ch: make(chan []byte, 4), Done: make(chan struct{})}
+	if _, _, err := wh.Add(other, 0); err != nil {
 		t.Fatal(err)
 	}
-	wh.remove(other)
+	wh.Remove(other)
 
-	wh.mu.Lock()
-	_, still := wh.chans[key]
-	wh.mu.Unlock()
+	wh.Mu.Lock()
+	_, still := wh.Chans[key]
+	wh.Mu.Unlock()
 	if still {
 		t.Fatal("a channel holding only expired terminals was never dropped")
 	}
@@ -582,7 +583,7 @@ func TestWireChannelIsDroppedOnceItsTerminalsExpire(t *testing.T) {
 // on record.
 func TestWireHandlerLeaseResolvesHistoryForAMissingFile(t *testing.T) {
 	srv, existing := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 
 	gone := filepath.Join(filepath.Dir(existing.AbsPath), "gone.htmlclay")
 	if err := os.WriteFile(gone, []byte("<html><body>here for now</body></html>"), 0644); err != nil {
@@ -615,33 +616,33 @@ func TestWireHandlerLeaseResolvesHistoryForAMissingFile(t *testing.T) {
 // its origin, so a loop over a tree would pin the per-file maximum for every file
 // at once and no per-file limit would ever fire.
 func TestWireTerminalRetentionIsBoundedAcrossChannels(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 
 	big := strings.Repeat("x", 64<<10)
 	for file := 0; file < 40; file++ {
 		key := fmt.Sprintf("/f%d.htmlclay", file)
-		sub := &wireSub{key: key, ch: make(chan []byte, 64), done: make(chan struct{})}
-		if _, _, err := wh.add(sub, 0); err != nil {
+		sub := &wire.Sub{Key: key, Ch: make(chan []byte, 64), Done: make(chan struct{})}
+		if _, _, err := wh.Add(sub, 0); err != nil {
 			t.Fatal(err)
 		}
-		for req := 0; req < maxWireTerminals; req++ {
-			wh.publish(key, wireEnvelope{Type: "wire/done", ID: fmt.Sprintf("r%d", req), Text: big})
+		for req := 0; req < wire.MaxWireTerminals; req++ {
+			wh.Publish(key, wire.Envelope{Type: "wire/done", ID: fmt.Sprintf("r%d", req), Text: big})
 		}
-		wh.remove(sub)
+		wh.Remove(sub)
 	}
 
-	wh.mu.Lock()
-	total, counted := wh.terminalBytes, 0
-	for _, c := range wh.chans {
-		for _, term := range c.terminal {
-			counted += len(term.frame)
+	wh.Mu.Lock()
+	total, counted := wh.TerminalBytes, 0
+	for _, c := range wh.Chans {
+		for _, term := range c.Terminal {
+			counted += len(term.Frame)
 		}
 	}
-	wh.mu.Unlock()
+	wh.Mu.Unlock()
 
-	if total > wireGlobalMaxTerminalBytes {
-		t.Fatalf("retained %d bytes, over the %d ceiling", total, wireGlobalMaxTerminalBytes)
+	if total > wire.WireGlobalMaxTerminalBytes {
+		t.Fatalf("retained %d bytes, over the %d ceiling", total, wire.WireGlobalMaxTerminalBytes)
 	}
 	if counted != total {
 		t.Fatalf("running total %d disagrees with what is actually held, %d", total, counted)
@@ -654,7 +655,7 @@ func TestWireTerminalRetentionIsBoundedAcrossChannels(t *testing.T) {
 // can publish by waiting.
 func TestWireTerminalFrameFromAProcessPokesTheWatcher(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	srv.watcher.poll = 10 * time.Millisecond
 	srv.watcher.quiet = 30 * time.Second
 
@@ -684,7 +685,7 @@ func TestWireTerminalFrameFromAProcessPokesTheWatcher(t *testing.T) {
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	req.Header.Set("Page-URL", fmt.Sprintf("http://127.0.0.1:%d/%s", srv.port, filepath.Base(f.AbsPath)))
 	w := httptest.NewRecorder()
-	srv.wireMux().ServeHTTP(w, req)
+	srv.WireMux().ServeHTTP(w, req)
 	if w.Code != 200 {
 		t.Fatalf("page send failed: %d %s", w.Code, w.Body.String())
 	}
@@ -706,19 +707,19 @@ func TestWireTerminalFrameFromAProcessPokesTheWatcher(t *testing.T) {
 // handed a position below every frame published after it. A stream that drops
 // between the cursor and a frame therefore resumes with that frame still owed.
 func TestWireCursorIsBelowEveryFrameItPrecedes(t *testing.T) {
-	wh := newWireHub()
-	t.Cleanup(wh.shutdown)
+	wh := wire.NewHub()
+	t.Cleanup(wh.Shutdown)
 	key := "/f.htmlclay"
 
-	seed := &wireSub{key: key, ch: make(chan []byte, 8), done: make(chan struct{})}
-	if _, _, err := wh.add(seed, 0); err != nil {
+	seed := &wire.Sub{Key: key, Ch: make(chan []byte, 8), Done: make(chan struct{})}
+	if _, _, err := wh.Add(seed, 0); err != nil {
 		t.Fatal(err)
 	}
-	wh.publish(key, wireEnvelope{Type: "wire/done", ID: "r1"})
-	doneSeq, _ := splitFrame(t, <-seed.ch)
+	wh.Publish(key, wire.Envelope{Type: "wire/done", ID: "r1"})
+	doneSeq, _ := splitFrame(t, <-seed.Ch)
 
-	resumed := &wireSub{key: key, ch: make(chan []byte, 8), done: make(chan struct{})}
-	cursor, replay, err := wh.add(resumed, doneSeq-1)
+	resumed := &wire.Sub{Key: key, Ch: make(chan []byte, 8), Done: make(chan struct{})}
+	cursor, replay, err := wh.Add(resumed, doneSeq-1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -729,16 +730,16 @@ func TestWireCursorIsBelowEveryFrameItPrecedes(t *testing.T) {
 		t.Fatalf("cursor %d is not below the replayed frame %d: a drop before the replay would lose it", cursor, doneSeq)
 	}
 
-	fresh := &wireSub{key: key, ch: make(chan []byte, 8), done: make(chan struct{})}
-	cursor, replay, err = wh.add(fresh, 0)
+	fresh := &wire.Sub{Key: key, Ch: make(chan []byte, 8), Done: make(chan struct{})}
+	cursor, replay, err = wh.Add(fresh, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(replay) != 0 {
 		t.Fatalf("fresh subscription replayed %d frames", len(replay))
 	}
-	wh.publish(key, wireEnvelope{Type: "wire/done", ID: "r2"})
-	next, _ := splitFrame(t, <-fresh.ch)
+	wh.Publish(key, wire.Envelope{Type: "wire/done", ID: "r2"})
+	next, _ := splitFrame(t, <-fresh.Ch)
 	if cursor <= 0 || cursor >= next {
 		t.Fatalf("fresh cursor %d, next frame %d: the cursor must be a position below every frame that follows", cursor, next)
 	}
@@ -748,13 +749,13 @@ func TestWireCursorIsBelowEveryFrameItPrecedes(t *testing.T) {
 // nothing from the request body or the document's token may ride along with it.
 func TestWireUndeliveredLogsRecipient(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
+	t.Cleanup(func() { srv.Hub.Shutdown() })
 	logPath := filepath.Join(t.TempDir(), "server.log")
 	logger, err := logging.New(logPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv.logger = logger
+	srv.Logger = logger
 
 	const marker = "private-payload-marker"
 	body := fmt.Sprintf(`{"type":"wire/request","id":"undelivered-1","file":%q,"helper":"bluesky-studio","document":"none","payload":{"text":%q}}`, f.AbsPath, marker)

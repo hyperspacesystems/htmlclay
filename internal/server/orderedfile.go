@@ -29,7 +29,7 @@ var recordIDs = commitrecord.NewIDs()
 // carry the file's record either unchanged (a page save that did not touch the sheet) or as the
 // file's next commit. A body that drops the record or builds on another commit is refused, and the
 // tab is told to reload. A record this host cannot read is not judged.
-func orderedSaveRefusal(r *http.Request, current, body []byte) (int, string) {
+func orderedSaveRefusal(ifMatch string, sent bool, current, body []byte) (int, string) {
 	tag, tagged := commitrecord.Find(current)
 	if !tagged {
 		return 0, ""
@@ -38,7 +38,6 @@ func orderedSaveRefusal(r *http.Request, current, body []byte) (int, string) {
 	if err != nil {
 		return 0, ""
 	}
-	ifMatch, sent := listHeader(r, "If-Match")
 	if !sent || strings.TrimSpace(ifMatch) == "*" || strings.Contains(ifMatch, ",") {
 		return http.StatusPreconditionRequired, "if-match-required"
 	}
@@ -67,7 +66,7 @@ func (s *Server) foldRecord(f *session.File, incoming, current []byte) []byte {
 	}
 	folded, err := commitrecord.OutsideFold(incoming, current, recordIDs)
 	if err != nil {
-		s.logger.Printf("Could not fold the sheet record of %s: %v", f.RelPath, err)
+		s.Logger.Printf("Could not fold the sheet record of %s: %v", f.RelPath, err)
 		return incoming
 	}
 	return folded

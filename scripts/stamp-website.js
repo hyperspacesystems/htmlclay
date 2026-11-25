@@ -11,18 +11,22 @@
 // whatever is currently on the page, so it is self-correcting after drift.
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Only pages that actually carry a version or a download link. A page listed here
 // with neither is a hard error, which is what catches a stamp slot that quietly
-// disappeared; features.html is deliberately absent because it carries no version.
-const PAGES = ['index.html'].map((name) => join(ROOT, 'website', name));
+// disappeared; features/apps/security/changelog carry no version or dmg link.
+const PAGES = ['index.html', 'download/index.html'].map((name) => join(ROOT, 'website', name));
 const DOWNLOAD_BASE = 'https://download.htmlclay.com/';
 
+const args = process.argv.slice(2);
+const check = args.includes('--check');
+const positional = args.filter((arg) => !arg.startsWith('--'));
+
 const version =
-  process.argv[2] ||
+  positional[0] ||
   readFileSync(join(ROOT, 'cmd/htmlclay/main.go'), 'utf8').match(/var version = "(.*)"/)[1];
 
 const dmgName = `HTMLClay-${version}-universal.dmg`;
@@ -32,7 +36,7 @@ const dmgName = `HTMLClay-${version}-universal.dmg`;
 // which the page hides. When it IS given, a slot it cannot fill is a hard error
 // rather than a blank, because a hash that looks checkable and is not is worse than
 // no hash at all.
-const checksumsPath = process.argv[3];
+const checksumsPath = positional[1];
 const hashes = checksumsPath
   ? new Map(
       readFileSync(checksumsPath, 'utf8')
@@ -47,7 +51,6 @@ const hashes = checksumsPath
     )
   : null;
 let hashNodes = 0;
-const check = process.argv.includes('--check');
 let changed = false;
 
 for (const page of PAGES) {
@@ -73,8 +76,21 @@ for (const page of PAGES) {
   );
 
   html = html.replace(
+    /(<a[^>]*\sdata-mac-card-btn(?=[\s>])[^>]*>)/g,
+    (_, open) => {
+      stamped++;
+      return open.replace(/href="[^"]*"/, `href="${DOWNLOAD_BASE}${dmgName}"`);
+    }
+  );
+
+  html = html.replace(
     /data-sha256="HTMLClay-[^"]+-universal\.dmg"/g,
     `data-sha256="${dmgName}"`
+  );
+
+  html = html.replace(
+    /data-copy-sha="HTMLClay-[^"]+-universal\.dmg"/g,
+    `data-copy-sha="${dmgName}"`
   );
 
   if (hashes) {
@@ -97,7 +113,7 @@ for (const page of PAGES) {
   changed ||= html !== original;
   if (!check) {
     writeFileSync(page, html);
-    console.log(`Stamped ${stamped} element(s) in ${page.split('/').pop()} with v${version}`);
+    console.log(`Stamped ${stamped} element(s) in ${relative(join(ROOT, 'website'), page)} with v${version}`);
   }
 }
 

@@ -3,23 +3,107 @@
 Releases before 1.9.0 are recorded in the ecosystem changelog at
 [changelog.hyperclay.com](https://changelog.hyperclay.com).
 
-## [Unreleased]
+## [2.0.0] - 2026-11-25
+
+HTML Clay 2.0 is a new app. On a Mac it is a native app, and on Windows and Linux it keeps its tray. On every platform it has one Dashboard for your folders and documents, serves whole folders at their own local addresses, can sync folders with Hyperclay, and lets an AI agent on your computer edit any page. It takes over from Hyperclay Local.
+
+### Upgrading from 1.x
+- HTML Clay 2.0 needs macOS 14 or later. A Mac on macOS 11 to 13 is not offered 2.0 and stays on 1.16.4.
+- If HTML Clay 1.x is still running when 2.0 opens, the Mac app quits it or says why it cannot. On Windows and Linux, a notice asks you to quit the older HTML Clay from the tray and open 2.0 again.
+- The first folder you trusted used to open at `htmlclay.localhost`. That address is now the Dashboard, so the folder moves to the next free address (such as `htmlclay1.localhost`), and old links to it are sent to the new address.
+- Browser storage that pages kept at `htmlclay.localhost`, such as `localStorage` and service workers, is cleared once. Cookies and everything saved in your files stay.
+- When Hyperclay Local is set up on the computer, HTML Clay offers to move its folders in. The programs and document permissions you allowed in Hyperclay Local come along, and a folder that cannot move yet stays with Hyperclay Local and says why.
 
 ### Added
-- Setting up a document's program is one dialog that shows the file that would run first. HTML Clay finds the file itself: a program you already set up under that name or with a matching file name, or a matching file in a folder you keep programs in. It never suggests one from the document's folder, Downloads, a temporary folder, the internet, or one that changed in the last ten minutes, and never a shell or script interpreter. Choosing such a file yourself asks you to confirm first.
-- A bar at the top of a document whose programs are not set up starts setup, and so does the page's own button. The bar names only the programs the document declares.
+- **The Mac app**: a native app with a menu bar panel, a Welcome window and macOS Settings. On Windows and Linux the same menu sits in the tray, and Settings opens in the browser.
+- **Dashboard**: one sidebar lists every folder and its files, with a filter and your recent documents. **New** makes a document from a template in one click, and the pencil renames it in place.
+- **Served folders**: any folder can be served at its own `.localhost` address, with **Open in Dashboard**, **Open in Finder** (or **Open in File Explorer**) and a **Trusted** switch for each folder.
+- **Sync with Hyperclay**: connect a Hyperclay account with a sync key to back up folders, give each file a web address, and edit together live. When both sides changed a file, you choose **Keep mine**, **Keep theirs** or **Keep both**.
+- **AI Editing** settings: pick Claude Code, Codex, Gemini (`agy`) or your own command, with a model and an effort level. Select something on a page and press `⌘J` (`Ctrl+J` on Windows and Linux) to ask for a change.
+- Built-in programs for file search, image conversion and folder watching. Each is off until you switch it on, and each comes with an example document.
+- A new install starts on login, updates automatically, and has a `~/htmlclay/playground` folder with a welcome page and three starter documents.
+- Programs on your computer, such as the `clay-agent` command-line tool, can list, read, save and restore documents with an agent token that only your user account can read.
+- A page with a live room, such as a sheet, can store the edits it could not save in the document's private history folder, so the edits outlive the window that made them.
 - A new optional `data-program-file` attribute on a helper declaration names the program's file when it differs from the name the document uses.
-- The Programs page, opened from **Programs → Manage Programs…**, lists every program and which documents may run it, and removes access. A program whose file has moved can be pointed at its new place, from the page or the tray, and keeps every document that was allowed to use it.
-- **Kept Copies…** in the HTML Clay menu opens a page listing every safety copy HTML Clay kept before an outside change removed data or before an earlier version was restored, with each copy's date and size. Each copy can be shown in Finder (or the file manager) or deleted, one at a time or all copies of a document at once.
+- **Recovered changes…** in the HTML Clay menu opens a page listing the copies HTML Clay kept before a change made outside a page removed data or before you restored an earlier version, with each one's date and size. It shows in the menu only when there is something to recover. Each one can be shown in Finder (or the file manager) or deleted, one at a time or all recovered changes of a document at once.
+- **New blank document** in a page's menu makes a copy of the document with its data emptied, beside it as `<name>-new.html`, and opens it. The page must name its starting values (a `clay-new-document` tag) and use a ClayJS that offers the item. A blank copy of a downloaded document is treated as a download too.
+- Pages using ClayJS `plugins=ai` can ask your AI agent (Claude Code, Codex, or Antigravity) to read a folder you choose and answer questions about its code and git history. HTML Clay runs a read-only self-test once for each agent version before letting it answer, and **Ask again** in Settings clears **Don't allow**.
+- Pages can carry small JavaScript programs in `<script type="text/x-clay-program">` tags that HTML Clay runs in a separate worker process with memory and time limits. Depending on its `can` attribute and the document's trust, a program can read files and git history in a folder you choose, edit and create files there, or reach public web addresses.
+- `htmlclay trust <file>`, `htmlclay untrust <file>`, `htmlclay developer-mode [on|off]`, and `htmlclay programs [enable|disable]` manage document trust, developer mode, and your programs folder from the command line.
+
+### Changed
+- On Windows and Linux, turning off automatic updates (`updates: off`) now stops only automatic checks. Check now still checks for and downloads an update.
+- Document trust now follows a file's code and where it came from rather than its folder alone. Files you made and signed ecosystem apps run without warnings, while downloaded files, files with no origin record, and files whose signature does not match their code get their own browser origin and ask once per document until their code changes.
+- Attaching sibling `@file` context in AI editing now requires a document you made or trusted.
+
+## [1.16.4] - 2026-11-14
+
+### Added
+- The **Kept Copies** page lists the copies HTML Clay kept when an outside change removed data from a document, with actions to show a copy in Finder or delete one copy or all copies for a document. **Delete All** removes only the copies listed on the confirmation page.
+
+### Changed
+- The bundled ClayJS runtime is now 1.26.0.
+
+## [1.16.3] - 2026-11-14
+
+### Added
+- Host metadata announces `data-guard-v2`: the data loss guard now tracks typed values and canonical sheet grids across saves and opens, and offers **Put it back** when data is lost.
+- The data API reads canonical sheet grids, and sheet patches can delete a tab with `{ sheet, delete: true }`.
+
+### Changed
+- A program writing through the data API with a matching `If-Match` header can remove data without raising a loss notice unless 90 percent or more of the values are removed.
+- A program write through the data API that would remove data without `If-Match` is refused with `428` (`read-required`) and the current `etag`.
+- Silent data removal from an outside edit keeps a pinned copy of the replaced version, and a program write answers `503` when that copy cannot be kept.
+- The bundled ClayJS runtime is now 1.25.0.
+
+### Fixed
+- Rows cloned by the data API from a hidden `cms-template` seed element are now visible.
+
+## [1.16.2] - 2026-11-12
+
+Nothing changed in the app in this release.
+
+## [1.16.1] - 2026-11-11
+
+### Added
+- HTML Clay checks saves, data API writes and outside edits for data loss, announces `data-guard-v1` in `/_/meta`, and shows a notice bar inside `<body>` that survives restarts. The notice offers **Restore** when restoring is possible, and **Restore** and **Revert** keep a copy of what they replace, recheck that the folder is trusted, warn about new items added after the loss that restoring would remove, and send the result to every open tab.
+- The data API supports `[*]` rules to match all elements for a selector.
+
+### Changed
+- Saves strip the `sitevisibility` attribute from `<html>`.
+- The bundled ClayJS runtime is now 1.24.0.
+
+### Fixed
+- Hidden tabs receive live sync updates immediately rather than waiting to be shown, avoiding stale version conflicts on their next save, and silent hidden tabs stay connected for five minutes.
+- Relinking a program whose folder was moved or deleted opens the file picker at the nearest existing parent folder instead of failing on macOS.
+
+## [1.16.0] - 2026-11-08
+
+### Changed
+- The bundled ClayJS runtime is now 1.23.0.
+
+## [1.15.1] - 2026-11-03
+
+### Fixed
+- Offline copy exports strip `no-copy` sections.
+- Configured local programs are restored after HTML Clay restarts for an update.
+
+## [1.15.0] - 2026-11-01
+
+### Added
+- Setting up a document's program uses one native dialog that shows the file that would run, suggests a match from programs already set up or from folders where you keep programs (matching `.exe`, `.bat` or `.cmd` extensions regardless of case on Windows), and records the file's identity before opening so a file replaced during approval is refused. It never suggests a file from the document's folder, Downloads, a temporary folder, the internet, a file changed in the last ten minutes, or a shell or script interpreter, and choosing one of those by hand asks for confirmation first.
+- Documents with unset programs show a setup bar that starts program setup, which can also be started from a click on the page or from the tray.
+- A **Programs** page at `127.0.0.1/programs`, opened from **Manage Programs** in the tray, lets you remove a document's access, relink a program whose file moved, or widen a grant through native dialogs.
+
+### Changed
+- Opening a document no longer prompts about its programs. Requests for a program that is not set up wait up to two minutes for setup and then fail with `helper_setup_expired`.
+- The program setup dialog has no default button, so pressing Return does not approve a program.
+- Program grants for any document apply only inside trusted folders, and removing access is remembered and overrides a grant for any document.
+- **Manage Programs**, **Open Documents** and relink items for missing program files replace **Add a Program** and the individual program management dialog in the tray.
 
 ### Fixed
 - On Windows, the program file picker opens in front of the browser instead of behind it.
-
-### Changed
-- Opening a document no longer asks about its programs. A request for a program that is not set up waits up to two minutes for setup, then fails with `helper_setup_expired`.
-- The setup dialog has no default button, so Return never allows a program.
-- A program allowed for any document now applies only to documents in your trusted folders. Removing a document's access is remembered.
-- **Add a Program…** and **Configure an Open File…** are gone from the tray. The Programs menu shows the open documents, any program whose file is missing, and the missing count in its title.
+- On macOS, clicking **Cancel** in a dialog counts as a refusal rather than an error.
 
 ## [1.14.1] - 2026-10-30
 

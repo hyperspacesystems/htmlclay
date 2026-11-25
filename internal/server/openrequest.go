@@ -141,7 +141,7 @@ func (s *Server) serveReadOnlyWithBanner(w http.ResponseWriter, r *http.Request,
 	if nonce, err := s.mintOpenNonce(real); err == nil {
 		served = htmlutil.InjectBanner(projected, htmlutil.WrapBanner(openBannerHTML(nonce)))
 	} else {
-		s.logger.Printf("No open banner for %s: %v", real, err)
+		s.Logger.Printf("No open banner for %s: %v", real, err)
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -224,12 +224,12 @@ func (s *Server) handleOpenRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	if !allowed {
 		s.suppressOpenDenied(filepath.Dir(real))
-		s.logger.Printf("Trust request from the banner denied for %s; directory suppressed for this session", real)
+		s.Logger.Printf("Trust request from the banner denied for %s; directory suppressed for this session", real)
 		writeOpenRefused(w, "denied")
 		return
 	}
 
-	s.logger.Printf("Trust request from the banner approved for %s", real)
+	s.Logger.Printf("Trust request from the banner approved for %s", real)
 	noStoreJSON(w)
 	fmt.Fprintf(w, `{"ok":true,"url":%q}`, url)
 }

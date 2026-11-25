@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image converter</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; padding: 40px 24px; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: Canvas; color: CanvasText; }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .sub { margin: 0 0 18px; opacity: 0.72; }
+    form { margin-bottom: 14px; }
+    label { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    input, select { padding: 8px 11px; border-radius: 7px; border: 1px solid GrayText; font: inherit; }
+    button { padding: 7px 14px; border-radius: 7px; border: 1px solid GrayText; font: inherit; cursor: pointer; }
+    #status { margin: 10px 0; font-size: 13.5px; opacity: 0.8; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Image converter</h1>
+  <p class="sub">Convert an image in this folder to a new format or smaller width. Never replaces your original file.</p>
+  <form id="form">
+    <label>Image file <input id="path" value="sample-photo.png"></label>
+    <label>New format <select id="to"><option value="jpeg">JPEG</option><option value="png">PNG</option><option value="gif">GIF</option><option value="bmp">BMP</option><option value="tiff">TIFF</option><option value="webp">WebP</option></select></label>
+    <label>Max width (px) <input id="width" type="number" min="0" max="10000" value="320"></label>
+    <button>Convert</button>
+  </form>
+  <p id="status" role="status"></p>
+</main>
+<script src="https://clayjs.com/v1/clay.js?plugins=wire"></script>
+<script>
+  const status = document.getElementById('status');
+  document.getElementById('form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    status.textContent = 'Converting image…';
+    const payload = {
+      path: document.getElementById('path').value.trim(),
+      to: document.getElementById('to').value,
+      maxWidth: Number(document.getElementById('width').value) || 0,
+    };
+    const outcome = await clay.wire.send(payload, { helper: 'file-convert' }).done;
+    if (outcome.state !== 'done') { status.textContent = outcome.error || 'That did not work. Try again.'; return; }
+    const r = outcome.result;
+    status.textContent = 'Saved ' + r.path + ' (' + r.width + ' × ' + r.height + ', ' + Math.round(r.bytes / 1024) + ' KB)';
+  });
+</script>
+</body>
+</html>

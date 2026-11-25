@@ -130,14 +130,14 @@ func TestUsabilityDiagnosticsHelperBindingLogsTheDocumentAndPreviousProgram(t *t
 	}
 
 	// The first registration is gone, so HTML Clay has no file to lead with and
-	// the person picks the replacement, which the wider grant then covers.
+	// the person picks the replacement. A picked file covers this one document.
 	if _, ok := a.rt.cfg.RemoveHelperProgram(first.ID); !ok {
 		t.Fatal("the first registration was not removed")
 	}
 	secondPath := writeTestProgram(t, t.TempDir(), "second", 0755)
 	a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(secondPath, platform.ConfirmAllowAlways, nil))
 	second := diagnosticProgramAtPath(t, a, secondPath)
-	rebound := fmt.Sprintf("Helper binding saved: document=%s name=search program=%s path=%s scope=any document previous=%s", document, second.ID, second.Path, first.ID)
+	rebound := fmt.Sprintf("Helper binding saved: document=%s name=search program=%s path=%s scope=document previous=%s", document, second.ID, second.Path, first.ID)
 	if log := read(); !strings.Contains(log, rebound) {
 		t.Fatalf("the rebinding did not record the program it replaced:\n%s", log)
 	}
@@ -425,6 +425,7 @@ func TestUsabilityDiagnosticsShadowedOriginLogsBothAnchorsWithoutRequests(t *tes
 	if err := first.trustFolder(proj); err != nil {
 		t.Fatal(err)
 	}
+	saveAsBeforeOwnAddress(t, first, sub)
 	first.shutdown()
 
 	second := newTestAppWithConfigDir(t, home, cfgBase)

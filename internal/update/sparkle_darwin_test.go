@@ -427,3 +427,46 @@ func TestSparkleQuitWithoutAnInstallStartsNothing(t *testing.T) {
 		t.Fatalf("relaunched %v after a quit", relaunched)
 	}
 }
+
+// A rollback must not swap the bundle out from under the Swift app's host,
+// which owns the site servers and outlives the executable the health file
+// names: the helper is stopped with it.
+func TestSparkleHelpers(t *testing.T) {
+	bundle := filepath.Join(t.TempDir(), "HTMLClay.app")
+	helperPath := filepath.Join(bundle, "Contents", "MacOS", "htmlclay-host")
+	if err := os.MkdirAll(filepath.Dir(helperPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A copy of an Apple platform binary such as /bin/sleep is killed on
+	// launch on Apple silicon, so the stand-in is a helper this test builds.
+	t.Setenv("HTMLCLAY_TEST_UPDATES_DIR", t.TempDir())
+	t.Setenv("HTMLCLAY_TEST_MARKERS", t.TempDir())
+	copyFile(t, helper(t, "2.0.0", "hang"), helperPath)
+	cmd := exec.Command(helperPath)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		cmd.Wait()
+		close(done)
+	}()
+
+	st := &State{
+		Schema:      StateSchema,
+		Phase:       PhaseApplying,
+		InstallPath: bundle,
+		Executable:  bundleExe,
+		Helpers:     []string{"Contents/MacOS/htmlclay-host"},
+		Txid:        "t1",
+		Installer:   InstallerSparkle,
+	}
+	stopBundle(t.TempDir(), st)
+
+	select {
+	case <-done:
+	case <-time.After(6 * time.Second):
+		killPID(cmd.Process.Pid)
+		t.Fatalf("%s was still running after stopBundle", helperPath)
+	}
+}

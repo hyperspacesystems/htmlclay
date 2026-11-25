@@ -1,0 +1,9 @@
+<item xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+      <title>HTML Clay 1.16.4</title>
+      <pubDate>Sat, 14 Nov 2026 18:39:51 +0000</pubDate>
+      <sparkle:version>1.16.4</sparkle:version>
+      <sparkle:shortVersionString>1.16.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://download.htmlclay.com/update/1.16.4/HTMLClay-1.16.4-universal.app.zip?sha256=faa2124840ebbddb91f8308ccf0da381cd74388b44d345bbda34198b1c0352c3" length="85184041" type="application/octet-stream" sparkle:edSignature="5qM6s1iySYqfczlHZz/mJ+lYXVwdympb5jzqi9VYjXZ/gq0MbzbMnNjb95RVefZK2UCuEW3JaP0vJc05XQuRDg==" />
+    </item>
+  

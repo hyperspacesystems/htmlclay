@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>File search</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; padding: 40px 24px; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: Canvas; color: CanvasText; }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .sub { margin: 0 0 18px; opacity: 0.72; }
+    form { display: flex; gap: 8px; margin-bottom: 14px; }
+    input[type="search"] { flex: 1; padding: 8px 11px; border-radius: 7px; border: 1px solid GrayText; font: inherit; }
+    button { padding: 7px 14px; border-radius: 7px; border: 1px solid GrayText; font: inherit; cursor: pointer; }
+    #status { margin: 10px 0; font-size: 13.5px; opacity: 0.8; }
+    #results { padding-left: 20px; }
+    #results li { margin: 6px 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    #results button { margin-left: 8px; padding: 2px 8px; font-size: 12px; font-family: -apple-system, sans-serif; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>File search</h1>
+  <p class="sub">Search file names and text inside files in this folder. Copy this file into any trusted folder to search there.</p>
+  <form id="form"><input id="q" type="search" autocomplete="off" placeholder="Word or file name"><button>Search</button></form>
+  <p id="status" role="status"></p>
+  <ol id="results"></ol>
+</main>
+<script src="https://clayjs.com/v1/clay.js?plugins=wire"></script>
+<script>
+  const form = document.getElementById('form');
+  const status = document.getElementById('status');
+  const results = document.getElementById('results');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const query = document.getElementById('q').value.trim();
+    if (!query) return;
+    results.replaceChildren();
+    status.textContent = 'Searching…';
+    const outcome = await clay.wire.send({ query }, { helper: 'file-search', onStatus: s => { status.textContent = s.text; } }).done;
+    if (outcome.state !== 'done') { status.textContent = outcome.error || 'That did not work. Try again.'; return; }
+    const { matches, files, truncated } = outcome.result;
+    const matchWord = matches.length === 1 ? 'match' : 'matches';
+    const fileWord = files === 1 ? 'file' : 'files';
+    status.textContent = matches.length + ' ' + matchWord + ' across ' + files + ' ' + fileWord + (truncated ? ' · Stopped early. Narrow your search to see more.' : '.');
+    for (const m of matches) {
+      const li = document.createElement('li');
+      const label = document.createElement('span');
+      label.textContent = m.line ? m.path + ':' + m.line + '  ' + m.text : m.path;
+      const show = document.createElement('button');
+      show.type = 'button';
+      show.textContent = 'Show in folder';
+      show.addEventListener('click', () => clay.wire.send({ reveal: m.path }, { helper: 'file-search' }));
+      li.append(label, ' ', show);
+      results.append(li);
+    }
+  });
+</script>
+</body>
+</html>

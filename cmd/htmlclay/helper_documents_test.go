@@ -74,18 +74,6 @@ func allowDocumentDialogs(path string, choice platform.ConfirmChoice, seen *[]st
 	}
 }
 
-// recordingHelperProgram is a harmless program that proves it ran by appending to
-// marker, and answers with one structured result.
-func recordingHelperProgram(t *testing.T, dir, marker string) string {
-	t.Helper()
-	path := filepath.Join(dir, "recorder")
-	script := "#!/bin/sh\ncat > /dev/null\necho ran >> '" + marker + "'\nprintf '{\"type\":\"result\",\"value\":{\"ran\":true}}\\n'\n"
-	if err := os.WriteFile(path, []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
 func wireHelperRequest(t *testing.T, s *site, token, id, document string) string {
 	t.Helper()
 	body := fmt.Sprintf(`{"v":1,"type":"wire/request","id":%q,"file":%q,"helper":"search","document":"none","payload":{"query":"clay"}}`, id, document)
@@ -227,7 +215,7 @@ func TestHelperDocumentConfigureReusesAnExistingRegistration(t *testing.T) {
 	}
 
 	restarted := buildTestApp(t, home, cfgBase)
-	resolution, found := restarted.rt.cfg.ResolveHelper(document, "search", true)
+	resolution, found := restarted.rt.cfg.ResolveHelper(document, "search", true, restarted.scopeOf(document))
 	if !found || !resolution.Decided || !resolution.Allowed || resolution.Program.ID != program.ID {
 		t.Fatalf("resolution after a restart = %+v, %v", resolution, found)
 	}
@@ -236,22 +224,18 @@ func TestHelperDocumentConfigureReusesAnExistingRegistration(t *testing.T) {
 // Configuring has to reach the dispatcher that is already attached to the open
 // document, not only the config: the program must run.
 func TestHelperDocumentConfigureMakesTheOpenDispatcherRunTheProgram(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the fixture program is a POSIX shell script")
-	}
 	home, err := resolveSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := newTestApp(t, home)
 	document := writeHelperPage(t, home, "search")
-	marker := filepath.Join(t.TempDir(), "ran")
-	programPath := recordingHelperProgram(t, t.TempDir(), marker)
+	programPath, marker := attachmentProgram(t, "recorder")
 	if _, err := a.rt.cfg.AddHelperProgram("search", programPath); err != nil {
 		t.Fatal(err)
 	}
 	s, _ := a.openForTest(t, document)
-	a.applyHelperPlan(s, document, a.helpersForOpen(document, false))
+	a.applyHelperPlan(s.srv.Core, document, a.helpersForOpen(document, false))
 	if !s.srv.HelpersBound(document) {
 		t.Fatal("the open document has no dispatcher to refresh")
 	}
@@ -331,7 +315,7 @@ func TestHelperDocumentAnyDocumentGrantNeedsTheExplicitChoice(t *testing.T) {
 			if !ok || kept.AnyDocument != tc.anyDocument {
 				t.Fatalf("any-document flag = %+v, want %v", kept, tc.anyDocument)
 			}
-			resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+			resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 			if resolution.Allowed != tc.allowed {
 				t.Fatalf("resolution = %+v, want allowed %v", resolution, tc.allowed)
 			}
@@ -440,7 +424,7 @@ func TestHelperDocumentCancelledOrFailedDialogsChangeNothing(t *testing.T) {
 			if got := openDenialsOf(t, a, document); strings.Join(got, ",") != tc.denied {
 				t.Fatalf("this open's other refusals changed: %v", got)
 			}
-			if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed {
+			if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document)); resolution.Allowed {
 				t.Fatalf("resolution = %+v, want nothing granted", resolution)
 			}
 			if tc.reported {
@@ -524,7 +508,7 @@ func TestHelperDocumentStatusReportsRemovedAndDuplicateRegistrations(t *testing.
 			t.Fatal("the registration was not removed")
 		}
 		s, _ := a.openForTest(t, document)
-		a.applyHelperPlan(s, document, a.helpersForOpen(document, false))
+		a.applyHelperPlan(s.srv.Core, document, a.helpersForOpen(document, false))
 
 		if got := a.helperBindingStatus(document, "search"); got != "previous program was removed" {
 			t.Fatalf("status = %q", got)
@@ -534,7 +518,7 @@ func TestHelperDocumentStatusReportsRemovedAndDuplicateRegistrations(t *testing.
 		if !ok || !strings.HasSuffix(row.Label, "“search” needs setup…") {
 			t.Fatalf("row = %+v", rows)
 		}
-		if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed {
+		if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document)); resolution.Allowed {
 			t.Fatalf("a removed registration still granted the name: %+v", resolution)
 		}
 		if state := helperDiscoveryState(t, s, document); state != "unavailable" {
@@ -555,12 +539,12 @@ func TestHelperDocumentStatusReportsRemovedAndDuplicateRegistrations(t *testing.
 			}
 		}
 		s, _ := a.openForTest(t, document)
-		a.applyHelperPlan(s, document, a.helpersForOpen(document, false))
+		a.applyHelperPlan(s.srv.Core, document, a.helpersForOpen(document, false))
 
 		if got := a.helperBindingStatus(document, "search"); got != "choose between registered programs" {
 			t.Fatalf("status = %q", got)
 		}
-		if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed || resolution.Program.ID != "" {
+		if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document)); resolution.Allowed || resolution.Program.ID != "" {
 			t.Fatalf("two registrations resolved to one program without asking: %+v", resolution)
 		}
 		if state := helperDiscoveryState(t, s, document); state != "unavailable" {
@@ -612,7 +596,7 @@ func TestHelperDocumentReplacingAWrongBindingKeepsUnrelatedDecisions(t *testing.
 
 	rows := a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(rightPath, platform.ConfirmAllowOnce, nil))
 
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if !resolution.Allowed || resolution.Program.ID != right.ID {
 		t.Fatalf("the replaced binding = %+v, want %s", resolution, right.ID)
 	}
@@ -715,7 +699,7 @@ func TestHelperDocumentStatusReportsMissingAndNonExecutablePrograms(t *testing.T
 	if !ok || !strings.HasSuffix(row.Label, "“search” needs setup…") {
 		t.Fatalf("row = %+v", row)
 	}
-	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed {
+	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document)); resolution.Allowed {
 		t.Fatalf("a program file that is gone still resolved as allowed: %+v", resolution)
 	}
 
@@ -766,7 +750,7 @@ func TestHelperDocumentConfigureRefusesAProgramThatChangedDuringTheDialog(t *tes
 	if got := a.rt.cfg.HelperDecisionList(); len(got) != 0 {
 		t.Fatalf("a decision was stored for a program that changed: %+v", got)
 	}
-	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true); resolution.Allowed {
+	if resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document)); resolution.Allowed {
 		t.Fatalf("the name was granted anyway: %+v", resolution)
 	}
 	if strings.Contains(strings.Join(seen, "\n"), "prepare:") {
@@ -866,7 +850,7 @@ func TestHelperDocumentNativeRepairKeepsTheSelectedSymlink(t *testing.T) {
 	if !strings.Contains(strings.Join(seen, "\n"), "prepare:"+selected) {
 		t.Fatalf("the selected symlink was not the program prepared: %v", seen)
 	}
-	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+	resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 	if !resolution.Allowed {
 		t.Fatal("the document did not approve the helper")
 	}
@@ -934,7 +918,7 @@ func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 			var seen []string
 			a.configureHelperDocumentWith(helperDocumentKey(document, "search"), allowDocumentDialogs(programPath, tc.choice, &seen))
 
-			resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true)
+			resolution, _ := a.rt.cfg.ResolveHelper(document, "search", true, a.scopeOf(document))
 			if !resolution.Decided || !resolution.Allowed || resolution.Program.Path != programPath {
 				t.Fatalf("the current document = %+v, want the selected path approved", resolution)
 			}
@@ -958,7 +942,7 @@ func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 			if tc.wider && !strings.Contains(dialogs[len(dialogs)-1], programPath) {
 				t.Errorf("the trusted-folders dialog does not state the program's path %q:\n%s", programPath, dialogs[len(dialogs)-1])
 			}
-			if got, _ := a.rt.cfg.ResolveHelper(otherXyd, "xyd", true); got.Allowed {
+			if got, _ := a.rt.cfg.ResolveHelper(otherXyd, "xyd", true, a.scopeOf(otherXyd)); got.Allowed {
 				t.Errorf("another document declaring xyd was allowed: %+v", got)
 			}
 
@@ -971,7 +955,7 @@ func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 				if !ok || kept.AnyDocument {
 					t.Fatalf("the reused registration = %+v, %v, want xyd left document-only", kept, ok)
 				}
-				if got, _ := a.rt.cfg.ResolveHelper(otherSearch, "search", true); got.Allowed {
+				if got, _ := a.rt.cfg.ResolveHelper(otherSearch, "search", true, a.scopeOf(otherSearch)); got.Allowed {
 					t.Errorf("another document declaring search was allowed by the document-only choice: %+v", got)
 				}
 				return
@@ -992,7 +976,7 @@ func TestHelperDocumentCrossNameWiderApprovalUsesTheDeclaredName(t *testing.T) {
 			if resolution.Program.ID != declared[0].ID {
 				t.Fatalf("the current document binds %+v, want the new registration %+v", resolution.Program, declared[0])
 			}
-			other, _ := a.rt.cfg.ResolveHelper(otherSearch, "search", true)
+			other, _ := a.rt.cfg.ResolveHelper(otherSearch, "search", true, a.scopeOf(otherSearch))
 			if !other.Allowed || other.Program.ID != declared[0].ID {
 				t.Fatalf("another document declaring search = %+v, want the wider grant on %+v", other, declared[0])
 			}

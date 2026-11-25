@@ -15,8 +15,8 @@ import (
 // wire gets none: it parses every data line as a wire frame.
 func TestWireStreamOpensWithACursorForPages(t *testing.T) {
 	srv, f := setupLiveSyncTest(t)
-	t.Cleanup(func() { srv.wire.shutdown() })
-	ts := httptest.NewServer(srv.wireMux())
+	t.Cleanup(func() { srv.Hub.Shutdown() })
+	ts := httptest.NewServer(srv.WireMux())
 	t.Cleanup(ts.Close)
 
 	pageURL := ts.URL + "/" + f.RelPath

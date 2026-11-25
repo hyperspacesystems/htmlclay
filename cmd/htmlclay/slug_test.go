@@ -17,30 +17,30 @@ func TestSlugIsStableUniqueAndNeverRetired(t *testing.T) {
 	again := a.slugForLocked(firstKey)
 	other := a.slugForLocked(secondKey)
 	a.mu.Unlock()
-	if first != "htmlclay" {
-		t.Fatalf("the first slug = %q, want htmlclay", first)
+	if first != "htmlclay1" {
+		t.Fatalf("the first slug = %q, want htmlclay1", first)
 	}
 	if again != first {
 		t.Fatalf("a key must keep its slug: %q then %q", first, again)
 	}
-	if other != "htmlclay1" {
-		t.Fatalf("the second key's slug = %q, want htmlclay1", other)
+	if other != "htmlclay2" {
+		t.Fatalf("the second key's slug = %q, want htmlclay2", other)
 	}
-	if retired := a.rt.cfg.ForgetSiteSlug(firstKey); retired != "htmlclay" {
-		t.Fatalf("ForgetSiteSlug returned %q, want htmlclay", retired)
+	if retired := a.rt.cfg.ForgetSiteSlug(firstKey); retired != "htmlclay1" {
+		t.Fatalf("ForgetSiteSlug returned %q, want htmlclay1", retired)
 	}
 	a.mu.Lock()
 	afterForget := a.slugForLocked(filepath.Join(home, "third"))
 	a.mu.Unlock()
-	if afterForget != "htmlclay2" {
-		t.Fatalf("a retired label must never be reissued: got %q, want htmlclay2", afterForget)
+	if afterForget != "htmlclay3" {
+		t.Fatalf("a retired label must never be reissued: got %q, want htmlclay3", afterForget)
 	}
-	a.rt.cfg.RememberSiteSlug("/manual", "htmlclay3")
+	a.rt.cfg.RememberSiteSlug("/manual", "htmlclay4")
 	a.mu.Lock()
 	skipped := a.slugForLocked(filepath.Join(home, "fourth"))
 	a.mu.Unlock()
-	if skipped != "htmlclay4" {
-		t.Fatalf("a label already issued must be skipped: got %q, want htmlclay4", skipped)
+	if skipped != "htmlclay5" {
+		t.Fatalf("a label already issued must be skipped: got %q, want htmlclay5", skipped)
 	}
 	for _, slug := range []string{first, again, other, afterForget, skipped} {
 		if !server.ValidSlug(slug) {

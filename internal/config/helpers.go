@@ -8,6 +8,8 @@ import (
 	"os"
 	"sort"
 	"time"
+
+	"github.com/panphora/htmlclay/internal/builtin"
 )
 
 const (
@@ -19,6 +21,7 @@ var (
 	ErrHelperNameInvalid   = errors.New("invalid helper name")
 	ErrHelperRegistryFull  = errors.New("helper program registry is full")
 	ErrHelperDecisionsFull = errors.New("helper decision registry is full")
+	ErrHelperNameReserved  = errors.New("That name belongs to a program built into HTML Clay. Choose another name.")
 )
 
 // HelperProgram is one registered program. ID is a stable opaque local id and is
@@ -48,6 +51,10 @@ type HelperDecision struct {
 	Allowed   bool   `json:"allowed"`
 	Revoked   bool   `json:"revoked,omitempty"`
 	DecidedAt int64  `json:"decidedAt"`
+	// Scope is what the document was decided about: one folder on this machine, one
+	// team, or an unknown machine. An empty Scope is a decision stored before scopes
+	// existed and reads as local.
+	Scope Scope `json:"scope,omitzero"`
 }
 
 // HelperResolution is what one name in one document resolves to. Program is
@@ -75,6 +82,13 @@ func ValidHelperName(s string) bool {
 		}
 	}
 	return true
+}
+
+// IsReservedHelperName reports whether name belongs to a built-in helper or
+// internal prompt identifier and may not be registered or used as a carried
+// program name.
+func IsReservedHelperName(name string) bool {
+	return builtin.Is(name) || name == "ai-tools" || name == "ai-edit" || name == "document-trust" || name == "programs"
 }
 
 // Canonical ordering lets a rollback restore the exact bytes Save wrote without
@@ -131,6 +145,9 @@ func newHelperProgramID(programs []HelperProgram) (string, error) {
 func (c *Config) AddHelperProgram(name, path string) (HelperProgram, error) {
 	if !ValidHelperName(name) {
 		return HelperProgram{}, ErrHelperNameInvalid
+	}
+	if IsReservedHelperName(name) {
+		return HelperProgram{}, ErrHelperNameReserved
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -305,14 +322,23 @@ func (c *Config) ForgetHelperDecision(document, name string) (HelperDecision, bo
 }
 
 // RevokeHelper stores a revocation for one document and name, replacing any
-// allow. It returns the row it replaced so a failed save can restore it.
+// allow. It returns the row it replaced so a failed save can restore it. The
+// document is taken to be in a local folder; a caller that knows the document's
+// scope uses RevokeHelperInScope.
 func (c *Config) RevokeHelper(document, name string) (previous HelperDecision, had bool, err error) {
+	return c.RevokeHelperInScope(document, name, Scope{Kind: ScopeLocal})
+}
+
+// RevokeHelperInScope is RevokeHelper for a document whose folder is scope. A
+// removal in a team folder is stored under the team's key, so ResolveHelper in
+// that scope finds the deny at once instead of asking again.
+func (c *Config) RevokeHelperInScope(document, name string, scope Scope) (previous HelperDecision, had bool, err error) {
 	if !ValidHelperName(name) {
 		return HelperDecision{}, false, ErrHelperNameInvalid
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	row := HelperDecision{Document: document, Name: name, Revoked: true, DecidedAt: time.Now().UnixNano()}
+	row := HelperDecision{Document: document, Name: name, Revoked: true, DecidedAt: time.Now().UnixNano(), Scope: scope}
 	for i, existing := range c.HelperDecisions {
 		if existing.Document == document && existing.Name == name {
 			c.HelperDecisions[i] = row
@@ -375,16 +401,21 @@ func (c *Config) HelperDecisionList() []HelperDecision {
 
 // ResolveHelper answers in one locked read whether there is a decision, whether
 // it allows execution, and which registered program it selects. trusted says
-// whether the document sits in a trusted folder: an any-document registration
-// applies only then. It never picks between registrations that share a name:
-// two allowed for any document leave the name undecided, and an undecided name
-// with several registrations carries them all as Candidates and no Program, so
-// the prompt asks which one.
-func (c *Config) ResolveHelper(document, name string, trusted bool) (HelperResolution, bool) {
+// whether the document sits in a trusted folder, and scope says what the
+// document's folder is: an any-document registration applies only in a trusted
+// local folder, and a stored decision applies only in the scope it was decided
+// about, so a folder that later became a team folder never runs on it. It never
+// picks between registrations that share a name: two allowed for any document
+// leave the name undecided, and an undecided name with several registrations
+// carries them all as Candidates and no Program, so the prompt asks which one.
+//
+// A decision stored before scopes existed carries no scope, which reads as the
+// local key, so local decisions keep working.
+func (c *Config) ResolveHelper(document, name string, trusted bool, scope Scope) (HelperResolution, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, d := range c.HelperDecisions {
-		if d.Document != document || d.Name != name {
+		if d.Document != document || d.Name != name || d.Scope.Key != scope.Key {
 			continue
 		}
 		if d.Revoked {
@@ -410,7 +441,7 @@ func (c *Config) ResolveHelper(document, name string, trusted bool) (HelperResol
 			anyDocument = append(anyDocument, p)
 		}
 	}
-	if trusted && len(anyDocument) == 1 {
+	if trusted && scope.Kind == ScopeLocal && len(anyDocument) == 1 {
 		return HelperResolution{Decided: true, Allowed: true, Program: anyDocument[0]}, true
 	}
 	if len(candidates) == 0 {
