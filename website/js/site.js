@@ -229,7 +229,7 @@
   ];
 
   var preloadedUrls = {};
-  var SETTINGS_IMG_VER = "ce7e4f0e";
+  var SETTINGS_IMG_VER = "7cab8b22";
   function preloadImage(url) {
     if (!url || preloadedUrls[url]) return;
     preloadedUrls[url] = true;
