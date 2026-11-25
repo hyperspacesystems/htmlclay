@@ -20,8 +20,11 @@ CONFIG="$XDG_CONFIG_HOME/htmlclay/config.json"
 trusted() { jq -e --arg p "$1" '[.workspaceFolders[]? | select(.path == $p)] | length > 0' "$CONFIG" >/dev/null 2>&1; }
 
 # Serve the page from a trusted folder and return the origin the app announced.
+# Each case starts without the read grants the app keeps across a quit, or case B's
+# "Trust This Folder" answer would let case C read the asset without asking.
 open_site() {
   trust_folder "$DOCS"
+  rm -f "$XDG_CONFIG_HOME/htmlclay/save-tokens.json"
   start_app --no-tray "$DOCS/page.htmlclay"; PID=$APP_PID
   wait_for_file "$LAB/opened-urls" 30 || fail "[$1] the app never served the page"
   URL="$(head -1 "$LAB/opened-urls")"

@@ -351,6 +351,9 @@ type app struct {
 	// aiTools is the AI editing tool picker's list, reused for aiToolsFresh so
 	// building the snapshot does not read PATH every time.
 	aiTools aiToolsCache
+	// aiToolsEnv is the environment the picker finds Claude, Codex and agy in;
+	// nil means the login shell's, which is what a person's HTML Clay uses.
+	aiToolsEnv []string
 	// recovered is the count of recovered changes the menus last saw, and
 	// stopRecovered ends the loop that keeps it fresh.
 	recovered     recoveredCount

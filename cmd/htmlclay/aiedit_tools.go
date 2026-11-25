@@ -29,7 +29,7 @@ func (a *app) aiEditTools() []appcore.AIEditTool {
 		_, engines := a.rt.cfg.AIEditEngines()
 		models, efforts := a.rt.cfg.AIEditModels(), a.rt.cfg.AIEditEfforts()
 		tools := []appcore.AIEditTool{}
-		for _, t := range aiedit.Tools(engines, nil) {
+		for _, t := range aiedit.Tools(engines, a.aiToolsEnv) {
 			tools = append(tools, appcore.AIEditTool{
 				ID:            t.ID,
 				Custom:        t.Custom,
@@ -61,7 +61,7 @@ func (a *app) aiEditTool() string {
 	if name, _ := a.rt.cfg.AIEditEngines(); name != "" {
 		return name
 	}
-	return aiedit.FirstFound(nil)
+	return aiedit.FirstFound(a.aiToolsEnv)
 }
 
 func (a *app) setAIEditModel(e appcore.Effect) *appcore.Refusal {

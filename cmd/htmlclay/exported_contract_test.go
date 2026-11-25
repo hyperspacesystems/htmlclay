@@ -45,8 +45,13 @@ func transcriptHost(t *testing.T, home, notes string) (host *app, asking string)
 	program := writeTestProgram(t, programs, transcriptProgram, 0o755)
 
 	cfgBase, configDir := t.TempDir(), t.TempDir()
+	tools := t.TempDir()
+	for _, name := range []string{"claude", "codex", "agy"} {
+		writeTestProgram(t, tools, name, 0o755)
+	}
 	launch := func() *app {
 		a := buildTestApp(t, home, cfgBase)
+		a.aiToolsEnv = []string{"PATH=" + tools}
 		a.rt.configDir = configDir
 		a.rt.port = servedTestPort
 		a.rt.launchBrowser = func(string) error { return nil }
