@@ -5,8 +5,10 @@ import PreviewCore
 struct FolderRow: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
+    @Environment(\.openURL) private var openURL
     @State private var expanded = false
     @State private var showAdvanced = false
+    @State private var hoveringAddress = false
     @State private var alert: FolderAlert?
     private let folder: Folder
     private let parent: Folder?
@@ -27,38 +29,92 @@ struct FolderRow: View {
         return levels
     }
 
+    private func pillLabel(for level: KilnPillLevel) -> String {
+        switch level {
+        case .trusted: return Strings.Levels.trusted
+        case .served: return Strings.Levels.served
+        case .synced: return Strings.Levels.synced
+        case .warn: return Strings.Levels.warning
+        case .err: return Strings.Levels.error
+        }
+    }
+
     var body: some View {
         if folder.onThisMac {
             VStack(alignment: .leading, spacing: 0) {
-                KilnRow(title: folder.name, subtitle: subtitle, pills: Self.pills(for: folder)) {
+                HStack(alignment: .center, spacing: 11) {
                     leading
-                } trailing: {
-                    HStack(spacing: 6) {
-                        badge
-                        Button(Strings.Folders.open) {
-                            openFolder()
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 6) {
+                            Text(folder.name)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(kiln.ink)
+                            Button {
+                                copyFullPath()
+                            } label: {
+                                CopyPathIcon()
+                                    .fill(kiln.muted, style: FillStyle(eoFill: true))
+                                    .frame(width: 14, height: 14)
+                                    .padding(2)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help(Strings.Folders.copyPathHelp(folder.path))
+                            .accessibilityLabel(Text(Strings.Folders.copyPathLabel(folder.name)))
                         }
-                        .buttonStyle(KilnButtonStyle(.plain))
-                        if model.isSample || model.can(HostActionType.reveal) {
-                            Button(Strings.Folders.finder) {
-                                revealFolder()
+                        HStack(spacing: 6) {
+                            ForEach(Array(Self.pills(for: folder).enumerated()), id: \.offset) { item in
+                                KilnPill(item.element, text: pillLabel(for: item.element))
+                            }
+                        }
+                        .padding(.top, 5)
+                        subtitleView
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(alignment: .center, spacing: 8) {
+                        badge
+                        VStack(alignment: .trailing, spacing: 6) {
+                            Button {
+                                openFolder()
+                            } label: {
+                                Text(Strings.Folders.openInDashboard)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(KilnButtonStyle(.plain))
+                            if model.isSample || model.can(HostActionType.reveal) {
+                                Button {
+                                    revealFolder()
+                                } label: {
+                                    Text(Strings.Folders.openInFinder)
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(KilnButtonStyle(.plain))
+                            }
+                            Button {
+                                expanded.toggle()
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: expanded ? Symbols.chevronDown : Symbols.chevronRight)
+                                        .font(.system(size: 10, weight: .semibold))
+                                    Text(Strings.Folders.more)
+                                }
+                                .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(KilnButtonStyle(.plain))
                         }
-                        Button {
-                            expanded.toggle()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(Strings.Folders.more)
-                                Image(systemName: expanded ? Symbols.chevronDown : Symbols.chevronRight)
-                                    .font(.system(size: 10, weight: .semibold))
-                            }
-                        }
-                        .buttonStyle(KilnButtonStyle(.plain))
+                        .fixedSize(horizontal: true, vertical: false)
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
                 if expanded {
                     inlineDetails
+                }
+            }
+            .onDisappear {
+                if hoveringAddress {
+                    NSCursor.pop()
+                    hoveringAddress = false
                 }
             }
             .folderConfirmations(folder: folder, alert: $alert)
@@ -169,11 +225,7 @@ struct FolderRow: View {
                     get: { served.value },
                     set: { on in
                         if on {
-                            if folder.address.isEmpty {
-                                model.sheet = .serveFolder(folderID: folder.id)
-                            } else {
-                                model.send(.setServed(folderID: folder.id, on: true))
-                            }
+                            model.send(.setServed(folderID: folder.id, on: true))
                         } else {
                             alert = FolderAlert(kind: .stopServing)
                         }
@@ -343,6 +395,66 @@ struct FolderRow: View {
         model.say(Strings.Folders.copied(folder.address))
     }
 
+    private func copyFullPath() {
+        let target = folder.fullPath.isEmpty ? folder.path : folder.fullPath
+        guard !target.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(target, forType: .string)
+        model.say(Strings.Folders.copiedPath(folder.path.isEmpty ? target : folder.path))
+    }
+
+    private var addressURL: URL? {
+        Strings.Folders.addressURL(url: folder.url, address: folder.address)
+    }
+
+    @ViewBuilder private var subtitleView: some View {
+        if let parent {
+            Text(Strings.Folders.insideParent(parent.name))
+                .font(.system(size: 13))
+                .foregroundStyle(kiln.muted)
+                .padding(.top, 4)
+        }
+        if folder.served && !folder.address.isEmpty {
+            if let url = addressURL {
+                Link(destination: url) {
+                    Text(folder.address)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(kiln.link)
+                        .underline(hoveringAddress)
+                }
+                .buttonStyle(.plain)
+                .onHover { inside in
+                    guard inside != hoveringAddress else { return }
+                    hoveringAddress = inside
+                    if inside {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
+                .contextMenu {
+                    Button(Strings.Folders.openLink) {
+                        openURL(url)
+                    }
+                    Button(Strings.Folders.copyAddress) {
+                        copyAddress()
+                    }
+                }
+                .padding(.top, 5)
+            } else {
+                Text(folder.address)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(kiln.link)
+                    .padding(.top, 5)
+            }
+        } else if folder.origin != .local && !folder.status.isEmpty {
+            Text(folder.status)
+                .font(.system(size: 13))
+                .foregroundStyle(kiln.muted)
+                .padding(.top, 4)
+        }
+    }
+
     private var leading: some View {
         HStack(spacing: 4) {
             if parent != nil {
@@ -365,19 +477,6 @@ struct FolderRow: View {
         case .local: return folder.served ? .teal : .sky
         case .account: return .cobalt
         case .team: return .plum
-        }
-    }
-
-    private var subtitle: String? {
-        if let parent {
-            return Strings.Folders.inside(parent: parent.name, path: folder.path)
-        }
-        if folder.served && !folder.address.isEmpty && folder.origin == .local {
-            return Strings.Folders.pathAndAddress(path: folder.path, address: folder.address)
-        }
-        switch folder.origin {
-        case .local: return folder.path
-        case .account, .team: return folder.status
         }
     }
 }
