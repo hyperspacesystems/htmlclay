@@ -71,12 +71,14 @@ struct AIEditingPane: View {
                 GridRow(alignment: .center) {
                     HStack(spacing: 10) {
                         Button {
-                            model.send(.setAIEditTool(custom.id))
+                            if !custom.selected {
+                                model.send(.setAIEditTool(custom.id))
+                            }
                         } label: {
                             KilnRadio(on: custom.selected)
                         }
                         .buttonStyle(.plain)
-                        .disabled(custom.selected || !custom.selectable)
+                        .disabled(!custom.selectable)
                         .accessibilityLabel(Text(custom.title))
                         .accessibilityAddTraits(custom.selected ? .isSelected : [])
                         Text(custom.title)
@@ -109,12 +111,14 @@ struct AIEditingPane: View {
     private func toolCell(_ row: AIToolRow) -> some View {
         HStack(spacing: 10) {
             Button {
-                model.send(.setAIEditTool(row.id))
+                if !row.selected {
+                    model.send(.setAIEditTool(row.id))
+                }
             } label: {
                 KilnRadio(on: row.selected)
             }
             .buttonStyle(.plain)
-            .disabled(row.selected || !row.selectable)
+            .disabled(!row.selectable)
             .accessibilityLabel(Text(row.title))
             .accessibilityAddTraits(row.selected ? .isSelected : [])
             VStack(alignment: .leading, spacing: 2) {
