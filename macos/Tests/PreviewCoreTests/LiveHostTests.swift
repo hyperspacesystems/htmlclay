@@ -156,46 +156,35 @@ final class LiveHostTests: XCTestCase {
     func testTheServeSheetAsksTheHostAndKeepsARefusal() async throws {
         let host = try await LiveHost.start()
         let notes = host.home.appendingPathComponent("notes")
-        let blog = host.home.appendingPathComponent("blog")
         try makeFolder(notes)
-        try makeFolder(blog)
 
         let model = AppModel(host: host.client, initial: try await host.client.load())
         model.folderChooser = FixedFolderChooser(notes.path)
 
-        let first = ServeSheetModel(folderID: nil, model: model)
-        XCTAssertEqual(first.path, notes.path)
-        XCTAssertEqual(first.name, "notes")
-        await first.check()
-        XCTAssertEqual(first.name, "notes")
-        XCTAssertTrue(first.address.contains("notes.htmlclay.localhost"), "address = \(first.address)")
-        XCTAssertNil(first.pathProblem)
-        XCTAssertNil(first.nameProblem)
-        let firstServed = await first.serve()
-        XCTAssertTrue(firstServed)
+        FolderFlow.serveFolder(model: model)
+        let deadline = Date().addingTimeInterval(5)
+        while !model.snapshot.folders.contains(where: { $0.fullPath == notes.path && $0.served }) && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         let served = try XCTUnwrap(model.snapshot.folders.first { $0.fullPath == notes.path })
         XCTAssertTrue(served.served)
+        XCTAssertTrue(served.address.contains("notes.htmlclay.localhost"), "address = \(served.address)")
 
-        model.folderChooser = FixedFolderChooser(blog.path)
-        let second = ServeSheetModel(folderID: nil, model: model)
-        XCTAssertEqual(second.path, blog.path)
-        second.setName("notes")
-        await second.check()
-        XCTAssertNotNil(second.nameProblem, "the host said nothing about the taken name")
-        XCTAssertNil(second.pathProblem)
-        let secondServed = await second.serve()
-        XCTAssertFalse(secondServed)
-        XCTAssertEqual(second.name, "notes")
+        model.folderChooser = FixedFolderChooser(host.home.path)
+        FolderFlow.serveFolder(model: model)
+        let refusalDeadline = Date().addingTimeInterval(5)
+        while model.lastRefusal == nil && Date() < refusalDeadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertNotNil(model.lastRefusal, "the host did not refuse serving the whole home folder")
+        XCTAssertEqual(model.note, model.lastRefusal?.text)
 
         _ = try done(await model.submit(.setServed(folderID: served.id, on: false)),
                      "stopping notes was refused")
         XCTAssertEqual(model.snapshot.folders.first { $0.id == served.id }?.served, false)
 
-        let known = ServeSheetModel(folderID: served.id, model: model)
-        XCTAssertFalse(known.nameEditable)
-        XCTAssertEqual(known.name, "notes")
-        let resumedServe = await known.serve()
-        XCTAssertTrue(resumedServe)
+        _ = try done(await model.submit(.setServed(folderID: served.id, on: true)),
+                     "resuming notes was refused")
         let resumed = try XCTUnwrap(model.snapshot.folders.first { $0.id == served.id })
         XCTAssertTrue(resumed.served)
         XCTAssertEqual(resumed.address, served.address)
@@ -630,16 +619,14 @@ final class LiveHostTests: XCTestCase {
 
         let model = AppModel(host: host.client, initial: try await host.client.load())
         model.folderChooser = FixedFolderChooser(notes.path)
-        let sheet = ServeSheetModel(folderID: nil, model: model)
-        XCTAssertEqual(sheet.path, notes.path)
-        XCTAssertEqual(sheet.name, ServeRules.defaultName(for: notes.path))
 
-        await sheet.check()
-
-        XCTAssertEqual(sheet.name, "client-notes-2024")
-        XCTAssertNil(sheet.nameProblem)
-        XCTAssertNil(sheet.pathProblem)
-        let served = await sheet.serve()
-        XCTAssertTrue(served)
+        FolderFlow.serveFolder(model: model)
+        let deadline = Date().addingTimeInterval(5)
+        while !model.snapshot.folders.contains(where: { $0.fullPath == notes.path && $0.served }) && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        let served = try XCTUnwrap(model.snapshot.folders.first { $0.fullPath == notes.path })
+        XCTAssertTrue(served.served)
+        XCTAssertTrue(served.address.contains("client-notes-2024.htmlclay.localhost"), "address = \(served.address)")
     }
 }

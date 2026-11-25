@@ -23,9 +23,9 @@ private final class InterruptedHost: HostClient {
 
 @MainActor
 private final class FixedFolderChooser: FolderChooser {
-    private let picked: String
+    private let picked: String?
 
-    init(_ picked: String) { self.picked = picked }
+    init(_ picked: String?) { self.picked = picked }
 
     func first(in snapshot: HostSnapshot) -> String? { picked }
 
@@ -38,145 +38,64 @@ private final class FixedFolderChooser: FolderChooser {
 
 @MainActor
 final class ServeSheetModelTests: XCTestCase {
-    private func sample() -> (host: SampleHost, model: AppModel) {
+    private func waitUntil(_ condition: @MainActor () -> Bool, _ message: String) async {
+        let deadline = Date().addingTimeInterval(2)
+        while !condition() && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertTrue(condition(), message)
+    }
+
+    func testServeFolderPicksTheSampleFolderAndAutoSlugsItsAddress() async throws {
         let host = SampleHost(persona: .servedFolder)
         let model = AppModel(host: host, initial: host.current)
         model.folderChooser = SampleFolderChooser()
-        return (host, model)
-    }
 
-    func testANewSheetStartsEmptyAndTheCheckFillsTheDefaultName() async {
-        let (host, model) = sample()
-        let sheet = ServeSheetModel(folderID: nil, model: model)
+        FolderFlow.serveFolder(model: model)
+        await waitUntil({ host.current.folders.contains { $0.path == SampleData.servePaths[1] && $0.served } },
+                        "sample folder was not served")
 
-        let expected = ServeRules.path(folderID: nil, pick: ServeRules.firstPick(in: host.current), in: host.current)
-        XCTAssertEqual(sheet.path, expected)
-        XCTAssertEqual(sheet.path, SampleData.servePaths[1])
-        XCTAssertEqual(sheet.name, "apps")
-        XCTAssertFalse(sheet.nameEdited)
-        XCTAssertTrue(sheet.nameEditable)
-        XCTAssertNil(sheet.pathProblem)
-        XCTAssertNil(sheet.nameProblem)
-        XCTAssertNil(sheet.otherProblem)
-        XCTAssertTrue(sheet.ready)
-
-        await sheet.check()
-
-        XCTAssertEqual(sheet.name, "apps")
-        XCTAssertFalse(sheet.nameEdited)
-        XCTAssertTrue(sheet.address.contains("apps.htmlclay.localhost"))
-    }
-
-    func testATypedNameSurvivesTheCheck() async {
-        let (_, model) = sample()
-        let sheet = ServeSheetModel(folderID: nil, model: model)
-
-        sheet.setName("my-site")
-        await sheet.check()
-
-        XCTAssertEqual(sheet.name, "my-site")
-        XCTAssertTrue(sheet.nameEdited)
-    }
-
-    func testATakenNameIsTheNameProblem() async {
-        let (_, model) = sample()
-        let sheet = ServeSheetModel(folderID: nil, model: model)
-        sheet.setName("prototypes")
-
-        await sheet.check()
-
-        XCTAssertEqual(sheet.nameProblem, Strings.Sheets.taken("prototypes"))
-        XCTAssertNil(sheet.pathProblem)
-        XCTAssertNil(sheet.otherProblem)
-        XCTAssertFalse(sheet.ready)
-    }
-
-    func testChooseMovesToTheNextSamplePathAndFillsItsSluggedName() async {
-        let (_, model) = sample()
-        let sheet = ServeSheetModel(folderID: nil, model: model)
-        sheet.setName("something-else")
-
-        await sheet.choose()
-
-        XCTAssertEqual(sheet.path, SampleData.servePaths[2])
-        XCTAssertEqual(sheet.name, "blog")
-        XCTAssertFalse(sheet.nameEdited)
-
-        await sheet.check()
-
-        XCTAssertEqual(sheet.name, ServeRules.defaultName(for: SampleData.servePaths[2]))
-        XCTAssertEqual(sheet.name, "blog")
-    }
-
-    func testServeOnAGoodPairReturnsTrueAndServesTheFolder() async throws {
-        let (host, model) = sample()
-        let sheet = ServeSheetModel(folderID: nil, model: model)
-        await sheet.check()
-        XCTAssertFalse(sheet.address.isEmpty)
-
-        let served = await sheet.serve()
-
-        XCTAssertTrue(served)
-        let folder = try XCTUnwrap(host.current.folders.first { $0.path == sheet.path })
+        let folder = try XCTUnwrap(host.current.folders.first { $0.path == SampleData.servePaths[1] })
         XCTAssertTrue(folder.served)
         XCTAssertTrue(folder.address.contains("apps.htmlclay.localhost"))
     }
 
-    func testARetryableRefusalKeepsTheSheetReadyAndShowsTheText() async {
-        let model = AppModel(host: InterruptedHost(), initial: HostSnapshot())
-        model.folderChooser = SampleFolderChooser()
-        let sheet = ServeSheetModel(folderID: nil, model: model)
+    func testServeFolderAutoSlugsAHomeFolderWithSpaces() async throws {
+        let host = SampleHost(persona: .servedFolder)
+        let model = AppModel(host: host, initial: HostSnapshot())
+        let target = "/Users/me/Documents/Default Project"
+        model.folderChooser = FixedFolderChooser(target)
 
-        await sheet.check()
+        FolderFlow.serveFolder(model: model)
+        await waitUntil({ host.current.folders.contains { $0.path == target && $0.served } },
+                        "chosen folder was not served")
 
-        XCTAssertEqual(sheet.otherProblem, InterruptedHost.refusal.text)
-        XCTAssertTrue(sheet.ready)
-        XCTAssertEqual(sheet.address, "")
+        let folder = try XCTUnwrap(host.current.folders.first { $0.path == target })
+        XCTAssertTrue(folder.served)
+        XCTAssertTrue(folder.address.contains("default-project.htmlclay.localhost"))
     }
 
-    func testARetryableRefusalFromServeKeepsTheSheetReady() async {
-        let model = AppModel(host: InterruptedHost(), initial: HostSnapshot())
-        model.folderChooser = SampleFolderChooser()
-        let sheet = ServeSheetModel(folderID: nil, model: model)
+    func testCancellingTheFolderChooserSendsNothing() async {
+        let host = InterruptedHost()
+        let model = AppModel(host: host, initial: HostSnapshot())
+        model.folderChooser = FixedFolderChooser(nil)
 
-        let served = await sheet.serve()
+        FolderFlow.serveFolder(model: model)
+        try? await Task.sleep(nanoseconds: 50_000_000)
 
-        XCTAssertFalse(served)
-        XCTAssertEqual(sheet.otherProblem, InterruptedHost.refusal.text)
-        XCTAssertTrue(sheet.ready)
+        XCTAssertEqual(host.performed, [])
+        XCTAssertNil(model.note)
     }
 
-    func testChooseFillsTheSluggedNameOfAHomeFolderRightAway() async {
-        let (_, model) = sample()
-        model.folderChooser = FixedFolderChooser("/Users/me/Documents/Default Project")
-        let sheet = ServeSheetModel(folderID: nil, model: model)
-        XCTAssertEqual(sheet.name, "default-project")
-
-        await sheet.choose()
-
-        XCTAssertEqual(sheet.path, "/Users/me/Documents/Default Project")
-        XCTAssertEqual(sheet.name, "default-project")
-        XCTAssertFalse(sheet.nameEdited)
-    }
-
-    func testAFailedCheckKeepsTheSluggedNameFromChoose() async {
-        let model = AppModel(host: InterruptedHost(), initial: HostSnapshot())
+    func testARefusalFromServeFolderAnnouncesTheRefusalText() async {
+        let host = InterruptedHost()
+        let model = AppModel(host: host, initial: HostSnapshot())
         model.folderChooser = FixedFolderChooser("/Users/me/Documents/Client Notes (2024)")
-        let sheet = ServeSheetModel(folderID: nil, model: model)
 
-        await sheet.choose()
-        await sheet.check()
+        FolderFlow.serveFolder(model: model)
+        await waitUntil({ model.note == InterruptedHost.refusal.text }, "refusal note was not shown")
 
-        XCTAssertEqual(sheet.name, "client-notes-2024")
-        XCTAssertNil(sheet.nameProblem)
-    }
-
-    func testAKnownFolderKeepsItsNameReadOnly() {
-        let (_, model) = sample()
-        let sheet = ServeSheetModel(folderID: "prototypes", model: model)
-
-        XCTAssertFalse(sheet.nameEditable)
-        XCTAssertEqual(sheet.name, "prototypes")
-        XCTAssertEqual(sheet.path, "~/Sites/prototypes")
+        XCTAssertEqual(host.performed, [.serveFolder(path: "/Users/me/Documents/Client Notes (2024)", name: "")])
+        XCTAssertEqual(model.lastRefusal?.code, "interrupted")
     }
 }

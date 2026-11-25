@@ -30,11 +30,7 @@ public enum ScreenCatalog {
                 RequestBody(request: s.request, item: s.item, position: 1, total: 1, actions: RequestActions())
             }.environment(model))))
         }
-        for sheet in [PreviewSheet.serveFolder(folderID: nil)] + SampleData.trustCandidates.map { PreviewSheet.trustFolder(name: $0.name, path: $0.path) } {
-            screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
-        }
-        if let first = model.snapshot.folders.first {
-            let sheet = PreviewSheet.serveFolder(folderID: first.id)
+        for sheet in SampleData.trustCandidates.map({ PreviewSheet.trustFolder(name: $0.name, path: $0.path) }) {
             screens.append(("sheet." + sheet.id, AnyView(KilnRoot { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(model))))
         }
         for sheet in [PreviewSheet.connect, PreviewSheet.accountFolder(username: SampleData.snapshot(for: .syncedWithTeams).sync.username), PreviewSheet.addProgram] {

@@ -55,7 +55,6 @@ public enum Appearance: String, CaseIterable, Codable, Sendable {
 }
 
 public enum PreviewSheet: Equatable, Identifiable, Sendable {
-    case serveFolder(folderID: String?)
     case trustFolder(name: String, path: String)
     case connect
     case accountFolder(username: String)
@@ -71,7 +70,6 @@ public enum PreviewSheet: Equatable, Identifiable, Sendable {
 
     public var id: String {
         switch self {
-        case let .serveFolder(folderID): return "serve." + (folderID ?? "new")
         case let .trustFolder(_, path): return "trust." + path
         case .connect: return "connect"
         case let .accountFolder(username): return "account." + username

@@ -87,6 +87,19 @@ public final class FolderRelinkModel {
 /// acknowledge.
 @MainActor
 public enum FolderFlow {
+    public static func serveFolder(model: AppModel) {
+        Task {
+            let picked: String?
+            if let samplePick = model.isSample ? model.folderChooser?.first(in: model.snapshot) : nil {
+                picked = samplePick
+            } else {
+                picked = await model.folderChooser?.choose(after: nil, in: model.snapshot)
+            }
+            guard let path = picked, !path.isEmpty else { return }
+            model.send(.serveFolder(path: path, name: ""))
+        }
+    }
+
     public static func findIt(_ folder: Folder, model: AppModel) {
         Task {
             guard let picked = await model.folderChooser?.choose(after: folder.path, in: model.snapshot),

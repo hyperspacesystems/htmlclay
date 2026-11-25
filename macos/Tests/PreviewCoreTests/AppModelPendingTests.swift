@@ -77,14 +77,14 @@ final class AppModelPendingTests: XCTestCase {
     func testRefusalKeepsTheSheet() async {
         let host = GateHost()
         let model = AppModel(host: host, initial: HostSnapshot())
-        model.sheet = .serveFolder(folderID: nil)
+        model.sheet = .addProgram
         let submission = Task { await model.submit(.serveFolder(path: "/p", name: "x")) }
         await waitUntil({ host.recorded.count == 1 }, "host never saw the sheet action")
         let refusal = HostRefusal(code: "name-taken", text: "Taken.")
         await host.resume(at: 0, with: .refused(refusal))
         let outcome = await submission.value
         XCTAssertEqual(outcome, .refused(refusal))
-        XCTAssertEqual(model.sheet, .serveFolder(folderID: nil))
+        XCTAssertEqual(model.sheet, .addProgram)
         XCTAssertEqual(model.lastRefusal?.code, "name-taken")
     }
 

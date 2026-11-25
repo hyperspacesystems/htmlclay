@@ -76,7 +76,7 @@ struct FoldersPane: View {
             KilnCard {
                 KilnRow(title: Strings.Folders.serveCardTitle, subtitle: Strings.Folders.serveCardSub) {
                     Button(Strings.Folders.serveMenu) {
-                        model.sheet = .serveFolder(folderID: nil)
+                        FolderFlow.serveFolder(model: model)
                     }
                     .buttonStyle(KilnButtonStyle(.primary))
                 }

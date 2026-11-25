@@ -393,13 +393,9 @@ struct FolderPage: View {
                 return FolderControls.served(folder: folder, pending: model.pendingServed(folderID)).value
             },
             set: { on in
-                guard let folder = model.snapshot.folder(folderID) else { return }
+                guard model.snapshot.folder(folderID) != nil else { return }
                 if on {
-                    if folder.address.isEmpty {
-                        model.sheet = .serveFolder(folderID: folderID)
-                    } else {
-                        model.send(.setServed(folderID: folderID, on: true))
-                    }
+                    model.send(.setServed(folderID: folderID, on: true))
                 } else {
                     alert = FolderAlert(kind: .stopServing)
                 }

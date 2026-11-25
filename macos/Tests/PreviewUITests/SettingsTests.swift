@@ -228,7 +228,7 @@ final class SettingsTests: XCTestCase {
         _ = NSApplication.shared
         XCTAssertEqual(FoldersPane.orderedLocalFolders(SampleReducer.apply(.trustFolder(name: "Documents", path: "~/Documents"), to: SampleData.snapshot(for: .trustedFolder))),
                        ["documents", "notes", "journal", "clips"])
-        let sheets: [PreviewSheet] = [.serveFolder(folderID: nil), .serveFolder(folderID: "notes")] + SampleData.trustCandidates.map { .trustFolder(name: $0.name, path: $0.path) }
+        let sheets: [PreviewSheet] = SampleData.trustCandidates.map { .trustFolder(name: $0.name, path: $0.path) }
         for persona in [Persona.trustedFolder, .syncedWithTeams] {
             let host = SampleHost(persona: persona)
             let model = AppModel(host: host, initial: host.current)
@@ -268,7 +268,7 @@ final class SettingsTests: XCTestCase {
         let wire = try HostWireCoding.decoder().decode(WireSnapshot.self, from: Data(contentsOf: fixture))
         let liveModel = AppModel(host: SampleHost(persona: .servedFolder), initial: HostSnapshotAdapter.snapshot(from: wire))
         XCTAssertFalse(liveModel.isSample)
-        let liveSheets: [PreviewSheet] = [.connect, .serveFolder(folderID: nil), .addProgram, .customCommand, .changePort]
+        let liveSheets: [PreviewSheet] = [.connect, .addProgram, .customCommand, .changePort]
         for sheet in liveSheets {
             let hosting = NSHostingView(rootView: KilnRoot(fillsWindow: false) { SettingsSheetView(sheet: sheet, actions: SettingsActions()) }.environment(liveModel))
             hosting.layoutSubtreeIfNeeded()
