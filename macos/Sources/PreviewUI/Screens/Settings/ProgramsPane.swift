@@ -152,20 +152,22 @@ struct BuiltinProgramRow: View {
 
     var body: some View {
         HStack(spacing: 11) {
-            Squircle(Self.color(program.id), symbol: Self.symbol(program.id))
             Button {
                 model.route = .program(program.id)
             } label: {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(ProgramControls.programTitle(program.id))
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(kiln.ink)
-                    Text(ProgramControls.builtinSubtitle(program))
-                        .font(.system(size: 13))
-                        .foregroundStyle(kiln.muted)
-                        .padding(.top, 2)
+                HStack(spacing: 11) {
+                    Squircle(Self.color(program.id), symbol: Self.symbol(program.id))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(ProgramControls.programTitle(program.id))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(kiln.ink)
+                        Text(ProgramControls.builtinSubtitle(program))
+                            .font(.system(size: 13))
+                            .foregroundStyle(kiln.muted)
+                            .padding(.top, 2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -182,9 +184,17 @@ struct BuiltinProgramRow: View {
                 Text(Strings.Programs.enableBuiltin(ProgramControls.programTitle(program.id)))
             }
             .toggleStyle(KilnSwitchStyle())
-            Image(systemName: Symbols.chevronRight)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(kiln.faint)
+            Button {
+                model.route = .program(program.id)
+            } label: {
+                Image(systemName: Symbols.chevronRight)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(kiln.faint)
+                    .frame(width: 24, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(ProgramControls.programTitle(program.id)))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
