@@ -43,17 +43,39 @@ async function startService(t, { attach = true, go = null, roots = [], env = {} 
   const child = spawn(process.execPath, [MAIN, '--data-dir', path.join(tmp, 'data')], { stdio: ['pipe', 'pipe', 'inherit'], env: { ...process.env, ...env } });
   removeAfterExit(t, child, tmp);
   let out = '';
-  child.stdout.on('data', (b) => { out += b; });
+  let buf = '';
+  const lines = [];
+  let cursor = 0;
+  const listeners = new Set();
+  child.stdout.on('data', (b) => {
+    const chunk = String(b);
+    out += chunk;
+    buf += chunk;
+    for (;;) {
+      const nl = buf.indexOf('\n');
+      if (nl === -1) break;
+      lines.push(buf.slice(0, nl).replace(/\r$/, ''));
+      buf = buf.slice(nl + 1);
+    }
+    for (const fn of [...listeners]) fn();
+  });
   const line = (prefix) => new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`no ${prefix} line; stdout ${JSON.stringify(out)}`)), 20000);
+    const timer = setTimeout(() => {
+      listeners.delete(look);
+      reject(new Error(`no ${prefix} line; stdout ${JSON.stringify(out)}`));
+    }, 20000);
     const look = () => {
-      const found = out.split('\n').find((l) => l.startsWith(prefix));
-      if (found !== undefined) {
-        clearTimeout(timer);
-        resolve(found);
+      for (let i = cursor; i < lines.length; i++) {
+        if (lines[i].startsWith(prefix)) {
+          cursor = i + 1;
+          clearTimeout(timer);
+          listeners.delete(look);
+          resolve(lines[i]);
+          return;
+        }
       }
     };
-    child.stdout.on('data', look);
+    listeners.add(look);
     look();
   });
   const secret = randomBytes(32).toString('hex');

@@ -32,6 +32,15 @@ public enum AppIdentity: Equatable, Sendable {
         return running.first { $0.pid != pid && $0.bundlePath.map(canonical) == own }?.pid
     }
 
+    /// Reports whether another running HTML Clay process is a 1.x instance rather
+    /// than a 2.0 Swift shell: either its bundle has no `Contents/MacOS/htmlclay-host`
+    /// binary, or it holds the single-instance `lock` file directly (in 2.0 the
+    /// child `htmlclay-host` process owns `lock`, never the Swift app process).
+    public static func isLegacyInstance(pid: Int32, hasHostBinary: Bool, lockPID: Int32?) -> Bool {
+        if !hasHostBinary { return true }
+        return lockPID == pid
+    }
+
     private static func canonical(_ path: String) -> String {
         (URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path as NSString).standardizingPath
     }

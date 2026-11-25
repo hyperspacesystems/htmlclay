@@ -111,11 +111,11 @@ struct FolderRow: View {
                     inlineDetails
                 }
             }
-            .onDisappear {
-                if hoveringAddress {
-                    NSCursor.pop()
-                    hoveringAddress = false
-                }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
+                clearHoverCursor()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+                clearHoverCursor()
             }
             .folderConfirmations(folder: folder, alert: $alert)
         } else {
@@ -407,6 +407,13 @@ struct FolderRow: View {
         Strings.Folders.addressURL(url: folder.url, address: folder.address)
     }
 
+    private func clearHoverCursor() {
+        if hoveringAddress {
+            NSCursor.pop()
+            hoveringAddress = false
+        }
+    }
+
     @ViewBuilder private var subtitleView: some View {
         if let parent {
             Text(Strings.Folders.insideParent(parent.name))
@@ -431,6 +438,9 @@ struct FolderRow: View {
                     } else {
                         NSCursor.pop()
                     }
+                }
+                .onDisappear {
+                    clearHoverCursor()
                 }
                 .contextMenu {
                     Button(Strings.Folders.openLink) {

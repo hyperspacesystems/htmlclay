@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -692,8 +694,15 @@ func (a *app) initConfig() {
 			}
 		} else if !a.autostart {
 			fmt.Fprintln(os.Stderr, "[htmlclay] Another instance running, opening dashboard...")
-			if _, err := a.rt.si.SendCommand("open-dashboard"); err != nil {
+			reply, err := a.rt.si.SendCommand("open-dashboard")
+			if err != nil {
 				fmt.Fprintf(os.Stderr, "[htmlclay] Could not ask running instance to open dashboard: %v\n", err)
+			}
+			if errors.Is(err, platform.ErrNoAnswer) || strings.HasPrefix(reply, "refused") {
+				_ = platform.Notify(
+					"HTML Clay is already running",
+					"Quit the older HTML Clay in the system tray, then open this one again.",
+				)
 			}
 		}
 		os.Exit(0)

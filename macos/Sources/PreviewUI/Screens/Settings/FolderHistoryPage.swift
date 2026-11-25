@@ -40,7 +40,7 @@ struct FolderHistoryPage: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 KilnBackButton {
-                    model.route = .folder(folderID)
+                    model.route = .pane(.folders)
                 }
                 Text(Strings.History.title(folder.name))
                     .font(.system(size: 18, weight: .bold))

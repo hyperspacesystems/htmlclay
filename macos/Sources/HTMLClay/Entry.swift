@@ -31,8 +31,15 @@ enum Entry {
         let running = others.map { AppIdentity.Running(pid: $0.processIdentifier, bundlePath: $0.bundleURL?.path) }
         if let pid = AppIdentity.otherInstance(pid: current, bundlePath: Bundle.main.bundleURL.path, among: running),
            let other = others.first(where: { $0.processIdentifier == pid }) {
-            HandOff.give(paths, to: other)
-            exit(0)
+            if HandOff.isLegacy(other) {
+                if !HandOff.stopLegacy(other) {
+                    HandOff.alertLegacyStillRunning()
+                    exit(0)
+                }
+            } else {
+                HandOff.give(paths, to: other)
+                exit(0)
+            }
         }
         let delegate = AppDelegate()
         Entry.delegate = delegate

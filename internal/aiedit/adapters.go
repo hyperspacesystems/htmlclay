@@ -43,7 +43,6 @@ func claudeArgs(model, effort string) []string {
 		argv = append(argv, "--effort", effort)
 	}
 	return append(argv,
-		"--append-system-prompt", systemPrompt,
 		"--tools", "",
 		"--strict-mcp-config",
 		"--no-session-persistence",
@@ -51,6 +50,7 @@ func claudeArgs(model, effort string) []string {
 		"--output-format", "stream-json",
 		"--include-partial-messages",
 		"--verbose",
+		"--append-system-prompt", systemPrompt,
 	)
 }
 
@@ -291,12 +291,12 @@ func runAgy(ctx context.Context, e engine, bin, prompt string, env []string, rep
 	resolvedModel := resolveAgyModel(e.model, e.effort)
 	argv := []string{
 		bin,
-		"-p=" + prompt,
 		"--model", resolvedModel,
 		"--output-format", "stream-json",
 		"--sandbox",
 		"--disable-slash-commands",
 		"--settings", settingsPath,
+		"-p=" + prompt,
 	}
 	cmd := childCommand(ctx, argv, workDir, env)
 	cmd.Stdin = nil

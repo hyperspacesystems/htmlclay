@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var updateAllowed = false
     private var loginItems: LoginItemReconciler?
     private var hostReadyOnce = false
+    private var retriedAfterLegacyQuit = false
     /// The downloaded version last told to the host; nil until a host hears it.
     private var reportedPrepared: String?
     private var quitting = false
@@ -163,6 +164,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch state {
             case let .failed(failure):
                 if failure.code == "already-running", let other = HandOff.otherRunning() {
+                    if HandOff.isLegacy(other) {
+                        if !self.retriedAfterLegacyQuit, HandOff.stopLegacy(other) {
+                            self.retriedAfterLegacyQuit = true
+                            self.startHost()
+                            return
+                        }
+                        HandOff.alertLegacyStillRunning()
+                        exit(0)
+                    }
                     HandOff.give(self.opener?.queued ?? [], to: other)
                     exit(0)
                 }

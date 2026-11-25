@@ -18,10 +18,10 @@
   /* 1. OS-Aware Download Button & /download/ Hub Highlighting */
   function initOSDownloads() {
     var os = detectOS();
-    var macLink = document.querySelector("[data-mac-dmg]");
-    var macUrl = macLink
-      ? macLink.getAttribute("href")
-      : DL_BASE + "HTMLClay-1.16.4-universal.dmg";
+    var macLink =
+      document.querySelector("[data-mac-dmg]") ||
+      document.querySelector("[data-mac-card-btn]");
+    var macUrl = macLink ? macLink.getAttribute("href") : "/download/";
 
     var primary = {
       mac: {
@@ -162,7 +162,7 @@
         "<strong>Served:</strong> gives a project folder its own local web address so pages can share images, scripts, and links.",
         "<strong>Synced:</strong> mirrors chosen served folders live with your personal or team Hyperclay workspace."
       ],
-      alt: "HTML Clay Folders settings pane showing local Notes and prototypes folders alongside synced Hyperclay team folders with Trusted, Served, and Synced pills plus Open, Finder, and More controls.",
+      alt: "HTML Clay Folders settings pane showing local Notes and prototypes folders alongside synced Hyperclay team folders with Trusted, Served, and Synced pills plus Open in Dashboard, Open in Finder, and More controls.",
       badgesHtml:
         '<span class="kiln-pill kiln-pill-trusted">Trusted</span>' +
         '<span class="kiln-pill kiln-pill-served">Served</span>' +

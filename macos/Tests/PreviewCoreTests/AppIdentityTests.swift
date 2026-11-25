@@ -25,4 +25,11 @@ final class AppIdentityTests: XCTestCase {
         XCTAssertNil(AppIdentity.otherInstance(pid: 10, bundlePath: own, among: [.init(pid: 20, bundlePath: nil)]))
         XCTAssertEqual(AppIdentity.otherInstance(pid: 10, bundlePath: own, among: [.init(pid: 20, bundlePath: copy), .init(pid: 30, bundlePath: own + "/")]), 30)
     }
+
+    func testLegacyInstanceDetectionCoversBothSideBySideAndOverwrittenBundles() {
+        XCTAssertTrue(AppIdentity.isLegacyInstance(pid: 42, hasHostBinary: false, lockPID: nil))
+        XCTAssertTrue(AppIdentity.isLegacyInstance(pid: 42, hasHostBinary: true, lockPID: 42))
+        XCTAssertFalse(AppIdentity.isLegacyInstance(pid: 42, hasHostBinary: true, lockPID: 99))
+        XCTAssertFalse(AppIdentity.isLegacyInstance(pid: 42, hasHostBinary: true, lockPID: nil))
+    }
 }

@@ -2,6 +2,7 @@ package aiedit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -222,6 +223,13 @@ func unavailableError(e engine) *Error {
 	}
 }
 
+func scriptOnlyError(e engine) *Error {
+	return &Error{
+		Code:    "engine_unavailable",
+		Message: fmt.Sprintf("%s is installed as a script here. Install the Windows app version.", programLabel(e)),
+	}
+}
+
 func unknownEngine(name string, engines map[string]engine) *Error {
 	seen := make(map[string]bool, len(engines))
 	known := make([]string, 0, len(engines))
@@ -344,6 +352,9 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 			candidates = fallbackNames(defaultName)
 		}
 		if len(candidates) == 0 {
+			if errors.Is(lookErr, errScriptOnly) {
+				return Result{}, scriptOnlyError(chosen)
+			}
 			return Result{}, unavailableError(chosen)
 		}
 		var (
@@ -351,7 +362,12 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 			other        engine
 			otherProgram string
 			otherBin     string
+			scriptEngine *engine
 		)
+		if errors.Is(lookErr, errScriptOnly) {
+			c := chosen
+			scriptEngine = &c
+		}
 		for _, otherName := range candidates {
 			cand, ok := engines[otherName]
 			if !ok {
@@ -364,9 +380,15 @@ func Run(ctx context.Context, p Payload, o Options, progress func(text string)) 
 			if foundBin, err := lookPath(prog, env); err == nil {
 				other, otherProgram, otherBin, foundOther = cand, prog, foundBin, true
 				break
+			} else if errors.Is(err, errScriptOnly) && scriptEngine == nil {
+				c := cand
+				scriptEngine = &c
 			}
 		}
 		if !foundOther {
+			if scriptEngine != nil {
+				return Result{}, scriptOnlyError(*scriptEngine)
+			}
 			return Result{}, &Error{Code: "engine_unavailable", Message: "None of Claude Code, Codex, or Gemini (agy) is installed. Install one and sign in."}
 		}
 		status(fmt.Sprintf("%s isn't installed, editing with %s", programLabel(chosen), statusLabel(other)))

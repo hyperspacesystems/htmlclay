@@ -214,6 +214,48 @@ func TestClaudeArgsEmitsValidEffort(t *testing.T) {
 	if hasArg(claudeArgs("claude-opus-5-5", "bogus"), "--effort") {
 		t.Fatal("invalid effort must not emit --effort")
 	}
+	promptIdx := -1
+	toolsIdx := -1
+	mcpIdx := -1
+	for i, arg := range argv {
+		switch arg {
+		case "--append-system-prompt":
+			promptIdx = i
+		case "--tools":
+			toolsIdx = i
+		case "--strict-mcp-config":
+			mcpIdx = i
+		}
+	}
+	if promptIdx < 0 || toolsIdx < 0 || mcpIdx < 0 || toolsIdx > promptIdx || mcpIdx > promptIdx {
+		t.Fatalf("lockdown flags must precede --append-system-prompt: %q", argv)
+	}
+}
+
+func TestLookPathWindowsRefusesBatchShims(t *testing.T) {
+	dir := t.TempDir()
+	cmdShim := filepath.Join(dir, "claude.cmd")
+	if err := os.WriteFile(cmdShim, []byte("@echo off\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := []string{"PATH=" + dir, "PATHEXT=.COM;.EXE;.BAT;.CMD"}
+	if _, err := lookPathOS("windows", "claude", env); !errors.Is(err, errScriptOnly) {
+		t.Fatalf("lookPathOS(windows, claude) with only .cmd = %v, want errScriptOnly", err)
+	}
+	if _, err := lookPathOS("windows", cmdShim, env); !errors.Is(err, errScriptOnly) {
+		t.Fatalf("lookPathOS(windows, explicit .cmd) = %v, want errScriptOnly", err)
+	}
+	exeBin := filepath.Join(dir, "claude.exe")
+	if err := os.WriteFile(exeBin, []byte("MZ"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := lookPathOS("windows", "claude", env)
+	if err != nil {
+		t.Fatalf("lookPathOS(windows, claude) with .exe = %v", err)
+	}
+	if !strings.EqualFold(got, exeBin) {
+		t.Fatalf("got %q, want %q", got, exeBin)
+	}
 }
 
 func TestResolveAgyModelClampsEffort(t *testing.T) {
