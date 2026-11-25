@@ -69,13 +69,21 @@ function computeSettingsImagesHash() {
 }
 
 function stampAssetVersions(html) {
-  return html.replace(
+  const ogHash = assetHash('/og.png');
+  let stamped = html.replace(
     /\b(href|src|data-light-src|data-dark-src)="(\/(?:css|js|assets|images)\/[^"?#]+|\/favicon\.svg|\/sap\.min\.js)(?:\?v=[0-9a-f]+)?"/g,
     (whole, attr, cleanPath) => {
       const h = assetHash(cleanPath);
       return h ? `${attr}="${cleanPath}?v=${h}"` : whole;
     }
   );
+  if (ogHash) {
+    stamped = stamped.replace(
+      /https:\/\/htmlclay\.com\/og\.png(?:\?v=[0-9a-zA-Z_-]+)?/g,
+      `https://htmlclay.com/og.png?v=${ogHash}`
+    );
+  }
+  return stamped;
 }
 
 function renderHeader(activePath) {
