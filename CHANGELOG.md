@@ -3,9 +3,27 @@
 Releases before 1.9.0 are recorded in the ecosystem changelog at
 [changelog.hyperclay.com](https://changelog.hyperclay.com).
 
-## [Unreleased]
+## [2.0.0] - 2026-11-25
+
+HTML Clay 2.0 is a new app. On a Mac it is a native app, and on Windows and Linux it keeps its tray. On every platform it has one Dashboard for your folders and documents, serves whole folders at their own local addresses, can sync folders with Hyperclay, and lets an AI agent on your computer edit any page. It takes over from Hyperclay Local.
+
+### Upgrading from 1.x
+- HTML Clay 2.0 needs macOS 14 or later. A Mac on macOS 11 to 13 is not offered 2.0 and stays on 1.16.4.
+- If HTML Clay 1.x is still running when 2.0 opens, the Mac app quits it or says why it cannot. On Windows and Linux, a notice asks you to quit the older HTML Clay from the tray and open 2.0 again.
+- The first folder you trusted used to open at `htmlclay.localhost`. That address is now the Dashboard, so the folder moves to the next free address (such as `htmlclay1.localhost`), and old links to it are sent to the new address.
+- Browser storage that pages kept at `htmlclay.localhost`, such as `localStorage` and service workers, is cleared once. Cookies and everything saved in your files stay.
+- When Hyperclay Local is set up on the computer, HTML Clay offers to move its folders in. The programs and document permissions you allowed in Hyperclay Local come along, and a folder that cannot move yet stays with Hyperclay Local and says why.
 
 ### Added
+- **The Mac app**: a native app with a menu bar panel, a Welcome window and macOS Settings. On Windows and Linux the same menu sits in the tray, and Settings opens in the browser.
+- **Dashboard**: one sidebar lists every folder and its files, with a filter and your recent documents. **New** makes a document from a template in one click, and the pencil renames it in place.
+- **Served folders**: any folder can be served at its own `.localhost` address, with **Open in Dashboard**, **Open in Finder** (or **Open in File Explorer**) and a **Trusted** switch for each folder.
+- **Sync with Hyperclay**: connect a Hyperclay account with a sync key to back up folders, give each file a web address, and edit together live. When both sides changed a file, you choose **Keep mine**, **Keep theirs** or **Keep both**.
+- **AI Editing** settings: pick Claude Code, Codex, Gemini (`agy`) or your own command, with a model and an effort level. Select something on a page and press `⌘J` (`Ctrl+J` on Windows and Linux) to ask for a change.
+- Built-in programs for file search, image conversion and folder watching. Each is off until you switch it on, and each comes with an example document.
+- A new install starts on login, updates automatically, and has a `~/htmlclay/playground` folder with a welcome page and three starter documents.
+- Programs on your computer, such as the `clay-agent` command-line tool, can list, read, save and restore documents with an agent token that only your user account can read.
+- A page with a live room, such as a sheet, can store the edits it could not save in the document's private history folder, so the edits outlive the window that made them.
 - A new optional `data-program-file` attribute on a helper declaration names the program's file when it differs from the name the document uses.
 - **Recovered changes…** in the HTML Clay menu opens a page listing every edit HTML Clay saved aside when a page could not save normally, with each one's date and size. Each one can be shown in Finder (or the file manager) or deleted, one at a time or all recovered changes of a document at once.
 - **New blank document** in a page's menu makes a copy of the document with its data emptied, beside it as `<name>-new.html`, and opens it. The page must name its starting values (a `clay-new-document` tag) and use a ClayJS that offers the item. A blank copy of a downloaded document is treated as a download too.

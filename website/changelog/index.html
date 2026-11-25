@@ -59,6 +59,46 @@
       <div class="timeline-wrap">
         <div class="timeline">
 
+      <article class="release" id="v2.0.0">
+        <time class="release-date" datetime="2026-11-25">November 25, 2026</time>
+        <div class="release-notes">
+          <h2><a href="#v2.0.0">2.0.0</a></h2>
+          <p>HTML Clay 2.0 is a new app. On a Mac it is a native app, and on Windows and Linux it keeps its tray. On every platform it has one Dashboard for your folders and documents, serves whole folders at their own local addresses, can sync folders with Hyperclay, and lets an AI agent on your computer edit any page. It takes over from Hyperclay Local.</p>
+          <h3>Upgrading from 1.x</h3>
+          <ul>
+            <li>HTML Clay 2.0 needs macOS 14 or later. A Mac on macOS 11 to 13 is not offered 2.0 and stays on 1.16.4.</li>
+            <li>If HTML Clay 1.x is still running when 2.0 opens, the Mac app quits it or says why it cannot. On Windows and Linux, a notice asks you to quit the older HTML Clay from the tray and open 2.0 again.</li>
+            <li>The first folder you trusted used to open at <code>htmlclay.localhost</code>. That address is now the Dashboard, so the folder moves to the next free address (such as <code>htmlclay1.localhost</code>), and old links to it are sent to the new address.</li>
+            <li>Browser storage that pages kept at <code>htmlclay.localhost</code>, such as <code>localStorage</code> and service workers, is cleared once. Cookies and everything saved in your files stay.</li>
+            <li>When Hyperclay Local is set up on the computer, HTML Clay offers to move its folders in. The programs and document permissions you allowed in Hyperclay Local come along, and a folder that cannot move yet stays with Hyperclay Local and says why.</li>
+          </ul>
+          <h3>Added</h3>
+          <ul>
+            <li><strong>The Mac app</strong>: a native app with a menu bar panel, a Welcome window and macOS Settings. On Windows and Linux the same menu sits in the tray, and Settings opens in the browser.</li>
+            <li><strong>Dashboard</strong>: one sidebar lists every folder and its files, with a filter and your recent documents. <strong>New</strong> makes a document from a template in one click, and the pencil renames it in place.</li>
+            <li><strong>Served folders</strong>: any folder can be served at its own <code>.localhost</code> address, with <strong>Open in Dashboard</strong>, <strong>Open in Finder</strong> (or <strong>Open in File Explorer</strong>) and a <strong>Trusted</strong> switch for each folder.</li>
+            <li><strong>Sync with Hyperclay</strong>: connect a Hyperclay account with a sync key to back up folders, give each file a web address, and edit together live. When both sides changed a file, you choose <strong>Keep mine</strong>, <strong>Keep theirs</strong> or <strong>Keep both</strong>.</li>
+            <li><strong>AI Editing</strong> settings: pick Claude Code, Codex, Gemini (<code>agy</code>) or your own command, with a model and an effort level. Select something on a page and press <code>⌘J</code> (<code>Ctrl+J</code> on Windows and Linux) to ask for a change.</li>
+            <li>Built-in programs for file search, image conversion and folder watching. Each is off until you switch it on, and each comes with an example document.</li>
+            <li>A new install starts on login, updates automatically, and has a <code>~/htmlclay/playground</code> folder with a welcome page and three starter documents.</li>
+            <li>Programs on your computer, such as the <code>clay-agent</code> command-line tool, can list, read, save and restore documents with an agent token that only your user account can read.</li>
+            <li>A page with a live room, such as a sheet, can store the edits it could not save in the document's private history folder, so the edits outlive the window that made them.</li>
+            <li>A new optional <code>data-program-file</code> attribute on a helper declaration names the program's file when it differs from the name the document uses.</li>
+            <li><strong>Recovered changes…</strong> in the HTML Clay menu opens a page listing every edit HTML Clay saved aside when a page could not save normally, with each one's date and size. Each one can be shown in Finder (or the file manager) or deleted, one at a time or all recovered changes of a document at once.</li>
+            <li><strong>New blank document</strong> in a page's menu makes a copy of the document with its data emptied, beside it as <code>&lt;name&gt;-new.html</code>, and opens it. The page must name its starting values (a <code>clay-new-document</code> tag) and use a ClayJS that offers the item. A blank copy of a downloaded document is treated as a download too.</li>
+            <li>Pages using ClayJS <code>plugins=ai</code> can ask your AI agent (Claude Code, Codex, or Antigravity) to read a folder you choose and answer questions about its code and git history. HTML Clay runs a read-only self-test once for each agent version before letting it answer, and <strong>Ask again</strong> in Settings clears <strong>Don't allow</strong>.</li>
+            <li>Pages can carry small JavaScript programs in <code>&lt;script type=&quot;text/x-clay-program&quot;&gt;</code> tags that HTML Clay runs in a separate worker process with memory and time limits. Depending on its <code>can</code> attribute and the document's trust, a program can read files and git history in a folder you choose, edit and create files there, or reach public web addresses.</li>
+            <li><code>htmlclay trust &lt;file&gt;</code>, <code>htmlclay untrust &lt;file&gt;</code>, <code>htmlclay developer-mode [on|off]</code>, and <code>htmlclay programs [enable|disable]</code> manage document trust, developer mode, and your programs folder from the command line.</li>
+          </ul>
+          <h3>Changed</h3>
+          <ul>
+            <li>On Windows and Linux, turning off automatic updates (<code>updates: off</code>) now stops only automatic checks. Check now still checks for and downloads an update.</li>
+            <li>Document trust now follows a file's code and where it came from rather than its folder alone. Files you made and signed ecosystem apps run without warnings, while downloaded files, files with no origin record, and files whose signature does not match their code get their own browser origin and ask once per document until their code changes.</li>
+            <li>Attaching sibling <code>@file</code> context in AI editing now requires a document you made or trusted.</li>
+          </ul>
+        </div>
+      </article>
+
       <article class="release" id="v1.16.4">
         <time class="release-date" datetime="2026-11-14">November 14, 2026</time>
         <div class="release-notes">
