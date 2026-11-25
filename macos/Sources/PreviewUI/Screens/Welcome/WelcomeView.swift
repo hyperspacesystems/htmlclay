@@ -30,10 +30,10 @@ public struct WelcomeView: View {
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 22)
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                capabilityCell(.cobalt, symbol: Symbols.doc, title: Strings.Welcome.filesTitle)
                 capabilityCell(.sky, symbol: Symbols.copy, title: Strings.Welcome.versionsTitle)
-                capabilityCell(.plum, symbol: Symbols.sparkles, title: Strings.Welcome.localTitle)
+                capabilityCell(.cobalt, symbol: Symbols.doc, title: Strings.Welcome.filesTitle)
                 capabilityCell(.amber, symbol: Symbols.program, title: Strings.Welcome.moreTitle)
+                capabilityCell(.plum, symbol: Symbols.sparkles, title: Strings.Welcome.localTitle)
             }
             .frame(maxWidth: 516)
             .padding(.bottom, 34)

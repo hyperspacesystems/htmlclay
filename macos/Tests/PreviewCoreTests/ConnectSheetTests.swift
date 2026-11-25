@@ -97,6 +97,6 @@ final class ConnectSheetTests: XCTestCase {
         XCTAssertEqual(URL(string: Strings.Connect.keyPageURL)?.host, "hyperclay.com")
         XCTAssertEqual(Strings.Connect.signUpURL, "https://hyperclay.com")
         XCTAssertEqual(Strings.Connect.introLead + Strings.Connect.signUpLink,
-                       "Hyperclay syncs folders online so you can open HTML files anywhere, share edit links, and edit live with teammates. New to Hyperclay? Sign up ↗")
+                       "Hyperclay is a platform that lets you sync your local HTML files to the web, so you can open and collaborate on them from anywhere. Sign up ↗")
     }
 }

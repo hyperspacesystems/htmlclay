@@ -90,14 +90,28 @@ public enum Strings {
         public static let title = "Folders"
         public static let intro = "Choose folders on this Mac to run as local sites or trust for standalone files."
         public static let serveCardTitle = "Run a project folder as a local site"
-        public static let serveCardSub = "Gives the folder its own .localhost web address so .html and .htmlclay files save changes, share assets, and link to each other."
+        public static let serveCardSub = "Gives a folder its own localhost address so HTML files can save and share assets."
         public static let trustCardTitle = "Let standalone .htmlclay files save and run programs"
         public static let trustCardSub = "For a folder of loose .htmlclay tools or notes on this Mac, so files save changes to disk and can run allowed programs."
         public static let addFolder = "Add Folder…"
         public static let open = "Open"
+        public static let openInDashboard = "Open in Dashboard"
+        public static let openInFinder = "Open in Finder"
         public static let finder = "Finder"
         public static let more = "More"
         public static let less = "Less"
+        public static let openLink = "Open Link"
+        public static let copyAddress = "Copy Address"
+        public static let httpPrefix = "http://"
+        public static func addressURL(url: String, address: String) -> URL? {
+            if !url.isEmpty, let parsed = URL(string: url) { return parsed }
+            if !address.isEmpty { return URL(string: httpPrefix + address) }
+            return nil
+        }
+        public static func copyPathLabel(_ name: String) -> String { "Copy path for \(name)" }
+        public static func copyPathHelp(_ path: String) -> String { "Copy full path (\(path))" }
+        public static func copiedPath(_ path: String) -> String { "Copied \(path) to the clipboard." }
+        public static func insideParent(_ parent: String) -> String { "Inside \(parent)" }
         public static let advanced = "Advanced"
         public static let serveLocally = "Serve on this Mac"
         public static let copy = "Copy"
@@ -248,7 +262,7 @@ public enum Strings {
         public static let noPermissionYet = "No HTML file has permission yet. Open the example above to try it."
         public static func enableBuiltin(_ title: String) -> String { "Enable \(title)" }
         public static let fileSearch = "File search"
-        public static let fileConverter = "File converter"
+        public static let fileConverter = "Image converter"
         public static let folderWatcher = "Folder watcher"
         public static let builtinDot = " · "
         public static let noneYetOn = "No HTML file may run it yet"
@@ -392,7 +406,7 @@ public enum Strings {
         public static let opensSub = "Double-click any .htmlclay file to open it in your browser and save changes back to disk."
         public static let defaultPill = "Default"
         public static let otherTitle = "Another app opens .htmlclay files"
-        public static let otherUnknownSub = "HTML Clay is not currently the default app for .htmlclay files. Turn on to make HTML Clay the default."
+        public static let otherUnknownSub = "HTML Clay is not currently the default app for .htmlclay files."
         public static let makeDefault = "Make HTML Clay the default"
         public static let openWithTitle = "Show HTML Clay in Open With for .html files"
         public static let openWithSub = "Right-click any regular .html file in Finder and choose Open With to edit and save it in HTML Clay. Your default app for .html files stays the same."
@@ -730,7 +744,7 @@ public enum Strings {
     }
     public enum Connect {
         public static let title = "Connect Hyperclay"
-        public static let introLead = "Hyperclay syncs folders online so you can open HTML files anywhere, share edit links, and edit live with teammates. New to Hyperclay? "
+        public static let introLead = "Hyperclay is a platform that lets you sync your local HTML files to the web, so you can open and collaborate on them from anywhere. "
         public static let signUpLink = "Sign up ↗"
         public static let signUpURL = "https://hyperclay.com"
         public static let wouldOpenSignUp = "Build 1: this would open Hyperclay to sign up."

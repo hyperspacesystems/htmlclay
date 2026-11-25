@@ -31,7 +31,7 @@ func Title(id string) string {
 	case FileSearch:
 		return "File search"
 	case FileConvert:
-		return "File converter"
+		return "Image converter"
 	case FolderWatch:
 		return "Folder watcher"
 	}
