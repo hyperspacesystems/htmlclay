@@ -1139,57 +1139,6 @@
     if (isVisible() && !document.hidden && !isReducedMotion()) start();
   }
 
-  /* 8. Spotlight 3 Visual Option Switchers (3 Static Options Each for Live Sync & Cmd+J AI) */
-  function initSpotlightSwitchers() {
-    var cards = document.querySelectorAll("[data-spot-card]");
-    for (var i = 0; i < cards.length; i++) {
-      (function (card) {
-        var slides = [].slice.call(card.querySelectorAll("[data-spot-slide]"));
-        var picks = [].slice.call(card.querySelectorAll("[data-spot-pick]"));
-        var prev = card.querySelector("[data-spot-prev]");
-        var next = card.querySelector("[data-spot-next]");
-        var caption = card.querySelector("[data-spot-caption]");
-        var tablist = card.querySelector('[role="tablist"]');
-        if (!slides.length) return;
-        var current = 0;
-
-        function select(idx) {
-          current = (idx + slides.length) % slides.length;
-          slides.forEach(function (s, k) {
-            s.hidden = k !== current;
-          });
-          picks.forEach(function (b, k) {
-            var active = k === current;
-            b.setAttribute("aria-selected", String(active));
-            b.setAttribute("tabindex", active ? "0" : "-1");
-          });
-          if (caption && slides[current]) {
-            caption.textContent = slides[current].getAttribute("data-label") || "";
-          }
-        }
-
-        picks.forEach(function (b) {
-          b.addEventListener("click", function () {
-            select(Number(b.getAttribute("data-spot-pick")) || 0);
-          });
-        });
-        if (prev) {
-          prev.addEventListener("click", function () {
-            select(current - 1);
-          });
-        }
-        if (next) {
-          next.addEventListener("click", function () {
-            select(current + 1);
-          });
-        }
-        attachRovingTabindex(tablist, picks, function (btn) {
-          select(Number(btn.getAttribute("data-spot-pick")) || 0);
-        });
-      })(cards[i]);
-    }
-  }
-
   function boot() {
     initOSDownloads();
     initSettingsExplorers();
@@ -1197,7 +1146,6 @@
     initCopyHashButtons();
     initPlayground();
     initBreakout();
-    initSpotlightSwitchers();
   }
 
   if (document.readyState === "loading") {

@@ -66,7 +66,7 @@ td+td{padding-left:12px}
 </div>
 {{else}}
 <h1>Recovered changes</h1>
-<p class="lede">These are edits HTML Clay saved aside when a page could not save normally.</p>
+<p class="lede">HTML Clay kept these copies before a change made outside a page removed data, or before you restored an earlier version. They stay on this computer until you delete them.</p>
 {{if .Count}}<p>{{.Count}} {{if eq .Count 1}}recovered change{{else}}recovered changes{{end}} · {{.Total}}</p>{{end}}
 {{with .Done}}<p class="done" role="status">{{.}}</p>{{end}}
 {{if not .Documents}}<p class="empty">No recovered changes left.</p>{{end}}

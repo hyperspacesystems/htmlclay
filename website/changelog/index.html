@@ -23,7 +23,7 @@
   <meta name="twitter:title" content="Changelog: HTML Clay">
   <meta name="twitter:description" content="What changed in each release of the HTML Clay desktop app.">
 
-  <link rel="stylesheet" href="/css/site.css?v=c8bd58a0">
+  <link rel="stylesheet" href="/css/site.css?v=6c77a3cf">
   <script src="https://signal.hyperclay.com/v1.js" defer></script>
 </head>
 <body>
@@ -84,7 +84,7 @@
             <li>Programs on your computer, such as the <code>clay-agent</code> command-line tool, can list, read, save and restore documents with an agent token that only your user account can read.</li>
             <li>A page with a live room, such as a sheet, can store the edits it could not save in the document's private history folder, so the edits outlive the window that made them.</li>
             <li>A new optional <code>data-program-file</code> attribute on a helper declaration names the program's file when it differs from the name the document uses.</li>
-            <li><strong>Recovered changes…</strong> in the HTML Clay menu opens a page listing every edit HTML Clay saved aside when a page could not save normally, with each one's date and size. Each one can be shown in Finder (or the file manager) or deleted, one at a time or all recovered changes of a document at once.</li>
+            <li><strong>Recovered changes…</strong> in the HTML Clay menu opens a page listing the copies HTML Clay kept before a change made outside a page removed data or before you restored an earlier version, with each one's date and size. It shows in the menu only when there is something to recover. Each one can be shown in Finder (or the file manager) or deleted, one at a time or all recovered changes of a document at once.</li>
             <li><strong>New blank document</strong> in a page's menu makes a copy of the document with its data emptied, beside it as <code>&lt;name&gt;-new.html</code>, and opens it. The page must name its starting values (a <code>clay-new-document</code> tag) and use a ClayJS that offers the item. A blank copy of a downloaded document is treated as a download too.</li>
             <li>Pages using ClayJS <code>plugins=ai</code> can ask your AI agent (Claude Code, Codex, or Antigravity) to read a folder you choose and answer questions about its code and git history. HTML Clay runs a read-only self-test once for each agent version before letting it answer, and <strong>Ask again</strong> in Settings clears <strong>Don't allow</strong>.</li>
             <li>Pages can carry small JavaScript programs in <code>&lt;script type=&quot;text/x-clay-program&quot;&gt;</code> tags that HTML Clay runs in a separate worker process with memory and time limits. Depending on its <code>can</code> attribute and the document's trust, a program can read files and git history in a folder you choose, edit and create files there, or reach public web addresses.</li>
@@ -599,7 +599,7 @@
 
   <footer data-hyper-footer="htmlclay"></footer>
 
-  <script src="/js/site.js?v=82d55184"></script>
+  <script src="/js/site.js?v=cc02a5e3"></script>
   <script src="https://hyperclay.com/public/js/hyper-footer.js" defer></script>
   <script src="https://hyperclay.com/public/js/polite-pop.js" defer></script>
 </body>
