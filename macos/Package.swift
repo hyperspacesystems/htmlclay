@@ -14,5 +14,6 @@ let package = Package(
         .testTarget(name: "PreviewCoreTests", dependencies: ["PreviewCore"]),
         .testTarget(name: "PreviewUITests", dependencies: ["PreviewCore", "PreviewUI"]),
         .testTarget(name: "SparkleBridgeTests", dependencies: ["SparkleBridge"]),
+        .testTarget(name: "AppShellTests", dependencies: ["PreviewCore", "PreviewUI", "AppShell"]),
     ]
 )

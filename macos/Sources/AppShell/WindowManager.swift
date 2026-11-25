@@ -12,7 +12,7 @@ final class RequestPanel: NSPanel {
 public final class WindowManager: NSObject, NSWindowDelegate {
     private let model: AppModel
     private var settings: NSWindow?
-    private var welcome: NSWindow?
+    private(set) var welcome: NSWindow?
     private var request: RequestPanel?
     private var notice: NSPanel?
     private var pendingOpenDashboard = false
@@ -151,6 +151,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
             let fit = content.fittingSize
             settings?.setContentSize(NSSize(width: 840, height: min(max(490, fit.height), 640)))
         }
+        welcome?.close()
         present(settings)
     }
 
@@ -178,6 +179,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
 
     public func showRequest(_ item: WaitingItem) {
         guard PanelControls.showsAnswer(can: model.can(HostActionType.requestAnswer)) else { return }
+        welcome?.close()
         let hosting = NSHostingView(rootView: KilnRoot {
             RequestView(itemID: item.id, actions: RequestActions(
                 answer: { [weak self] answered, request, answer, path in

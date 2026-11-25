@@ -111,7 +111,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         case "recoveredChanges": return #selector(openRecoveredChanges)
         case "settings": return #selector(openSettings)
         case "checkForUpdates": return #selector(checkForUpdates)
-        case "quit": return #selector(NSApplication.terminate(_:))
+        case "quit": return #selector(quit)
         default: return nil
         }
     }
@@ -189,6 +189,10 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         closePanel()
         model.send(.openRecoveredChanges)
     }
+
+    /// The menu items target this controller, which AppKit disables for actions it cannot answer,
+    /// so Quit needs its own method rather than NSApplication.terminate(_:).
+    @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func checkForUpdates() {
         closePanel()
