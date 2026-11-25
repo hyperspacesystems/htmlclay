@@ -565,9 +565,20 @@ fetch("https://example.com/leak", {mode: "no-cors"}).catch(() => {});
 </body>
 </html>`
 		doc := strings.ReplaceAll(docTemplate, "OTHERPORT", otherPort)
+		// The same calculator without the hostile script, to warm the browser.
+		plain := docTemplate[:strings.Index(docTemplate, "<script>\nalert")] + docTemplate[strings.Index(docTemplate, `<script type="application/json"`):]
 
-		env := setupRecalcEnv(t, doc)
+		env := setupRecalcEnv(t, plain)
 		runner := env.newRunner(t)
+
+		// Warm the browser first so the 15s wait below covers the hostile page, not cold browser
+		// startup on a loaded runner, which once took the whole wait (2026-11-25).
+		if warm := env.postWrite(t, "/_/api/invoice.htmlclay?recalculate=wait&meta&timeout=15000", `{"qty":"2"}`); warm.Code != 200 || !strings.Contains(warm.Body.String(), `"total":"20"`) {
+			t.Fatalf("warm write = %d %s", warm.Code, warm.Body.String())
+		}
+		if err := os.WriteFile(env.f.AbsPath, []byte(doc), 0o644); err != nil {
+			t.Fatal(err)
+		}
 
 		sub := newSubscriber(env.f.AbsPath, laneLive)
 		env.srv.hub.add(sub)
