@@ -349,6 +349,37 @@ success "Pushed commit ${RELEASE_SHA:0:7}"
 section "Step 4: Build & Publish via CI"
 # ══════════════════════════════════════════════════
 
+# A resume first looks for this version's own release run. One still running, or one
+# that passed, is followed rather than dispatched again: a second build of the same
+# version cannot publish (the update keys are immutable, and a re-signed Mac app never
+# has the same bytes), and the first one would otherwise finish with no tag and no
+# stamped site. RELEASE_SHA becomes the commit that run builds, read from its name,
+# so the tag names what CI really built even when commits landed on top since.
+RUN_ID=""
+PRIOR_RUN=""
+if [ "$RESUME" = true ]; then
+  PRIOR=$(gh run list --workflow=release.yml --event workflow_dispatch \
+    --limit 20 --json databaseId,displayTitle,status,conclusion \
+    -q "[.[] | select(.displayTitle | startswith(\"Release ${NEW_VERSION} (\"))] | .[0] | select(. != null) | \"\\(.databaseId)|\\(.status)|\\(.conclusion)|\\(.displayTitle)\"" 2>/dev/null || echo "")
+  if [ -n "$PRIOR" ]; then
+    IFS='|' read -r prior_id prior_status prior_conclusion _ <<< "$PRIOR"
+    prior_sha=$(sed -n 's/.*(\([0-9a-f]\{40\}\))$/\1/p' <<< "$PRIOR")
+    if [ "$prior_status" != completed ] || [ "$prior_conclusion" = success ]; then
+      if [ -z "$prior_sha" ] || ! git merge-base --is-ancestor "$prior_sha" "$RELEASE_SHA" 2>/dev/null; then
+        error "Release run ${prior_id} for v${NEW_VERSION} builds a commit that is not on ${BRANCH}: ${PRIOR}"
+        error "Cancel it or let it finish, then check GitHub Actions before resuming."
+        exit 1
+      fi
+      RUN_ID="$prior_id"
+      RELEASE_SHA="$prior_sha"
+      info "Following release run ${RUN_ID} (${prior_status}) for ${RELEASE_SHA:0:7} instead of starting another"
+    else
+      PRIOR_RUN="$prior_id"
+    fi
+  fi
+fi
+
+if [ -z "$RUN_ID" ]; then
 info "Triggering release workflow on GitHub Actions..."
 # source_sha pins every job's checkout to the commit just pushed, so a push
 # landing between here and the runner starting cannot ship code the test gate
@@ -376,6 +407,8 @@ for _ in $(seq 1 15); do
     --limit 20 --json databaseId,displayTitle,headSha \
     -q "[.[] | select((.displayTitle | contains(\"${RELEASE_SHA}\")) or .headSha == \"${RELEASE_SHA}\")] | .[0].databaseId" 2>/dev/null || echo "")
   [ "$RUN_ID" = "null" ] && RUN_ID=""
+  # The failed run this resume replaces carries the same name until the new one appears.
+  [ -n "$RUN_ID" ] && [ "$RUN_ID" = "$PRIOR_RUN" ] && RUN_ID=""
   [ -n "$RUN_ID" ] && break
 done
 
@@ -384,14 +417,46 @@ if [ -z "$RUN_ID" ]; then
   error "The version commit is pushed. Check GitHub Actions, then: ./scripts/release.sh --resume"
   exit 1
 fi
+fi
 
+# Polls instead of `gh run watch --exit-status`, which also exits non-zero when the
+# connection drops: on 2026-11-25 a Wi-Fi switch read as "CI failed" while the run went
+# on to publish, leaving artifacts with no tag. Only a completed run's own conclusion
+# decides; a failed poll is a lost connection, retried until GitHub has been
+# unreachable for CI_UNREACHABLE_LIMIT seconds.
 info "Watching run ${RUN_ID}..."
-gh run watch "$RUN_ID" --exit-status || {
-  error "CI workflow failed! Check: gh run view $RUN_ID"
-  error "No tag was created, so nothing claims a release. Fix forward on main, then:"
-  error "  ./scripts/release.sh --resume"
-  exit 1
-}
+CI_UNREACHABLE_LIMIT="${CI_UNREACHABLE_LIMIT:-1200}"
+CI_POLL_SECONDS="${CI_POLL_SECONDS:-15}"
+unreachable_since=""
+last_state=""
+while :; do
+  if state=$(gh run view "$RUN_ID" --json status,conclusion -q '.status + " " + .conclusion' 2>/dev/null); then
+    unreachable_since=""
+    read -r run_status run_conclusion <<< "$state"
+    if [ "$run_status" = completed ]; then
+      [ "$run_conclusion" = success ] && break
+      error "CI workflow ${run_conclusion:-failed}! Check: gh run view $RUN_ID"
+      error "No tag was created, so nothing claims a release. Fix forward on main, then:"
+      error "  ./scripts/release.sh --resume"
+      exit 1
+    fi
+    if [ "$run_status" != "$last_state" ]; then
+      info "Run ${RUN_ID} is ${run_status}"
+      last_state="$run_status"
+    fi
+  else
+    now=$(date +%s)
+    if [ -z "$unreachable_since" ]; then
+      unreachable_since=$now
+      warn "Cannot reach GitHub to check run ${RUN_ID}; retrying (CI keeps running without this Mac)"
+    elif [ $((now - unreachable_since)) -ge "$CI_UNREACHABLE_LIMIT" ]; then
+      error "GitHub has been unreachable for $((CI_UNREACHABLE_LIMIT / 60)) minutes. Run ${RUN_ID} may still be running."
+      error "No tag was created. Once you are back online: ./scripts/release.sh --resume"
+      exit 1
+    fi
+  fi
+  sleep "$CI_POLL_SECONDS"
+done
 success "CI workflow completed"
 
 # Green for this exact commit, so the tag can now claim a release that really exists.
