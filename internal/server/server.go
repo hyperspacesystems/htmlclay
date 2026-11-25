@@ -262,6 +262,11 @@ func newServer(sessions *session.Manager, logger *logging.Logger, store *version
 	mux.HandleFunc("GET /_/versions/{token}", s.handleListVersions)
 	mux.HandleFunc("GET /_/version/{token}/{name}", s.handleReadVersion)
 	mux.HandleFunc("POST /_/restore/{token}/{name}", sameOrigin(s.handleRestoreVersion))
+	// Recovery copies (copies.go): private to the document, read like its versions, written once.
+	mux.HandleFunc("GET /_/copies/{token}", s.handleCopies)
+	mux.HandleFunc("GET /_/copies/{token}/{id}", s.handleCopy)
+	mux.HandleFunc("PUT /_/copies/{token}/{id}", sameOrigin(s.handleCopy))
+	mux.HandleFunc("POST /_/copies/{token}/{id}/done", sameOrigin(s.handleCopyDone))
 	// The page menu's file actions. Same-origin and token-bearing, because the host
 	// does something to the user's computer on the page's word.
 	mux.HandleFunc("POST /_/reveal/{token}", sameOrigin(s.handleReveal))
@@ -469,6 +474,7 @@ func redactPath(p string) string {
 		"/_/versions/", "/_/version/", "/_/restore/",
 		"/_/reveal/", "/_/versions-folder/", "/_/export/", "/_/new-document/",
 		"/_/workspace-request/", "/_/helper-setup/",
+		"/_/copies/",
 	} {
 		if strings.HasPrefix(p, prefix) {
 			return prefix + "<redacted>"

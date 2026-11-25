@@ -494,6 +494,12 @@ func (wt *watcher) publishConfirmed(e *watchEntry, hash string, data []byte) str
 
 	key := f.HistoryKey()
 	if key != "" {
+		var stillCurrent bool
+		data, hash, stillCurrent = wt.foldDiskOverwrite(f, key, hash, data)
+		if !stillCurrent {
+			e.haveStat = false
+			return ""
+		}
 		if _, bErr := wt.versions.Backup(key, f.AbsPath, data); bErr != nil {
 			wt.logger.Printf("Backup of external change to %s failed: %v", f.RelPath, bErr)
 		}

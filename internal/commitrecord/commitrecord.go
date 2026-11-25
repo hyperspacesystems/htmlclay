@@ -88,6 +88,17 @@ func mentionsAttr(doc []byte) bool {
 	}
 }
 
+// Ordered reports whether doc carries a readable version 2 record: the documents the file contract,
+// the live stamp and the quit flush apply to. A placeholder such as {"rev":1} does not count.
+func Ordered(doc []byte) bool {
+	tag, ok := Find(doc)
+	if !ok {
+		return false
+	}
+	_, err := Read(doc, tag)
+	return err == nil
+}
+
 func Has(doc []byte) bool {
 	_, ok := Find(doc)
 	return ok

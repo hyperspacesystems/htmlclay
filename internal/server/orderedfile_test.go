@@ -290,3 +290,137 @@ func TestOrderedFileIgnoresAPlaceholderRecord(t *testing.T) {
 		}
 	}
 }
+
+// An edit tab holds only the live lane, so a save of a sheet with a record must reach it there: a
+// frame with the stored bytes' stamp and no document, on which ClayJS's live-room client reads the
+// file again. Bugs it catches: two windows on one sheet never hearing each other's saves; a stamp
+// sent for a page with no record; a stamp frame that carries the page, which live-sync.js would apply.
+func TestOrderedFileSaveReachesEditTabs(t *testing.T) {
+	fx := setupFileTest(t, "sheet.htmlclay", sheetPage("Sheet", "a", openRecord))
+	live := newSubscriber(fx.file.AbsPath, laneLive)
+	fx.srv.hub.add(live)
+	t.Cleanup(func() { fx.srv.hub.remove(live) })
+	etag, _ := storedFile(t, fx.file.AbsPath)
+	if w := saveWithIfMatch(t, fx.srv, fx.file, sheetPage("Sheet", "b", nextRecord("c00000000009", "c00000000010")), etag); w.Code != 200 {
+		t.Fatalf("the next commit: %d %s", w.Code, w.Body.String())
+	}
+	stored, _ := storedFile(t, fx.file.AbsPath)
+	var raw []byte
+	select {
+	case q := <-live.ch:
+		raw = q.frame
+		live.ch <- q
+	case <-time.After(5 * time.Second):
+		t.Fatal("no live-lane frame after the save")
+	}
+	if strings.Contains(string(raw), "id:") {
+		t.Fatalf("the stamp carries an event id, which moves a reconnecting tab's resume position: %q", raw)
+	}
+	frame := savedFrame(t, live)
+	if frame["etag"] != stored || frame["html"] != nil || frame["type"] != nil {
+		t.Fatalf("the live lane got %v, want only the stored bytes' etag %s", frame, stored)
+	}
+
+	placeholder := setupFileTest(t, "draft.htmlclay", sheetPage("Sheet", "a", `{"rev":1}`))
+	placeholderLive := newSubscriber(placeholder.file.AbsPath, laneLive)
+	placeholder.srv.hub.add(placeholderLive)
+	t.Cleanup(func() { placeholder.srv.hub.remove(placeholderLive) })
+	if w := saveWithIfMatch(t, placeholder.srv, placeholder.file, sheetPage("Sheet", "b", `{"rev":1}`), ""); w.Code != 200 {
+		t.Fatalf("a placeholder record: %d", w.Code)
+	}
+	select {
+	case q := <-placeholderLive.ch:
+		t.Fatalf("a page with only a placeholder record sent its edit tabs %s", q.frame)
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	plain := setupFileTest(t, "notes.htmlclay", "<!DOCTYPE html><html><body><p>one</p></body></html>")
+	plainLive := newSubscriber(plain.file.AbsPath, laneLive)
+	plain.srv.hub.add(plainLive)
+	t.Cleanup(func() { plain.srv.hub.remove(plainLive) })
+	if w := saveWithIfMatch(t, plain.srv, plain.file, "<!DOCTYPE html><html><body><p>two</p></body></html>", ""); w.Code != 200 {
+		t.Fatalf("a page with no record: %d", w.Code)
+	}
+	select {
+	case q := <-plainLive.ch:
+		t.Fatalf("a page with no record sent its edit tabs %s", q.frame)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// Plan 09 H-r6: an external program overwriting a sheet on disk (keeping the stale record or
+// dropping the commit tag altogether) gets folded after the fact over the newest kept ordered
+// version, advancing epoch/gen with a cut and preserving the ledger so open windows detect the cut.
+// Bug it catches: watcher broadcasts raw disk bytes without folding, leaving stale gen/commit or no
+// tag on disk so open windows cannot tell their unsaved edits were cut.
+func TestOrderedDiskOverwriteFold(t *testing.T) {
+	fx := setupFileTest(t, "sheet.htmlclay", sheetPage("Sheet", "a", openRecord))
+	srv, f := fx.srv, fx.file
+	initial, err := os.ReadFile(f.AbsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := versions.Key(f.AbsPath, initial)
+	f.SetHistoryKey(key)
+	if _, err := srv.versions.Backup(key, f.AbsPath, initial); err != nil {
+		t.Fatal(err)
+	}
+	f.RecordStableObservation(versions.Hash(initial))
+
+	live := newSubscriber(f.AbsPath, laneLive)
+	srv.hub.add(live)
+	t.Cleanup(func() { srv.hub.remove(live) })
+	e := &watchEntry{file: f}
+
+	// Case 1: external script edits a cell while keeping the old commit record.
+	overwritten := []byte(sheetPage("Sheet", "agent-disk", openRecord))
+	if err := os.WriteFile(f.AbsPath, overwritten, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv.watcher.publishConfirmed(e, versions.Hash(overwritten), overwritten)
+
+	_, after1 := storedFile(t, f.AbsPath)
+	tag1, ok := commitrecord.Find(after1)
+	if !ok {
+		t.Fatal("folded disk overwrite dropped the commit record")
+	}
+	rec1, err := commitrecord.Read(after1, tag1)
+	if err != nil {
+		t.Fatalf("read folded record: %v", err)
+	}
+	if rec1.Epoch != 2 || rec1.Gen == "1.00000005" || !strings.Contains(string(after1[tag1.BodyStart:tag1.BodyEnd]), `"cut":["1.00000005",0`) {
+		t.Fatalf("case 1 fold wrong: epoch=%d gen=%q body=%s", rec1.Epoch, rec1.Gen, string(after1[tag1.BodyStart:tag1.BodyEnd]))
+	}
+	if !strings.Contains(string(after1), "<td>agent-disk</td>") {
+		t.Fatalf("case 1 lost the external edit on disk")
+	}
+	// Drain the broadcast frame and confirm it carries the folded file's ETag.
+	frame1 := savedFrame(t, live)
+	data1, _ := frame1["data"].(map[string]any)
+	if data1["etag"] != specwire.Etag(after1) {
+		t.Fatalf("case 1 broadcast etag=%v, want folded etag=%s", data1["etag"], specwire.Etag(after1))
+	}
+
+	// Case 2: external program rewrites the sheet and drops the <script sheet-commit> tag entirely.
+	noTag := []byte(strings.Replace(sheetPage("Sheet", "dropped-tag", openRecord), `<script type="application/json" sheet-commit="">`+openRecord+`</script>`, "", 1))
+	if err := os.WriteFile(f.AbsPath, noTag, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv.watcher.publishConfirmed(e, versions.Hash(noTag), noTag)
+
+	_, after2 := storedFile(t, f.AbsPath)
+	tag2, ok := commitrecord.Find(after2)
+	if !ok {
+		t.Fatal("case 2 did not restore the commit record after external writer dropped the tag")
+	}
+	rec2, err := commitrecord.Read(after2, tag2)
+	if err != nil {
+		t.Fatalf("read case 2 folded record: %v", err)
+	}
+	if rec2.Epoch != 3 || !strings.Contains(string(after2[tag2.BodyStart:tag2.BodyEnd]), `"cut":["`+rec1.Gen+`",0`) || rec2.DocID() != "d1" {
+		t.Fatalf("case 2 fold wrong: epoch=%d doc=%q body=%s", rec2.Epoch, rec2.DocID(), string(after2[tag2.BodyStart:tag2.BodyEnd]))
+	}
+	if !strings.Contains(string(after2), "<td>dropped-tag</td>") {
+		t.Fatalf("case 2 lost the external edit on disk")
+	}
+}

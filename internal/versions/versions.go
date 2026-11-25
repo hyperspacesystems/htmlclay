@@ -1907,3 +1907,14 @@ func pruneDir(hroot *os.Root) {
 		hroot.Remove(e.Name)
 	}
 }
+
+// PublishBytes writes data as name beneath root durably: a synced temp file renamed over name, then
+// the folder synced. Other private stores beside the versions (recovery copies) use it.
+func PublishBytes(root *os.Root, name string, data []byte) error {
+	return atomicPublishBytes(root, name, data)
+}
+
+// SyncRoot syncs the folder root names, so a file just created in it survives a crash.
+func SyncRoot(root *os.Root) error {
+	return syncDirRoot(root)
+}

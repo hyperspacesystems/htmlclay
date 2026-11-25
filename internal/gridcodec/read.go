@@ -11,10 +11,11 @@ import (
 
 // Sheet is GRAMMAR.md's model of one grid.
 type Sheet struct {
-	FreezeCols int   `json:"freezeCols,omitempty"`
-	Stale      bool  `json:"stale,omitempty"`
-	Cols       []Col `json:"cols"`
-	Rows       []Row `json:"rows"`
+	FreezeCols int    `json:"freezeCols,omitempty"`
+	Stale      bool   `json:"stale,omitempty"`
+	Cols       []Col  `json:"cols"`
+	Rows       []Row  `json:"rows"`
+	Rules      []Rule `json:"rules,omitempty"`
 }
 
 // QueryRefused is a read or patch the caller asked for wrongly. Code is one of bad_range,
@@ -35,8 +36,9 @@ func GridModel(src string, at int) (*Sheet, error) {
 			sheet.FreezeCols = table.FreezeCols
 			sheet.Stale = table.Stale
 		},
-		Col: func(col Col) { sheet.Cols = append(sheet.Cols, col) },
-		Row: func(row Row, start, end, index int) { sheet.Rows = append(sheet.Rows, row) },
+		Col:  func(col Col) { sheet.Cols = append(sheet.Cols, col) },
+		Row:  func(row Row, start, end, index int) { sheet.Rows = append(sheet.Rows, row) },
+		Rule: func(rule Rule, start, end int) { sheet.Rules = append(sheet.Rules, rule) },
 	}
 	if _, err := ScanGrid(src, at, sink); err != nil {
 		return nil, err
