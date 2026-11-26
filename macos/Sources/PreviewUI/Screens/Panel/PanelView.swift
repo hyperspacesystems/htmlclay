@@ -68,6 +68,7 @@ public struct PanelView: View {
                 .focused($focus, equals: .openDashboard)
                 .focusEffectDisabled()
                 .focusRing(focused: focus == .openDashboard, cornerRadius: 9)
+                .padding(.bottom, 10)
         case .hostStopped:
             KilnCard(kind: .err) {
                 KilnRow(title: Strings.Panel.hostStopped, subtitle: Strings.Panel.hostStoppedSub) {

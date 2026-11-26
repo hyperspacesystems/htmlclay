@@ -18,7 +18,6 @@ public struct KilnButtonStyle: ButtonStyle {
             .background(fill, in: RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(line, lineWidth: 1))
             .opacity(configuration.isPressed ? 0.85 : 1)
-            .padding(.bottom, isFullWidth ? 10 : 0)
     }
     private var isFullWidth: Bool { kind == .openDashboard }
     private var fontSize: CGFloat {
