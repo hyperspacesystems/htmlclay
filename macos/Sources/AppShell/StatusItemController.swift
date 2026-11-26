@@ -199,10 +199,13 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
         updates?.checkNow()
     }
 
-    /// The panel's gear shows the same rows as the status item.
+    /// The panel's gear shows the same rows as the status item, at the click and inside the open
+    /// panel. Closing the panel first left the menu with no key window in an inactive app, so
+    /// macOS dismissed it at once. Each row's action closes the panel; dismissing the menu keeps it.
     private func showOneMenu() {
-        closePanel()
-        buildOneMenu(rows: oneMenuRows()).popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        guard let panel, let content = panel.contentView else { return }
+        let point = content.convert(panel.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
+        buildOneMenu(rows: oneMenuRows()).popUp(positioning: nil, at: point, in: content)
     }
 
     @objc private func restartToUpdate() {
