@@ -75,16 +75,56 @@ struct SyncPane: View {
                 benefitCard(.jade, symbol: Symbols.globe, title: Strings.Sync.benefit3Title, sub: Strings.Sync.benefit3Sub)
             }
             KilnCard {
-                KilnRow(title: Strings.Sync.invite) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(Strings.Sync.stepsTitle)
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(kiln.ink)
+                    HStack(alignment: .top, spacing: 16) {
+                        step(1, title: Strings.Sync.step1Title, body: Strings.Sync.step1Body)
+                        step(2, title: Strings.Sync.step2Title, body: Strings.Sync.step2Body)
+                        step(3, title: Strings.Sync.step3Title, body: Strings.Sync.step3Body)
+                    }
+                }
+                .padding(14)
+                KilnRowDivider()
+                HStack(spacing: 11) {
+                    (Text(Strings.Sync.inviteLead).fontWeight(.semibold) + Text(" ") + Text(Strings.Sync.invite))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(kiln.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Button(Strings.Sync.connect) {
                         model.sheet = .connect
                     }
                     .buttonStyle(KilnButtonStyle(.primary))
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
             }
             .padding(.top, 12)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func step(_ number: Int, title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                Text("\(number)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(kiln.ink)
+                    .frame(width: 18, height: 18)
+                    .background(Circle().fill(kiln.card2))
+                    .overlay(Circle().strokeBorder(kiln.cardBorder))
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(kiln.ink)
+            }
+            Text(body)
+                .font(.system(size: 12.5))
+                .foregroundStyle(kiln.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func benefitCard(_ color: SquircleColor, symbol: String, title: String, sub: String) -> some View {
