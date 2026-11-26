@@ -1,11 +1,11 @@
 {
   "version": 1,
   "protocol": 1,
-  "package": "0.14.0",
+  "package": "0.15.0",
   "entry": {
-    "javascript": "main-SJOLSUYS.js",
+    "javascript": "main-TNRGJTVR.js",
     "css": [
-      "main-KOTHMMGM.css"
+      "main-336AGSKW.css"
     ]
   },
   "assets": [
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
-      "path": "main-KOTHMMGM.css",
-      "bytes": 400323,
-      "sha256": "c14dc951db9d2c871e6a3d159a3e99e36ddda98cbffe1cacbd900bfe8d5c2590"
+      "path": "main-336AGSKW.css",
+      "bytes": 401199,
+      "sha256": "c6e8e78444712330424ac3feb920e8aea25e7f39940b5f753a49187fd4b9fa6b"
     },
     {
-      "path": "main-SJOLSUYS.js",
-      "bytes": 1860219,
-      "sha256": "515ec7dfe84c8af1f89391513962a9d46f9136d543b5ab1fe0e4f59ef03ec7a1"
+      "path": "main-TNRGJTVR.js",
+      "bytes": 1861175,
+      "sha256": "86d1695f1a41fba70d1affb0cf2d8eaa056c711f5544501540079629dc8f51ab"
     }
   ]
 }
