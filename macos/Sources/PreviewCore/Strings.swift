@@ -69,6 +69,8 @@ public enum Strings {
         public static let moreTitle = "Runs local programs with permission"
         public static let moreSub = "Serve a folder as a local site, or sync with Hyperclay. Both are in Settings."
         public static let openDashboard = "Open Dashboard"
+        // copy: the welcome screen's secondary button, left of Open Dashboard (David's wording, 2026-11-26)
+        public static let openFile = "Open .htmlclay file"
         public static let allSet = "I'm all set"
         public static let openSettings = "Open Settings"
         public static let menuBarHint = "HTML Clay stays in your menu bar:"

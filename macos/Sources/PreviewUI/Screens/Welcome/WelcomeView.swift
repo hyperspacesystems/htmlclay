@@ -7,15 +7,17 @@ public struct WelcomeView: View {
     private let film: String?
     private let menuBarIcon: NSImage?
     private let openDashboard: () -> Void
+    private let openFile: () -> Void
 
     private let columns = [
         GridItem(.flexible(), spacing: 32, alignment: .leading),
         GridItem(.flexible(), spacing: 32, alignment: .leading),
     ]
 
-    public init(film: String?, menuBarIcon: NSImage?, openDashboard: @escaping () -> Void = {}) {
+    public init(film: String?, menuBarIcon: NSImage?, openFile: @escaping () -> Void = {}, openDashboard: @escaping () -> Void = {}) {
         self.film = film
         self.menuBarIcon = menuBarIcon
+        self.openFile = openFile
         self.openDashboard = openDashboard
     }
 
@@ -37,12 +39,19 @@ public struct WelcomeView: View {
             }
             .frame(maxWidth: 516)
             .padding(.bottom, 34)
-            Button(action: openDashboard) {
-                Text(Strings.Welcome.openDashboard)
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 10) {
+                Button(action: openFile) {
+                    Text(Strings.Welcome.openFile)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(KilnButtonStyle(.plain))
+                Button(action: openDashboard) {
+                    Text(Strings.Welcome.openDashboard)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(KilnButtonStyle(.primary))
             }
-            .buttonStyle(KilnButtonStyle(.primary))
-            .frame(maxWidth: 260)
+            .frame(maxWidth: 420)
             HStack(spacing: 6) {
                 Text(Strings.Welcome.menuBarHint)
                     .font(.system(size: 12.5))

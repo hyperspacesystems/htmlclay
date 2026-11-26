@@ -88,7 +88,9 @@ public final class AppModel {
     public var isSample: Bool { snapshot.isSample }
 
     /// Asks the real app's chooser for one file, then asks the host to open it.
+    /// The preview's sample data has no chooser, so it says what would happen.
     public func chooseAFile() {
+        guard !isSample else { return say(Strings.Preview.wouldOpenFile) }
         Task {
             guard let path = await folderChooser?.chooseFile(), !path.isEmpty else { return }
             if let fileOpener = self.fileOpener {

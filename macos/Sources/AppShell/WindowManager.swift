@@ -168,6 +168,7 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         welcome = makeWindow(KilnRoot {
             WelcomeView(film: Self.film(),
                         menuBarIcon: Self.menuBarIcon(),
+                        openFile: { [weak self] in self?.model.chooseAFile() },
                         openDashboard: { [weak self] in
                             UserDefaults.standard.set(true, forKey: Self.welcomeDoneKey)
                             self?.welcome?.close()

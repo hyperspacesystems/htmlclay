@@ -159,11 +159,7 @@ public final class StatusItemController: NSObject, NSWindowDelegate {
 
     @objc private func openAFile() {
         closePanel()
-        if model.isSample {
-            model.say(Strings.Preview.wouldOpenFile)
-        } else {
-            model.chooseAFile()
-        }
+        model.chooseAFile()
     }
 
     @objc private func openMenuChild(_ sender: NSMenuItem) {

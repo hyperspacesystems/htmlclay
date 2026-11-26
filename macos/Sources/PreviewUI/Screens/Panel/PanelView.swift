@@ -313,13 +313,7 @@ public struct PanelView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button(Strings.Panel.openAFile) {
-                if model.isSample {
-                    model.say(Strings.Preview.wouldOpenFile)
-                } else {
-                    model.chooseAFile()
-                }
-            }
+            Button(Strings.Panel.openAFile) { model.chooseAFile() }
             .buttonStyle(KilnButtonStyle(.plain))
             .focused($focus, equals: .openFile)
             .focusEffectDisabled()
