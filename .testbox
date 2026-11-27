@@ -30,9 +30,9 @@ true'
 # this happens. The pack has one path for each source, so an unchanged source ships the same bytes
 # from the same place. Nothing here may print to stdout, which testbox reads.
 clay_agent_src=${CLAY_AGENT_SRC:-}
-[ -n "$clay_agent_src" ] || [ ! -f "$CONFIG_DIR/../clay-agent/bin/clay-agent.js" ] || clay_agent_src=$CONFIG_DIR/../clay-agent
+[ -n "$clay_agent_src" ] || [ ! -f "$CONFIG_DIR/../clay-agent/bin/claycli.js" ] || clay_agent_src=$CONFIG_DIR/../clay-agent
 if [ -n "$clay_agent_src" ]; then
-  clay_agent_src=$(cd "$clay_agent_src" 2>/dev/null && pwd -P) && [ -f "$clay_agent_src/bin/clay-agent.js" ] \
+  clay_agent_src=$(cd "$clay_agent_src" 2>/dev/null && pwd -P) && [ -f "$clay_agent_src/bin/claycli.js" ] \
     || { echo ".testbox: CLAY_AGENT_SRC names no clay-agent source: ${CLAY_AGENT_SRC:-}" >&2; return 2; }
   clay_agent_pack=${TMPDIR:-/tmp}
   clay_agent_pack=${clay_agent_pack%/}/testbox-clay-agent-$(printf %s "$clay_agent_src" | cksum | cut -d" " -f1)

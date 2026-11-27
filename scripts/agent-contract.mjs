@@ -5,7 +5,7 @@
 // agent-token. Every address the host would open in a browser goes to a log
 // instead (HTMLCLAY_OPEN_LOG).
 //
-//   node scripts/agent-contract.mjs --cli "$TESTBOX_CLAY_AGENT/bin/clay-agent.js" --output agent-contract.json
+//   node scripts/agent-contract.mjs --cli "$TESTBOX_CLAY_AGENT/bin/claycli.js" --output agent-contract.json
 //
 // It refuses to run unless TESTBOX_CLAY_AGENT names a clay-agent package; the
 // fork's .testbox packs one and sets it. Each case is a row
@@ -73,7 +73,7 @@ function configBase(home) {
 // shell exports may point either of them somewhere else.
 function environment(home, extra = {}) {
   const env = { ...process.env, HOME: home, ...extra };
-  for (const name of ['XDG_CONFIG_HOME', 'HTMLCLAY_CONFIG_BASE', 'HTMLCLAY_FOLDER_LOCKS', 'HTMLCLAY_SERVICE_CMD', 'CLAY_AGENT_URL', 'CLAY_AGENT_KEY']) {
+  for (const name of ['XDG_CONFIG_HOME', 'HTMLCLAY_CONFIG_BASE', 'HTMLCLAY_FOLDER_LOCKS', 'HTMLCLAY_SERVICE_CMD', 'CLAY_CLI_URL', 'CLAY_CLI_KEY', 'CLAY_AGENT_URL', 'CLAY_AGENT_KEY']) {
     delete env[name];
   }
   return env;
@@ -690,8 +690,8 @@ async function listed(driver, doc) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const pack = process.env.TESTBOX_CLAY_AGENT;
-  if (!pack || !existsSync(path.join(pack, 'bin', 'clay-agent.js'))) {
-    console.error('agent-contract: TESTBOX_CLAY_AGENT must name a clay-agent package, a folder with bin/clay-agent.js.');
+  if (!pack || !existsSync(path.join(pack, 'bin', 'claycli.js'))) {
+    console.error('agent-contract: TESTBOX_CLAY_AGENT must name a clay-agent package, a folder with bin/claycli.js.');
     console.error('`testbox run` sets it when ../clay-agent exists or CLAY_AGENT_SRC names the source (see .testbox).');
     return 2;
   }
@@ -699,7 +699,7 @@ async function main() {
     console.error('agent-contract: Linux and macOS only.');
     return 2;
   }
-  const cli = options.cli ?? path.join(path.resolve(pack), 'bin', 'clay-agent.js');
+  const cli = options.cli ?? path.join(path.resolve(pack), 'bin', 'claycli.js');
   if (!existsSync(cli)) {
     console.error(`agent-contract: there is no CLI at ${cli}`);
     return 2;
