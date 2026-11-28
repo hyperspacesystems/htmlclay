@@ -41,7 +41,7 @@ func (s *rootServer) serveHtml(w http.ResponseWriter, r *http.Request, filePath,
 	served := html
 	if r.Header.Get("Clay-Source") != "1" {
 		served = s.projectServed(w, r, html)
-		if dest := r.Header.Get("Sec-Fetch-Dest"); s.offlineBoot != nil && (dest == "" || dest == "document") {
+		if dest := r.Header.Get("Sec-Fetch-Dest"); s.offlineBoot != nil && dest == "document" {
 			served = s.offlineBoot(served)
 		}
 	}

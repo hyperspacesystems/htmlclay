@@ -689,7 +689,10 @@ func (s *Server) offlineBoot(r *http.Request, served []byte) []byte {
 	if s.hooks.OfflineBoot == nil || r.Header.Get("Clay-Source") == "1" || s.isHiddenRecalcRequest(r) {
 		return served
 	}
-	if dest := r.Header.Get("Sec-Fetch-Dest"); dest != "" && dest != "document" {
+	// Only a browser's navigation gets the tag: every supported engine sends
+	// Sec-Fetch-Dest: document there, and a read with no header (a script, the
+	// conformance client) must get exactly the saved bytes.
+	if r.Header.Get("Sec-Fetch-Dest") != "document" {
 		return served
 	}
 	return s.hooks.OfflineBoot(served)

@@ -150,7 +150,7 @@ func TestServedDocumentCarriesTheOfflineBootScriptOnlyForRealLoads(t *testing.T)
 		want    bool
 	}{
 		{name: "document navigation", headers: map[string]string{"Sec-Fetch-Dest": "document"}, want: true},
-		{name: "no Sec-Fetch-Dest", want: true},
+		{name: "no Sec-Fetch-Dest (a script or the conformance client reading the file)"},
 		{name: "Clay-Source read", headers: map[string]string{"Sec-Fetch-Dest": "document", "Clay-Source": "1"}},
 		{name: "fetch of the document", headers: map[string]string{"Sec-Fetch-Dest": "empty"}},
 	}
