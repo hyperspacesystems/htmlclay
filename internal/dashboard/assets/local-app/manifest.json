@@ -3,7 +3,7 @@
   "protocol": 1,
   "package": "0.15.0",
   "entry": {
-    "javascript": "main-I7QMLPHV.js",
+    "javascript": "main-VV5T3EIS.js",
     "css": [
       "main-336AGSKW.css"
     ]
@@ -60,9 +60,9 @@
       "sha256": "c6e8e78444712330424ac3feb920e8aea25e7f39940b5f753a49187fd4b9fa6b"
     },
     {
-      "path": "main-I7QMLPHV.js",
-      "bytes": 1864240,
-      "sha256": "425a50dccc105a571e4b85ca0b46380b76fcdd49d3b90a47821e990d946de14e"
+      "path": "main-VV5T3EIS.js",
+      "bytes": 1864280,
+      "sha256": "023868fb77f209ec74e314380eb17e306052218d9a451cd887d57c6fcd0e1561"
     }
   ]
 }
