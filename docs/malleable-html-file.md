@@ -1,4 +1,4 @@
-# The Malleable Document
+# The HTML File App
 
 A single HTML file is the simplest way to distribute small personal software. No install, no runtime, no dependencies. Double-click and it runs on any OS, any browser.
 
@@ -62,7 +62,7 @@ The catch: someone has to start the server. For a developer, that's nothing. For
 
 ### Level 7: Package it
 
-Take the localhost server from Level 6 and bundle it into an installable app. Register a custom file extension — `.malleable`, `.htmlapp`, whatever. The OS associates it with your app. User double-clicks the file, the app starts the server, opens the browser, and handles save requests. The user never sees a terminal, a port number, or a URL.
+Take the localhost server from Level 6 and bundle it into an installable app. Register a custom file extension — `.htmlclay`, `.htmlapp`, whatever. The OS associates it with your app. User double-clicks the file, the app starts the server, opens the browser, and handles save requests. The user never sees a terminal, a port number, or a URL.
 
 This is what TiddlyDesktop (NW.js) and TiddlyBob (Electron) do for TiddlyWiki. But they're TiddlyWiki-specific. A generic "self-saving HTML runner" — one that works with any HTML file — doesn't exist yet.
 

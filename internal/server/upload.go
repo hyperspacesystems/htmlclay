@@ -582,5 +582,5 @@ func (s *Server) handleLibraryUpload(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, name, info.ModTime(), file)
 }
 
-// specVersion is the Malleable Document specification this host answers for.
+// specVersion is the HTML File App Specification version this host answers for.
 const specVersion = 1

@@ -12,15 +12,15 @@ A desktop app that makes self-saving HTML files a native OS feature.
 
 - **Website:** [htmlclay.com](https://htmlclay.com)
 - **File extension:** `.htmlclay`
-- **Format:** a [malleable document](https://malleabledocument.com)
+- **Format:** an [HTML file app](https://htmlfileapp.com/)
 - **Parent platform:** [Hyperclay](https://hyperclay.com)
 
 ### Three names, one idea
 
 Worth stating once, because the three get mixed up:
 
-- **The format** is a **malleable document**, and its real extension is `.html`. It is specified at
-  [malleabledocument.com](https://malleabledocument.com) and several programs can host one.
+- **The format** is an **HTML file app**, and its real extension is `.html`. It is specified at
+  [htmlfileapp.com](https://htmlfileapp.com/) and several programs can host one.
 - **HTML Clay** is *this app*. It is one of those programs, not the format.
 - **`.htmlclay`** is an operating system convention. It tells your OS to open the file with HTML Clay,
   the same way `.psd` names Photoshop rather than naming the image format.
@@ -82,11 +82,11 @@ It's just HTML. Here's a minimal example — a page with editable text and a sav
 
 The key line is `fetch('/_/save/' + token, ...)` — that's the save call. HTML Clay injects a `savetoken` attribute into the `<html>` tag when serving the file, and the page reads it to know where to save. The token is a cryptographic session identifier that maps to the file on disk.
 
-Before the save protocol settled on `savetoken`, HTML Clay called the attribute `htmlclaytoken`. It serves both names carrying the same token, and strips both on save, so a document written against the old name goes on saving forever. Read `savetoken` in anything new.
+Before the save protocol settled on `savetoken`, HTML Clay called the attribute `htmlclaytoken`. It serves both names carrying the same token, and strips both on save, so an HTML file written against the old name goes on saving forever. Read `savetoken` in anything new.
 
 ## What can you build with it?
 
-A `.htmlclay` file can be anything you'd build as a web page that benefits from being opened, edited, and saved like a document. Here are some ideas:
+A `.htmlclay` file can be anything you'd build as a web page that benefits from being opened, edited, and saved like a Word document. Here are some ideas:
 
 - Flashcard deck with spaced repetition
 - Kanban board
@@ -143,15 +143,15 @@ No HTML travels between the two: the page sends a small request, your program ed
 
 See [`docs/wire.md`](docs/wire.md) for the page API, the handler contract, the CLI, and the security model.
 
-## Style a document with Tailwind
+## Style an HTML file with Tailwind
 
-Link a stylesheet named `/tailwindcss/<name>.css` and HTML Clay builds it from the classes the document uses, the same way [Hyperclay](https://hyperclay.com) and Hyperclay Local do:
+Link a stylesheet named `/tailwindcss/<name>.css` and HTML Clay builds it from the classes the HTML file uses, the same way [Hyperclay](https://hyperclay.com) and Hyperclay Local do:
 
 ```html
 <link rel="stylesheet" href="/tailwindcss/notes.css">
 ```
 
-The stylesheet comes from the page that asked for it, so a document keeps its styles after a rename or a copy, and HTML Clay never edits the link or anything else in your file. It uses Tailwind v4 with the typography and forms (class mode) plugins and an `ephemeral-<word>:` variant for ClayJS's per-tab `ephemeral` attribute. Tailwind's compiler ships inside HTML Clay and runs on your computer: nothing is downloaded, and nothing leaves the machine. The first stylesheet after a change takes about a second to build; after that it comes from a cache until the document changes.
+The stylesheet comes from the page that asked for it, so an HTML file keeps its styles after a rename or a copy, and HTML Clay never edits the link or anything else in your file. It uses Tailwind v4 with the typography and forms (class mode) plugins and an `ephemeral-<word>:` variant for ClayJS's per-tab `ephemeral` attribute. Tailwind's compiler ships inside HTML Clay and runs on your computer: nothing is downloaded, and nothing leaves the machine. The first stylesheet after a change takes about a second to build; after that it comes from a cache until the file changes.
 
 ## Why does this need to exist?
 
@@ -199,7 +199,7 @@ not permanent bookmark records.
 
 ### Programs
 
-**Programs → Open Documents** lists the programs a document declares for files already registered,
+**Programs → Open Documents** lists the programs an HTML file declares for files already registered,
 including files opened from a bookmark. A row that needs setup opens the setup dialog; a row that is
 set up opens the Programs page. Helpers receive protocol requests on stdin; launchers that only open
 pages are not helpers. Cancel or deny leaves bindings unchanged. A stored valid binding is restored on
@@ -218,13 +218,13 @@ Relinking a moved program and allowing one in trusted folders always go through 
 | `GET` | `/_/read/{token}` | Return raw file contents |
 | `POST` | `/_/save/{token}` | Write updated HTML back to disk (atomic write) |
 | `GET` | `/_/meta/{token}` | Return file metadata (path, size, modification time) |
-| `GET` | `/tailwindcss/{name}.css` | Tailwind stylesheet compiled from the requesting document (or `{name}.html`, then `{name}.htmlclay`) |
+| `GET` | `/tailwindcss/{name}.css` | Tailwind stylesheet compiled from the requesting page (or `{name}.html`, then `{name}.htmlclay`) |
 | `GET` | `/{path}?data={…}` | Extract JSON from the file using rules you supply |
 | `GET` | `/_/api/{path}` | Extract JSON using caller `data` rules, or the embedded mapping |
 | `POST` | `/_/api/{path}` | Write JSON using caller `data` rules, or the embedded mapping |
 | `POST` | `/{path}?data={…}` | Write JSON using caller rules, content only |
 
-Content is served at the top level; actions live under the `/_/` marker, matching the [Hyperclay](https://hyperclay.com) platform convention. The save endpoint takes the document as a plain-text body. That is the one shape the format defines for it, so a JSON body is refused with `415` rather than guessed at, and anything a save needs to say beyond the document travels in a header.
+Content is served at the top level; actions live under the `/_/` marker, matching the [Hyperclay](https://hyperclay.com) platform convention. The save endpoint takes the HTML file as a plain-text body. That is the one shape the format defines for it, so a JSON body is refused with `415` rather than guessed at, and anything a save needs to say beyond the file travels in a header.
 
 ### Reading a file as JSON
 
@@ -337,7 +337,7 @@ curl -X POST 'http://htmlclay1.localhost:1212/_/api/notes.htmlclay' \
   clears a text value. Lists grow by cloning their first row, or a `cms-template` seed when empty.
 - **Only the changed elements are rewritten.** Every other byte of the file, line endings and
   quoting included, stays exactly as it was. The splice is proven by reparsing, and when it cannot
-  be proven the whole document is rendered instead.
+  be proven the whole file is rendered instead.
 - **It lands like a save.** Version history records it, open tabs update live, and a body that
   changes nothing writes nothing. The answer is the fresh extraction with an `ETag`; the GET faces
   send the same `ETag`, and sending it back as `If-Match` turns a write over a changed file into a
@@ -357,9 +357,9 @@ cmd/htmlclay/        The executable. main.go starts and stops it, sites.go owns 
 internal/server/     HTTP server, request handlers, security middleware
 internal/session/    Cryptographic token generation, file↔token mapping, held read roots
 internal/trust/      The rules about which folders may be trusted, and on whose say-so
-internal/dataapi/    Reading a document as JSON, with its vendored conformance corpus
+internal/dataapi/    Reading a file as JSON, with its vendored conformance corpus
 internal/versions/   Save history: every write keeps a restorable previous version
-internal/tailwind/   Builds a document's Tailwind stylesheet with the bundled Tailwind CLI
+internal/tailwind/   Builds a file's Tailwind stylesheet with the bundled Tailwind CLI
 internal/browser/    Opening a URL in the system's default browser
 internal/htmlutil/   Inject/strip savetoken and documentid attributes in <html> tag
 internal/config/     Persist settings to OS config dir (~/Library/Application Support, ~/.config, %APPDATA%)
@@ -385,7 +385,7 @@ website/             htmlclay.com, deployed from this repo
 - **Atomic writes** — Files are written to a temp file first, then renamed into place, preventing corruption on crash.
 - **Single instance** — A Unix socket (or TCP on Windows) ensures only one server runs at a time. Additional launches forward their file paths to the running instance.
   - **Per-HOME lock scope:** Because the socket and pidfile live under `os.UserConfigDir()` (`$HOME/Library/Application Support/htmlclay` on macOS), the lock is scoped to `$HOME` (and breaks if a test wipes that config directory between launches), so sandboxed agent runs with custom `HOME` directories each spawn their own GUI instance and menu-bar icon. Identify the real instance by matching its PID against `~/Library/Application Support/htmlclay/lock` (inspect `HOME=` via `ps eww -o command= <pid>`), and check `lsof` on that `HOME`'s `htmlclay.log` before killing anything.
-- **Local trust boundary** — The bridge listens on loopback, so any process running as your user can reach the app's port, at `127.0.0.1:<port>` or at any `*.localhost` hostname it serves. Saving requires the per-file token, but the top-level serve route returns a currently-open file by path with no token, so a malicious local process (or a page you already have open) can read other open documents. This is inherent to the localhost-bridge model: htmlclay only serves files you have explicitly opened, and nothing is exposed off the machine.
+- **Local trust boundary** — The bridge listens on loopback, so any process running as your user can reach the app's port, at `127.0.0.1:<port>` or at any `*.localhost` hostname it serves. Saving requires the per-file token, but the top-level serve route returns a currently-open file by path with no token, so a malicious local process (or a page you already have open) can read other open files. This is inherent to the localhost-bridge model: htmlclay only serves files you have explicitly opened, and nothing is exposed off the machine.
 
 ### Configuration
 

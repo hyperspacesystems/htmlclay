@@ -1,4 +1,4 @@
-// Package specwire implements the parts of the Malleable Document wire contract
+// Package specwire implements the parts of the HTML File App wire contract
 // that more than one lane has to agree on.
 //
 // It is the Go twin of hyperclay's server-lib/spec-wire.js, and the two must stay

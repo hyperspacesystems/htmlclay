@@ -1,4 +1,4 @@
-// Package versions stores plain, uncompressed backups of malleable documents.
+// Package versions stores plain, uncompressed backups of HTML files.
 //
 // Layout:
 //

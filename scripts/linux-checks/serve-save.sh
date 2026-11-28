@@ -1,7 +1,7 @@
 #!/bin/bash
 # Headless mode (--no-tray) on a file in a trusted folder: the app must hand the
 # browser the folder's own .localhost address on its one port, the wire must agree
-# on the origin, the Host gate must refuse a foreign Host, and the Malleable
+# on the origin, the Host gate must refuse a foreign Host, and the HTML File App
 # Document conformance page must pass a real save round trip in a real browser
 # from that origin.
 source "$(dirname "$0")/lib.sh"
