@@ -963,6 +963,9 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 		if !on {
 			return a.clearOfflineCopies()
 		}
+		if a.warmer != nil {
+			a.warmer.Reset()
+		}
 		return nil
 	case "offlineSpace":
 		var v string

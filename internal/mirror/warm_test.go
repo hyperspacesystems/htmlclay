@@ -2,7 +2,9 @@ package mirror_test
 
 import (
 	"context"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -228,5 +230,63 @@ func TestWarmingStopsWhileOffCopiesAreOff(t *testing.T) {
 	w.Pass(context.Background())
 	if n := cdn.total(); n != 0 {
 		t.Fatalf("the CDN answered %d request(s) while offline copies were off, want 0", n)
+	}
+}
+
+// After Clear, files that did not change since the last pass must be warmed again, or
+// HTML files the person has not opened since have no copies offline.
+func TestAfterClearResetWarmsUnchangedFilesAgain(t *testing.T) {
+	cdn := newStandInCDN(t, map[string]struct{ kind, body string }{
+		"/lib/a.js": {"text/javascript", "window.a=1"},
+	})
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "page.html"), `<html><head><script src="`+cdn.url("/lib/a.js")+`"></script></head></html>`)
+	store := openStore(t, mirror.DefaultLimits)
+	w := &mirror.Warmer{Fetch: mirror.NewFetcher(store, allowOnly(cdn.addr())), Folders: func() []string { return []string{dir} }}
+	ctx := context.Background()
+	w.Pass(ctx)
+	if err := store.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	w.Reset()
+	w.Pass(ctx)
+	if store.Held("other.localhost", []string{cdn.url("/lib/a.js")}) != 1 {
+		t.Fatal("the cleared copy was not warmed again after Reset")
+	}
+}
+
+// Image CDNs put commas inside srcset URLs. Splitting on every comma fetched truncated
+// addresses, so those images were missing offline.
+func TestStaticReferencesKeepsCommasInsideSrcsetURLs(t *testing.T) {
+	got := mirror.StaticReferences([]byte(`<img srcset="https://res.cdn.example/w_400,c_scale/p.jpg 1x, https://res.cdn.example/w_800,c_scale/p.jpg 2x">`))
+	want := []string{"https://res.cdn.example/w_400,c_scale/p.jpg", "https://res.cdn.example/w_800,c_scale/p.jpg"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("StaticReferences = %q, want %q", got, want)
+	}
+}
+
+// HTML Clay often starts at login before the network is up. A file whose references
+// could not be fetched then must be tried again on a later pass.
+func TestAFileWarmedWhileOfflineIsTriedAgain(t *testing.T) {
+	cdn := newStandInCDN(t, map[string]struct{ kind, body string }{
+		"/lib/a.js": {"text/javascript", "window.a=1"},
+	})
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "page.html"), `<html><head><script src="`+cdn.url("/lib/a.js")+`"></script></head></html>`)
+	store := openStore(t, mirror.DefaultLimits)
+	online := false
+	dial := allowOnly(cdn.addr())
+	f := mirror.NewFetcher(store, func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if !online {
+			return nil, errors.New("network is unreachable")
+		}
+		return dial(ctx, network, addr)
+	})
+	w := &mirror.Warmer{Fetch: f, Folders: func() []string { return []string{dir} }}
+	w.Pass(context.Background())
+	online = true
+	w.Pass(context.Background())
+	if store.Held("other.localhost", []string{cdn.url("/lib/a.js")}) != 1 {
+		t.Fatal("the file warmed while offline was never tried again once online")
 	}
 }

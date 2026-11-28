@@ -245,6 +245,7 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		srv.SetRecalcRunner(a.rt.recalc)
 	}
 	srv.SetInternalDir(a.rt.configDir)
+	srv.AddPrivateDir(a.rt.mirrorDir)
 	srv.SetSiteLabel(filepath.Base(anchor))
 	srv.SetHooks(server.Hooks{
 		Confirm:          a.readConfirmer().Ask,

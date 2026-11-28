@@ -36,6 +36,15 @@ type Fetcher struct {
 
 var errOff = errors.New("mirror: offline copies are off")
 
+// StatusError is a server's answer other than 200 or a usable 304: the network worked,
+// so trying again soon would get the same answer.
+type StatusError struct {
+	URL  string
+	Code int
+}
+
+func (e *StatusError) Error() string { return fmt.Sprintf("mirror: %s answered %d", e.URL, e.Code) }
+
 // NewFetcher returns a fetcher that stores into store. A nil dial is
 // egress.DialPublic; tests pass one that also reaches their stand-in server.
 func NewFetcher(store *Store, dial func(ctx context.Context, network, addr string) (net.Conn, error)) *Fetcher {
@@ -60,6 +69,9 @@ func NewFetcher(store *Store, dial func(ctx context.Context, network, addr strin
 				}
 				if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 					return errors.New("a redirect to an address that is not http or https")
+				}
+				if req.URL.User != nil || req.URL.Hostname() == "" {
+					return errors.New("a redirect to an address with a login in it")
 				}
 				return nil
 			},
@@ -103,8 +115,12 @@ func (f *Fetcher) fetch(ctx context.Context, origin, rawURL string, h Hints, via
 		f.Store.Touch(origin, key)
 	}
 	if isCSS(meta.Type) && depth < maxCrawlDepth {
-		if _, css, ok := f.Store.Get(origin, key); ok && int64(len(css)) <= maxCrawlCSS {
-			f.crawl(ctx, origin, key, css, h, via, depth+1, seen, true)
+		base := key
+		if meta.Base != "" {
+			base = meta.Base
+		}
+		if css, ok := f.Store.small(origin, key, maxCrawlCSS); ok {
+			f.crawl(ctx, origin, base, css, h, via, depth+1, seen, true)
 		}
 	}
 	return nil
@@ -148,7 +164,7 @@ func (f *Fetcher) getAndStore(ctx context.Context, origin, key string, h Hints, 
 		return old, true, nil
 	}
 	if res.StatusCode != http.StatusOK {
-		return Entry{}, false, fmt.Errorf("mirror: %s answered %d", key, res.StatusCode)
+		return Entry{}, false, &StatusError{URL: key, Code: res.StatusCode}
 	}
 	if limit := f.Store.Limits().PerFile; limit > 0 && res.ContentLength > limit {
 		return Entry{}, false, ErrTooBig
@@ -158,6 +174,10 @@ func (f *Fetcher) getAndStore(ctx context.Context, origin, key string, h Hints, 
 		ETag:         res.Header.Get("ETag"),
 		LastModified: res.Header.Get("Last-Modified"),
 		Via:          via,
+	}
+	// A redirected stylesheet's relative references resolve against where it landed.
+	if final := res.Request.URL.String(); final != key {
+		meta.Base = final
 	}
 	if f.off() {
 		return Entry{}, false, errOff
@@ -199,8 +219,8 @@ func (f *Fetcher) crawl(ctx context.Context, origin, base string, css []byte, h 
 }
 
 var (
-	cssImport  = regexp.MustCompile(`@import\s+(?:url\(\s*)?["']?([^"')\s;]+)`)
-	cssURL     = regexp.MustCompile(`url\(\s*["']?([^"')]+?)["']?\s*\)`)
+	cssImport  = regexp.MustCompile(`(?i)@import\s*(?:url\(\s*(?:"([^"]+)"|'([^']+)'|([^"')\s]+))\s*\)|"([^"]+)"|'([^']+)')`)
+	cssURL     = regexp.MustCompile(`(?i)url\(\s*(?:"([^"]+)"|'([^']+)'|([^"')\s]+))\s*\)`)
 	cssComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
 )
 
@@ -218,11 +238,15 @@ func CSSReferences(css string) []string {
 		seen[ref] = true
 		out = append(out, ref)
 	}
-	for _, m := range cssImport.FindAllStringSubmatch(css, -1) {
-		add(m[1])
-	}
-	for _, m := range cssURL.FindAllStringSubmatch(css, -1) {
-		add(m[1])
+	for _, re := range []*regexp.Regexp{cssImport, cssURL} {
+		for _, m := range re.FindAllStringSubmatch(css, -1) {
+			for _, g := range m[1:] {
+				if g != "" {
+					add(g)
+					break
+				}
+			}
+		}
 	}
 	return out
 }

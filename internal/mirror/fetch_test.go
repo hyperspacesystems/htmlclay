@@ -243,3 +243,42 @@ func TestCopyIsStoredWithoutSetCookieWhateverItsCachingHeaders(t *testing.T) {
 		t.Fatalf("the copy route replayed a cookie: %v", got)
 	}
 }
+
+// Minified stylesheets drop the space after @import, and file names can hold
+// parentheses inside quotes. Both must still be followed, or fonts and images are
+// missing offline.
+func TestCSSReferencesReadsMinifiedImportsAndQuotedParentheses(t *testing.T) {
+	got := mirror.CSSReferences(`@import"theme.css";@import url('a b.css');.h{background:url("img/hero_(1).png")}`)
+	want := []string{"theme.css", "a b.css", "img/hero_(1).png"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("CSSReferences = %q, want %q", got, want)
+	}
+}
+
+// A versionless CDN address redirects to the real stylesheet. Its relative font
+// references resolve against where it landed, not the address the page named.
+func TestARedirectedStylesheetsReferencesResolveFromWhereItLanded(t *testing.T) {
+	cdn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/pkg":
+			http.Redirect(w, r, "/pkg@1/dist/style.css", http.StatusFound)
+		case "/pkg@1/dist/style.css":
+			w.Header().Set("Content-Type", "text/css")
+			io.WriteString(w, `@font-face{src:url(../fonts/f.woff2)}`)
+		case "/pkg@1/fonts/f.woff2":
+			w.Header().Set("Content-Type", "font/woff2")
+			io.WriteString(w, "font")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer cdn.Close()
+	store := openStore(t, mirror.DefaultLimits)
+	f := mirror.NewFetcher(store, allowOnly(cdn.Listener.Addr().String()))
+	if err := f.Fetch(context.Background(), "a.localhost", cdn.URL+"/pkg", mirror.Hints{}, "host"); err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	if store.Held("a.localhost", []string{cdn.URL + "/pkg@1/fonts/f.woff2"}) != 1 {
+		t.Fatal("the font next to the redirected stylesheet was not copied")
+	}
+}

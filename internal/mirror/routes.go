@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -58,27 +59,37 @@ type Handler struct {
 
 	jobsOnce sync.Once
 	jobs     chan struct{}
+	pending  atomic.Int64
 	running  sync.WaitGroup
 }
 
-const maxJobs = 8
+const (
+	maxJobs    = 8
+	maxPending = 256
+)
 
 // background runs network work a request asked for after the request has been
 // answered, so a page's hand-over never waits on the internet. At most maxJobs run at
-// once; more are dropped, because the next open hands the same files over again.
+// once and the rest wait their turn; past maxPending waiting jobs new ones are dropped,
+// because the next open hands the same files over again.
 func (h *Handler) background(r *http.Request, job func(ctx context.Context)) {
 	h.jobsOnce.Do(func() { h.jobs = make(chan struct{}, maxJobs) })
-	select {
-	case h.jobs <- struct{}{}:
-	default:
+	if h.pending.Add(1) > maxPending {
+		h.pending.Add(-1)
 		return
 	}
 	ctx, cancel := hostWork(r)
 	h.running.Add(1)
 	go func() {
 		defer h.running.Done()
-		defer func() { <-h.jobs }()
+		defer h.pending.Add(-1)
 		defer cancel()
+		select {
+		case h.jobs <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
+		defer func() { <-h.jobs }()
 		job(ctx)
 	}()
 }
@@ -233,7 +244,7 @@ func (h *Handler) serveStore(w http.ResponseWriter, r *http.Request, origin stri
 	}
 	if isCSS(contentType) && h.Fetch != nil {
 		h.background(r, func(ctx context.Context) {
-			if _, css, ok := h.Store.Get(origin, target); ok && int64(len(css)) <= maxCrawlCSS {
+			if css, ok := h.Store.small(origin, target, maxCrawlCSS); ok {
 				h.Fetch.Crawl(ctx, origin, target, css, hints, "host", true)
 			}
 		})
@@ -270,7 +281,9 @@ func (h *Handler) serveNominate(w http.ResponseWriter, r *http.Request, origin s
 			if ctx.Err() != nil || h.off() {
 				return
 			}
-			if h.Store.Held(origin, []string{n.URL}) > 0 {
+			// Own copies only: a warmed shared copy was fetched without this browser's
+			// User-Agent, and some servers (web fonts) answer browsers differently.
+			if _, ok := h.Store.Lookup(origin, n.URL); ok {
 				continue
 			}
 			h.Fetch.Fetch(ctx, origin, n.URL, Hints{UserAgent: ua, Accept: acceptFor(kindDest(n.Kind))}, "host")
@@ -297,6 +310,12 @@ func (h *Handler) serveCopy(w http.ResponseWriter, r *http.Request, origin strin
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Only the worker's fetch() reads copies. Opened directly or framed, a stored SVG
+	// or HTML file would run its scripts on the folder's own origin.
+	if d := r.Header.Get("Sec-Fetch-Dest"); d != "" && d != "empty" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	if h.off() {
 		http.NotFound(w, r)
 		return
@@ -309,6 +328,7 @@ func (h *Handler) serveCopy(w http.ResponseWriter, r *http.Request, origin strin
 	defer f.Close()
 	w.Header().Set("Content-Type", entry.Type)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	w.Header().Set("Content-Length", strconv.FormatInt(entry.Size, 10))
 	w.WriteHeader(http.StatusOK)
 	if r.Method == http.MethodGet {

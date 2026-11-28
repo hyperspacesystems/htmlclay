@@ -7,6 +7,17 @@ struct AdvancedPane: View {
     @State private var confirmingClear = false
     @State private var confirmingOff = false
 
+    // What the person just chose, until the host's next snapshot confirms it.
+    private var offlineOn: Bool {
+        if case let .setOfflineCopies(on)? = model.pending("prefs.offlineCopies") { return on }
+        return model.snapshot.preferences.offlineCopies
+    }
+
+    private var offlineSpace: OfflineSpace {
+        if case let .setOfflineSpace(space)? = model.pending("prefs.offlineSpace") { return space }
+        return model.snapshot.preferences.offlineSpace
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(Strings.Settings.title(.advanced))
@@ -47,7 +58,7 @@ struct AdvancedPane: View {
             KilnCard {
                 KilnRow(title: Strings.Offline.switchTitle, subtitle: Strings.Offline.help) {
                     Toggle(isOn: Binding(
-                        get: { model.snapshot.preferences.offlineCopies },
+                        get: { offlineOn },
                         set: { on in
                             if on { model.send(.setOfflineCopies(true)) } else { confirmingOff = true }
                         }
@@ -55,13 +66,13 @@ struct AdvancedPane: View {
                         Text(Strings.Offline.switchTitle)
                     }
                     .toggleStyle(KilnSwitchStyle())
-                    .disabled(!model.isSample && !model.can(HostActionType.prefsSet))
+                    .disabled(!model.isSample && (!model.can(HostActionType.prefsSet) || !model.snapshot.offline.available))
                 }
-                if model.snapshot.preferences.offlineCopies {
+                if offlineOn && (model.isSample || model.snapshot.offline.available) {
                     KilnRowDivider()
                     KilnRow(title: Strings.Offline.space, subtitle: Strings.Offline.spaceHelp) {
                         KilnSegmented(selection: Binding(
-                            get: { model.snapshot.preferences.offlineSpace },
+                            get: { offlineSpace },
                             set: { model.send(.setOfflineSpace($0)) }
                         ), options: [
                             (value: OfflineSpace.mb500, label: Strings.Offline.space500),

@@ -81,6 +81,7 @@ type appRuntime struct {
 	// mirror answers the offline copy routes on every document origin; nil when its
 	// store could not be opened, which leaves documents exactly as they were.
 	mirror    *mirror.Handler
+	mirrorDir string
 	home      string
 	configDir string
 	// agentToken is what a local program sends to the agent lane, read or made at
@@ -380,6 +381,8 @@ type app struct {
 	stopFileTypes chan struct{}
 	// stopWarming ends the offline copies folder warmer (startWarming).
 	stopWarming context.CancelFunc
+	// warmer is the running folder warmer, nil until startWarming.
+	warmer *mirror.Warmer
 }
 
 func migrateConfigDir() {
@@ -805,7 +808,12 @@ func (a *app) startRuntime() {
 	if lErr != nil {
 		library, _ = server.UploadsLibraryDir()
 	}
-	a.rt.guard = func(dir string) bool { return grantForbidden(dir, forbidden, library) }
+	// The offline copies folder is refused as itself and inside it, like the uploads
+	// library: its index lists what every folder's pages load.
+	mirrorDir := a.rt.mirrorDir
+	a.rt.guard = func(dir string) bool {
+		return grantForbidden(dir, forbidden, library) || (mirrorDir != "" && session.EqualOrUnder(dir, mirrorDir))
+	}
 	a.rt.policy = trust.Policy{Home: a.rt.home, Guard: a.rt.guard}
 
 	a.rt.portCandidates = defaultPorts
@@ -817,20 +825,40 @@ func (a *app) startRuntime() {
 	a.rt.logger.Printf("Runtime ready (home=%s)", a.rt.home)
 }
 
+// offlineCopiesDir is the folder offline copies live in: the OS cache folder, or
+// under HTMLCLAY_CONFIG_BASE when a test or seeded profile set it, so those never
+// share or evict the person's real copies.
+func offlineCopiesDir() (string, error) {
+	if base := os.Getenv("HTMLCLAY_CONFIG_BASE"); base != "" {
+		return filepath.Join(base, "htmlclay-cache", "offline-copies"), nil
+	}
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(cache, "htmlclay", "offline-copies"), nil
+}
+
 // openMirror opens the offline copy store in the user's cache folder: copies the next
 // online open can make again, so they never go in the config folder, a document or a
 // synced folder.
 func (a *app) openMirror() *mirror.Handler {
-	cache, err := os.UserCacheDir()
+	dir, err := offlineCopiesDir()
 	if err != nil {
 		a.rt.logger.Printf("Offline copies are unavailable: %v", err)
 		return nil
 	}
-	store, err := mirror.Open(filepath.Join(cache, "htmlclay", "offline-copies"), mirror.LimitsFor(a.rt.cfg.OfflineSpace()))
+	store, err := mirror.Open(dir, mirror.LimitsFor(a.rt.cfg.OfflineSpace()))
 	if err != nil {
 		a.rt.logger.Printf("Offline copies are unavailable: %v", err)
 		return nil
 	}
+	// Resolved, so the grant guard and the serve path compare against the spelling
+	// trust resolution lands on.
+	if real, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = real
+	}
+	a.rt.mirrorDir = dir
 	off := func() bool { return a.rt.cfg != nil && !a.rt.cfg.OfflineCopies() }
 	fetch := mirror.NewFetcher(store, testUpstreamDial(os.Getenv("HTMLCLAY_OFFLINE_TEST_UPSTREAM")))
 	fetch.Off = off
@@ -870,6 +898,9 @@ func (a *app) clearOfflineCopies() *appcore.Refusal {
 	if a.rt.mirror == nil {
 		return nil
 	}
+	if a.warmer != nil {
+		a.warmer.Reset()
+	}
 	if err := a.rt.mirror.Store.Clear(); err != nil {
 		a.rt.logger.Printf("Could not clear offline copies: %v", err)
 		return &appcore.Refusal{Code: appcore.RefuseFailed}
@@ -886,19 +917,33 @@ func (a *app) startWarming() {
 	ctx, cancel := context.WithCancel(context.Background())
 	a.stopWarming = cancel
 	w := &mirror.Warmer{Fetch: a.rt.mirror.Fetch, Folders: a.warmFolders, Off: a.rt.mirror.Off}
+	a.warmer = w
 	go w.Run(ctx)
 }
 
-// warmFolders lists the trusted folders and the folders being served.
+// warmFolders lists the folders being served, then the trusted folders, each once.
 func (a *app) warmFolders() []string {
 	var out []string
-	for _, tf := range a.rt.cfg.TrustedFolderList() {
-		out = append(out, tf.Path)
+	seen := map[string]bool{}
+	// The same checks the sites and served folders pass before serving: a folder that
+	// went missing, or was replaced by another at the same path, is never walked.
+	add := func(path, identity string) {
+		if seen[path] {
+			return
+		}
+		if info, err := os.Stat(path); err != nil || !info.IsDir() || !trust.IdentityOK(path, identity, a.rt.home) {
+			return
+		}
+		seen[path] = true
+		out = append(out, path)
 	}
 	for _, sf := range a.rt.cfg.ServedFolderList() {
 		if sf.Serving {
-			out = append(out, sf.Path)
+			add(sf.Path, sf.Identity)
 		}
+	}
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		add(tf.Path, tf.Identity)
 	}
 	return out
 }

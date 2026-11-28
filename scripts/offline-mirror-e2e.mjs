@@ -171,7 +171,7 @@ const OWN_SW_PAGE = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <title>own worker</title>
-<script>navigator.serviceWorker.register('/own-sw.js', { scope: '/' }).catch(function () {});</script>
+<script>addEventListener('load', function () { navigator.serviceWorker.register('/own-sw.js', { scope: '/' }).catch(function () {}); });</script>
 </head>
 <body><p>own worker</p>
 <script>window.__finished = true;</script>
@@ -317,7 +317,7 @@ async function startProduct({ bin, root, name, port, extraEnv = {}, offlineCopie
     const finish = (error) => {
       clearTimeout(timer);
       if (error) reject(error);
-      else resolve({ url, port: chosen, folder, logPath, stop });
+      else resolve({ url, port: chosen, folder, logPath, stop, configBase });
     };
     child.on('error', (error) => finish(new Error(`the app could not start: ${error.message}`)));
     exitPromise.then(({ code, signal }) => finish(new Error(`the app exited before serving ${folder} (${signal ?? `exit ${code}`}); last log lines:\n${tail()}`)));
@@ -534,11 +534,11 @@ async function run() {
   record(CHECKS[1], changed.length === 0, changed.join('; '));
 
   // 3: a POST is never replayed, and never stored.
-  const stored = originIndexes(path.join(storeCache, 'htmlclay', 'offline-copies'));
+  const stored = originIndexes(path.join(host.configBase, 'htmlclay-cache', 'offline-copies'));
   const echoing = stored.filter((file) => fs.readFileSync(file, 'utf8').includes('/echo'));
   const postFailures = [];
   if (offline.values.post !== 'ERR') postFailures.push(`the offline POST answered ${offline.values.post}`);
-  if (!stored.length) postFailures.push(`the copy store holds no origin index under ${storeCache}`);
+  if (!stored.length) postFailures.push(`the copy store holds no origin index under ${host.configBase}`);
   if (echoing.length) postFailures.push(`the store holds /echo in ${echoing.map((f) => path.basename(f)).join(', ')}`);
   record(CHECKS[2], postFailures.length === 0, postFailures.join('; '));
 
@@ -651,6 +651,13 @@ async function run() {
     if (ownScript.endsWith('/own-sw.js')) break;
     await pageOwn.waitForTimeout(500);
   }
+  // Look again a moment later: a worker registered after the page's own would replace it.
+  await pageOwn.waitForTimeout(2000);
+  ownScript = await pageOwn.evaluate(async () => {
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    const w = registration && (registration.installing || registration.waiting || registration.active);
+    return w ? w.scriptURL : '';
+  });
   remember('own-sw', await readPage(pageOwn));
   record(CHECKS[7], ownScript.endsWith('/own-sw.js'), `the page's own worker is not the active one: ${ownScript || 'none'}`);
 

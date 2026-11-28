@@ -3,6 +3,8 @@ package mirror
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"io/fs"
 	"net/url"
 	"os"
@@ -15,12 +17,13 @@ import (
 )
 
 const (
-	warmEvery     = 5 * time.Minute
-	warmFresh     = 24 * time.Hour
-	maxWarmFiles  = 50000
-	maxWarmWalk   = 200000
-	maxWarmParse  = 10 << 20
-	warmFetchWait = 2 * time.Minute
+	maxWarmRetries = 3
+	warmEvery      = 5 * time.Minute
+	warmFresh      = 24 * time.Hour
+	maxWarmFiles   = 50000
+	maxWarmWalk    = 200000
+	maxWarmParse   = 10 << 20
+	warmFetchWait  = 2 * time.Minute
 )
 
 // Warmer copies the static files that HTML files in the person's folders load, before
@@ -36,6 +39,9 @@ type Warmer struct {
 
 	mu   sync.Mutex
 	seen map[string]fileStamp
+	// retries counts passes in a row a file failed; it stops being retried after
+	// maxWarmRetries until it changes.
+	retries map[string]int
 }
 
 type fileStamp struct {
@@ -58,6 +64,15 @@ func (w *Warmer) Run(ctx context.Context) {
 	}
 }
 
+// Reset forgets which files were warmed, so the next pass copies every file's references
+// again. Clear and switching back on call it: the copies those files had are gone.
+func (w *Warmer) Reset() {
+	w.mu.Lock()
+	w.seen = nil
+	w.retries = nil
+	w.mu.Unlock()
+}
+
 // Pass scans every folder once and warms the HTML files that are new or changed.
 func (w *Warmer) Pass(ctx context.Context) {
 	if w.Off != nil && w.Off() {
@@ -70,8 +85,10 @@ func (w *Warmer) Pass(ctx context.Context) {
 	w.mu.Unlock()
 	now := map[string]fileStamp{}
 	var changed []string
-	count, walked := 0, 0
 	for _, root := range w.Folders() {
+		// Each folder gets its own budget, so one huge trusted folder cannot keep the
+		// folders after it from being warmed.
+		count, walked := 0, 0
 		filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil || ctx.Err() != nil {
 				if d != nil && d.IsDir() && path != root {
@@ -117,11 +134,38 @@ func (w *Warmer) Pass(ctx context.Context) {
 	first := len(w.seen) == 0
 	w.seen = now
 	w.mu.Unlock()
-	for _, path := range changed {
+	// A file whose references could not all be fetched (no network yet at login, a
+	// server error), or that this pass never reached, is forgotten so the next pass
+	// tries it again.
+	for i, path := range changed {
 		if ctx.Err() != nil || (w.Off != nil && w.Off()) {
+			w.forget(changed[i:])
 			return
 		}
-		w.warmFile(ctx, path, !first)
+		if w.warmFile(ctx, path, !first) {
+			w.mu.Lock()
+			delete(w.retries, path)
+			w.mu.Unlock()
+			continue
+		}
+		w.mu.Lock()
+		if w.retries == nil {
+			w.retries = map[string]int{}
+		}
+		w.retries[path]++
+		again := w.retries[path] <= maxWarmRetries
+		w.mu.Unlock()
+		if again {
+			w.forget([]string{path})
+		}
+	}
+}
+
+func (w *Warmer) forget(paths []string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, p := range paths {
+		delete(w.seen, p)
 	}
 }
 
@@ -151,15 +195,23 @@ func warmable(name string) bool {
 // since the last pass revalidates every reference; a file seen for the first time this
 // run fetches only references the shared index lacks or got more than a day ago, so a
 // restart does not refetch everything.
-func (w *Warmer) warmFile(ctx context.Context, path string, changed bool) {
+func (w *Warmer) warmFile(ctx context.Context, path string, changed bool) bool {
+	// Only regular files: a FIFO or a link to a device named .html would block or never
+	// end.
 	info, err := os.Stat(path)
-	if err != nil || info.Size() > maxWarmParse {
-		return
+	if err != nil || !info.Mode().IsRegular() || info.Size() > maxWarmParse {
+		return true
 	}
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
-		return
+		return true
 	}
+	data, err := io.ReadAll(io.LimitReader(f, maxWarmParse+1))
+	f.Close()
+	if err != nil || int64(len(data)) > maxWarmParse {
+		return true
+	}
+	ok := true
 	for _, ref := range StaticReferences(data) {
 		if !changed {
 			if e, ok := w.Fetch.Store.Lookup(Shared, ref); ok && time.Since(e.StoredAt) < warmFresh {
@@ -167,9 +219,13 @@ func (w *Warmer) warmFile(ctx context.Context, path string, changed bool) {
 			}
 		}
 		fctx, cancel := context.WithTimeout(ctx, warmFetchWait)
-		w.Fetch.Fetch(fctx, Shared, ref, w.Hints, "warm")
+		var status *StatusError
+		if err := w.Fetch.Fetch(fctx, Shared, ref, w.Hints, "warm"); err != nil && !errors.As(err, &status) && !errors.Is(err, ErrTooBig) && !errors.Is(err, errOff) {
+			ok = false
+		}
 		cancel()
 	}
+	return ok
 }
 
 // StaticReferences lists the absolute http and https addresses an HTML document loads
@@ -202,10 +258,8 @@ func StaticReferences(doc []byte) []string {
 		out = append(out, key)
 	}
 	addSrcset := func(v string) {
-		for _, part := range strings.Split(v, ",") {
-			if f := strings.Fields(part); len(f) > 0 {
-				add(f[0])
-			}
+		for _, u := range srcsetURLs(v) {
+			add(u)
 		}
 	}
 	inPicture := 0
@@ -270,4 +324,45 @@ func linkWarmed(rel string) bool {
 		}
 	}
 	return false
+}
+
+// srcsetURLs lists a srcset's candidate URLs as the HTML standard reads them: a URL runs
+// to the next whitespace, so commas inside it (image CDNs put them in paths) stay part of
+// it, and a trailing comma ends a candidate with no descriptor.
+func srcsetURLs(v string) []string {
+	var out []string
+	isSpace := func(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' }
+	i := 0
+	for i < len(v) {
+		for i < len(v) && (isSpace(v[i]) || v[i] == ',') {
+			i++
+		}
+		start := i
+		for i < len(v) && !isSpace(v[i]) {
+			i++
+		}
+		u := v[start:i]
+		trailing := strings.HasSuffix(u, ",")
+		u = strings.TrimRight(u, ",")
+		if u != "" {
+			out = append(out, u)
+		}
+		if trailing {
+			continue
+		}
+		depth := 0
+		for i < len(v) {
+			c := v[i]
+			if c == '(' {
+				depth++
+			} else if c == ')' && depth > 0 {
+				depth--
+			} else if c == ',' && depth == 0 {
+				i++
+				break
+			}
+			i++
+		}
+	}
+	return out
 }

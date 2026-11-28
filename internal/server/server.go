@@ -40,6 +40,7 @@ type Server struct {
 	newDocumentMu sync.Mutex
 	newDocumentAt time.Time
 	internalDir   string
+	privateDirs   []string
 	// uploadsDir is the per-computer uploads library, ~/htmlclay/uploads. Empty
 	// when the home directory could not be resolved, which refuses uploads and
 	// 404s the library route rather than writing anywhere else.
@@ -369,6 +370,14 @@ func (s *Server) SetRecalcRunner(r RecalcRunner) {
 // cover the grants it happens to see.
 func (s *Server) SetInternalDir(dir string) { s.internalDir = dir }
 
+// AddPrivateDir marks one more directory the server must never serve, such as the
+// offline copies folder, whose index lists the addresses every folder's pages load.
+func (s *Server) AddPrivateDir(dir string) {
+	if dir != "" {
+		s.privateDirs = append(s.privateDirs, dir)
+	}
+}
+
 // SetSiteLabel names this site in the permission dialog so the user knows which
 // page is asking. Optional; the broker falls back to a generic label.
 func (s *Server) SetSiteLabel(label string) { s.broker.label = label }
@@ -388,6 +397,11 @@ func (s *Server) isInternal(absPath string) bool {
 	}
 	if s.internalDir != "" && session.EqualOrUnder(absPath, s.internalDir) {
 		return true
+	}
+	for _, dir := range s.privateDirs {
+		if session.EqualOrUnder(absPath, dir) {
+			return true
+		}
 	}
 	return s.uploadsDir != "" && session.EqualOrUnder(absPath, s.uploadsDir)
 }

@@ -27,6 +27,7 @@ function mirrored(req) {
   try { url = new URL(req.url); } catch { return false; }
   if (url.origin === self.location.origin) return false;
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+  if (url.username || url.password) return false;
   if (req.headers.has('range') || req.headers.has('authorization')) return false;
   if (req.mode === 'cors' && req.credentials === 'include') return false;
   if ((req.headers.get('accept') || '').includes('text/event-stream')) return false;
@@ -49,7 +50,8 @@ async function networkFirst(event, req) {
   downUntil.set(host, Date.now() + DOWN_MS);
   const copy = await fromCopy(req.url);
   if (first.slow) {
-    event.waitUntil(live.then((res) => { downUntil.delete(host); return handOver(req, res); }, () => {}));
+    // The page may still get this same response (no copy yet), so hand over a clone.
+    event.waitUntil(live.then((res) => { downUntil.delete(host); return handOver(req, res.clone()); }, () => {}));
     return copy || live;
   }
   return copy || Response.error();
@@ -62,6 +64,24 @@ async function fromCopy(url) {
 }
 
 const tooBig = (res) => Number(res.headers.get('content-length') || 0) > MAX_BYTES;
+const READ_CAP = Math.min(MAX_BYTES, 1 << 30);
+
+// Reads a body in chunks and gives up past the cap, so a response with no length (a
+// live feed, a large stream) never sits whole in the worker's memory.
+async function capped(res) {
+  if (!res.body) return null;
+  const reader = res.body.getReader();
+  const parts = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > READ_CAP) { reader.cancel().catch(() => {}); return null; }
+    parts.push(value);
+  }
+  return new Blob(parts);
+}
 const validator = (res) => res.headers.get('etag') || res.headers.get('last-modified') || '';
 
 // Hands the host a copy when the file changed (a new ETag or Last-Modified), and for a
@@ -81,10 +101,13 @@ async function handOver(req, res) {
     const src = await fetch(req.url, { mode: 'cors', credentials: 'omit' }).catch(() => null);
     if (!src) return send(req, null, '');
     if (src.status !== 200 || tooBig(src)) return;
-    return send(req, await src.arrayBuffer(), src.headers.get('content-type') || '');
+    const body = await capped(src);
+    if (body) return send(req, body, src.headers.get('content-type') || '');
+    return;
   }
   if (res.status !== 200 || tooBig(res) || !due(req.url, validator(res))) return;
-  return send(req, await res.arrayBuffer(), res.headers.get('content-type') || '');
+  const body = await capped(res);
+  if (body) return send(req, body, res.headers.get('content-type') || '');
 }
 
 function send(req, body, type) {

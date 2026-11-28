@@ -52,6 +52,8 @@ function stripNames(html, names) {
   return html.slice(0, root.start + 5) + stripped + html.slice(root.end);
 }
 
+const OFFLINE_BOOT_TAG = '<script src="/_/offline/boot.js"></script>';
+
 /**
  * Remove the ephemeral root metadata — save tokens, and this host's own response stamp —
  * from a document a client sent back.
@@ -66,6 +68,9 @@ function stripNames(html, names) {
  */
 function stripSaveToken(html) {
   if (typeof html !== 'string') return html;
+  // A page whose own Content Security Policy blocks the host's offline boot script keeps
+  // its tag in the DOM; it must never reach a saved or relayed file.
+  if (html.includes(OFFLINE_BOOT_TAG)) html = html.split(OFFLINE_BOOT_TAG).join('');
   const withoutBridge = html.includes('data-hyperclay-bridge') || html.includes('data-hyperclay-comments')
     ? require('@panphora/hyperclay-workspace/server').stripWorkspaceBridge(html)
     : html;

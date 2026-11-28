@@ -3,7 +3,7 @@
   "protocol": 1,
   "package": "0.15.0",
   "entry": {
-    "javascript": "main-TNRGJTVR.js",
+    "javascript": "main-I7QMLPHV.js",
     "css": [
       "main-336AGSKW.css"
     ]
@@ -60,9 +60,9 @@
       "sha256": "c6e8e78444712330424ac3feb920e8aea25e7f39940b5f753a49187fd4b9fa6b"
     },
     {
-      "path": "main-TNRGJTVR.js",
-      "bytes": 1861175,
-      "sha256": "86d1695f1a41fba70d1affb0cf2d8eaa056c711f5544501540079629dc8f51ab"
+      "path": "main-I7QMLPHV.js",
+      "bytes": 1864240,
+      "sha256": "425a50dccc105a571e4b85ca0b46380b76fcdd49d3b90a47821e990d946de14e"
     }
   ]
 }

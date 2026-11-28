@@ -536,10 +536,18 @@ var OfflineBootTag = []byte(`<script src="/_/offline/boot.js"></script>`)
 // (for instance pushed through live-sync into an edit-mode page) must never autosave
 // itself into the file on disk. An unterminated start marker strips nothing rather
 // than guessing at an end.
-func StripBanner(data []byte) []byte {
+// StripOfflineBoot removes every exact offline boot tag. A page whose own Content
+// Security Policy blocks boot.js keeps the tag in its DOM, so every path that writes or
+// relays page bytes removes it.
+func StripOfflineBoot(data []byte) []byte {
 	if bytes.Contains(data, OfflineBootTag) {
 		data = bytes.ReplaceAll(data, OfflineBootTag, nil)
 	}
+	return data
+}
+
+func StripBanner(data []byte) []byte {
+	data = StripOfflineBoot(data)
 	for {
 		i := bytes.Index(data, bannerStart)
 		if i < 0 {

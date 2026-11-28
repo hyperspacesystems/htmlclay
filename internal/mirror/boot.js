@@ -24,13 +24,23 @@
   // cross-origin GETs the page makes with fetch() and XHR (Resource Timing cannot tell
   // their method), then put the originals back if nobody replaced them.
   var gets = [];
-  var wrapped, wrappedOpen, origOpen = XMLHttpRequest.prototype.open;
+  var recording = !controlled;
+  var XP = XMLHttpRequest.prototype;
+  var wrapped, wrappedOpen, wrappedHeader, wrappedSend;
+  var origOpen = XP.open, origHeader = XP.setRequestHeader, origSend = XP.send;
   function unwrap() {
+    recording = false;
     if (wrapped && window.fetch === wrapped) window.fetch = origFetch;
-    if (wrappedOpen && XMLHttpRequest.prototype.open === wrappedOpen) XMLHttpRequest.prototype.open = origOpen;
+    if (wrappedOpen && XP.open === wrappedOpen) XP.open = origOpen;
+    if (wrappedHeader && XP.setRequestHeader === wrappedHeader) XP.setRequestHeader = origHeader;
+    if (wrappedSend && XP.send === wrappedSend) XP.send = origSend;
   }
   if (!controlled && origFetch) {
+    // Browsers keep 250 Resource Timing entries by default; a page with more files
+    // would leave the rest out of the first open's list.
+    try { if (performance.setResourceTimingBufferSize) performance.setResourceTimingBufferSize(2000); } catch (e) {}
     var note = function (method, raw) {
+      if (!recording) return;
       var u = crossOrigin(raw);
       if (u && String(method || 'GET').toUpperCase() === 'GET') gets.push({ url: u, kind: 'fetch' });
     };
@@ -39,17 +49,31 @@
         var isReq = input && typeof input === 'object' && 'url' in input;
         var method = (init && init.method) || (isReq && input.method) || 'GET';
         var credentials = (init && init.credentials) || (isReq && input.credentials);
-        var auth = init && init.headers && new Headers(init.headers).has('authorization');
+        var auth = (init && init.headers && new Headers(init.headers).has('authorization')) ||
+          (isReq && input.headers && typeof input.headers.has === 'function' && input.headers.has('authorization'));
         if (credentials !== 'include' && !auth) note(method, isReq ? input.url : String(input));
       } catch (e) {}
       return origFetch.apply(this, arguments);
     };
     window.fetch = wrapped;
+    // XHR: credentials and an Authorization header are set after open(), so the
+    // request is judged at send().
     wrappedOpen = function (method, raw) {
-      if (!this.withCredentials) note(method, raw);
+      this.__clayOffline = { method: method, url: raw, auth: false };
       return origOpen.apply(this, arguments);
     };
-    XMLHttpRequest.prototype.open = wrappedOpen;
+    wrappedHeader = function (name) {
+      if (this.__clayOffline && String(name).toLowerCase() === 'authorization') this.__clayOffline.auth = true;
+      return origHeader.apply(this, arguments);
+    };
+    wrappedSend = function () {
+      var r = this.__clayOffline;
+      if (r && !r.auth && !this.withCredentials) note(r.method, r.url);
+      return origSend.apply(this, arguments);
+    };
+    XP.open = wrappedOpen;
+    XP.setRequestHeader = wrappedHeader;
+    XP.send = wrappedSend;
     sw.addEventListener('controllerchange', unwrap);
     setTimeout(unwrap, 10000);
   }
@@ -64,20 +88,28 @@
     return origRegister.apply(sw, arguments);
   };
   try { sw.register = watchRegister; } catch (e) {}
+  // Runs one task after load, so a page that registers its worker in its own load
+  // listener has done so first, and keeps watching until the origin's registration is
+  // known.
   function register() {
-    try { if (sw.register === watchRegister) delete sw.register; } catch (e) {}
-    if (pageRegistered) { stopped = true; unwrap(); return; }
+    var stop = function () {
+      try { if (sw.register === watchRegister) delete sw.register; } catch (e) {}
+    };
+    if (pageRegistered) { stop(); stopped = true; unwrap(); return; }
     sw.getRegistration('/').then(function (reg) {
       var w = reg && (reg.installing || reg.waiting || reg.active);
-      if (w && w.scriptURL !== WORKER) { stopped = true; unwrap(); return; }
+      stop();
+      if (pageRegistered || (w && w.scriptURL !== WORKER)) { stopped = true; unwrap(); return; }
       return origRegister.call(sw, WORKER, { scope: '/' });
-    }).catch(function () {});
+    }).catch(stop);
   }
-  if (document.readyState === 'complete') register(); else addEventListener('load', register);
+  var later = function () { setTimeout(register, 0); };
+  if (document.readyState === 'complete') later(); else addEventListener('load', later);
 
   if (controlled) return;
 
   function nominate() {
+    recording = false;
     if (stopped) return;
     var seen = {};
     var list = [];

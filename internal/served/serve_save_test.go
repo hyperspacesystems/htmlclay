@@ -155,3 +155,14 @@ func serveTestServer(t *testing.T, handler http.Handler) (string, int) {
 	port := listener.Addr().(*net.TCPAddr).Port
 	return fmt.Sprintf("127.0.0.1:%d", port), port
 }
+
+// A page whose own Content Security Policy blocks the offline boot script keeps its tag
+// in the DOM. The save and relay paths share stripSaveToken, so it must remove the tag
+// or a synced tab writes it into the saved file.
+func TestStripSaveTokenRemovesTheOfflineBootTag(t *testing.T) {
+	in := `<html><head><script src="/_/offline/boot.js"></script><meta http-equiv="Content-Security-Policy" content="script-src 'none'"></head><body>x</body></html>`
+	want := `<html><head><meta http-equiv="Content-Security-Policy" content="script-src 'none'"></head><body>x</body></html>`
+	if got := stripSaveToken(in); got != want {
+		t.Fatalf("stripSaveToken kept the boot tag:\n got %s\nwant %s", got, want)
+	}
+}

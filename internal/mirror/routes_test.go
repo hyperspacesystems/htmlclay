@@ -168,3 +168,28 @@ func TestBootScriptIsServedAndStillRemovesItselfWhenOff(t *testing.T) {
 		t.Fatalf("the boot script served while offline copies are off still registers: %q", body)
 	}
 }
+
+// Opened directly or framed on the folder's origin, a stored third-party SVG would run
+// its scripts there. Only the worker's fetch() may read a copy.
+func TestCopiesAreOnlyReadByTheWorkersFetch(t *testing.T) {
+	store, err := mirror.Open(t.TempDir(), mirror.DefaultLimits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const u = "https://cdn.example/badge.svg"
+	if err := store.Put("a.localhost", u, "image/svg+xml", []byte(`<svg><script>alert(1)</script></svg>`), "page"); err != nil {
+		t.Fatal(err)
+	}
+	h := &mirror.Handler{Store: store}
+	target := "/_/offline/copy?url=" + url.QueryEscape(u)
+	for _, dest := range []string{"document", "iframe"} {
+		rec := serveRoute(h, "GET", target, "", map[string]string{"Sec-Fetch-Site": "same-origin", "Sec-Fetch-Dest": dest})
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("Sec-Fetch-Dest %s = %d, want 403", dest, rec.Code)
+		}
+	}
+	rec := serveRoute(h, "GET", target, "", map[string]string{"Sec-Fetch-Site": "same-origin", "Sec-Fetch-Dest": "empty"})
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Header().Get("Content-Security-Policy"), "sandbox") {
+		t.Fatalf("the worker's read = %d with CSP %q, want 200 with a sandbox policy", rec.Code, rec.Header().Get("Content-Security-Policy"))
+	}
+}

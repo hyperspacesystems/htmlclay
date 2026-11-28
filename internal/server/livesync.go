@@ -1734,7 +1734,7 @@ func (s *Server) handleLiveSyncSave(w http.ResponseWriter, r *http.Request) {
 	// The relay is a write path a hostile or out-of-date client reaches, so the
 	// bytes it hands on are canonicalized before anything else sees them: what the
 	// relay holds, and what a receiving tab saves, must not name this host.
-	relayHTML = string(canonicalForWrite(r.Host, []byte(relayHTML)))
+	relayHTML = string(canonicalForWrite(r.Host, htmlutil.StripOfflineBoot([]byte(relayHTML))))
 	relayHTML = forBrowser([]byte(relayHTML), key, s.documentURLFor(f))
 
 	identityMap := payload.IdentityMap

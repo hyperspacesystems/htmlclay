@@ -48,6 +48,7 @@ func hasHTMLRoot(content string) bool {
 // stripWorkspaceBridge. The trial serves no workspace bridge, so nothing can
 // reach it carrying one.
 func stripSaveToken(html string) string {
+	html = string(htmlutil.StripOfflineBoot([]byte(html)))
 	start, end, ok := scanRootHtmlTag(html)
 	if !ok {
 		return html

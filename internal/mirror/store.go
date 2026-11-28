@@ -75,6 +75,8 @@ type Entry struct {
 	Via          string    `json:"via"`
 	ETag         string    `json:"etag,omitempty"`
 	LastModified string    `json:"lastModified,omitempty"`
+	// Base is where a redirected fetch landed, for resolving a stylesheet's references.
+	Base string `json:"base,omitempty"`
 }
 
 type index struct {
@@ -87,14 +89,19 @@ type index struct {
 type Store struct {
 	dir string
 
-	mu        sync.Mutex
-	limits    Limits
-	indexes   map[string]*index
-	refs      map[string]int
-	total     int64
-	entries   int
-	dirty     map[string]bool
-	flushing  *time.Timer
+	// diskMu orders whole index writes against Clear, so a flush that read an index
+	// before Clear cannot write it back after.
+	diskMu   sync.Mutex
+	mu       sync.Mutex
+	limits   Limits
+	indexes  map[string]*index
+	refs     map[string]int
+	total    int64
+	entries  int
+	dirty    map[string]bool
+	flushing *time.Timer
+	// gen counts Clears, so a store that started before one never lands after it.
+	gen       uint64
 	lastSweep time.Time
 	now       func() time.Time
 }
@@ -155,7 +162,7 @@ func NormalizeURL(raw string) (string, error) {
 		return "", ErrBadURL
 	}
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
 		return "", ErrBadURL
 	}
 	u.Fragment = ""
@@ -179,16 +186,18 @@ func (s *Store) addLocked(origin, key string, e *Entry) {
 		ix = &index{Version: indexVersion, Origin: origin, Entries: map[string]*Entry{}}
 		s.indexes[origin] = ix
 	}
+	// Count the new reference before dropping the old entry: the same bytes stored
+	// again share one blob, and dropping first would delete the file both name.
+	s.refs[e.Blob]++
+	if s.refs[e.Blob] == 1 {
+		s.total += charge(e.Size)
+	}
 	if _, ok := ix.Entries[key]; ok {
 		s.removeLocked(origin, key)
 	}
 	ix.Entries[key] = e
 	s.entries++
 	s.total += entryCost + int64(len(key))
-	s.refs[e.Blob]++
-	if s.refs[e.Blob] == 1 {
-		s.total += charge(e.Size)
-	}
 }
 
 // removeLocked drops key from origin's index and deletes its blob once no index names
@@ -260,7 +269,9 @@ func (s *Store) PutStream(origin, rawURL string, meta Entry, r io.Reader) error 
 	if err != nil {
 		return err
 	}
-	perFile := s.Limits().PerFile
+	s.mu.Lock()
+	perFile, gen := s.limits.PerFile, s.gen
+	s.mu.Unlock()
 	blobs := filepath.Join(s.dir, "blobs")
 	if err := os.MkdirAll(blobs, 0o700); err != nil {
 		return err
@@ -292,6 +303,9 @@ func (s *Store) PutStream(origin, rawURL string, meta Entry, r io.Reader) error 
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.gen != gen {
+		return nil
+	}
 	path := s.blobPath(blob)
 	if _, err := os.Stat(path); err != nil {
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
@@ -388,6 +402,21 @@ func (s *Store) Get(origin, rawURL string) (Entry, []byte, bool) {
 	return e, body, true
 }
 
+// small reads the copy of rawURL origin may read when it is at most limit bytes, without
+// reading a larger one into memory.
+func (s *Store) small(origin, rawURL string, limit int64) ([]byte, bool) {
+	e, f, ok := s.Reader(origin, rawURL)
+	if !ok {
+		return nil, false
+	}
+	defer f.Close()
+	if e.Size > limit {
+		return nil, false
+	}
+	body, err := io.ReadAll(io.LimitReader(f, limit))
+	return body, err == nil
+}
+
 // Lookup returns origin's own entry for rawURL without reading its bytes or marking it
 // used. The shared index is not consulted.
 func (s *Store) Lookup(origin, rawURL string) (Entry, bool) {
@@ -450,28 +479,30 @@ func (s *Store) Usage() (int64, int) {
 
 // Clear deletes every copy and index.
 func (s *Store) Clear() error {
+	s.diskMu.Lock()
+	defer s.diskMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.flushing != nil {
 		s.flushing.Stop()
 		s.flushing = nil
 	}
+	s.gen++
 	s.indexes = map[string]*index{}
 	s.refs = map[string]int{}
 	s.total, s.entries = 0, 0
 	s.dirty = map[string]bool{}
+	// A file another program or a running hand-over holds open can refuse removal on
+	// Windows. Nothing names it any more, and the next start deletes leftovers, so only
+	// failing to recreate the folders counts as failing to clear.
 	var first error
 	for _, sub := range []string{"blobs", "origins"} {
-		if err := os.RemoveAll(filepath.Join(s.dir, sub)); err != nil && first == nil {
-			first = err
-		}
+		os.RemoveAll(filepath.Join(s.dir, sub))
 		if err := os.MkdirAll(filepath.Join(s.dir, sub), 0o700); err != nil && first == nil {
 			first = err
 		}
 	}
-	if err := os.Remove(filepath.Join(s.dir, "shared.json")); err != nil && !os.IsNotExist(err) && first == nil {
-		first = err
-	}
+	os.Remove(filepath.Join(s.dir, "shared.json"))
 	return first
 }
 
@@ -484,6 +515,8 @@ func (s *Store) markLocked(origin string) {
 
 // Flush writes every changed index now.
 func (s *Store) Flush() error {
+	s.diskMu.Lock()
+	defer s.diskMu.Unlock()
 	s.mu.Lock()
 	if s.flushing != nil {
 		s.flushing.Stop()

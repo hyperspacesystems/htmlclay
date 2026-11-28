@@ -221,6 +221,7 @@ func TestPutRefusesBadOriginsAndURLs(t *testing.T) {
 		{"A.LOCALHOST", "https://cdn.example/a.js"},
 		{"a.localhost", "file:///etc/hosts"},
 		{"a.localhost", "/relative.js"},
+		{"a.localhost", "https://alice:hunter2@cdn.example/a.js"},
 	} {
 		if err := store.Put(c.origin, c.rawURL, "text/javascript", []byte("x"), "page"); err == nil {
 			t.Errorf("Put(%q, %q) was accepted", c.origin, c.rawURL)
@@ -297,5 +298,24 @@ func TestACopyWhoseFileVanishedIsNoLongerHeld(t *testing.T) {
 	}
 	if err := store.Flush(); err != nil {
 		t.Fatalf("Flush after the folder was emptied: %v", err)
+	}
+}
+
+// The worker hands over unchanged bytes on every later open, and a CDN without an
+// ETag answers 200 with the same bytes. Storing them again must keep the copy, or
+// every unchanged file is missing offline after a second online open.
+func TestStoringTheSameBytesAgainKeepsTheCopy(t *testing.T) {
+	store, err := mirror.Open(t.TempDir(), mirror.DefaultLimits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const u = "https://cdn.example/lib.js"
+	for i := 0; i < 2; i++ {
+		if err := store.Put("a.localhost", u, "text/javascript", []byte("window.lib=1"), "page"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, body, ok := store.Get("a.localhost", u); !ok || string(body) != "window.lib=1" {
+		t.Fatalf("after storing the same bytes twice the copy is %q (held %v), want the bytes", body, ok)
 	}
 }
