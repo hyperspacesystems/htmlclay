@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/mirror"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/shellapi"
@@ -495,6 +497,90 @@ func TestCorePreferences(t *testing.T) {
 	_, refusal = a.do(context.Background(), coreAction(t, "pref-3", "prefs.set", map[string]any{"key": "appearance", "value": "purple"}), ChannelTray)
 	if refusal == nil || refusal.Code != appcore.RefuseBadArguments {
 		t.Fatalf("prefs.set appearance purple = %+v, want %q", refusal, appcore.RefuseBadArguments)
+	}
+}
+
+func TestCoreOfflineCopiesSettings(t *testing.T) {
+	home := evalTempHome(t)
+	cfgBase := t.TempDir()
+	a := buildTestApp(t, home, cfgBase)
+	store, err := mirror.Open(t.TempDir(), mirror.DefaultLimits)
+	if err != nil {
+		t.Fatalf("open the mirror: %v", err)
+	}
+	a.rt.mirror = &mirror.Handler{Store: store, Off: func() bool { return !a.rt.cfg.OfflineCopies() }}
+	if err := store.Put("a.localhost", "https://cdn.example/a.js", "text/javascript", []byte("x=1"), "page"); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+
+	snapshot := a.snapshot()
+	if !snapshot.Offline.Available {
+		t.Error("offline copies are unavailable with a mirror open")
+	}
+	if snapshot.Offline.Files != 1 {
+		t.Errorf("offline files = %d, want 1", snapshot.Offline.Files)
+	}
+	if snapshot.Offline.Bytes <= 0 {
+		t.Errorf("offline bytes = %d, want more than 0", snapshot.Offline.Bytes)
+	}
+	if !snapshot.Preferences.OfflineCopies {
+		t.Error("offline copies read as off in the snapshot, want on")
+	}
+	if snapshot.Preferences.OfflineSpace != "500mb" {
+		t.Errorf("offline space = %q in the snapshot, want 500mb", snapshot.Preferences.OfflineSpace)
+	}
+
+	snapshot, refusal := a.do(context.Background(), coreAction(t, "off-1", "prefs.set", map[string]any{"key": "offlineSpace", "value": "unlimited"}), ChannelTray)
+	if refusal != nil {
+		t.Fatalf("prefs.set offlineSpace unlimited refused: %+v", refusal)
+	}
+	if got := a.rt.cfg.OfflineSpace(); got != "unlimited" {
+		t.Errorf("OfflineSpace() = %q, want unlimited", got)
+	}
+	if got := store.Limits(); got != (mirror.Limits{}) {
+		t.Errorf("store limits = %+v, want no limits", got)
+	}
+	if snapshot.Preferences.OfflineSpace != "unlimited" {
+		t.Errorf("offline space = %q in the snapshot, want unlimited", snapshot.Preferences.OfflineSpace)
+	}
+
+	_, refusal = a.do(context.Background(), coreAction(t, "off-2", "prefs.set", map[string]any{"key": "offlineSpace", "value": "5gb"}), ChannelTray)
+	if refusal == nil || refusal.Code != appcore.RefuseBadArguments {
+		t.Fatalf("prefs.set offlineSpace 5gb = %+v, want %q", refusal, appcore.RefuseBadArguments)
+	}
+	if got := a.rt.cfg.OfflineSpace(); got != "unlimited" {
+		t.Errorf("OfflineSpace() = %q after a bad value, want unlimited", got)
+	}
+
+	if _, refusal = a.do(context.Background(), coreAction(t, "off-3", "offline.clear", nil), ChannelTray); refusal != nil {
+		t.Fatalf("offline.clear refused: %+v", refusal)
+	}
+	if bytes, files := store.Usage(); bytes != 0 || files != 0 {
+		t.Errorf("usage after offline.clear = %d bytes, %d files, want 0 and 0", bytes, files)
+	}
+	if !a.rt.cfg.OfflineCopies() {
+		t.Error("offline.clear switched offline copies off, want them still on")
+	}
+
+	if err := store.Put("a.localhost", "https://cdn.example/a.js", "text/javascript", []byte("x=1"), "page"); err != nil {
+		t.Fatalf("Put again: %v", err)
+	}
+	if _, refusal = a.do(context.Background(), coreAction(t, "off-4", "prefs.set", map[string]any{"key": "offlineCopies", "value": false}), ChannelTray); refusal != nil {
+		t.Fatalf("prefs.set offlineCopies false refused: %+v", refusal)
+	}
+	if a.rt.cfg.OfflineCopies() {
+		t.Error("offline copies are still on in config")
+	}
+	if bytes, files := store.Usage(); bytes != 0 || files != 0 {
+		t.Errorf("usage after switching off = %d bytes, %d files, want 0 and 0", bytes, files)
+	}
+	if got := string(a.offlineBoot([]byte("<html><head>"))); strings.Contains(got, "/_/offline/boot.js") {
+		t.Errorf("a document still loads the boot script with offline copies off: %q", got)
+	}
+	rec := httptest.NewRecorder()
+	a.rt.mirror.Serve(rec, httptest.NewRequest("GET", "http://a.localhost/_/offline/sw.js", nil), "a.localhost")
+	if body := rec.Body.String(); !strings.Contains(body, "unregister()") {
+		t.Errorf("the worker served with offline copies off does not unregister: %q", body)
 	}
 }
 

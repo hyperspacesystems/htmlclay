@@ -140,7 +140,8 @@ public enum SampleData {
                 ),
                 AIEditTool(id: "custom", custom: true, found: false, command: ""),
             ]
-        ))
+        ),
+        offline: OfflineState(available: true, bytes: 48_234_496, files: 213))
 
     static let localUser = HostSnapshot(localMoveOffer: true, moveFolders: localMoveFolders, moveBlockers: MoveBlockers(localRunning: true))
 

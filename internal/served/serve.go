@@ -35,7 +35,10 @@ type rootServer struct {
 	// stranger reports a document this root must serve with its scripts off
 	// (Options.Stranger). Nil serves every page as itself.
 	stranger func(absPath string) bool
-	baseDir  string
+	// offlineBoot adds the offline copies boot script to a document load
+	// (Options.OfflineBoot). Nil adds nothing.
+	offlineBoot func(html []byte) []byte
+	baseDir     string
 	// publicHost is the served folder's address; empty in the trial binary.
 	publicHost string
 	registry   *consentRegistry
@@ -134,6 +137,7 @@ func newRootServer(root rootSpec, cfg config) (*rootServer, error) {
 	server := &rootServer{
 		id:              root.id,
 		stranger:        cfg.stranger,
+		offlineBoot:     cfg.offlineBoot,
 		workspaceEntry:  cfg.workspaceEntry,
 		onPageLoad:      cfg.onPageLoad,
 		onUnsavedReport: cfg.onUnsavedReport,

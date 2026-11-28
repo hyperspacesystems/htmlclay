@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,9 +19,11 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/aitools"
+	"github.com/panphora/htmlclay/internal/appcore"
 	"github.com/panphora/htmlclay/internal/carried"
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/dashboard"
+	"github.com/panphora/htmlclay/internal/egress"
 	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/logging"
 	"github.com/panphora/htmlclay/internal/mirror"
@@ -374,6 +378,8 @@ type app struct {
 	// stopFileTypes ends the loop that asks the system again every minute, a
 	// person having changed the default in the system's own settings.
 	stopFileTypes chan struct{}
+	// stopWarming ends the offline copies folder warmer (startWarming).
+	stopWarming context.CancelFunc
 }
 
 func migrateConfigDir() {
@@ -567,6 +573,7 @@ func main() {
 
 	a.startRuntime()
 	a.finishUpgrade()
+	a.startWarming()
 
 	// The Mac app owns the login item and file types; a host it started, or any
 	// host inside its bundle, changes neither.
@@ -819,16 +826,90 @@ func (a *app) openMirror() *mirror.Handler {
 		a.rt.logger.Printf("Offline copies are unavailable: %v", err)
 		return nil
 	}
-	store, err := mirror.Open(filepath.Join(cache, "htmlclay", "offline-copies"), mirror.DefaultLimits)
+	store, err := mirror.Open(filepath.Join(cache, "htmlclay", "offline-copies"), mirror.LimitsFor(a.rt.cfg.OfflineSpace()))
 	if err != nil {
 		a.rt.logger.Printf("Offline copies are unavailable: %v", err)
 		return nil
 	}
-	return &mirror.Handler{
-		Store: store,
-		Fetch: mirror.NewFetcher(store, nil),
-		Off:   func() bool { return a.rt.cfg != nil && !a.rt.cfg.OfflineCopies() },
+	off := func() bool { return a.rt.cfg != nil && !a.rt.cfg.OfflineCopies() }
+	fetch := mirror.NewFetcher(store, testUpstreamDial(os.Getenv("HTMLCLAY_OFFLINE_TEST_UPSTREAM")))
+	fetch.Off = off
+	return &mirror.Handler{Store: store, Fetch: fetch, Off: off}
+}
+
+// testUpstreamDial lets the offline copies end-to-end test reach its stand-in CDN on this
+// computer: list is comma-separated host:port addresses that skip the public internet
+// check. Empty, as in every real launch, is egress.DialPublic alone.
+func testUpstreamDial(list string) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	if list == "" {
+		return nil
 	}
+	allowed := map[string]bool{}
+	for _, addr := range strings.Split(list, ",") {
+		allowed[strings.TrimSpace(addr)] = true
+	}
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if allowed[addr] {
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
+		}
+		return egress.DialPublic(ctx, network, addr)
+	}
+}
+
+// offlineFacts is what the offline copies take now, for Settings.
+func (a *app) offlineFacts() appcore.OfflineState {
+	if a.rt.mirror == nil {
+		return appcore.OfflineState{}
+	}
+	bytes, files := a.rt.mirror.Store.Usage()
+	return appcore.OfflineState{Available: true, Bytes: bytes, Files: files}
+}
+
+// clearOfflineCopies deletes every offline copy.
+func (a *app) clearOfflineCopies() *appcore.Refusal {
+	if a.rt.mirror == nil {
+		return nil
+	}
+	if err := a.rt.mirror.Store.Clear(); err != nil {
+		a.rt.logger.Printf("Could not clear offline copies: %v", err)
+		return &appcore.Refusal{Code: appcore.RefuseFailed}
+	}
+	return nil
+}
+
+// startWarming copies the static files that HTML files in trusted and served folders
+// load, before they are opened, while offline copies are on.
+func (a *app) startWarming() {
+	if a.rt.mirror == nil || a.rt.mirror.Fetch == nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	a.stopWarming = cancel
+	w := &mirror.Warmer{Fetch: a.rt.mirror.Fetch, Folders: a.warmFolders, Off: a.rt.mirror.Off}
+	go w.Run(ctx)
+}
+
+// warmFolders lists the trusted folders and the folders being served.
+func (a *app) warmFolders() []string {
+	var out []string
+	for _, tf := range a.rt.cfg.TrustedFolderList() {
+		out = append(out, tf.Path)
+	}
+	for _, sf := range a.rt.cfg.ServedFolderList() {
+		if sf.Serving {
+			out = append(out, sf.Path)
+		}
+	}
+	return out
+}
+
+// offlineBoot adds the offline copies boot script to a document load, unless offline
+// copies are switched off or unavailable. The switch is read on every load.
+func (a *app) offlineBoot(html []byte) []byte {
+	if a.rt.mirror == nil || (a.rt.mirror.Off != nil && a.rt.mirror.Off()) {
+		return html
+	}
+	return mirror.Inject(html)
 }
 
 // grantForbidden reports whether a read grant on dir must be refused. The config

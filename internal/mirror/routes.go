@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -35,6 +36,11 @@ self.addEventListener('activate', (event) => event.waitUntil(self.registration.u
 
 var workerBody = versioned(workerSource)
 
+// offBoot is boot.js with offline copies switched off: it still removes its own tag, so
+// a page served just before the switch never saves it.
+const offBoot = `(function () { var s = document.currentScript; if (s && s.parentNode) s.parentNode.removeChild(s); })();
+`
+
 func versioned(src []byte) []byte {
 	sum := sha256.Sum256(src)
 	return bytes.Replace(src, []byte("{{VERSION}}"), []byte(hex.EncodeToString(sum[:6])), 1)
@@ -49,16 +55,53 @@ type Handler struct {
 	Fetch *Fetcher
 	// Off reports whether the person switched offline copies off. Nil reads as on.
 	Off func() bool
+
+	jobsOnce sync.Once
+	jobs     chan struct{}
+	running  sync.WaitGroup
 }
+
+const maxJobs = 8
+
+// background runs network work a request asked for after the request has been
+// answered, so a page's hand-over never waits on the internet. At most maxJobs run at
+// once; more are dropped, because the next open hands the same files over again.
+func (h *Handler) background(r *http.Request, job func(ctx context.Context)) {
+	h.jobsOnce.Do(func() { h.jobs = make(chan struct{}, maxJobs) })
+	select {
+	case h.jobs <- struct{}{}:
+	default:
+		return
+	}
+	ctx, cancel := hostWork(r)
+	h.running.Add(1)
+	go func() {
+		defer h.running.Done()
+		defer func() { <-h.jobs }()
+		defer cancel()
+		job(ctx)
+	}()
+}
+
+// Wait blocks until every background job has finished. Tests use it.
+func (h *Handler) Wait() { h.running.Wait() }
 
 func (h *Handler) off() bool { return h.Off != nil && h.Off() }
 
 // Serve answers r for origin, the hostname the document is served at.
 func (h *Handler) Serve(w http.ResponseWriter, r *http.Request, origin string) {
 	origin = strings.ToLower(origin)
+	if !originPattern.MatchString(origin) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	path := strings.TrimPrefix(r.URL.Path, Prefix)
 	if path == "sw.js" {
 		h.serveWorker(w, r)
+		return
+	}
+	if path == "boot.js" {
+		h.serveBoot(w, r)
 		return
 	}
 	if r.Header.Get("Sec-Fetch-Site") != "same-origin" {
@@ -101,6 +144,22 @@ func (h *Handler) serveWorker(w http.ResponseWriter, r *http.Request) {
 	w.Write(bytes.Replace(workerBody, []byte("{{MAX_BYTES}}"), []byte(maxBytes), 1))
 }
 
+func (h *Handler) serveBoot(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if h.off() {
+		io.WriteString(w, offBoot)
+		return
+	}
+	w.Write(bootSource)
+}
+
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 	if r.Method == method {
 		return true
@@ -134,7 +193,7 @@ func hostWork(r *http.Request) (context.Context, context.CancelFunc) {
 }
 
 // serveStore takes a copy from the worker. A body with a Clay-Content-Type header is
-// stored as given; an empty body asks the host to fetch the URL itself, for an opaque
+// stored as given; without that header the host fetches the URL itself, for an opaque
 // response the worker could not read.
 func (h *Handler) serveStore(w http.ResponseWriter, r *http.Request, origin string) {
 	if !requireMethod(w, r, http.MethodPost) {
@@ -145,38 +204,27 @@ func (h *Handler) serveStore(w http.ResponseWriter, r *http.Request, origin stri
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
-	dest := r.URL.Query().Get("dest")
-	limit := h.Store.Limits().PerFile
-	if limit <= 0 {
-		limit = hardBodyCap
-	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
-	}
-	if int64(len(body)) > limit {
-		http.Error(w, "Request Entity Too Large", http.StatusRequestEntityTooLarge)
-		return
-	}
 	if h.off() {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	ctx, cancel := hostWork(r)
-	defer cancel()
-	hints := hintsFor(r, dest)
+	hints := hintsFor(r, r.URL.Query().Get("dest"))
 	_, given := r.Header[http.CanonicalHeaderKey("Clay-Content-Type")]
-	if !given && len(body) == 0 {
+	if !given {
 		if h.Fetch != nil {
-			h.Fetch.Fetch(ctx, origin, target, hints, "host")
+			h.background(r, func(ctx context.Context) { h.Fetch.Fetch(ctx, origin, target, hints, "host") })
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	contentType := r.Header.Get("Clay-Content-Type")
-	if err := h.Store.Put(origin, target, contentType, body, "page"); err != nil {
-		if errors.Is(err, ErrTooBig) {
+	body := io.Reader(r.Body)
+	if h.Store.Limits().PerFile <= 0 {
+		body = http.MaxBytesReader(w, r.Body, hardBodyCap)
+	}
+	if err := h.Store.PutStream(origin, target, Entry{Type: contentType, Via: "page"}, body); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.Is(err, ErrTooBig) || errors.As(err, &tooLarge) {
 			http.Error(w, "Request Entity Too Large", http.StatusRequestEntityTooLarge)
 			return
 		}
@@ -184,7 +232,11 @@ func (h *Handler) serveStore(w http.ResponseWriter, r *http.Request, origin stri
 		return
 	}
 	if isCSS(contentType) && h.Fetch != nil {
-		h.Fetch.Crawl(ctx, origin, target, body, hints, "host", true)
+		h.background(r, func(ctx context.Context) {
+			if _, css, ok := h.Store.Get(origin, target); ok && int64(len(css)) <= maxCrawlCSS {
+				h.Fetch.Crawl(ctx, origin, target, css, hints, "host", true)
+			}
+		})
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -212,14 +264,18 @@ func (h *Handler) serveNominate(w http.ResponseWriter, r *http.Request, origin s
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	ctx, cancel := hostWork(r)
-	defer cancel()
-	for _, n := range list {
-		if h.Store.Held(origin, []string{n.URL}) > 0 {
-			continue
+	ua := r.Header.Get("User-Agent")
+	h.background(r, func(ctx context.Context) {
+		for _, n := range list {
+			if ctx.Err() != nil || h.off() {
+				return
+			}
+			if h.Store.Held(origin, []string{n.URL}) > 0 {
+				continue
+			}
+			h.Fetch.Fetch(ctx, origin, n.URL, Hints{UserAgent: ua, Accept: acceptFor(kindDest(n.Kind))}, "host")
 		}
-		h.Fetch.Fetch(ctx, origin, n.URL, hintsFor(r, kindDest(n.Kind)), "host")
-	}
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -245,16 +301,18 @@ func (h *Handler) serveCopy(w http.ResponseWriter, r *http.Request, origin strin
 		http.NotFound(w, r)
 		return
 	}
-	entry, body, ok := h.Store.Get(origin, r.URL.Query().Get("url"))
+	entry, f, ok := h.Store.Reader(origin, r.URL.Query().Get("url"))
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
+	defer f.Close()
 	w.Header().Set("Content-Type", entry.Type)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Length", strconv.FormatInt(entry.Size, 10))
 	w.WriteHeader(http.StatusOK)
 	if r.Method == http.MethodGet {
-		w.Write(body)
+		io.Copy(w, f)
 	}
 }
 

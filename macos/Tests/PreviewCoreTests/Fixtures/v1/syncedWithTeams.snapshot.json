@@ -44,6 +44,7 @@
       "host.setPort": false,
       "move.quitLocal": false,
       "move.start": false,
+      "offline.clear": false,
       "prefs.set": true,
       "program.add": true,
       "program.askAgain": true,
@@ -480,7 +481,9 @@
         "efforts": [],
         "command": "my-agent {prompt}"
       }
-    ]
+    ],
+    "offlineCopies": false,
+    "offlineSpace": ""
   },
   "move": null,
   "recoveredChanges": 0,
@@ -489,5 +492,10 @@
     "default": "",
     "htmlOpenWith": false,
     "stopped": false
+  },
+  "offline": {
+    "available": false,
+    "bytes": 0,
+    "files": 0
   }
 }

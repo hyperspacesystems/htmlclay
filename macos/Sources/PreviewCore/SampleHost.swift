@@ -51,6 +51,9 @@ public enum SampleReducer {
             next.sync.paused = paused
         case let .setOpenAtLogin(on): next.preferences.openAtLogin = on
         case let .setAIEditing(on): next.preferences.aiEditing = on
+        case let .setOfflineCopies(on): next.preferences.offlineCopies = on; if !on { next.offline = OfflineState(available: true) }
+        case let .setOfflineSpace(space): next.preferences.offlineSpace = space
+        case .clearOfflineCopies: next.offline = OfflineState(available: true)
         case let .setAppearance(appearance): next.preferences.appearance = appearance
         case let .setYourName(name): next.preferences.yourName = name
         case let .removeProgramAccess(programID, document):

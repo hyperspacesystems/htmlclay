@@ -161,6 +161,8 @@ func TestFeedbackFieldsRoundTrip(t *testing.T) {
 	if err := cfg.SetAIEditModel("claude", "claude-fable-5-2"); err != nil {
 		t.Fatalf("SetAIEditModel: %v", err)
 	}
+	cfg.SetOfflineCopies(false)
+	cfg.SetOfflineSpace("10gb")
 	if err := cfg.Save(); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -195,6 +197,23 @@ func TestFeedbackFieldsRoundTrip(t *testing.T) {
 	}
 	if got := loaded.AIEditModels()["claude"]; got != "claude-fable-5-2" {
 		t.Fatalf("AIEditModels()[claude] = %q, want claude-fable-5-2", got)
+	}
+	if loaded.OfflineCopies() {
+		t.Fatal("the offline copies switch did not survive the round trip")
+	}
+	if got := loaded.OfflineSpace(); got != "10gb" {
+		t.Fatalf("OfflineSpace() = %q, want 10gb", got)
+	}
+
+	fresh, _, err := LoadFrom(t.TempDir(), noIdentity)
+	if err != nil {
+		t.Fatalf("load a fresh config: %v", err)
+	}
+	if got := fresh.OfflineSpace(); got != "500mb" {
+		t.Fatalf("a fresh config reads OfflineSpace() = %q, want 500mb", got)
+	}
+	if !fresh.OfflineCopies() {
+		t.Fatal("a fresh config reads offline copies as off, want on")
 	}
 }
 

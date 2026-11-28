@@ -60,9 +60,11 @@ public struct WireSnapshot: Codable, Equatable, Sendable {
     public var readAccess: [WireReadAccess]?
     /// Documents with a stored Don't allow answer. Nil or omitted when empty.
     public var deniedDocuments: [String]?
+    /// What the offline copies take. Nil from a host older than this round.
+    public var offline: WireOfflineState?
 
     enum CodingKeys: String, CodingKey {
-        case v, rev, epoch, host, documents, folders, programs, requests, waiting, counts, sync, update, preferences, move, recoveredChanges, fileTypes, readAccess, deniedDocuments
+        case v, rev, epoch, host, documents, folders, programs, requests, waiting, counts, sync, update, preferences, move, recoveredChanges, fileTypes, readAccess, deniedDocuments, offline
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -85,7 +87,14 @@ public struct WireSnapshot: Codable, Equatable, Sendable {
         try container.encodeIfPresent(fileTypes, forKey: .fileTypes)
         try container.encodeIfPresent(readAccess, forKey: .readAccess)
         try container.encodeIfPresent(deniedDocuments, forKey: .deniedDocuments)
+        try container.encodeIfPresent(offline, forKey: .offline)
     }
+}
+
+public struct WireOfflineState: Codable, Equatable, Sendable {
+    public var available: Bool
+    public var bytes: Int64
+    public var files: Int
 }
 
 public struct WireReadAccess: Codable, Equatable, Sendable {
@@ -401,6 +410,11 @@ public struct WirePreferences: Codable, Equatable, Sendable {
     public var aiEditTool: String?
     /// The AI tools this Mac has. Nil from a host older than this round.
     public var aiEditTools: [WireAIEditTool]?
+    /// Whether HTML Clay keeps offline copies. Nil from a host older than this round.
+    public var offlineCopies: Bool?
+    /// The space the copies may take: "500mb", "2gb", "10gb" or "unlimited". Empty
+    /// reads as 500mb.
+    public var offlineSpace: String?
 }
 
 public struct WireAIEditTool: Codable, Equatable, Sendable {

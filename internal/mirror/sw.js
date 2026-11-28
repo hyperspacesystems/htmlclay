@@ -74,13 +74,17 @@ function due(url, tag) {
 }
 
 async function handOver(req, res) {
-  let src = res;
   if (res.type === 'opaque') {
-    src = await fetch(req.url, { mode: 'cors', credentials: 'omit' }).catch(() => null);
-    if (!src) return due(req.url, 'host') && send(req, null, '');
+    // The browser could not read this answer, so reading the bytes takes a second
+    // request. Gate it like any hand-over, so a counter or pixel is not hit twice per load.
+    if (!due(req.url, '')) return;
+    const src = await fetch(req.url, { mode: 'cors', credentials: 'omit' }).catch(() => null);
+    if (!src) return send(req, null, '');
+    if (src.status !== 200 || tooBig(src)) return;
+    return send(req, await src.arrayBuffer(), src.headers.get('content-type') || '');
   }
-  if (src.status !== 200 || tooBig(src) || !due(req.url, validator(src))) return;
-  return send(req, await src.arrayBuffer(), src.headers.get('content-type') || '');
+  if (res.status !== 200 || tooBig(res) || !due(req.url, validator(res))) return;
+  return send(req, await res.arrayBuffer(), res.headers.get('content-type') || '');
 }
 
 function send(req, body, type) {

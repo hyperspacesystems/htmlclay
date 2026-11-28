@@ -143,6 +143,7 @@ func (s *Server) serveReadOnlyWithBanner(w http.ResponseWriter, r *http.Request,
 	} else {
 		s.Logger.Printf("No open banner for %s: %v", real, err)
 	}
+	served = s.offlineBoot(r, served)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(served)

@@ -72,6 +72,7 @@ func (a *app) newServedHost() *served.Host {
 		OnCreate:        a.noteServedCreate,
 		OnCopy:          a.noteServedCopy,
 		Stranger:        a.stranger,
+		OfflineBoot:     a.offlineBoot,
 		OnRetire:        a.noteServedRetire,
 		InternalDir:     a.rt.configDir,
 		HeldCopy:        a.heldCopyFor,

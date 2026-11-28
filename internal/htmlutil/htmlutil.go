@@ -526,12 +526,20 @@ func InjectBanner(data, wrappedBanner []byte) []byte {
 	return out
 }
 
-// StripBanner removes every marker-delimited banner from data. It runs on every
-// save and restore: a banner that reached a token-holding tab (for instance
-// pushed through live-sync into an edit-mode page) must never autosave itself
-// into the file on disk. An unterminated start marker strips nothing rather
+// OfflineBootTag is the tag the host puts at the top of a served document for offline
+// copies. Its script removes the tag before any other script runs; a page whose own
+// policy blocks the script keeps it, so StripBanner removes it from every save.
+var OfflineBootTag = []byte(`<script src="/_/offline/boot.js"></script>`)
+
+// StripBanner removes every marker-delimited banner from data, and every offline copies
+// boot tag. It runs on every save and restore: a banner that reached a token-holding tab
+// (for instance pushed through live-sync into an edit-mode page) must never autosave
+// itself into the file on disk. An unterminated start marker strips nothing rather
 // than guessing at an end.
 func StripBanner(data []byte) []byte {
+	if bytes.Contains(data, OfflineBootTag) {
+		data = bytes.ReplaceAll(data, OfflineBootTag, nil)
+	}
 	for {
 		i := bytes.Index(data, bannerStart)
 		if i < 0 {
@@ -559,4 +567,85 @@ func GenerateHTMLClayID() (string, error) {
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
+}
+
+// InsertAtHeadStart returns a new slice holding data with insert placed right after the
+// document's real <head ...> start tag, or right after the <html ...> start tag when the
+// first element inside <html> is not <head> (the parser then opens the head itself).
+// Only whitespace and comments may sit between <html> and <head>, which is all the HTML
+// parser allows there, so a <head> inside a comment, a script string or the body is never
+// chosen. A document with no real <html> start tag is returned unchanged. data is never
+// written to.
+func InsertAtHeadStart(data, insert []byte) []byte {
+	_, closeAngle, ok := findHTMLTagRange(data)
+	if !ok {
+		return data
+	}
+	at := closeAngle + 1
+	i := at
+	n := len(data)
+	for i < n {
+		if isHTMLSpace(data[i]) {
+			i++
+			continue
+		}
+		if i+3 < n && data[i] == '<' && data[i+1] == '!' && data[i+2] == '-' && data[i+3] == '-' {
+			end := bytes.Index(data[i+4:], []byte("-->"))
+			if end < 0 {
+				break
+			}
+			i += 4 + end + 3
+			continue
+		}
+		if i+5 < n && data[i] == '<' && equalFoldHTML4(data[i+1:i+5], "head") && (isHTMLSpace(data[i+5]) || data[i+5] == '>' || data[i+5] == '/') {
+			if gt := tagCloseAngle(data, i+5); gt >= 0 {
+				at = gt + 1
+			}
+		}
+		break
+	}
+	out := make([]byte, 0, len(data)+len(insert))
+	out = append(out, data[:at]...)
+	out = append(out, insert...)
+	out = append(out, data[at:]...)
+	return out
+}
+
+func equalFoldHTML4(b []byte, word string) bool {
+	if len(b) != len(word) {
+		return false
+	}
+	for i := range b {
+		c := b[i]
+		if 'A' <= c && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != word[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// tagCloseAngle finds the > that ends the start tag whose attributes begin at from,
+// skipping quoted attribute values, or -1.
+func tagCloseAngle(data []byte, from int) int {
+	inDouble, inSingle := false, false
+	for i := from; i < len(data); i++ {
+		switch data[i] {
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '>':
+			if !inSingle && !inDouble {
+				return i
+			}
+		}
+	}
+	return -1
 }

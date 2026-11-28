@@ -63,6 +63,7 @@ var ActionClasses = map[string]Class{
 	"waiting.markSeen":          ClassSafe,
 	"request.show":              ClassSafe,
 	"prefs.set":                 ClassSafe,
+	"offline.clear":             ClassSafe,
 	"sync.setPaused":            ClassSafe,
 	"sync.revealLog":            ClassSafe,
 	"conflict.resolve":          ClassSafe,
@@ -146,6 +147,9 @@ var preferenceKeys = map[string]string{
 	"useName":     "bool",
 	"autoUpdate":  "bool",
 	"aiEditTool":  "string",
+	// Offline copies of the files documents load: the switch, and the space choice.
+	"offlineCopies": "bool",
+	"offlineSpace":  "offlineSpace",
 }
 
 // requestAnswers is what each request kind offers, the preview's request window
@@ -318,7 +322,7 @@ func Plan(f Facts, a Action) ([]Effect, *Refusal) {
 		return one(Effect{Type: a.Type, Pane: args.Pane})
 	case "sync.revealLog":
 		return one(Effect{Type: a.Type})
-	case "app.openRecoveredChanges", "app.revealLog", "update.check", "fileTypes.makeDefault", "fileTypes.stopOpening":
+	case "app.openRecoveredChanges", "app.revealLog", "update.check", "fileTypes.makeDefault", "fileTypes.stopOpening", "offline.clear":
 		return one(Effect{Type: a.Type})
 	case "fileTypes.setHTMLOpenWith":
 		if args.On == nil {
@@ -781,6 +785,9 @@ func valueIs(raw json.RawMessage, kind string) bool {
 	case "appearance":
 		var v string
 		return json.Unmarshal(raw, &v) == nil && (v == AppearanceSystem || v == AppearanceLight || v == AppearanceDark)
+	case "offlineSpace":
+		var v string
+		return json.Unmarshal(raw, &v) == nil && (v == OfflineSpace500 || v == OfflineSpace2 || v == OfflineSpace10 || v == OfflineSpaceUnlimited)
 	}
 	return false
 }

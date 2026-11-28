@@ -6,7 +6,8 @@
   "scripts": {
     "test": "go test ./...",
     "dev": "wrangler dev",
-    "conformance": "node scripts/conformance.mjs"
+    "conformance": "node scripts/conformance.mjs",
+    "e2e:offline-mirror": "node scripts/offline-mirror-e2e.mjs"
   },
   "repository": {
     "type": "git",

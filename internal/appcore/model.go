@@ -29,6 +29,8 @@ type Snapshot struct {
 	// not save normally (the Recovered changes page). 0 hides every menu row for it.
 	RecoveredChanges int       `json:"recoveredChanges"`
 	FileTypes        FileTypes `json:"fileTypes"`
+	// Offline is the space offline copies take now.
+	Offline OfflineState `json:"offline"`
 	// DeniedDocuments are documents for which the person chose "Don't allow" on
 	// the unknown-document warning. Omitted when empty so existing snapshots do
 	// not change.
@@ -347,6 +349,26 @@ type Preferences struct {
 	// "codex", or a custom command's name.
 	AIEditTool  string       `json:"aiEditTool"`
 	AIEditTools []AIEditTool `json:"aiEditTools"`
+	// OfflineCopies is whether HTML Clay keeps offline copies of the files documents
+	// load; OfflineSpace is the space they may take (OfflineSpace500 and the rest).
+	OfflineCopies bool   `json:"offlineCopies"`
+	OfflineSpace  string `json:"offlineSpace"`
+}
+
+// Offline copies space choices, the values prefs.set takes for offlineSpace.
+const (
+	OfflineSpace500       = "500mb"
+	OfflineSpace2         = "2gb"
+	OfflineSpace10        = "10gb"
+	OfflineSpaceUnlimited = "unlimited"
+)
+
+// OfflineState is what the offline copies take on disk now. Available is false when
+// HTML Clay could not open its cache folder.
+type OfflineState struct {
+	Available bool  `json:"available"`
+	Bytes     int64 `json:"bytes"`
+	Files     int   `json:"files"`
 }
 
 // Move is the offer, and later the progress, of moving from Hyperclay Local.

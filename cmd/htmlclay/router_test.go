@@ -609,3 +609,35 @@ func TestOfflineRoutesReachTheMirrorOnDocumentHostsOnly(t *testing.T) {
 		}
 	}
 }
+
+// The app's own offlineBoot seam adds the boot script only while offline copies are on
+// and the mirror is there to serve its worker. The switch is read on every load.
+func TestOfflineBootFollowsTheSwitch(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := buildTestApp(t, home, t.TempDir())
+	a.rt.port = servedTestPort
+	store, err := mirror.Open(t.TempDir(), mirror.DefaultLimits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.rt.mirror = &mirror.Handler{Store: store, Off: func() bool { return !a.rt.cfg.OfflineCopies() }}
+
+	const document = "<html><head></head><body>x</body></html>"
+	if got := string(a.offlineBoot([]byte(document))); !strings.Contains(got, "/_/offline/boot.js") {
+		t.Fatalf("offline copies on: the document has no boot script: %q", got)
+	}
+
+	a.rt.cfg.SetOfflineCopies(false)
+	if got := string(a.offlineBoot([]byte(document))); strings.Contains(got, "/_/offline/boot.js") {
+		t.Fatalf("offline copies off: the document still has a boot script: %q", got)
+	}
+	a.rt.cfg.SetOfflineCopies(true)
+
+	a.rt.mirror = nil
+	if got := string(a.offlineBoot([]byte(document))); strings.Contains(got, "/_/offline/boot.js") {
+		t.Fatalf("no mirror: the document still has a boot script: %q", got)
+	}
+}

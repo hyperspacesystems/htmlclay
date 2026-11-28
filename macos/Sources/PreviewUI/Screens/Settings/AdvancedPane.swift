@@ -4,6 +4,8 @@ import PreviewCore
 struct AdvancedPane: View {
     @Environment(AppModel.self) private var model
     @Environment(\.kiln) private var kiln
+    @State private var confirmingClear = false
+    @State private var confirmingOff = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -41,6 +43,47 @@ struct AdvancedPane: View {
                     }
                 }
             }
+            KilnGroupTitle(Strings.Offline.title)
+            KilnCard {
+                KilnRow(title: Strings.Offline.switchTitle, subtitle: Strings.Offline.help) {
+                    Toggle(isOn: Binding(
+                        get: { model.snapshot.preferences.offlineCopies },
+                        set: { on in
+                            if on { model.send(.setOfflineCopies(true)) } else { confirmingOff = true }
+                        }
+                    )) {
+                        Text(Strings.Offline.switchTitle)
+                    }
+                    .toggleStyle(KilnSwitchStyle())
+                    .disabled(!model.isSample && !model.can(HostActionType.prefsSet))
+                }
+                if model.snapshot.preferences.offlineCopies {
+                    KilnRowDivider()
+                    KilnRow(title: Strings.Offline.space, subtitle: Strings.Offline.spaceHelp) {
+                        KilnSegmented(selection: Binding(
+                            get: { model.snapshot.preferences.offlineSpace },
+                            set: { model.send(.setOfflineSpace($0)) }
+                        ), options: [
+                            (value: OfflineSpace.mb500, label: Strings.Offline.space500),
+                            (value: OfflineSpace.gb2, label: Strings.Offline.space2),
+                            (value: OfflineSpace.gb10, label: Strings.Offline.space10),
+                            (value: OfflineSpace.unlimited, label: Strings.Offline.spaceUnlimited),
+                        ])
+                    }
+                    KilnRowDivider()
+                    KilnRow(title: Strings.Offline.usage(bytes: model.snapshot.offline.bytes, files: model.snapshot.offline.files)) {
+                        Button(Strings.Offline.clear) { confirmingClear = true }
+                            .buttonStyle(KilnButtonStyle(.plain))
+                            .disabled(model.snapshot.offline.files == 0 || (!model.isSample && !model.can(HostActionType.offlineClear)))
+                    }
+                }
+            }
+            if !model.isSample && !model.snapshot.offline.available {
+                Text(Strings.Offline.unavailable)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(kiln.muted)
+                    .padding(.top, 8)
+            }
             if SettingsControls.showsStorageTotals(isSample: model.isSample) {
                 KilnGroupTitle(Strings.Advanced.storage)
                 KilnCard {
@@ -74,6 +117,18 @@ struct AdvancedPane: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .alert(Strings.Offline.clearConfirmTitle, isPresented: $confirmingClear) {
+            Button(Strings.Offline.cancel, role: .cancel) {}
+            Button(Strings.Offline.clearConfirmButton, role: .destructive) { model.send(.clearOfflineCopies) }
+        } message: {
+            Text(Strings.Offline.clearConfirmBody)
+        }
+        .alert(Strings.Offline.offConfirmTitle, isPresented: $confirmingOff) {
+            Button(Strings.Offline.cancel, role: .cancel) {}
+            Button(Strings.Offline.offConfirmButton, role: .destructive) { model.send(.setOfflineCopies(false)) }
+        } message: {
+            Text(Strings.Offline.offConfirmBody)
+        }
     }
 
     private func folderTrailing(_ size: String, note: String) -> some View {

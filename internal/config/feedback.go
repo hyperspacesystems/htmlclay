@@ -380,6 +380,44 @@ func (c *Config) SetOfflineCopies(on bool) {
 	c.OfflineCopiesOff = !on
 }
 
+// Offline copies space choices.
+const (
+	OfflineSpace500       = "500mb"
+	OfflineSpace2         = "2gb"
+	OfflineSpace10        = "10gb"
+	OfflineSpaceUnlimited = "unlimited"
+)
+
+// ValidOfflineSpace reports whether v is one of the space choices.
+func ValidOfflineSpace(v string) bool {
+	switch v {
+	case OfflineSpace500, OfflineSpace2, OfflineSpace10, OfflineSpaceUnlimited:
+		return true
+	}
+	return false
+}
+
+// OfflineSpace reports the space offline copies may take; anything unknown reads as
+// the default.
+func (c *Config) OfflineSpace() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if ValidOfflineSpace(c.OfflineSpaceSetting) {
+		return c.OfflineSpaceSetting
+	}
+	return OfflineSpace500
+}
+
+// SetOfflineSpace records the space offline copies may take.
+func (c *Config) SetOfflineSpace(v string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if v == OfflineSpace500 {
+		v = ""
+	}
+	c.OfflineSpaceSetting = v
+}
+
 // OfflineCopies reports whether HTML Clay keeps offline copies.
 func (c *Config) OfflineCopies() bool {
 	c.mu.Lock()

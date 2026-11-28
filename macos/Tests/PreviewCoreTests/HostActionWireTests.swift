@@ -24,6 +24,9 @@ final class HostActionWireTests: XCTestCase {
         .setSyncPaused(true),
         .setOpenAtLogin(true),
         .setAIEditing(false),
+        .setOfflineCopies(false),
+        .setOfflineSpace(.unlimited),
+        .clearOfflineCopies,
         .setAppearance(.dark),
         .setYourName("Sam"),
         .removeProgramAccess(programID: "p1", document: "d1"),
@@ -118,6 +121,15 @@ final class HostActionWireTests: XCTestCase {
         let appearance = try XCTUnwrap(HostActionWire.wire(.setAppearance(.dark)))
         XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", appearance), as: UTF8.self),
                        #"{"args":{"key":"appearance","value":"dark"},"id":"a1","type":"prefs.set"}"#)
+        let offlineCopies = try XCTUnwrap(HostActionWire.wire(.setOfflineCopies(false)))
+        XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", offlineCopies), as: UTF8.self),
+                       #"{"args":{"key":"offlineCopies","value":false},"id":"a1","type":"prefs.set"}"#)
+        let offlineSpace = try XCTUnwrap(HostActionWire.wire(.setOfflineSpace(.unlimited)))
+        XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", offlineSpace), as: UTF8.self),
+                       #"{"args":{"key":"offlineSpace","value":"unlimited"},"id":"a1","type":"prefs.set"}"#)
+        let clearOffline = try XCTUnwrap(HostActionWire.wire(.clearOfflineCopies))
+        XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", clearOffline), as: UTF8.self),
+                       #"{"id":"a1","type":"offline.clear"}"#)
         let update = try XCTUnwrap(HostActionWire.wire(.startUpdate))
         XCTAssertEqual(String(decoding: try HostActionWire.body(id: "a1", update), as: UTF8.self),
                        #"{"id":"a1","type":"update.start"}"#)

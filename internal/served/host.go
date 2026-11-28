@@ -63,6 +63,9 @@ type Options struct {
 	// its scripts off, because this origin can read the whole folder. Nil
 	// counts no document as one.
 	Stranger func(absPath string) bool
+	// OfflineBoot adds the offline copies boot script to a document load and returns
+	// a new slice, never writing into its input. Nil adds nothing.
+	OfflineBoot func(html []byte) []byte
 	// OnRetire hears about each structure step that retired a name, a trash
 	// move, so a record that follows a document by its path can forget what it
 	// held there. Nil hears nothing.
@@ -119,6 +122,7 @@ func NewHost(o Options) *Host {
 		onStructure:     o.OnStructure,
 		onCreate:        o.OnCreate,
 		stranger:        o.Stranger,
+		offlineBoot:     o.OfflineBoot,
 		onCopy:          o.OnCopy,
 		onRetire:        o.OnRetire,
 		internalDir:     o.InternalDir,

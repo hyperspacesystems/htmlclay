@@ -540,6 +540,33 @@ public enum Strings {
         public static let wouldShowSyncLog = "Build 1: this would open the sync log."
         public static let wouldRemoveFileType = "Build 1: this would ask before HTML Clay stops opening .htmlclay files."
     }
+    public enum Offline {
+        public static let title = "Offline copies"
+        public static let switchTitle = "Keep offline copies"
+        public static let help = "Keeps local copies of scripts, stylesheets, fonts, images, and data that HTML files load online, so pages still work offline. Saved HTML files never change."
+        public static let space = "Space limit"
+        public static let spaceHelp = "When this space is full, HTML Clay removes the copies used longest ago first."
+        public static let space500 = "500 MB"
+        public static let space2 = "2 GB"
+        public static let space10 = "10 GB"
+        public static let spaceUnlimited = "Unlimited"
+        public static let usageNone = "No offline copies yet"
+        public static func usage(bytes: Int64, files: Int) -> String {
+            let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+            if files == 0 { return usageNone }
+            if files == 1 { return "\(size) in 1 file" }
+            return "\(size) in \(files) files"
+        }
+        public static let clear = "Clear offline copies"
+        public static let clearConfirmTitle = "Clear offline copies?"
+        public static let clearConfirmBody = "This deletes every offline copy on this computer, leaves your HTML files untouched, and keeps offline copies turned on."
+        public static let clearConfirmButton = "Clear copies"
+        public static let offConfirmTitle = "Turn off offline copies?"
+        public static let offConfirmBody = "Turning this off deletes every offline copy on this computer and leaves your saved HTML files untouched."
+        public static let offConfirmButton = "Turn off"
+        public static let unavailable = "HTML Clay could not open its cache folder on this computer, so offline copies are unavailable right now."
+        public static let cancel = "Cancel"
+    }
     public enum Request {
         public static func title(_ document: String) -> String { "Let \(document) run a program?" }
         public static let dontAllow = "Don't allow"

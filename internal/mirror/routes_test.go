@@ -140,3 +140,31 @@ func TestStoreRefusesNonHTTPAndOversizedBodies(t *testing.T) {
 		t.Fatalf("the store holds %d entries after both refusals, want 0", entries)
 	}
 }
+
+// The boot tag every served document carries points here. The script runs before any
+// other script on the page; with copies switched off it must still remove its own tag.
+func TestBootScriptIsServedAndStillRemovesItselfWhenOff(t *testing.T) {
+	on := mirror.Handler{Store: openStore(t, mirror.DefaultLimits)}
+	rec := serveRoute(&on, http.MethodGet, "/_/offline/boot.js", "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("the boot route = %d, want 200", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/javascript") {
+		t.Fatalf("Content-Type = %q, want text/javascript", got)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"serviceWorker", "removeChild(me)"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("the boot script does not carry %q: %q", want, body)
+		}
+	}
+
+	off := mirror.Handler{Store: openStore(t, mirror.DefaultLimits), Off: func() bool { return true }}
+	body = serveRoute(&off, http.MethodGet, "/_/offline/boot.js", "", nil).Body.String()
+	if !strings.Contains(body, "removeChild(s)") {
+		t.Fatalf("the boot script served while offline copies are off does not remove its tag: %q", body)
+	}
+	if strings.Contains(body, "serviceWorker") {
+		t.Fatalf("the boot script served while offline copies are off still registers: %q", body)
+	}
+}

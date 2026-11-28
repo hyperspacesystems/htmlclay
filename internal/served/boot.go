@@ -49,6 +49,8 @@ type config struct {
 	onCopy func(rootID, from, to string)
 	// stranger reports a document served with its scripts off here.
 	stranger func(absPath string) bool
+	// offlineBoot adds the offline copies boot script to a document load.
+	offlineBoot func(html []byte) []byte
 	// onRetire hears about a completed structure step that retired a name.
 	onRetire func(rootID, name string, isDir bool)
 	// internalDir is the app's own data folder (Options.InternalDir).

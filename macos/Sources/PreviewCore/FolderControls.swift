@@ -49,6 +49,7 @@ public enum HostActionType {
     public static let syncDisconnect = "sync.disconnect"
     public static let serviceRestart = "service.restart"
     public static let prefsSet = "prefs.set"
+    public static let offlineClear = "offline.clear"
 }
 
 /// The folder page's decisions, away from the views: what each switch shows and

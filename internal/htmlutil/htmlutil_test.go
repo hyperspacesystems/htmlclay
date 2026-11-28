@@ -701,3 +701,63 @@ func TestLegacyDocumentRoundTrip(t *testing.T) {
 		t.Errorf("round trip changed the file: got %q, want %q", saved, onDisk)
 	}
 }
+
+// The boot tag goes after the document's real head start tag, never a lookalike:
+// a commented-out head, a head spelled inside a quoted attribute, or a header
+// element. The Document apps code hashes the stored bytes after this call, so the
+// input must come back untouched.
+func TestInsertAtHeadStartPicksTheRealHead(t *testing.T) {
+	ins := []byte("<X>")
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"doctype then head", `<!DOCTYPE html><html lang="en"><head><title>t</title></head>`,
+			`<!DOCTYPE html><html lang="en"><head><X><title>t</title></head>`},
+		{"angle bracket in a quoted attribute", `<html><head data-a=">">`,
+			`<html><head data-a=">"><X>`},
+		{"head inside a comment first", `<html><!-- <head> --><head>`,
+			`<html><!-- <head> --><head><X>`},
+		{"upper case head after whitespace", "<html>\n  <HEAD>",
+			"<html>\n  <HEAD><X>"},
+		{"no head element", `<html><body><script>var s = "<head>";</script>`,
+			`<html><X><body><script>var s = "<head>";</script>`},
+		{"header is not head", `<html><header>x</header>`,
+			`<html><X><header>x</header>`},
+		{"no html tag", `<p>no html tag</p>`,
+			`<p>no html tag</p>`},
+	}
+	for _, c := range cases {
+		if got := InsertAtHeadStart([]byte(c.in), ins); string(got) != c.want {
+			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+		}
+	}
+
+	s := `<!DOCTYPE html><html lang="en"><head><title>t</title></head>`
+	buf := make([]byte, len(s), len(s)+64)
+	copy(buf, s)
+	got := InsertAtHeadStart(buf, ins)
+	if spare := string(buf[:cap(buf)][len(s) : len(s)+3]); spare != "\x00\x00\x00" {
+		t.Fatalf("the call wrote into the input's backing array: %q", spare)
+	}
+	if string(buf) != s {
+		t.Fatalf("the input slice changed: %q", buf)
+	}
+	if want := `<!DOCTYPE html><html lang="en"><head><X><title>t</title></head>`; string(got) != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// A saved file must never contain the boot tag, even when a page whose own policy
+// blocked the boot script saves itself.
+func TestStripBannerRemovesTheOfflineBootTag(t *testing.T) {
+	one := []byte("<html><head>" + string(OfflineBootTag) + "<title>t</title></head></html>")
+	if got, want := StripBanner(one), "<html><head><title>t</title></head></html>"; string(got) != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	two := []byte("<html><head>" + string(OfflineBootTag) + string(OfflineBootTag) + "<body>x</body></html>")
+	if got, want := StripBanner(two), "<html><head><body>x</body></html>"; string(got) != want {
+		t.Errorf("two copies: got %q, want %q", got, want)
+	}
+}

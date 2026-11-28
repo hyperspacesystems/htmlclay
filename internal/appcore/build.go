@@ -44,6 +44,7 @@ func Build(f Facts) Snapshot {
 
 		RecoveredChanges: f.RecoveredChanges,
 		FileTypes:        f.FileTypes,
+		Offline:          f.Offline,
 	}
 	if len(f.DeniedDocuments) > 0 {
 		s.DeniedDocuments = slices.Clone(f.DeniedDocuments)

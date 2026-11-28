@@ -69,7 +69,7 @@ final class HostWireTests: XCTestCase {
     func testActionListDecodes() throws {
         let list = try HostWireCoding.decoder().decode(WireActionList.self, from: try data("actions.json"))
         XCTAssertEqual(list.v, 1)
-        XCTAssertEqual(list.actions.count, 58)
+        XCTAssertEqual(list.actions.count, 59)
         let classes: Set<String> = ["safe", "revoke", "grant"]
         for action in list.actions {
             XCTAssertTrue(classes.contains(action.class), action.type)

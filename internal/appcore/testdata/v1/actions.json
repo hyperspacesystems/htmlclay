@@ -138,6 +138,10 @@
       "class": "grant"
     },
     {
+      "type": "offline.clear",
+      "class": "safe"
+    },
+    {
       "type": "prefs.set",
       "class": "safe"
     },

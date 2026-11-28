@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/mirror"
 	"github.com/panphora/htmlclay/internal/served"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/tray"
@@ -383,6 +384,12 @@ func (a *app) countWrites(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+		// Offline copies are a cache: a hand-over cut short loses nothing, and counting
+		// them would keep an update or a port change waiting on a page's fetches.
+		if mirror.Owns(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

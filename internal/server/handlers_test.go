@@ -989,3 +989,53 @@ func TestLibraryIsNeverServedAsAPage(t *testing.T) {
 		t.Errorf("the library route served %q, want the stored bytes", got.Body.String())
 	}
 }
+
+// The offline copies boot tag rides a real document load only: a Clay-Source read is
+// the stored file for an editor to save back, and the hidden recalculation browser runs
+// no workers. A page that got the tag instead of a copy would fail to register its worker.
+func TestDocumentLoadCarriesTheOfflineBootScriptOnlyForRealLoads(t *testing.T) {
+	cases := []struct {
+		name         string
+		headers      map[string]string
+		hiddenRecalc bool
+		noHook       bool
+		want         bool
+	}{
+		{name: "document navigation", headers: map[string]string{"Sec-Fetch-Dest": "document"}, want: true},
+		{name: "no Sec-Fetch-Dest", want: true},
+		{name: "Clay-Source read", headers: map[string]string{"Sec-Fetch-Dest": "document", "Clay-Source": "1"}},
+		{name: "fetch of the document", headers: map[string]string{"Sec-Fetch-Dest": "empty"}},
+		{name: "hidden recalculation browser", headers: map[string]string{"Sec-Fetch-Dest": "document"}, hiddenRecalc: true},
+		{name: "no hook wired", headers: map[string]string{"Sec-Fetch-Dest": "document"}, noHook: true},
+	}
+	for _, c := range cases {
+		srv, _, _ := setupHandlerTest(t)
+		if !c.noHook {
+			srv.SetHooks(Hooks{OfflineBoot: func(b []byte) []byte {
+				return htmlutil.InsertAtHeadStart(b, htmlutil.OfflineBootTag)
+			}})
+		}
+		if c.hiddenRecalc {
+			srv.SetRecalcRunner(&fakeRecalcRunner{})
+		}
+
+		req := httptest.NewRequest("GET", "/test.htmlclay", nil)
+		req.Host = fmt.Sprintf("127.0.0.1:%d", srv.port)
+		req.SetPathValue("path", "test.htmlclay")
+		for k, v := range c.headers {
+			req.Header.Set(k, v)
+		}
+		if c.hiddenRecalc {
+			req.Header.Set("Clay-Recalc-Source", "hidden")
+		}
+
+		w := httptest.NewRecorder()
+		srv.handleServeFile(w, req)
+		if w.Code != 200 {
+			t.Fatalf("%s: expected 200, got %d", c.name, w.Code)
+		}
+		if got := strings.Contains(w.Body.String(), "/_/offline/boot.js"); got != c.want {
+			t.Errorf("%s: body carries the boot script = %v, want %v: %s", c.name, got, c.want, w.Body.String())
+		}
+	}
+}

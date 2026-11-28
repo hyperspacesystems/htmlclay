@@ -232,7 +232,10 @@ func (a *app) facts() appcore.Facts {
 		UseName:           profile.Enabled,
 		AIEditTool:        a.aiEditTool(),
 		AIEditTools:       a.aiEditTools(),
+		OfflineCopies:     a.rt.cfg.OfflineCopies(),
+		OfflineSpace:      a.rt.cfg.OfflineSpace(),
 	}
+	f.Offline = a.offlineFacts()
 	f.FileTypes = a.fileTypeFacts()
 	f.Move = a.moveFacts()
 	f.RecoveredChanges = int(a.recovered.n.Load())

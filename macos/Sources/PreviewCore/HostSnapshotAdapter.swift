@@ -28,7 +28,8 @@ public enum HostSnapshotAdapter {
             moveBlockers: MoveBlockers(localRunning: wire.move?.localRunning ?? false, needsKey: wire.move?.needsKey ?? false),
             recoveredChanges: wire.recoveredChanges ?? 0,
             readAccess: (wire.readAccess ?? []).map { ReadAccess(id: $0.id, place: $0.place, pages: $0.pages) },
-            deniedDocuments: wire.deniedDocuments ?? []
+            deniedDocuments: wire.deniedDocuments ?? [],
+            offline: wire.offline.map { OfflineState(available: $0.available, bytes: $0.bytes, files: $0.files) } ?? OfflineState()
         )
     }
 
@@ -203,7 +204,9 @@ public enum HostSnapshotAdapter {
                            defaultEffort: $0.defaultEffort ?? "", efforts: $0.efforts ?? [],
                            modelEfforts: $0.modelEfforts,
                            command: $0.command ?? "")
-            }
+            },
+            offlineCopies: wire.offlineCopies ?? true,
+            offlineSpace: OfflineSpace(rawValue: wire.offlineSpace ?? "") ?? .mb500
         )
     }
 

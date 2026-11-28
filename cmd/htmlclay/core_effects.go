@@ -15,6 +15,7 @@ import (
 	"github.com/panphora/htmlclay/internal/browser"
 	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
+	"github.com/panphora/htmlclay/internal/mirror"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/session"
@@ -56,6 +57,7 @@ var implementedActions = []string{
 	"folder.trust",
 	"host.quit",
 	"host.setPort",
+	"offline.clear",
 	"prefs.set",
 	"program.add",
 	"program.askAgain",
@@ -174,6 +176,8 @@ func (a *app) runEffect(ctx context.Context, e appcore.Effect) *appcore.Refusal 
 		return a.disconnectSync()
 	case "sync.setPaused":
 		return a.setSyncPaused(e.On)
+	case "offline.clear":
+		return a.clearOfflineCopies()
 	case "app.revealLog":
 		path := a.appLogPath()
 		if _, err := os.Stat(path); err != nil {
@@ -947,6 +951,30 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
 		}
 		return a.setAutoUpdate(on)
+	case "offlineCopies":
+		var on bool
+		if json.Unmarshal(e.Value, &on) != nil {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+		}
+		a.rt.cfg.SetOfflineCopies(on)
+		a.saveConfig("preference offlineCopies")
+		// Switching off deletes the copies: that is what a person turning off a
+		// feature that keeps third-party files on their computer expects.
+		if !on {
+			return a.clearOfflineCopies()
+		}
+		return nil
+	case "offlineSpace":
+		var v string
+		if json.Unmarshal(e.Value, &v) != nil || !config.ValidOfflineSpace(v) {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+		}
+		a.rt.cfg.SetOfflineSpace(v)
+		a.saveConfig("preference offlineSpace")
+		if a.rt.mirror != nil {
+			a.rt.mirror.Store.SetLimits(mirror.LimitsFor(v))
+		}
+		return nil
 	case "useName", "yourName":
 		profile := a.rt.cfg.ProfileState()
 		switch e.Key {

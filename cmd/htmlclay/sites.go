@@ -280,6 +280,7 @@ func (a *app) buildSite(anchor, key string, trusted bool) *site {
 		ExportDocument:   a.exportForPage,
 		NewDocument:      a.newDocumentForPage,
 		UnsavedReport:    a.noteUnsavedReport,
+		OfflineBoot:      a.offlineBoot,
 	})
 	s.srv = srv
 	return s
@@ -611,6 +612,10 @@ func (a *app) shutdownNow() {
 		close(a.stopFileTypes)
 		a.stopFileTypes = nil
 	}
+	if a.stopWarming != nil {
+		a.stopWarming()
+		a.stopWarming = nil
+	}
 
 	a.mu.Lock()
 	a.stopping = true
@@ -636,10 +641,6 @@ func (a *app) shutdownNow() {
 	// Close the shared live-sync streams once, before the HTTP drain, so graceful
 	// shutdown does not wait on open SSE connections.
 	a.rt.ls.Shutdown()
-
-	if a.rt.mirror != nil {
-		a.rt.mirror.Store.Flush()
-	}
 
 	// Release each site's parked permission requests, wire streams and AI edits before
 	// draining, or the drain waits on them until its budget and then force-closes.
@@ -669,6 +670,10 @@ func (a *app) shutdownNow() {
 			a.rt.httpServer.Close()
 		}
 		cancel()
+	}
+	// After the drain, so a hand-over that finished during it is kept.
+	if a.rt.mirror != nil {
+		a.rt.mirror.Store.Flush()
 	}
 	if a.served != nil {
 		a.served.Close()

@@ -644,6 +644,7 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 	// the document behavior; every current browser sends the header.
 	if dest := r.Header.Get("Sec-Fetch-Dest"); dest == "" || dest == "document" {
 		served = htmlutil.InjectToken(served, f.Token)
+		served = s.offlineBoot(r, served)
 		if names := s.SetupBarNames(f.AbsPath); len(names) > 0 && s.hooks.AskHelper != nil && r.Header.Get("Clay-Source") != "1" {
 			served = htmlutil.InjectBanner(served, htmlutil.WrapBanner(wire.SetupBarHTML(names, true)))
 		}
@@ -679,6 +680,19 @@ func (s *Server) serveRegistered(w http.ResponseWriter, r *http.Request, f *sess
 		w.Header().Set("Content-Security-Policy", "connect-src 'self'; worker-src 'none'; child-src 'self' about: data: blob:; frame-src 'self' about: data: blob:; form-action 'self'")
 	}
 	w.Write(served)
+}
+
+// offlineBoot adds the offline copies boot script to a document load. A Clay-Source read
+// is the stored file for an editor to save back, and the hidden recalculation browser
+// runs no workers, so neither gets it.
+func (s *Server) offlineBoot(r *http.Request, served []byte) []byte {
+	if s.hooks.OfflineBoot == nil || r.Header.Get("Clay-Source") == "1" || s.isHiddenRecalcRequest(r) {
+		return served
+	}
+	if dest := r.Header.Get("Sec-Fetch-Dest"); dest != "" && dest != "document" {
+		return served
+	}
+	return s.hooks.OfflineBoot(served)
 }
 
 // serveAsset serves a file that was never opened directly: an asset (css, js,

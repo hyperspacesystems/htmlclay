@@ -155,6 +155,7 @@ func TestStoringAChangedStylesheetFromAPageRevalidatesItsReferences(t *testing.T
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("the store route = %d %s, want 204", rec.Code, rec.Body.String())
 	}
+	h.Wait()
 
 	entry, body, ok := store.Get("a.localhost", root)
 	if !ok {

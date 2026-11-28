@@ -117,6 +117,12 @@ public enum HostActionWire {
             return WireActionRequest(type: "prefs.set", args: ["key": .string("openAtLogin"), "value": .bool(on)])
         case let .setAIEditing(on):
             return WireActionRequest(type: "prefs.set", args: ["key": .string("aiEditing"), "value": .bool(on)])
+        case let .setOfflineCopies(on):
+            return WireActionRequest(type: "prefs.set", args: ["key": .string("offlineCopies"), "value": .bool(on)])
+        case let .setOfflineSpace(space):
+            return WireActionRequest(type: "prefs.set", args: ["key": .string("offlineSpace"), "value": .string(space.rawValue)])
+        case .clearOfflineCopies:
+            return WireActionRequest(type: HostActionType.offlineClear, args: [:])
         case let .setUseName(on):
             return WireActionRequest(type: "prefs.set", args: ["key": .string("useName"), "value": .bool(on)])
         case let .setAutoUpdate(on):

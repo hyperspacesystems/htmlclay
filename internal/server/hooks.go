@@ -60,6 +60,12 @@ type Hooks struct {
 	// MayTrustFolder gates Confirm's trust-folder answer for a candidate folder.
 	MayTrustFolder func(dir string) bool
 
+	// OfflineBoot adds the offline copies boot script to a document load and returns
+	// a new slice, never writing into its input. It is called only for real document
+	// loads, never a Clay-Source read, a fetch() of the document or the hidden
+	// recalculation browser. Nil adds nothing.
+	OfflineBoot func(html []byte) []byte
+
 	// UnsavedReport hears an open tab say whether its document holds edits not
 	// saved yet (unsaved-report-v1). Nil hears nothing.
 	UnsavedReport func(absPath, tab string, seq int64, unsaved, frozen bool)

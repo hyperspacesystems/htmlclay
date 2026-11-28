@@ -25,9 +25,10 @@ type Facts struct {
 	Preferences Preferences    `json:"preferences"`
 	Move        *Move          `json:"move"`
 
-	RecoveredChanges int       `json:"recoveredChanges"`
-	FileTypes        FileTypes `json:"fileTypes"`
-	DeniedDocuments  []string  `json:"deniedDocuments,omitempty"`
+	RecoveredChanges int          `json:"recoveredChanges"`
+	FileTypes        FileTypes    `json:"fileTypes"`
+	Offline          OfflineState `json:"offline"`
+	DeniedDocuments  []string     `json:"deniedDocuments,omitempty"`
 }
 
 type HostFacts struct {

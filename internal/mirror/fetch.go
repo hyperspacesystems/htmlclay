@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -17,6 +16,7 @@ import (
 
 const (
 	fetchTimeout  = 15 * time.Second
+	maxCrawlCSS   = 5 << 20
 	maxRedirects  = 5
 	maxCrawlDepth = 3
 	fetchParallel = 4
@@ -26,10 +26,15 @@ const (
 // control, opaque files the worker could not read, and the files a stylesheet loads. It
 // reaches the public internet only, keeps no cookies and sends no credentials.
 type Fetcher struct {
-	Store  *Store
+	Store *Store
+	// Off reports whether offline copies are switched off; nothing is stored while it
+	// says so, even by a fetch already running. Nil reads as on.
+	Off    func() bool
 	client *http.Client
 	slots  chan struct{}
 }
+
+var errOff = errors.New("mirror: offline copies are off")
 
 // NewFetcher returns a fetcher that stores into store. A nil dial is
 // egress.DialPublic; tests pass one that also reaches their stand-in server.
@@ -49,7 +54,6 @@ func NewFetcher(store *Store, dial func(ctx context.Context, network, addr strin
 				ResponseHeaderTimeout:  fetchTimeout,
 				MaxResponseHeaderBytes: 64 << 10,
 			},
-			Timeout: fetchTimeout,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				if len(via) >= maxRedirects {
 					return fmt.Errorf("more than %d redirects", maxRedirects)
@@ -90,31 +94,35 @@ func (f *Fetcher) fetch(ctx context.Context, origin, rawURL string, h Hints, via
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	body, meta, fresh, err := f.get(ctx, origin, key, h)
+	meta, fresh, err := f.getAndStore(ctx, origin, key, h, via)
 	<-f.slots
 	if err != nil {
 		return err
 	}
 	if fresh {
 		f.Store.Touch(origin, key)
-		return nil
-	}
-	meta.Via = via
-	if err := f.Store.PutEntry(origin, key, meta, body); err != nil {
-		return err
 	}
 	if isCSS(meta.Type) && depth < maxCrawlDepth {
-		f.crawl(ctx, origin, key, body, h, via, depth+1, seen, true)
+		if _, css, ok := f.Store.Get(origin, key); ok && int64(len(css)) <= maxCrawlCSS {
+			f.crawl(ctx, origin, key, css, h, via, depth+1, seen, true)
+		}
 	}
 	return nil
 }
 
-// get performs one GET. fresh is true when the server answered 304 to origin's stored
-// validators.
-func (f *Fetcher) get(ctx context.Context, origin, key string, h Hints) (body []byte, meta Entry, fresh bool, err error) {
+func (f *Fetcher) off() bool { return f.Off != nil && f.Off() }
+
+// getAndStore performs one GET and streams a 200 answer into the store. fresh is true
+// when the server answered 304 to origin's stored validators; meta is then the stored
+// entry, so a stylesheet that did not change is still crawled for references that
+// failed before.
+func (f *Fetcher) getAndStore(ctx context.Context, origin, key string, h Hints, via string) (meta Entry, fresh bool, err error) {
+	if f.off() {
+		return Entry{}, false, errOff
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, key, nil)
 	if err != nil {
-		return nil, Entry{}, false, err
+		return Entry{}, false, err
 	}
 	if h.UserAgent != "" {
 		req.Header.Set("User-Agent", h.UserAgent)
@@ -122,7 +130,8 @@ func (f *Fetcher) get(ctx context.Context, origin, key string, h Hints) (body []
 	if h.Accept != "" {
 		req.Header.Set("Accept", h.Accept)
 	}
-	if old, ok := f.Store.Lookup(origin, key); ok {
+	old, had := f.Store.Lookup(origin, key)
+	if had {
 		if old.ETag != "" {
 			req.Header.Set("If-None-Match", old.ETag)
 		}
@@ -132,35 +141,31 @@ func (f *Fetcher) get(ctx context.Context, origin, key string, h Hints) (body []
 	}
 	res, err := f.client.Do(req)
 	if err != nil {
-		return nil, Entry{}, false, err
+		return Entry{}, false, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode == http.StatusNotModified {
-		return nil, Entry{}, true, nil
+	if res.StatusCode == http.StatusNotModified && had {
+		return old, true, nil
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, Entry{}, false, fmt.Errorf("mirror: %s answered %d", key, res.StatusCode)
+		return Entry{}, false, fmt.Errorf("mirror: %s answered %d", key, res.StatusCode)
 	}
-	limit := f.Store.Limits().PerFile
-	reader := io.Reader(res.Body)
-	if limit > 0 {
-		if res.ContentLength > limit {
-			return nil, Entry{}, false, ErrTooBig
-		}
-		reader = io.LimitReader(res.Body, limit+1)
+	if limit := f.Store.Limits().PerFile; limit > 0 && res.ContentLength > limit {
+		return Entry{}, false, ErrTooBig
 	}
-	body, err = io.ReadAll(reader)
-	if err != nil {
-		return nil, Entry{}, false, err
-	}
-	if limit > 0 && int64(len(body)) > limit {
-		return nil, Entry{}, false, ErrTooBig
-	}
-	return body, Entry{
+	meta = Entry{
 		Type:         res.Header.Get("Content-Type"),
 		ETag:         res.Header.Get("ETag"),
 		LastModified: res.Header.Get("Last-Modified"),
-	}, false, nil
+		Via:          via,
+	}
+	if f.off() {
+		return Entry{}, false, errOff
+	}
+	if err := f.Store.PutStream(origin, key, meta, res.Body); err != nil {
+		return Entry{}, false, err
+	}
+	return meta, false, nil
 }
 
 // Crawl fetches the files a stylesheet references, resolved against the stylesheet's

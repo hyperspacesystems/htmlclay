@@ -1,6 +1,7 @@
 package mirror_test
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -70,7 +71,10 @@ func TestAnOriginCannotSeeAnotherOriginsCopy(t *testing.T) {
 
 func TestOverTheLimitLeastRecentlyUsedGoFirstAndOrphansAreDeleted(t *testing.T) {
 	dir := t.TempDir()
-	store, err := mirror.Open(dir, mirror.Limits{Total: 25})
+	// Each copy is charged its index line (512 bytes plus the address) and its blob
+	// rounded up to a 4 KiB block, so two copies fit and a third does not.
+	const per = int64(512 + len("https://cdn.example/u1") + 4096)
+	store, err := mirror.Open(dir, mirror.Limits{Total: 2*per + 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,8 +107,8 @@ func TestOverTheLimitLeastRecentlyUsedGoFirstAndOrphansAreDeleted(t *testing.T) 
 	if _, _, ok := store.Get("a.localhost", u3); !ok {
 		t.Fatal("u3, just stored, is missing")
 	}
-	if bytes, _ := store.Usage(); bytes != 20 {
-		t.Fatalf("usage = %d bytes, want 20", bytes)
+	if bytes, _ := store.Usage(); bytes != 2*per {
+		t.Fatalf("usage = %d bytes, want %d", bytes, 2*per)
 	}
 	files, err := filepath.Glob(filepath.Join(dir, "blobs", "*", "*"))
 	if err != nil {
@@ -112,6 +116,45 @@ func TestOverTheLimitLeastRecentlyUsedGoFirstAndOrphansAreDeleted(t *testing.T) 
 	}
 	if len(files) != 2 {
 		t.Fatalf("%d blob files on disk after the eviction, want 2: %v", len(files), files)
+	}
+}
+
+func TestLimitsForEachSpaceChoice(t *testing.T) {
+	if got := mirror.LimitsFor("500mb"); got != mirror.DefaultLimits {
+		t.Errorf("LimitsFor(500mb) = %+v, want the default limits %+v", got, mirror.DefaultLimits)
+	}
+	if got := mirror.LimitsFor("unlimited"); got != (mirror.Limits{}) {
+		t.Errorf("LimitsFor(unlimited) = %+v, want no limits", got)
+	}
+	if got := mirror.LimitsFor("2gb"); got.Total != 2<<30 {
+		t.Errorf("LimitsFor(2gb).Total = %d, want %d", got.Total, int64(2<<30))
+	}
+	if got := mirror.LimitsFor("bogus"); got != mirror.DefaultLimits {
+		t.Errorf("LimitsFor(bogus) = %+v, want the default limits %+v", got, mirror.DefaultLimits)
+	}
+}
+
+func TestSetLimitsDropsFilesOverTheNewPerFileCap(t *testing.T) {
+	store, err := mirror.Open(t.TempDir(), mirror.DefaultLimits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const (
+		small = "https://cdn.example/small.js"
+		large = "https://cdn.example/large.js"
+	)
+	if err := store.Put("a.localhost", small, "text/javascript", []byte("0123456789"), "page"); err != nil {
+		t.Fatalf("Put small: %v", err)
+	}
+	if err := store.Put("a.localhost", large, "text/javascript", bytes.Repeat([]byte("x"), 100), "page"); err != nil {
+		t.Fatalf("Put large: %v", err)
+	}
+	store.SetLimits(mirror.Limits{PerFile: 50})
+	if _, _, ok := store.Get("a.localhost", large); ok {
+		t.Fatalf("a 100-byte copy is still held under a 50-byte per-file cap")
+	}
+	if _, _, ok := store.Get("a.localhost", small); !ok {
+		t.Fatalf("a 10-byte copy was dropped under a 50-byte per-file cap")
 	}
 }
 
@@ -201,5 +244,58 @@ func TestPutRefusesBadOriginsAndURLs(t *testing.T) {
 	err = tiny.Put("a.localhost", "https://cdn.example/big.js", "text/javascript", []byte("12345"), "page")
 	if !errors.Is(err, mirror.ErrTooBig) {
 		t.Fatalf("a 5-byte body over a 4-byte per-file limit = %v, want ErrTooBig", err)
+	}
+}
+
+// A page polling a live feed hands over new bytes at one address again and again. Each
+// replaced copy's blob must go at once, or the folder grows past the limit while the
+// usage line stays flat.
+func TestReplacingACopyDeletesTheOldBlob(t *testing.T) {
+	dir := t.TempDir()
+	store, err := mirror.Open(dir, mirror.DefaultLimits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		if err := store.Put("a.localhost", "https://feed.example/now.json", "application/json", []byte(strings.Repeat("x", i+1)), "page"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "blobs", "*", "*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("%d blob files after five hand-overs at one address, want 1: %v", len(files), files)
+	}
+	if _, n := store.Usage(); n != 1 {
+		t.Fatalf("%d entries, want 1", n)
+	}
+}
+
+// A cache cleaner can empty the folder while HTML Clay runs. A copy whose blob is gone
+// must stop counting as held, so the next open fetches it again, and the index must
+// still be written.
+func TestACopyWhoseFileVanishedIsNoLongerHeld(t *testing.T) {
+	dir := t.TempDir()
+	store, err := mirror.Open(dir, mirror.DefaultLimits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const u = "https://cdn.example/a.js"
+	if err := store.Put("a.localhost", u, "text/javascript", []byte("x=1"), "page"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatal(err)
+	}
+	if n := store.Held("a.localhost", []string{u}); n != 0 {
+		t.Fatalf("held = %d after the folder was emptied, want 0", n)
+	}
+	if err := store.Put("a.localhost", "https://cdn.example/b.js", "text/javascript", []byte("y=2"), "page"); err != nil {
+		t.Fatalf("Put after the folder was emptied: %v", err)
+	}
+	if err := store.Flush(); err != nil {
+		t.Fatalf("Flush after the folder was emptied: %v", err)
 	}
 }

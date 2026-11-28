@@ -416,6 +416,22 @@ public struct AIEditTool: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+public enum OfflineSpace: String, Codable, Equatable, Sendable, CaseIterable {
+    case mb500 = "500mb"
+    case gb2 = "2gb"
+    case gb10 = "10gb"
+    case unlimited
+}
+
+public struct OfflineState: Codable, Equatable, Sendable {
+    public var available: Bool
+    public var bytes: Int64
+    public var files: Int
+    public init(available: Bool = false, bytes: Int64 = 0, files: Int = 0) {
+        self.available = available; self.bytes = bytes; self.files = files
+    }
+}
+
 public struct PreferenceState: Codable, Equatable, Sendable {
     public var openAtLogin: Bool
     public var aiEditing: Bool
@@ -427,11 +443,36 @@ public struct PreferenceState: Codable, Equatable, Sendable {
     public var aiEditTool: String
     /// The AI tools this Mac has, as the host found them.
     public var aiEditTools: [AIEditTool]
-    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false, openAtLoginChosen: Bool = true, aiEditTool: String = "", aiEditTools: [AIEditTool] = []) {
+    /// Whether HTML Clay keeps offline copies of the files HTML files load.
+    public var offlineCopies: Bool
+    /// The space the copies may take.
+    public var offlineSpace: OfflineSpace
+    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false, openAtLoginChosen: Bool = true, aiEditTool: String = "", aiEditTools: [AIEditTool] = [], offlineCopies: Bool = true, offlineSpace: OfflineSpace = .mb500) {
         self.useName = useName
         self.openAtLogin = openAtLogin; self.aiEditing = aiEditing; self.appearance = appearance; self.yourName = yourName
         self.openAtLoginChosen = openAtLoginChosen
         self.aiEditTool = aiEditTool; self.aiEditTools = aiEditTools
+        self.offlineCopies = offlineCopies; self.offlineSpace = offlineSpace
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case openAtLogin, aiEditing, appearance, yourName, useName, openAtLoginChosen, aiEditTool, aiEditTools,
+             offlineCopies, offlineSpace
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        openAtLogin = try container.decode(Bool.self, forKey: .openAtLogin)
+        aiEditing = try container.decode(Bool.self, forKey: .aiEditing)
+        appearance = try container.decode(Appearance.self, forKey: .appearance)
+        yourName = try container.decode(String.self, forKey: .yourName)
+        useName = try container.decode(Bool.self, forKey: .useName)
+        openAtLoginChosen = try container.decode(Bool.self, forKey: .openAtLoginChosen)
+        aiEditTool = try container.decode(String.self, forKey: .aiEditTool)
+        aiEditTools = try container.decode([AIEditTool].self, forKey: .aiEditTools)
+        offlineCopies = try container.decodeIfPresent(Bool.self, forKey: .offlineCopies) ?? true
+        let space = try container.decodeIfPresent(String.self, forKey: .offlineSpace) ?? ""
+        offlineSpace = OfflineSpace(rawValue: space) ?? .mb500
     }
 }
 
@@ -482,14 +523,16 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
     public var readAccess: [ReadAccess]
     /// Documents with a stored Don't allow answer, offered Ask again on Programs.
     public var deniedDocuments: [String]
+    /// What the offline copies take on disk, and whether they are available at all.
+    public var offline: OfflineState
 
     private enum CodingKeys: String, CodingKey {
         case documents, folders, programs, requests, waiting, sync, update, preferences,
              localMoveOffer, hostStopped, rev, epoch, host, hostCounts, moveFolders, moveBlockers,
-             recoveredChanges, readAccess, deniedDocuments
+             recoveredChanges, readAccess, deniedDocuments, offline
     }
 
-    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], moveBlockers: MoveBlockers = MoveBlockers(), isSample: Bool = false, recoveredChanges: Int = 0, readAccess: [ReadAccess] = [], deniedDocuments: [String] = []) {
+    public init(documents: [RecentDocument] = [], folders: [Folder] = [], programs: [Program] = [], requests: [ProgramRequest] = [], waiting: [WaitingItem] = [], sync: SyncState = SyncState(), update: UpdateState = UpdateState(), preferences: PreferenceState = PreferenceState(), localMoveOffer: Bool = false, hostStopped: Bool = false, rev: Int = 0, epoch: String = "", host: HostInfo = HostInfo(), hostCounts: WaitCounts? = nil, moveFolders: [MoveFolderInfo] = [], moveBlockers: MoveBlockers = MoveBlockers(), isSample: Bool = false, recoveredChanges: Int = 0, readAccess: [ReadAccess] = [], deniedDocuments: [String] = [], offline: OfflineState = OfflineState()) {
         self.documents = documents; self.folders = folders; self.programs = programs; self.requests = requests
         self.waiting = waiting; self.sync = sync; self.update = update; self.preferences = preferences
         self.localMoveOffer = localMoveOffer
@@ -501,6 +544,7 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
         self.recoveredChanges = recoveredChanges
         self.readAccess = readAccess
         self.deniedDocuments = deniedDocuments
+        self.offline = offline
     }
 
     /// A decoded snapshot is never sample data: isSample stays out of the JSON.
@@ -525,6 +569,7 @@ public struct HostSnapshot: Codable, Equatable, Sendable {
         recoveredChanges = try container.decodeIfPresent(Int.self, forKey: .recoveredChanges) ?? 0
         readAccess = try container.decodeIfPresent([ReadAccess].self, forKey: .readAccess) ?? []
         deniedDocuments = try container.decodeIfPresent([String].self, forKey: .deniedDocuments) ?? []
+        offline = try container.decodeIfPresent(OfflineState.self, forKey: .offline) ?? OfflineState()
         isSample = false
     }
 
@@ -550,6 +595,9 @@ public enum HostAction: Equatable, Sendable {
     case setSyncPaused(Bool)
     case setOpenAtLogin(Bool)
     case setAIEditing(Bool)
+    case setOfflineCopies(Bool)
+    case setOfflineSpace(OfflineSpace)
+    case clearOfflineCopies
     case setAppearance(Appearance)
     case setYourName(String)
     case removeProgramAccess(programID: String, document: String)
