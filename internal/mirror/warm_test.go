@@ -101,7 +101,7 @@ func TestAFileAddedToAFolderGetsItsTagsAndStylesheetReferencesCopied(t *testing.
 		`<script src="`+cdn.url("/skipped.js")+`"></script>`)
 
 	store := openStore(t, mirror.DefaultLimits)
-	w := &mirror.Warmer{
+	w := &mirror.Warmer{Images: true,
 		Fetch:   mirror.NewFetcher(store, allowOnly(cdn.addr())),
 		Folders: func() []string { return []string{dir} },
 	}
@@ -288,5 +288,28 @@ func TestAFileWarmedWhileOfflineIsTriedAgain(t *testing.T) {
 	w.Pass(context.Background())
 	if store.Held("other.localhost", []string{cdn.url("/lib/a.js")}) != 1 {
 		t.Fatal("the file warmed while offline was never tried again once online")
+	}
+}
+
+// By default warming leaves images to the person's own open: a saved newsletter in a
+// trusted folder must not fire its tracking pixel when nobody opened it.
+func TestWarmingSkipsImagesByDefault(t *testing.T) {
+	cdn := newStandInCDN(t, map[string]struct{ kind, body string }{
+		"/lib/a.js":   {"text/javascript", "window.a=1"},
+		"/pixel.gif":  {"image/gif", "GIF89a"},
+		"/poster.png": {"image/png", "png"},
+	})
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "mail.html"), `<html><head><script src="`+cdn.url("/lib/a.js")+`"></script>`+
+		`<link rel="preload" as="image" href="`+cdn.url("/poster.png")+`"></head>`+
+		`<body><img src="`+cdn.url("/pixel.gif")+`"><video poster="`+cdn.url("/poster.png")+`"></video></body></html>`)
+	store := openStore(t, mirror.DefaultLimits)
+	w := &mirror.Warmer{Fetch: mirror.NewFetcher(store, allowOnly(cdn.addr())), Folders: func() []string { return []string{dir} }}
+	w.Pass(context.Background())
+	if n := cdn.count("/pixel.gif") + cdn.count("/poster.png"); n != 0 {
+		t.Fatalf("warming fetched %d image(s) with images off, want 0", n)
+	}
+	if cdn.count("/lib/a.js") != 1 {
+		t.Fatal("warming skipped the script too")
 	}
 }

@@ -36,6 +36,10 @@ type Warmer struct {
 	Folders func() []string
 	Off     func() bool
 	Hints   Hints
+	// Images also warms what img, picture sources and video posters load. Off by
+	// default: a saved newsletter in a trusted folder would fire its tracking pixel
+	// without anyone opening it. Images a person's open page loads are copied anyway.
+	Images bool
 
 	mu   sync.Mutex
 	seen map[string]fileStamp
@@ -212,7 +216,7 @@ func (w *Warmer) warmFile(ctx context.Context, path string, changed bool) bool {
 		return true
 	}
 	ok := true
-	for _, ref := range StaticReferences(data) {
+	for _, ref := range staticReferences(data, w.Images) {
 		if !changed {
 			if e, ok := w.Fetch.Store.Lookup(Shared, ref); ok && time.Since(e.StoredAt) < warmFresh {
 				continue
@@ -233,7 +237,12 @@ func (w *Warmer) warmFile(ctx context.Context, path string, changed bool) bool {
 // inside <picture>, and video posters. It leaves out relative addresses (the document's own folder),
 // credentialed loads (crossorigin="use-credentials") and clayjs.com, which HTML Clay
 // bundles.
-func StaticReferences(doc []byte) []string {
+func StaticReferences(doc []byte) []string { return staticReferences(doc, true) }
+
+// staticReferences lists what StaticReferences does, leaving out images (img, picture
+// sources, video posters, image preloads) unless images is true. Video and audio preloads
+// are always left out: the worker never answers media from copies.
+func staticReferences(doc []byte, images bool) []string {
 	z := html.NewTokenizer(bytes.NewReader(doc))
 	var out []string
 	seen := map[string]bool{}
@@ -299,21 +308,40 @@ func StaticReferences(doc []byte) []string {
 		case "script":
 			add(attrs["src"])
 		case "link":
-			if linkWarmed(attrs["rel"]) {
+			if linkWarmed(attrs["rel"]) && preloadWarmed(attrs["rel"], attrs["as"], images) {
 				add(attrs["href"])
 			}
 		case "img":
-			add(attrs["src"])
-			addSrcset(attrs["srcset"])
+			if images {
+				add(attrs["src"])
+				addSrcset(attrs["srcset"])
+			}
 		case "source":
-			if inPicture > 0 {
+			if images && inPicture > 0 {
 				add(attrs["src"])
 				addSrcset(attrs["srcset"])
 			}
 		case "video":
-			add(attrs["poster"])
+			if images {
+				add(attrs["poster"])
+			}
 		}
 	}
+}
+
+// preloadWarmed says whether a preload's destination is warmed: never media, and images
+// only when images are.
+func preloadWarmed(rel, as string, images bool) bool {
+	if !strings.Contains(" "+strings.ToLower(rel)+" ", " preload ") {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(as)) {
+	case "video", "audio", "track":
+		return false
+	case "image":
+		return images
+	}
+	return true
 }
 
 func linkWarmed(rel string) bool {
