@@ -1,0 +1,34 @@
+/* Courier Prime (SIL Open Font License 1.1, courier-prime-LICENSE). Screenplay's script face.
+   Regular and bold load as woff2; the italic faces reuse the TTFs the PDF export embeds,
+   so a page and its exported PDF draw from the same four files. */
+@font-face {
+  font-family: "Courier Prime";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./courier-prime-latin-400-normal.woff2) format("woff2"), url(./CourierPrime-Regular.ttf) format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url(./courier-prime-latin-700-normal.woff2) format("woff2"), url(./CourierPrime-Bold.ttf) format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./CourierPrime-Italic.ttf) format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 700;
+  src: url(./CourierPrime-BoldItalic.ttf) format("truetype");
+}
