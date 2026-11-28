@@ -732,7 +732,15 @@ async function run() {
   const videoOnline = await visit(pageVideo, videoURL, { first: true, settleMs: 4000 });
   const videoWarm = await visit(pageVideo, videoURL, { settleMs: 3000 });
   const fullStore = path.join(hostFull.configBase, 'htmlclay-cache', 'offline-copies');
-  const clipStored = originIndexes(fullStore).some((file) => fs.readFileSync(file, 'utf8').includes('/media/clip.webm'));
+  // The whole file is copied ahead of time from the folder (shared.json) or fetched after
+  // the page plays it (the page's own index); either way the index reaches disk about two
+  // seconds after the copy lands.
+  const clipIndexes = () => [...originIndexes(fullStore), path.join(fullStore, 'shared.json')].filter((file) => fs.existsSync(file));
+  let clipStored = false;
+  for (let i = 0; i < 40 && !clipStored; i += 1) {
+    clipStored = clipIndexes().some((file) => fs.readFileSync(file, 'utf8').includes('/media/clip.webm'));
+    if (!clipStored) await wait(250);
+  }
   await cdn.stop();
   cdn = null;
   const videoOffline = await visit(pageVideo, videoURL, { settleMs: 500 });

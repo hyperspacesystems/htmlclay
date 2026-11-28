@@ -57,15 +57,20 @@ type Handler struct {
 	// Off reports whether the person switched offline copies off. Nil reads as on.
 	Off func() bool
 
-	jobsOnce sync.Once
-	jobs     chan struct{}
-	pending  atomic.Int64
-	running  sync.WaitGroup
+	jobsOnce  sync.Once
+	jobs      chan struct{}
+	mediaOnce sync.Once
+	media     chan struct{}
+	pending   atomic.Int64
+	running   sync.WaitGroup
 }
 
 const (
 	maxJobs    = 8
 	maxPending = 256
+	// mediaWorkTimeout bounds a whole video or audio copy, which a slow link can stretch
+	// far past the time a page's other files take.
+	mediaWorkTimeout = 6 * time.Hour
 )
 
 // background runs network work a request asked for after the request has been
@@ -91,6 +96,34 @@ func (h *Handler) background(r *http.Request, job func(ctx context.Context)) {
 		}
 		defer func() { <-h.jobs }()
 		job(ctx)
+	}()
+}
+
+// backgroundMedia fetches one whole video or audio file. These run one at a time, so a
+// long download never holds the slots other copies need, and are bounded by progress
+// (the fetcher gives up after 30 s with no bytes) and by mediaWorkTimeout.
+func (h *Handler) backgroundMedia(r *http.Request, origin, url string, hints Hints) {
+	h.mediaOnce.Do(func() { h.media = make(chan struct{}, 1) })
+	if h.pending.Add(1) > maxPending {
+		h.pending.Add(-1)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), mediaWorkTimeout)
+	h.running.Add(1)
+	go func() {
+		defer h.running.Done()
+		defer h.pending.Add(-1)
+		defer cancel()
+		select {
+		case h.media <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
+		defer func() { <-h.media }()
+		if h.off() {
+			return
+		}
+		h.Fetch.Fetch(ctx, origin, url, hints, "host")
 	}()
 }
 
@@ -300,7 +333,18 @@ func (h *Handler) serveNominate(w http.ResponseWriter, r *http.Request, origin s
 			if ctx.Err() != nil || h.off() {
 				return
 			}
-			if !h.Store.Policy().AllowsDest(n.Kind) {
+			media := n.Kind == "video" || n.Kind == "audio"
+			if !media && !h.Store.Policy().AllowsDest(n.Kind) {
+				continue
+			}
+			if media && h.Store.Policy().AllowsDest(n.Kind) {
+				if _, ok := h.Store.Lookup(origin, n.URL); ok {
+					continue
+				}
+				if _, ok := h.Store.Lookup(Shared, n.URL); ok {
+					continue
+				}
+				h.backgroundMedia(r, origin, n.URL, Hints{UserAgent: ua, Accept: acceptFor(kindDest(n.Kind))})
 				continue
 			}
 			// Own copies only: a warmed shared copy was fetched without this browser's

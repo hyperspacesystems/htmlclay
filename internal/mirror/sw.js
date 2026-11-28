@@ -86,18 +86,23 @@ async function mediaFirst(event, req) {
   ]);
   if (first.res) {
     downUntil.delete(host);
-    if (due(req.url, 'media')) {
-      event.waitUntil(fetch('/_/offline/nominate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([{ url: req.url, kind: req.destination }]),
-      }).catch(() => {}));
-    }
+    if (due(req.url, '')) event.waitUntil(nominateMedia(req));
     return first.res;
   }
   downUntil.set(host, Date.now() + DOWN_MS);
   const copy = await fromCopyRange(req.url, req.headers.get('range'));
-  if (copy) return copy;
-  return first.slow ? live : Response.error();
+  if (first.slow) {
+    event.waitUntil(live.then(() => { downUntil.delete(host); return due(req.url, '') ? nominateMedia(req) : undefined; }, () => {}));
+    return copy || live;
+  }
+  return copy || Response.error();
+}
+
+function nominateMedia(req) {
+  return fetch('/_/offline/nominate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([{ url: req.url, kind: req.destination }]),
+  }).catch(() => {});
 }
 
 async function fromCopyRange(url, range) {

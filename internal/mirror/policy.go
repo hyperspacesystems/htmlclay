@@ -26,7 +26,8 @@ func PolicyFor(mode, space string, limited, images, video, audio bool, limitMB i
 	if !limited {
 		return Policy{Images: true, WarmImages: true, Video: true, Audio: true}
 	}
-	return Policy{Limits: Limits{Total: int64(limitMB) << 20}, Images: images, WarmImages: images, Video: video, Audio: audio}
+	total := int64(limitMB) << 20
+	return Policy{Limits: Limits{Total: total, PerFile: total}, Images: images, WarmImages: images, Video: video, Audio: audio}
 }
 
 // AllowsType says whether a copy with this Content-Type may be kept.

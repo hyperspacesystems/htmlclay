@@ -23,7 +23,8 @@ const (
 	maxWarmFiles   = 50000
 	maxWarmWalk    = 200000
 	maxWarmParse   = 10 << 20
-	warmFetchWait  = 2 * time.Minute
+	// a whole video can take long; the fetcher gives up after 30 s with no bytes
+	warmFetchWait = 6 * time.Hour
 )
 
 // Warmer copies the static files that HTML files in the person's folders load, before
@@ -214,6 +215,9 @@ func (w *Warmer) warmFile(ctx context.Context, path string, changed bool) bool {
 	ok := true
 	p := w.Fetch.Store.Policy()
 	for _, ref := range staticReferences(data, p.WarmImages, p.Video, p.Audio) {
+		if w.Fetch.Store.Policy() != p {
+			return false
+		}
 		if !changed {
 			if e, ok := w.Fetch.Store.Lookup(Shared, ref); ok && time.Since(e.StoredAt) < warmFresh {
 				continue

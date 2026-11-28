@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -13,6 +14,9 @@ import (
 
 	"github.com/panphora/htmlclay/internal/egress"
 )
+
+// fetchIdle is how long a download may go without a byte before it is given up.
+var fetchIdle = 30 * time.Second
 
 const (
 	fetchTimeout  = 15 * time.Second
@@ -128,6 +132,20 @@ func (f *Fetcher) fetch(ctx context.Context, origin, rawURL string, h Hints, via
 
 func (f *Fetcher) off() bool { return f.Off != nil && f.Off() }
 
+// idleReader cancels its request when no bytes arrive for fetchIdle.
+type idleReader struct {
+	r     io.Reader
+	timer *time.Timer
+}
+
+func (b *idleReader) Read(p []byte) (int, error) {
+	n, err := b.r.Read(p)
+	if n > 0 {
+		b.timer.Reset(fetchIdle)
+	}
+	return n, err
+}
+
 // getAndStore performs one GET and streams a 200 answer into the store. fresh is true
 // when the server answered 304 to origin's stored validators; meta is then the stored
 // entry, so a stylesheet that did not change is still crawled for references that
@@ -136,6 +154,10 @@ func (f *Fetcher) getAndStore(ctx context.Context, origin, key string, h Hints, 
 	if f.off() {
 		return Entry{}, false, errOff
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	idle := time.AfterFunc(fetchIdle, cancel)
+	defer idle.Stop()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, key, nil)
 	if err != nil {
 		return Entry{}, false, err
@@ -175,7 +197,7 @@ func (f *Fetcher) getAndStore(ctx context.Context, origin, key string, h Hints, 
 		LastModified: res.Header.Get("Last-Modified"),
 		Via:          via,
 	}
-	if !f.Store.Policy().AllowsType(meta.Type) {
+	if !untyped(meta.Type) && !f.Store.Policy().AllowsType(meta.Type) {
 		return Entry{}, false, ErrNotKept
 	}
 	// A redirected stylesheet's relative references resolve against where it landed.
@@ -185,7 +207,7 @@ func (f *Fetcher) getAndStore(ctx context.Context, origin, key string, h Hints, 
 	if f.off() {
 		return Entry{}, false, errOff
 	}
-	if err := f.Store.PutStream(origin, key, meta, res.Body); err != nil {
+	if err := f.Store.PutStream(origin, key, meta, &idleReader{r: res.Body, timer: idle}); err != nil {
 		return Entry{}, false, err
 	}
 	return meta, false, nil

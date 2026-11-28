@@ -350,3 +350,33 @@ func TestWarmingFetchesVideoOnlyWhenFullyOffline(t *testing.T) {
 		}
 	}
 }
+
+// A policy change in the middle of a file's references must stop that file's pass, or
+// the kinds just switched off keep being fetched.
+func TestAWarmPassStopsWhenThePolicyChanges(t *testing.T) {
+	store := openStore(t, mirror.Limits{})
+	store.SetPolicy(mirror.PolicyFor("full", "", false, true, true, true, 0))
+	var mu sync.Mutex
+	hits := map[string]int{}
+	cdn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		hits[r.URL.Path]++
+		first := hits[r.URL.Path] == 1 && r.URL.Path == "/a.png"
+		mu.Unlock()
+		if first {
+			store.SetPolicy(mirror.DefaultPolicy)
+		}
+		w.Header().Set("Content-Type", "image/png")
+		io.WriteString(w, "png")
+	}))
+	defer cdn.Close()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "page.html"), `<img src="`+cdn.URL+`/a.png"><img src="`+cdn.URL+`/b.png">`)
+	w := &mirror.Warmer{Fetch: mirror.NewFetcher(store, allowOnly(cdn.Listener.Addr().String())), Folders: func() []string { return []string{dir} }}
+	w.Pass(context.Background())
+	mu.Lock()
+	defer mu.Unlock()
+	if got := hits["/b.png"]; got != 0 {
+		t.Fatalf("the stand-in server answered %d request(s) for the second image after the policy changed, want 0", got)
+	}
+}

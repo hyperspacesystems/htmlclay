@@ -293,6 +293,7 @@ func (s *Store) PutStream(origin, rawURL string, meta Entry, r io.Reader) error 
 	if err != nil {
 		return err
 	}
+	meta.Type, r = sniffType(meta.Type, r)
 	s.mu.Lock()
 	perFile, gen, policy := s.limits.PerFile, s.gen, s.policy
 	s.mu.Unlock()
@@ -332,6 +333,12 @@ func (s *Store) PutStream(origin, rawURL string, meta Entry, r io.Reader) error 
 	defer s.mu.Unlock()
 	if s.gen != gen {
 		return nil
+	}
+	if !s.policy.AllowsType(meta.Type) {
+		return ErrNotKept
+	}
+	if s.limits.PerFile > 0 && size > s.limits.PerFile {
+		return ErrTooBig
 	}
 	path := s.blobPath(blob)
 	if _, err := os.Stat(path); err != nil {

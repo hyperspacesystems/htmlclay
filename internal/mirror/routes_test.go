@@ -257,3 +257,48 @@ func TestTheStoreRouteKeepsNothingThePolicyLeavesOut(t *testing.T) {
 		}
 	}
 }
+
+func TestAVideoCopiedAheadIsNotFetchedAgain(t *testing.T) {
+	cdn := newStandInCDN(t, map[string]struct{ kind, body string }{
+		"/v.mp4": {"video/mp4", "mp4"},
+	})
+	store := openStore(t, mirror.Limits{})
+	store.SetPolicy(mirror.PolicyFor("full", "", false, true, true, true, 0))
+	target := cdn.url("/v.mp4")
+	if err := store.Put(mirror.Shared, target, "video/mp4", []byte("mp4"), "warm"); err != nil {
+		t.Fatal(err)
+	}
+	h := &mirror.Handler{Store: store, Fetch: mirror.NewFetcher(store, allowOnly(cdn.addr()))}
+	body := `[{"url":"` + target + `","kind":"video"}]`
+	rec := serveRoute(h, http.MethodPost, "/_/offline/nominate", body, map[string]string{"Sec-Fetch-Site": "same-origin"})
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("the nominate route = %d, want 204", rec.Code)
+	}
+	h.Wait()
+	if n := cdn.count("/v.mp4"); n != 0 {
+		t.Fatalf("the stand-in server answered %d request(s) for a video already copied ahead, want 0", n)
+	}
+}
+
+func TestUnderTheDefaultAVideoNominationFollowsItsBytes(t *testing.T) {
+	cdn := newStandInCDN(t, map[string]struct{ kind, body string }{
+		"/poster.png": {"image/png", "png"},
+		"/clip.webm":  {"video/webm", "webm"},
+	})
+	store := openStore(t, mirror.DefaultLimits)
+	store.SetPolicy(mirror.DefaultPolicy)
+	poster, clip := cdn.url("/poster.png"), cdn.url("/clip.webm")
+	h := &mirror.Handler{Store: store, Fetch: mirror.NewFetcher(store, allowOnly(cdn.addr()))}
+	body := `[{"url":"` + poster + `","kind":"video"},{"url":"` + clip + `","kind":"video"}]`
+	rec := serveRoute(h, http.MethodPost, "/_/offline/nominate", body, map[string]string{"Sec-Fetch-Site": "same-origin"})
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("the nominate route = %d, want 204", rec.Code)
+	}
+	h.Wait()
+	if n := store.Held("a.localhost", []string{poster}); n != 1 {
+		t.Fatalf("the store holds %d copy of the video poster under the default policy, want 1", n)
+	}
+	if n := store.Held("a.localhost", []string{clip}); n != 0 {
+		t.Fatalf("the store holds %d copy of a real video under the default policy, want 0", n)
+	}
+}

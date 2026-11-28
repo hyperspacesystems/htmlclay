@@ -3,6 +3,7 @@ package mirror_test
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -365,7 +366,82 @@ func TestPolicyForShapes(t *testing.T) {
 	if limited.Limits.Total != 5000<<20 {
 		t.Errorf("fully offline limited total = %d, want %d", limited.Limits.Total, int64(5000<<20))
 	}
+	if limited.Limits.PerFile != 5000<<20 {
+		t.Errorf("fully offline limited per-file = %d, want %d", limited.Limits.PerFile, int64(5000<<20))
+	}
 	if limited.Limits.MaxAge != 0 {
 		t.Errorf("fully offline limited MaxAge = %v, want no age limit", limited.Limits.MaxAge)
+	}
+}
+
+func TestALimitedFullyOfflineStoreRefusesAFileLargerThanItsLimit(t *testing.T) {
+	store, err := mirror.Open(t.TempDir(), mirror.Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.SetPolicy(mirror.PolicyFor("full", "", true, true, true, true, 50))
+	const small = "https://cdn.example/small.js"
+	if err := store.Put("a.localhost", small, "text/javascript", []byte("x=1"), "page"); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	const big = "https://cdn.example/big.mp4"
+	err = store.PutStream("a.localhost", big, mirror.Entry{Type: "video/mp4", Via: "host"}, bytes.NewReader(make([]byte, 51<<20)))
+	if !errors.Is(err, mirror.ErrTooBig) {
+		t.Fatalf("PutStream of a 51 MB file = %v, want ErrTooBig", err)
+	}
+	if _, _, ok := store.Get("a.localhost", small); !ok {
+		t.Fatal("the small copy went with the file too big to keep")
+	}
+}
+
+func TestAPolicyTightenedDuringAPutIsHonored(t *testing.T) {
+	store, err := mirror.Open(t.TempDir(), mirror.Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.SetPolicy(mirror.Policy{Limits: mirror.Limits{}, Images: true, Video: true, Audio: true})
+	const u = "https://cdn.example/v.webm"
+	pr, pw := io.Pipe()
+	done := make(chan error, 1)
+	go func() {
+		done <- store.PutStream("a.localhost", u, mirror.Entry{Type: "video/webm", Via: "host"}, pr)
+	}()
+	if _, err := pw.Write([]byte("webm")); err != nil {
+		t.Fatalf("writing the first chunk: %v", err)
+	}
+	store.SetPolicy(mirror.DefaultPolicy)
+	pw.Close()
+	if err := <-done; !errors.Is(err, mirror.ErrNotKept) {
+		t.Fatalf("PutStream = %v, want ErrNotKept after the policy tightened", err)
+	}
+	if _, _, ok := store.Get("a.localhost", u); ok {
+		t.Fatal("the video was kept although the policy tightened while it was copied")
+	}
+}
+
+func TestOctetStreamVideoFollowsTheVideoSwitch(t *testing.T) {
+	clip, err := os.ReadFile(filepath.Join("..", "..", "scripts", "testdata", "offline-clip.webm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := mirror.Open(t.TempDir(), mirror.Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const u = "https://cdn.example/clip.webm"
+	store.SetPolicy(mirror.Policy{Limits: mirror.Limits{}, Images: true, Audio: true})
+	if err := store.Put("a.localhost", u, "application/octet-stream", clip, "host"); !errors.Is(err, mirror.ErrNotKept) {
+		t.Fatalf("PutStream of an octet-stream video with Video off = %v, want ErrNotKept", err)
+	}
+	store.SetPolicy(mirror.Policy{Limits: mirror.Limits{}, Images: true, Video: true, Audio: true})
+	if err := store.Put("a.localhost", u, "application/octet-stream", clip, "host"); err != nil {
+		t.Fatalf("PutStream of an octet-stream video with Video on: %v", err)
+	}
+	entry, _, ok := store.Get("a.localhost", u)
+	if !ok {
+		t.Fatal("the octet-stream video was not kept with Video on")
+	}
+	if entry.Type != "video/webm" {
+		t.Fatalf("stored type = %q, want video/webm", entry.Type)
 	}
 }

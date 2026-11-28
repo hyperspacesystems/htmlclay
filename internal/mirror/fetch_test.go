@@ -282,3 +282,24 @@ func TestARedirectedStylesheetsReferencesResolveFromWhereItLanded(t *testing.T) 
 		t.Fatal("the font next to the redirected stylesheet was not copied")
 	}
 }
+
+func TestADownloadThatStallsIsGivenUp(t *testing.T) {
+	defer mirror.SetFetchIdleForTest(200 * time.Millisecond)()
+	cdn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "video/mp4")
+		io.WriteString(w, "mp4")
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}))
+	defer cdn.Close()
+	store := openStore(t, mirror.Limits{})
+	store.SetPolicy(mirror.PolicyFor("full", "", false, true, true, true, 0))
+	f := mirror.NewFetcher(store, allowOnly(cdn.Listener.Addr().String()))
+	start := time.Now()
+	if err := f.Fetch(context.Background(), "a.localhost", cdn.URL+"/v.mp4", mirror.Hints{}, "host"); err == nil {
+		t.Fatal("the fetch of a download that stalled returned no error")
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("the stalled download took %v to give up, want well under 5s", elapsed)
+	}
+}
