@@ -12,6 +12,7 @@ import (
 
 	"github.com/panphora/htmlclay/internal/agentlane"
 	"github.com/panphora/htmlclay/internal/appcore"
+	"github.com/panphora/htmlclay/internal/mirror"
 	"github.com/panphora/htmlclay/internal/server"
 	"github.com/panphora/htmlclay/internal/session"
 	"github.com/panphora/htmlclay/internal/trust"
@@ -156,6 +157,11 @@ func (a *app) dispatch(w http.ResponseWriter, r *http.Request, s *site, slug str
 	defer stop()
 	r = r.WithContext(ctx)
 	r.Host = s.host
+	if slug != "" && a.rt.mirror != nil && mirror.Owns(r.URL.Path) {
+		name, _, _ := net.SplitHostPort(s.host)
+		a.rt.mirror.Serve(w, r, name)
+		return
+	}
 	s.srv.ServeHTTP(w, r)
 }
 

@@ -120,6 +120,9 @@ type Config struct {
 	// HTMLOpenWithOff is true when the person took HTML Clay out of Open With for
 	// .html files (Windows and Linux; the Mac's claim is fixed in Info.plist).
 	HTMLOpenWithOff bool `json:"htmlOpenWithOff,omitempty"`
+	// OfflineCopiesOff is true when the person switched off offline copies of the
+	// files documents load. Missing reads as on.
+	OfflineCopiesOff bool `json:"offlineCopiesOff,omitempty"`
 	// Profile is the person HTML Clay names in files it serves, when Enabled. Nil
 	// means never set up, which reads as off. The id survives renames and toggles.
 	Profile *Profile `json:"profile,omitempty"`

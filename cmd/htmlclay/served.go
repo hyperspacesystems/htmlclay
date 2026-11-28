@@ -16,6 +16,7 @@ import (
 	"github.com/panphora/htmlclay/internal/config"
 	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/folderlock"
+	"github.com/panphora/htmlclay/internal/mirror"
 	"github.com/panphora/htmlclay/internal/pathrel"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recents"
@@ -747,5 +748,9 @@ func (a *app) serveServed(w http.ResponseWriter, r *http.Request, name string) {
 	stop := context.AfterFunc(mount.ctx, cancel)
 	defer stop()
 	r = r.WithContext(ctx)
+	if a.rt.mirror != nil && mirror.Owns(r.URL.Path) {
+		a.rt.mirror.Serve(w, r, name+"."+appcore.ServedParent)
+		return
+	}
 	mount.handler.ServeHTTP(w, r)
 }

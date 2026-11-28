@@ -637,6 +637,10 @@ func (a *app) shutdownNow() {
 	// shutdown does not wait on open SSE connections.
 	a.rt.ls.Shutdown()
 
+	if a.rt.mirror != nil {
+		a.rt.mirror.Store.Flush()
+	}
+
 	// Release each site's parked permission requests, wire streams and AI edits before
 	// draining, or the drain waits on them until its budget and then force-closes.
 	for _, s := range sites {

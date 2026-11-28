@@ -371,3 +371,18 @@ func (c *Config) HTMLOpenWith() bool {
 	defer c.mu.Unlock()
 	return !c.HTMLOpenWithOff
 }
+
+// SetOfflineCopies records whether HTML Clay keeps offline copies of the files
+// documents load.
+func (c *Config) SetOfflineCopies(on bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.OfflineCopiesOff = !on
+}
+
+// OfflineCopies reports whether HTML Clay keeps offline copies.
+func (c *Config) OfflineCopies() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return !c.OfflineCopiesOff
+}

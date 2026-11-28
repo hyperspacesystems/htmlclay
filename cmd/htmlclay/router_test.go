@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panphora/htmlclay/internal/mirror"
 	"github.com/panphora/htmlclay/internal/server"
 )
 
@@ -544,5 +545,67 @@ func TestBareHostSendsAStrangerItsOwnSite(t *testing.T) {
 	status, body, err := fetchWithContext(context.Background(), address)
 	if err != nil || status != http.StatusOK || !strings.Contains(body, "AFTER") {
 		t.Fatalf("the listed address %s = %d %q (%v), want the document", address, status, body, err)
+	}
+}
+
+// The offline routes answer on the two hosts a document is served at, and nowhere else:
+// the dashboard and the bare loopback host get no service worker scope.
+func TestOfflineRoutesReachTheMirrorOnDocumentHostsOnly(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := buildTestApp(t, home, t.TempDir())
+	a.rt.port = servedTestPort
+	store, err := mirror.Open(t.TempDir(), mirror.DefaultLimits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.rt.mirror = &mirror.Handler{Store: store}
+
+	worker := func(r *http.Request) {
+		r.URL.Path = "/_/offline/sw.js"
+		r.RequestURI = "/_/offline/sw.js"
+	}
+
+	page := filepath.Join(home, "one", "index.htmlclay")
+	writeTestFile(t, page, "<html><body>ONE</body></html>")
+	s, _ := a.openForTest(t, page)
+	rec := serveHostForTest(t, a, s.host, worker)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("the worker on a site host = %d %s, want 200", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Service-Worker-Allowed"); got != "/" {
+		t.Fatalf("Service-Worker-Allowed on a site host = %q, want /", got)
+	}
+
+	dir := filepath.Join(home, "notes")
+	writeTestFile(t, filepath.Join(dir, "index.html"), servedTestDocument)
+	a.rt.folderLockDir = t.TempDir()
+	a.startServed()
+	t.Cleanup(func() {
+		if a.served != nil {
+			a.served.Close()
+		}
+	})
+	if _, refusal, err := a.serveFolder(dir, "notes"); err != nil || refusal != nil {
+		t.Fatalf("serveFolder: refusal=%+v err=%v", refusal, err)
+	}
+	rec = serveHostForTest(t, a, "notes.htmlclay.localhost:"+strconv.Itoa(servedTestPort), worker)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("the worker on a served host = %d %s, want 200", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Service-Worker-Allowed"); got != "/" {
+		t.Fatalf("Service-Worker-Allowed on a served host = %q, want /", got)
+	}
+
+	for _, host := range []string{
+		"htmlclay.localhost:" + strconv.Itoa(servedTestPort),
+		"localhost:" + strconv.Itoa(servedTestPort),
+	} {
+		rec := serveHostForTest(t, a, host, worker)
+		if got := rec.Header().Get("Service-Worker-Allowed"); got != "" {
+			t.Fatalf("Service-Worker-Allowed on %s = %q, want none", host, got)
+		}
 	}
 }

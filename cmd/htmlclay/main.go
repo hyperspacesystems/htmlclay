@@ -22,6 +22,7 @@ import (
 	"github.com/panphora/htmlclay/internal/dashboard"
 	"github.com/panphora/htmlclay/internal/folderlock"
 	"github.com/panphora/htmlclay/internal/logging"
+	"github.com/panphora/htmlclay/internal/mirror"
 	"github.com/panphora/htmlclay/internal/panel"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recalc"
@@ -67,12 +68,15 @@ func resolveSymlinks(absPath string) (string, error) {
 // origin becomes its own site (see sites.go) at its own hostname on the one port, so the
 // browser treats unrelated trees as separate origins; the runtime is what they share.
 type appRuntime struct {
-	cfg       *config.Config
-	logger    *logging.Logger
-	versions  *versions.Store
-	si        platform.SingleInstance
-	ls        *server.LiveSync
-	recalc    *recalc.Runner
+	cfg      *config.Config
+	logger   *logging.Logger
+	versions *versions.Store
+	si       platform.SingleInstance
+	ls       *server.LiveSync
+	recalc   *recalc.Runner
+	// mirror answers the offline copy routes on every document origin; nil when its
+	// store could not be opened, which leaves documents exactly as they were.
+	mirror    *mirror.Handler
 	home      string
 	configDir string
 	// agentToken is what a local program sends to the agent lane, read or made at
@@ -775,6 +779,7 @@ func (a *app) startRuntime() {
 
 	a.rt.ls = server.NewLiveSync(a.rt.versions, a.rt.logger)
 	a.rt.recalc = recalc.New(recalc.WithLogger(a.rt.logger.Printf))
+	a.rt.mirror = a.openMirror()
 
 	// A grant must not cover htmlclay's own config tree in either direction: not
 	// a grant inside it, and not a grant of an ancestor that swallows it. The
@@ -803,6 +808,27 @@ func (a *app) startRuntime() {
 	a.service = newServiceRunner(a)
 
 	a.rt.logger.Printf("Runtime ready (home=%s)", a.rt.home)
+}
+
+// openMirror opens the offline copy store in the user's cache folder: copies the next
+// online open can make again, so they never go in the config folder, a document or a
+// synced folder.
+func (a *app) openMirror() *mirror.Handler {
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		a.rt.logger.Printf("Offline copies are unavailable: %v", err)
+		return nil
+	}
+	store, err := mirror.Open(filepath.Join(cache, "htmlclay", "offline-copies"), mirror.DefaultLimits)
+	if err != nil {
+		a.rt.logger.Printf("Offline copies are unavailable: %v", err)
+		return nil
+	}
+	return &mirror.Handler{
+		Store: store,
+		Fetch: mirror.NewFetcher(store, nil),
+		Off:   func() bool { return a.rt.cfg != nil && !a.rt.cfg.OfflineCopies() },
+	}
 }
 
 // grantForbidden reports whether a read grant on dir must be refused. The config
