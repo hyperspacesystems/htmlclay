@@ -3,9 +3,9 @@
 // 127.0.0.1 plays the internet and can be stopped, made to hang, or switched to new
 // bytes. Each check prints `PASS <name>` or `FAIL <name>: <detail>`, and the run exits
 // 0 only when every check passes. With TESTBOX_OUT set, the summary is also written
-// to $TESTBOX_OUT/offline-mirror-e2e.json.
+// to $TESTBOX_OUT/offline-mirror-e2e-<browser>.json.
 //
-// node scripts/offline-mirror-e2e.mjs
+// node scripts/offline-mirror-e2e.mjs [chromium|firefox|webkit]   (default chromium)
 import { execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -17,7 +17,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright');
+const playwright = require('playwright');
+const BROWSER = process.argv[2] || 'chromium';
+if (!['chromium', 'firefox', 'webkit'].includes(BROWSER)) throw new Error(`unknown browser ${BROWSER}`);
+const LAUNCH = {
+  chromium: { args: ['--mute-audio'] },
+  firefox: { firefoxUserPrefs: { 'media.volume_scale': '0.0' } },
+  webkit: {},
+}[BROWSER];
 
 const repo = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -409,7 +416,7 @@ let cdn = null;
 
 async function newContext(label) {
   const dir = path.join(tempRoot, `profile-${label}`);
-  const context = await chromium.launchPersistentContext(dir, { headless: true, args: ['--mute-audio'] });
+  const context = await playwright[BROWSER].launchPersistentContext(dir, { headless: true, ...LAUNCH });
   contexts.push(context);
   return context;
 }
@@ -722,7 +729,7 @@ const failed = ordered.length - passed;
 if (process.env.TESTBOX_OUT) {
   fs.mkdirSync(process.env.TESTBOX_OUT, { recursive: true });
   fs.writeFileSync(
-    path.join(process.env.TESTBOX_OUT, 'offline-mirror-e2e.json'),
+    path.join(process.env.TESTBOX_OUT, `offline-mirror-e2e-${BROWSER}.json`),
     `${JSON.stringify({ passed, failed, checks: ordered }, null, 2)}\n`,
   );
 }
