@@ -1,11 +1,11 @@
 {
   "version": 1,
   "protocol": 1,
-  "package": "0.15.0",
+  "package": "0.16.0",
   "entry": {
-    "javascript": "main-VV5T3EIS.js",
+    "javascript": "main-3IKE63KV.js",
     "css": [
-      "main-336AGSKW.css"
+      "main-2HRJQP5E.css"
     ]
   },
   "assets": [
@@ -55,14 +55,14 @@
       "sha256": "6e4f2958c3a7c4a80acde4e5a679abe7e01bc1e30b92be3c7a8b696ef401d101"
     },
     {
-      "path": "main-336AGSKW.css",
-      "bytes": 401199,
-      "sha256": "c6e8e78444712330424ac3feb920e8aea25e7f39940b5f753a49187fd4b9fa6b"
+      "path": "main-2HRJQP5E.css",
+      "bytes": 403405,
+      "sha256": "53ad43a055cfbf4afc57aaf9f15e900042343a0fe2081ee22df30ef0f2b9368c"
     },
     {
-      "path": "main-VV5T3EIS.js",
-      "bytes": 1864280,
-      "sha256": "023868fb77f209ec74e314380eb17e306052218d9a451cd887d57c6fcd0e1561"
+      "path": "main-3IKE63KV.js",
+      "bytes": 1870436,
+      "sha256": "3891f5baf398c3eac0b19a7a10530c5ac73e265f9e806046a5d5b3fc51eba6a0"
     }
   ]
 }
