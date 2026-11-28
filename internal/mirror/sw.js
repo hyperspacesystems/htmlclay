@@ -3,7 +3,7 @@ const FIRST_WAIT_MS = 4000;
 const SHORT_WAIT_MS = 800;
 const DOWN_MS = 30000;
 const HAND_OVER_EVERY_MS = 10 * 60 * 1000;
-const MAX_BYTES = {{MAX_BYTES}};
+const MAX_BYTES = Number('{{MAX_BYTES}}');
 const downUntil = new Map();
 const handedAt = new Map();
 

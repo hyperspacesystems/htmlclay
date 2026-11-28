@@ -98,7 +98,7 @@ func TestWorkerIsServedForScopeRootAndUnregistersWhenOff(t *testing.T) {
 	if strings.Contains(body, "{{VERSION}}") || strings.Contains(body, "{{MAX_BYTES}}") {
 		t.Fatal("the worker was served with a placeholder left in it")
 	}
-	if !strings.Contains(body, "const MAX_BYTES = 26214400;") {
+	if !strings.Contains(body, "const MAX_BYTES = Number('26214400');") {
 		t.Fatal("the worker was served without the default per-file limit")
 	}
 
@@ -112,7 +112,7 @@ func TestWorkerIsServedForScopeRootAndUnregistersWhenOff(t *testing.T) {
 	}
 
 	unlimited := mirror.Handler{Store: openStore(t, mirror.Limits{})}
-	if body := serveWorker(&unlimited).Body.String(); !strings.Contains(body, "const MAX_BYTES = Infinity;") {
+	if body := serveWorker(&unlimited).Body.String(); !strings.Contains(body, "const MAX_BYTES = Number('Infinity');") {
 		t.Fatal("a store with no per-file limit was served a finite MAX_BYTES")
 	}
 }
