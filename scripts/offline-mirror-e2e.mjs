@@ -5,7 +5,13 @@
 // 0 only when every check passes. With TESTBOX_OUT set, the summary is also written
 // to $TESTBOX_OUT/offline-mirror-e2e-<browser>.json.
 //
-// node scripts/offline-mirror-e2e.mjs [chromium|firefox|webkit]   (default chromium)
+// node scripts/offline-mirror-e2e.mjs [chromium|webkit|safari]   (default chromium)
+//
+// safari drives the real Safari on this Mac through safaridriver (Develop > Allow
+// remote automation must be on). WebDriver reports no network events, so the two
+// checks that count navigation responses skip that part and say so. Playwright's own
+// Firefox build is left out: it drops a service worker's control on every navigation
+// (stock Firefox keeps it), so every offline check would fail for a reason of its own.
 import { execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -19,12 +25,13 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const playwright = require('playwright');
 const BROWSER = process.argv[2] || 'chromium';
-if (!['chromium', 'firefox', 'webkit'].includes(BROWSER)) throw new Error(`unknown browser ${BROWSER}`);
+if (!['chromium', 'webkit', 'safari'].includes(BROWSER)) throw new Error(`unknown browser ${BROWSER}`);
 const LAUNCH = {
   chromium: { args: ['--mute-audio'] },
-  firefox: { firefoxUserPrefs: { 'media.volume_scale': '0.0' } },
   webkit: {},
+  safari: {},
 }[BROWSER];
+const SAFARI = BROWSER === 'safari';
 
 const repo = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -414,7 +421,73 @@ const hosts = [];
 const visits = [];
 let cdn = null;
 
+// A Playwright-shaped page over one Safari WebDriver session. Safari runs one
+// automation session at a time, so a new context ends the previous one.
+let safariDriver = null;
+let safariSession = null;
+async function safariContext() {
+  if (!safariDriver) {
+    const port = await freePort();
+    const proc = spawn('safaridriver', ['-p', String(port)], { stdio: 'ignore' });
+    safariDriver = { proc, base: `http://127.0.0.1:${port}` };
+    for (let i = 0; i < 50; i += 1) {
+      try { await fetch(`${safariDriver.base}/status`); break; } catch { await wait(100); }
+    }
+  }
+  const call = async (method, route, body) => {
+    const res = await fetch(`${safariDriver.base}${route}`, {
+      method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const json = await res.json();
+    if (json.value && json.value.error) throw new Error(`safaridriver ${route}: ${json.value.error}: ${json.value.message}`);
+    return json.value;
+  };
+  if (safariSession) await safariSession.close();
+  const created = await call('POST', '/session', { capabilities: { alwaysMatch: { browserName: 'safari' } } });
+  const id = created.sessionId;
+  const at = (route) => `/session/${id}${route}`;
+  const evaluate = async (fn, arg) => {
+    const out = await call('POST', at('/execute/async'), {
+      script: `const done = arguments[arguments.length - 1];
+        Promise.resolve().then(() => (${fn.toString()})(arguments[0]))
+          .then((v) => done({ ok: v === undefined ? null : v }), (e) => done({ err: String(e) }));`,
+      args: [arg === undefined ? null : arg],
+    });
+    if (out && 'err' in out) throw new Error(out.err);
+    return out ? out.ok : null;
+  };
+  const page = {
+    goto: (url) => call('POST', at('/url'), { url }),
+    reload: () => call('POST', at('/refresh'), {}),
+    evaluate,
+    waitForTimeout: (ms) => wait(ms),
+    async waitForFunction(fn, _arg, { timeout = 15000 } = {}) {
+      const end = Date.now() + timeout;
+      for (;;) {
+        try { if (await evaluate(fn)) return; } catch { /* the page is between loads */ }
+        if (Date.now() > end) throw new Error(`waitForFunction timed out: ${fn.toString().slice(0, 80)}`);
+        await wait(200);
+      }
+    },
+    mainFrame: () => null,
+    on() {},
+    off() {},
+  };
+  const context = {
+    pages: () => [page],
+    newPage: async () => page,
+    close: async () => { try { await call('DELETE', at('')); } catch { /* already gone */ } if (safariSession === context) safariSession = null; },
+  };
+  safariSession = context;
+  return context;
+}
+
 async function newContext(label) {
+  if (SAFARI) {
+    const context = await safariContext();
+    contexts.push(context);
+    return context;
+  }
   const dir = path.join(tempRoot, `profile-${label}`);
   const context = await playwright[BROWSER].launchPersistentContext(dir, { headless: true, ...LAUNCH });
   contexts.push(context);
@@ -588,12 +661,12 @@ async function run() {
   // A served document is answered from the network: the worker keeps copies of
   // cross-origin files, never of the document itself.
   const kept = [];
-  if (!navigation) kept.push('the controlled reload produced no navigation response');
-  if (!cacheControl.includes('no-store') && fromWorker !== false) {
+  if (!navigation && !SAFARI) kept.push('the controlled reload produced no navigation response');
+  if (navigation && !cacheControl.includes('no-store') && fromWorker !== false) {
     kept.push(`the navigation came from the worker with cache-control ${cacheControl || 'none'}`);
   }
   if (!controlled) kept.push('no worker controlled the page');
-  record(CHECKS[5], kept.length === 0, kept.length ? kept.join('; ') : `cache-control=${cacheControl || 'none'} fromServiceWorker=${fromWorker}`);
+  record(CHECKS[5], kept.length === 0, kept.length ? kept.join('; ') : SAFARI ? 'skipped the navigation response check (WebDriver has no network events); the worker controls the page' : `cache-control=${cacheControl || 'none'} fromServiceWorker=${fromWorker}`);
 
   // 9: a hundred cross-origin files cost about what they cost without a worker.
   const many = `${host.url}/many.html`;
@@ -641,8 +714,8 @@ async function run() {
   const rescueFailures = diff(fresh.values, V2_VERSIONED);
   const navigationType = await pageFresh.evaluate(() => performance.getEntriesByType('navigation')[0]?.type ?? '');
   if (navigationType !== 'reload') rescueFailures.push(`the recovered page is a ${navigationType || 'unknown'} navigation, not a reload`);
-  if (docNavigations !== 2) rescueFailures.push(`${docNavigations} navigations of the document, want 2`);
-  record(CHECKS[6], rescueFailures.length === 0, rescueFailures.join('; '));
+  if (!SAFARI && docNavigations !== 2) rescueFailures.push(`${docNavigations} navigations of the document, want 2`);
+  record(CHECKS[6], rescueFailures.length === 0, rescueFailures.length ? rescueFailures.join('; ') : SAFARI ? 'skipped counting navigations (WebDriver has no network events); the page is a reload' : '');
 
   // 8: a document that brings its own scope-root worker keeps it.
   const contextOwn = await newContext('own-sw');
@@ -697,6 +770,10 @@ async function cleanup() {
       // Same.
     }
     cdn = null;
+  }
+  if (safariDriver) {
+    safariDriver.proc.kill();
+    safariDriver = null;
   }
   for (const dir of [tempRoot, homeBase]) {
     try {
