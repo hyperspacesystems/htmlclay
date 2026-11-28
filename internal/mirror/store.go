@@ -50,17 +50,14 @@ type Limits struct {
 // DefaultLimits are the limits a new install starts with.
 var DefaultLimits = Limits{Total: 500 << 20, PerFile: 25 << 20, MaxAge: 180 * 24 * time.Hour}
 
-// LimitsFor maps a space choice to its limits: the per-file cap and the unused-copy
-// sweep grow with the space, and unlimited removes all three. An unknown choice is the
-// default.
+// LimitsFor maps a space choice to its limits: the per-file cap grows with the space.
+// An unknown choice is the default.
 func LimitsFor(space string) Limits {
 	switch space {
 	case "2gb":
 		return Limits{Total: 2 << 30, PerFile: 100 << 20, MaxAge: 180 * 24 * time.Hour}
 	case "10gb":
-		return Limits{Total: 10 << 30, PerFile: 500 << 20, MaxAge: 365 * 24 * time.Hour}
-	case "unlimited":
-		return Limits{}
+		return Limits{Total: 10 << 30, PerFile: 500 << 20, MaxAge: 180 * 24 * time.Hour}
 	}
 	return DefaultLimits
 }
@@ -94,6 +91,7 @@ type Store struct {
 	diskMu   sync.Mutex
 	mu       sync.Mutex
 	limits   Limits
+	policy   Policy
 	indexes  map[string]*index
 	refs     map[string]int
 	total    int64
@@ -110,6 +108,8 @@ var (
 	ErrBadOrigin = errors.New("mirror: not an origin name")
 	ErrBadURL    = errors.New("mirror: not an absolute http or https address")
 	ErrTooBig    = errors.New("mirror: file over the per-file limit")
+	// ErrNotKept is returned when the policy does not keep this kind of file.
+	ErrNotKept = errors.New("mirror: the offline policy does not keep this kind of file")
 )
 
 var (
@@ -119,7 +119,7 @@ var (
 
 // Open loads the store under dir, creating it 0700 when missing.
 func Open(dir string, limits Limits) (*Store, error) {
-	s := &Store{dir: dir, limits: limits, indexes: map[string]*index{}, refs: map[string]int{}, dirty: map[string]bool{}, now: time.Now}
+	s := &Store{dir: dir, limits: limits, policy: Policy{Limits: limits, Images: true}, indexes: map[string]*index{}, refs: map[string]int{}, dirty: map[string]bool{}, now: time.Now}
 	for _, sub := range []string{"blobs", "origins"} {
 		if err := os.MkdirAll(filepath.Join(dir, sub), 0o700); err != nil {
 			return nil, err
@@ -228,6 +228,7 @@ func (s *Store) SetLimits(l Limits) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.limits = l
+	s.policy.Limits = l
 	if l.PerFile > 0 {
 		for origin, ix := range s.indexes {
 			for key, e := range ix.Entries {
@@ -239,6 +240,29 @@ func (s *Store) SetLimits(l Limits) {
 	}
 	s.lastSweep = time.Time{}
 	s.enforceLocked()
+}
+
+// SetPolicy applies p: its limits at once (evicting what no longer fits) and the
+// removal of every copy of a kind p no longer keeps.
+func (s *Store) SetPolicy(p Policy) {
+	s.mu.Lock()
+	s.policy = p
+	for origin, ix := range s.indexes {
+		for key, e := range ix.Entries {
+			if !p.AllowsType(e.Type) {
+				s.removeLocked(origin, key)
+			}
+		}
+	}
+	s.mu.Unlock()
+	s.SetLimits(p.Limits)
+}
+
+// Policy reports the current policy.
+func (s *Store) Policy() Policy {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.policy
 }
 
 // Limits reports the current limits.
@@ -270,8 +294,11 @@ func (s *Store) PutStream(origin, rawURL string, meta Entry, r io.Reader) error 
 		return err
 	}
 	s.mu.Lock()
-	perFile, gen := s.limits.PerFile, s.gen
+	perFile, gen, policy := s.limits.PerFile, s.gen, s.policy
 	s.mu.Unlock()
+	if !policy.AllowsType(meta.Type) {
+		return ErrNotKept
+	}
 	blobs := filepath.Join(s.dir, "blobs")
 	if err := os.MkdirAll(blobs, 0o700); err != nil {
 		return err

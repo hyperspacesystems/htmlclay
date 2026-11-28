@@ -1,7 +1,7 @@
 import Foundation
 
 public enum WireValue: Equatable, Sendable, Encodable {
-    case string(String), bool(Bool), int(Int), strings([String])
+    case string(String), bool(Bool), int(Int), strings([String]), offlinePolicy(OfflinePolicy)
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
@@ -10,6 +10,7 @@ public enum WireValue: Equatable, Sendable, Encodable {
         case let .bool(value): try container.encode(value)
         case let .int(value): try container.encode(value)
         case let .strings(value): try container.encode(value)
+        case let .offlinePolicy(value): try container.encode(value)
         }
     }
 }
@@ -119,8 +120,8 @@ public enum HostActionWire {
             return WireActionRequest(type: "prefs.set", args: ["key": .string("aiEditing"), "value": .bool(on)])
         case let .setOfflineCopies(on):
             return WireActionRequest(type: "prefs.set", args: ["key": .string("offlineCopies"), "value": .bool(on)])
-        case let .setOfflineSpace(space):
-            return WireActionRequest(type: "prefs.set", args: ["key": .string("offlineSpace"), "value": .string(space.rawValue)])
+        case let .setOfflinePolicy(policy):
+            return WireActionRequest(type: "prefs.set", args: ["key": .string("offlinePolicy"), "value": .offlinePolicy(policy)])
         case .clearOfflineCopies:
             return WireActionRequest(type: HostActionType.offlineClear, args: [:])
         case let .setUseName(on):

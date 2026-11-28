@@ -123,9 +123,23 @@ type Config struct {
 	// OfflineCopiesOff is true when the person switched off offline copies of the
 	// files documents load. Missing reads as on.
 	OfflineCopiesOff bool `json:"offlineCopiesOff,omitempty"`
-	// OfflineSpaceSetting is the space offline copies may take: "500mb", "2gb",
-	// "10gb" or "unlimited". Empty reads as 500mb. Read through OfflineSpace().
+	// OfflineSpaceSetting is the space offline copies may take: "500mb", "2gb" or
+	// "10gb". Empty reads as 500mb. Read through OfflineSpace().
 	OfflineSpaceSetting string `json:"offlineSpace,omitempty"`
+	// OfflineMode is "full" when offline copies are fully offline; anything else,
+	// including empty, reads as "default".
+	OfflineMode string `json:"offlineMode,omitempty"`
+	// OfflineLimited is true when fully offline copies keep only the kinds switched on,
+	// inside OfflineLimitMB.
+	OfflineLimited bool `json:"offlineLimited,omitempty"`
+	// OfflineNoImages, OfflineNoVideo and OfflineNoAudio are true when fully offline
+	// copies leave that kind out. Missing reads as on.
+	OfflineNoImages bool `json:"offlineNoImages,omitempty"`
+	OfflineNoVideo  bool `json:"offlineNoVideo,omitempty"`
+	OfflineNoAudio  bool `json:"offlineNoAudio,omitempty"`
+	// OfflineLimitMB is the space a fully offline copy with limits may take in MB. Zero,
+	// or anything under 50, reads as no limit. Read through OfflineSettings().
+	OfflineLimitMB int `json:"offlineLimitMB,omitempty"`
 	// Profile is the person HTML Clay names in files it serves, when Enabled. Nil
 	// means never set up, which reads as off. The id survives renames and toggles.
 	Profile *Profile `json:"profile,omitempty"`

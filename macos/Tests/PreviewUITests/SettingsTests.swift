@@ -193,6 +193,15 @@ final class SettingsTests: XCTestCase {
             }
         }
 
+        let offlineHost = SampleHost(persona: .syncedWithTeams)
+        let offlineModel = AppModel(host: offlineHost, initial: offlineHost.current)
+        let fullPolicy = OfflinePolicy(mode: .full, space: .gb2, limited: true, images: false, video: true, audio: false, limitMB: 5000)
+        _ = await offlineHost.perform(.setOfflinePolicy(fullPolicy))
+        XCTAssertEqual(offlineModel.snapshot.preferences.offlinePolicy, fullPolicy)
+        let fullHosting = NSHostingView(rootView: KilnRoot { SettingsView(pane: .advanced) }.environment(offlineModel))
+        fullHosting.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThanOrEqual(fullHosting.fittingSize.width, 840)
+
         let welcomeHost = SampleHost(persona: .newPerson)
         let welcomeModel = AppModel(host: welcomeHost, initial: welcomeHost.current)
         let welcomeHosting = NSHostingView(rootView: KilnRoot { WelcomeView(film: nil, menuBarIcon: nil) }.environment(welcomeModel))

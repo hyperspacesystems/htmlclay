@@ -100,8 +100,9 @@ func TestAFileAddedToAFolderGetsItsTagsAndStylesheetReferencesCopied(t *testing.
 	writeFile(t, filepath.Join(dir, "node_modules", "x", "skip.html"),
 		`<script src="`+cdn.url("/skipped.js")+`"></script>`)
 
-	store := openStore(t, mirror.DefaultLimits)
-	w := &mirror.Warmer{Images: true,
+	store := openStore(t, mirror.Limits{})
+	store.SetPolicy(mirror.PolicyFor("full", "", true, true, false, true, 0))
+	w := &mirror.Warmer{
 		Fetch:   mirror.NewFetcher(store, allowOnly(cdn.addr())),
 		Folders: func() []string { return []string{dir} },
 	}
@@ -129,13 +130,13 @@ func TestAFileAddedToAFolderGetsItsTagsAndStylesheetReferencesCopied(t *testing.
 	}
 }
 
-func TestStaticReferencesSkipsMediaSourcesOutsidePicture(t *testing.T) {
+func TestStaticReferencesListsPictureSourcesAndMedia(t *testing.T) {
 	doc := `<video><source src="https://cdn.example/v.mp4"></video>` +
 		`<picture><source srcset="https://cdn.example/a.png 1x, https://cdn.example/b.png 2x"></picture>` +
 		`<link rel="icon" href="//cdn.example/i.ico">` +
 		`<link rel="alternate" href="https://cdn.example/feed.xml">`
 	got := mirror.StaticReferences([]byte(doc))
-	want := []string{"https://cdn.example/a.png", "https://cdn.example/b.png", "https://cdn.example/i.ico"}
+	want := []string{"https://cdn.example/v.mp4", "https://cdn.example/a.png", "https://cdn.example/b.png", "https://cdn.example/i.ico"}
 	if len(got) != len(want) {
 		t.Fatalf("StaticReferences = %v, want %v", got, want)
 	}
@@ -304,6 +305,7 @@ func TestWarmingSkipsImagesByDefault(t *testing.T) {
 		`<link rel="preload" as="image" href="`+cdn.url("/poster.png")+`"></head>`+
 		`<body><img src="`+cdn.url("/pixel.gif")+`"><video poster="`+cdn.url("/poster.png")+`"></video></body></html>`)
 	store := openStore(t, mirror.DefaultLimits)
+	store.SetPolicy(mirror.DefaultPolicy)
 	w := &mirror.Warmer{Fetch: mirror.NewFetcher(store, allowOnly(cdn.addr())), Folders: func() []string { return []string{dir} }}
 	w.Pass(context.Background())
 	if n := cdn.count("/pixel.gif") + cdn.count("/poster.png"); n != 0 {
@@ -311,5 +313,40 @@ func TestWarmingSkipsImagesByDefault(t *testing.T) {
 	}
 	if cdn.count("/lib/a.js") != 1 {
 		t.Fatal("warming skipped the script too")
+	}
+}
+
+// Fully offline copies keep whole video and audio files, so warming fetches them; the
+// default keeps neither.
+func TestWarmingFetchesVideoOnlyWhenFullyOffline(t *testing.T) {
+	cdn := newStandInCDN(t, map[string]struct{ kind, body string }{
+		"/lib/a.js": {"text/javascript", "window.a=1"},
+		"/v.mp4":    {"video/mp4", "mp4"},
+		"/s.mp4":    {"video/mp4", "mp4"},
+	})
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "page.html"), `<html><head><script src="`+cdn.url("/lib/a.js")+`"></script></head>`+
+		`<body><video src="`+cdn.url("/v.mp4")+`"></video>`+
+		`<video><source src="`+cdn.url("/s.mp4")+`"></video></body></html>`)
+
+	def := openStore(t, mirror.DefaultLimits)
+	def.SetPolicy(mirror.DefaultPolicy)
+	(&mirror.Warmer{Fetch: mirror.NewFetcher(def, allowOnly(cdn.addr())), Folders: func() []string { return []string{dir} }}).
+		Pass(context.Background())
+	if n := cdn.count("/v.mp4") + cdn.count("/s.mp4"); n != 0 {
+		t.Fatalf("warming fetched %d video file(s) under the default policy, want 0", n)
+	}
+
+	full := openStore(t, mirror.Limits{})
+	full.SetPolicy(mirror.PolicyFor("full", "", false, true, true, true, 0))
+	(&mirror.Warmer{Fetch: mirror.NewFetcher(full, allowOnly(cdn.addr())), Folders: func() []string { return []string{dir} }}).
+		Pass(context.Background())
+	for _, p := range []string{"/v.mp4", "/s.mp4"} {
+		if n := cdn.count(p); n != 1 {
+			t.Fatalf("the CDN answered %d request(s) for %s under the fully offline policy, want 1", n, p)
+		}
+		if n := full.Held(mirror.Shared, []string{cdn.url(p)}); n != 1 {
+			t.Fatalf("the store holds %d copy of %s under the fully offline policy, want 1", n, p)
+		}
 	}
 }

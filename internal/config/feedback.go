@@ -382,16 +382,15 @@ func (c *Config) SetOfflineCopies(on bool) {
 
 // Offline copies space choices.
 const (
-	OfflineSpace500       = "500mb"
-	OfflineSpace2         = "2gb"
-	OfflineSpace10        = "10gb"
-	OfflineSpaceUnlimited = "unlimited"
+	OfflineSpace500 = "500mb"
+	OfflineSpace2   = "2gb"
+	OfflineSpace10  = "10gb"
 )
 
 // ValidOfflineSpace reports whether v is one of the space choices.
 func ValidOfflineSpace(v string) bool {
 	switch v {
-	case OfflineSpace500, OfflineSpace2, OfflineSpace10, OfflineSpaceUnlimited:
+	case OfflineSpace500, OfflineSpace2, OfflineSpace10:
 		return true
 	}
 	return false
@@ -408,14 +407,60 @@ func (c *Config) OfflineSpace() string {
 	return OfflineSpace500
 }
 
-// SetOfflineSpace records the space offline copies may take.
-func (c *Config) SetOfflineSpace(v string) {
+// OfflineSettings is what offline copies keep while they are on.
+type OfflineSettings struct {
+	Mode                 string // "default" or "full"
+	Space                string
+	Limited              bool
+	Images, Video, Audio bool
+	LimitMB              int
+}
+
+// OfflineSettings reports the offline settings; unknown values read as the defaults.
+func (c *Config) OfflineSettings() OfflineSettings {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if v == OfflineSpace500 {
-		v = ""
+	s := OfflineSettings{
+		Mode:    "default",
+		Space:   OfflineSpace500,
+		Limited: c.OfflineLimited,
+		Images:  !c.OfflineNoImages,
+		Video:   !c.OfflineNoVideo,
+		Audio:   !c.OfflineNoAudio,
+		LimitMB: c.OfflineLimitMB,
 	}
-	c.OfflineSpaceSetting = v
+	if c.OfflineMode == "full" {
+		s.Mode = "full"
+	}
+	if ValidOfflineSpace(c.OfflineSpaceSetting) {
+		s.Space = c.OfflineSpaceSetting
+	}
+	if s.LimitMB < 50 {
+		s.LimitMB = 0
+	}
+	return s
+}
+
+// SetOfflineSettings records what offline copies keep.
+func (c *Config) SetOfflineSettings(s OfflineSettings) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.OfflineMode = ""
+	if s.Mode == "full" {
+		c.OfflineMode = "full"
+	}
+	c.OfflineSpaceSetting = ""
+	if s.Space != OfflineSpace500 && ValidOfflineSpace(s.Space) {
+		c.OfflineSpaceSetting = s.Space
+	}
+	c.OfflineLimited = s.Limited
+	c.OfflineNoImages = !s.Images
+	c.OfflineNoVideo = !s.Video
+	c.OfflineNoAudio = !s.Audio
+	c.OfflineLimitMB = 0
+	if s.LimitMB >= 50 {
+		c.OfflineLimitMB = s.LimitMB
+	}
 }
 
 // OfflineCopies reports whether HTML Clay keeps offline copies.

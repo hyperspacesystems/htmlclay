@@ -147,9 +147,9 @@ var preferenceKeys = map[string]string{
 	"useName":     "bool",
 	"autoUpdate":  "bool",
 	"aiEditTool":  "string",
-	// Offline copies of the files documents load: the switch, and the space choice.
+	// Offline copies of the files documents load: the switch, and what they keep.
 	"offlineCopies": "bool",
-	"offlineSpace":  "offlineSpace",
+	"offlinePolicy": "offlinePolicy",
 }
 
 // requestAnswers is what each request kind offers, the preview's request window
@@ -785,9 +785,18 @@ func valueIs(raw json.RawMessage, kind string) bool {
 	case "appearance":
 		var v string
 		return json.Unmarshal(raw, &v) == nil && (v == AppearanceSystem || v == AppearanceLight || v == AppearanceDark)
-	case "offlineSpace":
-		var v string
-		return json.Unmarshal(raw, &v) == nil && (v == OfflineSpace500 || v == OfflineSpace2 || v == OfflineSpace10 || v == OfflineSpaceUnlimited)
+	case "offlinePolicy":
+		var v OfflinePolicy
+		if json.Unmarshal(raw, &v) != nil {
+			return false
+		}
+		if v.Mode != OfflineModeDefault && v.Mode != OfflineModeFull {
+			return false
+		}
+		if v.Space != OfflineSpace500 && v.Space != OfflineSpace2 && v.Space != OfflineSpace10 {
+			return false
+		}
+		return v.LimitMB == 0 || (v.LimitMB >= 50 && v.LimitMB <= 1<<24)
 	}
 	return false
 }

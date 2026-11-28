@@ -123,8 +123,8 @@ func TestLimitsForEachSpaceChoice(t *testing.T) {
 	if got := mirror.LimitsFor("500mb"); got != mirror.DefaultLimits {
 		t.Errorf("LimitsFor(500mb) = %+v, want the default limits %+v", got, mirror.DefaultLimits)
 	}
-	if got := mirror.LimitsFor("unlimited"); got != (mirror.Limits{}) {
-		t.Errorf("LimitsFor(unlimited) = %+v, want no limits", got)
+	if got := mirror.LimitsFor("10gb"); got.MaxAge != 180*24*time.Hour {
+		t.Errorf("LimitsFor(10gb).MaxAge = %v, want 180 days", got.MaxAge)
 	}
 	if got := mirror.LimitsFor("2gb"); got.Total != 2<<30 {
 		t.Errorf("LimitsFor(2gb).Total = %d, want %d", got.Total, int64(2<<30))
@@ -317,5 +317,55 @@ func TestStoringTheSameBytesAgainKeepsTheCopy(t *testing.T) {
 	}
 	if _, body, ok := store.Get("a.localhost", u); !ok || string(body) != "window.lib=1" {
 		t.Fatalf("after storing the same bytes twice the copy is %q (held %v), want the bytes", body, ok)
+	}
+}
+
+func TestSetPolicyRemovesKindsNoLongerKept(t *testing.T) {
+	store, err := mirror.Open(t.TempDir(), mirror.Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.SetPolicy(mirror.Policy{Limits: mirror.Limits{}, Images: true, Video: true, Audio: true})
+	image, script := "https://cdn.example/a.png", "https://cdn.example/a.js"
+	if err := store.Put("a.localhost", image, "image/png", []byte("png"), "page"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put("a.localhost", script, "text/javascript", []byte("a()"), "page"); err != nil {
+		t.Fatal(err)
+	}
+
+	store.SetPolicy(mirror.PolicyFor("full", "", true, false, true, true, 0))
+
+	if _, _, ok := store.Get("a.localhost", image); ok {
+		t.Fatal("the image copy is still held after Images went off")
+	}
+	if _, _, ok := store.Get("a.localhost", script); !ok {
+		t.Fatal("the script copy went with the image")
+	}
+}
+
+func TestPolicyForShapes(t *testing.T) {
+	def := mirror.PolicyFor("default", "2gb", false, false, false, false, 0)
+	if def.Limits != mirror.LimitsFor("2gb") {
+		t.Errorf("default limits = %+v, want %+v", def.Limits, mirror.LimitsFor("2gb"))
+	}
+	if !def.Images || def.WarmImages || def.Video || def.Audio {
+		t.Errorf("default kinds = %+v, want images on open only", def)
+	}
+
+	full := mirror.PolicyFor("full", "500mb", false, false, false, false, 0)
+	if full.Limits != (mirror.Limits{}) {
+		t.Errorf("fully offline limits = %+v, want no limits", full.Limits)
+	}
+	if !full.Images || !full.WarmImages || !full.Video || !full.Audio {
+		t.Errorf("fully offline kinds = %+v, want everything", full)
+	}
+
+	limited := mirror.PolicyFor("full", "500mb", true, true, true, true, 5000)
+	if limited.Limits.Total != 5000<<20 {
+		t.Errorf("fully offline limited total = %d, want %d", limited.Limits.Total, int64(5000<<20))
+	}
+	if limited.Limits.MaxAge != 0 {
+		t.Errorf("fully offline limited MaxAge = %v, want no age limit", limited.Limits.MaxAge)
 	}
 }

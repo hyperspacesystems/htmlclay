@@ -152,7 +152,18 @@ func (h *Handler) serveWorker(w http.ResponseWriter, r *http.Request) {
 	if limit := h.Store.Limits().PerFile; limit > 0 {
 		maxBytes = strconv.FormatInt(limit, 10)
 	}
-	w.Write(bytes.Replace(workerBody, []byte("{{MAX_BYTES}}"), []byte(maxBytes), 1))
+	p := h.Store.Policy()
+	flag := func(on bool) []byte {
+		if on {
+			return []byte("1")
+		}
+		return []byte("0")
+	}
+	body := bytes.Replace(workerBody, []byte("{{MAX_BYTES}}"), []byte(maxBytes), 1)
+	body = bytes.Replace(body, []byte("{{IMAGES}}"), flag(p.Images), 1)
+	body = bytes.Replace(body, []byte("{{VIDEO}}"), flag(p.Video), 1)
+	body = bytes.Replace(body, []byte("{{AUDIO}}"), flag(p.Audio), 1)
+	w.Write(body)
 }
 
 func (h *Handler) serveBoot(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +230,10 @@ func (h *Handler) serveStore(w http.ResponseWriter, r *http.Request, origin stri
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	if !h.Store.Policy().AllowsDest(r.URL.Query().Get("dest")) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	hints := hintsFor(r, r.URL.Query().Get("dest"))
 	_, given := r.Header[http.CanonicalHeaderKey("Clay-Content-Type")]
 	if !given {
@@ -237,6 +252,10 @@ func (h *Handler) serveStore(w http.ResponseWriter, r *http.Request, origin stri
 		var tooLarge *http.MaxBytesError
 		if errors.Is(err, ErrTooBig) || errors.As(err, &tooLarge) {
 			http.Error(w, "Request Entity Too Large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		if errors.Is(err, ErrNotKept) {
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 		http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -281,6 +300,9 @@ func (h *Handler) serveNominate(w http.ResponseWriter, r *http.Request, origin s
 			if ctx.Err() != nil || h.off() {
 				return
 			}
+			if !h.Store.Policy().AllowsDest(n.Kind) {
+				continue
+			}
 			// Own copies only: a warmed shared copy was fetched without this browser's
 			// User-Agent, and some servers (web fonts) answer browsers differently.
 			if _, ok := h.Store.Lookup(origin, n.URL); ok {
@@ -299,6 +321,10 @@ func kindDest(kind string) string {
 		return "style"
 	case "img", "image":
 		return "image"
+	case "video":
+		return "video"
+	case "audio":
+		return "audio"
 	default:
 		return ""
 	}
@@ -329,11 +355,7 @@ func (h *Handler) serveCopy(w http.ResponseWriter, r *http.Request, origin strin
 	w.Header().Set("Content-Type", entry.Type)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
-	w.Header().Set("Content-Length", strconv.FormatInt(entry.Size, 10))
-	w.WriteHeader(http.StatusOK)
-	if r.Method == http.MethodGet {
-		io.Copy(w, f)
-	}
+	http.ServeContent(w, r, "", entry.StoredAt, f)
 }
 
 func (h *Handler) serveHas(w http.ResponseWriter, r *http.Request, origin string) {

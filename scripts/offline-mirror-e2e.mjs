@@ -46,6 +46,7 @@ const CHECKS = [
   'a fresh profile offline recovers with one reload, and only one',
   'a page with its own scope-root worker keeps it',
   '100 cross-origin files cost little',
+  'fully offline: a video loads from its copy',
 ];
 
 const checks = [];
@@ -61,6 +62,7 @@ function expect(ok, message) {
 // ---------------------------------------------------------------- the stand-in CDN
 
 const FONT = fs.readFileSync(path.join(repo, 'service', 'local', 'assets', 'fonts', 'fixedsys-webfont.woff2'));
+const CLIP = fs.readFileSync(path.join(repo, 'scripts', 'testdata', 'offline-clip.webm'));
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 const SRI_BODY = "window.__r.sri = 'ok';\n";
 const SRI_HASH = `sha256-${crypto.createHash('sha256').update(SRI_BODY).digest('base64')}`;
@@ -79,6 +81,7 @@ function cdnFiles(v) {
     '/esm/lazydep.js': ['text/javascript', `export const more = 'more-${v}';\n`],
     '/data.json': ['application/json', JSON.stringify({ v })],
     '/img/p.png': ['image/png', PNG],
+    '/media/clip.webm': ['video/webm', CLIP],
   };
 }
 
@@ -181,6 +184,21 @@ ${Array.from({ length: 100 }, (_, i) => `<script src="${cdn}/many/${i}.js"></scr
 `;
 
 // A page that brings its own scope-root worker. The boot script must leave it alone.
+// Fully offline keeps whole video files: the page reports whether its video decoded.
+const VIDEO_PAGE = (cdn) => `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>video</title></head><body>
+<video id="v" muted preload="auto" src="${cdn}/media/clip.webm"></video>
+<script>
+window.__r = {};
+const v = document.getElementById('v');
+const end = (value) => { if (!window.__finished) { window.__r.video = value; window.__finished = true; } };
+v.addEventListener('loadeddata', () => end('ok'));
+v.addEventListener('error', () => end('ERR'));
+setTimeout(() => end('timeout'), 10000);
+</script>
+</body></html>
+`;
+
 const OWN_SW_PAGE = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -245,7 +263,7 @@ function servedRoot(root) {
 // scripts/served-product.mjs startProduct, plus the two things this test needs: extra
 // environment for the child (the stand-in CDN and a cache folder of its own) and the
 // offline copies switch in the config it writes.
-async function startProduct({ bin, root, name, port, extraEnv = {}, offlineCopiesOff = false }) {
+async function startProduct({ bin, root, name, port, extraEnv = {}, offlineCopiesOff = false, extraConfig = {} }) {
   const folder = servedRoot(root);
   const configBase = fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-offline-e2e-conf-'));
   const configDir = path.join(configBase, 'htmlclay');
@@ -259,6 +277,7 @@ async function startProduct({ bin, root, name, port, extraEnv = {}, offlineCopie
     port: chosen,
     updates: 'off',
     offlineCopiesOff,
+    ...extraConfig,
     servedFolders: [{
       id: crypto.randomBytes(8).toString('hex'),
       name,
@@ -411,9 +430,11 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'htmlclay-offline-e2e-'))
 const homeBase = fs.mkdtempSync(path.join(os.homedir(), 'htmlclay-offline-e2e-'));
 const folder = path.join(homeBase, 'main');
 const folderOff = path.join(homeBase, 'off');
+const folderFull = path.join(homeBase, 'full');
 const storeCache = path.join(tempRoot, 'cache');
 const offCache = path.join(tempRoot, 'cache-off');
-for (const dir of [storeCache, offCache]) fs.mkdirSync(dir, { recursive: true });
+const fullCache = path.join(tempRoot, 'cache-full');
+for (const dir of [storeCache, offCache, fullCache]) fs.mkdirSync(dir, { recursive: true });
 
 let cdnOrigin = '';
 const contexts = [];
@@ -693,6 +714,35 @@ async function run() {
   record(CHECKS[8], costFailures.length === 0, costFailures.length
     ? `${costFailures.join('; ')} (controlled median ${controlledMedian.toFixed(0)}ms, plain ${plainMedian.toFixed(0)}ms, budget ${budget.toFixed(0)}ms)`
     : `controlled median ${controlledMedian.toFixed(0)}ms, plain ${plainMedian.toFixed(0)}ms, budget ${budget.toFixed(0)}ms`);
+
+  // 10: Fully offline copies a page's video whole and answers it from the copy.
+  fs.mkdirSync(folderFull, { recursive: true });
+  fs.writeFileSync(path.join(folderFull, 'video.html'), VIDEO_PAGE(cdnOrigin));
+  const hostFull = await startProduct({
+    bin,
+    root: folderFull,
+    name: 'full',
+    extraConfig: { offlineMode: 'full' },
+    extraEnv: { HTMLCLAY_OFFLINE_TEST_UPSTREAM: `127.0.0.1:${cdnPort}`, XDG_CACHE_HOME: fullCache },
+  });
+  hosts.push(hostFull);
+  const videoURL = `${hostFull.url}/video.html`;
+  const contextVideo = await newContext('video');
+  const pageVideo = await firstPage(contextVideo);
+  const videoOnline = await visit(pageVideo, videoURL, { first: true, settleMs: 4000 });
+  const videoWarm = await visit(pageVideo, videoURL, { settleMs: 3000 });
+  const fullStore = path.join(hostFull.configBase, 'htmlclay-cache', 'offline-copies');
+  const clipStored = originIndexes(fullStore).some((file) => fs.readFileSync(file, 'utf8').includes('/media/clip.webm'));
+  await cdn.stop();
+  cdn = null;
+  const videoOffline = await visit(pageVideo, videoURL, { settleMs: 500 });
+  const videoFailures = [];
+  if (videoOnline.values.video !== 'ok') videoFailures.push(`online the video answered ${videoOnline.values.video}`);
+  if (videoWarm.values.video !== 'ok') videoFailures.push(`the second online load answered ${videoWarm.values.video}`);
+  if (!clipStored) videoFailures.push('the store holds no copy of the video');
+  if (videoOffline.values.video !== 'ok') videoFailures.push(`offline the video answered ${videoOffline.values.video}`);
+  record(CHECKS[9], videoFailures.length === 0, videoFailures.join('; '));
+  cdn = await startCdn(cdnPort, state);
 
   // 7: a browser that never saw this page recovers from the copies with one reload.
   await cdn.stop();

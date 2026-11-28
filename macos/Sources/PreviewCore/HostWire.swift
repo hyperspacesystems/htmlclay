@@ -399,6 +399,34 @@ public struct WireUpdateCheck: Codable, Equatable, Sendable {
     public var result: String
 }
 
+public struct WireOfflinePolicy: Codable, Equatable, Sendable {
+    public var mode: String
+    public var space: String
+    public var limited: Bool
+    public var images: Bool
+    public var video: Bool
+    public var audio: Bool
+    public var limitMB: Int
+
+    public init(
+        mode: String = "",
+        space: String = "",
+        limited: Bool = false,
+        images: Bool = false,
+        video: Bool = false,
+        audio: Bool = false,
+        limitMB: Int = 0
+    ) {
+        self.mode = mode
+        self.space = space
+        self.limited = limited
+        self.images = images
+        self.video = video
+        self.audio = audio
+        self.limitMB = limitMB
+    }
+}
+
 public struct WirePreferences: Codable, Equatable, Sendable {
     public var openAtLogin: Bool
     public var openAtLoginChosen: Bool
@@ -412,9 +440,8 @@ public struct WirePreferences: Codable, Equatable, Sendable {
     public var aiEditTools: [WireAIEditTool]?
     /// Whether HTML Clay keeps offline copies. Nil from a host older than this round.
     public var offlineCopies: Bool?
-    /// The space the copies may take: "500mb", "2gb", "10gb" or "unlimited". Empty
-    /// reads as 500mb.
-    public var offlineSpace: String?
+    /// What offline copies keep while they are on. Nil from a host older than this round.
+    public var offlinePolicy: WireOfflinePolicy?
 }
 
 public struct WireAIEditTool: Codable, Equatable, Sendable {

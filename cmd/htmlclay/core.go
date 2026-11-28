@@ -233,7 +233,7 @@ func (a *app) facts() appcore.Facts {
 		AIEditTool:        a.aiEditTool(),
 		AIEditTools:       a.aiEditTools(),
 		OfflineCopies:     a.rt.cfg.OfflineCopies(),
-		OfflineSpace:      a.rt.cfg.OfflineSpace(),
+		OfflinePolicy:     offlinePolicyOf(a.rt.cfg.OfflineSettings()),
 	}
 	f.Offline = a.offlineFacts()
 	f.FileTypes = a.fileTypeFacts()

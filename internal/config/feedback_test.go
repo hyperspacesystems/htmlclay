@@ -2,6 +2,8 @@ package config
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 )
@@ -162,7 +164,7 @@ func TestFeedbackFieldsRoundTrip(t *testing.T) {
 		t.Fatalf("SetAIEditModel: %v", err)
 	}
 	cfg.SetOfflineCopies(false)
-	cfg.SetOfflineSpace("10gb")
+	cfg.SetOfflineSettings(OfflineSettings{Mode: "full", Space: "10gb", Limited: true, Images: false, Video: true, Audio: true, LimitMB: 5000})
 	if err := cfg.Save(); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -201,16 +203,32 @@ func TestFeedbackFieldsRoundTrip(t *testing.T) {
 	if loaded.OfflineCopies() {
 		t.Fatal("the offline copies switch did not survive the round trip")
 	}
-	if got := loaded.OfflineSpace(); got != "10gb" {
-		t.Fatalf("OfflineSpace() = %q, want 10gb", got)
+	want := OfflineSettings{Mode: "full", Space: "10gb", Limited: true, Images: false, Video: true, Audio: true, LimitMB: 5000}
+	if got := loaded.OfflineSettings(); got != want {
+		t.Fatalf("OfflineSettings() = %+v, want %+v", got, want)
 	}
 
 	fresh, _, err := LoadFrom(t.TempDir(), noIdentity)
 	if err != nil {
 		t.Fatalf("load a fresh config: %v", err)
 	}
-	if got := fresh.OfflineSpace(); got != "500mb" {
-		t.Fatalf("a fresh config reads OfflineSpace() = %q, want 500mb", got)
+	if got, want := fresh.OfflineSettings(), (OfflineSettings{Mode: "default", Space: "500mb", Images: true, Video: true, Audio: true}); got != want {
+		t.Fatalf("a fresh config reads OfflineSettings() = %+v, want %+v", got, want)
+	}
+	lowBase := t.TempDir()
+	if err := os.MkdirAll(DirFrom(lowBase), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(DirFrom(lowBase), "config.json"),
+		[]byte(`{"offlineMode":"full","offlineLimitMB":10,"offlineNoImages":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	low, _, err := LoadFrom(lowBase, noIdentity)
+	if err != nil {
+		t.Fatalf("load a config whose limit is under 50 MB: %v", err)
+	}
+	if got, want := low.OfflineSettings(), (OfflineSettings{Mode: "full", Space: "500mb", Limited: false, Video: true, Audio: true}); got != want {
+		t.Fatalf("a stored 10 MB limit reads as %+v, want %+v", got, want)
 	}
 	if !fresh.OfflineCopies() {
 		t.Fatal("a fresh config reads offline copies as off, want on")

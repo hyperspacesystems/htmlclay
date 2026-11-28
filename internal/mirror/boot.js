@@ -115,7 +115,7 @@
     var list = [];
     var add = function (url, kind) { if (url && !seen[url]) { seen[url] = 1; list.push({ url: url, kind: kind }); } };
     (performance.getEntriesByType ? performance.getEntriesByType('resource') : []).forEach(function (e) {
-      if (['fetch', 'xmlhttprequest', 'beacon', 'video', 'audio', 'track'].indexOf(e.initiatorType) < 0) add(crossOrigin(e.name), e.initiatorType);
+      if (['fetch', 'xmlhttprequest', 'beacon', 'track'].indexOf(e.initiatorType) < 0) add(crossOrigin(e.name), e.initiatorType);
     });
     gets.forEach(function (g) { add(g.url, g.kind); });
     if (list.length) post('/_/offline/nominate', list).catch(function () {});

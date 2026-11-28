@@ -848,11 +848,13 @@ func (a *app) openMirror() *mirror.Handler {
 		a.rt.logger.Printf("Offline copies are unavailable: %v", err)
 		return nil
 	}
-	store, err := mirror.Open(dir, mirror.LimitsFor(a.rt.cfg.OfflineSpace()))
+	policy := offlinePolicy(a.rt.cfg.OfflineSettings())
+	store, err := mirror.Open(dir, policy.Limits)
 	if err != nil {
 		a.rt.logger.Printf("Offline copies are unavailable: %v", err)
 		return nil
 	}
+	store.SetPolicy(policy)
 	// Resolved, so the grant guard and the serve path compare against the spelling
 	// trust resolution lands on.
 	if real, err := filepath.EvalSymlinks(dir); err == nil {
@@ -863,6 +865,24 @@ func (a *app) openMirror() *mirror.Handler {
 	fetch := mirror.NewFetcher(store, testUpstreamDial(os.Getenv("HTMLCLAY_OFFLINE_TEST_UPSTREAM")))
 	fetch.Off = off
 	return &mirror.Handler{Store: store, Fetch: fetch, Off: off}
+}
+
+// offlinePolicy maps the offline settings to what the mirror keeps.
+func offlinePolicy(s config.OfflineSettings) mirror.Policy {
+	return mirror.PolicyFor(s.Mode, s.Space, s.Limited, s.Images, s.Video, s.Audio, s.LimitMB)
+}
+
+// offlinePolicyOf is the same settings as Settings shows them.
+func offlinePolicyOf(s config.OfflineSettings) appcore.OfflinePolicy {
+	return appcore.OfflinePolicy{
+		Mode:    s.Mode,
+		Space:   s.Space,
+		Limited: s.Limited,
+		Images:  s.Images,
+		Video:   s.Video,
+		Audio:   s.Audio,
+		LimitMB: s.LimitMB,
+	}
 }
 
 // testUpstreamDial lets the offline copies end-to-end test reach its stand-in CDN on this

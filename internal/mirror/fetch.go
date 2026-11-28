@@ -175,6 +175,9 @@ func (f *Fetcher) getAndStore(ctx context.Context, origin, key string, h Hints, 
 		LastModified: res.Header.Get("Last-Modified"),
 		Via:          via,
 	}
+	if !f.Store.Policy().AllowsType(meta.Type) {
+		return Entry{}, false, ErrNotKept
+	}
 	// A redirected stylesheet's relative references resolve against where it landed.
 	if final := res.Request.URL.String(); final != key {
 		meta.Base = final

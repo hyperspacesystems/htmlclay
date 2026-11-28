@@ -237,4 +237,19 @@ final class SettingsControlsTests: XCTestCase {
         XCTAssertTrue(SettingsControls.showsStorageTotals(isSample: true))
         XCTAssertFalse(SettingsControls.showsStorageTotals(isSample: false))
     }
+
+    func testOfflineLimitMBParsingAcceptsWholeNumbersFromFiftyOrUnlimited() {
+        XCTAssertEqual(OfflinePolicy.parseLimitMB(""), 0)
+        XCTAssertEqual(OfflinePolicy.parseLimitMB("   "), 0)
+        XCTAssertEqual(OfflinePolicy.parseLimitMB("0"), 0)
+        XCTAssertEqual(OfflinePolicy.parseLimitMB("50"), 50)
+        XCTAssertEqual(OfflinePolicy.parseLimitMB("5,000"), 5000)
+        XCTAssertEqual(OfflinePolicy.parseLimitMB(" 1,250,000 "), 1_250_000)
+        XCTAssertEqual(OfflinePolicy.formatLimitMB(0), "")
+        XCTAssertEqual(OfflinePolicy.formatLimitMB(5000), "5000")
+
+        for invalid in ["1", "49", "-50", "50.5", "abc", ",", "99999999"] {
+            XCTAssertNil(OfflinePolicy.parseLimitMB(invalid), invalid)
+        }
+    }
 }

@@ -283,7 +283,15 @@
     "aiEditTool": "",
     "aiEditTools": [],
     "offlineCopies": false,
-    "offlineSpace": ""
+    "offlinePolicy": {
+      "mode": "",
+      "space": "",
+      "limited": false,
+      "images": false,
+      "video": false,
+      "audio": false,
+      "limitMB": 0
+    }
   },
   "move": null,
   "recoveredChanges": 0,

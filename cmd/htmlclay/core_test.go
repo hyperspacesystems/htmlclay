@@ -526,30 +526,32 @@ func TestCoreOfflineCopiesSettings(t *testing.T) {
 	if !snapshot.Preferences.OfflineCopies {
 		t.Error("offline copies read as off in the snapshot, want on")
 	}
-	if snapshot.Preferences.OfflineSpace != "500mb" {
-		t.Errorf("offline space = %q in the snapshot, want 500mb", snapshot.Preferences.OfflineSpace)
+	if got, want := snapshot.Preferences.OfflinePolicy, (appcore.OfflinePolicy{Mode: appcore.OfflineModeDefault, Space: appcore.OfflineSpace500, Images: true, Video: true, Audio: true}); got != want {
+		t.Errorf("offline policy = %+v in the snapshot, want %+v", got, want)
 	}
 
-	snapshot, refusal := a.do(context.Background(), coreAction(t, "off-1", "prefs.set", map[string]any{"key": "offlineSpace", "value": "unlimited"}), ChannelTray)
+	policy := appcore.OfflinePolicy{Mode: appcore.OfflineModeFull, Space: appcore.OfflineSpace500, Limited: true, Images: true, Video: true, Audio: true, LimitMB: 5000}
+	snapshot, refusal := a.do(context.Background(), coreAction(t, "off-1", "prefs.set", map[string]any{"key": "offlinePolicy", "value": policy}), ChannelTray)
 	if refusal != nil {
-		t.Fatalf("prefs.set offlineSpace unlimited refused: %+v", refusal)
+		t.Fatalf("prefs.set offlinePolicy refused: %+v", refusal)
 	}
-	if got := a.rt.cfg.OfflineSpace(); got != "unlimited" {
-		t.Errorf("OfflineSpace() = %q, want unlimited", got)
+	if got := snapshot.Preferences.OfflinePolicy; got != policy {
+		t.Errorf("offline policy = %+v in the snapshot, want %+v", got, policy)
 	}
-	if got := store.Limits(); got != (mirror.Limits{}) {
-		t.Errorf("store limits = %+v, want no limits", got)
+	wantSettings := config.OfflineSettings{Mode: "full", Space: "500mb", Limited: true, Images: true, Video: true, Audio: true, LimitMB: 5000}
+	if got := a.rt.cfg.OfflineSettings(); got != wantSettings {
+		t.Errorf("OfflineSettings() = %+v, want %+v", got, wantSettings)
 	}
-	if snapshot.Preferences.OfflineSpace != "unlimited" {
-		t.Errorf("offline space = %q in the snapshot, want unlimited", snapshot.Preferences.OfflineSpace)
+	if got, want := store.Policy(), mirror.PolicyFor("full", "500mb", true, true, true, true, 5000); got != want {
+		t.Errorf("store policy = %+v, want %+v", got, want)
 	}
 
-	_, refusal = a.do(context.Background(), coreAction(t, "off-2", "prefs.set", map[string]any{"key": "offlineSpace", "value": "5gb"}), ChannelTray)
+	_, refusal = a.do(context.Background(), coreAction(t, "off-2", "prefs.set", map[string]any{"key": "offlinePolicy", "value": appcore.OfflinePolicy{Mode: appcore.OfflineModeFull, Space: appcore.OfflineSpace500, Limited: true, Images: true, Video: true, Audio: true, LimitMB: 10}}), ChannelTray)
 	if refusal == nil || refusal.Code != appcore.RefuseBadArguments {
-		t.Fatalf("prefs.set offlineSpace 5gb = %+v, want %q", refusal, appcore.RefuseBadArguments)
+		t.Fatalf("prefs.set offlinePolicy with a 10 MB limit = %+v, want %q", refusal, appcore.RefuseBadArguments)
 	}
-	if got := a.rt.cfg.OfflineSpace(); got != "unlimited" {
-		t.Errorf("OfflineSpace() = %q after a bad value, want unlimited", got)
+	if got := a.rt.cfg.OfflineSettings(); got != wantSettings {
+		t.Errorf("OfflineSettings() = %+v after a bad value, want %+v", got, wantSettings)
 	}
 
 	if _, refusal = a.do(context.Background(), coreAction(t, "off-3", "offline.clear", nil), ChannelTray); refusal != nil {

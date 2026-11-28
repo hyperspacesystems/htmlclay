@@ -206,7 +206,23 @@ public enum HostSnapshotAdapter {
                            command: $0.command ?? "")
             },
             offlineCopies: wire.offlineCopies ?? true,
-            offlineSpace: OfflineSpace(rawValue: wire.offlineSpace ?? "") ?? .mb500
+            offlinePolicy: offlinePolicy(wire.offlinePolicy)
+        )
+    }
+
+    private static func offlinePolicy(_ wire: WireOfflinePolicy?) -> OfflinePolicy {
+        guard let wire else { return OfflinePolicy() }
+        if wire.mode.isEmpty && wire.space.isEmpty && !wire.limited && !wire.images && !wire.video && !wire.audio && wire.limitMB == 0 {
+            return OfflinePolicy()
+        }
+        return OfflinePolicy(
+            mode: OfflineMode(rawValue: wire.mode) ?? .default,
+            space: OfflineSpace(rawValue: wire.space) ?? .mb500,
+            limited: wire.limited,
+            images: wire.images,
+            video: wire.video,
+            audio: wire.audio,
+            limitMB: max(0, wire.limitMB)
         )
     }
 

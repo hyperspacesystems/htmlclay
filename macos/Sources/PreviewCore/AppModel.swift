@@ -51,7 +51,7 @@ public final class AppModel {
         case .setOpenAtLogin: return "prefs.openAtLogin"
         case .setAIEditing: return "prefs.aiEditing"
         case .setOfflineCopies: return "prefs.offlineCopies"
-        case .setOfflineSpace: return "prefs.offlineSpace"
+        case .setOfflinePolicy: return "prefs.offlinePolicy"
         case .setAppearance: return "prefs.appearance"
         case .setYourName: return "prefs.yourName"
         case .setUseName: return "prefs.useName"

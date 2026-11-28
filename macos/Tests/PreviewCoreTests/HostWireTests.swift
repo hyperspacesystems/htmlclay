@@ -66,6 +66,49 @@ final class HostWireTests: XCTestCase {
         XCTAssertEqual(events.last?.type, "bye")
     }
 
+    func testFixtureSnapshotDecodesOfflinePolicy() throws {
+        let decoder = HostWireCoding.decoder()
+        let newPersonWire = try decoder.decode(WireSnapshot.self, from: try data("newPerson.snapshot.json"))
+        XCTAssertEqual(
+            newPersonWire.preferences.offlinePolicy,
+            WireOfflinePolicy(mode: "", space: "", limited: false, images: false, video: false, audio: false, limitMB: 0)
+        )
+        XCTAssertEqual(
+            HostSnapshotAdapter.snapshot(from: newPersonWire).preferences.offlinePolicy,
+            OfflinePolicy(mode: .default, space: .mb500, limited: false, images: true, video: true, audio: true, limitMB: 0)
+        )
+
+        let eventLines = try XCTUnwrap(String(data: try data("events.v1.ndjson"), encoding: .utf8))
+            .split(separator: "\n")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        let events = try eventLines.map { try decoder.decode(WireEvent.self, from: Data($0.utf8)) }
+        let liveSnapshot = try XCTUnwrap(events.compactMap(\.snapshot).first)
+        XCTAssertEqual(
+            liveSnapshot.preferences.offlinePolicy,
+            WireOfflinePolicy(mode: "default", space: "500mb", limited: false, images: true, video: true, audio: true, limitMB: 0)
+        )
+        XCTAssertEqual(
+            HostSnapshotAdapter.snapshot(from: liveSnapshot).preferences.offlinePolicy,
+            OfflinePolicy(mode: .default, space: .mb500, limited: false, images: true, video: true, audio: true, limitMB: 0)
+        )
+
+        var customWire = liveSnapshot
+        customWire.preferences.offlinePolicy = WireOfflinePolicy(
+            mode: "full",
+            space: "10gb",
+            limited: true,
+            images: false,
+            video: true,
+            audio: false,
+            limitMB: 5000
+        )
+        XCTAssertEqual(
+            HostSnapshotAdapter.snapshot(from: customWire).preferences.offlinePolicy,
+            OfflinePolicy(mode: .full, space: .gb10, limited: true, images: false, video: true, audio: false, limitMB: 5000)
+        )
+    }
+
     func testActionListDecodes() throws {
         let list = try HostWireCoding.decoder().decode(WireActionList.self, from: try data("actions.json"))
         XCTAssertEqual(list.v, 1)

@@ -350,17 +350,33 @@ type Preferences struct {
 	AIEditTool  string       `json:"aiEditTool"`
 	AIEditTools []AIEditTool `json:"aiEditTools"`
 	// OfflineCopies is whether HTML Clay keeps offline copies of the files documents
-	// load; OfflineSpace is the space they may take (OfflineSpace500 and the rest).
-	OfflineCopies bool   `json:"offlineCopies"`
-	OfflineSpace  string `json:"offlineSpace"`
+	// load; OfflinePolicy is what those copies keep.
+	OfflineCopies bool          `json:"offlineCopies"`
+	OfflinePolicy OfflinePolicy `json:"offlinePolicy"`
 }
 
-// Offline copies space choices, the values prefs.set takes for offlineSpace.
+// OfflinePolicy is what offline copies keep while they are on.
+type OfflinePolicy struct {
+	Mode    string `json:"mode"`    // OfflineModeDefault or OfflineModeFull
+	Space   string `json:"space"`   // Default's space: OfflineSpace500, OfflineSpace2, OfflineSpace10
+	Limited bool   `json:"limited"` // Fully offline: the switches and LimitMB apply
+	Images  bool   `json:"images"`
+	Video   bool   `json:"video"`
+	Audio   bool   `json:"audio"`
+	LimitMB int    `json:"limitMB"` // Fully offline with limits: 0 unlimited, else >= 50
+}
+
+// Offline copies modes, the values prefs.set takes for offlinePolicy's mode.
 const (
-	OfflineSpace500       = "500mb"
-	OfflineSpace2         = "2gb"
-	OfflineSpace10        = "10gb"
-	OfflineSpaceUnlimited = "unlimited"
+	OfflineModeDefault = "default"
+	OfflineModeFull    = "full"
+)
+
+// Offline copies space choices, the values prefs.set takes for offlinePolicy's space.
+const (
+	OfflineSpace500 = "500mb"
+	OfflineSpace2   = "2gb"
+	OfflineSpace10  = "10gb"
 )
 
 // OfflineState is what the offline copies take on disk now. Available is false when

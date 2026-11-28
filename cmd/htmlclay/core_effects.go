@@ -15,7 +15,6 @@ import (
 	"github.com/panphora/htmlclay/internal/browser"
 	"github.com/panphora/htmlclay/internal/builtin"
 	"github.com/panphora/htmlclay/internal/config"
-	"github.com/panphora/htmlclay/internal/mirror"
 	"github.com/panphora/htmlclay/internal/platform"
 	"github.com/panphora/htmlclay/internal/recents"
 	"github.com/panphora/htmlclay/internal/session"
@@ -967,15 +966,36 @@ func (a *app) setPreference(e appcore.Effect) *appcore.Refusal {
 			a.warmer.Reset()
 		}
 		return nil
-	case "offlineSpace":
-		var v string
-		if json.Unmarshal(e.Value, &v) != nil || !config.ValidOfflineSpace(v) {
+	case "offlinePolicy":
+		var v appcore.OfflinePolicy
+		if json.Unmarshal(e.Value, &v) != nil {
 			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
 		}
-		a.rt.cfg.SetOfflineSpace(v)
-		a.saveConfig("preference offlineSpace")
+		if v.Mode != appcore.OfflineModeDefault && v.Mode != appcore.OfflineModeFull {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+		}
+		if v.Space != appcore.OfflineSpace500 && v.Space != appcore.OfflineSpace2 && v.Space != appcore.OfflineSpace10 {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+		}
+		if v.LimitMB != 0 && (v.LimitMB < 50 || v.LimitMB > 1<<24) {
+			return &appcore.Refusal{Code: appcore.RefuseBadArguments, Field: "value"}
+		}
+		settings := config.OfflineSettings{
+			Mode:    v.Mode,
+			Space:   v.Space,
+			Limited: v.Limited,
+			Images:  v.Images,
+			Video:   v.Video,
+			Audio:   v.Audio,
+			LimitMB: v.LimitMB,
+		}
+		a.rt.cfg.SetOfflineSettings(settings)
+		a.saveConfig("preference offlinePolicy")
 		if a.rt.mirror != nil {
-			a.rt.mirror.Store.SetLimits(mirror.LimitsFor(v))
+			a.rt.mirror.Store.SetPolicy(offlinePolicy(settings))
+		}
+		if a.warmer != nil {
+			a.warmer.Reset()
 		}
 		return nil
 	case "useName", "yourName":

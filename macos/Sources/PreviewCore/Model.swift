@@ -416,11 +416,92 @@ public struct AIEditTool: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-public enum OfflineSpace: String, Codable, Equatable, Sendable, CaseIterable {
+public enum OfflineMode: String, Codable, Equatable, Hashable, Sendable, CaseIterable {
+    case `default` = "default"
+    case full = "full"
+}
+
+public enum OfflineSpace: String, Codable, Equatable, Hashable, Sendable, CaseIterable {
     case mb500 = "500mb"
     case gb2 = "2gb"
     case gb10 = "10gb"
-    case unlimited
+}
+
+public struct OfflinePolicy: Codable, Equatable, Sendable {
+    public static let minLimitMB = 50
+    public static let maxLimitMB = 1 << 24
+
+    public var mode: OfflineMode
+    public var space: OfflineSpace
+    public var limited: Bool
+    public var images: Bool
+    public var video: Bool
+    public var audio: Bool
+    public var limitMB: Int
+
+    public init(
+        mode: OfflineMode = .default,
+        space: OfflineSpace = .mb500,
+        limited: Bool = false,
+        images: Bool = true,
+        video: Bool = true,
+        audio: Bool = true,
+        limitMB: Int = 0
+    ) {
+        self.mode = mode
+        self.space = space
+        self.limited = limited
+        self.images = images
+        self.video = video
+        self.audio = audio
+        self.limitMB = limitMB
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case mode, space, limited, images, video, audio, limitMB
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let rawMode = try container.decodeIfPresent(String.self, forKey: .mode) ?? ""
+        let rawSpace = try container.decodeIfPresent(String.self, forKey: .space) ?? ""
+        let limited = try container.decodeIfPresent(Bool.self, forKey: .limited) ?? false
+        let images = try container.decodeIfPresent(Bool.self, forKey: .images) ?? true
+        let video = try container.decodeIfPresent(Bool.self, forKey: .video) ?? true
+        let audio = try container.decodeIfPresent(Bool.self, forKey: .audio) ?? true
+        let limitMB = try container.decodeIfPresent(Int.self, forKey: .limitMB) ?? 0
+        if rawMode.isEmpty && rawSpace.isEmpty && !limited && !images && !video && !audio && limitMB == 0 {
+            self.init()
+            return
+        }
+        self.init(
+            mode: OfflineMode(rawValue: rawMode) ?? .default,
+            space: OfflineSpace(rawValue: rawSpace) ?? .mb500,
+            limited: limited,
+            images: images,
+            video: video,
+            audio: audio,
+            limitMB: max(0, limitMB)
+        )
+    }
+
+    /// Parses the custom MB field: commas ignored, empty or 0 means unlimited (0),
+    /// whole numbers from 50 up to 1<<24 accepted, anything else nil.
+    public static func parseLimitMB(_ raw: String) -> Int? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return 0 }
+        let cleaned = trimmed.replacingOccurrences(of: ",", with: "")
+        guard !cleaned.isEmpty, cleaned.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let value = Int(cleaned) else { return nil }
+        if value == 0 { return 0 }
+        guard value >= minLimitMB, value <= maxLimitMB else { return nil }
+        return value
+    }
+
+    /// Formats limitMB for the custom MB text field (empty when unlimited).
+    public static func formatLimitMB(_ limitMB: Int) -> String {
+        limitMB > 0 ? String(limitMB) : ""
+    }
 }
 
 public struct OfflineState: Codable, Equatable, Sendable {
@@ -445,19 +526,19 @@ public struct PreferenceState: Codable, Equatable, Sendable {
     public var aiEditTools: [AIEditTool]
     /// Whether HTML Clay keeps offline copies of the files HTML files load.
     public var offlineCopies: Bool
-    /// The space the copies may take.
-    public var offlineSpace: OfflineSpace
-    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false, openAtLoginChosen: Bool = true, aiEditTool: String = "", aiEditTools: [AIEditTool] = [], offlineCopies: Bool = true, offlineSpace: OfflineSpace = .mb500) {
+    /// What offline copies keep while they are on.
+    public var offlinePolicy: OfflinePolicy
+    public init(openAtLogin: Bool = true, aiEditing: Bool = true, appearance: Appearance = .system, yourName: String = "", useName: Bool = false, openAtLoginChosen: Bool = true, aiEditTool: String = "", aiEditTools: [AIEditTool] = [], offlineCopies: Bool = true, offlinePolicy: OfflinePolicy = OfflinePolicy()) {
         self.useName = useName
         self.openAtLogin = openAtLogin; self.aiEditing = aiEditing; self.appearance = appearance; self.yourName = yourName
         self.openAtLoginChosen = openAtLoginChosen
         self.aiEditTool = aiEditTool; self.aiEditTools = aiEditTools
-        self.offlineCopies = offlineCopies; self.offlineSpace = offlineSpace
+        self.offlineCopies = offlineCopies; self.offlinePolicy = offlinePolicy
     }
 
     private enum CodingKeys: String, CodingKey {
         case openAtLogin, aiEditing, appearance, yourName, useName, openAtLoginChosen, aiEditTool, aiEditTools,
-             offlineCopies, offlineSpace
+             offlineCopies, offlinePolicy
     }
 
     public init(from decoder: Decoder) throws {
@@ -471,8 +552,7 @@ public struct PreferenceState: Codable, Equatable, Sendable {
         aiEditTool = try container.decode(String.self, forKey: .aiEditTool)
         aiEditTools = try container.decode([AIEditTool].self, forKey: .aiEditTools)
         offlineCopies = try container.decodeIfPresent(Bool.self, forKey: .offlineCopies) ?? true
-        let space = try container.decodeIfPresent(String.self, forKey: .offlineSpace) ?? ""
-        offlineSpace = OfflineSpace(rawValue: space) ?? .mb500
+        offlinePolicy = try container.decodeIfPresent(OfflinePolicy.self, forKey: .offlinePolicy) ?? OfflinePolicy()
     }
 }
 
@@ -596,7 +676,7 @@ public enum HostAction: Equatable, Sendable {
     case setOpenAtLogin(Bool)
     case setAIEditing(Bool)
     case setOfflineCopies(Bool)
-    case setOfflineSpace(OfflineSpace)
+    case setOfflinePolicy(OfflinePolicy)
     case clearOfflineCopies
     case setAppearance(Appearance)
     case setYourName(String)

@@ -4,6 +4,9 @@ const SHORT_WAIT_MS = 800;
 const DOWN_MS = 30000;
 const HAND_OVER_EVERY_MS = 10 * 60 * 1000;
 const MAX_BYTES = Number('{{MAX_BYTES}}');
+const KEEP_IMAGES = Number('{{IMAGES}}') === 1;
+const KEEP_VIDEO = Number('{{VIDEO}}') === 1;
+const KEEP_AUDIO = Number('{{AUDIO}}') === 1;
 const downUntil = new Map();
 const handedAt = new Map();
 
@@ -18,7 +21,9 @@ self.addEventListener('install', (event) => {
 });
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', (event) => {
-  if (mirrored(event.request)) event.respondWith(networkFirst(event, event.request));
+  const req = event.request;
+  if (media(req)) event.respondWith(mediaFirst(event, req));
+  else if (mirrored(req)) event.respondWith(networkFirst(event, req));
 });
 
 function mirrored(req) {
@@ -31,7 +36,7 @@ function mirrored(req) {
   if (req.headers.has('range') || req.headers.has('authorization')) return false;
   if (req.mode === 'cors' && req.credentials === 'include') return false;
   if ((req.headers.get('accept') || '').includes('text/event-stream')) return false;
-  return !['video', 'audio', 'track'].includes(req.destination);
+  return !['video', 'audio', 'track'].includes(req.destination) && (KEEP_IMAGES || req.destination !== 'image');
 }
 
 async function networkFirst(event, req) {
@@ -55,6 +60,57 @@ async function networkFirst(event, req) {
     return copy || live;
   }
   return copy || Response.error();
+}
+
+// A media element's request (it usually carries Range): copied whole by the host,
+// answered from the copy by byte range when the network is gone.
+function media(req) {
+  if (req.method !== 'GET') return false;
+  if (!(req.destination === 'video' ? KEEP_VIDEO : req.destination === 'audio' ? KEEP_AUDIO : false)) return false;
+  let url;
+  try { url = new URL(req.url); } catch { return false; }
+  if (url.origin === self.location.origin || url.username || url.password) return false;
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+  if (req.headers.has('authorization')) return false;
+  if (req.mode === 'cors' && req.credentials === 'include') return false;
+  return true;
+}
+
+async function mediaFirst(event, req) {
+  const host = new URL(req.url).host;
+  const wait = (downUntil.get(host) || 0) > Date.now() ? SHORT_WAIT_MS : FIRST_WAIT_MS;
+  const live = fetch(req);
+  const first = await Promise.race([
+    live.then((res) => ({ res }), (error) => ({ error })),
+    new Promise((resolve) => setTimeout(() => resolve({ slow: true }), wait)),
+  ]);
+  if (first.res) {
+    downUntil.delete(host);
+    if (due(req.url, 'media')) {
+      event.waitUntil(fetch('/_/offline/nominate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([{ url: req.url, kind: req.destination }]),
+      }).catch(() => {}));
+    }
+    return first.res;
+  }
+  downUntil.set(host, Date.now() + DOWN_MS);
+  const copy = await fromCopyRange(req.url, req.headers.get('range'));
+  if (copy) return copy;
+  return first.slow ? live : Response.error();
+}
+
+async function fromCopyRange(url, range) {
+  const hit = await fetch('/_/offline/copy?url=' + encodeURIComponent(url), {
+    cache: 'no-store', headers: range ? { Range: range } : {},
+  }).catch(() => null);
+  if (!hit || (hit.status !== 200 && hit.status !== 206)) return null;
+  const headers = { 'Content-Type': hit.headers.get('Content-Type') || 'application/octet-stream', 'Accept-Ranges': 'bytes' };
+  for (const name of ['Content-Length', 'Content-Range']) {
+    const v = hit.headers.get(name);
+    if (v) headers[name] = v;
+  }
+  return new Response(hit.body, { status: hit.status, headers });
 }
 
 async function fromCopy(url) {

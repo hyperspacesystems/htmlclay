@@ -95,11 +95,15 @@ func TestWorkerIsServedForScopeRootAndUnregistersWhenOff(t *testing.T) {
 	if !strings.Contains(body, "networkFirst") {
 		t.Fatal("the worker does not carry networkFirst")
 	}
-	if strings.Contains(body, "{{VERSION}}") || strings.Contains(body, "{{MAX_BYTES}}") {
+	if strings.Contains(body, "{{VERSION}}") || strings.Contains(body, "{{MAX_BYTES}}") ||
+		strings.Contains(body, "{{IMAGES}}") || strings.Contains(body, "{{VIDEO}}") || strings.Contains(body, "{{AUDIO}}") {
 		t.Fatal("the worker was served with a placeholder left in it")
 	}
 	if !strings.Contains(body, "const MAX_BYTES = Number('26214400');") {
 		t.Fatal("the worker was served without the default per-file limit")
+	}
+	if !strings.Contains(body, "KEEP_IMAGES = Number('1')") || !strings.Contains(body, "KEEP_VIDEO = Number('0')") || !strings.Contains(body, "KEEP_AUDIO = Number('0')") {
+		t.Fatal("the worker was served the default policy's kinds wrong")
 	}
 
 	off := mirror.Handler{Store: openStore(t, mirror.DefaultLimits), Off: func() bool { return true }}
@@ -114,6 +118,15 @@ func TestWorkerIsServedForScopeRootAndUnregistersWhenOff(t *testing.T) {
 	unlimited := mirror.Handler{Store: openStore(t, mirror.Limits{})}
 	if body := serveWorker(&unlimited).Body.String(); !strings.Contains(body, "const MAX_BYTES = Number('Infinity');") {
 		t.Fatal("a store with no per-file limit was served a finite MAX_BYTES")
+	}
+
+	full := openStore(t, mirror.Limits{})
+	full.SetPolicy(mirror.PolicyFor("full", "", false, true, true, true, 0))
+	body = serveWorker(&mirror.Handler{Store: full}).Body.String()
+	for _, want := range []string{"KEEP_IMAGES = Number('1')", "KEEP_VIDEO = Number('1')", "KEEP_AUDIO = Number('1')"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("the worker served under the fully offline policy lacks %q", want)
+		}
 	}
 }
 
@@ -191,5 +204,56 @@ func TestCopiesAreOnlyReadByTheWorkersFetch(t *testing.T) {
 	rec := serveRoute(h, "GET", target, "", map[string]string{"Sec-Fetch-Site": "same-origin", "Sec-Fetch-Dest": "empty"})
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Header().Get("Content-Security-Policy"), "sandbox") {
 		t.Fatalf("the worker's read = %d with CSP %q, want 200 with a sandbox policy", rec.Code, rec.Header().Get("Content-Security-Policy"))
+	}
+}
+
+// A media element asks with a Range header: the copy must answer that range, or a video
+// played offline starts over at byte zero.
+func TestACopyAnswersARangeRequest(t *testing.T) {
+	store, err := mirror.Open(t.TempDir(), mirror.DefaultLimits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.SetPolicy(mirror.DefaultPolicy)
+	const u = "https://cdn.example/a.js"
+	if err := store.Put("a.localhost", u, "text/javascript", []byte("01234567890123456789"), "page"); err != nil {
+		t.Fatal(err)
+	}
+	h := &mirror.Handler{Store: store}
+	rec := serveRoute(h, http.MethodGet, "/_/offline/copy?url="+url.QueryEscape(u), "", map[string]string{
+		"Sec-Fetch-Site": "same-origin", "Sec-Fetch-Dest": "empty", "Range": "bytes=0-9",
+	})
+	if rec.Code != http.StatusPartialContent {
+		t.Fatalf("a range read = %d, want 206", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Range"); got != "bytes 0-9/20" {
+		t.Fatalf("Content-Range = %q, want bytes 0-9/20", got)
+	}
+	if got := rec.Body.String(); got != "0123456789" {
+		t.Fatalf("the range read = %q, want 0123456789", got)
+	}
+}
+
+// The default policy never keeps video: the worker may still hand one over, and the store
+// route must drop it without a copy.
+func TestTheStoreRouteKeepsNothingThePolicyLeavesOut(t *testing.T) {
+	cases := []struct{ name, dest, contentType string }{
+		{"a video hand-over", "video", "video/mp4"},
+		{"a video request whose type the server left opaque", "video", "application/octet-stream"},
+		{"video bytes on a request with no destination", "", "video/mp4"},
+	}
+	for _, c := range cases {
+		store := openStore(t, mirror.DefaultLimits)
+		store.SetPolicy(mirror.DefaultPolicy)
+		h := &mirror.Handler{Store: store}
+		const u = "https://cdn.example/v.mp4"
+		rec := serveRoute(h, http.MethodPost, "/_/offline/store?url="+url.QueryEscape(u)+"&dest="+c.dest, "mp4",
+			map[string]string{"Sec-Fetch-Site": "same-origin", "Clay-Content-Type": c.contentType})
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("%s = %d, want 204", c.name, rec.Code)
+		}
+		if n := store.Held("a.localhost", []string{u}); n != 0 {
+			t.Fatalf("the store holds %d copy after %s, want 0", n, c.name)
+		}
 	}
 }
